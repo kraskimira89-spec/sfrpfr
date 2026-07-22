@@ -42,6 +42,14 @@ sudo REPO_URL=git@github.com:kraskimira89-spec/sfrpfr.git \
 
 ## 2. Секреты GitHub Actions
 
+Пошагово: [vps-secrets-checklist.md](vps-secrets-checklist.md)
+
+Быстрый скрипт с ПК:
+
+```powershell
+.\scripts\setup_github_vps_secrets.ps1 -VpsHost YOUR_IP -VpsUser root
+```
+
 В репозитории → Settings → Secrets and variables → Actions:
 
 | Secret | Значение |
