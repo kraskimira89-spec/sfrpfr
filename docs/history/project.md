@@ -7,6 +7,13 @@
 - Apache vhosts + Let's Encrypt: https://taxi-doroga-dobra.ru , https://api.taxi-doroga-dobra.ru → `8011`.
 - Дальше шаг 3: WordPress в эту папку.
 
+## 2026-07-22 (шаг 4: env API + Zakra + MAX stub)
+
+- `/opt/sfrfr/.env`: `PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru`, `APP_ENV=production`.
+- `MAX_BOT_TOKEN` пуст → `max-subscribe` пропущен; max health: `bot_configured=no`, webhook URL корректный.
+- WP: тема Zakra, главная page_id=7 — SFRFR + CTA «Написать в MAX (скоро)» (`#`).
+- Сид: `scripts/wp_seed_landing.sh`; аватар в медиатеке; `MAX_PUBLIC_BOT_URL` в `.env.example`.
+
 ## 2026-07-22 (шаг 3: WordPress)
 
 - WP ru_RU в `/var/www/taxi-doroga-dobra`, сайт «SFRFR».

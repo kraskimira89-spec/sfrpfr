@@ -160,8 +160,10 @@ npx supabase db push
 
 ## 7. Связка с WordPress
 
-- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU).
+- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Zakra**).
 - Админ: https://taxi-doroga-dobra.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
-- Кнопка «Написать в MAX» на лендинге.
+- Сид лендинга: `scripts/wp_seed_landing.sh` (на VPS: `SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_landing.sh`).
+- Кнопка «Написать в MAX (скоро)» сейчас `href="#"` — когда появится deeplink, подставить URL в редакторе страницы «Главная» (или задать `MAX_PUBLIC_BOT_URL` в `.env` как справочное значение и вручную обновить кнопку).
+- Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
 - ПДн-сканы не через WP-формы; загрузка — MAX / кабинет API.
 - `service_role` только на сервере API, не в JS.
