@@ -46,6 +46,23 @@ tests/         тесты
 scripts/       утилиты
 ```
 
+## B2C (частные клиенты)
+
+ТЗ и модель монетизации:
+
+- `docs/b2c-monetization-tz.md`
+- `docs/b2c-monetization-model.md`
+- `docs/b2c-customer-journey.md`
+- `docs/b2c-architecture.md`
+- `docs/contracts/` — черновики оферты и индивидуального заказа
+
+## Автокоммит / автодеплой
+
+- Локально: `.\scripts\auto_commit_push.ps1`
+- Cursor stop-hook: `.cursor/hooks.json`
+- VPS каталог: `/opt/sfrfr` — `scripts/vps_bootstrap.sh` (один раз), затем GitHub Actions `deploy-vps.yml`
+- Инструкция: `docs/deploy-vps.md`
+
 ## Важно про ПДн
 
 В git не попадают `.env`, сканы и загруженные документы. В логах используйте маскирование СНИЛС/ФИО (`sfrfr.utils.redact_pii`).

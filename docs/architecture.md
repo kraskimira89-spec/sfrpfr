@@ -32,6 +32,21 @@ API:
 
 CLI: `sfrfr case-*`, `sfrfr max-subscribe`
 
+## B2C-монетизация (частные клиенты)
+
+Документы:
+
+- [b2c-monetization-tz.md](b2c-monetization-tz.md)
+- [b2c-monetization-model.md](b2c-monetization-model.md)
+- [b2c-customer-journey.md](b2c-customer-journey.md)
+- [b2c-architecture.md](b2c-architecture.md)
+- [contracts/offer-draft.md](contracts/offer-draft.md)
+- [contracts/individual-order-template.md](contracts/individual-order-template.md)
+
+CRM: [Taganay «Клиентская база»](https://taganay.clientbase.ru/login.php).  
+Google Sheets — только обезличенные метрики.  
+Подача в СФР — клиентом самостоятельно. Success fee: 10% ЕДВ + 50% × 3 мес. прибавки, оплата через 2–3 мес. после результата.
+
 Компоненты:
 
 1. API (`sfrfr.api`) — кейсы, файлы, webhook MAX

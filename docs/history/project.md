@@ -1,12 +1,17 @@
 # История проекта SFRFR
 
-## 2026-07-22
+## 2026-07-22 (дополнение)
 
-- Создан каркас src-layout: FastAPI + Supabase/PostgreSQL + OCR + AI.
+- Автокоммит/пуш: `scripts/auto_commit_push.ps1` + Cursor hook `.cursor/hooks.json`.
+- Автодеплой на VPS `/opt/sfrfr`: `scripts/vps_bootstrap.sh`, `scripts/vps_deploy.sh`, `.github/workflows/deploy-vps.yml`.
+- Миграция Supabase B2C + RLS: `supabase/migrations/20260722122128_b2c_schema_rls.sql`.
+
 - Добавлены зависимости, `.env.example`, `.gitignore`, `docker-compose.yml`.
 - Установлены agent skills: `supabase`, `supabase-postgres-best-practices`.
 - Выполнен `supabase init` — появилась папка `supabase/` с `config.toml`.
 - Репозиторий подключён к GitHub: https://github.com/kraskimira89-spec/sfrpfr (ветка `main`, initial commit).
+- Подготовлен комплект B2C-ТЗ: монетизация, journey, архитектура данных/RLS, черновики оферты и индивидуального заказа; CRM Taganay; success fee 10% ЕДВ + 50%×3 мес.; постоплата через 2–3 мес.; эскалация при молчании 6 мес.
+- Автокоммит/пуш (`scripts/auto_commit_push.ps1` + Cursor hook), автодеплой на VPS `/opt/sfrfr`, миграция Supabase B2C+RLS.
 - Цель MVP: карточка дела → загрузка документов → OCR → сверка ИЛС/трудовой → черновик заявления.
 - Каркас AI: `CaseStatus`, `CaseOrchestrator`, агенты classifier/extractor/drafter, RAG stub, `knowledge/`.
 - Связка API/CLI: upload → local storage → OCR в `advance`/`run`, in-memory `CaseStore`.

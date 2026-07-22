@@ -10,6 +10,8 @@
 
 - Стек MVP: FastAPI + Supabase/Postgres + Tesseract OCR + LLM/RAG.
 - Модель продукта: диагностика + сопровождение + success fee.
+- B2C only: оферта + индивидуальный заказ; CRM Taganay; чек-листы индивидуально; Sheets без ПДн.
+- Success fee: 10% ЕДВ + 50% от суммы прибавок за 3 месяца; постоплата через 2–3 месяца после повышения; 6 месяцев молчания → эскалация/суд (после юриста).
 - AI: pipeline-оркестратор + узкие агенты (не swarm); сверка — детерминированный код.
 - API/CLI завязаны на `CaseStore` + local upload + OCR при `advance`/`run`.
 - Клиентский канал: MAX Bot API; LLM-провайдер: Yandex AI Studio.
