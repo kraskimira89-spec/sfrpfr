@@ -85,11 +85,13 @@ Cursor hook: после `stop` агента вызывается `.cursor/hooks/
 
 ## 4. DNS (reg.ru)
 
+Домен: `taxi-doroga-dobra.ru`. IP VPS: **`91.229.11.147`**.
+
 | Тип | Имя | Значение |
 |-----|-----|----------|
-| A | `@` | IP VPS |
-| A | `api` | IP VPS |
-| A | `www` | IP VPS (опционально) |
+| A | `@` | `91.229.11.147` |
+| A | `api` | `91.229.11.147` |
+| A | `www` | `91.229.11.147` |
 
 SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный HTTPS**.
 

@@ -4,6 +4,7 @@
 
 - Домен витрины SFRFR: **https://taxi-doroga-dobra.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
 - Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.
+- VPS IP: **91.229.11.147**; DNS A: `@`, `www`, `api` → этот IP.
 - План по очереди: 1) DNS → 2) nginx+SSL+папка → 3) WordPress → 4) связка с API.
 
 ## 2026-07-22 (дополнение)
