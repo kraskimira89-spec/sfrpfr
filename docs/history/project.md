@@ -1,6 +1,11 @@
 # История проекта SFRFR
 
-## 2026-07-22 (домен витрины)
+## 2026-07-22 (шаг 2: Apache + SSL)
+
+- DNS OK: `@` / `www` / `api` → `91.229.11.147`.
+- Папка витрины: `/var/www/taxi-doroga-dobra` (заглушка index.html).
+- Apache vhosts + Let's Encrypt: https://taxi-doroga-dobra.ru , https://api.taxi-doroga-dobra.ru → `8011`.
+- Дальше шаг 3: WordPress в эту папку.
 
 - Домен витрины SFRFR: **https://taxi-doroga-dobra.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
 - Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.

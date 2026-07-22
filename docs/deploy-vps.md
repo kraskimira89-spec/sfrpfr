@@ -6,12 +6,14 @@
 домен taxi-doroga-dobra.ru (reg.ru DNS)
 ├── taxi-doroga-dobra.ru      → WordPress (витрина / посадочная SFRFR)
 │                                 папка отдельно от API, напр. /var/www/taxi-doroga-dobra
-└── api.taxi-doroga-dobra.ru  → FastAPI SFRFR (uvicorn + nginx)
+└── api.taxi-doroga-dobra.ru  → FastAPI SFRFR (uvicorn + Apache proxy)
                               │
                               ├─ код: /opt/sfrfr
                               ├─ HTTPS webhook MAX
                               └─ LLM → Yandex AI Studio
 ```
+
+Витрина: `/var/www/taxi-doroga-dobra` (Apache). На VPS уже Apache/PHP/MySQL — nginx не используем.
 
 Автодеплой: `push` в `main` → GitHub Actions (`deploy-vps.yml`) → SSH → `scripts/vps_deploy.sh` в `/opt/sfrfr`.
 
@@ -95,40 +97,36 @@ Cursor hook: после `stop` агента вызывается `.cursor/hooks/
 
 SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный HTTPS**.
 
-## 5. Nginx (эскиз)
+## 5. Apache (на нашем VPS — не nginx)
 
-```nginx
-# api.taxi-doroga-dobra.ru
-server {
-    listen 443 ssl http2;
-    server_name api.taxi-doroga-dobra.ru;
+Порты 80/443 заняты Apache. Конфиги в репозитории:
 
-    location / {
-        proxy_pass http://127.0.0.1:8011;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+- `docs/apache-vhost-taxi-doroga-dobra.ru.conf` → `/var/www/taxi-doroga-dobra`
+- `docs/apache-vhost-api.taxi-doroga-dobra.ru.conf` → proxy на `127.0.0.1:8011`
 
-# taxi-doroga-dobra.ru — витрина WordPress (отдельная папка)
-server {
-    listen 443 ssl http2;
-    server_name taxi-doroga-dobra.ru www.taxi-doroga-dobra.ru;
+После `a2ensite` + `certbot --apache` появляются `*-le-ssl.conf` (HTTPS + redirect).
 
-    root /var/www/taxi-doroga-dobra;
-    index index.php index.html;
+```apache
+# api.taxi-doroga-dobra.ru (эскиз HTTP; SSL добавляет certbot)
+<VirtualHost *:80>
+    ServerName api.taxi-doroga-dobra.ru
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:8011/
+    ProxyPassReverse / http://127.0.0.1:8011/
+</VirtualHost>
+```
 
-    location / {
-        try_files $uri $uri/ /index.php?$args;
-    }
-
-    location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php-fpm.sock;
-    }
-}
+```apache
+# taxi-doroga-dobra.ru — витрина (DocumentRoot)
+<VirtualHost *:80>
+    ServerName taxi-doroga-dobra.ru
+    ServerAlias www.taxi-doroga-dobra.ru
+    DocumentRoot /var/www/taxi-doroga-dobra
+    <Directory /var/www/taxi-doroga-dobra>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
 ```
 
 ## Env на VPS
