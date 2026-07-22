@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from sfrfr.core.config import get_settings
+from sfrfr.integrations.max.ssl_context import max_ssl_verify
 
 
 class MaxBotClient:
@@ -32,13 +33,16 @@ class MaxBotClient:
             "Content-Type": "application/json",
         }
 
+    def _client(self) -> httpx.Client:
+        return httpx.Client(timeout=30.0, verify=max_ssl_verify())
+
     def send_message(self, *, chat_id: int | str, text: str) -> dict[str, Any]:
         """Отправить текст в чат. Без токена — no-op с пометкой."""
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
         url = f"{self.api_base}/messages"
         payload = {"chat_id": chat_id, "text": text}
-        with httpx.Client(timeout=30.0) as client:
+        with self._client() as client:
             resp = client.post(url, headers=self._headers(), json=payload)
             resp.raise_for_status()
             data = resp.json() if resp.content else {}
@@ -49,12 +53,15 @@ class MaxBotClient:
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
         settings = get_settings()
-        body: dict[str, Any] = {"url": url}
+        body: dict[str, Any] = {
+            "url": url,
+            "update_types": ["message_created", "bot_started"],
+        }
         secret_value = secret if secret is not None else settings.max_webhook_secret
         if secret_value:
             body["secret"] = secret_value
         endpoint = f"{self.api_base}/subscriptions"
-        with httpx.Client(timeout=30.0) as client:
+        with self._client() as client:
             resp = client.post(endpoint, headers=self._headers(), json=body)
             resp.raise_for_status()
             data = resp.json() if resp.content else {}

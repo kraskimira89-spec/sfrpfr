@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-22 (MAX webhook подключён)
+
+- `MAX_BOT_TOKEN` синхронизирован на VPS; `bot_configured=yes`.
+- TLS к `platform-api2.max.ru`: добавлены CA Минцифры в `certs/` + `ssl_context.py`.
+- `sfrfr max-subscribe` → success на `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook`.
+- `MAX_PUBLIC_BOT_URL` ещё пуст — кнопка на лендинге остаётся «скоро».
+
 ## 2026-07-22 (MAX бот прошёл модерацию)
 
 - Чат-бот «Стаж и пенсия» прошёл модерацию MAX — готов к разработке.
