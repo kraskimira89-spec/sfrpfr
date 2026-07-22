@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env/
+*.egg
+
+# Tests / linters
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ПДн и рабочие файлы клиентов — никогда в git
+storage/uploads/*
+storage/processed/*
+storage/cases.json
+storage/cases.tmp
+!storage/uploads/.gitkeep
+!storage/processed/.gitkeep
+*.pdf
+*.jpg
+*.jpeg
+*.png
+!tests/fixtures/sample_docs/.gitkeep
+!docs/**
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker / local DB
+pgdata/
+supabase/.branches/
+supabase/.temp/
+
+# Local CLI logs
+supabase-start.log
+*.log

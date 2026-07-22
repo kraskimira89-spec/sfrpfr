@@ -1,0 +1,1 @@
+"""Слой БД: Supabase / PostgreSQL."""
