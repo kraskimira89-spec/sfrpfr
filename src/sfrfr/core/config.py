@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
     app_secret_key: str = "change-me"
     app_name: str = "SFRFR"
-    public_base_url: str = "https://api.example.ru"
+    public_base_url: str = "https://api.taxi-doroga-dobra.ru"
 
     supabase_url: str = ""
     supabase_anon_key: str = ""

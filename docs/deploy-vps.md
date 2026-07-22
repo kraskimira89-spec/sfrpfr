@@ -3,9 +3,10 @@
 ## Топология
 
 ```text
-домен (reg.ru DNS)
-├── example.ru          → WordPress (лендинг, блог, формы)
-└── api.example.ru      → FastAPI SFRFR (uvicorn + nginx)
+домен taxi-doroga-dobra.ru (reg.ru DNS)
+├── taxi-doroga-dobra.ru      → WordPress (витрина / посадочная SFRFR)
+│                                 папка отдельно от API, напр. /var/www/taxi-doroga-dobra
+└── api.taxi-doroga-dobra.ru  → FastAPI SFRFR (uvicorn + nginx)
                               │
                               ├─ код: /opt/sfrfr
                               ├─ HTTPS webhook MAX
@@ -95,10 +96,10 @@ SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный H
 ## 5. Nginx (эскиз)
 
 ```nginx
-# api.example.ru
+# api.taxi-doroga-dobra.ru
 server {
     listen 443 ssl http2;
-    server_name api.example.ru;
+    server_name api.taxi-doroga-dobra.ru;
 
     location / {
         proxy_pass http://127.0.0.1:8011;
@@ -108,6 +109,24 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
+# taxi-doroga-dobra.ru — витрина WordPress (отдельная папка)
+server {
+    listen 443 ssl http2;
+    server_name taxi-doroga-dobra.ru www.taxi-doroga-dobra.ru;
+
+    root /var/www/taxi-doroga-dobra;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+    }
+}
 ```
 
 ## Env на VPS
@@ -115,7 +134,7 @@ server {
 Файл `/opt/sfrfr/.env` (заполнить ключи; сервис уже слушает `127.0.0.1:8011`):
 
 ```env
-PUBLIC_BASE_URL=https://api.example.ru
+PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru
 AI_PROVIDER=yandex
 YANDEX_API_KEY=...
 YANDEX_FOLDER_ID=...

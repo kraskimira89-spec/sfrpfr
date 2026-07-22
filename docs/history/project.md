@@ -2,9 +2,9 @@
 
 ## 2026-07-22 (домен витрины)
 
-- Зафиксирован домен сайта: **https://taxi-doroga-dobra.ru/** (куплен в reg.ru).
-- Размещение: VPS, **отдельная папка** от API `/opt/sfrfr`.
-- Дальше: DNS A-записи, nginx, SSL, контент/WordPress в этой папке.
+- Домен витрины SFRFR: **https://taxi-doroga-dobra.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
+- Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.
+- План по очереди: 1) DNS → 2) nginx+SSL+папка → 3) WordPress → 4) связка с API.
 
 ## 2026-07-22 (дополнение)
 
