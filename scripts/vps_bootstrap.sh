@@ -53,7 +53,7 @@ Type=simple
 User=$APP_USER
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$APP_DIR/.env
-ExecStart=$APP_DIR/.venv/bin/uvicorn sfrfr.api:app --host 127.0.0.1 --port 8000
+ExecStart=$APP_DIR/.venv/bin/uvicorn sfrfr.api:app --host 127.0.0.1 --port 8011
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/sfrfr/api.log
@@ -69,3 +69,4 @@ systemctl restart sfrfr-api || true
 
 echo "==> Готово. Проверьте: systemctl status sfrfr-api"
 echo "    Каталог проекта: $APP_DIR"
+echo "    API слушает 127.0.0.1:8011 (8000 часто занят другими сервисами)"

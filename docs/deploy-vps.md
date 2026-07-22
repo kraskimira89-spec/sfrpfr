@@ -36,7 +36,7 @@ sudo REPO_URL=git@github.com:kraskimira89-spec/sfrpfr.git \
 - пользователь `sfrfr`
 - venv + зависимости
 - `.env` из `.env.example` (заполните секреты)
-- systemd `sfrfr-api.service` на `127.0.0.1:8000`
+- systemd `sfrfr-api.service` на `127.0.0.1:8011` (порт 8000 на VPS часто занят Docker/другими API)
 
 На VPS должен быть deploy-ключ GitHub (read) у пользователя `sfrfr`, либо HTTPS с токеном.
 
@@ -101,7 +101,7 @@ server {
     server_name api.example.ru;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8011;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -110,9 +110,9 @@ server {
 }
 ```
 
-## 6. Env на VPS
+## Env на VPS
 
-Файл `/opt/sfrfr/.env`:
+Файл `/opt/sfrfr/.env` (заполнить ключи; сервис уже слушает `127.0.0.1:8011`):
 
 ```env
 PUBLIC_BASE_URL=https://api.example.ru
@@ -124,6 +124,13 @@ MAX_WEBHOOK_SECRET=...
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 DATABASE_URL=...
+```
+
+Проверка на сервере:
+
+```bash
+curl -s http://127.0.0.1:8011/health
+systemctl status sfrfr-api
 ```
 
 Миграции Supabase (облако после `supabase link`):
