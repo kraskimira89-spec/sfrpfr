@@ -5,7 +5,8 @@
 ```text
 домен taxi-doroga-dobra.ru (reg.ru DNS)
 ├── taxi-doroga-dobra.ru      → WordPress (витрина / посадочная SFRFR)
-│                                 папка отдельно от API, напр. /var/www/taxi-doroga-dobra
+│                                 папка: /var/www/taxi-doroga-dobra
+│   └── /app/                → мини-приложение MAX (статика web/max-miniapp)
 └── api.taxi-doroga-dobra.ru  → FastAPI SFRFR (uvicorn + Apache proxy)
                               │
                               ├─ код: /opt/sfrfr
@@ -160,11 +161,19 @@ npx supabase db push
 
 ## 7. Связка с WordPress
 
-- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Zakra**).
+- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Astra** + **Spectra**).
 - Админ: https://taxi-doroga-dobra.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
-- Сид лендинга: `scripts/wp_seed_landing.sh` (на VPS: `SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_landing.sh`).
-- Кнопка «Написать в MAX (скоро)» сейчас `href="#"` — когда появится deeplink, подставить URL в редакторе страницы «Главная» (или задать `MAX_PUBLIC_BOT_URL` в `.env` как справочное значение и вручную обновить кнопку).
+- Стек (в репо GitHub): `scripts/wp_install_stack.sh`
+  - Astra + Spectra (без Elementor);
+  - WPForms Lite (заявки; **не** сканы ПДн);
+  - Rank Math SEO, UpdraftPlus, Wordfence, **WP Super Cache** (Apache);
+  - не ставим: LiteSpeed Cache, Really Simple SSL (SSL уже certbot).
+- Сид лендинга: `scripts/wp_seed_landing.sh`.
+- Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
+- В кабинете MAX: **Чат-боты → StazhIPensiyaBot → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
+- Диплинк: `https://max.ru/StazhIPensiyaBot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP.
+- API для кабинета: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run` (+ CORS с витрины).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
-- ПДн-сканы не через WP-формы; загрузка — MAX / кабинет API.
+- ПДн-сканы не через WP-формы; загрузка — MAX / кабинет `/app/`.
 - `service_role` только на сервере API, не в JS.

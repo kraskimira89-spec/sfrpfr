@@ -10,6 +10,15 @@ class CaseCreate(BaseModel):
     consent_given: bool = True
 
 
+class CaseOpen(BaseModel):
+    """Открыть существующее дело по MAX user или создать новое."""
+
+    max_user_id: str = Field(min_length=1, max_length=64)
+    client_name: str | None = Field(default=None, max_length=200)
+    snils_masked: str = Field(default="***-***-*** **", max_length=32)
+    consent_given: bool = True
+
+
 class CaseRead(BaseModel):
     id: str
     client_name: str
@@ -20,6 +29,7 @@ class CaseRead(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     draft: DraftResult | None = None
     error: str | None = None
+    max_user_id: str | None = None
 
 
 class AdvanceResponse(BaseModel):

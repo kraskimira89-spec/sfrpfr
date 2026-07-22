@@ -1,5 +1,18 @@
 # История проекта SFRFR
 
+## 2026-07-22 (MAX mini-app кабинет v1)
+
+- Статика: `web/max-miniapp/` → `https://taxi-doroga-dobra.ru/app/`.
+- API: `POST /api/cases/open` + CORS с витрины; upload/status/run из кабинета.
+- Бот: `StazhIPensiyaBot`; диплинк `https://max.ru/StazhIPensiyaBot?startapp`.
+- В кабинете партнёра MAX нужно вручную вставить URL мини-приложения.
+
+## 2026-07-22 (WP стек витрины)
+
+- Установлено: Astra + Spectra, WPForms Lite, Rank Math, UpdraftPlus, Wordfence, WP Super Cache.
+- Скрипт: `scripts/wp_install_stack.sh` (в GitHub-репо); на VPS в `/opt/sfrfr/scripts/`.
+- Не ставили: Elementor, GeneratePress, LiteSpeed Cache, Really Simple SSL (SSL уже есть).
+
 ## 2026-07-22 (MAX webhook подключён)
 
 - `MAX_BOT_TOKEN` синхронизирован на VPS; `bot_configured=yes`.

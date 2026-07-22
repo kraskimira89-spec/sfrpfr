@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from sfrfr.api.schemas.case import AdvanceResponse, CaseCreate, CaseRead
+from sfrfr.api.schemas.case import AdvanceResponse, CaseCreate, CaseOpen, CaseRead
 from sfrfr.api.serializers import case_to_read
 from sfrfr.core.case_store import get_case_store
 from sfrfr.models.case_status import CaseStatus
@@ -18,6 +18,24 @@ def create_case(payload: CaseCreate) -> CaseRead:
         consent_given=payload.consent_given,
     )
     return case_to_read(record)
+
+
+@router.post("/open", response_model=CaseRead)
+def open_case(payload: CaseOpen) -> CaseRead:
+    """Мини-приложение: вернуть дело по MAX user_id или создать новое."""
+    store = get_case_store()
+    existing = store.find_by_max_user(payload.max_user_id)
+    if existing:
+        return case_to_read(existing)
+
+    name = (payload.client_name or "").strip() or f"MAX user {payload.max_user_id}"
+    record = store.create(
+        client_name=name,
+        snils_masked=payload.snils_masked,
+        consent_given=payload.consent_given,
+    )
+    store.bind_max(record.case_id, max_user_id=payload.max_user_id)
+    return case_to_read(store.require(record.case_id))
 
 
 @router.get("/{case_id}", response_model=CaseRead)

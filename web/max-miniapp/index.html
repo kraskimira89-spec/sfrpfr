@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SFRFR — кабинет</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./app.css" />
+  <script src="https://st.max.ru/js/max-web-app.js"></script>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <main class="shell">
+    <header class="top">
+      <p class="brand">SFRFR</p>
+      <p class="tag">Кабинет пенсионного дела</p>
+    </header>
+
+    <section id="panel-boot" class="panel">
+      <p class="muted">Открываем кабинет…</p>
+    </section>
+
+    <section id="panel-form" class="panel hidden">
+      <h1>Первый вход</h1>
+      <p class="lede">Укажите имя для карточки дела. СНИЛС — только маска, без полного номера.</p>
+      <label class="field">
+        <span>Имя</span>
+        <input id="client-name" type="text" maxlength="200" autocomplete="name" placeholder="Как к вам обращаться" />
+      </label>
+      <label class="field">
+        <span>СНИЛС (маска)</span>
+        <input id="snils-masked" type="text" maxlength="32" placeholder="***-***-*** **" value="***-***-*** **" />
+      </label>
+      <label class="check">
+        <input id="consent" type="checkbox" checked />
+        <span>Согласие на обработку ПДн для аудита документов</span>
+      </label>
+      <button type="button" id="btn-open" class="btn primary">Открыть кабинет</button>
+    </section>
+
+    <section id="panel-case" class="panel hidden">
+      <div class="status-card">
+        <p class="label">Статус</p>
+        <p id="case-status" class="status">—</p>
+        <p id="case-status-hint" class="hint"></p>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Дело</dt><dd id="case-id">—</dd></div>
+        <div><dt>Клиент</dt><dd id="case-name">—</dd></div>
+        <div><dt>Документы</dt><dd id="case-docs">0</dd></div>
+        <div><dt>OCR</dt><dd id="case-ocr">0</dd></div>
+      </dl>
+
+      <p id="case-error" class="error hidden"></p>
+      <p id="case-findings" class="findings hidden"></p>
+
+      <div class="actions">
+        <label class="btn secondary file-btn">
+          Загрузить документ
+          <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.txt" hidden />
+        </label>
+        <button type="button" id="btn-refresh" class="btn ghost">Обновить</button>
+        <button type="button" id="btn-run" class="btn primary">Запустить проверку</button>
+      </div>
+
+      <p id="toast" class="toast hidden" role="status"></p>
+    </section>
+  </main>
+
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

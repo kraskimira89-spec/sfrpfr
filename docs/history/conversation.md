@@ -20,3 +20,5 @@
 - Витрина: тема Zakra + блоки; CTA MAX — заглушка `#` / «скоро» до появления deeplink.
 - `PUBLIC_BASE_URL` на VPS: `https://api.taxi-doroga-dobra.ru`; `MAX_BOT_TOKEN` пока пуст → webhook не подписан.
 - MAX-бот «Стаж и пенсия»: токен на VPS, webhook подписан (`success: true`). Кнопка на сайте ждёт `MAX_PUBLIC_BOT_URL`.
+- Кабинет v1 мини-приложения: статус дела + загрузка документов; URL `https://taxi-doroga-dobra.ru/app/`; username бота `StazhIPensiyaBot`.
+- Кнопка на лендинге: «Открыть в MAX» → `https://max.ru/StazhIPensiyaBot?startapp`.

@@ -18,4 +18,5 @@ def case_to_read(record: CaseRecord) -> CaseRead:
         findings=list(ctx.findings),
         draft=ctx.draft,
         error=ctx.error,
+        max_user_id=ctx.max_user_id,
     )
