@@ -7,6 +7,12 @@
 - Apache vhosts + Let's Encrypt: https://taxi-doroga-dobra.ru , https://api.taxi-doroga-dobra.ru → `8011`.
 - Дальше шаг 3: WordPress в эту папку.
 
+## 2026-07-22 (шаг 3: WordPress)
+
+- WP ru_RU в `/var/www/taxi-doroga-dobra`, сайт «SFRFR».
+- Учётки/БД: `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` (только root).
+- Админка: https://taxi-doroga-dobra.ru/wp-admin/ (user `sfrfr_admin`).
+
 - Домен витрины SFRFR: **https://taxi-doroga-dobra.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
 - Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.
 - VPS IP: **91.229.11.147**; DNS A: `@`, `www`, `api` → этот IP.

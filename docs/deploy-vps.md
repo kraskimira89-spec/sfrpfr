@@ -160,6 +160,8 @@ npx supabase db push
 
 ## 7. Связка с WordPress
 
+- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU).
+- Админ: https://taxi-doroga-dobra.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
 - Кнопка «Написать в MAX» на лендинге.
 - ПДн-сканы не через WP-формы; загрузка — MAX / кабинет API.
 - `service_role` только на сервере API, не в JS.
