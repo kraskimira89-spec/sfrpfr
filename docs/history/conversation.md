@@ -16,3 +16,4 @@
 - API/CLI завязаны на `CaseStore` + local upload + OCR при `advance`/`run`.
 - Клиентский канал: MAX Bot API; LLM-провайдер: Yandex AI Studio.
 - Витрина: WordPress на VPS; API на поддомене; DNS reg.ru.
+- Сайт витрины: домен `https://taxi-doroga-dobra.ru/` (reg.ru), на VPS в **отдельной папке** (не в `/opt/sfrfr`).

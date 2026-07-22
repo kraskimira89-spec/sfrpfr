@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-22 (домен витрины)
+
+- Зафиксирован домен сайта: **https://taxi-doroga-dobra.ru/** (куплен в reg.ru).
+- Размещение: VPS, **отдельная папка** от API `/opt/sfrfr`.
+- Дальше: DNS A-записи, nginx, SSL, контент/WordPress в этой папке.
+
 ## 2026-07-22 (дополнение)
 
 - Автокоммит/пуш: `scripts/auto_commit_push.ps1` + Cursor hook `.cursor/hooks.json`.
