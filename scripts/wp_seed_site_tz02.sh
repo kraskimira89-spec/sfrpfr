@@ -230,7 +230,11 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-post "$MENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "/#kak-rabotat" >/dev/null
+  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "/#kak-rabotat" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${CTA_ITEM:-}" ]; then
+    "${WP[@]}" post term set "$CTA_ITEM" nav_menu "$MENU_ID" >/dev/null 2>&1 || true
+    "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true
+  fi
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi

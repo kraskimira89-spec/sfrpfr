@@ -49,6 +49,11 @@ if ($existing) {
 update_option('site_icon', $attach_id);
 set_theme_mod('custom_logo', $attach_id);
 
-// Astra: показать логотип в хедере
+// Astra: показать логотип в хедере, высота ~44px (ширина авто)
 set_theme_mod('ast-header-retina-logo', '');
+set_theme_mod('ast-header-responsive-logo-width', [
+    'desktop' => 44,
+    'tablet' => 44,
+    'mobile' => 44,
+]);
 echo (int) $attach_id . "\n";

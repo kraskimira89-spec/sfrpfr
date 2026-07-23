@@ -87,14 +87,35 @@ def _cell(value: Any) -> Any:
     return value
 
 
+def _repo_root() -> Path:
+    # src/sfrfr/integrations/sheets/__init__.py → корень репозитория
+    return Path(__file__).resolve().parents[4]
+
+
 def _load_service_account_info(raw: str) -> dict[str, Any]:
-    text = raw.strip()
+    text = raw.strip().strip('"').strip("'")
     if not text:
-        return {}
-    path = Path(text)
-    if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8"))
-    return json.loads(text)
+        raise ValueError("GOOGLE_SHEETS_CREDENTIALS_JSON пуст")
+
+    candidates = [Path(text)]
+    if not Path(text).is_absolute():
+        candidates.append(_repo_root() / text)
+        candidates.append(Path.cwd() / text)
+
+    for path in candidates:
+        if path.is_file():
+            payload = path.read_text(encoding="utf-8").strip()
+            if not payload:
+                raise ValueError(f"пустой файл ключа: {path}")
+            return json.loads(payload)
+
+    if text.startswith("{"):
+        return json.loads(text)
+
+    raise FileNotFoundError(
+        "JSON ключ Google SA не найден. Проверьте GOOGLE_SHEETS_CREDENTIALS_JSON="
+        f"{text!r} (искали: {', '.join(str(p) for p in candidates)})"
+    )
 
 
 def _access_token(credentials_info: dict[str, Any]) -> str:
@@ -199,17 +220,22 @@ class SheetsExporter:
                     headers=headers,
                     json={"values": values},
                 )
+            updated_cells = None
+            err_text = None
+            if update_resp.status_code < 300:
+                try:
+                    updated_cells = (update_resp.json() or {}).get("updatedCells")
+                except Exception:  # noqa: BLE001
+                    updated_cells = None
+            else:
+                err_text = (update_resp.text or "")[:500]
             return {
                 "ok": 200 <= update_resp.status_code < 300,
                 "transport": "api",
                 "status_code": update_resp.status_code,
                 "rows": len(clean),
-                "updated_cells": (update_resp.json() or {}).get("updatedCells")
-                if update_resp.status_code < 300
-                else None,
-                "error": None
-                if update_resp.status_code < 300
-                else update_resp.text[:500],
+                "updated_cells": updated_cells,
+                "error": err_text,
             }
         except Exception as exc:  # noqa: BLE001 - analytics не блокирует дела
             return {

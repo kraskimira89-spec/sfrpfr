@@ -646,12 +646,50 @@ body.page-template-default {
   display: none;
 }
 
+/* Логотип Astra в шапке: высота 44px */
+.site-header .custom-logo,
+.ast-site-identity .custom-logo,
+.ast-header-logo-img img,
+header .custom-logo-link img {
+  height: 44px !important;
+  width: auto !important;
+  max-height: 44px !important;
+  max-width: none !important;
+}
+
 /* Меню: жирнее и чуть крупнее */
 .main-header-menu > .menu-item > a,
 .ast-builder-menu-1 .menu-link,
 #primary-site-navigation-desktop .menu-link {
   font-weight: 700 !important;
   font-size: clamp(0.95rem, 2vw, 1.1rem) !important;
+}
+
+/* CTA в меню — в рамке */
+.main-header-menu > .menu-item.sfrfr-menu-cta > a.menu-link,
+.ast-builder-menu-1 .menu-item.sfrfr-menu-cta > a.menu-link,
+.menu-item.sfrfr-menu-cta > a,
+.menu-item a[href*="#kak-rabotat"] {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.4rem 0.95rem !important;
+  margin-left: 0.35rem;
+  border: 2px solid var(--sfrfr-accent) !important;
+  border-radius: 10px !important;
+  color: var(--sfrfr-accent) !important;
+  background: transparent !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+}
+
+.main-header-menu > .menu-item.sfrfr-menu-cta > a.menu-link:hover,
+.menu-item.sfrfr-menu-cta > a:hover,
+.menu-item a[href*="#kak-rabotat"]:hover {
+  background: var(--sfrfr-accent) !important;
+  color: #fff !important;
+  border-color: var(--sfrfr-accent) !important;
 }
 
 /* На главной скрыть заголовок страницы «Главная» */
