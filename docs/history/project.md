@@ -4,6 +4,7 @@
 
 - Входящие шли на webhook VPS, но бот молчал: `chat_id` не читался из `message.recipient`, а личные сообщения слались неверно.
 - Исправлено: `POST /messages?user_id=...`; handler читает `recipient.chat_id`; тесты обновлены.
+- Доп. причина молчания на VPS: `PermissionError` на `/tmp/sfrfr-ca-bundle.pem` (файл от root). CA-бандл пишется в `/opt/sfrfr/var/` или uid-специфичный путь.
 
 ## 2026-07-22 (MAX mini-app кабинет v1)
 
