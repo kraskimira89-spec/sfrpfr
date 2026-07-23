@@ -62,6 +62,10 @@
 - Клиентский `GET /cases/{id}` без OCR/findings; audit на просмотр/загрузку/акцепты.
 - Предупреждение «Решение принимает СФР…»; кнопки подачи в СФР от имени клиента нет.
 
+## 2026-07-23 (инструкция ЮKassa)
+
+- `docs/yookassa-setup.md` — шаги по [developers.yookassa](https://yookassa.ru/developers): ЛК, env, webhook, тест, чеки, бой.
+
 ## 2026-07-23 (ТЗ-09 этап C: ЮKassa + mini-app)
 
 - ЮKassa: чек (опционально), return_channel, b2c_status после оплаты, webhook package_code.
