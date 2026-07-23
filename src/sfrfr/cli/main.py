@@ -130,6 +130,106 @@ def case_show(case_id: str = typer.Argument(...)) -> None:
     )
 
 
+@app.command("knowledge-import")
+def knowledge_import(
+    path: str = typer.Argument(..., help="Диалог: md/txt/json/html (без полных ПДн)"),
+    cases_dir: str | None = typer.Option(
+        None, "--cases-dir", help="Каталог knowledge/cases"
+    ),
+) -> None:
+    """Импорт диалога → draft-кейс (обезличивание + эвристики)."""
+    from pathlib import Path
+
+    from sfrfr.ai.knowledge import KnowledgeCaseRegistry, import_dialog_to_case
+
+    registry = KnowledgeCaseRegistry(Path(cases_dir) if cases_dir else None)
+    case = import_dialog_to_case(Path(path), registry=registry)
+    typer.echo(
+        f"{case.case_id}\tquality={case.quality.value}\t"
+        f"problem={case.problem_type}\tdocs={len(case.documents)}"
+    )
+
+
+@app.command("knowledge-depersonalize-dir")
+def knowledge_depersonalize_dir(
+    inbox: str = typer.Argument(..., help="Каталог с сырыми текстами (вне git)"),
+    out: str = typer.Option(..., "--out", "-o", help="Куда писать очищенные файлы"),
+    client_name: str | None = typer.Option(
+        None, "--client-name", help="Известное ФИО для точечной замены"
+    ),
+    recursive: bool = typer.Option(True, "--recursive/--flat", help="Обход подпапок"),
+) -> None:
+    """Пакетно обезличить md/txt/json/html/csv → --out (PDF/сканы пропускаются)."""
+    from pathlib import Path
+
+    from sfrfr.ai.knowledge import depersonalize_dir
+
+    inbox_path = Path(inbox)
+    if not inbox_path.is_dir():
+        raise typer.BadParameter(f"not a directory: {inbox}")
+
+    results = depersonalize_dir(
+        inbox_path,
+        Path(out),
+        client_name=client_name,
+        recursive=recursive,
+    )
+    ok = sum(1 for r in results if r.status == "ok")
+    skipped = sum(1 for r in results if r.status == "skipped")
+    errors = sum(1 for r in results if r.status == "error")
+    for r in results:
+        if r.status == "ok" and r.output is not None:
+            typer.echo(f"ok\t{r.source.name}\t→\t{r.output}")
+        elif r.status == "skipped":
+            typer.echo(f"skip\t{r.source.name}\t{r.detail}")
+        else:
+            typer.echo(f"error\t{r.source.name}\t{r.detail}", err=True)
+    typer.echo(f"summary\to={ok}\tskipped={skipped}\terrors={errors}")
+
+
+@app.command("knowledge-list")
+def knowledge_list(
+    quality: str | None = typer.Option(None, "--quality", "-q"),
+    rag_ready: bool = typer.Option(False, "--rag-ready", help="Только verified/template"),
+    cases_dir: str | None = typer.Option(None, "--cases-dir"),
+) -> None:
+    """Список обезличенных кейсов базы знаний."""
+    from pathlib import Path
+
+    from sfrfr.ai.knowledge import KnowledgeCaseRegistry
+    from sfrfr.ai.schemas.knowledge_case import KnowledgeQuality
+
+    registry = KnowledgeCaseRegistry(Path(cases_dir) if cases_dir else None)
+    q = KnowledgeQuality(quality) if quality else None
+    for case in registry.list_cases(quality=q, rag_ready_only=rag_ready):
+        typer.echo(
+            f"{case.case_id}\t{case.quality.value}\t"
+            f"{case.sfr_outcome.value}\t{case.problem_type}"
+        )
+
+
+@app.command("knowledge-set-status")
+def knowledge_set_status(
+    case_id: str = typer.Argument(...),
+    quality: str = typer.Argument(..., help="draft|verified|rejected|template"),
+    cases_dir: str | None = typer.Option(None, "--cases-dir"),
+) -> None:
+    """Статус качества кейса (в RAG только verified/template)."""
+    from pathlib import Path
+
+    from sfrfr.ai.knowledge import KnowledgeCaseRegistry
+    from sfrfr.ai.schemas.knowledge_case import KnowledgeQuality
+
+    registry = KnowledgeCaseRegistry(Path(cases_dir) if cases_dir else None)
+    try:
+        case = registry.set_quality(case_id, KnowledgeQuality(quality))
+    except KeyError as exc:
+        raise typer.BadParameter(f"case not found: {case_id}") from exc
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"{case.case_id}\tquality={case.quality.value}\tverified_at={case.verified_at}")
+
+
 @app.command("max-subscribe")
 def max_subscribe(
     url: str | None = typer.Option(

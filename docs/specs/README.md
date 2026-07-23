@@ -9,6 +9,7 @@
 5. [05-developer-operations.md](05-developer-operations.md) — инструменты разработчика и эксплуатация.
 6. [06-integrations-and-security.md](06-integrations-and-security.md) — интеграции, ПДн и правила доступа.
 7. [07-mvp-roadmap.md](07-mvp-roadmap.md) — очередность MVP.
+8. [08-knowledge-rag.md](08-knowledge-rag.md) — обезличенные кейсы, RAG без дообучения.
 
 ## Принцип
 

@@ -168,6 +168,7 @@ body.page-template-default {
   min-height: clamp(160px, 40vw, 260px);
   display: grid;
   place-items: center;
+  border-left: 4px solid var(--sfrfr-primary);
 }
 
 .sfrfr-illustration svg {
@@ -222,101 +223,38 @@ body.page-template-default {
   border-right: 1px solid rgba(30, 78, 121, 0.1);
 }
 
-/* Чередование контура: 1 колонка — по карточке */
-.sfrfr-cards > .sfrfr-card:nth-child(even) {
+/*
+  Чередование контура по разделам (section), не по рядам внутри:
+  нечётный раздел — слева, чётный — справа.
+*/
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-card {
   border-left: none;
   border-right: 4px solid var(--sfrfr-primary);
 }
 
-.sfrfr-section--alt .sfrfr-cards > .sfrfr-card:nth-child(even) {
+.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(even) .sfrfr-card {
   border-left: 1px solid rgba(30, 78, 121, 0.1);
   border-right: 4px solid var(--sfrfr-primary);
 }
 
-/* 2 колонки: ряд 1 слева, ряд 2 справа */
-@media (min-width: 560px) {
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(even),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: none;
-  }
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(even),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: 1px solid rgba(30, 78, 121, 0.1);
-  }
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: none;
-    border-right: 4px solid var(--sfrfr-primary);
-  }
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: 1px solid rgba(30, 78, 121, 0.1);
-    border-right: 4px solid var(--sfrfr-primary);
-  }
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-illustration {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-primary);
 }
 
-/* 3 колонки: ряд 1 (1–3) слева, ряд 2 (4–6) справа */
-@media (min-width: 900px) {
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(n) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: none;
-  }
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(n) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: 1px solid rgba(30, 78, 121, 0.1);
-  }
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 4),
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 5),
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 6) {
-    border-left: none;
-    border-right: 4px solid var(--sfrfr-primary);
-  }
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 4),
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 5),
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(6n + 6) {
-    border-left: 1px solid rgba(30, 78, 121, 0.1);
-    border-right: 4px solid var(--sfrfr-primary);
-  }
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-step {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-accent);
 }
 
-/* 4 колонки */
-@media (min-width: 1100px) {
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: none;
-  }
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: 1px solid rgba(30, 78, 121, 0.1);
-  }
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 5),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 6),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 7),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 8) {
-    border-left: none;
-    border-right: 4px solid var(--sfrfr-primary);
-  }
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 5),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 6),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 7),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(8n + 8) {
-    border-left: 1px solid rgba(30, 78, 121, 0.1);
-    border-right: 4px solid var(--sfrfr-primary);
-  }
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-note {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-warn);
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-faq details {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-primary);
 }
 
 .sfrfr-card h3 {
@@ -434,6 +372,7 @@ body.page-template-default {
   background: rgba(201, 135, 23, 0.12);
   color: #7a5a12;
   font-size: clamp(0.9rem, 2.3vw, 0.98rem);
+  border-left: 4px solid var(--sfrfr-warn);
 }
 
 .sfrfr-faq details {
@@ -442,6 +381,7 @@ body.page-template-default {
   padding: 0.9rem 1.1rem;
   margin-bottom: 0.65rem;
   box-shadow: var(--sfrfr-shadow);
+  border-left: 4px solid var(--sfrfr-primary);
 }
 
 .sfrfr-faq summary {

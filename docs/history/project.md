@@ -1,5 +1,17 @@
 # История проекта SFRFR
 
+## 2026-07-23 (пакетное обезличивание)
+
+- CLI: `sfrfr knowledge-depersonalize-dir inbox/ --out cleaned/`.
+- Модуль `batch_depersonalize`: md/txt/json/html/csv; PDF/сканы → skip.
+
+## 2026-07-23 (база знаний RAG без дообучения)
+
+- Спек `docs/specs/08-knowledge-rag.md`: диалоги → обезличивание → draft → эксперт → RAG.
+- Код: `KnowledgeCase`, `depersonalize_text`, registry/importer, CLI `knowledge-*`.
+- RAG читает только `verified`/`template`; пример `knowledge/cases/CASE-2026-001.json`.
+- Промпт `ASSISTANT_SYSTEM` для AI-помощника эксперта.
+
 ## 2026-07-23 (кабинеты: env/Apache/CI после ENOSPC)
 
 - Восстановлен корневой `.env.example` (обнулён при ENOSPC) + `CORS_ALLOWED_ORIGINS`.
