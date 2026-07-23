@@ -7,6 +7,8 @@ APP_USER="${APP_USER:-sfrfr}"
 BRANCH="${BRANCH:-main}"
 
 cd "$APP_DIR"
+# Файлы, созданные от root (WP seed и т.п.), ломают git reset от sfrfr
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 sudo -u "$APP_USER" git fetch origin
 sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
 
