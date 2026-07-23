@@ -38,8 +38,12 @@ def _chat_id(update: dict[str, Any]) -> int | str | None:
     if update.get("chat_id") is not None:
         return update["chat_id"]
     message = update.get("message") or {}
-    if isinstance(message, dict) and message.get("chat_id") is not None:
-        return message["chat_id"]
+    if isinstance(message, dict):
+        if message.get("chat_id") is not None:
+            return message["chat_id"]
+        recipient = message.get("recipient") or {}
+        if isinstance(recipient, dict) and recipient.get("chat_id") is not None:
+            return recipient["chat_id"]
     recipient = update.get("recipient") or {}
     if isinstance(recipient, dict) and recipient.get("chat_id") is not None:
         return recipient["chat_id"]
@@ -56,9 +60,19 @@ def _text(update: dict[str, Any]) -> str:
     return str(body or "")
 
 
-def _reply(bot: MaxBotClient, chat_id: int | str | None, text: str) -> None:
-    if chat_id is not None:
-        bot.send_message(chat_id=chat_id, text=text)
+def _reply(
+    bot: MaxBotClient,
+    *,
+    user_id: str | None,
+    chat_id: int | str | None,
+    text: str,
+) -> None:
+    # Личный диалог — по user_id; иначе пробуем chat_id.
+    try:
+        bot.send_message(text=text, user_id=user_id, chat_id=chat_id)
+    except Exception:
+        # Webhook не должен падать из-за сбоя исходящей отправки.
+        pass
 
 
 def handle_max_update(
@@ -91,7 +105,7 @@ def handle_max_update(
                 f"Статус: {existing.ctx.status}\n"
                 "Пришлите документы (ИЛС и трудовую) или команду /status."
             )
-            _reply(bot, chat_id, reply)
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=True, action="resume", case_id=existing.case_id, reply=reply)
 
         record = store.create(
@@ -110,18 +124,18 @@ def handle_max_update(
             "Пришлите сканы/PDF: выписку ИЛС и трудовую книжку.\n"
             "Команды: /status, /run, /help"
         )
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="create", case_id=record.case_id, reply=reply)
 
     record = store.find_by_max_user(user_id)
     if record is None:
         reply = "Напишите /start, чтобы создать кейс."
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="need_start", reply=reply)
 
     if lower.startswith("/help"):
         reply = "Команды: /start, /status, /run. Документы — файлом в чат."
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
 
     if lower.startswith("/status"):
@@ -132,13 +146,13 @@ def handle_max_update(
             f"OCR: {len(record.ctx.ocr_texts)}\n"
             f"Findings: {len(record.ctx.findings)}"
         )
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = "Сначала пришлите документы (ИЛС и трудовую)."
-            _reply(bot, chat_id, reply)
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="run_blocked", case_id=record.case_id, reply=reply)
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
         draft_note = " Черновик готов к проверке юристом." if updated.ctx.draft else ""
@@ -146,7 +160,7 @@ def handle_max_update(
             f"Пайплайн: {updated.ctx.status}. Findings: {len(updated.ctx.findings)}."
             f"{draft_note}"
         )
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
     file_name = update.get("file_name")
@@ -158,12 +172,12 @@ def handle_max_update(
             f"Файл «{file_name}» принят. Документов: {len(fresh.ctx.document_paths)}. "
             "Когда будете готовы — /run"
         )
-        _reply(bot, chat_id, reply)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
 
     reply = (
         "Принял сообщение. Пришлите файл документа или команды /status /run.\n"
         f"Текущий статус: {record.ctx.status}"
     )
-    _reply(bot, chat_id, reply)
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)

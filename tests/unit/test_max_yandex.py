@@ -22,8 +22,14 @@ class _SilentBot(MaxBotClient):
     def available(self) -> bool:
         return True
 
-    def send_message(self, *, chat_id, text: str):  # type: ignore[no-untyped-def]
-        self.sent.append((chat_id, text))
+    def send_message(  # type: ignore[no-untyped-def,override]
+        self,
+        *,
+        text: str,
+        user_id=None,
+        chat_id=None,
+    ):
+        self.sent.append((user_id or chat_id, text))
         return {"ok": True}
 
 
@@ -55,14 +61,29 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     bot = _SilentBot()
 
     created = handle_max_update(
-        {"user_id": "u1", "chat_id": 10, "text": "/start"},
+        {
+            "update_type": "message_created",
+            "message": {
+                "sender": {"user_id": 6407832},
+                "recipient": {"chat_id": 382234533, "chat_type": "dialog", "user_id": 6407832},
+                "body": {"text": "/start"},
+            },
+        },
         bot=bot,
     )
     assert created.action == "create"
     assert created.case_id
+    assert bot.sent and bot.sent[0][0] == "6407832"
 
     status = handle_max_update(
-        {"user_id": "u1", "chat_id": 10, "text": "/status"},
+        {
+            "update_type": "message_created",
+            "message": {
+                "sender": {"user_id": 6407832},
+                "recipient": {"chat_id": 382234533, "chat_type": "dialog", "user_id": 6407832},
+                "body": {"text": "/status"},
+            },
+        },
         bot=bot,
     )
     assert status.action == "status"
@@ -74,6 +95,7 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
 def test_max_webhook_endpoint(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "sec")
+    monkeypatch.setenv("MAX_BOT_TOKEN", "")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
 

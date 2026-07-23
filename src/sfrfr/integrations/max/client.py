@@ -36,14 +36,28 @@ class MaxBotClient:
     def _client(self) -> httpx.Client:
         return httpx.Client(timeout=30.0, verify=max_ssl_verify())
 
-    def send_message(self, *, chat_id: int | str, text: str) -> dict[str, Any]:
-        """Отправить текст в чат. Без токена — no-op с пометкой."""
+    def send_message(
+        self,
+        *,
+        text: str,
+        user_id: int | str | None = None,
+        chat_id: int | str | None = None,
+    ) -> dict[str, Any]:
+        """Отправить текст. Личный диалог — user_id, группа — chat_id (query)."""
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        if user_id is None and chat_id is None:
+            return {"ok": False, "skipped": True, "reason": "no recipient"}
         url = f"{self.api_base}/messages"
-        payload = {"chat_id": chat_id, "text": text}
+        # Личный диалог в MAX адресуется user_id; chat_id — для групп/каналов.
+        params: dict[str, int | str] = {}
+        if user_id is not None:
+            params["user_id"] = user_id
+        elif chat_id is not None:
+            params["chat_id"] = chat_id
+        payload = {"text": text}
         with self._client() as client:
-            resp = client.post(url, headers=self._headers(), json=payload)
+            resp = client.post(url, headers=self._headers(), params=params, json=payload)
             resp.raise_for_status()
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}

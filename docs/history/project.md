@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-23 (MAX: ответы в личку по user_id)
+
+- Входящие шли на webhook VPS, но бот молчал: `chat_id` не читался из `message.recipient`, а личные сообщения слались неверно.
+- Исправлено: `POST /messages?user_id=...`; handler читает `recipient.chat_id`; тесты обновлены.
+
 ## 2026-07-22 (MAX mini-app кабинет v1)
 
 - Статика: `web/max-miniapp/` → `https://taxi-doroga-dobra.ru/app/`.
