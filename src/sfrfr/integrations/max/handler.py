@@ -2,13 +2,39 @@
 
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.integrations.max.client import MaxBotClient
 from sfrfr.models.case_status import CaseStatus
 from sfrfr.storage.local import save_upload
+
+# #region agent log
+_DEBUG_LOG = Path("/opt/sfrfr/debug-2e2794.log")
+
+
+def _agent_log(hypothesis_id: str, location: str, message: str, data: dict[str, Any]) -> None:
+    try:
+        payload = {
+            "sessionId": "2e2794",
+            "runId": "pre-fix",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with _DEBUG_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+# #endregion
 
 
 @dataclass
@@ -68,9 +94,43 @@ def _reply(
     text: str,
 ) -> None:
     # Личный диалог — по user_id; иначе пробуем chat_id.
+    # #region agent log
+    _agent_log(
+        "C",
+        "handler.py:_reply:before",
+        "reply attempt",
+        {
+            "has_user_id": user_id is not None,
+            "has_chat_id": chat_id is not None,
+            "bot_available": bot.available,
+            "text_len": len(text or ""),
+        },
+    )
+    # #endregion
     try:
-        bot.send_message(text=text, user_id=user_id, chat_id=chat_id)
-    except Exception:
+        result = bot.send_message(text=text, user_id=user_id, chat_id=chat_id)
+        # #region agent log
+        _agent_log(
+            "C",
+            "handler.py:_reply:after",
+            "reply send result",
+            {
+                "ok": bool(result.get("ok", True)) if isinstance(result, dict) else False,
+                "skipped": bool(result.get("skipped")) if isinstance(result, dict) else False,
+                "reason": str(result.get("reason") or "")[:120] if isinstance(result, dict) else "",
+                "has_message": bool(isinstance(result, dict) and result.get("message")),
+            },
+        )
+        # #endregion
+    except Exception as exc:
+        # #region agent log
+        _agent_log(
+            "C",
+            "handler.py:_reply:error",
+            "reply send failed",
+            {"error_type": type(exc).__name__, "error": str(exc)[:200]},
+        )
+        # #endregion
         # Webhook не должен падать из-за сбоя исходящей отправки.
         pass
 
@@ -92,7 +152,31 @@ def handle_max_update(
     chat_id = _chat_id(update)
     lower = text.lower()
 
+    # #region agent log
+    _agent_log(
+        "E",
+        "handler.py:handle_max_update:entry",
+        "parsed update",
+        {
+            "update_type": update.get("update_type"),
+            "has_user_id": user_id is not None,
+            "has_chat_id": chat_id is not None,
+            "text_len": len(text),
+            "text_prefix": text[:32],
+            "top_keys": list(update.keys())[:20],
+        },
+    )
+    # #endregion
+
     if not user_id:
+        # #region agent log
+        _agent_log(
+            "E",
+            "handler.py:handle_max_update:no_user",
+            "ignored: no user_id",
+            {"update_type": update.get("update_type")},
+        )
+        # #endregion
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")
 
     store = get_case_store()
