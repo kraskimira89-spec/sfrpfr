@@ -169,6 +169,7 @@ npx supabase db push
   - Rank Math SEO, UpdraftPlus, Wordfence, **WP Super Cache** (Apache);
   - не ставим: LiteSpeed Cache, Really Simple SSL (SSL уже certbot).
 - Сид ТЗ-02: `scripts/wp_seed_site_tz02.sh` (обёртка `scripts/wp_seed_landing.sh`) — главная, оферта, политика ПДн, согласие, меню, CTA MAX, WPForms-лид.
+- Дизайн главной: `scripts/assets/sfrfr-home.html` + `scripts/assets/sfrfr-landing.css` (синий `#1E4E79`, акцент `#2E7D5B`, Manrope).
 - Форма лида: `scripts/wp_ensure_lead_form.php` (имя, телефон/канал, согласие; без файлов и СНИЛС; entries + email admin).
 - Страницы: `/`, `/oferta/`, `/politika-pdn/`, `/soglasie/` (HTTPS).
 - Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.

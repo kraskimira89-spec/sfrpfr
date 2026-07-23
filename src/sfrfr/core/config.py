@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     app_secret_key: str = "change-me"
     app_name: str = "SFRFR"
     public_base_url: str = "https://api.taxi-doroga-dobra.ru"
+    cors_allowed_origins: str = (
+        "https://taxi-doroga-dobra.ru,"
+        "https://www.taxi-doroga-dobra.ru,"
+        "https://cabinet.taxi-doroga-dobra.ru,"
+        "https://admin.taxi-doroga-dobra.ru"
+    )
 
     supabase_url: str = ""
     supabase_anon_key: str = ""

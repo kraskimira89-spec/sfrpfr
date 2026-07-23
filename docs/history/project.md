@@ -13,6 +13,12 @@
 - Бот: отображаемое имя «Стаж и пенсия», технический username `id8905998693_1_bot`; диплинк `https://max.ru/id8905998693_1_bot?startapp`.
 - В кабинете партнёра MAX нужно вручную вставить URL мини-приложения.
 
+## 2026-07-23 (дизайн лендинга SFRFR)
+
+- Концепция: синий `#1E4E79`, акцент `#2E7D5B`, Manrope, кнопки ≥48px.
+- Секции 1–11 на главной: hero, доверие, ЦА, шаги, проверка/не обещаем, результат, тарифы, кейсы, FAQ, CTA, footer.
+- CSS: `scripts/assets/sfrfr-landing.css` → WP Custom CSS; HTML: `scripts/assets/sfrfr-home.html`.
+
 ## 2026-07-23 (ТЗ-02: лендинг + оферта + MAX)
 
 - Сид `scripts/wp_seed_site_tz02.sh` + форма `wp_ensure_lead_form.php`.

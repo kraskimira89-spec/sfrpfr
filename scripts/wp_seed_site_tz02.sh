@@ -14,20 +14,31 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 
 upsert_page() {
-  local slug="$1" title="$2" content="$3"
-  local id
+  local slug="$1" title="$2" content_or_file="$3"
+  local id content
+  if [ -f "$content_or_file" ]; then
+    content="$(cat "$content_or_file")"
+  else
+    content="$content_or_file"
+  fi
   id="$("${WP[@]}" post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1 | tr -d '[:space:]' || true)"
   if [ -z "$id" ]; then
     id="$("${WP[@]}" post create --post_type=page --post_title="$title" --post_name="$slug" \
-      --post_status=publish --post_content="$content" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  else
-    "${WP[@]}" post update "$id" --post_title="$title" --post_name="$slug" \
-      --post_status=publish --post_content="$content" >/dev/null
+      --post_status=publish --porcelain 2>/dev/null | tr -d '[:space:]')"
   fi
+  # контент через PHP — надёжнее для большого HTML
+  CONTENT_FILE="$(mktemp)"
+  printf '%s' "$content" >"$CONTENT_FILE"
+  "${WP[@]}" eval "
+\$id = ${id};
+\$c = file_get_contents('${CONTENT_FILE}');
+wp_update_post(['ID' => \$id, 'post_title' => '${title}', 'post_name' => '${slug}', 'post_status' => 'publish', 'post_content' => \$c]);
+" >/dev/null
+  rm -f "$CONTENT_FILE"
   "${WP[@]}" post meta update "$id" _wp_page_template default >/dev/null 2>&1 || true
-  # только числовой ID
   echo "$id" | grep -Eo '^[0-9]+$' | head -n1
 }
+
 
 echo "==> Тема Astra"
 "${WP[@]}" theme install astra --activate --force >/dev/null
@@ -36,77 +47,36 @@ echo "==> Тема Astra"
 echo "==> Форма лида WPForms (без файлов и СНИЛС)"
 FORM_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_ensure_lead_form.php")"
 FORM_ID="$(echo "$FORM_ID" | tr -d '[:space:]')"
+FORM_FILE="$(mktemp)"
 if [ -z "$FORM_ID" ] || [ "$FORM_ID" = "0" ]; then
   echo "WARN: не удалось создать WPForms; shortcode будет без id"
-  FORM_SHORTCODE='<!-- wp:paragraph --><p><em>Форма заявки: включите WPForms Lite и перезапустите сид.</em></p><!-- /wp:paragraph -->'
+  printf '%s\n' '<!-- wp:paragraph --><p><em>Форма заявки: включите WPForms Lite и перезапустите сид.</em></p><!-- /wp:paragraph -->' >"$FORM_FILE"
 else
   echo "FORM_ID=$FORM_ID"
-  FORM_SHORTCODE="<!-- wp:shortcode -->
-[wpforms id=\"${FORM_ID}\" title=\"false\" description=\"true\"]
-<!-- /wp:shortcode -->"
+  printf '%s\n' "<!-- wp:shortcode -->" "[wpforms id=\"${FORM_ID}\" title=\"false\" description=\"true\"]" "<!-- /wp:shortcode -->" >"$FORM_FILE"
 fi
 
-HOME_CONTENT="<!-- wp:group {\"align\":\"full\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"5rem\",\"bottom\":\"3rem\",\"left\":\"1.5rem\",\"right\":\"1.5rem\"}}},\"layout\":{\"type\":\"constrained\",\"contentSize\":\"44rem\"}} -->
-<div class=\"wp-block-group alignfull\" style=\"padding-top:5rem;padding-right:1.5rem;padding-bottom:3rem;padding-left:1.5rem\">
-<!-- wp:heading {\"textAlign\":\"center\",\"level\":1,\"fontSize\":\"xx-large\"} -->
-<h1 class=\"wp-block-heading has-text-align-center has-xx-large-font-size\">SFRFR</h1>
-<!-- /wp:heading -->
-<!-- wp:paragraph {\"align\":\"center\"} -->
-<p class=\"has-text-align-center\">Сопровождение пенсионного перерасчёта для частных клиентов: диагностика учёта стажа и подготовка пакета документов.</p>
-<!-- /wp:paragraph -->
-<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"justifyContent\":\"center\"}} -->
-<div class=\"wp-block-buttons\"><!-- wp:button -->
-<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"${MAX_BTN_URL}\" target=\"_blank\" rel=\"noopener noreferrer\">Начать проверку</a></div>
-<!-- /wp:button --></div>
-<!-- /wp:buttons -->
-<!-- wp:paragraph {\"align\":\"center\"} -->
-<p class=\"has-text-align-center\"><a href=\"/oferta/\">Оферта</a> · сканы документов — только в MAX / кабинете, не через сайт</p>
-<!-- /wp:paragraph -->
-</div>
-<!-- /wp:group -->
+echo "==> CSS лендинга"
+export SFRFR_CSS_PATH="${SCRIPT_DIR}/assets/sfrfr-landing.css"
+CSS_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_apply_landing_css.php" 2>/dev/null | tr -d '[:space:]' || true)"
+echo "CUSTOM_CSS_POST=${CSS_ID:-?}"
 
-<!-- wp:group {\"align\":\"full\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"2rem\",\"bottom\":\"2rem\",\"left\":\"1.5rem\",\"right\":\"1.5rem\"}}},\"layout\":{\"type\":\"constrained\",\"contentSize\":\"44rem\"}} -->
-<div class=\"wp-block-group alignfull\" style=\"padding-top:2rem;padding-right:1.5rem;padding-bottom:2rem;padding-left:1.5rem\">
-<!-- wp:heading {\"level\":2} -->
-<h2 class=\"wp-block-heading\">Для кого</h2>
-<!-- /wp:heading -->
-<!-- wp:paragraph -->
-<p>Для тех, кто хочет проверить, правильно ли учтён стаж и нет ли оснований для перерасчёта пенсии — без обещаний «гарантированного повышения».</p>
-<!-- /wp:paragraph -->
-<!-- wp:heading {\"level\":2} -->
-<h2 class=\"wp-block-heading\">Чем помогаем</h2>
-<!-- /wp:heading -->
-<!-- wp:list -->
-<ul class=\"wp-block-list\"><li>Разбираем документы и находим возможные пробелы в учёте.</li><li>Готовим чек-лист и черновики заявлений.</li><li>Даём инструкцию для самостоятельной подачи в СФР / МФЦ / Госуслуги.</li><li>Сопровождаем до понятного результата по делу.</li></ul>
-<!-- /wp:list -->
-<!-- wp:heading {\"level\":2} -->
-<h2 class=\"wp-block-heading\">Как это работает</h2>
-<!-- /wp:heading -->
-<!-- wp:list {\"ordered\":true} -->
-<ol class=\"wp-block-list\"><li>Напишите в MAX или оставьте заявку на сайте.</li><li>Получите согласие и условия работы.</li><li>Передайте документы в защищённый канал (MAX / кабинет).</li><li>Пройдите диагностику и согласуйте план.</li><li>Получите пакет и инструкцию подачи.</li><li>Подайте заявление самостоятельно.</li><li>Сообщите о решении СФР — при подтверждённом результате действует post-payment по оферте.</li></ol>
-<!-- /wp:list -->
-<!-- wp:paragraph -->
-<p><strong>Важно:</strong> не загружайте через сайт сканы ИЛС, трудовой, паспорта или СНИЛС. Для документов используйте чат MAX или кабинет.</p>
-<!-- /wp:paragraph -->
-</div>
-<!-- /wp:group -->
-
-<!-- wp:group {\"align\":\"full\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"2rem\",\"bottom\":\"4rem\",\"left\":\"1.5rem\",\"right\":\"1.5rem\"}}},\"layout\":{\"type\":\"constrained\",\"contentSize\":\"36rem\"}} -->
-<div class=\"wp-block-group alignfull\" style=\"padding-top:2rem;padding-right:1.5rem;padding-bottom:4rem;padding-left:1.5rem\">
-<!-- wp:heading {\"textAlign\":\"center\",\"level\":2} -->
-<h2 class=\"wp-block-heading has-text-align-center\">Заявка</h2>
-<!-- /wp:heading -->
-<!-- wp:paragraph {\"align\":\"center\"} -->
-<p class=\"has-text-align-center\">Имя, телефон или канал связи и согласие. После отправки мы свяжемся и пришлём ссылку на MAX.</p>
-<!-- /wp:paragraph -->
-${FORM_SHORTCODE}
-<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"justifyContent\":\"center\"}} -->
-<div class=\"wp-block-buttons\"><!-- wp:button {\"className\":\"is-style-outline\"} -->
-<div class=\"wp-block-button is-style-outline\"><a class=\"wp-block-button__link wp-element-button\" href=\"${MAX_BTN_URL}\" target=\"_blank\" rel=\"noopener noreferrer\">Или сразу в MAX</a></div>
-<!-- /wp:button --></div>
-<!-- /wp:buttons -->
-</div>
-<!-- /wp:group -->"
+echo "==> Контент главной (концепция SFRFR)"
+HOME_FILE="$(mktemp)"
+HOME_SRC="${SCRIPT_DIR}/assets/sfrfr-home.html"
+python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$FORM_FILE" <<'PY'
+import sys
+src, dst, max_url, form_path = sys.argv[1:5]
+text = open(src, encoding="utf-8").read().replace("{{MAX_BTN_URL}}", max_url)
+form_block = open(form_path, encoding="utf-8").read().strip()
+marker = "<!-- SFRFR_FORM -->"
+if marker not in text:
+    raise SystemExit("SFRFR_FORM marker missing")
+before, after = text.split(marker, 1)
+out = before.rstrip() + "\n<!-- /wp:html -->\n" + form_block + "\n<!-- wp:html -->\n" + after.lstrip()
+open(dst, "w", encoding="utf-8").write(out)
+PY
+rm -f "$FORM_FILE"
 
 OFFER_CONTENT='<!-- wp:paragraph -->
 <p><strong>Черновик.</strong> Текст до проверки юристом. Не является окончательной публичной офертой.</p>
@@ -160,6 +130,7 @@ OFFER_CONTENT='<!-- wp:paragraph -->
 <p><a href="/politika-pdn/">Политика обработки ПДн</a> · <a href="/soglasie/">Согласие</a> · <a href="'"${MAX_BTN_URL}"'">Начать проверку в MAX</a></p>
 <!-- /wp:paragraph -->'
 
+
 PRIVACY_CONTENT='<!-- wp:paragraph -->
 <p><strong>Черновик</strong> политики обработки персональных данных (SFRFR).</p>
 <!-- /wp:paragraph -->
@@ -190,7 +161,8 @@ CONSENT_CONTENT='<!-- wp:paragraph -->
 <!-- /wp:paragraph -->'
 
 echo "==> Страницы"
-HOME_ID="$(upsert_page glavnaya "Главная" "$HOME_CONTENT")"
+HOME_ID="$(upsert_page glavnaya "Главная" "$HOME_FILE")"
+rm -f "$HOME_FILE"
 OFFER_ID="$(upsert_page oferta "Оферта" "$OFFER_CONTENT")"
 PRIVACY_ID="$(upsert_page politika-pdn "Политика обработки ПДн" "$PRIVACY_CONTENT")"
 CONSENT_ID="$(upsert_page soglasie "Согласие на обработку ПДн" "$CONSENT_CONTENT")"
@@ -201,67 +173,65 @@ echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID"
 "${WP[@]}" option update blogdescription "Сопровождение пенсионного перерасчёта"
 
 echo "==> Меню"
-# Найти меню по имени или создать
-MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
-$j=json_decode(stream_get_contents(STDIN), true);
-foreach ((array)$j as $m) {
-  if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; }
+clear_menu_items() {
+  local mid="$1"
+  "${WP[@]}" eval "
+\$items = wp_get_nav_menu_items(${mid}, ['post_status' => 'any']);
+if (\$items) {
+  foreach (\$items as \$item) {
+    wp_delete_post(\$item->ID, true);
+  }
 }
-' || true)"
-if [ -z "${MENU_ID}" ]; then
-  MENU_ID="$("${WP[@]}" menu create "SFRFR Primary" --porcelain 2>/dev/null || true)"
-fi
-# если create упал из-за конфликта — снова найти
-if [ -z "${MENU_ID}" ]; then
-  MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
-$j=json_decode(stream_get_contents(STDIN), true);
-foreach ((array)$j as $m) {
-  if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; }
+" >/dev/null 2>&1 || true
 }
-' || true)"
-fi
+
+find_or_create_menu() {
+  local name="$1"
+  local id
+  id="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$want = $argv[1];
+$j = json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === $want) { echo (int)$m["term_id"]; exit; }
+}
+' "$name" || true)"
+  if [ -z "$id" ]; then
+    id="$("${WP[@]}" menu create "$name" --porcelain 2>/dev/null || true)"
+  fi
+  if [ -z "$id" ]; then
+    id="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$want = $argv[1];
+$j = json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === $want) { echo (int)$m["term_id"]; exit; }
+}
+' "$name" || true)"
+  fi
+  echo "$id"
+}
+
+MENU_ID="$(find_or_create_menu "SFRFR Primary")"
 echo "MENU_ID=${MENU_ID}"
 if [ -n "${MENU_ID}" ]; then
-  for item in $("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true); do
-    "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
-  done
+  clear_menu_items "$MENU_ID"
   "${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "$MAX_BTN_URL" >/dev/null
-  "${WP[@]}" menu location assign "$MENU_ID" primary 2>/dev/null || \
-    "${WP[@]}" menu location assign "$MENU_ID" menu-1 2>/dev/null || true
+  "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
+  "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
 
-FMENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
-$j=json_decode(stream_get_contents(STDIN), true);
-foreach ((array)$j as $m) {
-  if (($m["name"] ?? "") === "SFRFR Footer") { echo (int)$m["term_id"]; exit; }
-}
-' || true)"
-if [ -z "${FMENU_ID}" ]; then
-  FMENU_ID="$("${WP[@]}" menu create "SFRFR Footer" --porcelain 2>/dev/null || true)"
-fi
-if [ -z "${FMENU_ID}" ]; then
-  FMENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
-$j=json_decode(stream_get_contents(STDIN), true);
-foreach ((array)$j as $m) {
-  if (($m["name"] ?? "") === "SFRFR Footer") { echo (int)$m["term_id"]; exit; }
-}
-' || true)"
-fi
+FMENU_ID="$(find_or_create_menu "SFRFR Footer")"
 echo "FMENU_ID=${FMENU_ID}"
 if [ -n "${FMENU_ID}" ]; then
-  for item in $("${WP[@]}" menu item list "$FMENU_ID" --format=ids 2>/dev/null || true); do
-    "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
-  done
+  clear_menu_items "$FMENU_ID"
   "${WP[@]}" menu item add-post "$FMENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
   "${WP[@]}" menu item add-post "$FMENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$FMENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
   "${WP[@]}" menu item add-custom "$FMENU_ID" "MAX" "$MAX_BTN_URL" >/dev/null
-  "${WP[@]}" menu location assign "$FMENU_ID" footer_menu 2>/dev/null || \
-    "${WP[@]}" menu location assign "$FMENU_ID" footer 2>/dev/null || true
+  "${WP[@]}" menu location assign "$FMENU_ID" footer_menu >/dev/null 2>&1 || true
 fi
 
 echo "==> Тема: без сайдбара"
