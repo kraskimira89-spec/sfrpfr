@@ -292,27 +292,13 @@ export function ClientCabinet() {
     [token, loadCases],
   );
 
-  useEffect(() => {
-    if (!token) return;
-    const params = new URLSearchParams(window.location.search);
-    const caseId = params.get("case");
-    const viewParam = params.get("view");
-    if (!caseId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- deep-link open case from query
-    void openCase(caseId, viewParam === "payments" ? "payments" : "case").then(() => {
-      params.delete("case");
-      params.delete("view");
-      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    });
-  }, [token, openCase]);
-
   async function loadPayments(caseId: string) {
-    if (!token) return;
+    if (!token || !caseId) return;
     setBusy(true);
     try {
       const rows = await apiFetch<OrderRow[]>(`/api/portal/cases/${caseId}/orders`, token);
       setOrders(rows);
+      setSelectedId(caseId);
       setView("payments");
     } catch {
       setNotice("Не удалось загрузить оплаты.");
@@ -397,6 +383,11 @@ export function ClientCabinet() {
     if (params.get("paid") === "1") {
       setNotice("Если оплата прошла — обновите список счетов через несколько секунд.");
     }
+    params.delete("case");
+    params.delete("view");
+    params.delete("paid");
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+    window.history.replaceState({}, "", next);
     // один раз на вход по deep-link
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cases]);

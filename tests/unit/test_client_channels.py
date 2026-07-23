@@ -34,6 +34,15 @@ def test_notification_links_prefer_web() -> None:
     assert payload["links"][0]["channel"] == "web_cabinet"
 
 
+def test_notification_links_unlinked_uses_bot_url() -> None:
+    payload = notification_channel_links(
+        preferred_channel="max_miniapp",
+        max_linked=False,
+    )
+    max_link = next(item for item in payload["links"] if item["channel"] == "max_miniapp")
+    assert max_link["url"] == max_link["bot_url"]
+
+
 def test_principal_max_only_audit_actor() -> None:
     p = Principal(
         user_id="max:99",

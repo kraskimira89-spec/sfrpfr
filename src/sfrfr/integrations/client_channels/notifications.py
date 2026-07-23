@@ -37,7 +37,7 @@ def notification_channel_links(
         {
             "channel": "max_miniapp",
             "label": "Мини-приложение MAX",
-            "url": miniapp if max_linked or True else max_url,
+            "url": miniapp if max_linked else max_url,
             "copy": "В MAX — быстро из мессенджера",
             "bot_url": max_url,
         },
