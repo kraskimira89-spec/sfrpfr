@@ -7,7 +7,7 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.integrations.max.client import MaxBotClient
-from sfrfr.models.case_status import CaseStatus
+from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.storage.local import save_upload
 
 
@@ -102,7 +102,7 @@ def handle_max_update(
         if existing:
             reply = (
                 f"Снова здравствуйте. Ваш кейс: {existing.case_id}\n"
-                f"Статус: {existing.ctx.status}\n"
+                f"Этап: {status_label_ru(existing.ctx.status)}\n"
                 "Пришлите документы (ИЛС и трудовую) или команду /status."
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -141,10 +141,10 @@ def handle_max_update(
     if lower.startswith("/status"):
         reply = (
             f"Кейс {record.case_id}\n"
-            f"Статус: {record.ctx.status}\n"
+            f"Этап: {status_label_ru(record.ctx.status)}\n"
             f"Документов: {len(record.ctx.document_paths)}\n"
-            f"OCR: {len(record.ctx.ocr_texts)}\n"
-            f"Findings: {len(record.ctx.findings)}"
+            f"Распознано текстов: {len(record.ctx.ocr_texts)}\n"
+            f"Находок: {len(record.ctx.findings)}"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
@@ -162,7 +162,8 @@ def handle_max_update(
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
         draft_note = " Черновик готов к проверке юристом." if updated.ctx.draft else ""
         reply = (
-            f"Пайплайн: {updated.ctx.status}. Findings: {len(updated.ctx.findings)}."
+            f"Этап: {status_label_ru(updated.ctx.status)}. "
+            f"Находок: {len(updated.ctx.findings)}."
             f"{draft_note}"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -182,7 +183,7 @@ def handle_max_update(
 
     reply = (
         "Принял сообщение. Пришлите файл документа или команды /status /run.\n"
-        f"Текущий статус: {record.ctx.status}"
+        f"Текущий этап: {status_label_ru(record.ctx.status)}"
     )
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)

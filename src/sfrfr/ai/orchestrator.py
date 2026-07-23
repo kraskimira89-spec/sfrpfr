@@ -79,7 +79,7 @@ class CaseOrchestrator:
             if ctx.status is CaseStatus.COMPLETED:
                 return StepResult(ok=True, status=ctx.status, message="кейc завершён")
             if ctx.status is CaseStatus.FAILED:
-                return StepResult(ok=False, status=ctx.status, message=ctx.error or "failed")
+                return StepResult(ok=False, status=ctx.status, message=ctx.error or "ошибка")
             return StepResult(
                 ok=False,
                 status=ctx.status,
@@ -112,7 +112,11 @@ class CaseOrchestrator:
     def complete_after_review(self, ctx: CaseContext) -> StepResult:
         """HITL: юрист подтвердил — completed."""
         if ctx.status is not CaseStatus.HUMAN_REVIEW:
-            return StepResult(ok=False, status=ctx.status, message="нужен статус human_review")
+            return StepResult(
+                ok=False,
+                status=ctx.status,
+                message="нужен этап «На проверке специалиста»",
+            )
         ctx.status = CaseStatus.COMPLETED
         return StepResult(ok=True, status=ctx.status, message="завершено после проверки")
 
@@ -174,7 +178,7 @@ class CaseOrchestrator:
         ctx.findings = [
             Finding(type=r.get("type", "unknown"), detail=r.get("detail", "")) for r in raw
         ]
-        return self._set(ctx, CaseStatus.AUDITED, f"findings: {len(ctx.findings)}")
+        return self._set(ctx, CaseStatus.AUDITED, f"находок: {len(ctx.findings)}")
 
     def _draft(self, ctx: CaseContext) -> StepResult:
         ctx.draft = draft_application(

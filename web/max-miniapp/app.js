@@ -5,7 +5,7 @@
   const STATUS_LABELS = {
     intake: "Приём данных",
     documents_received: "Документы получены",
-    ocr_done: "OCR выполнен",
+    ocr_done: "Текст распознан",
     classified: "Документы классифицированы",
     extracted: "Периоды извлечены",
     audited: "Сверка завершена",

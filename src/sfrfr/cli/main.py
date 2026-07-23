@@ -1,6 +1,6 @@
 import typer
 
-from sfrfr.models.case_status import CaseStatus
+from sfrfr.models.case_status import CaseStatus, status_label_ru
 
 app = typer.Typer(help="SFRFR CLI — аудит пенсионных дел")
 
@@ -30,7 +30,7 @@ def case_create(
     from sfrfr.core.case_store import get_case_store
 
     record = get_case_store().create(client_name=client_name, snils_masked=snils)
-    typer.echo(f"{record.case_id}\t{record.ctx.status}")
+    typer.echo(f"{record.case_id}\t{status_label_ru(record.ctx.status)}")
 
 
 @app.command("case-upload")
@@ -56,7 +56,10 @@ def case_upload(
 
     saved = save_upload(case_id, src.name, src.read_bytes())
     record = store.add_document(case_id, str(saved))
-    typer.echo(f"{record.case_id}\t{record.ctx.status}\tdocs={len(record.ctx.document_paths)}")
+    typer.echo(
+        f"{record.case_id}\t{status_label_ru(record.ctx.status)}\t"
+        f"docs={len(record.ctx.document_paths)}"
+    )
 
 
 @app.command("case-advance")
@@ -69,7 +72,7 @@ def case_advance(case_id: str = typer.Argument(...)) -> None:
         record, result = store.advance(case_id)
     except KeyError as exc:
         raise typer.BadParameter(f"case not found: {case_id}") from exc
-    typer.echo(f"ok={result.ok}\t{result.status}\t{result.message}")
+    typer.echo(f"ok={result.ok}\t{status_label_ru(result.status)}\t{result.message}")
 
 
 @app.command("case-run")
@@ -87,10 +90,9 @@ def case_run(
         raise typer.BadParameter(f"case not found: {case_id}") from exc
 
     record = store.run_until(case_id, stop_at=stop_at)
-    draft_hint = "yes" if record.ctx.draft else "no"
     typer.echo(
-        f"{record.case_id}\t{record.ctx.status}\t"
-        f"findings={len(record.ctx.findings)}\tdraft={draft_hint}"
+        f"{record.case_id}\t{status_label_ru(record.ctx.status)}\t"
+        f"находок={len(record.ctx.findings)}\tчерновик={'да' if record.ctx.draft else 'нет'}"
     )
 
 
@@ -104,7 +106,7 @@ def case_complete(case_id: str = typer.Argument(...)) -> None:
         record, result = store.complete(case_id)
     except KeyError as exc:
         raise typer.BadParameter(f"case not found: {case_id}") from exc
-    typer.echo(f"ok={result.ok}\t{record.ctx.status}\t{result.message}")
+    typer.echo(f"ok={result.ok}\t{status_label_ru(record.ctx.status)}\t{result.message}")
 
 
 @app.command("case-show")
@@ -120,11 +122,11 @@ def case_show(case_id: str = typer.Argument(...)) -> None:
     ctx = record.ctx
     typer.echo(
         f"id={record.case_id}\n"
-        f"status={ctx.status}\n"
-        f"docs={len(ctx.document_paths)}\n"
-        f"ocr={len(ctx.ocr_texts)}\n"
-        f"findings={len(ctx.findings)}\n"
-        f"error={ctx.error or '-'}"
+        f"этап={status_label_ru(ctx.status)}\n"
+        f"документов={len(ctx.document_paths)}\n"
+        f"распознано={len(ctx.ocr_texts)}\n"
+        f"находок={len(ctx.findings)}\n"
+        f"ошибка={ctx.error or '-'}"
     )
 
 

@@ -201,36 +201,68 @@ echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID"
 "${WP[@]}" option update blogdescription "Сопровождение пенсионного перерасчёта"
 
 echo "==> Меню"
-MENU_ID="$("${WP[@]}" menu list --fields=term_id,name --format=csv 2>/dev/null | awk -F, '$2=="SFRFR Primary"{print $1; exit}' || true)"
+# Найти меню по имени или создать
+MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; }
+}
+' || true)"
 if [ -z "${MENU_ID}" ]; then
-  MENU_ID="$("${WP[@]}" menu create "SFRFR Primary" --porcelain)"
+  MENU_ID="$("${WP[@]}" menu create "SFRFR Primary" --porcelain 2>/dev/null || true)"
 fi
-# очистить пункты
-for item in $("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true); do
-  "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
-done
-"${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
-"${WP[@]}" menu item add-post "$MENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
-"${WP[@]}" menu item add-post "$MENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
-"${WP[@]}" menu item add-post "$MENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
-"${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "$MAX_BTN_URL" >/dev/null
-"${WP[@]}" menu location assign "$MENU_ID" primary 2>/dev/null || \
-  "${WP[@]}" menu location assign "$MENU_ID" menu-1 2>/dev/null || true
+# если create упал из-за конфликта — снова найти
+if [ -z "${MENU_ID}" ]; then
+  MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; }
+}
+' || true)"
+fi
+echo "MENU_ID=${MENU_ID}"
+if [ -n "${MENU_ID}" ]; then
+  for item in $("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true); do
+    "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
+  done
+  "${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
+  "${WP[@]}" menu item add-post "$MENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
+  "${WP[@]}" menu item add-post "$MENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
+  "${WP[@]}" menu item add-post "$MENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "$MAX_BTN_URL" >/dev/null
+  "${WP[@]}" menu location assign "$MENU_ID" primary 2>/dev/null || \
+    "${WP[@]}" menu location assign "$MENU_ID" menu-1 2>/dev/null || true
+fi
 
-# Футер-меню
-FMENU_ID="$("${WP[@]}" menu list --fields=term_id,name --format=csv 2>/dev/null | awk -F, '$2=="SFRFR Footer"{print $1; exit}' || true)"
+FMENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === "SFRFR Footer") { echo (int)$m["term_id"]; exit; }
+}
+' || true)"
 if [ -z "${FMENU_ID}" ]; then
-  FMENU_ID="$("${WP[@]}" menu create "SFRFR Footer" --porcelain)"
+  FMENU_ID="$("${WP[@]}" menu create "SFRFR Footer" --porcelain 2>/dev/null || true)"
 fi
-for item in $("${WP[@]}" menu item list "$FMENU_ID" --format=ids 2>/dev/null || true); do
-  "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
-done
-"${WP[@]}" menu item add-post "$FMENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
-"${WP[@]}" menu item add-post "$FMENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
-"${WP[@]}" menu item add-post "$FMENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
-"${WP[@]}" menu item add-custom "$FMENU_ID" "MAX" "$MAX_BTN_URL" >/dev/null
-"${WP[@]}" menu location assign "$FMENU_ID" footer_menu 2>/dev/null || \
-  "${WP[@]}" menu location assign "$FMENU_ID" footer 2>/dev/null || true
+if [ -z "${FMENU_ID}" ]; then
+  FMENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) {
+  if (($m["name"] ?? "") === "SFRFR Footer") { echo (int)$m["term_id"]; exit; }
+}
+' || true)"
+fi
+echo "FMENU_ID=${FMENU_ID}"
+if [ -n "${FMENU_ID}" ]; then
+  for item in $("${WP[@]}" menu item list "$FMENU_ID" --format=ids 2>/dev/null || true); do
+    "${WP[@]}" menu item delete "$item" --force >/dev/null 2>&1 || true
+  done
+  "${WP[@]}" menu item add-post "$FMENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
+  "${WP[@]}" menu item add-post "$FMENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
+  "${WP[@]}" menu item add-post "$FMENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
+  "${WP[@]}" menu item add-custom "$FMENU_ID" "MAX" "$MAX_BTN_URL" >/dev/null
+  "${WP[@]}" menu location assign "$FMENU_ID" footer_menu 2>/dev/null || \
+    "${WP[@]}" menu location assign "$FMENU_ID" footer 2>/dev/null || true
+fi
 
 echo "==> Тема: без сайдбара"
 "${WP[@]}" widget reset --all 2>/dev/null || true

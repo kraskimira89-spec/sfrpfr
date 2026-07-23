@@ -13,6 +13,14 @@
 - Бот: отображаемое имя «Стаж и пенсия», технический username `id8905998693_1_bot`; диплинк `https://max.ru/id8905998693_1_bot?startapp`.
 - В кабинете партнёра MAX нужно вручную вставить URL мини-приложения.
 
+## 2026-07-23 (ТЗ-02: лендинг + оферта + MAX)
+
+- Сид `scripts/wp_seed_site_tz02.sh` + форма `wp_ensure_lead_form.php`.
+- Страницы HTTPS: главная, `/oferta/`, `/politika-pdn/`, `/soglasie/`.
+- CTA «Начать проверку» → `https://max.ru/id8905998693_1_bot?startapp`.
+- WPForms id=16: имя, канал связи, согласие; без file/СНИЛС.
+- Меню SFRFR Primary + Footer на Astra.
+
 ## 2026-07-22 (WP стек витрины)
 
 - Установлено: Astra + Spectra, WPForms Lite, Rank Math, UpdraftPlus, Wordfence, WP Super Cache.

@@ -168,7 +168,9 @@ npx supabase db push
   - WPForms Lite (заявки; **не** сканы ПДн);
   - Rank Math SEO, UpdraftPlus, Wordfence, **WP Super Cache** (Apache);
   - не ставим: LiteSpeed Cache, Really Simple SSL (SSL уже certbot).
-- Сид лендинга: `scripts/wp_seed_landing.sh`.
+- Сид ТЗ-02: `scripts/wp_seed_site_tz02.sh` (обёртка `scripts/wp_seed_landing.sh`) — главная, оферта, политика ПДн, согласие, меню, CTA MAX, WPForms-лид.
+- Форма лида: `scripts/wp_ensure_lead_form.php` (имя, телефон/канал, согласие; без файлов и СНИЛС; entries + email admin).
+- Страницы: `/`, `/oferta/`, `/politika-pdn/`, `/soglasie/` (HTTPS).
 - Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
 - В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
 - Диплинк: `https://max.ru/id8905998693_1_bot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP. Используйте технический username из `/me`, а не отображаемое имя бота.
