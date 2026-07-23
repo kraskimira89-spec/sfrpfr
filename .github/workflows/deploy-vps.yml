@@ -45,4 +45,6 @@ jobs:
               echo "Каталог $APP_DIR не инициализирован. Сначала выполните scripts/vps_bootstrap.sh на VPS."
               exit 1
             fi
-            sudo APP_DIR="$APP_DIR" BRANCH=main bash "$APP_DIR/scripts/vps_deploy.sh"
+            # Нельзя передавать env через `sudo VAR=...` (sudoers env_reset) —
+            # экспортируем внутри bash -c.
+            sudo bash -c "export APP_DIR='$APP_DIR' BRANCH=main; bash '$APP_DIR/scripts/vps_deploy.sh'"
