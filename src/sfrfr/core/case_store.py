@@ -65,7 +65,9 @@ def _ctx_from_dict(data: dict[str, Any]) -> CaseContext:
         max_chat_id=data.get("max_chat_id"),
         document_paths=list(data.get("document_paths") or []),
         ocr_texts=list(data.get("ocr_texts") or []),
-        classifications=[ClassifyResult.model_validate(c) for c in data.get("classifications") or []],
+        classifications=[
+            ClassifyResult.model_validate(c) for c in data.get("classifications") or []
+        ],
         ils_periods=list(data.get("ils_periods") or []),
         labor_periods=list(data.get("labor_periods") or []),
         findings=[Finding.model_validate(f) for f in data.get("findings") or []],
@@ -129,7 +131,13 @@ class CaseStore:
         tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self._path)
 
-    def create(self, *, client_name: str, snils_masked: str, consent_given: bool = True) -> CaseRecord:
+    def create(
+        self,
+        *,
+        client_name: str,
+        snils_masked: str,
+        consent_given: bool = True,
+    ) -> CaseRecord:
         case_id = str(uuid.uuid4())
         record = CaseRecord(
             case_id=case_id,

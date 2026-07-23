@@ -75,9 +75,14 @@ def test_api_upload_and_run(tmp_path: Path, monkeypatch) -> None:
     assert up.json()["document_count"] == 1
 
     files2 = {
-        "file": ("labor.txt", "Трудовая книжка стаж с 01.01.2010 по 31.12.2015".encode(), "text/plain"),
+        "file": (
+            "labor.txt",
+            "Трудовая книжка стаж с 01.01.2010 по 31.12.2015".encode(),
+            "text/plain",
+        ),
     }
-    assert client.post("/api/documents/upload", data={"case_id": case_id}, files=files2).status_code == 200
+    up2 = client.post("/api/documents/upload", data={"case_id": case_id}, files=files2)
+    assert up2.status_code == 200
 
     ran = client.post(f"/api/cases/{case_id}/run")
     assert ran.status_code == 200

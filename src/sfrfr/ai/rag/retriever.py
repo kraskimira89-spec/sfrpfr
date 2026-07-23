@@ -30,7 +30,12 @@ class KnowledgeRetriever:
             snippet = text.strip().replace("\n", " ")[:400]
             if not snippet:
                 continue
-            hits.append(KnowledgeHit(source=str(path.relative_to(self.knowledge_dir)), snippet=snippet))
+            hits.append(
+                KnowledgeHit(
+                    source=str(path.relative_to(self.knowledge_dir)),
+                    snippet=snippet,
+                )
+            )
             if len(hits) >= limit:
                 break
         return hits

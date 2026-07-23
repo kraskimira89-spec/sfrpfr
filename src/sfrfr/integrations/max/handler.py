@@ -153,7 +153,12 @@ def handle_max_update(
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = "Сначала пришлите документы (ИЛС и трудовую)."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=False, action="run_blocked", case_id=record.case_id, reply=reply)
+            return MaxHandleResult(
+                ok=False,
+                action="run_blocked",
+                case_id=record.case_id,
+                reply=reply,
+            )
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
         draft_note = " Черновик готов к проверке юристом." if updated.ctx.draft else ""
         reply = (

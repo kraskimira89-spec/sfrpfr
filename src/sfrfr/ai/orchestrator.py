@@ -80,7 +80,11 @@ class CaseOrchestrator:
                 return StepResult(ok=True, status=ctx.status, message="кейc завершён")
             if ctx.status is CaseStatus.FAILED:
                 return StepResult(ok=False, status=ctx.status, message=ctx.error or "failed")
-            return StepResult(ok=False, status=ctx.status, message=f"неизвестный статус: {ctx.status}")
+            return StepResult(
+                ok=False,
+                status=ctx.status,
+                message=f"неизвестный статус: {ctx.status}",
+            )
         except Exception as exc:  # noqa: BLE001 — граница оркестратора
             ctx.status = CaseStatus.FAILED
             ctx.error = str(exc)
@@ -140,7 +144,11 @@ class CaseOrchestrator:
         ctx.classifications = [
             classify_document(t, client_name=ctx.client_name, llm=self.llm) for t in ctx.ocr_texts
         ]
-        return self._set(ctx, CaseStatus.CLASSIFIED, f"классифицировано: {len(ctx.classifications)}")
+        return self._set(
+            ctx,
+            CaseStatus.CLASSIFIED,
+            f"классифицировано: {len(ctx.classifications)}",
+        )
 
     def _extract(self, ctx: CaseContext) -> StepResult:
         ils: list[dict] = []
@@ -163,7 +171,9 @@ class CaseOrchestrator:
 
     def _audit(self, ctx: CaseContext) -> StepResult:
         raw = compare_ils_vs_labor_book(ctx.ils_periods, ctx.labor_periods)
-        ctx.findings = [Finding(type=r.get("type", "unknown"), detail=r.get("detail", "")) for r in raw]
+        ctx.findings = [
+            Finding(type=r.get("type", "unknown"), detail=r.get("detail", "")) for r in raw
+        ]
         return self._set(ctx, CaseStatus.AUDITED, f"findings: {len(ctx.findings)}")
 
     def _draft(self, ctx: CaseContext) -> StepResult:

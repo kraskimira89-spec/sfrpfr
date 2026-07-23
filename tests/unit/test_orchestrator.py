@@ -1,7 +1,7 @@
 """unit-тесты оркестратора и статусов кейса."""
 
 from sfrfr.ai.orchestrator import CaseContext, CaseOrchestrator
-from sfrfr.models.case_status import CaseStatus, PIPELINE_ORDER, next_status
+from sfrfr.models.case_status import PIPELINE_ORDER, CaseStatus, next_status
 
 
 def test_pipeline_order_starts_at_intake() -> None:
