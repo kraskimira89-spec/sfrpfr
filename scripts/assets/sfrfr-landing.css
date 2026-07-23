@@ -12,20 +12,31 @@
   --sfrfr-radius: 14px;
   --sfrfr-shadow: 0 8px 24px rgba(30, 78, 121, 0.08);
   --sfrfr-font: "Manrope", "PT Sans", system-ui, sans-serif;
+  --sfrfr-space: clamp(1rem, 3vw, 1.5rem);
+  --sfrfr-section-y: clamp(2.25rem, 5vw, 3.5rem);
+  --sfrfr-wrap-gutter: clamp(1rem, 4vw, 1.5rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body.home,
 body.page-template-default {
   font-family: var(--sfrfr-font);
-  font-size: 18px;
+  font-size: clamp(16px, 2.6vw, 18px);
   line-height: 1.55;
   color: var(--sfrfr-ink);
   background: var(--sfrfr-bg);
+  overflow-x: hidden;
 }
 
 .sfrfr-landing {
   font-family: var(--sfrfr-font);
   color: var(--sfrfr-ink);
+  overflow-x: clip;
 }
 
 .sfrfr-landing h1,
@@ -35,21 +46,29 @@ body.page-template-default {
   line-height: 1.25;
   color: var(--sfrfr-primary);
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.sfrfr-landing h2 {
+  font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+  margin: 0 0 0.35rem;
 }
 
 .sfrfr-landing p,
 .sfrfr-landing li {
   color: #111111;
-  font-size: 1.05rem;
+  font-size: clamp(1rem, 2.4vw, 1.05rem);
+  overflow-wrap: anywhere;
 }
 
 .sfrfr-wrap {
-  width: min(1120px, calc(100% - 2rem));
+  width: min(1120px, calc(100% - (var(--sfrfr-wrap-gutter) * 2)));
   margin-inline: auto;
 }
 
 .sfrfr-section {
-  padding: 3.5rem 0;
+  padding: var(--sfrfr-section-y) 0;
 }
 
 .sfrfr-section--alt {
@@ -57,7 +76,7 @@ body.page-template-default {
 }
 
 .sfrfr-hero {
-  padding: 4rem 0 3rem;
+  padding: clamp(2rem, 6vw, 4rem) 0 clamp(1.75rem, 4vw, 3rem);
   background:
     radial-gradient(ellipse at 85% 20%, rgba(46, 125, 91, 0.08), transparent 50%),
     linear-gradient(180deg, #ffffff 0%, var(--sfrfr-bg) 100%);
@@ -65,7 +84,7 @@ body.page-template-default {
 
 .sfrfr-hero__grid {
   display: grid;
-  gap: 2.5rem;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
   align-items: center;
 }
 
@@ -76,7 +95,7 @@ body.page-template-default {
 }
 
 .sfrfr-brand {
-  font-size: 1.05rem;
+  font-size: clamp(0.95rem, 2.5vw, 1.05rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -85,7 +104,7 @@ body.page-template-default {
 }
 
 .sfrfr-hero h1 {
-  font-size: clamp(1.85rem, 4vw, 2.65rem);
+  font-size: clamp(1.55rem, 5.5vw, 2.65rem);
   margin: 0 0 1rem;
   max-width: 18ch;
 }
@@ -111,11 +130,12 @@ body.page-template-default {
   padding: 0.85rem 1.4rem;
   border-radius: 12px;
   font-family: inherit;
-  font-size: 1.05rem;
+  font-size: clamp(1rem, 2.5vw, 1.05rem);
   font-weight: 600;
   text-decoration: none !important;
   border: 2px solid transparent;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-align: center;
 }
 
 .sfrfr-btn:hover {
@@ -136,7 +156,7 @@ body.page-template-default {
 
 .sfrfr-disclaimer {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: clamp(0.88rem, 2.3vw, 0.95rem);
   color: var(--sfrfr-warn);
 }
 
@@ -144,8 +164,8 @@ body.page-template-default {
   background: var(--sfrfr-surface);
   border-radius: var(--sfrfr-radius);
   box-shadow: var(--sfrfr-shadow);
-  padding: 2rem;
-  min-height: 260px;
+  padding: clamp(1rem, 3vw, 2rem);
+  min-height: clamp(160px, 40vw, 260px);
   display: grid;
   place-items: center;
 }
@@ -153,26 +173,32 @@ body.page-template-default {
 .sfrfr-illustration svg {
   width: min(100%, 320px);
   height: auto;
+  max-width: 100%;
 }
 
 .sfrfr-cards {
   display: grid;
-  gap: 1.25rem;
+  gap: clamp(0.85rem, 2.5vw, 1.25rem);
 }
 
-@media (min-width: 720px) {
-  .sfrfr-cards--3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .sfrfr-cards--2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* Планшет: 2 колонки */
+@media (min-width: 560px) {
+  .sfrfr-cards--2,
+  .sfrfr-cards--3,
   .sfrfr-cards--4 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 980px) {
+/* Десктоп: 3 колонки */
+@media (min-width: 900px) {
+  .sfrfr-cards--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Широкий: 4 колонки */
+@media (min-width: 1100px) {
   .sfrfr-cards--4 {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -182,9 +208,10 @@ body.page-template-default {
   background: var(--sfrfr-surface);
   border-radius: var(--sfrfr-radius);
   box-shadow: var(--sfrfr-shadow);
-  padding: 1.35rem 1.4rem;
+  padding: clamp(1rem, 2.5vw, 1.35rem) clamp(1rem, 2.5vw, 1.4rem);
   border-left: 4px solid var(--sfrfr-primary);
   border-right: none;
+  min-width: 0;
 }
 
 .sfrfr-section--alt .sfrfr-card {
@@ -195,7 +222,7 @@ body.page-template-default {
   border-right: 1px solid rgba(30, 78, 121, 0.1);
 }
 
-/* Чередование контура по рядам: нечётный ряд — слева, чётный — справа */
+/* Чередование контура: 1 колонка — по карточке */
 .sfrfr-cards > .sfrfr-card:nth-child(even) {
   border-left: none;
   border-right: 4px solid var(--sfrfr-primary);
@@ -206,13 +233,47 @@ body.page-template-default {
   border-right: 4px solid var(--sfrfr-primary);
 }
 
-@media (min-width: 720px) {
-  /* 3 колонки: ряд 1 (1–3) слева, ряд 2 (4–6) справа */
-  .sfrfr-cards--3 > .sfrfr-card:nth-child(even) {
+/* 2 колонки: ряд 1 слева, ряд 2 справа */
+@media (min-width: 560px) {
+  .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
+  .sfrfr-cards--3 > .sfrfr-card:nth-child(even),
+  .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
     border-left: 4px solid var(--sfrfr-primary);
     border-right: none;
   }
-  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(even) {
+  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
+  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(even),
+  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
+    border-left: 4px solid var(--sfrfr-primary);
+    border-right: 1px solid rgba(30, 78, 121, 0.1);
+  }
+  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
+  .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 4),
+  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
+    border-left: none;
+    border-right: 4px solid var(--sfrfr-primary);
+  }
+  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
+  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(4n + 4),
+  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
+  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
+    border-left: 1px solid rgba(30, 78, 121, 0.1);
+    border-right: 4px solid var(--sfrfr-primary);
+  }
+}
+
+/* 3 колонки: ряд 1 (1–3) слева, ряд 2 (4–6) справа */
+@media (min-width: 900px) {
+  .sfrfr-cards--3 > .sfrfr-card:nth-child(n) {
+    border-left: 4px solid var(--sfrfr-primary);
+    border-right: none;
+  }
+  .sfrfr-section--alt .sfrfr-cards--3 > .sfrfr-card:nth-child(n) {
     border-left: 4px solid var(--sfrfr-primary);
     border-right: 1px solid rgba(30, 78, 121, 0.1);
   }
@@ -228,36 +289,10 @@ body.page-template-default {
     border-left: 1px solid rgba(30, 78, 121, 0.1);
     border-right: 4px solid var(--sfrfr-primary);
   }
-
-  /* 2 колонки (cards--2 и cards--4 до 980px): ряд 1 слева, ряд 2 справа */
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: none;
-  }
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(even),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(even) {
-    border-left: 4px solid var(--sfrfr-primary);
-    border-right: 1px solid rgba(30, 78, 121, 0.1);
-  }
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: none;
-    border-right: 4px solid var(--sfrfr-primary);
-  }
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--2 > .sfrfr-card:nth-child(4n + 4),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
-  .sfrfr-section--alt .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
-    border-left: 1px solid rgba(30, 78, 121, 0.1);
-    border-right: 4px solid var(--sfrfr-primary);
-  }
 }
 
-@media (min-width: 980px) {
-  /* 4 колонки: ряд 1 (1–4) слева, ряд 2 (5–8) справа */
+/* 4 колонки */
+@media (min-width: 1100px) {
   .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 3),
   .sfrfr-cards--4 > .sfrfr-card:nth-child(4n + 4) {
     border-left: 4px solid var(--sfrfr-primary);
@@ -286,7 +321,7 @@ body.page-template-default {
 
 .sfrfr-card h3 {
   margin: 0 0 0.5rem;
-  font-size: 1.15rem;
+  font-size: clamp(1.05rem, 2.5vw, 1.15rem);
 }
 
 .sfrfr-card p {
@@ -296,11 +331,23 @@ body.page-template-default {
 
 .sfrfr-steps {
   display: grid;
-  gap: 1rem;
+  gap: clamp(0.75rem, 2vw, 1rem);
   counter-reset: step;
 }
 
+@media (min-width: 560px) {
+  .sfrfr-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (min-width: 900px) {
+  .sfrfr-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
   .sfrfr-steps {
     grid-template-columns: repeat(5, 1fr);
   }
@@ -310,10 +357,11 @@ body.page-template-default {
   position: relative;
   background: var(--sfrfr-surface);
   border-radius: var(--sfrfr-radius);
-  padding: 1.2rem;
+  padding: clamp(1rem, 2.5vw, 1.2rem);
   box-shadow: var(--sfrfr-shadow);
   counter-increment: step;
   border-left: 4px solid var(--sfrfr-accent);
+  min-width: 0;
 }
 
 .sfrfr-step::before {
@@ -333,15 +381,15 @@ body.page-template-default {
 
 .sfrfr-step h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
 }
 
 .sfrfr-cols {
   display: grid;
-  gap: 1.25rem;
+  gap: clamp(0.85rem, 2.5vw, 1.25rem);
 }
 
-@media (min-width: 800px) {
+@media (min-width: 720px) {
   .sfrfr-cols {
     grid-template-columns: 1fr 1fr;
   }
@@ -349,7 +397,8 @@ body.page-template-default {
 
 .sfrfr-panel {
   border-radius: var(--sfrfr-radius);
-  padding: 1.5rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  min-width: 0;
 }
 
 .sfrfr-panel--ok {
@@ -373,18 +422,18 @@ body.page-template-default {
 
 .sfrfr-price {
   margin-top: 1rem;
-  font-size: 1.25rem;
+  font-size: clamp(1.1rem, 3vw, 1.25rem);
   font-weight: 700;
   color: var(--sfrfr-primary);
 }
 
 .sfrfr-note {
   margin-top: 1.25rem;
-  padding: 1rem 1.2rem;
+  padding: clamp(0.85rem, 2.5vw, 1rem) clamp(1rem, 3vw, 1.2rem);
   border-radius: 12px;
   background: rgba(201, 135, 23, 0.12);
   color: #7a5a12;
-  font-size: 0.98rem;
+  font-size: clamp(0.9rem, 2.3vw, 0.98rem);
 }
 
 .sfrfr-faq details {
@@ -399,6 +448,7 @@ body.page-template-default {
   cursor: pointer;
   font-weight: 600;
   color: var(--sfrfr-primary);
+  line-height: 1.4;
 }
 
 .sfrfr-faq p {
@@ -409,7 +459,7 @@ body.page-template-default {
   text-align: center;
   background: linear-gradient(180deg, rgba(30, 78, 121, 0.06), transparent);
   border-radius: var(--sfrfr-radius);
-  padding: 2.5rem 1.5rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 3vw, 1.5rem);
 }
 
 .sfrfr-final h2 {
@@ -422,16 +472,17 @@ body.page-template-default {
 
 .sfrfr-form-block {
   max-width: 28rem;
+  width: 100%;
   margin: 2rem auto 0;
   text-align: left;
 }
 
 .sfrfr-site-footer {
   margin-top: 2rem;
-  padding: 2.5rem 0;
+  padding: clamp(1.75rem, 4vw, 2.5rem) 0;
   background: #163a5a;
   color: rgba(255, 255, 255, 0.88);
-  font-size: 0.98rem;
+  font-size: clamp(0.9rem, 2.3vw, 0.98rem);
 }
 
 .sfrfr-site-footer a {
@@ -444,7 +495,13 @@ body.page-template-default {
   gap: 1.25rem;
 }
 
-@media (min-width: 800px) {
+@media (min-width: 560px) {
+  .sfrfr-site-footer__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 900px) {
   .sfrfr-site-footer__grid {
     grid-template-columns: 1.4fr 1fr 1fr;
   }
@@ -458,9 +515,19 @@ body.page-template-default {
 .sfrfr-landing .wpforms-container input,
 .sfrfr-landing .wpforms-container textarea,
 .sfrfr-landing .wpforms-container select {
-  font-size: 18px !important;
+  font-size: 16px !important;
   min-height: 48px;
   border-radius: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+@media (min-width: 560px) {
+  .sfrfr-landing .wpforms-container input,
+  .sfrfr-landing .wpforms-container textarea,
+  .sfrfr-landing .wpforms-container select {
+    font-size: 18px !important;
+  }
 }
 
 .sfrfr-landing .wpforms-submit {
@@ -470,6 +537,13 @@ body.page-template-default {
   font-size: 1.05rem !important;
   border-radius: 12px !important;
   padding: 0.85rem 1.4rem !important;
+  width: 100% !important;
+}
+
+@media (min-width: 560px) {
+  .sfrfr-landing .wpforms-submit {
+    width: auto !important;
+  }
 }
 
 /* Убрать лишний сайдбар-шум Astra на главной */
@@ -483,7 +557,7 @@ body.page-template-default {
 .ast-builder-menu-1 .menu-link,
 #primary-site-navigation-desktop .menu-link {
   font-weight: 700 !important;
-  font-size: 1.1rem !important;
+  font-size: clamp(0.95rem, 2vw, 1.1rem) !important;
 }
 
 /* На главной скрыть заголовок страницы «Главная» */
@@ -495,4 +569,65 @@ body.page-template-default {
 .home .ast-page-title-wrapper,
 .home .ast-archive-description {
   display: none !important;
+}
+
+/* ——— Мобильный акцент ——— */
+@media (max-width: 559px) {
+  .sfrfr-cta-row {
+    flex-direction: column;
+  }
+
+  .sfrfr-cta-row .sfrfr-btn {
+    width: 100%;
+  }
+
+  .sfrfr-hero h1 {
+    max-width: none;
+  }
+
+  .sfrfr-illustration {
+    order: -1;
+    min-height: 140px;
+    padding: 0.85rem;
+  }
+
+  .sfrfr-hero__grid {
+    gap: 1.25rem;
+  }
+
+  .sfrfr-final .sfrfr-cta-row {
+    flex-direction: column;
+  }
+
+  .sfrfr-final .sfrfr-cta-row .sfrfr-btn {
+    width: 100%;
+  }
+
+  .sfrfr-site-footer__grid > *:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 379px) {
+  .sfrfr-illustration {
+    display: none;
+  }
+}
+
+/* Полноширинный контент без боковых отступов Astra */
+.home .site-content > .ast-container,
+.home .entry-content > .ast-container,
+.home #primary,
+.home .entry-content {
+  max-width: none !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+}
+
+.home .site-content,
+.home #content {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
