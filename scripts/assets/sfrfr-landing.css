@@ -481,6 +481,17 @@ body.page-template-default {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.sfrfr-site-footer .sfrfr-req {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0.65rem 0;
+}
+
+.sfrfr-site-footer strong {
+  color: #fff;
+  font-weight: 600;
+}
+
 /* WPForms: компактная форма, комментарии справа от полей */
 .sfrfr-form-block .wpforms-container {
   margin: 0 !important;

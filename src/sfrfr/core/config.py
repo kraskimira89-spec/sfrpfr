@@ -54,7 +54,11 @@ class Settings(BaseSettings):
     # Taganay: исходящий webhook (лиды/этапы по case_id), минимум контактов
     taganay_webhook_url: str = ""
     taganay_api_token: str = ""
-    # Google Sheets: Apps Script / webhook только для обезличенных строк
+    # Google Sheets: API (service account) предпочтительно; webhook — fallback
+    google_sheets_spreadsheet_id: str = ""
+    google_sheets_worksheet: str = "Analytics"
+    # Путь к JSON ключу SA или сам JSON одной строкой
+    google_sheets_credentials_json: str = ""
     google_sheets_webhook_url: str = ""
     # ЮKassa
     yookassa_shop_id: str = ""

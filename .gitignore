@@ -26,6 +26,9 @@ htmlcov/
 !**/.env.example
 *.pem
 *.key
+secrets/
+**/google-sheets-sa.json
+**/google*credentials*.json
 
 # Next.js apps
 apps/*/node_modules/

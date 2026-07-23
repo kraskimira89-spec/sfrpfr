@@ -389,7 +389,7 @@ def ops_check_remote(
 
 @app.command("sheets-sync")
 def sheets_sync() -> None:
-    """Выгрузить обезличенную аналитику в Google Sheets webhook (ТЗ-06)."""
+    """Выгрузить обезличенную аналитику в Google Sheets (API или webhook, ТЗ-06)."""
     import json
 
     from sfrfr.db.case_repository import CaseRepository

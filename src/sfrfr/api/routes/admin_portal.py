@@ -501,7 +501,7 @@ def admin_analytics(principal: Principal = Depends(require_staff)) -> dict:
 
 @router.post("/admin/analytics/sheets-sync")
 def admin_analytics_sheets_sync(principal: Principal = Depends(require_admin)) -> dict:
-    """Пуш обезличенных строк в Google Sheets webhook (ТЗ-06)."""
+    """Пуш обезличенных строк в Google Sheets (API SA или webhook, ТЗ-06)."""
     rows = sanitize_rows(_repo().anonymized_analytics_rows())
     result = SheetsExporter().push(rows)
     return {"export": result, "rows": len(rows), "pii": False}
