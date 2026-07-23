@@ -82,12 +82,14 @@
 
 ```text
 sfrfr knowledge-depersonalize-dir inbox/ --out cleaned/
+sfrfr knowledge-import-deepseek conversations.json -n 5 --cleaned-dir storage/knowledge_inbox/cleaned
 sfrfr knowledge-import PATH     # диалог → draft JSON (с обезличиванием)
 sfrfr knowledge-list            # реестр
 sfrfr knowledge-set-status ID Q # draft|verified|rejected|template
 ```
 
-`knowledge-depersonalize-dir`: md/txt/json/html/csv → очищенные копии; PDF/сканы пропускаются.
+`knowledge-depersonalize-dir`: md/txt/json/html/csv → очищенные копии; PDF/сканы пропускаются.  
+`knowledge-import-deepseek`: официальный экспорт DeepSeek (`conversations.json`) → пенсионные диалоги по title → draft. `user.json` не импортировать (там email/id).
 
 ## Системный промпт AI-помощника
 

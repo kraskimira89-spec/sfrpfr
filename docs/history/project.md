@@ -1,5 +1,16 @@
 # История проекта SFRFR
 
+## 2026-07-23 (все пенсионные диалоги DeepSeek)
+
+- Импортировано 26 draft-кейсов CASE-2026-002…027 из `conversations.json`.
+- Шаблон CASE-2026-001 сохранён; cleaned MD в `storage/knowledge_inbox/cleaned/`.
+
+## 2026-07-23 (импорт DeepSeek export)
+
+- CLI: `knowledge-import-deepseek conversations.json` — пенсионные диалоги по title.
+- Пилот: CASE-2026-002…006 (draft) из экспорта; cleaned MD в `storage/knowledge_inbox/` (gitignore).
+- `user.json` не импортируется (email/PII). Обезличивание усилено для фамилий.
+
 ## 2026-07-23 (пакетное обезличивание)
 
 - CLI: `sfrfr knowledge-depersonalize-dir inbox/ --out cleaned/`.

@@ -35,6 +35,7 @@ apps/*/out/
 # ПДн и рабочие файлы клиентов — никогда в git
 storage/uploads/*
 storage/processed/*
+storage/knowledge_inbox/
 storage/cases.json
 storage/cases.tmp
 !storage/uploads/.gitkeep
@@ -43,6 +44,7 @@ storage/cases.tmp
 *.jpg
 *.jpeg
 *.png
+!assets/**/*.png
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**
 

@@ -24,6 +24,24 @@ _PAYMENT_CASE_RE = re.compile(
 _FIO_RE = re.compile(
     r"\b([А-ЯЁ][а-яё]{1,30})\s+([А-ЯЁ][а-яё]{1,30})\s+([А-ЯЁ][а-яё]{1,30})\b"
 )
+# Одиночные фамилии + частые падежи / ЗАГЛАВНЫЕ (Лопаковой, ЛОПАКОВА…).
+_SURNAME_RE = re.compile(
+    r"\b(?:"
+    r"[А-ЯЁ][а-яё]{2,30}(?:овой|овым|ову|ова|ов|евой|евым|еву|ева|ев|"
+    r"ёвой|ёвым|ёву|ёва|ёв|иной|иным|ину|ина|ин|ыной|ыным|ыну|ына|ын|"
+    r"ского|ской|ский|ская|цкого|цкой|цкий|цкая|ук|юк)"
+    r"|"
+    r"[А-ЯЁ]{3,30}(?:ОВОЙ|ОВЫМ|ОВУ|ОВА|ОВ|ЕВОЙ|ЕВЫМ|ЕВУ|ЕВА|ЕВ|"
+    r"ИНОЙ|ИНЫМ|ИНУ|ИНА|ИН|СКОГО|СКОЙ|СКИЙ|СКАЯ|ЦКОГО|ЦКОЙ|ЦКИЙ|ЦКАЯ)"
+    r")"
+    r"(?:\s+[А-ЯЁ]\.\s*[А-ЯЁ]\.?)?\b"
+)
+
+
+# Обращения «для Веры», «клиенту Александру» и т.п.
+_GIVEN_NAME_CTX_RE = re.compile(
+    r"\b((?:для|клиент(?:у|а|ом)?|пенсионер(?:у|а|ом)?)\s+)([А-ЯЁ][а-яё]{2,20})\b"
+)
 
 
 def depersonalize_text(text: str, *, client_name: str | None = None) -> str:
@@ -37,6 +55,8 @@ def depersonalize_text(text: str, *, client_name: str | None = None) -> str:
     out = _BIRTH_RE.sub("[ДАТА]", out)
     out = _PAYMENT_CASE_RE.sub("[№ДЕЛА]", out)
     out = _FIO_RE.sub(lambda m: redact_fio(m.group(0)), out)
+    out = _SURNAME_RE.sub("[ФАМИЛИЯ]", out)
+    out = _GIVEN_NAME_CTX_RE.sub(r"\1[ИМЯ]", out)
     if client_name and client_name.strip():
         out = out.replace(client_name, redact_fio(client_name))
     return out

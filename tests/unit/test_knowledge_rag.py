@@ -27,6 +27,7 @@ def test_depersonalize_masks_pii() -> None:
     assert "[ДАТА]" in out
     assert "[ССЫЛКА]" in out
     assert "Иванов Иван Иванович" not in out
+    assert "[ФАМИЛИЯ]" in depersonalize_text("Документы Лопаковой Н.Ф. и ЛОПАКОВА")
 
 
 def test_import_creates_draft(tmp_path: Path) -> None:

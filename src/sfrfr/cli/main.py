@@ -187,6 +187,41 @@ def knowledge_depersonalize_dir(
     typer.echo(f"summary\to={ok}\tskipped={skipped}\terrors={errors}")
 
 
+@app.command("knowledge-import-deepseek")
+def knowledge_import_deepseek(
+    conversations: str = typer.Argument(..., help="Путь к conversations.json из экспорта"),
+    limit: int = typer.Option(5, "--limit", "-n", help="Сколько пенсионных диалогов"),
+    all_matches: bool = typer.Option(
+        False, "--all", help="Все совпадения по title (игнор --limit)"
+    ),
+    cleaned_dir: str | None = typer.Option(
+        None, "--cleaned-dir", help="Куда писать обезличенные .md"
+    ),
+    cases_dir: str | None = typer.Option(None, "--cases-dir"),
+) -> None:
+    """Импорт пенсионных диалогов из экспорта DeepSeek → draft-кейсы."""
+    from pathlib import Path
+
+    from sfrfr.ai.knowledge import KnowledgeCaseRegistry, import_deepseek_conversations
+
+    path = Path(conversations)
+    if not path.is_file():
+        raise typer.BadParameter(f"file not found: {conversations}")
+
+    registry = KnowledgeCaseRegistry(Path(cases_dir) if cases_dir else None)
+    cases = import_deepseek_conversations(
+        path,
+        registry=registry,
+        cleaned_dir=Path(cleaned_dir) if cleaned_dir else None,
+        limit=None if all_matches else limit,
+    )
+    for case in cases:
+        typer.echo(
+            f"{case.case_id}\t{case.quality.value}\t{case.source_file}\t{case.problem_type}"
+        )
+    typer.echo(f"imported\t{len(cases)}")
+
+
 @app.command("knowledge-list")
 def knowledge_list(
     quality: str | None = typer.Option(None, "--quality", "-q"),
