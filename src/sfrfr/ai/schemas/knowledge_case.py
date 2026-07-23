@@ -55,6 +55,8 @@ class KnowledgeCase(BaseModel):
     documents_actually_needed: list[str] = Field(default_factory=list)
     can_be_template: bool = False
     source_file: str | None = None
+    # UUID операционного дела (Supabase), если кейс создан из feedback эксперта
+    ops_case_id: str | None = None
     notes: str | None = None
     summary: str = ""
 

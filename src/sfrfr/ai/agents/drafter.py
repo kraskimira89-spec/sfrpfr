@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sfrfr.ai.guardrails import redact_for_llm
+from sfrfr.ai.guardrails import ensure_needs_human_review, redact_for_llm
 from sfrfr.ai.llm import LLMClient
 from sfrfr.ai.prompts import ASSISTANT_SYSTEM, DRAFT_SYSTEM
 from sfrfr.ai.rag.retriever import KnowledgeRetriever
@@ -34,11 +34,13 @@ def draft_application(
         )
         body = llm.chat(system=system, user=user, temperature=0.2)
         if body:
-            return DraftResult(
-                title="Черновик заявления в СФР",
-                body=body,
-                findings_used=[f.type for f in findings],
-                needs_human_review=True,
+            return ensure_needs_human_review(
+                DraftResult(
+                    title="Черновик заявления в СФР",
+                    body=body,
+                    findings_used=[f.type for f in findings],
+                    needs_human_review=True,
+                )
             )
 
     body_lines = [
@@ -48,13 +50,16 @@ def draft_application(
         safe_findings,
         "",
         "Требуется проверка юристом перед отправкой.",
+        "Клиент подаёт документы в СФР самостоятельно.",
     ]
     if knowledge_block:
         body_lines.extend(["", "Справка из базы знаний:", knowledge_block])
 
-    return DraftResult(
-        title="Черновик заявления в СФР",
-        body="\n".join(body_lines),
-        findings_used=[f.type for f in findings],
-        needs_human_review=True,
+    return ensure_needs_human_review(
+        DraftResult(
+            title="Черновик заявления в СФР",
+            body="\n".join(body_lines),
+            findings_used=[f.type for f in findings],
+            needs_human_review=True,
+        )
     )

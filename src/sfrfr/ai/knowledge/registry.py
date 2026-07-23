@@ -62,6 +62,12 @@ class KnowledgeCaseRegistry:
                 max_n = max(max_n, int(m.group(2)))
         return f"CASE-{y}-{max_n + 1:03d}"
 
+    def find_by_ops_case_id(self, ops_case_id: str) -> KnowledgeCase | None:
+        for case in self.list_cases():
+            if case.ops_case_id == ops_case_id:
+                return case
+        return None
+
     def set_quality(
         self,
         case_id: str,

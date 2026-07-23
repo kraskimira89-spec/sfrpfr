@@ -13,6 +13,7 @@ from sfrfr.api.schemas.portal import (
     ClientCaseDetail,
     ConsentAcceptRequest,
     ContractAcceptRequest,
+    CreateCaseRequest,
     FindingItem,
     LinkMaxRequest,
     LinkWebFromMaxRequest,
@@ -30,6 +31,7 @@ from sfrfr.db.client_channels import ClientChannelRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.models.case_status import STATUS_HINTS_RU, STATUS_LABELS_RU, CaseStatus, status_label_ru
 from sfrfr.security.auth import Principal, get_current_principal
+from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
 
 router = APIRouter()
@@ -134,7 +136,18 @@ def _resolve_max_user_id(
     max_user_id: str | None,
     init_data: str | None,
     require_verified: bool,
+    link_token: str | None = None,
 ) -> str:
+    from sfrfr.security.max_link_token import verify_max_link_token
+
+    if link_token:
+        token_uid = verify_max_link_token(link_token)
+        if not token_uid:
+            raise HTTPException(status_code=401, detail="invalid or expired link_token")
+        if max_user_id and max_user_id != token_uid:
+            raise HTTPException(status_code=400, detail="max_user_id does not match link_token")
+        return token_uid
+
     settings = get_settings()
     resolved = extract_max_user_id(init_data, fallback=max_user_id)
     if not resolved:
@@ -146,9 +159,23 @@ def _resolve_max_user_id(
     elif require_verified and settings.app_env == "production" and not init_data:
         raise HTTPException(
             status_code=400,
-            detail="init_data required in production",
+            detail="init_data or link_token required in production",
         )
     return resolved
+
+
+def _ensure_client_row(principal: Principal) -> dict:
+    repo = _channel_repo()
+    if principal.max_user_id:
+        row = repo.ensure_for_max_user(principal.max_user_id)
+        if principal.email and not principal.is_max_only and not row.get("user_id"):
+            row = repo.link_max_to_user(
+                user_id=principal.user_id,
+                max_user_id=principal.max_user_id,
+                email=principal.email,
+            )
+        return row
+    return repo.ensure_for_auth_user(principal.user_id, email=principal.email)
 
 
 def _me_response(principal: Principal, row: dict) -> PortalMeResponse:
@@ -193,8 +220,7 @@ def get_me(principal: Principal = Depends(get_current_principal)) -> PortalMeRes
             max_bot_url=settings.max_public_bot_url,
             max_miniapp_url=settings.max_miniapp_url,
         )
-    repo = _channel_repo()
-    row = repo.ensure_for_auth_user(principal.user_id, email=principal.email)
+    row = _ensure_client_row(principal)
     return _me_response(principal, row)
 
 
@@ -206,10 +232,31 @@ def patch_preferences(
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client only")
     repo = _channel_repo()
-    row = repo.ensure_for_auth_user(principal.user_id, email=principal.email)
+    row = _ensure_client_row(principal)
     updated = repo.set_preferred_channel(str(row["id"]), payload.preferred_channel.value)
-    repo.audit(principal.user_id, f"preferred_channel:{payload.preferred_channel.value}")
+    action = f"preferred_channel:{payload.preferred_channel.value}"
+    if principal.max_user_id:
+        action = f"{action}:max:{principal.max_user_id}"
+    repo.audit(principal.audit_actor_id(), action)
     return _me_response(principal, updated)
+
+
+@router.get("/me/notification-links")
+def me_notification_links(
+    case_id: str | None = None,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    """Порядок CTA кабинет/MAX по preferred_channel (для писем и заглушек)."""
+    from sfrfr.integrations.client_channels.notifications import notification_channel_links
+
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client only")
+    row = _ensure_client_row(principal)
+    return notification_channel_links(
+        preferred_channel=row.get("preferred_channel"),
+        max_linked=bool(row.get("max_user_id")),
+        case_id=case_id,
+    )
 
 
 @router.post("/link/max", response_model=PortalMeResponse)
@@ -217,12 +264,15 @@ def link_max(
     payload: LinkMaxRequest,
     principal: Principal = Depends(get_current_principal),
 ) -> PortalMeResponse:
-    """JWT-клиент привязывает MAX user_id (из mini-app / initData)."""
+    """JWT-клиент привязывает MAX (initData или signed link_token)."""
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client only")
+    if principal.is_max_only:
+        raise HTTPException(status_code=400, detail="use web OTP session to complete link")
     max_uid = _resolve_max_user_id(
         max_user_id=payload.max_user_id,
         init_data=payload.init_data,
+        link_token=payload.link_token,
         require_verified=True,
     )
     repo = _channel_repo()
@@ -233,7 +283,7 @@ def link_max(
     )
     if payload.preferred_channel is not None:
         row = repo.set_preferred_channel(str(row["id"]), payload.preferred_channel.value)
-    repo.audit(principal.user_id, "link_max")
+    repo.audit(principal.audit_actor_id(), f"link_max:{max_uid}")
     return _me_response(principal, row)
 
 
@@ -241,8 +291,10 @@ def link_max(
 def link_web_from_max(payload: LinkWebFromMaxRequest) -> LinkWebFromMaxResponse:
     """
     Из mini-app: зарегистрировать max_user_id и выдать ссылку на веб-кабинет.
-    OTP/JWT клиент завершит связку через POST /link/max.
+    OTP/JWT клиент завершит связку через POST /link/max (+ link_token).
     """
+    from sfrfr.security.max_link_token import make_max_link_token
+
     max_uid = _resolve_max_user_id(
         max_user_id=payload.max_user_id,
         init_data=payload.init_data,
@@ -252,15 +304,17 @@ def link_web_from_max(payload: LinkWebFromMaxRequest) -> LinkWebFromMaxResponse:
     row = repo.ensure_for_max_user(max_uid)
     if payload.preferred_channel:
         row = repo.set_preferred_channel(str(row["id"]), payload.preferred_channel.value)
+    token = make_max_link_token(max_uid)
     settings = get_settings()
-    cabinet = (
-        f"{settings.cabinet_public_url.rstrip('/')}/"
-        f"?link_max={max_uid}"
-    )
+    qs = f"link_max={max_uid}&link_token={token}"
+    if payload.case_id:
+        qs += f"&case={payload.case_id}"
+    cabinet = f"{settings.cabinet_public_url.rstrip('/')}/?{qs}"
     return LinkWebFromMaxResponse(
         client_id=str(row["id"]),
         max_user_id=max_uid,
         cabinet_url=cabinet,
+        link_token=token,
         message=(
             "Войдите в веб-кабинет по одноразовому коду. "
             "После входа аккаунт будет связан с MAX."
@@ -277,7 +331,9 @@ def list_my_cases(
     summaries: list[CaseSummary] = []
     for case in repo.list_cases(principal):
         case_id = str(case["id"])
-        unread = 0 if principal.is_staff else repo.unread_staff_messages(case_id, principal.user_id)
+        unread = 0
+        if not principal.is_staff and principal.audit_actor_id():
+            unread = repo.unread_staff_messages(case_id, principal.audit_actor_id())
         summaries.append(
             _summary(
                 case,
@@ -288,6 +344,36 @@ def list_my_cases(
     return summaries
 
 
+@router.post("/cases", status_code=status.HTTP_201_CREATED)
+def create_my_case(
+    payload: CreateCaseRequest | None = None,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    """Создать дело для текущего клиента (веб или MAX). Один case_id на оба канала."""
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client only")
+    body = payload or CreateCaseRequest()
+    client_row = _ensure_client_row(principal)
+    if body.full_name and body.full_name.strip():
+        get_supabase_client().table("clients").update(
+            {"full_name": body.full_name.strip()}
+        ).eq("id", client_row["id"]).execute()
+    repo = _repo()
+    case = repo.create_case_for_client(
+        client_id=str(client_row["id"]),
+        actor_id=principal.audit_actor_id(),
+        problem_type=body.problem_type,
+    )
+    case_id = str(case["id"])
+    refreshed = repo.require_case(principal, case_id)
+    detail = _client_detail(
+        refreshed,
+        consent_accepted=repo.has_consent(case_id),
+        draft=None,
+    )
+    return detail.model_dump(mode="json")
+
+
 @router.get("/cases/{case_id}")
 def get_case(
     case_id: str,
@@ -295,7 +381,7 @@ def get_case(
 ) -> dict:
     repo = _repo()
     case = repo.require_case(principal, case_id)
-    repo.audit(case_id, principal.user_id, "case_viewed")
+    repo.audit(case_id, principal.audit_actor_id(), "case_viewed")
     if principal.is_staff:
         pipeline = (
             get_supabase_client()
@@ -574,7 +660,7 @@ async def upload_case_document(
     document_id = str(uuid4())
     storage_path = f"{case_id}/{document_id}/{filename}"
     client = get_supabase_client()
-    client.storage.from_("pension-docs").upload(
+    client.storage.from_(PRIVATE_STORAGE_BUCKET).upload(
         storage_path,
         data,
         {"content-type": content_type, "x-upsert": "false"},
@@ -633,8 +719,8 @@ def create_document_signed_url(
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
 
-    expires_in = 60
-    signed = get_supabase_client().storage.from_("pension-docs").create_signed_url(
+    expires_in = SIGNED_URL_TTL_SECONDS
+    signed = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).create_signed_url(
         row["storage_path"], expires_in
     )
     repo.audit(case_id, principal.user_id, "document_download_url_created")

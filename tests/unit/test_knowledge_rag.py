@@ -74,6 +74,79 @@ def test_rag_skips_draft(tmp_path: Path) -> None:
     assert rag_cases[0].case_id == verified.case_id
 
 
+def test_rag_skips_rejected(tmp_path: Path) -> None:
+    knowledge = tmp_path / "knowledge"
+    cases_dir = knowledge / "cases"
+    cases_dir.mkdir(parents=True)
+    registry = KnowledgeCaseRegistry(cases_dir)
+    path = tmp_path / "r.md"
+    path.write_text("отклонённый кейс про стаж ИЛС\n", encoding="utf-8")
+    case = import_dialog_to_case(path, registry=registry)
+    registry.set_quality(case.case_id, KnowledgeQuality.REJECTED)
+    template_path = tmp_path / "t.md"
+    template_path.write_text("шаблон про стаж ИЛС перерасчёт\n", encoding="utf-8")
+    tmpl = import_dialog_to_case(template_path, registry=registry)
+    registry.set_quality(tmpl.case_id, KnowledgeQuality.TEMPLATE)
+
+    retriever = KnowledgeRetriever(knowledge_dir=knowledge, registry=registry)
+    sources = [h.source for h in retriever.search("стаж ИЛС", limit=10)]
+    assert any(tmpl.case_id in s for s in sources)
+    assert not any(case.case_id in s for s in sources)
+
+
+def test_expert_feedback_updates_rag_registry(tmp_path: Path) -> None:
+    from sfrfr.ai.knowledge.feedback import apply_expert_feedback
+
+    registry = KnowledgeCaseRegistry(tmp_path / "cases")
+    kb = apply_expert_feedback(
+        ops_case_id="11111111-2222-3333-4444-555555555555",
+        quality="template",
+        what_worked="Сверка ИЛС с трудовой; запрос в архив",
+        documents_note="ИЛС\nТрудовая книжка",
+        sfr_outcome="удовлетворено",
+        registry=registry,
+    )
+    assert kb.case_id.startswith("CASE-")
+    assert kb.quality == KnowledgeQuality.TEMPLATE
+    assert kb.is_rag_ready()
+    assert kb.ops_case_id.startswith("11111111")
+    assert (tmp_path / "cases" / f"{kb.case_id}.md").exists()
+
+    again = apply_expert_feedback(
+        ops_case_id="11111111-2222-3333-4444-555555555555",
+        quality="rejected",
+        what_worked="ошибка подхода",
+        registry=registry,
+    )
+    assert again.case_id == kb.case_id
+    assert again.quality == KnowledgeQuality.REJECTED
+    assert not again.is_rag_ready()
+    assert registry.list_cases(rag_ready_only=True) == []
+
+
+def test_assistant_system_prompt_rules() -> None:
+    from sfrfr.ai.prompts import ASSISTANT_SYSTEM
+
+    low = ASSISTANT_SYSTEM.lower()
+    assert "не обещай" in low or "не обеща" in low
+    assert "сфр" in low
+    assert "пдн" in low or "снилс" in low
+    assert "самостоятельно" in low
+
+
+def test_draft_always_needs_human_review() -> None:
+    from sfrfr.ai.agents.drafter import draft_application
+    from sfrfr.ai.guardrails import ensure_needs_human_review
+    from sfrfr.ai.schemas.agents import DraftResult, Finding
+
+    draft = draft_application([Finding(type="stazh", detail="разрыв в ИЛС")])
+    assert draft.needs_human_review is True
+    forced = ensure_needs_human_review(
+        DraftResult(title="t", body="b", needs_human_review=False)
+    )
+    assert forced.needs_human_review is True
+
+
 def test_depersonalize_dir(tmp_path: Path) -> None:
     from sfrfr.ai.knowledge import depersonalize_dir
 

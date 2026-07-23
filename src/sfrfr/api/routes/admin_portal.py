@@ -27,6 +27,8 @@ from sfrfr.core.success_fee import (
 )
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.session import get_supabase_client
+from sfrfr.integrations.sheets import SheetsExporter, sanitize_rows
+from sfrfr.integrations.taganay.sync import push_case_to_taganay
 from sfrfr.security.auth import (
     Principal,
     StaffRole,
@@ -318,6 +320,7 @@ def update_pipeline_status(
     case = repo.require_case(principal, case_id)
     repo.update_case_status(case_id, payload.pipeline_status.value, principal.user_id)
     case["pipeline_status"] = payload.pipeline_status.value
+    push_case_to_taganay(case, task=f"pipeline:{payload.pipeline_status.value}")
     checklist = case.get("checklist_items") or []
     return CaseSummary(
         id=str(case["id"]),
@@ -411,6 +414,9 @@ def confirm_result(
         lump_sum_rub=payload.lump_sum_rub,
         result_effective_at=payload.result_effective_at,
     )
+    case = repo.require_case(principal, case_id)
+    case["b2c_status"] = "result_confirmed"
+    push_case_to_taganay(case, task="result_confirmed")
     fee = calc_success_fee(
         lump_sum_rub=payload.lump_sum_rub,
         monthly_increase_rub=max(payload.monthly_after_rub - payload.monthly_before_rub, 0),
@@ -445,13 +451,16 @@ def create_order(
                     f"(from {earliest.date().isoformat()})"
                 ),
             )
-    return repo.create_order(
+    order = repo.create_order(
         case_id,
         package_code=payload.package_code,
         amount_rub=payload.amount_rub,
         status_value=payload.status,
         actor_id=principal.user_id,
     )
+    case = repo.require_case(principal, case_id)
+    push_case_to_taganay(case, task=f"order:{payload.package_code}")
+    return order
 
 
 @router.get("/admin/finance")
@@ -490,16 +499,27 @@ def admin_analytics(principal: Principal = Depends(require_staff)) -> dict:
     }
 
 
+@router.post("/admin/analytics/sheets-sync")
+def admin_analytics_sheets_sync(principal: Principal = Depends(require_admin)) -> dict:
+    """Пуш обезличенных строк в Google Sheets webhook (ТЗ-06)."""
+    rows = sanitize_rows(_repo().anonymized_analytics_rows())
+    result = SheetsExporter().push(rows)
+    return {"export": result, "rows": len(rows), "pii": False}
+
+
 @router.post("/admin/cases/{case_id}/knowledge-feedback", status_code=201)
 def knowledge_feedback(
     case_id: str,
     payload: KnowledgeFeedbackRequest,
     principal: Principal = Depends(require_staff),
 ) -> dict:
+    """Сохранить feedback в БД и синхронизировать обезличенный кейс RAG (ТЗ-08)."""
+    from sfrfr.ai.knowledge.feedback import apply_expert_feedback
+
     _require_expert(principal)
     repo = _repo()
-    repo.require_case(principal, case_id)
-    return repo.save_knowledge_feedback(
+    case = repo.require_case(principal, case_id)
+    row = repo.save_knowledge_feedback(
         case_id,
         actor_id=principal.user_id,
         what_worked=payload.what_worked,
@@ -507,6 +527,52 @@ def knowledge_feedback(
         sfr_outcome=payload.sfr_outcome,
         quality=payload.quality,
     )
+    kb = apply_expert_feedback(
+        ops_case_id=case_id,
+        quality=payload.quality,
+        what_worked=payload.what_worked,
+        documents_note=payload.documents_note,
+        sfr_outcome=payload.sfr_outcome,
+        problem_type=str(case.get("problem_type") or "expert_feedback"),
+    )
+    return {
+        "feedback": row,
+        "knowledge_case": {
+            "case_id": kb.case_id,
+            "quality": kb.quality.value,
+            "rag_ready": kb.is_rag_ready(),
+            "verified_at": kb.verified_at.isoformat() if kb.verified_at else None,
+        },
+    }
+
+
+@router.get("/admin/knowledge-cases")
+def list_knowledge_cases(
+    principal: Principal = Depends(require_staff),
+    rag_ready_only: bool = Query(default=False),
+) -> dict:
+    """Реестр обезличенных кейсов (без ПДн) для эксперта/админа."""
+    from sfrfr.ai.knowledge.registry import KnowledgeCaseRegistry
+
+    if principal.role is StaffRole.OPERATOR:
+        raise HTTPException(status_code=403, detail="expert or admin role required")
+    cases = KnowledgeCaseRegistry().list_cases(rag_ready_only=rag_ready_only)
+    return {
+        "cases": [
+            {
+                "case_id": c.case_id,
+                "quality": c.quality.value,
+                "problem_type": c.problem_type,
+                "sfr_outcome": c.sfr_outcome.value,
+                "rag_ready": c.is_rag_ready(),
+                "verified_at": c.verified_at.isoformat() if c.verified_at else None,
+                "ops_case_id": c.ops_case_id,
+                "summary": c.summary[:300],
+            }
+            for c in cases
+        ],
+        "note": "В RAG только verified и template.",
+    }
 
 
 @router.get("/admin/staff-roles")

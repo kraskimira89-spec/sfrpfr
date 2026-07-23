@@ -1,5 +1,35 @@
 # История проекта SFRFR
 
+## 2026-07-23 (ТЗ-09: паритет MAX ↔ веб)
+
+- Auth: `X-MAX-InitData` / (dev) `X-MAX-User-Id` → Principal; `audit_actor_id` для MAX-only.
+- Portal: `POST /cases`, signed `link_token`, `GET /me/notification-links`.
+- Mini-app → `/api/portal/*` (Supabase), список дел, consent, chat/pay handoff, prefs.
+- Cabinet: deep-link `?case=` / `link_token`; CTA MAX с делом.
+- Тесты: link token, notification order, openapi routes.
+
+## 2026-07-23 (ТЗ-08: knowledge / RAG)
+
+- Контур: feedback эксперта → `apply_expert_feedback` → `CASE-YYYY-NNN` (+ `.md` для verified/template).
+- Admin: `POST .../knowledge-feedback` возвращает knowledge_case; `GET .../knowledge-cases`.
+- Guardrail: `ensure_needs_human_review`; тесты rejected вне RAG, ASSISTANT_SYSTEM, feedback loop.
+- Импорт/CLI/RAG filter verified|template — уже были; доведена петля улучшения.
+
+## 2026-07-23 (ТЗ-07: очередность MVP)
+
+- Этап 1: `POST /api/public/leads` (WPForms/JSON) → client+case+checklist+Taganay; WP CTA меню → `/#kak-rabotat`; форма с выбором канала.
+- MAX: `/docs`, `/draft`, скачивание вложений по URL.
+- Оплаты: кнопка «Оплатить онлайн» в cabinet + fallback на ручной счёт.
+- Чеклист: `docs/ops-mvp-checklist.md`; тесты `tests/integration/test_mvp_roadmap.py`.
+
+## 2026-07-23 (ТЗ-06: интеграции и безопасность)
+
+- Taganay: webhook-клиент + sync по `case_id` (минимум контактов, без OCR/файлов); CLI `taganay-sync`.
+- Google Sheets: whitelist-выгрузка без ПДн; `POST /admin/analytics/sheets-sync`, CLI `sheets-sync`.
+- ЮKassa: create payment + webhook → `payments`/`orders`; пути `/api/portal/.../pay` и `/api/integrations/payments/...`.
+- Константы: signed URL TTL 60с, private bucket `pension-docs`; проверка frontend `.env.example` без `service_role`.
+- Тесты: `tests/integration/test_tz06_security.py`, `tests/unit/test_integrations_tz06.py`.
+
 ## 2026-07-23 (cabinet/admin на VPS)
 
 - DNS reg.ru: `cabinet` / `admin` → `91.229.11.147`.
@@ -31,6 +61,12 @@
 - Portal API: согласия/оферта, заказы, результат + success fee, signed URL, блок upload без ПДн-согласия.
 - Клиентский `GET /cases/{id}` без OCR/findings; audit на просмотр/загрузку/акцепты.
 - Предупреждение «Решение принимает СФР…»; кнопки подачи в СФР от имени клиента нет.
+
+## 2026-07-23 (ТЗ-09 этап C: ЮKassa + mini-app)
+
+- ЮKassa: чек (опционально), return_channel, b2c_status после оплаты, webhook package_code.
+- Mini-app: вкладки Оплаты / Результат / Сообщения + оплата онлайн.
+- Cabinet: deep-link `?case=&view=payments|result`.
 
 ## 2026-07-23 (ТЗ-09 этап B: паритет операций)
 

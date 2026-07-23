@@ -63,8 +63,8 @@ $settings = [
     'notifications' => [
         '1' => [
             'email' => '{admin_email}',
-            'subject' => 'SFRFR: заявка с сайта',
-            'sender_name' => 'SFRFR',
+            'subject' => 'Проверка стажа: заявка с сайта',
+            'sender_name' => 'Проверка стажа',
             'sender_address' => '{admin_email}',
             'replyto' => '',
             'message' => '{all_fields}',
@@ -73,13 +73,28 @@ $settings = [
     'confirmations' => [
         '1' => [
             'type' => 'message',
-            'message' => '<p>Спасибо! Мы свяжемся с вами и пришлём ссылку на чат MAX. Документы загружайте только там или в кабинете.</p>',
+            'message' => '<p>Спасибо! Заявка принята.</p><p>Выберите канал работы с делом:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Мини-приложение MAX</a></li><li><a href="https://cabinet.taxi-doroga-dobra.ru/">Веб-кабинет</a></li></ul><p>Сканы документов загружайте только в MAX или кабинете — не через эту форму.</p>',
             'message_scroll' => '1',
         ],
     ],
     'disable_entries' => '0',
 ];
 
+# Webhook → FastAPI public lead (если задан SFRFR_PUBLIC_LEAD_URL на VPS).
+$lead_url = getenv('SFRFR_PUBLIC_LEAD_URL') ?: '';
+$lead_token = getenv('SFRFR_PUBLIC_LEAD_TOKEN') ?: '';
+if ($lead_url !== '') {
+    $settings['webhooks'] = [
+        '1' => [
+            'url' => $lead_url,
+            'method' => 'post',
+            'format' => 'json',
+            'headers' => $lead_token !== ''
+                ? "X-Public-Lead-Token: {$lead_token}"
+                : '',
+        ],
+    ];
+}
 $form_data = [
     'fields' => $fields,
     'id' => $form_id,

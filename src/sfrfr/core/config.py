@@ -51,6 +51,18 @@ class Settings(BaseSettings):
     default_diagnostic_price_rub: int = 3000
     success_fee_percent: int = 10
     taganay_case_url_template: str = "https://taganay.clientbase.ru/"
+    # Taganay: исходящий webhook (лиды/этапы по case_id), минимум контактов
+    taganay_webhook_url: str = ""
+    taganay_api_token: str = ""
+    # Google Sheets: Apps Script / webhook только для обезличенных строк
+    google_sheets_webhook_url: str = ""
+    # ЮKassa
+    yookassa_shop_id: str = ""
+    yookassa_secret_key: str = ""
+    yookassa_api_base: str = "https://api.yookassa.ru/v3"
+    yookassa_return_url: str = ""
+    yookassa_send_receipt: bool = False
+    public_lead_token: str = ""
     cabinet_public_url: str = "https://cabinet.taxi-doroga-dobra.ru"
     max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
     max_miniapp_url: str = "https://taxi-doroga-dobra.ru/app/"

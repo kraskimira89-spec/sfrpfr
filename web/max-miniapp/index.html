@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>SFRFR — кабинет</title>
+  <title>Проверка стажа — кабинет</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -14,7 +14,7 @@
   <div class="bg" aria-hidden="true"></div>
   <main class="shell">
     <header class="top">
-      <p class="brand">SFRFR</p>
+      <p class="brand">Проверка стажа</p>
       <p class="tag">Кабинет пенсионного дела</p>
     </header>
 
@@ -24,20 +24,24 @@
 
     <section id="panel-form" class="panel hidden">
       <h1>Первый вход</h1>
-      <p class="lede">Укажите имя для карточки дела. СНИЛС — только маска, без полного номера.</p>
+      <p class="lede">Укажите имя для карточки дела. Документы — только после согласия на ПДн.</p>
       <label class="field">
         <span>Имя</span>
         <input id="client-name" type="text" maxlength="200" autocomplete="name" placeholder="Как к вам обращаться" />
       </label>
-      <label class="field">
-        <span>СНИЛС (маска)</span>
-        <input id="snils-masked" type="text" maxlength="32" placeholder="***-***-*** **" value="***-***-*** **" />
-      </label>
       <label class="check">
         <input id="consent" type="checkbox" checked />
-        <span>Согласие на обработку ПДн для аудита документов</span>
+        <span>Согласие на обработку ПДн (версия pdn-v1) для аудита документов</span>
       </label>
       <button type="button" id="btn-open" class="btn primary">Открыть кабинет</button>
+    </section>
+
+    <section id="panel-list" class="panel hidden">
+      <h1>Мои дела</h1>
+      <p class="lede warning" id="list-warning">Решение принимает СФР. Результат не гарантирован.</p>
+      <ul id="case-list" class="case-list"></ul>
+      <button type="button" id="btn-new-case" class="btn primary">Новое дело</button>
+      <a id="btn-web-from-list" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Открыть веб-кабинет</a>
     </section>
 
     <section id="panel-case" class="panel hidden">
@@ -45,13 +49,13 @@
         <p class="label">Этап</p>
         <p id="case-status" class="status">—</p>
         <p id="case-status-hint" class="hint"></p>
+        <p id="case-warning" class="warning">Решение принимает СФР. Результат не гарантирован.</p>
       </div>
 
       <dl class="meta">
         <div><dt>Дело</dt><dd id="case-id">—</dd></div>
         <div><dt>Клиент</dt><dd id="case-name">—</dd></div>
         <div><dt>Документы</dt><dd id="case-docs">0</dd></div>
-        <div><dt>Распознано</dt><dd id="case-ocr">0</dd></div>
       </dl>
 
       <p id="case-error" class="error hidden"></p>
@@ -75,18 +79,53 @@
       <div class="meta-block">
         <p class="label">Как подать</p>
         <p id="case-submit-hint" class="hint">
-          Подайте заявление самостоятельно в СФР, МФЦ или через Госуслуги. SFRFR не подаёт от вашего имени.
+          Подайте заявление самостоятельно в СФР, МФЦ или через Госуслуги. Сервис не подаёт от вашего имени.
         </p>
       </div>
 
       <div class="actions">
         <label class="btn secondary file-btn">
           Загрузить документ
-          <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.txt" hidden />
+          <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff" hidden />
         </label>
         <button type="button" id="btn-refresh" class="btn ghost">Обновить</button>
         <button type="button" id="btn-run" class="btn primary">Запустить проверку</button>
+        <button type="button" id="btn-back-list" class="btn ghost">К списку дел</button>
         <a id="btn-web-cabinet" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Открыть веб-кабинет</a>
+        <a id="btn-chat" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Написать в чат бота</a>
+      </div>
+
+      <nav class="tabs" id="case-tabs" aria-label="Разделы">
+        <button type="button" class="tab active" data-tab="case">Дело</button>
+        <button type="button" class="tab" data-tab="pay">Оплаты</button>
+        <button type="button" class="tab" data-tab="result">Результат</button>
+        <button type="button" class="tab" data-tab="chat">Сообщения</button>
+      </nav>
+
+      <div id="tab-pay" class="tab-panel hidden">
+        <p class="label">Счета (ЮKassa)</p>
+        <ul id="orders-list" class="plain"></ul>
+        <p id="orders-empty" class="hint">Счетов пока нет — их выставляет оператор.</p>
+        <a id="pay-cabinet-link" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Оплаты в веб-кабинете</a>
+      </div>
+
+      <div id="tab-result" class="tab-panel hidden">
+        <p class="label">Результат СФР</p>
+        <div id="result-body" class="hint">Пока нет подтверждённого результата.</div>
+        <a id="result-cabinet-link" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Результат в веб-кабинете</a>
+      </div>
+
+      <div id="tab-chat" class="tab-panel hidden">
+        <p class="label">Сообщения по делу</p>
+        <ul id="messages-list" class="plain"></ul>
+        <p id="messages-empty" class="hint">Сообщений пока нет. Можно написать в чат бота.</p>
+        <form id="message-form" class="message-form">
+          <label class="field">
+            <span>Сообщение</span>
+            <input id="message-input" type="text" maxlength="1000" placeholder="Краткий вопрос эксперту" />
+          </label>
+          <button type="submit" class="btn primary">Отправить</button>
+        </form>
       </div>
 
       <p id="toast" class="toast hidden" role="status"></p>

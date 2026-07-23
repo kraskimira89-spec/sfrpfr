@@ -2,7 +2,12 @@
 
 ## 2026-07-23
 
+- Реализован ТЗ-09: единый portal для mini-app (MAX auth), link_token, deep-link case, CTA уведомлений.
+- Реализован ТЗ-08: feedback→RAG registry, rejected вне поиска, тесты приёмки knowledge.
+- Реализован ТЗ-07 MVP: публичный lead API, WP CTA выбора канала, MAX /docs+/draft, оплата с fallback.
+- Реализован ТЗ-06: Taganay webhook, Sheets без ПДн, ЮKassa pay+webhook, тесты RLS/Storage/Sheets.
 - Реализован ТЗ-05: health/ops, безопасные логи, CI gate, ранбук.
+- Логотип для светлого фона на витрине (Astra + favicon + hero) и в иконках cabinet/admin.
 - Письмо reg.ru: DNS `cabinet`/`admin` добавлены; порты 80/443 открыты. Подняты HTTPS + Next.js кабинеты на VPS (пароль root от них **не нужен** — есть deploy key).
 - Накатил миграции Supabase + CLI `staff-grant`/`staff-list` для первого admin.
 - Реализован ТЗ-04 кабинет сотрудников с учётом ТЗ-09 (каналы MAX/веб в дашборде и карточке; admin не в mini-app).
@@ -10,7 +15,7 @@
 - Решение по опыту DeepSeek: **не дообучать** модель на переписках; контур = обезличивание → кейсы → эксперт → RAG.
 - В Agent mode реализованы реестр `knowledge/cases`, импорт, статусы качества, фильтр RAG, системный промпт помощника.
 - CLI пакетного обезличивания: `sfrfr knowledge-depersonalize-dir inbox/ --out cleaned/`.
-- ТЗ-09 этап B: portal run/findings/draft/checklist; паритет UI cabinet + mini-app.
+- ТЗ-09 этап C: ЮKassa в mini-app/cabinet, результат и сообщения, webhook статусов.
 - Для пилота нужны 3–5 обезличенных экспортов диалогов (md/txt/json/html).
 
 ## Контекст

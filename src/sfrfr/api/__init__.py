@@ -1,7 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from sfrfr.api.routes import admin_portal, cases, documents, health, max_webhook, portal
+from sfrfr.api.routes import (
+    admin_portal,
+    cases,
+    documents,
+    health,
+    max_webhook,
+    payments,
+    portal,
+    public_leads,
+)
 from sfrfr.core.config import get_settings
 from sfrfr.ops.logging import configure_logging
 
@@ -33,9 +42,24 @@ def create_app() -> FastAPI:
     app.include_router(portal.router, prefix="/api/portal", tags=["portal"])
     app.include_router(admin_portal.router, prefix="/api/portal", tags=["portal-admin"])
     app.include_router(
+        public_leads.router,
+        prefix="/api/public",
+        tags=["public"],
+    )
+    app.include_router(
         max_webhook.router,
         prefix="/api/integrations/max",
         tags=["max"],
+    )
+    app.include_router(
+        payments.webhook_router,
+        prefix="/api/integrations/payments",
+        tags=["payments"],
+    )
+    app.include_router(
+        payments.router,
+        prefix="/api/portal",
+        tags=["portal-payments"],
     )
     return app
 

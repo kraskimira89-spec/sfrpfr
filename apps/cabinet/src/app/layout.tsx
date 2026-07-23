@@ -8,7 +8,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SFRFR — кабинет клиента",
+  title: "Проверка стажа — кабинет клиента",
   description: "Защищённый кабинет сопровождения пенсионного дела",
 };
 

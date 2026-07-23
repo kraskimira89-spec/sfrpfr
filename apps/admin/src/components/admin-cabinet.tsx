@@ -427,7 +427,10 @@ export function AdminCabinet() {
     return (
       <main className="auth-layout">
         <section className="card">
-          <p className="eyebrow">SFRFR / INTERNAL</p>
+          <p className="eyebrow">
+            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
+            Проверка стажа · сотрудники
+          </p>
           <h1>Кабинет сотрудника</h1>
           <p className="lead">Вход по одноразовому коду. Роль проверяется на сервере.</p>
           {!otpSent ? (
@@ -474,11 +477,14 @@ export function AdminCabinet() {
   return (
     <main className="app-layout">
       <header>
-        <div>
-          <strong>SFRFR</strong>
-          <span>
-            Кабинет сотрудника · {me?.role ?? "…"} · {me?.email ?? ""}
-          </span>
+        <div className="brand-block">
+          <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
+          <div>
+            <strong>Проверка стажа</strong>
+            <span>
+              Кабинет сотрудника · {me?.role ?? "…"} · {me?.email ?? ""}
+            </span>
+          </div>
         </div>
         <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
           Выйти

@@ -140,7 +140,7 @@ class ClientChannelRepository:
         )
         return response.data[0]
 
-    def audit(self, actor_id: str, action: str) -> None:
+    def audit(self, actor_id: str | None, action: str) -> None:
         self.client.table("access_audit").insert(
             {"case_id": None, "actor_id": actor_id, "action": action}
         ).execute()

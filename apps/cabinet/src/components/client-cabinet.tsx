@@ -199,6 +199,7 @@ export function ClientCabinet() {
   const [result, setResult] = useState<ResultPayload | null>(null);
   const [view, setView] = useState<View>("cases");
   const [busy, setBusy] = useState(false);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [me, setMe] = useState<PortalMe | null>(null);
 
   const token = session?.access_token;
@@ -230,18 +231,21 @@ export function ClientCabinet() {
       setMe(profile);
       const params = new URLSearchParams(window.location.search);
       const linkMax = params.get("link_max");
-      if (linkMax && !profile.max_linked) {
+      const linkToken = params.get("link_token");
+      if ((linkMax || linkToken) && !profile.max_linked) {
         const linked = await apiFetch<PortalMe>("/api/portal/link/max", token, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             max_user_id: linkMax,
+            link_token: linkToken,
             preferred_channel: "web_cabinet",
           }),
         });
         setMe(linked);
         setNotice("Аккаунт связан с MAX. Можно продолжать в мессенджере или здесь.");
         params.delete("link_max");
+        params.delete("link_token");
         const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
         window.history.replaceState({}, "", next);
       }
@@ -251,10 +255,14 @@ export function ClientCabinet() {
   }, [token]);
 
   useEffect(() => {
+    // Первичная загрузка списка дел при появлении токена.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on auth ready
     void loadCases();
   }, [loadCases]);
 
   useEffect(() => {
+    // Первичная загрузка профиля / link_max.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on auth ready
     void loadMe();
   }, [loadMe]);
 
@@ -284,6 +292,20 @@ export function ClientCabinet() {
     [token, loadCases],
   );
 
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(window.location.search);
+    const caseId = params.get("case");
+    const viewParam = params.get("view");
+    if (!caseId) return;
+    void openCase(caseId, viewParam === "payments" ? "payments" : "case").then(() => {
+      params.delete("case");
+      params.delete("view");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", next);
+    });
+  }, [token, openCase]);
+
   async function loadPayments(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -298,12 +320,52 @@ export function ClientCabinet() {
     }
   }
 
+  async function startPayment(orderId: string) {
+    if (!token || !selectedId) return;
+    setPayingOrderId(orderId);
+    setNotice("");
+    try {
+      const payload = await apiFetch<{ confirmation_url?: string; status?: string }>(
+        `/api/portal/cases/${selectedId}/orders/${orderId}/pay`,
+        token,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ return_channel: "web_cabinet" }),
+        },
+      );
+      if (payload.confirmation_url) {
+        window.open(payload.confirmation_url, "_blank", "noopener,noreferrer");
+        setNotice("Открыта страница оплаты. После оплаты обновите список счетов.");
+      } else {
+        setNotice("Платёж создан. Обновите статусы чуть позже.");
+      }
+      const rows = await apiFetch<OrderRow[]>(
+        `/api/portal/cases/${selectedId}/orders`,
+        token,
+      );
+      setOrders(rows);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("503") || msg.toLowerCase().includes("not configured")) {
+        setNotice(
+          "Онлайн-оплата пока недоступна. Счёт выставит оператор вручную — статус появится здесь.",
+        );
+      } else {
+        setNotice("Не удалось начать оплату. Попробуйте позже или напишите в чат дела.");
+      }
+    } finally {
+      setPayingOrderId(null);
+    }
+  }
+
   async function loadResult(caseId: string) {
     if (!token) return;
     setBusy(true);
     try {
       const payload = await apiFetch<ResultPayload>(`/api/portal/cases/${caseId}/result`, token);
       setResult(payload);
+      setSelectedId(caseId);
       setView("result");
     } catch {
       setNotice("Не удалось загрузить результат.");
@@ -311,6 +373,31 @@ export function ClientCabinet() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!token || cases.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const caseId = params.get("case");
+    const viewParam = params.get("view");
+    if (!caseId) return;
+    if (!cases.some((c) => c.id === caseId)) return;
+    const nextView: View =
+      viewParam === "payments" || viewParam === "pay"
+        ? "payments"
+        : viewParam === "result"
+          ? "result"
+          : viewParam === "docs"
+            ? "docs"
+            : "case";
+    if (nextView === "payments") void loadPayments(caseId);
+    else if (nextView === "result") void loadResult(caseId);
+    else void openCase(caseId, nextView);
+    if (params.get("paid") === "1") {
+      setNotice("Если оплата прошла — обновите список счетов через несколько секунд.");
+    }
+    // один раз на вход по deep-link
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, cases]);
 
   async function requestOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -529,7 +616,10 @@ export function ClientCabinet() {
     return (
       <main className="auth-layout">
         <section className="card">
-          <p className="eyebrow">SFRFR</p>
+          <p className="eyebrow">
+            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
+            Проверка стажа
+          </p>
           <h1>Кабинет клиента</h1>
           <p className="lead">
             Вход по одноразовому коду. Вы увидите только дела, к которым вам выдан доступ.
@@ -623,14 +713,23 @@ export function ClientCabinet() {
   return (
     <main className="app-layout">
       <header>
-        <div>
-          <strong>SFRFR</strong>
-          <span>Кабинет клиента</span>
+        <div className="brand-block">
+          <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
+          <div>
+            <strong>Проверка стажа</strong>
+            <span>Кабинет клиента</span>
+          </div>
         </div>
         <div className="header-actions">
           <a
             className="ghost"
-            href={me?.max_bot_url || DEFAULT_MAX_BOT}
+            href={
+              selectedId
+                ? `${me?.max_bot_url || DEFAULT_MAX_BOT}${
+                    (me?.max_bot_url || DEFAULT_MAX_BOT).includes("?") ? "&" : "?"
+                  }startapp=case_${selectedId.slice(0, 8)}`
+                : me?.max_bot_url || DEFAULT_MAX_BOT
+            }
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -999,6 +1098,7 @@ export function ClientCabinet() {
             <ul className="case-list">
               {orders.map((order) => {
                 const isPost = order.package_code.startsWith("SF_");
+                const canPay = order.status === "pending" || order.status === "awaiting_payment";
                 return (
                   <li key={order.id}>
                     <strong>{PACKAGE_LABELS[order.package_code] ?? order.package_code}</strong>
@@ -1014,11 +1114,24 @@ export function ClientCabinet() {
                           : ""}
                       </span>
                     ))}
+                    {canPay ? (
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={payingOrderId === order.id}
+                        onClick={() => void startPayment(order.id)}
+                      >
+                        {payingOrderId === order.id ? "Создаём платёж…" : "Оплатить онлайн"}
+                      </button>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
           )}
+          <p className="hint">
+            Если онлайн-оплата недоступна, оператор отметит оплату вручную — статус обновится здесь.
+          </p>
         </section>
       )}
 

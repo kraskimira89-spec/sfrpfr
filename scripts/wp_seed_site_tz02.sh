@@ -61,6 +61,14 @@ export SFRFR_CSS_PATH="${SCRIPT_DIR}/assets/sfrfr-landing.css"
 CSS_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_apply_landing_css.php" 2>/dev/null | tr -d '[:space:]' || true)"
 echo "CUSTOM_CSS_POST=${CSS_ID:-?}"
 
+echo "==> Логотип и favicon (светлый фон)"
+mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
+cp -f "${SCRIPT_DIR}/assets/sfrfr-logo-light.png" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-logo-light.png"
+chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
+export SFRFR_LOGO_LIGHT="${SCRIPT_DIR}/assets/sfrfr-logo-light.png"
+LOGO_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_apply_branding.php" 2>/dev/null | tr -d '[:space:]' || true)"
+echo "LOGO_ID=${LOGO_ID:-?}"
+
 echo "==> Контент главной (концепция SFRFR)"
 HOME_FILE="$(mktemp)"
 HOME_SRC="${SCRIPT_DIR}/assets/sfrfr-home.html"
@@ -219,7 +227,7 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-post "$MENU_ID" "$OFFER_ID" --title="Оферта" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$MENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "$MAX_BTN_URL" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "/#kak-rabotat" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
@@ -232,6 +240,7 @@ if [ -n "${FMENU_ID}" ]; then
   "${WP[@]}" menu item add-post "$FMENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$FMENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
   "${WP[@]}" menu item add-custom "$FMENU_ID" "MAX" "$MAX_BTN_URL" >/dev/null
+  "${WP[@]}" menu item add-custom "$FMENU_ID" "Кабинет" "${CABINET_URL:-https://cabinet.taxi-doroga-dobra.ru/}" >/dev/null
   "${WP[@]}" menu location assign "$FMENU_ID" footer_menu >/dev/null 2>&1 || true
 fi
 
@@ -241,4 +250,4 @@ echo "==> Тема: без сайдбара"
 "${WP[@]}" theme mod set site-sidebar-layout "no-sidebar" 2>/dev/null || true
 
 chown -R www-data:www-data "$SITE_DIR"
-echo "==> OK ТЗ-02: https://taxi-doroga-dobra.ru/ (CTA MAX=${MAX_BTN_URL})"
+echo "==> OK ТЗ-02/07: CTA → /#kak-rabotat (выбор канала MAX|кабинет), MAX=${MAX_BTN_URL}"

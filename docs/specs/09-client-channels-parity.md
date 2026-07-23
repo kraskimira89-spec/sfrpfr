@@ -256,11 +256,11 @@ GET|POST messages, consents, orders, result  -- как в текущем portal
 2. Веб-кабинет: кнопки проверки, findings, deep-link в MAX.
 3. Mini-app: чек-лист, draft, согласие, ссылка в веб; CaseRead с status_label/hint.
 
-### Этап C — доведение Should
+### Этап C — доведение Should ✅ реализовано
 
-1. Оплаты и результат в mini-app (native или webview кабинета).
-2. Сообщения: единый тред или явный handoff в чат бота.
-3. Убрать зависимость mini-app от legacy CaseStore, если ещё есть.
+1. Оплаты ЮKassa в cabinet и mini-app (`POST .../orders/{id}/pay`, webhook, опциональный чек).
+2. Результат и сообщения в mini-app; handoff в чат бота.
+3. Mini-app на portal API (`X-MAX-InitData`); deep-link кабинета `?case=&view=`.
 
 ### Этап D — приёмка и регресс
 

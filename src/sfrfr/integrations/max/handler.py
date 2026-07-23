@@ -7,6 +7,7 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
+from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
 from sfrfr.integrations.max.client import MaxBotClient
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.storage.local import save_upload
@@ -19,6 +20,13 @@ class MaxHandleResult:
     case_id: str | None = None
     reply: str | None = None
     detail: str = ""
+
+
+_DEFAULT_DOC_REQUESTS = (
+    "Выписка ИЛС (лицевой счёт)",
+    "Трудовая книжка / сведения о стаже",
+    "Решение СФР (если уже есть)",
+)
 
 
 def _user_id(update: dict[str, Any]) -> str | None:
@@ -68,11 +76,9 @@ def _reply(
     chat_id: int | str | None,
     text: str,
 ) -> None:
-    # Личный диалог — по user_id; иначе пробуем chat_id.
     try:
         bot.send_message(text=text, user_id=user_id, chat_id=chat_id)
     except Exception:
-        # Webhook не должен падать из-за сбоя исходящей отправки.
         pass
 
 
@@ -88,6 +94,45 @@ def _channel_choice_text() -> str:
     )
 
 
+def _ensure_supabase_max_client(max_user_id: str) -> None:
+    """Неблокирующая регистрация клиента MAX в Supabase (единый профиль ТЗ-09)."""
+    try:
+        from sfrfr.db.client_channels import ClientChannelRepository
+
+        ClientChannelRepository().ensure_for_max_user(max_user_id)
+    except Exception:
+        pass
+
+
+def _docs_request_text(*, has_docs: bool) -> str:
+    lines = ["Нужны документы для проверки:"]
+    for i, title in enumerate(_DEFAULT_DOC_REQUESTS, start=1):
+        lines.append(f"{i}. {title}")
+    lines.append("Пришлите файлы в этот чат (PDF/JPG/PNG) или загрузите в кабинете / mini-app.")
+    if has_docs:
+        lines.append("Часть файлов уже получена — можно /status или /run.")
+    return "\n".join(lines)
+
+
+def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
+    draft = record.ctx.draft
+    if not draft:
+        return (
+            "Черновик ещё не готов. Пришлите документы и выполните /run "
+            "(до этапа проверки специалистом)."
+        )
+    body = (draft.body or "").strip()
+    preview = body[:1500] + ("…" if len(body) > 1500 else "")
+    title = draft.title or "Черновик заявления"
+    note = "\n\n⚠️ Это черновик для проверки специалистом, не подача в СФР."
+    return f"{title}\n\n{preview}{note}"
+
+
+def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
+    path = save_upload(record.case_id, file_name, data)
+    return store.add_document(record.case_id, str(path))
+
+
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -96,8 +141,8 @@ def handle_max_update(
     """
     Сценарий MVP:
     /start — создать/продолжить кейс
-    /status, /run, /help
-    file_name + file_bytes — сохранить вложение (тесты / будущий download)
+    /status, /run, /draft, /docs, /help
+    вложения — скачать по url или file_bytes
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -111,12 +156,13 @@ def handle_max_update(
     store = get_case_store()
 
     if lower.startswith("/start") or lower in {"старт", "начать"}:
+        _ensure_supabase_max_client(user_id)
         existing = store.find_by_max_user(user_id)
         if existing:
             reply = (
                 f"Снова здравствуйте. Ваш кейс: {existing.case_id}\n"
                 f"Этап: {status_label_ru(existing.ctx.status)}\n"
-                "Пришлите документы (ИЛС и трудовую) или команду /status."
+                + _docs_request_text(has_docs=bool(existing.ctx.document_paths))
                 + _channel_choice_text()
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -135,8 +181,8 @@ def handle_max_update(
         reply = (
             "Здравствуйте! Я помогу с аудитом пенсионного дела.\n"
             f"Создан кейс: {record.case_id}\n"
-            "Пришлите сканы/PDF: выписку ИЛС и трудовую книжку.\n"
-            "Команды: /status, /run, /help"
+            + _docs_request_text(has_docs=False)
+            + "\nКоманды: /status, /docs, /run, /draft, /help"
             + _channel_choice_text()
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -150,12 +196,27 @@ def handle_max_update(
 
     if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
         reply = (
-            "Команды: /start, /status, /run, /help."
+            "Команды: /start, /status, /docs, /run, /draft, /help."
             " Документы — файлом в чат."
             + _channel_choice_text()
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
+
+    if lower.startswith("/docs") or lower in {"документы", "что прислать"}:
+        reply = _docs_request_text(has_docs=bool(record.ctx.document_paths))
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=True, action="docs_request", case_id=record.case_id, reply=reply)
+
+    if lower.startswith("/draft"):
+        reply = _draft_preview(record)
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(
+            ok=bool(record.ctx.draft),
+            action="draft",
+            case_id=record.case_id,
+            reply=reply,
+        )
 
     if lower.startswith("/status"):
         reply = (
@@ -163,14 +224,18 @@ def handle_max_update(
             f"Этап: {status_label_ru(record.ctx.status)}\n"
             f"Документов: {len(record.ctx.document_paths)}\n"
             f"Распознано текстов: {len(record.ctx.ocr_texts)}\n"
-            f"Находок: {len(record.ctx.findings)}"
+            f"Находок: {len(record.ctx.findings)}\n"
+            f"Черновик: {'есть — /draft' if record.ctx.draft else 'ещё нет'}"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = "Сначала пришлите документы (ИЛС и трудовую)."
+            reply = (
+                "Сначала пришлите документы.\n"
+                + _docs_request_text(has_docs=False)
+            )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,
@@ -179,7 +244,11 @@ def handle_max_update(
                 reply=reply,
             )
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
-        draft_note = " Черновик готов к проверке юристом." if updated.ctx.draft else ""
+        draft_note = (
+            " Черновик готов — откройте /draft."
+            if updated.ctx.draft
+            else ""
+        )
         reply = (
             f"Этап: {status_label_ru(updated.ctx.status)}. "
             f"Находок: {len(updated.ctx.findings)}."
@@ -188,20 +257,45 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
+    # Прямые байты (тесты / внутренний путь)
     file_name = update.get("file_name")
     file_bytes = update.get("file_bytes")
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
-        path = save_upload(record.case_id, file_name, bytes(file_bytes))
-        fresh = store.add_document(record.case_id, str(path))
+        fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
         reply = (
             f"Файл «{file_name}» принят. Документов: {len(fresh.ctx.document_paths)}. "
-            "Когда будете готовы — /run"
+            "Когда будете готовы — /run. Список нужных — /docs"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
 
+    # Скачивание по URL из вложений MAX
+    downloads = extract_downloadable_files(update)
+    if downloads:
+        names: list[str] = []
+        fresh = record
+        for name, url in downloads:
+            try:
+                data = download_file(url)
+                fresh = _ingest_bytes(store, fresh, name, data)
+                names.append(name)
+            except Exception:
+                continue
+        if names:
+            reply = (
+                f"Принято файлов: {len(names)} ({', '.join(names)}). "
+                f"Всего документов: {len(fresh.ctx.document_paths)}. "
+                "Команда /run запустит проверку."
+            )
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(
+                ok=True, action="upload_url", case_id=record.case_id, reply=reply
+            )
+
     reply = (
-        "Принял сообщение. Пришлите файл документа или команды /status /run.\n"
+        "Принял сообщение. Пришлите файл или команды:\n"
+        "/docs — что загрузить\n"
+        "/status /run /draft /help\n"
         f"Текущий этап: {status_label_ru(record.ctx.status)}"
     )
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)

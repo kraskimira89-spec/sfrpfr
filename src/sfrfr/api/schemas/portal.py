@@ -75,6 +75,7 @@ class PreferencesUpdateRequest(BaseModel):
 class LinkMaxRequest(BaseModel):
     max_user_id: str | None = None
     init_data: str | None = None
+    link_token: str | None = None
     preferred_channel: PreferredChannel | None = None
 
 
@@ -82,13 +83,20 @@ class LinkWebFromMaxRequest(BaseModel):
     max_user_id: str | None = None
     init_data: str | None = None
     preferred_channel: PreferredChannel = PreferredChannel.MAX_MINIAPP
+    case_id: str | None = None
 
 
 class LinkWebFromMaxResponse(BaseModel):
     client_id: str
     max_user_id: str
     cabinet_url: str
+    link_token: str | None = None
     message: str
+
+
+class CreateCaseRequest(BaseModel):
+    full_name: str | None = Field(default=None, max_length=200)
+    problem_type: str | None = Field(default=None, max_length=120)
 
 
 class FindingItem(BaseModel):

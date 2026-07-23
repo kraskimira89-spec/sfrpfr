@@ -10,10 +10,10 @@ from sfrfr.ai.schemas.agents import (
     Period,
 )
 from sfrfr.ai.schemas.knowledge_case import (
+    RAG_READY_QUALITIES,
     ExpertAssessment,
     KnowledgeCase,
     KnowledgeQuality,
-    RAG_READY_QUALITIES,
     SfrOutcome,
 )
 

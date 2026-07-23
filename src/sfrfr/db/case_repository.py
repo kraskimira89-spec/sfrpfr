@@ -19,6 +19,17 @@ class CaseRepository:
         self.client = get_supabase_client()
 
     def _client_id(self, user_id: str) -> str | None:
+        if user_id.startswith("max:"):
+            max_uid = user_id.removeprefix("max:")
+            response = (
+                self.client.table("clients")
+                .select("id")
+                .eq("max_user_id", max_uid)
+                .maybe_single()
+                .execute()
+            )
+            row: dict[str, Any] | None = response.data
+            return str(row["id"]) if row else None
         response = (
             self.client.table("clients")
             .select("id")
@@ -26,8 +37,22 @@ class CaseRepository:
             .maybe_single()
             .execute()
         )
-        row: dict[str, Any] | None = response.data
+        row = response.data
         return str(row["id"]) if row else None
+
+    def _client_id_for_principal(self, principal: Principal) -> str | None:
+        if principal.max_user_id:
+            response = (
+                self.client.table("clients")
+                .select("id")
+                .eq("max_user_id", principal.max_user_id)
+                .maybe_single()
+                .execute()
+            )
+            row: dict[str, Any] | None = response.data
+            if row:
+                return str(row["id"])
+        return self._client_id(principal.user_id)
 
     def _case(self, case_id: str) -> dict[str, Any] | None:
         response = (
@@ -48,9 +73,11 @@ class CaseRepository:
         if principal.role is StaffRole.EXPERT:
             return str(case.get("expert_user_id")) == principal.user_id
 
-        client_id = self._client_id(principal.user_id)
+        client_id = self._client_id_for_principal(principal)
         if client_id and str(case.get("client_id")) == client_id:
             return True
+        if principal.is_max_only:
+            return False
         representative = (
             self.client.table("case_representatives")
             .select("case_id")
@@ -86,12 +113,14 @@ class CaseRepository:
                 or []
             )
 
-        client_id = self._client_id(principal.user_id)
+        client_id = self._client_id_for_principal(principal)
         own = (
             query.eq("client_id", client_id).order("created_at", desc=True).execute().data or []
             if client_id
             else []
         )
+        if principal.is_max_only:
+            return own
         represented = (
             self.client.table("case_representatives")
             .select(
@@ -123,6 +152,49 @@ class CaseRepository:
         self.client.table("access_audit").insert(
             {"case_id": case_id, "actor_id": actor_id, "action": action}
         ).execute()
+
+    def create_case_for_client(
+        self,
+        *,
+        client_id: str,
+        actor_id: str | None,
+        problem_type: str | None = None,
+        seed_checklist: bool = True,
+    ) -> dict[str, Any]:
+        """Создать дело для клиента (веб / MAX) в Supabase."""
+        response = (
+            self.client.table("cases")
+            .insert(
+                {
+                    "client_id": client_id,
+                    "pipeline_status": "intake",
+                    "b2c_status": "lead",
+                    "segment": "b2c",
+                    "problem_type": problem_type or "client_open",
+                }
+            )
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=502, detail="failed to create case")
+        case = response.data[0]
+        case_id = str(case["id"])
+        if seed_checklist:
+            for idx, title in enumerate(
+                ("Выписка ИЛС", "Трудовая книжка / сведения о стаже")
+            ):
+                self.client.table("checklist_items").insert(
+                    {
+                        "case_id": case_id,
+                        "title": title,
+                        "item_type": "document",
+                        "owner": "client",
+                        "status": "open",
+                        "sort_order": idx,
+                    }
+                ).execute()
+        self.audit(case_id, actor_id, "case_created")
+        return case
 
     def has_consent(self, case_id: str) -> bool:
         response = (
@@ -390,6 +462,99 @@ class CaseRepository:
         )
         self.audit(case_id, actor_id, f"order_created:{package_code}")
         return response.data[0]
+
+    def get_order(self, case_id: str, order_id: str) -> dict[str, Any] | None:
+        return (
+            self.client.table("orders")
+            .select("*, payments(*)")
+            .eq("id", order_id)
+            .eq("case_id", case_id)
+            .maybe_single()
+            .execute()
+            .data
+        )
+
+    def create_payment_record(
+        self,
+        *,
+        order_id: str,
+        case_id: str,
+        provider: str,
+        provider_payment_id: str,
+        status_value: str,
+        actor_id: str | None,
+        fiscal_status: str | None = None,
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("payments")
+            .insert(
+                {
+                    "order_id": order_id,
+                    "provider": provider,
+                    "provider_payment_id": provider_payment_id,
+                    "status": status_value,
+                    "fiscal_status": fiscal_status,
+                }
+            )
+            .execute()
+        )
+        self.audit(case_id, actor_id, f"payment_created:{provider}")
+        return response.data[0]
+
+    def apply_provider_payment(
+        self,
+        *,
+        provider_payment_id: str,
+        status_value: str,
+        order_id: str | None = None,
+        paid: bool = False,
+        fiscal_status: str | None = None,
+        package_code: str | None = None,
+        case_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Обновить платёж по webhook провайдера; при paid — статус заказа и b2c."""
+        from datetime import UTC, datetime
+
+        query = (
+            self.client.table("payments")
+            .select("*, orders(id, case_id, status, package_code)")
+            .eq("provider_payment_id", provider_payment_id)
+        )
+        if order_id:
+            query = query.eq("order_id", order_id)
+        rows = query.limit(1).execute().data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="payment not found")
+        row = rows[0]
+        updates: dict[str, Any] = {"status": status_value}
+        if fiscal_status is not None:
+            updates["fiscal_status"] = fiscal_status
+        if paid or status_value in ("succeeded", "paid"):
+            updates["paid_at"] = datetime.now(UTC).isoformat()
+            updates["status"] = "succeeded"
+        response = (
+            self.client.table("payments").update(updates).eq("id", row["id"]).execute()
+        )
+        order = row.get("orders") or {}
+        resolved_case_id = str(case_id or order.get("case_id") or "")
+        oid = str(order.get("id") or row.get("order_id") or "")
+        code = str(package_code or order.get("package_code") or "")
+        if (paid or status_value in ("succeeded", "paid")) and oid:
+            self.client.table("orders").update({"status": "paid"}).eq("id", oid).execute()
+            if resolved_case_id:
+                self.audit(resolved_case_id, None, f"payment_succeeded:{provider_payment_id}")
+                b2c = None
+                if code == "DIAG":
+                    b2c = "diagnostic_paid"
+                elif code == "ACCOMP":
+                    b2c = "service_paid"
+                elif code in ("SF_LUMP", "SF_MONTH"):
+                    b2c = "success_fee_paid"
+                if b2c:
+                    self.client.table("cases").update({"b2c_status": b2c}).eq(
+                        "id", resolved_case_id
+                    ).execute()
+        return response.data[0] if response.data else row
 
     def upsert_checklist_item(
         self,

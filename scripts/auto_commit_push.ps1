@@ -40,5 +40,11 @@ if ($DryRun) {
 }
 
 git commit -m $Message
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "git commit failed with exit $LASTEXITCODE"
+}
 git push $Remote "HEAD:$Branch"
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "git push failed with exit $LASTEXITCODE"
+}
 Write-Host "OK: commit + push -> $Remote/$Branch"
