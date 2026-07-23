@@ -673,11 +673,11 @@ header .custom-logo-link img {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0.4rem 0.95rem !important;
+  min-height: 0 !important;
+  padding: 0.2rem 0.55rem !important;
   margin-left: 0.35rem;
   border: 2px solid var(--sfrfr-accent) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   color: var(--sfrfr-accent) !important;
   background: transparent !important;
   line-height: 1.2 !important;
