@@ -18,7 +18,8 @@
 - `MAX_BOT_TOKEN` синхронизирован на VPS; `bot_configured=yes`.
 - TLS к `platform-api2.max.ru`: добавлены CA Минцифры в `certs/` + `ssl_context.py`.
 - `sfrfr max-subscribe` → success на `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook`.
-- `MAX_PUBLIC_BOT_URL` ещё пуст — кнопка на лендинге остаётся «скоро».
+- `MAX_PUBLIC_BOT_URL` = `https://max.ru/id8905998693_1_bot?startapp` (технический username из `/me`).
+- Кнопка на лендинге ведёт на этот диплинк (не StazhIPensiyaBot).
 
 ## 2026-07-22 (MAX бот прошёл модерацию)
 

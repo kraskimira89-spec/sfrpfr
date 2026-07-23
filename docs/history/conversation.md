@@ -19,6 +19,6 @@
 - Сайт витрины: домен `https://taxi-doroga-dobra.ru/` (reg.ru) — **витрина и посадочная SFRFR**; на VPS в отдельной папке (не в `/opt/sfrfr`). API: `api.taxi-doroga-dobra.ru`.
 - Витрина: тема Zakra + блоки; CTA MAX — заглушка `#` / «скоро» до появления deeplink.
 - `PUBLIC_BASE_URL` на VPS: `https://api.taxi-doroga-dobra.ru`; `MAX_BOT_TOKEN` пока пуст → webhook не подписан.
-- MAX-бот «Стаж и пенсия»: токен на VPS, webhook подписан (`success: true`). Кнопка на сайте ждёт `MAX_PUBLIC_BOT_URL`.
+- MAX-бот «Стаж и пенсия»: токен на VPS, webhook подписан (`success: true`). Username API: `id8905998693_1_bot`.
 - Кабинет v1 мини-приложения: статус дела + загрузка документов; URL `https://taxi-doroga-dobra.ru/app/`; технический username бота `id8905998693_1_bot`.
 - Кнопка на лендинге: «Открыть в MAX» → `https://max.ru/id8905998693_1_bot?startapp` (username из `/me`, не StazhIPensiyaBot).
