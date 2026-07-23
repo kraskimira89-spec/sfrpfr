@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-23 (кабинеты: env/Apache/CI после ENOSPC)
+
+- Восстановлен корневой `.env.example` (обнулён при ENOSPC) + `CORS_ALLOWED_ORIGINS`.
+- Apache vhost + systemd для `cabinet.` / `admin.`; CI собирает Next.js apps.
+- Каркас: `/api/portal`, JWT/RBAC, миграция `20260723094202_secure_roles_case_data.sql`, apps/cabinet и apps/admin.
+- Проверки: `ruff` + `pytest` (18), `next build --webpack` для cabinet/admin.
+
 ## 2026-07-23 (MAX: ответы в личку по user_id)
 
 - Входящие шли на webhook VPS, но бот молчал: `chat_id` не читался из `message.recipient`, а личные сообщения слались неверно.

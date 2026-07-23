@@ -1,0 +1,23 @@
+# systemd unit: клиентский кабинет Next.js (после npm ci && npm run build)
+# Install:
+#   sudo cp docs/systemd/sfrfr-cabinet.service /etc/systemd/system/
+#   sudo systemctl enable --now sfrfr-cabinet
+
+[Unit]
+Description=SFRFR client cabinet (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=sfrfr
+Group=sfrfr
+WorkingDirectory=/opt/sfrfr/apps/cabinet
+Environment=NODE_ENV=production
+Environment=PORT=3001
+EnvironmentFile=-/opt/sfrfr/apps/cabinet/.env
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3001
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -20,7 +20,11 @@ class CaseRepository:
 
     def _client_id(self, user_id: str) -> str | None:
         response = (
-            self.client.table("clients").select("id").eq("user_id", user_id).maybe_single().execute()
+            self.client.table("clients")
+            .select("id")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
         )
         row: dict[str, Any] | None = response.data
         return str(row["id"]) if row else None
@@ -70,7 +74,13 @@ class CaseRepository:
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
             return query.order("created_at", desc=True).execute().data or []
         if principal.role is StaffRole.EXPERT:
-            return query.eq("expert_user_id", principal.user_id).order("created_at", desc=True).execute().data or []
+            return (
+                query.eq("expert_user_id", principal.user_id)
+                .order("created_at", desc=True)
+                .execute()
+                .data
+                or []
+            )
 
         client_id = self._client_id(principal.user_id)
         own = (
@@ -80,7 +90,9 @@ class CaseRepository:
         )
         represented = (
             self.client.table("case_representatives")
-            .select("cases(*, clients(full_name, phone, email), checklist_items(id, status, owner))")
+            .select(
+                "cases(*, clients(full_name, phone, email), checklist_items(id, status, owner))"
+            )
             .eq("user_id", principal.user_id)
             .execute()
             .data

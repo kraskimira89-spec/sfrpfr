@@ -10,6 +10,7 @@
 - AI: Yandex AI Studio (OpenAI-compatible)
 - Клиентский канал: MAX Bot API
 - Витрина: WordPress на VPS; API на поддомене (см. `docs/deploy-vps.md`)
+- Кабинеты: Next.js `apps/cabinet` / `apps/admin` (JWT → `/api/portal`)
 - CLI: Typer
 
 ## Быстрый старт
@@ -38,7 +39,8 @@ sfrfr serve
 ## Структура
 
 ```text
-src/sfrfr/     исходный код
+src/sfrfr/     исходный код API
+apps/          Next.js кабинеты (client / admin)
 docs/          документация и история
 knowledge/     база знаний для RAG (без ПДн)
 storage/       загрузки клиентов (в .gitignore)

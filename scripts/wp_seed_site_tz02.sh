@@ -170,6 +170,7 @@ echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID"
 
 "${WP[@]}" option update show_on_front page
 "${WP[@]}" option update page_on_front "$HOME_ID"
+"${WP[@]}" option update blogname "Проверка стажа"
 "${WP[@]}" option update blogdescription "Сопровождение пенсионного перерасчёта"
 
 echo "==> Меню"

@@ -109,7 +109,10 @@ async def upload_case_document(
     return response.data[0]
 
 
-@router.post("/cases/{case_id}/documents/{document_id}/signed-url", response_model=SignedDocumentResponse)
+@router.post(
+    "/cases/{case_id}/documents/{document_id}/signed-url",
+    response_model=SignedDocumentResponse,
+)
 def create_document_signed_url(
     case_id: str,
     document_id: str,

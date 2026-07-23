@@ -1,0 +1,23 @@
+# systemd unit: админ-кабинет Next.js (после npm ci && npm run build)
+# Install:
+#   sudo cp docs/systemd/sfrfr-admin.service /etc/systemd/system/
+#   sudo systemctl enable --now sfrfr-admin
+
+[Unit]
+Description=SFRFR admin cabinet (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=sfrfr
+Group=sfrfr
+WorkingDirectory=/opt/sfrfr/apps/admin
+Environment=NODE_ENV=production
+Environment=PORT=3002
+EnvironmentFile=-/opt/sfrfr/apps/admin/.env
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3002
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

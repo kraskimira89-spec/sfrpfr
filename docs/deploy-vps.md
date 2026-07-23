@@ -95,6 +95,8 @@ Cursor hook: после `stop` агента вызывается `.cursor/hooks/
 | A | `@` | `91.229.11.147` |
 | A | `api` | `91.229.11.147` |
 | A | `www` | `91.229.11.147` |
+| A | `cabinet` | `91.229.11.147` |
+| A | `admin` | `91.229.11.147` |
 
 SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный HTTPS**.
 
@@ -104,6 +106,10 @@ SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный H
 
 - `docs/apache-vhost-taxi-doroga-dobra.ru.conf` → `/var/www/taxi-doroga-dobra`
 - `docs/apache-vhost-api.taxi-doroga-dobra.ru.conf` → proxy на `127.0.0.1:8011`
+- `docs/apache-vhost-cabinet.taxi-doroga-dobra.ru.conf` → Next.js `127.0.0.1:3001`
+- `docs/apache-vhost-admin.taxi-doroga-dobra.ru.conf` → Next.js `127.0.0.1:3002`
+
+systemd units кабинетов: `docs/systemd/sfrfr-cabinet.service`, `docs/systemd/sfrfr-admin.service`.
 
 После `a2ensite` + `certbot --apache` появляются `*-le-ssl.conf` (HTTPS + redirect).
 
@@ -128,6 +134,11 @@ SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный H
         Require all granted
     </Directory>
 </VirtualHost>
+```
+
+```apache
+# cabinet / admin — reverse proxy на Next.js
+# cabinet → :3001, admin → :3002 (см. docs/apache-vhost-*.conf)
 ```
 
 ## Env на VPS
@@ -175,7 +186,10 @@ npx supabase db push
 - Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
 - В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
 - Диплинк: `https://max.ru/id8905998693_1_bot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP. Используйте технический username из `/me`, а не отображаемое имя бота.
-- API для кабинета: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run` (+ CORS с витрины).
+- API MVP / мини-приложение: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run`.
+- API кабинетов (JWT): `GET /api/portal/me/cases`, `GET /api/portal/cases/{id}`, upload/signed-url/messages; staff — `PATCH /api/portal/admin/cases/{id}/pipeline-status`.
+- Next.js кабинеты: `apps/cabinet` → `cabinet.taxi-doroga-dobra.ru`, `apps/admin` → `admin.taxi-doroga-dobra.ru` (Apache proxy + systemd).
+- CORS: `CORS_ALLOWED_ORIGINS` в `.env` (витрина + cabinet + admin).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
 - ПДн-сканы не через WP-формы; загрузка — MAX / кабинет `/app/`.

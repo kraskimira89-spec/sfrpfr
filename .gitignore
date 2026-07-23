@@ -23,8 +23,14 @@ htmlcov/
 .env
 .env.*
 !.env.example
+!**/.env.example
 *.pem
 *.key
+
+# Next.js apps
+apps/*/node_modules/
+apps/*/.next/
+apps/*/out/
 
 # ПДн и рабочие файлы клиентов — никогда в git
 storage/uploads/*
