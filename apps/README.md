@@ -9,6 +9,9 @@ Next.js apps for authenticated users:
 
 Both call FastAPI `/api/portal/*` with Supabase access token (`Authorization: Bearer …`).
 
+Client cabinet (ТЗ-03): OTP login, cases list/card, checklist, document upload (PDF/JPG/PNG),
+consents/offer acceptances, orders, result + success-fee preview. Signed URLs via API only.
+
 ## Local
 
 ```powershell
