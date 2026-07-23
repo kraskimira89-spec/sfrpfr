@@ -57,6 +57,28 @@
       <p id="case-error" class="error hidden"></p>
       <p id="case-findings" class="findings hidden"></p>
 
+      <div id="case-next" class="meta-block hidden">
+        <p class="label">Ближайшее действие</p>
+        <p id="case-next-text">—</p>
+      </div>
+
+      <div id="case-checklist" class="meta-block hidden">
+        <p class="label">Чек-лист</p>
+        <ul id="case-checklist-list"></ul>
+      </div>
+
+      <div id="case-draft" class="meta-block hidden">
+        <p class="label">Черновик заявления</p>
+        <pre id="case-draft-body" class="draft"></pre>
+      </div>
+
+      <div class="meta-block">
+        <p class="label">Как подать</p>
+        <p id="case-submit-hint" class="hint">
+          Подайте заявление самостоятельно в СФР, МФЦ или через Госуслуги. SFRFR не подаёт от вашего имени.
+        </p>
+      </div>
+
       <div class="actions">
         <label class="btn secondary file-btn">
           Загрузить документ
@@ -64,6 +86,7 @@
         </label>
         <button type="button" id="btn-refresh" class="btn ghost">Обновить</button>
         <button type="button" id="btn-run" class="btn primary">Запустить проверку</button>
+        <a id="btn-web-cabinet" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Открыть веб-кабинет</a>
       </div>
 
       <p id="toast" class="toast hidden" role="status"></p>

@@ -288,5 +288,104 @@ def max_subscribe(
     typer.echo(f"subscribed\t{webhook}\t{result}")
 
 
+@app.command("staff-list")
+def staff_list() -> None:
+    """Список сотрудников и ролей (service role)."""
+    from sfrfr.db.staff_roles import list_staff_roles
+
+    rows = list_staff_roles()
+    if not rows:
+        typer.echo("staff_roles пусто. Команда: sfrfr staff-grant --email … --role admin --invite")
+        return
+    for row in rows:
+        typer.echo(f"{row.get('email') or '-'}\t{row['user_id']}\t{row['role']}")
+
+
+@app.command("staff-grant")
+def staff_grant(
+    email: str = typer.Option(..., "--email", "-e", help="Рабочий email сотрудника"),
+    role: str = typer.Option("admin", "--role", "-r", help="operator|expert|admin"),
+    invite: bool = typer.Option(
+        False,
+        "--invite",
+        help="Создать пользователя Auth, если ещё нет (email_confirm=true)",
+    ),
+) -> None:
+    """Выдать staff-роль (обход курицы/яйца: первый admin через CLI)."""
+    from sfrfr.db.staff_roles import ensure_user, grant_staff_role, user_id_of
+    from sfrfr.security.auth import StaffRole
+
+    try:
+        staff_role = StaffRole(role)
+    except ValueError as exc:
+        raise typer.BadParameter("role: operator|expert|admin") from exc
+
+    try:
+        user = ensure_user(email, invite=invite)
+    except LookupError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    uid = user_id_of(user)
+    row = grant_staff_role(uid, staff_role)
+    typer.echo(f"ok\t{email.strip().lower()}\t{uid}\t{row['role']}")
+
+
+@app.command("ops-health")
+def ops_health(
+    fail_on_alert: bool = typer.Option(
+        True,
+        "--fail-on-alert/--no-fail-on-alert",
+        help="Exit 1 при failed_alert или неготовности API",
+    ),
+) -> None:
+    """Проверка /health + число дел failed (без ПДн). Для cron/alerting."""
+    import json
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.ops.health import ops_status_payload
+
+    settings = get_settings()
+    payload = ops_status_payload(
+        failed_alert_threshold=settings.ops_failed_alert_threshold
+    )
+    typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    monitor = payload.get("monitor") or {}
+    if fail_on_alert and (
+        not monitor.get("api_ready") or monitor.get("failed_alert")
+    ):
+        raise typer.Exit(code=1)
+
+
+@app.command("ops-check-remote")
+def ops_check_remote(
+    base_url: str | None = typer.Option(
+        None,
+        "--url",
+        help="Базовый URL API; по умолчанию PUBLIC_BASE_URL",
+    ),
+) -> None:
+    """HTTP-проверка публичного /health (без секретов)."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    from sfrfr.core.config import get_settings
+
+    settings = get_settings()
+    root = (base_url or settings.public_base_url).rstrip("/")
+    health_url = f"{root}/health"
+    try:
+        with urllib.request.urlopen(health_url, timeout=15) as response:
+            body = response.read().decode("utf-8")
+            status_code = response.status
+    except urllib.error.URLError as exc:
+        typer.echo(f"FAIL\t{health_url}\t{exc}")
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"OK\t{status_code}\t{health_url}")
+    typer.echo(json.dumps(json.loads(body), ensure_ascii=False, indent=2))
+    if status_code >= 400:
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

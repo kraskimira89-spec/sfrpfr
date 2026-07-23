@@ -209,6 +209,38 @@ h1 {
   line-height: 1.4;
 }
 
+.meta-block {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+.meta-block .label {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.meta-block ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.draft {
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: var(--font);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  max-height: 220px;
+  overflow: auto;
+}
+
 .toast {
   margin-top: 12px;
   padding: 10px 12px;

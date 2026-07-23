@@ -189,6 +189,10 @@ npx supabase db push
 - API MVP / мини-приложение: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run`.
 - API кабинетов (JWT): `GET /api/portal/me/cases`, `GET /api/portal/cases/{id}`, upload/signed-url/messages; staff — `PATCH /api/portal/admin/cases/{id}/pipeline-status`.
 - Next.js кабинеты: `apps/cabinet` → `cabinet.taxi-doroga-dobra.ru`, `apps/admin` → `admin.taxi-doroga-dobra.ru` (Apache proxy + systemd).
+- На VPS нужен **Node.js ≥20.9** (факт: Node 22 LTS). Units: `sfrfr-cabinet` (:3001), `sfrfr-admin` (:3002). SSL: общий сертификат Let's Encrypt на оба хоста.
+- После миграций Supabase выдать staff-роль (первый admin через CLI, service role):
+  `sfrfr staff-grant --email you@company.com --role admin --invite`
+  Список: `sfrfr staff-list`. Дальше роли можно править в UI admin → «Роли».
 - CORS: `CORS_ALLOWED_ORIGINS` в `.env` (витрина + cabinet + admin).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.

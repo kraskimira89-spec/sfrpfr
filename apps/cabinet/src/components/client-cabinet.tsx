@@ -40,7 +40,12 @@ type CaseDetail = {
   checklist_items: ChecklistItem[];
   required_documents: ChecklistItem[];
   documents: CaseDocument[];
+  findings?: { type: string; detail: string; severity?: string }[];
   draft: { title?: string; body?: string; needs_human_review?: boolean } | null;
+  next_action?: string | null;
+  status_label?: string | null;
+  status_hint?: string | null;
+  pipeline_error?: string | null;
   submission_instruction: string;
   warning: string;
 };
@@ -88,6 +93,21 @@ type ResultPayload = {
   warning: string;
 };
 
+type PreferredChannel = "max_miniapp" | "web_cabinet" | "unset";
+
+type PortalMe = {
+  user_id: string;
+  email?: string | null;
+  client_id?: string | null;
+  preferred_channel: PreferredChannel;
+  max_linked: boolean;
+  web_linked: boolean;
+  max_user_id?: string | null;
+  cabinet_url: string;
+  max_bot_url: string;
+  max_miniapp_url: string;
+};
+
 type View = "cases" | "case" | "docs" | "payments" | "result";
 type AuthChannel = "email" | "phone";
 
@@ -95,6 +115,7 @@ const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://taxi-doroga-dobra.ru";
+const DEFAULT_MAX_BOT = "https://max.ru/id8905998693_1_bot?startapp";
 
 const PACKAGE_LABELS: Record<string, string> = {
   DIAG: "Диагностика",
@@ -178,6 +199,7 @@ export function ClientCabinet() {
   const [result, setResult] = useState<ResultPayload | null>(null);
   const [view, setView] = useState<View>("cases");
   const [busy, setBusy] = useState(false);
+  const [me, setMe] = useState<PortalMe | null>(null);
 
   const token = session?.access_token;
 
@@ -201,9 +223,40 @@ export function ClientCabinet() {
     }
   }, [token]);
 
+  const loadMe = useCallback(async () => {
+    if (!token || !apiBase) return;
+    try {
+      const profile = await apiFetch<PortalMe>("/api/portal/me", token);
+      setMe(profile);
+      const params = new URLSearchParams(window.location.search);
+      const linkMax = params.get("link_max");
+      if (linkMax && !profile.max_linked) {
+        const linked = await apiFetch<PortalMe>("/api/portal/link/max", token, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            max_user_id: linkMax,
+            preferred_channel: "web_cabinet",
+          }),
+        });
+        setMe(linked);
+        setNotice("Аккаунт связан с MAX. Можно продолжать в мессенджере или здесь.");
+        params.delete("link_max");
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+        window.history.replaceState({}, "", next);
+      }
+    } catch {
+      /* профиль не критичен для списка дел */
+    }
+  }, [token]);
+
   useEffect(() => {
     void loadCases();
   }, [loadCases]);
+
+  useEffect(() => {
+    void loadMe();
+  }, [loadMe]);
 
   const openCase = useCallback(
     async (caseId: string, nextView: View = "case") => {
@@ -428,6 +481,50 @@ export function ClientCabinet() {
     }
   }
 
+  async function setPreferredChannel(channel: PreferredChannel) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const profile = await apiFetch<PortalMe>("/api/portal/me/preferences", token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferred_channel: channel }),
+      });
+      setMe(profile);
+      setNotice(
+        channel === "max_miniapp"
+          ? "Предпочтение: MAX. Уведомления по умолчанию — в мессенджер."
+          : channel === "web_cabinet"
+            ? "Предпочтение: веб-кабинет."
+            : "Предпочтение канала сброшено.",
+      );
+    } catch {
+      setNotice("Не удалось сохранить предпочтение канала.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runCheck() {
+    if (!token || !selectedId) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const result = await apiFetch<{
+        ok: boolean;
+        message: string;
+        pipeline_status?: string;
+        findings?: { type: string; detail: string }[];
+      }>(`/api/portal/cases/${selectedId}/run`, token, { method: "POST" });
+      setNotice(result.message || "Проверка запрошена.");
+      await openCase(selectedId, "case");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось запустить проверку.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!session) {
     return (
       <main className="auth-layout">
@@ -530,13 +627,57 @@ export function ClientCabinet() {
           <strong>SFRFR</strong>
           <span>Кабинет клиента</span>
         </div>
-        <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
-          Выйти
-        </button>
+        <div className="header-actions">
+          <a
+            className="ghost"
+            href={me?.max_bot_url || DEFAULT_MAX_BOT}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Продолжить в MAX
+          </a>
+          <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
+            Выйти
+          </button>
+        </div>
       </header>
 
       <section className="warning" role="note">
         Решение принимает СФР. Результат не гарантирован.
+      </section>
+
+      <section className="card channel-card">
+        <h2>Канал работы</h2>
+        <p className="muted">
+          Можно вести одно дело и в MAX, и в браузере.
+          {me?.max_linked ? " MAX уже привязан." : " Чтобы связать MAX — откройте ссылку из мини-приложения."}
+        </p>
+        <div className="tabs" role="group" aria-label="Предпочтительный канал">
+          <button
+            type="button"
+            className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
+            disabled={busy}
+            onClick={() => void setPreferredChannel("web_cabinet")}
+          >
+            Веб-кабинет
+          </button>
+          <button
+            type="button"
+            className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
+            disabled={busy}
+            onClick={() => void setPreferredChannel("max_miniapp")}
+          >
+            MAX
+          </button>
+          <button
+            type="button"
+            className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
+            disabled={busy}
+            onClick={() => void setPreferredChannel("unset")}
+          >
+            Не задан
+          </button>
+        </div>
       </section>
 
       {selectedId && (
@@ -621,14 +762,34 @@ export function ClientCabinet() {
         <section className="stack">
           <h1>Дело {shortId(detail.id)}</h1>
           <p>
-            Текущий этап: <strong>{labelStatus(detail.pipeline_status)}</strong>
+            Текущий этап:{" "}
+            <strong>{detail.status_label || labelStatus(detail.pipeline_status)}</strong>
             {" · "}
             {labelStatus(detail.b2c_status)}
           </p>
+          {detail.status_hint && <p className="hint">{detail.status_hint}</p>}
+          {detail.next_action && (
+            <p>
+              Ближайшее действие: <strong>{detail.next_action}</strong>
+            </p>
+          )}
           <p>
             Ответственный сотрудник:{" "}
             {detail.expert_assigned ? "назначен" : "ещё не назначен"}
           </p>
+
+          <div className="panel accent">
+            <h2>Проверка документов</h2>
+            <p className="hint">
+              Запускает сверку / передаёт дело специалисту. Подачи в СФР от вашего имени нет.
+            </p>
+            <button type="button" onClick={() => void runCheck()} disabled={busy || !detail.consent_accepted}>
+              Запустить проверку
+            </button>
+            {!detail.consent_accepted && (
+              <p className="hint">Сначала подтвердите согласие на обработку ПДн.</p>
+            )}
+          </div>
 
           {!detail.consent_accepted && (
             <div className="panel accent">
@@ -644,6 +805,23 @@ export function ClientCabinet() {
               </button>
             </div>
           )}
+
+          <div className="panel">
+            <h2>Возможные расхождения</h2>
+            {detail.pipeline_error && <p className="notice">{detail.pipeline_error}</p>}
+            {!detail.findings?.length ? (
+              <p>Пока нет findings. Загрузите документы и запустите проверку.</p>
+            ) : (
+              <ul className="plain-list">
+                {detail.findings.map((f, idx) => (
+                  <li key={`${f.type}-${idx}`}>
+                    <strong>{f.type}</strong>
+                    {f.detail ? `: ${f.detail}` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="panel">
             <h2>Персональный чек-лист</h2>

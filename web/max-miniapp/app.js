@@ -44,9 +44,17 @@
     caseOcr: document.getElementById("case-ocr"),
     caseError: document.getElementById("case-error"),
     caseFindings: document.getElementById("case-findings"),
+    caseNext: document.getElementById("case-next"),
+    caseNextText: document.getElementById("case-next-text"),
+    caseChecklist: document.getElementById("case-checklist"),
+    caseChecklistList: document.getElementById("case-checklist-list"),
+    caseDraft: document.getElementById("case-draft"),
+    caseDraftBody: document.getElementById("case-draft-body"),
+    caseSubmitHint: document.getElementById("case-submit-hint"),
     fileInput: document.getElementById("file-input"),
     btnRefresh: document.getElementById("btn-refresh"),
     btnRun: document.getElementById("btn-run"),
+    btnWeb: document.getElementById("btn-web-cabinet"),
     toast: document.getElementById("toast"),
   };
 
@@ -92,8 +100,8 @@
 
   function renderCase(c) {
     currentCase = c;
-    els.status.textContent = STATUS_LABELS[c.status] || c.status;
-    els.statusHint.textContent = STATUS_HINTS[c.status] || "";
+    els.status.textContent = c.status_label || STATUS_LABELS[c.status] || c.status;
+    els.statusHint.textContent = c.status_hint || STATUS_HINTS[c.status] || "";
     els.caseId.textContent = c.id;
     els.caseName.textContent = c.client_name;
     els.caseDocs.textContent = String(c.document_count ?? 0);
@@ -109,7 +117,7 @@
     const findings = Array.isArray(c.findings) ? c.findings : [];
     if (findings.length) {
       els.caseFindings.innerHTML = findings
-        .slice(0, 5)
+        .slice(0, 8)
         .map((f) => {
           const title = f.type || "finding";
           const msg = f.detail || "";
@@ -119,6 +127,44 @@
       els.caseFindings.classList.remove("hidden");
     } else {
       els.caseFindings.classList.add("hidden");
+    }
+
+    if (c.next_action && els.caseNext && els.caseNextText) {
+      els.caseNextText.textContent = c.next_action;
+      els.caseNext.classList.remove("hidden");
+    } else if (els.caseNext) {
+      els.caseNext.classList.add("hidden");
+    }
+
+    const checklist = Array.isArray(c.checklist_items) ? c.checklist_items : [];
+    if (els.caseChecklist && els.caseChecklistList) {
+      if (checklist.length) {
+        els.caseChecklistList.innerHTML = checklist
+          .slice(0, 12)
+          .map((item) => {
+            const title = escapeHtml(item.title || "пункт");
+            const st = escapeHtml(item.status || "");
+            return `<li><strong>${title}</strong> <span class="hint">${st}</span></li>`;
+          })
+          .join("");
+        els.caseChecklist.classList.remove("hidden");
+      } else {
+        els.caseChecklist.classList.add("hidden");
+      }
+    }
+
+    const draft = c.draft;
+    if (els.caseDraft && els.caseDraftBody) {
+      if (draft && (draft.body || draft.title)) {
+        els.caseDraftBody.textContent = [draft.title, draft.body].filter(Boolean).join("\n\n");
+        els.caseDraft.classList.remove("hidden");
+      } else {
+        els.caseDraft.classList.add("hidden");
+      }
+    }
+
+    if (els.caseSubmitHint && c.submission_instruction) {
+      els.caseSubmitHint.textContent = c.submission_instruction;
     }
 
     show(els.panel);
@@ -209,6 +255,33 @@
     }
   }
 
+  async function openWebCabinet() {
+    const cabinetBase = (cfg.cabinetUrl || "https://cabinet.taxi-doroga-dobra.ru/").replace(
+      /\/?$/,
+      "/",
+    );
+    try {
+      const initData = window.WebApp?.initData || "";
+      const body = await api("/api/portal/link/web-from-max", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          max_user_id: maxUserId,
+          init_data: initData || null,
+          preferred_channel: "max_miniapp",
+        }),
+      });
+      if (els.btnWeb) els.btnWeb.href = body.cabinet_url || `${cabinetBase}?link_max=${maxUserId}`;
+      window.open(els.btnWeb?.href || cabinetBase, "_blank", "noopener,noreferrer");
+      toast("Откройте веб-кабинет и войдите по коду");
+    } catch (err) {
+      const fallback = `${cabinetBase}?link_max=${encodeURIComponent(maxUserId || "")}`;
+      if (els.btnWeb) els.btnWeb.href = fallback;
+      window.open(fallback, "_blank", "noopener,noreferrer");
+      toast(err.message || "Открыт веб-кабинет");
+    }
+  }
+
   async function bootstrap() {
     initBridge();
     maxUserId = resolveMaxUserId();
@@ -289,6 +362,18 @@
       setBusy(false);
     }
   });
+
+  if (els.btnWeb) {
+    const cabinetBase = (cfg.cabinetUrl || "https://cabinet.taxi-doroga-dobra.ru/").replace(
+      /\/?$/,
+      "/",
+    );
+    els.btnWeb.href = cabinetBase;
+    els.btnWeb.addEventListener("click", (event) => {
+      event.preventDefault();
+      void openWebCabinet();
+    });
+  }
 
   bootstrap();
 })();

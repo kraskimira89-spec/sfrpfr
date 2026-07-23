@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sfrfr.core.case_store import get_case_store
+from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.client import MaxBotClient
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.storage.local import save_upload
@@ -75,6 +76,18 @@ def _reply(
         pass
 
 
+def _channel_choice_text() -> str:
+    settings = get_settings()
+    cabinet = settings.cabinet_public_url.rstrip("/")
+    miniapp = settings.max_miniapp_url.rstrip("/") + "/"
+    return (
+        "\n\nКак удобнее работать с делом?\n"
+        f"• Мини-приложение MAX: {miniapp}\n"
+        f"• Веб-кабинет (браузер): {cabinet}/\n"
+        "Один и тот же статус и документы в обоих каналах после привязки."
+    )
+
+
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -104,6 +117,7 @@ def handle_max_update(
                 f"Снова здравствуйте. Ваш кейс: {existing.case_id}\n"
                 f"Этап: {status_label_ru(existing.ctx.status)}\n"
                 "Пришлите документы (ИЛС и трудовую) или команду /status."
+                + _channel_choice_text()
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=True, action="resume", case_id=existing.case_id, reply=reply)
@@ -123,6 +137,7 @@ def handle_max_update(
             f"Создан кейс: {record.case_id}\n"
             "Пришлите сканы/PDF: выписку ИЛС и трудовую книжку.\n"
             "Команды: /status, /run, /help"
+            + _channel_choice_text()
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="create", case_id=record.case_id, reply=reply)
@@ -133,8 +148,12 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="need_start", reply=reply)
 
-    if lower.startswith("/help"):
-        reply = "Команды: /start, /status, /run. Документы — файлом в чат."
+    if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
+        reply = (
+            "Команды: /start, /status, /run, /help."
+            " Документы — файлом в чат."
+            + _channel_choice_text()
+        )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
 

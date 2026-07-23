@@ -6,10 +6,11 @@
 2. [02-public-site-wordpress.md](02-public-site-wordpress.md) — публичный сайт WordPress.
 3. [03-client-cabinet.md](03-client-cabinet.md) — клиентский кабинет.
 4. [04-admin-cabinet.md](04-admin-cabinet.md) — кабинет оператора, эксперта и администратора.
-5. [05-developer-operations.md](05-developer-operations.md) — инструменты разработчика и эксплуатация.
+5. [05-developer-operations.md](05-developer-operations.md) — инструменты разработчика и эксплуатация ([ранбук](../ops-runbook.md)).
 6. [06-integrations-and-security.md](06-integrations-and-security.md) — интеграции, ПДн и правила доступа.
 7. [07-mvp-roadmap.md](07-mvp-roadmap.md) — очередность MVP.
 8. [08-knowledge-rag.md](08-knowledge-rag.md) — обезличенные кейсы, RAG без дообучения.
+9. [09-client-channels-parity.md](09-client-channels-parity.md) — паритет MAX mini-app и веб-кабинета, выбор канала.
 
 ## Принцип
 

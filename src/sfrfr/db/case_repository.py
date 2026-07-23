@@ -32,7 +32,10 @@ class CaseRepository:
     def _case(self, case_id: str) -> dict[str, Any] | None:
         response = (
             self.client.table("cases")
-            .select("*, clients(full_name, phone, email), checklist_items(*), documents(*)")
+            .select(
+                "*, clients(full_name, phone, email, max_user_id, preferred_channel, "
+                "preferred_channel_set_at, user_id), checklist_items(*), documents(*)"
+            )
             .eq("id", case_id)
             .maybe_single()
             .execute()
@@ -69,7 +72,8 @@ class CaseRepository:
 
     def list_cases(self, principal: Principal) -> list[dict[str, Any]]:
         query = self.client.table("cases").select(
-            "*, clients(full_name, phone, email), checklist_items(id, status, owner)"
+            "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
+            "checklist_items(id, status, owner), orders(package_code, status)"
         )
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
             return query.order("created_at", desc=True).execute().data or []
@@ -91,7 +95,8 @@ class CaseRepository:
         represented = (
             self.client.table("case_representatives")
             .select(
-                "cases(*, clients(full_name, phone, email), checklist_items(id, status, owner))"
+                "cases(*, clients(full_name, phone, email, max_user_id, "
+                "preferred_channel, user_id), checklist_items(id, status, owner))"
             )
             .eq("user_id", principal.user_id)
             .execute()
@@ -207,18 +212,76 @@ class CaseRepository:
         )
 
     def get_pipeline_draft(self, case_id: str) -> dict[str, Any] | None:
-        row = (
+        row = self.get_pipeline_row(case_id)
+        if not row:
+            return None
+        draft = row.get("draft")
+        return draft if isinstance(draft, dict) else None
+
+    def get_pipeline_row(self, case_id: str) -> dict[str, Any] | None:
+        return (
             self.client.table("case_pipeline_data")
-            .select("draft")
+            .select("findings, draft, error, ocr_texts, updated_at")
             .eq("case_id", case_id)
             .maybe_single()
             .execute()
             .data
         )
+
+    def get_pipeline_findings(self, case_id: str) -> list[dict[str, Any]]:
+        row = self.get_pipeline_row(case_id)
         if not row:
-            return None
-        draft = row.get("draft")
-        return draft if isinstance(draft, dict) else None
+            return []
+        findings = row.get("findings") or []
+        return findings if isinstance(findings, list) else []
+
+    def list_checklist(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("checklist_items")
+            .select("*")
+            .eq("case_id", case_id)
+            .order("sort_order")
+            .execute()
+            .data
+            or []
+        )
+
+    def list_documents(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("documents")
+            .select("id, storage_path, doc_type, created_at")
+            .eq("case_id", case_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+    def request_pipeline_run(self, case_id: str, actor_id: str) -> dict[str, Any]:
+        """Клиент/сотрудник: запросить проверку (единая семантика ТЗ-09)."""
+        case = self._case(case_id)
+        if case is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        docs = case.get("documents") or []
+        status_now = case.get("pipeline_status") or "intake"
+        message = "Проверка запрошена. Специалист и пайплайн уведомлены."
+        if docs and status_now == "intake":
+            self.update_case_status(case_id, "documents_received", actor_id)
+            message = "Документы приняты, проверка запрошена."
+        elif status_now in ("documents_received", "ocr_done", "classified", "extracted", "audited"):
+            # Клиентский запрос продвигает к human_review, если ещё не там.
+            if status_now != "human_review":
+                self.update_case_status(case_id, "human_review", actor_id)
+                message = "Дело передано на проверку специалисту."
+        self.audit(case_id, actor_id, "pipeline_run_requested")
+        refreshed = self._case(case_id) or case
+        return {
+            "ok": True,
+            "message": message,
+            "pipeline_status": refreshed.get("pipeline_status"),
+            "findings": self.get_pipeline_findings(case_id),
+            "draft": self.get_pipeline_draft(case_id),
+        }
 
     def get_result_evidence(self, case_id: str) -> dict[str, Any] | None:
         rows = (
@@ -281,3 +344,236 @@ class CaseRepository:
             and item.get("owner") == "client"
             and item.get("status") not in ("done", "cancelled")
         ]
+
+    def list_audit(self, case_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        return (
+            self.client.table("access_audit")
+            .select("*")
+            .eq("case_id", case_id)
+            .order("at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+            or []
+        )
+
+    def list_all_orders(self) -> list[dict[str, Any]]:
+        return (
+            self.client.table("orders")
+            .select("*, payments(*), cases(id, b2c_status, pipeline_status)")
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+    def create_order(
+        self,
+        case_id: str,
+        *,
+        package_code: str,
+        amount_rub: float,
+        status_value: str,
+        actor_id: str,
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("orders")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "package_code": package_code,
+                    "amount_rub": amount_rub,
+                    "status": status_value,
+                }
+            )
+            .execute()
+        )
+        self.audit(case_id, actor_id, f"order_created:{package_code}")
+        return response.data[0]
+
+    def upsert_checklist_item(
+        self,
+        case_id: str,
+        *,
+        title: str,
+        item_type: str,
+        owner: str,
+        actor_id: str,
+        due_at: str | None = None,
+        note: str | None = None,
+        sort_order: int = 0,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "case_id": case_id,
+            "title": title,
+            "item_type": item_type,
+            "owner": owner,
+            "sort_order": sort_order,
+            "status": "open",
+        }
+        if due_at:
+            payload["due_at"] = due_at
+        if note:
+            payload["note"] = note
+        response = self.client.table("checklist_items").insert(payload).execute()
+        self.audit(case_id, actor_id, "checklist_item_created")
+        return response.data[0]
+
+    def update_checklist_item(
+        self,
+        case_id: str,
+        item_id: str,
+        *,
+        actor_id: str,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("checklist_items")
+            .update(updates)
+            .eq("id", item_id)
+            .eq("case_id", case_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="checklist item not found")
+        self.audit(case_id, actor_id, "checklist_item_updated")
+        return response.data[0]
+
+    def assign_expert(
+        self, case_id: str, expert_user_id: str | None, actor_id: str
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("cases")
+            .update({"expert_user_id": expert_user_id})
+            .eq("id", case_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="case not found")
+        self.audit(case_id, actor_id, "expert_assigned")
+        return response.data[0]
+
+    def confirm_result(
+        self,
+        case_id: str,
+        *,
+        actor_id: str,
+        monthly_before_rub: float,
+        monthly_after_rub: float,
+        lump_sum_rub: float,
+        result_effective_at: str | None,
+    ) -> dict[str, Any]:
+        from datetime import UTC, datetime
+
+        existing = self.get_result_evidence(case_id)
+        payload: dict[str, Any] = {
+            "case_id": case_id,
+            "monthly_before_rub": monthly_before_rub,
+            "monthly_after_rub": monthly_after_rub,
+            "lump_sum_rub": lump_sum_rub,
+            "confirmed_by": actor_id,
+            "confirmed_at": datetime.now(UTC).isoformat(),
+        }
+        if result_effective_at:
+            payload["result_effective_at"] = result_effective_at
+        if existing:
+            response = (
+                self.client.table("result_evidence")
+                .update(payload)
+                .eq("id", existing["id"])
+                .execute()
+            )
+        else:
+            response = self.client.table("result_evidence").insert(payload).execute()
+        self.client.table("cases").update({"b2c_status": "result_confirmed"}).eq(
+            "id", case_id
+        ).execute()
+        self.audit(case_id, actor_id, "result_confirmed")
+        return response.data[0]
+
+    def save_knowledge_feedback(
+        self,
+        case_id: str,
+        *,
+        actor_id: str,
+        what_worked: str | None,
+        documents_note: str | None,
+        sfr_outcome: str | None,
+        quality: str,
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("case_knowledge_feedback")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_user_id": actor_id,
+                    "what_worked": what_worked,
+                    "documents_note": documents_note,
+                    "sfr_outcome": sfr_outcome,
+                    "quality": quality,
+                }
+            )
+            .execute()
+        )
+        self.audit(case_id, actor_id, f"knowledge_feedback:{quality}")
+        return response.data[0]
+
+    def list_staff_roles(self) -> list[dict[str, Any]]:
+        return (
+            self.client.table("staff_roles").select("*").order("created_at").execute().data or []
+        )
+
+    def upsert_staff_role(self, user_id: str, role: str, actor_id: str) -> dict[str, Any]:
+        response = (
+            self.client.table("staff_roles")
+            .upsert({"user_id": user_id, "role": role})
+            .execute()
+        )
+        self.audit(user_id, actor_id, f"staff_role_upsert:{role}")
+        return response.data[0]
+
+    def anonymized_analytics_rows(self) -> list[dict[str, Any]]:
+        cases = (
+            self.client.table("cases")
+            .select(
+                "id, segment, region_bucket, pipeline_status, b2c_status, problem_type, "
+                "created_at, first_contact_at, orders(package_code, status), "
+                "result_evidence(monthly_before_rub, monthly_after_rub, lump_sum_rub), "
+                "clients(preferred_channel, max_user_id, user_id)"
+            )
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+        rows: list[dict[str, Any]] = []
+        for case in cases:
+            orders = case.get("orders") or []
+            evidence_list = case.get("result_evidence") or []
+            evidence = evidence_list[0] if evidence_list else {}
+            client = case.get("clients") or {}
+            codes = {o.get("package_code") for o in orders}
+            paid = {o.get("package_code") for o in orders if o.get("status") == "paid"}
+            before = float((evidence or {}).get("monthly_before_rub") or 0)
+            after = float((evidence or {}).get("monthly_after_rub") or 0)
+            rows.append(
+                {
+                    "case_id": str(case["id"]),
+                    "segment": case.get("segment"),
+                    "region_bucket": case.get("region_bucket"),
+                    "stage": case.get("b2c_status"),
+                    "pipeline": case.get("pipeline_status"),
+                    "problem_type": case.get("problem_type"),
+                    "created_at": case.get("created_at"),
+                    "paid_diag": "DIAG" in paid,
+                    "paid_service": "ACCOMP" in paid,
+                    "result_band": "up" if after > before else ("flat" if evidence else "unknown"),
+                    "sf_due": "SF_LUMP" in codes or "SF_MONTH" in codes,
+                    "sf_paid": "SF_LUMP" in paid or "SF_MONTH" in paid,
+                    "silent_flag": case.get("b2c_status") == "client_silent_escalation",
+                    "preferred_channel": client.get("preferred_channel") or "unset",
+                    "max_linked": bool(client.get("max_user_id")),
+                    "web_linked": bool(client.get("user_id")),
+                }
+            )
+        return rows

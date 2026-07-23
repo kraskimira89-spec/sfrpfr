@@ -50,6 +50,14 @@ class Settings(BaseSettings):
 
     default_diagnostic_price_rub: int = 3000
     success_fee_percent: int = 10
+    taganay_case_url_template: str = "https://taganay.clientbase.ru/"
+    cabinet_public_url: str = "https://cabinet.taxi-doroga-dobra.ru"
+    max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
+    max_miniapp_url: str = "https://taxi-doroga-dobra.ru/app/"
+
+    # Эксплуатация / мониторинг (ТЗ-05)
+    ops_monitor_token: str = ""
+    ops_failed_alert_threshold: int = 1
 
 
 @lru_cache

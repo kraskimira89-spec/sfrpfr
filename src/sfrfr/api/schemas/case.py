@@ -30,6 +30,12 @@ class CaseRead(BaseModel):
     draft: DraftResult | None = None
     error: str | None = None
     max_user_id: str | None = None
+    checklist_items: list[dict] = Field(default_factory=list)
+    next_action: str | None = None
+    status_label: str | None = None
+    status_hint: str | None = None
+    submission_instruction: str | None = None
+    warning: str = "Решение принимает СФР. Результат не гарантирован."
 
 
 class AdvanceResponse(BaseModel):

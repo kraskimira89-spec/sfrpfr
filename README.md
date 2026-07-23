@@ -27,13 +27,17 @@ docker compose up -d db
 uvicorn sfrfr.api:app --reload
 ```
 
-API: http://127.0.0.1:8000/docs
+API: http://127.0.0.1:8000/docs  
+Health: http://127.0.0.1:8000/health  
+Ops: [docs/ops-runbook.md](docs/ops-runbook.md), [docs/specs/05-developer-operations.md](docs/specs/05-developer-operations.md)
 
 CLI:
 
 ```powershell
 sfrfr version
 sfrfr serve
+sfrfr ops-health
+sfrfr ops-check-remote
 ```
 
 ## Структура

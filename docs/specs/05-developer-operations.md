@@ -1,12 +1,15 @@
 # ТЗ: интерфейс разработчика и эксплуатация
 
+Ранбук: [../ops-runbook.md](../ops-runbook.md).
+
 ## Инструменты
 
 - Swagger FastAPI: `https://api.домен/docs`.
 - Supabase Dashboard: миграции, Auth, Storage, RLS.
 - Логи VPS: `journalctl -u sfrfr-api` (+ `sfrfr-cabinet`, `sfrfr-admin`).
 - Healthcheck: `https://api.домен/health`.
-- GitHub Actions: CI (API + Next.js cabinet/admin) и deploy API на VPS.
+- Ops: `GET /ops/status` (`X-Ops-Token`), CLI `sfrfr ops-health` / `scripts/ops_check.sh`.
+- GitHub Actions: CI (API + Next.js cabinet/admin) и deploy API на VPS **после** успешного CI.
 
 ## Правила эксплуатации
 
@@ -21,7 +24,7 @@
 
 - Проверять `/health` и доступность webhook MAX по HTTPS.
 - Отслеживать ошибки OCR, LLM, Storage и webhook.
-- Настроить уведомление при недоступности API и при накоплении дел в `failed`.
+- Уведомление при недоступности API и при накоплении дел в `failed` (`ops-health` / cron).
 
 ## Критерии приёмки
 

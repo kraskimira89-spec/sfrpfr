@@ -12,6 +12,12 @@ Both call FastAPI `/api/portal/*` with Supabase access token (`Authorization: Be
 Client cabinet (ТЗ-03): OTP login, cases list/card, checklist, document upload (PDF/JPG/PNG),
 consents/offer acceptances, orders, result + success-fee preview. Signed URLs via API only.
 
+Staff cabinet (ТЗ-04 + ТЗ-09): dashboard, registry/search, case card with role-gated OCR/findings,
+finance, anonymized analytics, staff roles. Shows client preferred_channel / MAX↔web link flags.
+
+Bootstrap staff (service role on API host):
+`sfrfr staff-grant --email you@company.com --role admin --invite`
+
 ## Local
 
 ```powershell

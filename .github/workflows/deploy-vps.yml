@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  api:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,56 @@ jobs:
       - name: Test
         run: pytest -q
 
+  cabinet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/cabinet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/cabinet/package-lock.json
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.taxi-doroga-dobra.ru
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public-anon-key
+
+  admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/admin/package-lock.json
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.taxi-doroga-dobra.ru
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public-anon-key
+
   deploy:
-    needs: test
+    needs: [api, cabinet, admin]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -45,6 +93,7 @@ jobs:
               echo "Каталог $APP_DIR не инициализирован. Сначала выполните scripts/vps_bootstrap.sh на VPS."
               exit 1
             fi
-            # Нельзя передавать env через `sudo VAR=...` (sudoers env_reset) —
-            # экспортируем внутри bash -c.
             sudo bash -c "export APP_DIR='$APP_DIR' BRANCH=main; bash '$APP_DIR/scripts/vps_deploy.sh'"
+            # Smoke health после деплоя (локально на VPS)
+            curl -fsS "http://127.0.0.1:8011/health" | head -c 500
+            echo

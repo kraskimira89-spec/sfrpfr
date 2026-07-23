@@ -117,9 +117,30 @@ header {
   justify-content: space-between;
   align-items: center;
   padding: 24px 0 12px;
+  gap: 16px;
 }
 header div { display: grid; gap: 3px; }
 header span { color: var(--muted); font-size: 0.9rem; }
+.header-actions {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.header-actions a.ghost {
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--brand);
+}
+.channel-card {
+  width: 100%;
+  margin: 12px 0 18px;
+  padding: 18px;
+}
+.channel-card h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.muted { color: var(--muted); margin: 0 0 12px; }
 
 .warning {
   background: var(--warn-bg);

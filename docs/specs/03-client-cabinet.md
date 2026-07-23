@@ -1,5 +1,7 @@
 # ТЗ: клиентский кабинет
 
+> Паритет с мини-приложением MAX и выбор канала: [09-client-channels-parity.md](09-client-channels-parity.md).
+
 ## Роли
 
 - Клиент.

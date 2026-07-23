@@ -1,11 +1,53 @@
 # История проекта SFRFR
 
+## 2026-07-23 (cabinet/admin на VPS)
+
+- DNS reg.ru: `cabinet` / `admin` → `91.229.11.147`.
+- Apache vhost + Let's Encrypt (общий cert); systemd `sfrfr-cabinet` :3001, `sfrfr-admin` :3002.
+- Node.js на VPS обновлён до **22 LTS**; HTTPS 200 на оба поддомена.
+
+## 2026-07-23 (ТЗ-05: ops / health / CI)
+
+- `/health` без ПДн; `/ops/status` по `X-Ops-Token`; redacting filter логов.
+- CLI: `ops-health`, `ops-check-remote`; скрипты `scripts/ops_check.sh|ps1`.
+- Deploy только после api+cabinet+admin; smoke curl `/health`; ранбук `docs/ops-runbook.md`.
+
+## 2026-07-23 (Supabase: миграции + staff CLI)
+
+- На remote Supabase накатаны: `b2c_schema_rls`, `secure_roles_case_data`, `client_channels_admin_feedback`, revoke anon EXECUTE на helpers.
+- CLI: `sfrfr staff-grant --email … --role admin|expert|operator [--invite]`, `sfrfr staff-list`.
+- Auth users пока пуст — первый admin создаётся через `--invite`.
+
+## 2026-07-23 (ТЗ-04 admin + учёт ТЗ-09 каналов)
+
+- Admin UI: дашборд, реестр (поиск/фильтры/каналы), карточка, финансы, аналитика, роли.
+- API `/api/portal/admin/*` + `GET /me`; ролевые ограничения operator/expert/admin на сервере.
+- Миграция: `preferred_channel`, `max_user_id`, `case_knowledge_feedback`.
+- В карточке: паритет каналов MAX↔веб, Taganay URL, audit, knowledge feedback → verified/template.
+
 ## 2026-07-23 (ТЗ-03: клиентский кабинет)
 
 - UI `apps/cabinet`: OTP email/телефон, список дел, карточка, согласия, оплаты, результат.
 - Portal API: согласия/оферта, заказы, результат + success fee, signed URL, блок upload без ПДн-согласия.
 - Клиентский `GET /cases/{id}` без OCR/findings; audit на просмотр/загрузку/акцепты.
 - Предупреждение «Решение принимает СФР…»; кнопки подачи в СФР от имени клиента нет.
+
+## 2026-07-23 (ТЗ-09 этап B: паритет операций)
+
+- Portal: `POST .../run`, `GET .../findings|draft|checklist|documents`, `GET .../meta/status-labels`.
+- Веб-кабинет: «Запустить проверку» + блок findings.
+- Mini-app: чек-лист, draft, инструкция подачи; CaseRead с RU-лейблами.
+
+## 2026-07-23 (ТЗ-09 этап A: каналы MAX/веб)
+
+- API: `GET/PATCH /api/portal/me`, `POST /link/max`, `POST /link/web-from-max`.
+- Миграция каналов уже была (`max_user_id`, `preferred_channel`).
+- Бот `/start`/`/help` — выбор канала; лендинг `#kak-rabotat`; cabinet + miniapp переключатели.
+
+## 2026-07-23 (ТЗ-09: паритет MAX и веб-кабинета)
+
+- Спек `docs/specs/09-client-channels-parity.md`: выбор канала, матрица Must/Should, link MAX↔web, единый portal API, этапы A–D.
+- Обновлены ссылки в 01/02/03/07 и README спеков.
 
 ## 2026-07-23 (все пенсионные диалоги DeepSeek)
 
