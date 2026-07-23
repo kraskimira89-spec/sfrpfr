@@ -48,6 +48,10 @@ storage/cases.tmp
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**
 
+# Сгенерированные Word — не в git (сборка: scripts/render_landing_tz_docx.py)
+*.docx
+~$*.docx
+
 # IDE / OS
 .idea/
 .vscode/

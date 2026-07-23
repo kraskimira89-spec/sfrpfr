@@ -2,6 +2,7 @@
 
 ## 2026-07-23
 
+- DOCX ТЗ-10: strip `**`/` из списков/таблиц/заголовков; `*.docx` в `.gitignore`, файл не коммитить (сборка `scripts/render_landing_tz_docx.py`).
 - Реализован ТЗ-09: единый portal для mini-app (MAX auth), link_token, deep-link case, CTA уведомлений.
 - Реализован ТЗ-08: feedback→RAG registry, rejected вне поиска, тесты приёмки knowledge.
 - Реализован ТЗ-07 MVP: публичный lead API, WP CTA выбора канала, MAX /docs+/draft, оплата с fallback.
