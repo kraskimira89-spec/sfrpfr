@@ -16,16 +16,17 @@ WP=(wp --path="$SITE_DIR" --allow-root)
 upsert_page() {
   local slug="$1" title="$2" content="$3"
   local id
-  id="$("${WP[@]}" post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1 || true)"
+  id="$("${WP[@]}" post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1 | tr -d '[:space:]' || true)"
   if [ -z "$id" ]; then
     id="$("${WP[@]}" post create --post_type=page --post_title="$title" --post_name="$slug" \
-      --post_status=publish --post_content="$content" --porcelain)"
+      --post_status=publish --post_content="$content" --porcelain 2>/dev/null | tr -d '[:space:]')"
   else
     "${WP[@]}" post update "$id" --post_title="$title" --post_name="$slug" \
       --post_status=publish --post_content="$content" >/dev/null
   fi
-  "${WP[@]}" post meta update "$id" _wp_page_template default 2>/dev/null || true
-  echo "$id"
+  "${WP[@]}" post meta update "$id" _wp_page_template default >/dev/null 2>&1 || true
+  # только числовой ID
+  echo "$id" | grep -Eo '^[0-9]+$' | head -n1
 }
 
 echo "==> Тема Astra"
