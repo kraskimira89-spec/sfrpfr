@@ -298,6 +298,7 @@ export function ClientCabinet() {
     const caseId = params.get("case");
     const viewParam = params.get("view");
     if (!caseId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deep-link open case from query
     void openCase(caseId, viewParam === "payments" ? "payments" : "case").then(() => {
       params.delete("case");
       params.delete("view");
@@ -389,6 +390,7 @@ export function ClientCabinet() {
           : viewParam === "docs"
             ? "docs"
             : "case";
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deep-link view from query
     if (nextView === "payments") void loadPayments(caseId);
     else if (nextView === "result") void loadResult(caseId);
     else void openCase(caseId, nextView);
