@@ -1,5 +1,5 @@
 window.SFRFR_CONFIG = {
   apiBase: "https://api.taxi-doroga-dobra.ru",
-  botUsername: "StazhIPensiyaBot",
-  botDeepLink: "https://max.ru/StazhIPensiyaBot?startapp",
+  botUsername: "id8905998693_1_bot",
+  botDeepLink: "https://max.ru/id8905998693_1_bot?startapp",
 };

@@ -13,8 +13,8 @@ echo "==> Тема Astra"
 "${WP[@]}" theme install astra --activate --force
 
 # Контент главной: бренд + подзаголовок + CTA MAX
-# MAX_PUBLIC_BOT_URL по умолчанию — диплинк StazhIPensiyaBot (можно переопределить env)
-MAX_BTN_URL="${MAX_PUBLIC_BOT_URL:-https://max.ru/StazhIPensiyaBot?startapp}"
+# MAX_PUBLIC_BOT_URL по умолчанию — диплинк технического username MAX (можно переопределить env)
+MAX_BTN_URL="${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot?startapp}"
 CONTENT="<!-- wp:group {\"align\":\"full\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"6rem\",\"bottom\":\"6rem\",\"left\":\"1.5rem\",\"right\":\"1.5rem\"}}},\"layout\":{\"type\":\"constrained\",\"contentSize\":\"42rem\"}} -->
 <div class=\"wp-block-group alignfull\" style=\"padding-top:6rem;padding-right:1.5rem;padding-bottom:6rem;padding-left:1.5rem\">
 <!-- wp:heading {\"textAlign\":\"center\",\"level\":1,\"fontSize\":\"xx-large\"} -->

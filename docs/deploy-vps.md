@@ -170,8 +170,8 @@ npx supabase db push
   - не ставим: LiteSpeed Cache, Really Simple SSL (SSL уже certbot).
 - Сид лендинга: `scripts/wp_seed_landing.sh`.
 - Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
-- В кабинете MAX: **Чат-боты → StazhIPensiyaBot → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
-- Диплинк: `https://max.ru/StazhIPensiyaBot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP.
+- В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
+- Диплинк: `https://max.ru/id8905998693_1_bot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP. Используйте технический username из `/me`, а не отображаемое имя бота.
 - API для кабинета: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run` (+ CORS с витрины).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.

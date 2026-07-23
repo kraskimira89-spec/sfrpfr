@@ -4,7 +4,7 @@
 
 - Статика: `web/max-miniapp/` → `https://taxi-doroga-dobra.ru/app/`.
 - API: `POST /api/cases/open` + CORS с витрины; upload/status/run из кабинета.
-- Бот: `StazhIPensiyaBot`; диплинк `https://max.ru/StazhIPensiyaBot?startapp`.
+- Бот: отображаемое имя «Стаж и пенсия», технический username `id8905998693_1_bot`; диплинк `https://max.ru/id8905998693_1_bot?startapp`.
 - В кабинете партнёра MAX нужно вручную вставить URL мини-приложения.
 
 ## 2026-07-22 (WP стек витрины)
