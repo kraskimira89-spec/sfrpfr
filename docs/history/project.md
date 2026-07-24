@@ -1,5 +1,14 @@
 # История проекта SFRFR
 
+## 2026-07-24 (Google MVP рядом с Supabase)
+
+- **SoT:** FastAPI + Supabase. Google — вспомогательно (без дублирования дел).
+- Drive + Sheets: уже были; дерево Drive / whitelist Sheets без ПДн.
+- **Calendar:** `integrations/calendar`, CLI `calendar-create` / `calendar-list` (только `case_id` в событии).
+- **reCAPTCHA Enterprise:** проверка на `POST /api/public/leads` при заданных ключах; WP передаёт `recaptcha_token`.
+- **Search Console:** CLI `gsc-sites` (ops); Looker Studio — вручную поверх Sheets Analytics.
+- Отложено: Gmail (нужен Workspace DWD), Docs/Meet/Forms/Apps Script, Vision, Secret Manager.
+
 ## 2026-07-23 (ТЗ-09: паритет MAX ↔ веб)
 
 - Auth: `X-MAX-InitData` / (dev) `X-MAX-User-Id` → Principal; `audit_actor_id` для MAX-only.

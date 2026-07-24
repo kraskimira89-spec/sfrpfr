@@ -44,6 +44,14 @@ echo "==> Тема Astra"
 "${WP[@]}" theme install astra --activate --force >/dev/null
 "${WP[@]}" plugin activate wpforms-lite 2>/dev/null || true
 
+echo "==> MU-plugin: reCAPTCHA Enterprise + lead API"
+mkdir -p "${SITE_DIR}/wp-content/mu-plugins"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-recaptcha-lead.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.php"
+cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.js"
+mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
+cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-recaptcha-lead.js"
+chown -R www-data:www-data "${SITE_DIR}/wp-content/mu-plugins" "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
+
 echo "==> Форма лида WPForms (без файлов и СНИЛС)"
 FORM_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_ensure_lead_form.php")"
 FORM_ID="$(echo "$FORM_ID" | tr -d '[:space:]')"

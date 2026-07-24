@@ -63,6 +63,16 @@ class Settings(BaseSettings):
     # Google Drive (отдельный SA JSON; папки шарить на client_email)
     google_drive_credentials_json: str = ""
     google_drive_folder_id: str = ""
+    # Google Calendar (SA; календарь расшарить на client_email, события только case_id)
+    google_calendar_credentials_json: str = ""
+    google_calendar_id: str = ""
+    # reCAPTCHA Enterprise (защита публичных лидов)
+    recaptcha_credentials_json: str = ""
+    recaptcha_project_id: str = ""
+    recaptcha_site_key: str = ""
+    recaptcha_min_score: float = 0.5
+    # Search Console (ops / SEO)
+    google_search_console_credentials_json: str = ""
     # ЮKassa
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""

@@ -52,6 +52,15 @@ $fields = [
         'required' => '1',
         'choices_images' => '0',
     ],
+    '4' => [
+        'id' => '4',
+        'type' => 'text',
+        'label' => 'recaptcha_token',
+        'description' => '',
+        'required' => '0',
+        'size' => 'medium',
+        'css' => 'sfrfr-recaptcha-token',
+    ],
 ];
 
 $settings = [
@@ -82,7 +91,7 @@ $settings = [
 
 # Webhook → FastAPI public lead (если задан SFRFR_PUBLIC_LEAD_URL на VPS).
 $lead_url = getenv('SFRFR_PUBLIC_LEAD_URL') ?: '';
-$lead_token = getenv('SFRFR_PUBLIC_LEAD_TOKEN') ?: '';
+$lead_token = getenv('SFRFR_PUBLIC_LEAD_TOKEN') ?: getenv('PUBLIC_LEAD_TOKEN') ?: '';
 if ($lead_url !== '') {
     $settings['webhooks'] = [
         '1' => [
@@ -98,7 +107,7 @@ if ($lead_url !== '') {
 $form_data = [
     'fields' => $fields,
     'id' => $form_id,
-    'field_id' => 4,
+    'field_id' => 5,
     'settings' => $settings,
     'meta' => ['template' => 'blank'],
 ];

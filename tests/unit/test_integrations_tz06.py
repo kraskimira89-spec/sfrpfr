@@ -158,3 +158,135 @@ def test_drive_list_mocked(monkeypatch) -> None:
     assert result["count"] == 1
     assert result["files"][0]["name"] == "report.xlsx"
     get_settings.cache_clear()
+
+
+def test_calendar_skips_without_config(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_CALENDAR_CREDENTIALS_JSON", "")
+    monkeypatch.setenv("GOOGLE_CALENDAR_ID", "")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.calendar import CalendarClient
+
+    get_settings.cache_clear()
+    result = CalendarClient().list_events()
+    assert result.get("skipped") is True
+    get_settings.cache_clear()
+
+
+def test_calendar_create_mocked(monkeypatch) -> None:
+    monkeypatch.setenv(
+        "GOOGLE_CALENDAR_CREDENTIALS_JSON",
+        '{"type":"service_account","client_email":"cal@x.iam.gserviceaccount.com"}',
+    )
+    monkeypatch.setenv("GOOGLE_CALENDAR_ID", "team@group.calendar.google.com")
+    from datetime import datetime, timezone
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.calendar import CalendarClient
+
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.calendar.load_service_account_info",
+        lambda *a, **k: {"client_email": "cal@x.iam.gserviceaccount.com"},
+    )
+    monkeypatch.setattr("sfrfr.integrations.calendar.access_token", lambda *a, **k: "tok")
+
+    class _Resp:
+        status_code = 200
+        text = "ok"
+
+        def json(self) -> dict:
+            return {
+                "id": "evt1",
+                "summary": "[CASE-1] consult",
+                "htmlLink": "https://calendar.google.com/event?eid=1",
+            }
+
+    class _Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def post(self, url, **kwargs):
+            assert "/events" in url
+            body = kwargs["json"]
+            assert "CASE-1" in body["summary"]
+            assert "case_id=CASE-1" in body["description"]
+            return _Resp()
+
+    monkeypatch.setattr("sfrfr.integrations.calendar.httpx.Client", _Client)
+    result = CalendarClient().create_event(
+        case_id="CASE-1",
+        title="consult",
+        start=datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc),
+    )
+    assert result["ok"] is True
+    assert result["case_id"] == "CASE-1"
+    get_settings.cache_clear()
+
+
+def test_recaptcha_skips_when_unconfigured(monkeypatch) -> None:
+    monkeypatch.setenv("RECAPTCHA_CREDENTIALS_JSON", "")
+    monkeypatch.setenv("RECAPTCHA_PROJECT_ID", "")
+    monkeypatch.setenv("RECAPTCHA_SITE_KEY", "")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.recaptcha import RecaptchaVerifier
+
+    get_settings.cache_clear()
+    result = RecaptchaVerifier().verify("token")
+    assert result.get("skipped") is True
+    get_settings.cache_clear()
+
+
+def test_recaptcha_verify_mocked(monkeypatch) -> None:
+    monkeypatch.setenv(
+        "RECAPTCHA_CREDENTIALS_JSON",
+        '{"type":"service_account","client_email":"rc@x.iam.gserviceaccount.com"}',
+    )
+    monkeypatch.setenv("RECAPTCHA_PROJECT_ID", "sfrfr-sheets")
+    monkeypatch.setenv("RECAPTCHA_SITE_KEY", "sitekey")
+    monkeypatch.setenv("RECAPTCHA_MIN_SCORE", "0.5")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.recaptcha import RecaptchaVerifier
+
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.recaptcha.load_service_account_info",
+        lambda *a, **k: {"client_email": "rc@x"},
+    )
+    monkeypatch.setattr("sfrfr.integrations.recaptcha.access_token", lambda *a, **k: "tok")
+
+    class _Resp:
+        status_code = 200
+        text = "ok"
+
+        def json(self) -> dict:
+            return {
+                "tokenProperties": {"valid": True, "action": "lead"},
+                "riskAnalysis": {"score": 0.9, "reasons": []},
+            }
+
+    class _Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def post(self, url, **kwargs):
+            assert "assessments" in url
+            assert kwargs["json"]["event"]["token"] == "abc"
+            return _Resp()
+
+    monkeypatch.setattr("sfrfr.integrations.recaptcha.httpx.Client", _Client)
+    result = RecaptchaVerifier().verify("abc", expected_action="lead")
+    assert result["ok"] is True
+    assert result["score"] == 0.9
+    get_settings.cache_clear()

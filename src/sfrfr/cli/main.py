@@ -491,6 +491,74 @@ def drive_case_mkdir(
         raise typer.Exit(code=1)
 
 
+@app.command("calendar-list")
+def calendar_list(
+    max_results: int = typer.Option(10, "--max", "-n", min=1, max=50),
+) -> None:
+    """Список ближайших событий Google Calendar (без ПДн)."""
+    import json
+
+    from sfrfr.integrations.calendar import CalendarClient
+
+    result = CalendarClient().list_events(max_results=max_results)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("calendar-create")
+def calendar_create(
+    case_id: str = typer.Option(..., "--case-id", "-c", help="Только case_id"),
+    title: str = typer.Option("consult", "--title", "-t", help="Тип/краткий заголовок без ФИО"),
+    start: str = typer.Option(
+        ...,
+        "--start",
+        help="ISO datetime, например 2026-07-25T15:00:00+03:00",
+    ),
+    duration_minutes: int = typer.Option(60, "--duration", "-d", min=15, max=480),
+    task_type: str = typer.Option("consult", "--task", help="consult|deadline|followup"),
+) -> None:
+    """Создать событие Calendar: summary с case_id, без ФИО/телефона."""
+    import json
+    from datetime import datetime
+
+    from sfrfr.integrations.calendar import CalendarClient
+
+    try:
+        start_dt = datetime.fromisoformat(start)
+    except ValueError as exc:
+        raise typer.BadParameter(f"invalid --start: {start}") from exc
+    result = CalendarClient().create_event(
+        case_id=case_id,
+        title=title,
+        start=start_dt,
+        duration_minutes=duration_minutes,
+        task_type=task_type,
+    )
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("gsc-sites")
+def gsc_sites() -> None:
+    """Список property Google Search Console для SA (ops)."""
+    import json
+
+    from sfrfr.integrations.search_console import SearchConsoleClient
+
+    result = SearchConsoleClient().list_sites()
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("taganay-sync")
 def taganay_sync(
     case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from sfrfr.core.config import get_settings
 from sfrfr.db.session import get_supabase_client
+from sfrfr.integrations.recaptcha import RecaptchaVerifier
 from sfrfr.integrations.taganay import sync_case_to_taganay
 
 router = APIRouter()
@@ -30,6 +31,11 @@ class PublicLeadRequest(BaseModel):
         description="max_miniapp | web_cabinet | unset",
     )
     source: str = Field(default="wordpress", max_length=64)
+    recaptcha_token: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Токен reCAPTCHA Enterprise с витрины",
+    )
 
 
 class PublicLeadResponse(BaseModel):
@@ -73,11 +79,16 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         return None
     values: list[str] = []
     consent = False
+    recaptcha_token: str | None = None
     for item in fields.values():
         if not isinstance(item, dict):
             continue
         label = str(item.get("name") or item.get("label") or "").lower()
         value = str(item.get("value") or "").strip()
+        if "recaptcha" in label or "g-recaptcha" in label:
+            if value:
+                recaptcha_token = value[:4000]
+            continue
         if "соглас" in label:
             consent = bool(value) and value.lower() not in {"0", "false", "no", "нет"}
             continue
@@ -85,17 +96,48 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
             values.append(value)
     if len(values) < 2:
         return None
+    if not recaptcha_token:
+        recaptcha_token = (
+            str(raw.get("recaptcha_token") or raw.get("g-recaptcha-response") or "").strip()
+            or None
+        )
     return PublicLeadRequest(
         full_name=values[0][:200],
         contact=values[1][:200],
         consent=consent or True,  # чекбокс WPForms иногда только в entries
         source="wordpress_wpforms",
+        recaptcha_token=recaptcha_token,
     )
 
 
-def _create_lead(payload: PublicLeadRequest) -> PublicLeadResponse:
+def _require_recaptcha(token: str | None, *, client_ip: str | None = None) -> None:
+    """При настроенном Enterprise — обязательная проверка; в local/debug можно пропуск."""
+    verifier = RecaptchaVerifier()
+    if not verifier.configured:
+        return
+    settings = get_settings()
+    if not (token or "").strip():
+        if settings.app_env in ("local", "dev", "development") or settings.app_debug:
+            return
+        raise HTTPException(status_code=400, detail="recaptcha_token required")
+    result = verifier.verify(token or "", expected_action="lead", user_ip=client_ip)
+    if result.get("skipped"):
+        return
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=400,
+            detail="recaptcha_failed",
+        )
+
+
+def _create_lead(
+    payload: PublicLeadRequest,
+    *,
+    client_ip: str | None = None,
+) -> PublicLeadResponse:
     if not payload.consent:
         raise HTTPException(status_code=400, detail="consent required")
+    _require_recaptcha(payload.recaptcha_token, client_ip=client_ip)
 
     settings = get_settings()
     phone, email = _guess_phone_email(payload.contact)
@@ -205,4 +247,5 @@ async def create_public_lead(
             status_code=400,
             detail="expected full_name+contact+consent or WPForms fields payload",
         )
-    return _create_lead(payload)
+    client_ip = request.client.host if request.client else None
+    return _create_lead(payload, client_ip=client_ip)

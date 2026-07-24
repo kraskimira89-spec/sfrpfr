@@ -23,6 +23,42 @@
 3. Перед релизом кабинетов: RLS + private bucket `pension-docs`.
 4. Секреты: `.env` на VPS и GitHub Secrets. В кабинетах только publishable/anon.
 5. Google Sheets — только обезличенные агрегаты, не production-ПДн.
+6. Google Drive — шаблоны/кейсы по `case_id`; сканы ПДн — в Supabase Storage.
+7. Calendar / reCAPTCHA / Search Console — см. раздел ниже; Gmail клиентам на MVP не подключаем.
+
+## Google (MVP) — чеклист
+
+| Сервис | Статус | Действие |
+|---|---|---|
+| Sheets | код + SA | `sfrfr sheets-sync` |
+| Drive | код + SA | `sfrfr drive-init-tree`, `drive-case-mkdir CASE-…` |
+| Calendar | код | Расшарить календарь на `sfrpfr-google-calendar@…`, задать `GOOGLE_CALENDAR_ID`, затем `sfrfr calendar-create --case-id … --start …` |
+| reCAPTCHA Enterprise | код | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA |
+| Search Console | ops | Добавить `https://taxi-doroga-dobra.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
+| Looker Studio | ops | Новый отчёт → Google Sheets → spreadsheet Analytics (без ПДн) |
+| Gmail / Meet / Forms / Docs API / Vision | отложено | — |
+
+### WP: reCAPTCHA Enterprise (лид)
+
+```html
+<script src="https://www.google.com/recaptcha/enterprise.js?render=6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu"></script>
+```
+
+Перед отправкой формы (action **обязательно** `lead`, не `LOGIN`):
+
+```js
+const token = await grecaptcha.enterprise.execute(
+  '6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu',
+  { action: 'lead' }
+);
+// добавить в JSON webhook: "recaptcha_token": token
+```
+
+Бэкенд: `POST /api/public/leads` → `RecaptchaVerifier` (SA), `expectedAction=lead`, `min_score` из `RECAPTCHA_MIN_SCORE`.
+
+В GCP включите **reCAPTCHA Enterprise API** для проекта `sfrfr-sheets`, если ещё не включена.
+
+WP reCAPTCHA: site key на форме + поле/`recaptcha_token` в JSON webhook на `/api/public/leads`. Не слать телефоны/ФИО в GTM/Метрику.
 
 ## Мониторинг и алерты
 
