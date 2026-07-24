@@ -424,6 +424,26 @@ def drive_list(
         raise typer.Exit(code=1)
 
 
+@app.command("drive-mkdir")
+def drive_mkdir(
+    name: str = typer.Argument(..., help="Имя новой папки"),
+    parent_id: str | None = typer.Option(
+        None, "--parent", "-p", help="ID родителя; иначе GOOGLE_DRIVE_FOLDER_ID"
+    ),
+) -> None:
+    """Создать папку в Google Drive (idempotent: если есть — вернёт существующую)."""
+    import json
+
+    from sfrfr.integrations.drive import DriveClient
+
+    result = DriveClient().create_folder(name, parent_id=parent_id)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("taganay-sync")
 def taganay_sync(
     case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),

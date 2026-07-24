@@ -14,7 +14,9 @@ import httpx
 
 from sfrfr.core.config import get_settings
 
-_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+# write нужен для создания папок; readonly недостаточно
+_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
+_FOLDER_MIME = "application/vnd.google-apps.folder"
 _DRIVE_API = "https://www.googleapis.com/drive/v3"
 
 
@@ -67,8 +69,12 @@ def _access_token(credentials_info: dict[str, Any], *, scopes: list[str] | None 
     return str(creds.token)
 
 
+def _escape_drive_query(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
 class DriveClient:
-    """Минимальный клиент Drive API v3 (list)."""
+    """Минимальный клиент Drive API v3 (list / mkdir)."""
 
     def __init__(self, *, credentials_json: str | None = None) -> None:
         settings = get_settings()
@@ -84,6 +90,11 @@ class DriveClient:
     def available(self) -> bool:
         return bool(self._credentials_raw)
 
+    def _auth(self) -> tuple[dict[str, Any], dict[str, str]]:
+        info = load_service_account_info(self._credentials_raw)
+        token = _access_token(info)
+        return info, {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
     def list_files(self, *, page_size: int = 10, folder_id: str | None = None) -> dict[str, Any]:
         if not self.available:
             return {
@@ -93,9 +104,7 @@ class DriveClient:
                 "files": [],
             }
         try:
-            info = load_service_account_info(self._credentials_raw)
-            token = _access_token(info)
-            headers = {"Authorization": f"Bearer {token}"}
+            info, headers = self._auth()
             params: dict[str, str | int] = {
                 "pageSize": max(1, min(page_size, 100)),
                 "fields": "files(id,name,mimeType,modifiedTime),nextPageToken",
@@ -140,3 +149,95 @@ class DriveClient:
                 "error": f"{type(exc).__name__}: {exc}",
                 "files": [],
             }
+
+    def create_folder(
+        self,
+        name: str,
+        *,
+        parent_id: str | None = None,
+        exist_ok: bool = True,
+    ) -> dict[str, Any]:
+        """Создать папку в parent (по умолчанию GOOGLE_DRIVE_FOLDER_ID)."""
+        folder_name = (name or "").strip()
+        if not folder_name:
+            return {"ok": False, "error": "empty folder name"}
+        if not self.available:
+            return {
+                "ok": False,
+                "skipped": True,
+                "reason": "no GOOGLE_DRIVE_CREDENTIALS_JSON",
+            }
+        parent = (parent_id if parent_id is not None else self.folder_id).strip()
+        if not parent:
+            return {"ok": False, "error": "parent folder id required"}
+
+        try:
+            info, headers = self._auth()
+            safe = _escape_drive_query(folder_name)
+            find_q = (
+                f"name='{safe}' and '{parent}' in parents "
+                f"and mimeType='{_FOLDER_MIME}' and trashed=false"
+            )
+            with httpx.Client(timeout=45.0) as client:
+                found = client.get(
+                    f"{_DRIVE_API}/files",
+                    headers=headers,
+                    params={
+                        "q": find_q,
+                        "pageSize": 1,
+                        "fields": "files(id,name,mimeType,webViewLink)",
+                        "supportsAllDrives": "true",
+                        "includeItemsFromAllDrives": "true",
+                    },
+                )
+                if found.status_code < 300:
+                    existing = (found.json() or {}).get("files") or []
+                    if existing:
+                        item = existing[0]
+                        return {
+                            "ok": True,
+                            "created": False,
+                            "existed": True,
+                            "id": item.get("id"),
+                            "name": item.get("name"),
+                            "mimeType": item.get("mimeType"),
+                            "webViewLink": item.get("webViewLink"),
+                            "parent_id": parent,
+                            "sa_email": info.get("client_email"),
+                        }
+
+                resp = client.post(
+                    f"{_DRIVE_API}/files",
+                    headers=headers,
+                    params={
+                        "supportsAllDrives": "true",
+                        "fields": "id,name,mimeType,webViewLink",
+                    },
+                    json={
+                        "name": folder_name,
+                        "mimeType": _FOLDER_MIME,
+                        "parents": [parent],
+                    },
+                )
+            if resp.status_code >= 400:
+                return {
+                    "ok": False,
+                    "status_code": resp.status_code,
+                    "error": (resp.text or "")[:500],
+                    "parent_id": parent,
+                    "sa_email": info.get("client_email"),
+                }
+            body = resp.json() or {}
+            return {
+                "ok": True,
+                "created": True,
+                "existed": False,
+                "id": body.get("id"),
+                "name": body.get("name"),
+                "mimeType": body.get("mimeType"),
+                "webViewLink": body.get("webViewLink"),
+                "parent_id": parent,
+                "sa_email": info.get("client_email"),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
