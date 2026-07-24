@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from uuid import uuid4
-import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
@@ -470,7 +470,11 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
 
     pending = get_pending(ticket)
     if not pending:
-        return MaxOtpPollResponse(ok=False, status="expired", message="Сессия входа не найдена или устарела.")
+        return MaxOtpPollResponse(
+            ok=False,
+            status="expired",
+            message="Сессия входа не найдена или устарела.",
+        )
     if pending.status == "approved" and pending.token_hash:
         return MaxOtpPollResponse(
             ok=True,
@@ -481,7 +485,11 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             message="Вход подтверждён",
         )
     if pending.status == "expired":
-        return MaxOtpPollResponse(ok=False, status="expired", message="Время подтверждения истекло.")
+        return MaxOtpPollResponse(
+            ok=False,
+            status="expired",
+            message="Время подтверждения истекло.",
+        )
     if pending.status == "pending_manager":
         return MaxOtpPollResponse(
             ok=True,
