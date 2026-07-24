@@ -378,7 +378,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             status="pending_pair",
             message=(
                 f"Откройте MAX, напишите /start и отправьте код {pending.pair_code}. "
-                "Затем нажмите «Подтвердить вход» — после этого вход подтвердит руководитель."
+                "Затем нажмите «Подтвердить вход». "
+                "При первом входе нужно одобрение руководителя; дальше — только ваш MAX."
             ),
         )
 

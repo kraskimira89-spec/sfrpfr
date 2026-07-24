@@ -286,7 +286,8 @@ def _notify_managers_staff_login(
         return 0
     email = pending.staff_email or pending.contact or "сотрудник"
     text = (
-        f"Сотрудник {email} запросил вход в кабинет сотрудника.\n"
+        f"Сотрудник {email} запросил вход в кабинет сотрудника (первый раз с этого MAX).\n"
+        "После одобрения следующие входы пройдут без вашего участия.\n"
         "Если это ожидаемый вход — нажмите кнопку ниже."
     )
     attachments = inline_callback_keyboard(
@@ -359,15 +360,41 @@ def _complete_pc_login(
             reply = "Нажмите кнопку подтверждения ещё раз."
             return MaxHandleResult(ok=True, action="login_need_confirm", reply=reply)
 
-    # Staff: после подтверждения сотрудником — этап руководителя
+    # Staff: первый вход — руководитель; дальше тот же MAX входит сам
     if pending.audience == "staff":
-        from sfrfr.db.staff_roles import get_staff_role_by_email
+        from sfrfr.db.staff_roles import (
+            get_staff_role_by_email,
+            is_staff_login_trusted,
+        )
 
         staff_email = (pending.staff_email or "").strip().lower()
         if not staff_email or get_staff_role_by_email(staff_email) is None:
             reply = "Этот email не в staff-ролях. Вход отклонён."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_not_staff", reply=reply)
+
+        if is_staff_login_trusted(email=staff_email, max_user_id=user_id):
+            token_hash = _token_hash_for_email(staff_email)
+            if not token_hash:
+                reply = "Не удалось завершить вход. Попробуйте ещё раз через минуту."
+                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+                return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
+            approved = approve(
+                ticket_id=pending.ticket_id,
+                token_hash=token_hash,
+                email=staff_email,
+            )
+            if not approved:
+                reply = "Сессия устарела. На компьютере начните вход через MAX снова."
+                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+                return MaxHandleResult(ok=False, action="login_expired", reply=reply)
+            reply = (
+                "Вход подтверждён (устройство уже одобрено руководителем).\n"
+                "Кабинет откроется на компьютере."
+            )
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(ok=True, action="login_approved_trusted", reply=reply)
+
         waiting = mark_pending_manager(ticket_id=pending.ticket_id)
         if not waiting:
             reply = "Сессия устарела. На компьютере начните вход через MAX снова."
@@ -384,7 +411,8 @@ def _complete_pc_login(
             return MaxHandleResult(ok=True, action="login_pending_manager_no_approvers", reply=reply)
         reply = (
             "Вы подтвердили вход.\n"
-            "Ожидайте подтверждения руководителя в MAX — кабинет откроется на компьютере."
+            "Это первый вход с этого MAX — ожидайте подтверждения руководителя.\n"
+            "После одобрения следующие входы пройдут без него."
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="login_pending_manager", reply=reply)
@@ -418,7 +446,11 @@ def _approve_staff_by_manager(
     ticket_id: str,
 ) -> MaxHandleResult:
     """Руководитель разрешил вход сотрудника на ПК."""
-    from sfrfr.db.staff_roles import get_staff_role_by_email, list_manager_max_user_ids
+    from sfrfr.db.staff_roles import (
+        get_staff_role_by_email,
+        list_manager_max_user_ids,
+        trust_staff_login,
+    )
 
     settings = get_settings()
     manager_ids = list_manager_max_user_ids(
@@ -453,9 +485,18 @@ def _approve_staff_by_manager(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_expired", reply=reply)
 
+    # Запомнить MAX сотрудника — следующие входы без руководителя
+    employee_max = str(pending.max_user_id or "").strip()
+    if employee_max:
+        try:
+            trust_staff_login(email=staff_email, max_user_id=employee_max)
+        except Exception:
+            pass
+
     reply = (
-        f"Вход для {staff_email} разрешён.\n"
-        "Кабинет сотрудника откроется на компьютере сотрудника."
+        f"Вход для {staff_email} разрешён (однократно).\n"
+        "Дальше этот сотрудник будет входить сам с того же MAX.\n"
+        "Кабинет откроется на компьютере сотрудника."
     )
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     # уведомить сотрудника в MAX, если известен

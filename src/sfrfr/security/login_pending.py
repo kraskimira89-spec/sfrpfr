@@ -186,7 +186,7 @@ def approve(*, ticket_id: str, token_hash: str, email: str) -> PendingLogin | No
             if p:
                 p.status = "expired"
             return None
-        allowed = {"pending_confirm"} if p.audience == "client" else {"pending_manager"}
+        allowed = {"pending_confirm"} if p.audience == "client" else {"pending_manager", "pending_confirm"}
         if p.status not in allowed:
             return None
         p.status = "approved"

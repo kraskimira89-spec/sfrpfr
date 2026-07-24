@@ -529,7 +529,8 @@ export function AdminCabinet() {
           </p>
           <h1>Кабинет сотрудника</h1>
           <p className="lead">
-            Вход через MAX (как у клиента) + подтверждение руководителем. Либо код на email.
+            Вход через MAX: руководитель одобряет только первый вход с устройства, дальше — сами.
+            Запасной вариант — код на email.
           </p>
           <div className="tabs" style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
             <button
@@ -578,7 +579,8 @@ export function AdminCabinet() {
                   Подтвердить вход через MAX
                 </button>
                 <p className="muted" style={{ marginTop: "0.75rem", fontSize: "0.9rem" }}>
-                  1) Код в боте → 2) подтверждение на телефоне → 3) разрешение руководителя в MAX.
+                  1) Код в боте → 2) подтверждение на телефоне → 3) руководитель только при
+                  первом входе с этого MAX.
                 </p>
               </form>
             ) : (

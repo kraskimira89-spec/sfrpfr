@@ -51,12 +51,23 @@ def test_staff_needs_manager_before_approve() -> None:
     )
     assert bound is not None
     assert bound.status == "pending_confirm"
-    # клиентский approve на staff не сработает
-    assert approve(ticket_id=pending.ticket_id, token_hash="x", email="op@example.com") is None
     waiting = mark_pending_manager(ticket_id=pending.ticket_id)
     assert waiting is not None
     assert waiting.status == "pending_manager"
     ok = approve(ticket_id=pending.ticket_id, token_hash="hash-staff", email="op@example.com")
+    assert ok is not None
+    assert ok.status == "approved"
+
+
+def test_staff_trusted_can_approve_from_confirm() -> None:
+    """После доверия руководитель не нужен: approve из pending_confirm."""
+    pending = create_pending(audience="staff", staff_email="op2@example.com")
+    bind_max_by_code(
+        pair_code=pending.pair_code,
+        max_user_id="222",
+        contact="op2@example.com",
+    )
+    ok = approve(ticket_id=pending.ticket_id, token_hash="trusted", email="op2@example.com")
     assert ok is not None
     assert ok.status == "approved"
 

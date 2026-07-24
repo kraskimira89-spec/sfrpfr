@@ -6,6 +6,8 @@
   (`pending_manager`, кнопка «Разрешить вход сотруднику»).
 - Руководитель: `max_user_id=6407832`, `chat_id=321180237` —
   в `staff_roles` (admin taganai89) и `STAFF_LOGIN_APPROVER_*` (локально + VPS).
+- Одобрение руководителя **один раз** на MAX сотрудника (`trusted_login_max_user_id`);
+  дальше вход только подтверждением в MAX.
 
 ## 2026-07-24
 

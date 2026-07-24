@@ -120,6 +120,49 @@ def get_staff_role_by_email(email: str) -> StaffRole | None:
         return None
 
 
+def is_staff_login_trusted(*, email: str, max_user_id: str) -> bool:
+    """True, если этот MAX уже одобрен руководителем для email (повторный вход)."""
+    user = find_user_by_email(email)
+    if user is None:
+        return False
+    client = get_supabase_client()
+    rows = (
+        client.table("staff_roles")
+        .select("trusted_login_max_user_id")
+        .eq("user_id", user_id_of(user))
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not rows:
+        return False
+    trusted = str(rows[0].get("trusted_login_max_user_id") or "").strip()
+    return bool(trusted) and trusted == str(max_user_id).strip()
+
+
+def trust_staff_login(*, email: str, max_user_id: str) -> dict[str, Any] | None:
+    """Запомнить MAX после первого одобрения руководителем."""
+    from datetime import UTC, datetime
+
+    user = find_user_by_email(email)
+    if user is None:
+        return None
+    client = get_supabase_client()
+    response = (
+        client.table("staff_roles")
+        .update(
+            {
+                "trusted_login_max_user_id": str(max_user_id).strip(),
+                "trusted_login_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("user_id", user_id_of(user))
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
 def set_staff_max_user_id(*, user_id: str, max_user_id: str) -> dict[str, Any]:
     """Привязать MAX к строке staff_roles (для уведомлений руководителю)."""
     client = get_supabase_client()
