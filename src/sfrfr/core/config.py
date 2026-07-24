@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     yandex_folder_id: str = ""
     yandex_model: str = "yandexgpt/latest"
     yandex_base_url: str = "https://llm.api.cloud.yandex.net/v1"
+    # Алиасы из раздела «Аналитика» / docs (часто заполнены вместо YANDEX_*)
+    llm_api_key: str = ""
+    llm_folder_id: str = ""
+    llm_model: str = ""
+    llm_base_url: str = ""
     embedding_model: str = "text-embedding-3-small"
 
     max_bot_token: str = ""
@@ -81,6 +86,9 @@ class Settings(BaseSettings):
     yookassa_send_receipt: bool = False
     public_lead_token: str = ""
     cabinet_public_url: str = "https://cabinet.taxi-doroga-dobra.ru"
+    # Диалог с ботом (вход / «написать боту») — без ?startapp
+    max_chat_url: str = "https://max.ru/id8905998693_1_bot"
+    # Deep-link на mini-app (?startapp) — лендинг, открытие приложения
     max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
     max_miniapp_url: str = "https://taxi-doroga-dobra.ru/app/"
 

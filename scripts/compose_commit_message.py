@@ -257,8 +257,14 @@ def _heuristic(names: list[str], stat: str, patch: str) -> str:
 
 def _llm_message(names: list[str], stat: str, patch: str) -> str | None:
     try:
+        import os
+
+        os.chdir(REPO)
         sys.path.insert(0, str(REPO / "src"))
         from sfrfr.ai.llm import LLMClient  # noqa: WPS433
+        from sfrfr.core.config import get_settings  # noqa: WPS433
+
+        get_settings.cache_clear()
     except Exception:
         return None
 
