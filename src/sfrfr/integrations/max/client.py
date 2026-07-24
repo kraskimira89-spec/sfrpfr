@@ -10,6 +10,36 @@ from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.ssl_context import max_ssl_verify
 
 
+def inline_callback_keyboard(text: str, payload: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "inline_keyboard",
+            "payload": {
+                "buttons": [
+                    [
+                        {
+                            "type": "callback",
+                            "text": text,
+                            "payload": payload,
+                        }
+                    ]
+                ]
+            },
+        }
+    ]
+
+
+def inline_link_keyboard(text: str, url: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "inline_keyboard",
+            "payload": {
+                "buttons": [[{"type": "link", "text": text, "url": url}]],
+            },
+        }
+    ]
+
+
 class MaxBotClient:
     """Минимальный HTTP-клиент к platform-api2.max.ru."""
 
@@ -42,6 +72,7 @@ class MaxBotClient:
         text: str,
         user_id: int | str | None = None,
         chat_id: int | str | None = None,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Отправить текст. Личный диалог — user_id, группа — chat_id (query)."""
         if not self.available:
@@ -49,13 +80,14 @@ class MaxBotClient:
         if user_id is None and chat_id is None:
             return {"ok": False, "skipped": True, "reason": "no recipient"}
         url = f"{self.api_base}/messages"
-        # Личный диалог в MAX адресуется user_id; chat_id — для групп/каналов.
         params: dict[str, int | str] = {}
         if user_id is not None:
             params["user_id"] = user_id
         elif chat_id is not None:
             params["chat_id"] = chat_id
-        payload = {"text": text}
+        payload: dict[str, Any] = {"text": text}
+        if attachments:
+            payload["attachments"] = attachments
         with self._client() as client:
             resp = client.post(url, headers=self._headers(), params=params, json=payload)
             resp.raise_for_status()
@@ -69,7 +101,7 @@ class MaxBotClient:
         settings = get_settings()
         body: dict[str, Any] = {
             "url": url,
-            "update_types": ["message_created", "bot_started"],
+            "update_types": ["message_created", "bot_started", "message_callback"],
         }
         secret_value = secret if secret is not None else settings.max_webhook_secret
         if secret_value:

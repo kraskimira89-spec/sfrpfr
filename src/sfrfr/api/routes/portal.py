@@ -18,6 +18,7 @@ from sfrfr.api.schemas.portal import (
     LinkMaxRequest,
     LinkWebFromMaxRequest,
     LinkWebFromMaxResponse,
+    MaxOtpLinkRequest,
     MaxOtpRequest,
     MaxOtpRequestResponse,
     MaxOtpVerifyRequest,
@@ -202,7 +203,7 @@ def _me_response(principal: Principal, row: dict) -> PortalMeResponse:
         web_linked=bool(row.get("user_id")),
         max_user_id=str(row["max_user_id"]) if row.get("max_user_id") else None,
         cabinet_url=settings.cabinet_public_url.rstrip("/"),
-        max_bot_url=settings.max_public_bot_url,
+        max_bot_url=settings.max_chat_url,
         max_miniapp_url=settings.max_miniapp_url,
     )
 
@@ -221,7 +222,7 @@ def get_me(principal: Principal = Depends(get_current_principal)) -> PortalMeRes
             max_linked=False,
             web_linked=True,
             cabinet_url=settings.cabinet_public_url.rstrip("/"),
-            max_bot_url=settings.max_public_bot_url,
+            max_bot_url=settings.max_chat_url,
             max_miniapp_url=settings.max_miniapp_url,
         )
     row = _ensure_client_row(principal)
@@ -333,9 +334,14 @@ def _supabase_magic_token_hash(email: str) -> str:
 
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
 def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
-    """Отправить код входа в MAX (нужен phone с привязанным max_user_id и /start)."""
-    from sfrfr.integrations.max.client import MaxBotClient
-    from sfrfr.security.login_otp import issue_login_otp, normalize_phone
+    """Отправить подтверждение входа в MAX (нужен phone с max_user_id и /start)."""
+    from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
+    from sfrfr.security.login_otp import (
+        CONFIRM_WEB_LOGIN_LABEL,
+        confirm_web_login_message,
+        issue_login_link,
+        normalize_phone,
+    )
 
     settings = get_settings()
     phone = normalize_phone(payload.phone)
@@ -356,14 +362,15 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         raise HTTPException(status_code=503, detail="MAX bot not configured")
 
     contact = _ensure_auth_email_for_client(row, phone=phone)
-    issued = issue_login_otp(contact=contact, max_user_id=str(row["max_user_id"]))
-    text = (
-        "Код входа в кабинет «Проверка стажа»:\n\n"
-        f"{issued.code}\n\n"
-        "Никому не сообщайте код. Действует около 10 минут."
-    )
+    issued = issue_login_link(contact=contact, max_user_id=str(row["max_user_id"]))
+    text = confirm_web_login_message(code=issued.code)
+    attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
     try:
-        bot.send_message(text=text, user_id=str(row["max_user_id"]))
+        bot.send_message(
+            text=text,
+            user_id=str(row["max_user_id"]),
+            attachments=attachments,
+        )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=502,
@@ -378,20 +385,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         ok=True,
         ticket=issued.ticket,
         expires_in=issued.expires_in,
-        max_bot_url=settings.max_public_bot_url,
-        message="Код отправлен в MAX. Откройте чат с ботом.",
+        max_bot_url=settings.max_chat_url,
+        message="Сообщение отправлено в MAX. Откройте чат с ботом и подтвердите вход.",
     )
 
 
-@router.post("/auth/otp/verify", response_model=MaxOtpVerifyResponse)
-def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
-    """Проверить код из MAX и выдать token_hash для Supabase verifyOtp."""
-    from sfrfr.security.login_otp import verify_login_otp
-
-    verified = verify_login_otp(ticket=payload.ticket, code=payload.code)
-    if not verified:
-        raise HTTPException(status_code=400, detail="invalid or expired code")
-    contact, max_user_id = verified
+def _session_from_max_identity(*, contact: str, max_user_id: str) -> MaxOtpVerifyResponse:
     client = get_supabase_client()
     row = (
         client.table("clients")
@@ -425,8 +424,32 @@ def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
         token_hash=token_hash,
         email=email,
         type="email",
-        message="Код принят",
+        message="Вход подтверждён",
     )
+
+
+@router.post("/auth/otp/verify", response_model=MaxOtpVerifyResponse)
+def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
+    """Проверить код из MAX и выдать token_hash для Supabase verifyOtp."""
+    from sfrfr.security.login_otp import verify_login_otp
+
+    verified = verify_login_otp(ticket=payload.ticket, code=payload.code)
+    if not verified:
+        raise HTTPException(status_code=400, detail="invalid or expired code")
+    contact, max_user_id = verified
+    return _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+
+
+@router.post("/auth/otp/link", response_model=MaxOtpVerifyResponse)
+def verify_max_login_link(payload: MaxOtpLinkRequest) -> MaxOtpVerifyResponse:
+    """Обмен одноразовой ссылки из MAX на token_hash (вход без ввода кода)."""
+    from sfrfr.security.login_otp import verify_login_link
+
+    verified = verify_login_link(link_token=payload.t)
+    if not verified:
+        raise HTTPException(status_code=400, detail="invalid or expired link")
+    contact, max_user_id = verified
+    return _session_from_max_identity(contact=contact, max_user_id=max_user_id)
 
 
 @router.post("/link/max", response_model=PortalMeResponse)

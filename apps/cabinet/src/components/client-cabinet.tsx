@@ -117,7 +117,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://taxi-doroga-dobra.ru";
 const CABINET_PUBLIC_URL =
   process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.taxi-doroga-dobra.ru";
-const DEFAULT_MAX_BOT = "https://max.ru/id8905998693_1_bot?startapp";
+const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
+const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
 
 const PACKAGE_LABELS: Record<string, string> = {
   DIAG: "Диагностика",
@@ -194,13 +195,14 @@ export function ClientCabinet() {
     [],
   );
   const [session, setSession] = useState<Session | null>(null);
-  const [authChannel, setAuthChannel] = useState<AuthChannel>("email");
+  const [authChannel, setAuthChannel] = useState<AuthChannel>("max");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [maxTicket, setMaxTicket] = useState("");
-  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_BOT);
+  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
+  const [maxLinkBusy, setMaxLinkBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -225,6 +227,71 @@ export function ClientCabinet() {
     });
     return () => data.subscription.unsubscribe();
   }, [supabase]);
+
+  // Одноразовая ссылка из MAX: /?auth=max&t=...
+  useEffect(() => {
+    if (!supabase || !apiBase || session || maxLinkBusy) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth") !== "max") return;
+    const linkToken = params.get("t");
+    if (!linkToken) return;
+
+    let cancelled = false;
+    setMaxLinkBusy(true);
+    setBusy(true);
+    setNotice("Подтверждаем вход из MAX…");
+
+    void (async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/portal/auth/otp/link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ t: linkToken }),
+        });
+        const body = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+          token_hash?: string;
+          type?: "email" | "sms";
+        };
+        if (!response.ok) {
+          throw new Error(
+            typeof body.detail === "string"
+              ? body.detail
+              : "Ссылка недействительна или устарела. Запросите вход снова в MAX.",
+          );
+        }
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: body.token_hash || "",
+          type: body.type || "email",
+        });
+        if (error) throw error;
+        if (!cancelled) {
+          params.delete("auth");
+          params.delete("t");
+          const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+          window.history.replaceState({}, "", next);
+          setNotice("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setNotice(
+            err instanceof Error
+              ? err.message
+              : "Не удалось войти по ссылке из MAX.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBusy(false);
+          setMaxLinkBusy(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, session, maxLinkBusy]);
 
   const loadCases = useCallback(async () => {
     if (!token || !apiBase) return;
@@ -731,9 +798,27 @@ export function ClientCabinet() {
           </p>
           <h1>Кабинет клиента</h1>
           <p className="lead">
-            Вход по email, SMS или коду в MAX. Вы увидите только дела, к которым вам выдан доступ.
+            Проще всего — через MAX: откройте чат с ботом и нажмите «Подтвердить вход в веб
+            кабинет». Также можно войти по email.
+          </p>
+          <p className="hint" style={{ marginBottom: "1rem" }}>
+            <a className="button-link" href={maxBotUrl} target="_blank" rel="noreferrer">
+              Открыть чат MAX
+            </a>
           </p>
           <div className="tabs" role="tablist">
+            <button
+              type="button"
+              className={authChannel === "max" ? "tab active" : "tab"}
+              onClick={() => {
+                setAuthChannel("max");
+                setOtpSent(false);
+                setMaxTicket("");
+                setNotice("");
+              }}
+            >
+              MAX
+            </button>
             <button
               type="button"
               className={authChannel === "email" ? "tab active" : "tab"}
@@ -757,18 +842,6 @@ export function ClientCabinet() {
               }}
             >
               Телефон
-            </button>
-            <button
-              type="button"
-              className={authChannel === "max" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("max");
-                setOtpSent(false);
-                setMaxTicket("");
-                setNotice("");
-              }}
-            >
-              MAX
             </button>
           </div>
           {!otpSent ? (
@@ -799,13 +872,14 @@ export function ClientCabinet() {
                   />
                   {authChannel === "phone" ? (
                     <p className="hint">
-                      SMS-вход подключается отдельно. Надёжнее — email или код в MAX.
+                      SMS-вход подключается отдельно. Надёжнее — MAX или email.
                     </p>
                   ) : (
                     <p className="hint">
-                      Номер должен быть в деле, а бот MAX — уже открыт (/start).{" "}
+                      Или укажите номер из дела — мы пришлём в MAX сообщение «Подтвердить вход в
+                      веб кабинет». Сначала напишите боту /start.{" "}
                       <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                        Открыть бота
+                        Открыть чат
                       </a>
                     </p>
                   )}
@@ -913,10 +987,10 @@ export function ClientCabinet() {
             className="ghost"
             href={
               selectedId
-                ? `${me?.max_bot_url || DEFAULT_MAX_BOT}${
-                    (me?.max_bot_url || DEFAULT_MAX_BOT).includes("?") ? "&" : "?"
+                ? `${DEFAULT_MAX_MINIAPP}${
+                    DEFAULT_MAX_MINIAPP.includes("?") ? "&" : "?"
                   }startapp=case_${selectedId.slice(0, 8)}`
-                : me?.max_bot_url || DEFAULT_MAX_BOT
+                : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP
             }
             target="_blank"
             rel="noopener noreferrer"
@@ -1010,7 +1084,7 @@ export function ClientCabinet() {
           {cases.length === 0 ? (
             <p>
               Дел пока нет. Начните обращение через{" "}
-              <a href="https://max.ru/id8905998693_1_bot?startapp">MAX</a> или{" "}
+              <a href={DEFAULT_MAX_CHAT}>MAX</a> или{" "}
               <a href={SITE_URL}>публичный сайт</a>.
             </p>
           ) : (

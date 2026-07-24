@@ -113,6 +113,12 @@ class MaxOtpVerifyRequest(BaseModel):
     code: str = Field(min_length=4, max_length=12)
 
 
+class MaxOtpLinkRequest(BaseModel):
+    """Обмен одноразовой ссылки из MAX на token_hash сессии."""
+
+    t: str = Field(min_length=20, max_length=800)
+
+
 class MaxOtpVerifyResponse(BaseModel):
     ok: bool
     token_hash: str = ""

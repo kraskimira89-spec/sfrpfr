@@ -1,4 +1,4 @@
-"""Одноразовый код входа через MAX (HMAC-ticket, без отдельной таблицы)."""
+"""Одноразовый код и ссылка входа через MAX (HMAC, без отдельной таблицы)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,17 @@ import hmac
 import secrets
 import time
 from dataclasses import dataclass
+from urllib.parse import quote
 
 from sfrfr.core.config import get_settings
 
 _TTL_SECONDS = 10 * 60
 _CODE_DIGITS = 6
 _SEP = "|"
+
+# Единая формулировка для кнопки и сообщения в MAX
+CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в веб кабинет"
+CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
 
 
 def _secret() -> bytes:
@@ -44,6 +49,17 @@ class LoginOtpIssue:
     expires_in: int
 
 
+@dataclass(frozen=True)
+class LoginLinkIssue:
+    """Код + ticket (веб-форма) + одноразовая ссылка в кабинет."""
+
+    code: str
+    ticket: str
+    link_token: str
+    login_url: str
+    expires_in: int
+
+
 def issue_login_otp(*, contact: str, max_user_id: str, ttl_seconds: int = _TTL_SECONDS) -> LoginOtpIssue:
     """Сгенерировать код и ticket (в ticket — hash кода, не сам код)."""
     contact_n = contact.strip().lower()
@@ -54,7 +70,6 @@ def issue_login_otp(*, contact: str, max_user_id: str, ttl_seconds: int = _TTL_S
     code = f"{secrets.randbelow(10**_CODE_DIGITS):0{_CODE_DIGITS}d}"
     exp = int(time.time()) + ttl_seconds
     digest = _code_hash(code, contact_n, str(max_user_id), exp)
-    # ticket: contact|max_user_id|exp|digest|sig  (| — чтобы email с точками не ломал разбор)
     body = f"{contact_n}{_SEP}{max_user_id}{_SEP}{exp}{_SEP}{digest}"
     sig = hmac.new(_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
     return LoginOtpIssue(code=code, ticket=f"{body}{_SEP}{sig}", expires_in=ttl_seconds)
@@ -83,3 +98,60 @@ def verify_login_otp(*, ticket: str, code: str) -> tuple[str, str] | None:
     if not hmac.compare_digest(expected_digest, digest):
         return None
     return contact, max_user_id
+
+
+def issue_login_link(
+    *,
+    contact: str,
+    max_user_id: str,
+    ttl_seconds: int = _TTL_SECONDS,
+) -> LoginLinkIssue:
+    """Код для запасного ввода + ссылка ?auth=max&t=… для входа одним касанием."""
+    otp = issue_login_otp(contact=contact, max_user_id=max_user_id, ttl_seconds=ttl_seconds)
+    contact_n = contact.strip().lower()
+    nonce = secrets.token_hex(8)
+    exp = int(time.time()) + ttl_seconds
+    body = f"{contact_n}{_SEP}{max_user_id}{_SEP}{exp}{_SEP}{nonce}"
+    sig = hmac.new(_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    link_token = f"{body}{_SEP}{sig}"
+    cabinet = get_settings().cabinet_public_url.rstrip("/")
+    login_url = f"{cabinet}/?auth=max&t={quote(link_token, safe='')}"
+    return LoginLinkIssue(
+        code=otp.code,
+        ticket=otp.ticket,
+        link_token=link_token,
+        login_url=login_url,
+        expires_in=ttl_seconds,
+    )
+
+
+def verify_login_link(*, link_token: str) -> tuple[str, str] | None:
+    """Вернуть (contact, max_user_id) или None."""
+    parts = (link_token or "").strip().split(_SEP)
+    if len(parts) != 5:
+        return None
+    contact, max_user_id, exp_s, nonce, sig = parts
+    if not nonce or len(nonce) < 8:
+        return None
+    try:
+        exp = int(exp_s)
+    except ValueError:
+        return None
+    if exp < int(time.time()):
+        return None
+    body = f"{contact}{_SEP}{max_user_id}{_SEP}{exp_s}{_SEP}{nonce}"
+    expected_sig = hmac.new(_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected_sig, sig):
+        return None
+    return contact, max_user_id
+
+
+def confirm_web_login_message(*, code: str) -> str:
+    """Текст сообщения в MAX после запроса входа."""
+    return (
+        f"{CONFIRM_WEB_LOGIN_LABEL}\n\n"
+        "Нажмите кнопку ниже — откроется веб-кабинет «Проверка стажа».\n"
+        "Ссылка действует около 10 минут. Никому её не пересылайте.\n\n"
+        f"Запасной код: {code}\n"
+        "(если ссылка не открылась — откройте кабинет и введите код на вкладке MAX)"
+    )

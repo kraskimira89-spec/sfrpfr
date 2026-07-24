@@ -2,6 +2,7 @@
 
 ## 2026-07-24
 
+- MAX UX для пожилых: чат без `?startapp`; кнопка/сообщение «Подтвердить вход в веб кабинет»; одноразовая ссылка `/?auth=max&t=`; webhook `message_callback`.
 - Вход в кабинет: вкладка **MAX** + кнопка «Получить код в MAX» (`/api/portal/auth/otp/request|verify`); код уходит в бот по `max_user_id`, сессия через Supabase `token_hash`. Выложено на VPS (API + cabinet).
 - ЮKassa на VPS: в `/opt/sfrfr/.env` прописаны `YOOKASSA_*` (shop `1417002`, live-ключ), `sfrfr-api` перезапущен, `client_available=True`. Webhook URL по Basic Auth только вручную в ЛК ЮKassa (API webhooks — OAuth).
 - Google MVP: Calendar + reCAPTCHA на лидах + GSC CLI; Looker/Search Console ops; Gmail/Vision отложены. SoT = Supabase.

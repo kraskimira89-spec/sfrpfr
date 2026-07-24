@@ -38,6 +38,9 @@ def test_llm_yandex_model_uri(monkeypatch) -> None:
     monkeypatch.setenv("YANDEX_API_KEY", "key")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
     monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_FOLDER_ID", "")
+    monkeypatch.setenv("LLM_MODEL", "")
     get_settings.cache_clear()
     client = LLMClient()
     assert client.available is True
@@ -49,8 +52,28 @@ def test_llm_unavailable_without_folder(monkeypatch) -> None:
     monkeypatch.setenv("AI_PROVIDER", "yandex")
     monkeypatch.setenv("YANDEX_API_KEY", "key")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "")
+    monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_FOLDER_ID", "")
+    monkeypatch.setenv("LLM_MODEL", "")
     get_settings.cache_clear()
     assert LLMClient().available is False
+    get_settings.cache_clear()
+
+
+def test_llm_uses_llm_aliases(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "yandex")
+    monkeypatch.setenv("YANDEX_API_KEY", "")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "")
+    monkeypatch.setenv("LLM_API_KEY", "llm-key")
+    monkeypatch.setenv("LLM_FOLDER_ID", "llm-folder")
+    monkeypatch.setenv("LLM_MODEL", "gpt://llm-folder/yandexgpt-lite/latest")
+    get_settings.cache_clear()
+    client = LLMClient()
+    assert client.available is True
+    assert client.api_key == "llm-key"
+    assert client.folder_id == "llm-folder"
+    assert client.model == "gpt://llm-folder/yandexgpt-lite/latest"
     get_settings.cache_clear()
 
 

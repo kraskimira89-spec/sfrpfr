@@ -2,7 +2,7 @@
 
 ## 2026-07-24 (вход через MAX OTP)
 
-- Кабинет: вкладка MAX + «Получить код в MAX»; API `POST /api/portal/auth/otp/request|verify`; HMAC ticket в `login_otp.py`; доставка через `MaxBotClient`.
+- Кабинет: вкладка MAX + «Получить код в MAX»; API `POST /api/portal/auth/otp/request|verify|link`; HMAC ticket/link в `login_otp.py`; кнопка бота «Подтвердить вход в веб кабинет»; `max_chat_url` без `?startapp`.
 
 ## 2026-07-24 (Google MVP рядом с Supabase)
 
