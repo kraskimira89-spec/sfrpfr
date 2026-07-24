@@ -8,8 +8,8 @@ from sfrfr.security.login_pending import (
     callback_payload_for,
     create_pending,
     get_pending,
-    mark_pending_manager,
     manager_callback_payload_for,
+    mark_pending_manager,
     parse_confirm_callback,
     parse_manager_callback,
 )

@@ -61,7 +61,12 @@ class LoginLinkIssue:
     expires_in: int
 
 
-def issue_login_otp(*, contact: str, max_user_id: str, ttl_seconds: int = _TTL_SECONDS) -> LoginOtpIssue:
+def issue_login_otp(
+    *,
+    contact: str,
+    max_user_id: str,
+    ttl_seconds: int = _TTL_SECONDS,
+) -> LoginOtpIssue:
     """Сгенерировать код и ticket (в ticket — hash кода, не сам код)."""
     contact_n = contact.strip().lower()
     if not contact_n or not max_user_id:

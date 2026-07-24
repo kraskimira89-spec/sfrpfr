@@ -24,9 +24,9 @@ from sfrfr.security.login_pending import (
     callback_payload_for,
     get_pending,
     latest_for_max,
+    manager_callback_payload_for,
     mark_manager_notified,
     mark_pending_manager,
-    manager_callback_payload_for,
     parse_confirm_callback,
     parse_manager_callback,
 )
@@ -327,7 +327,8 @@ def _complete_pc_login(
     chat_id: int | str | None,
     ticket_id: str | None,
 ) -> MaxHandleResult:
-    """Подтверждение с телефона → сессия для poll на ПК (клиент) или ожидание руководителя (staff)."""
+    """Подтверждение с телефона → сессия для poll на ПК
+    (клиент) или ожидание руководителя (staff)."""
     pending = None
     if ticket_id:
         pending = get_pending(ticket_id)
@@ -408,7 +409,11 @@ def _complete_pc_login(
                 "Обратитесь к администратору."
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=True, action="login_pending_manager_no_approvers", reply=reply)
+            return MaxHandleResult(
+                ok=True,
+                action="login_pending_manager_no_approvers",
+                reply=reply,
+            )
         reply = (
             "Вы подтвердили вход.\n"
             "Это первый вход с этого MAX — ожидайте подтверждения руководителя.\n"

@@ -243,9 +243,13 @@ export function ClientCabinet() {
     if (!linkToken) return;
 
     let cancelled = false;
-    setMaxLinkBusy(true);
-    setBusy(true);
-    setNotice("Подтверждаем вход из MAX…");
+    // Состояние UI — после тика, чтобы не триггерить set-state-in-effect
+    const kickoff = window.setTimeout(() => {
+      if (cancelled) return;
+      setMaxLinkBusy(true);
+      setBusy(true);
+      setNotice("Подтверждаем вход из MAX…");
+    }, 0);
 
     void (async () => {
       try {
@@ -296,6 +300,7 @@ export function ClientCabinet() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(kickoff);
     };
   }, [supabase, session, maxLinkBusy]);
 
