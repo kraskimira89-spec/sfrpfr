@@ -41,39 +41,48 @@ function Get-PythonExe {
   return $null
 }
 
-function Get-CommitMessageRu {
+function Get-CommitMessageFile {
   $py = Get-PythonExe
   $script = Join-Path (Get-Location) "scripts\compose_commit_message.py"
+  $msgFile = Join-Path (Get-Location) ".git\AUTO_COMMIT_MSG.txt"
+  $fallback = "обновить: синхронизация изменений $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+
   if (-not $py -or -not (Test-Path $script)) {
-    return "обновить: синхронизация изменений $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    [System.IO.File]::WriteAllText($msgFile, $fallback + "`n", (New-Object System.Text.UTF8Encoding $false))
+    return $msgFile
   }
-  try {
-    $generated = & $py $script 2>$null
-    if ($LASTEXITCODE -eq 0 -and $generated) {
-      $text = ($generated | Out-String).Trim()
-      if ($text) { return $text }
-    }
-  } catch {}
-  return "обновить: синхронизация изменений $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+
+  $env:PYTHONIOENCODING = "utf-8"
+  $env:PYTHONUTF8 = "1"
+  & $py -X utf8 $script -o $msgFile | Out-Null
+  if (($LASTEXITCODE -ne 0) -or -not (Test-Path $msgFile) -or -not (Get-Item $msgFile).Length) {
+    [System.IO.File]::WriteAllText($msgFile, $fallback + "`n", (New-Object System.Text.UTF8Encoding $false))
+  }
+  return $msgFile
 }
 
-if (-not $Message) {
-  $Message = Get-CommitMessageRu
+$msgFile = $null
+if ($Message) {
+  if ($Message -match '^\s*AUTO:\s*agent stop') {
+    $msgFile = Get-CommitMessageFile
+  } else {
+    $msgFile = Join-Path (Get-Location) ".git\AUTO_COMMIT_MSG.txt"
+    [System.IO.File]::WriteAllText($msgFile, $Message.Trim() + "`n", (New-Object System.Text.UTF8Encoding $false))
+  }
+} else {
+  $msgFile = Get-CommitMessageFile
 }
 
-# Не оставляем старый английский шаблон
-if ($Message -match '^\s*AUTO:\s*agent stop') {
-  $Message = Get-CommitMessageRu
-}
+$MessagePreview = [System.IO.File]::ReadAllText($msgFile, [System.Text.Encoding]::UTF8).Trim()
 
 if ($DryRun) {
-  Write-Host "DryRun message: $Message"
+  Write-Host "DryRun message: $MessagePreview"
   Write-Host "DryRun staged files:"
   $staged
   exit 0
 }
 
-git commit -m $Message
+git commit -F $msgFile
 if ($LASTEXITCODE -ne 0) {
   Write-Error "git commit failed with exit $LASTEXITCODE"
 }
@@ -82,4 +91,4 @@ if ($LASTEXITCODE -ne 0) {
   Write-Error "git push failed with exit $LASTEXITCODE"
 }
 Write-Host "OK: commit + push -> $Remote/$Branch"
-Write-Host "message: $Message"
+Write-Host "message: $MessagePreview"

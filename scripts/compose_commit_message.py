@@ -168,13 +168,25 @@ def _llm_message(names: list[str], stat: str, patch: str) -> str | None:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
+    out_path: Path | None = None
+    args = sys.argv[1:]
+    if len(args) >= 2 and args[0] in {"-o", "--output"}:
+        out_path = Path(args[1])
+
     try:
         names = _staged_names()
     except subprocess.CalledProcessError as exc:
-        print(f"chore: синхронизация изменений ({exc.returncode})", end="")
+        msg = f"chore: синхронизация изменений ({exc.returncode})"
+        _emit(msg, out_path)
         return 0
     if not names:
-        print("chore: нет staged-изменений", end="")
+        _emit("chore: нет staged-изменений", out_path)
         return 0
 
     stat = ""
@@ -188,8 +200,17 @@ def main() -> int:
     msg = _llm_message(names, stat, patch)
     if not msg:
         msg = _heuristic(names, stat, patch)
-    print(msg, end="")
+    _emit(msg, out_path)
     return 0
+
+
+def _emit(msg: str, out_path: Path | None) -> None:
+    text = msg.rstrip() + "\n"
+    if out_path is not None:
+        out_path.write_text(text, encoding="utf-8", newline="\n")
+    # для отладки в консоли
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
 
 
 if __name__ == "__main__":
