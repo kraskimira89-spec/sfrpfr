@@ -432,15 +432,26 @@ export function ClientCabinet() {
       setNotice("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      if (/rate limit|over_email/i.test(msg)) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code?: string }).code || "")
+          : "";
+      if (/rate limit|over_email/i.test(msg) || code.includes("rate_limit")) {
         setNotice(
           "Слишком много запросов. Подождите несколько минут и проверьте уже пришедшее письмо.",
+        );
+      } else if (
+        /phone_provider|unsupported phone|sms/i.test(msg) ||
+        code === "phone_provider_disabled"
+      ) {
+        setNotice(
+          "Вход по SMS пока не подключён. Войдите по email или напишите в MAX — подключим телефон позже.",
         );
       } else {
         setNotice(
           authChannel === "email"
             ? "Не удалось отправить письмо. Проверьте адрес и попробуйте снова."
-            : "Не удалось отправить код. Проверьте данные и попробуйте снова.",
+            : "Не удалось отправить код. Проверьте номер или войдите по email.",
         );
       }
     } finally {
@@ -691,6 +702,9 @@ export function ClientCabinet() {
                     required
                     autoComplete="tel"
                   />
+                  <p className="hint">
+                    SMS-вход подключается отдельно. Сейчас надёжнее войти по email.
+                  </p>
                 </>
               )}
               <button type="submit" disabled={busy}>
