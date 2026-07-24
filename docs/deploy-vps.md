@@ -80,10 +80,17 @@ deploy ALL=(root) NOPASSWD: /bin/bash /opt/sfrfr/scripts/vps_deploy.sh, /bin/sys
 
 ```powershell
 .\scripts\auto_commit_push.ps1
-.\scripts\auto_commit_push.ps1 -Message "feat: sync"
+.\scripts\auto_commit_push.ps1 -Message "исправить: …"
 ```
 
-Cursor hook: после `stop` агента вызывается `.cursor/hooks/auto-commit-push.ps1` (см. `.cursor/hooks.json`).  
+Cursor hook: после `stop` агента вызывается `.cursor/hooks/auto-commit-push.ps1` (см. `.cursor/hooks.json`).
+
+Сообщение коммита:
+- если `-Message` не задан → `scripts/compose_commit_message.py`
+- сначала ИИ (Yandex/OpenAI из `.env`, если ключи есть)
+- иначе эвристика на русском по списку файлов/diff
+- шаблон `AUTO: agent stop …` больше не используется
+
 Не коммитит `.env` (gitignore + проверка индекса).
 
 ## 4. DNS (reg.ru)
