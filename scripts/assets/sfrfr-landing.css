@@ -130,13 +130,20 @@ body.page-template-default {
 .sfrfr-hero h1 {
   font-size: clamp(1.55rem, 5.5vw, 2.65rem);
   margin: 0 0 1rem;
-  max-width: 18ch;
+  max-width: 22ch;
 }
 
 .sfrfr-hero__lead {
   margin: 0 0 1.5rem;
   max-width: 38rem;
   color: #111111;
+}
+
+.sfrfr-section__lead {
+  margin: 0.35rem 0 0;
+  max-width: 46rem;
+  color: #111111;
+  font-size: clamp(1rem, 2.4vw, 1.1rem);
 }
 
 .sfrfr-cta-row {
@@ -228,10 +235,41 @@ body.page-template-default {
   }
 }
 
-/* Широкий: 4 колонки */
 @media (min-width: 1100px) {
   .sfrfr-cards--4 {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .sfrfr-cards--pain {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .sfrfr-cards--pain .sfrfr-card:nth-child(1),
+  .sfrfr-cards--pain .sfrfr-card:nth-child(2),
+  .sfrfr-cards--pain .sfrfr-card:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .sfrfr-cards--pain .sfrfr-card:nth-child(4),
+  .sfrfr-cards--pain .sfrfr-card:nth-child(5) {
+    grid-column: span 3;
+  }
+}
+
+@media (min-width: 560px) {
+  .sfrfr-cards--pain {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+  .sfrfr-cards--pain {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sfrfr-cards--pain .sfrfr-card:nth-child(4),
+  .sfrfr-cards--pain .sfrfr-card:nth-child(5) {
+    grid-column: span 1;
   }
 }
 
@@ -319,6 +357,10 @@ body.page-template-default {
   .sfrfr-steps {
     grid-template-columns: repeat(5, 1fr);
   }
+
+  .sfrfr-steps--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .sfrfr-step {
@@ -348,8 +390,14 @@ body.page-template-default {
 }
 
 .sfrfr-step h3 {
-  margin: 0;
+  margin: 0 0 0.4rem;
   font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+}
+
+.sfrfr-step p {
+  margin: 0;
+  font-size: clamp(0.92rem, 2.2vw, 0.98rem);
+  color: #111111;
 }
 
 .sfrfr-cols {

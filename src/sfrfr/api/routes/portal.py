@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from uuid import uuid4
+import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
@@ -19,6 +20,7 @@ from sfrfr.api.schemas.portal import (
     LinkWebFromMaxRequest,
     LinkWebFromMaxResponse,
     MaxOtpLinkRequest,
+    MaxOtpPollResponse,
     MaxOtpRequest,
     MaxOtpRequestResponse,
     MaxOtpVerifyRequest,
@@ -334,59 +336,167 @@ def _supabase_magic_token_hash(email: str) -> str:
 
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
 def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
-    """Отправить подтверждение входа в MAX (нужен phone с max_user_id и /start)."""
-    from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
+    """Старт входа через MAX: ПК создаёт сессию, телефон только подтверждает.
+
+    1) На сайте жмут «Подтвердить вход через MAX».
+    2) В MAX вводят код с экрана (или номер уже привязан) и жмут подтверждение.
+    3) Кабинет открывается на компьютере (poll), не на телефоне.
+    Для staff после шага 2 — ещё подтверждение руководителем.
+    """
+    from sfrfr.db.staff_roles import get_staff_role_by_email
+    from sfrfr.integrations.max.client import MaxBotClient, inline_callback_keyboard
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
         confirm_web_login_message,
-        issue_login_link,
         normalize_phone,
+    )
+    from sfrfr.security.login_pending import (
+        bind_max_direct,
+        callback_payload_for,
+        create_pending,
     )
 
     settings = get_settings()
-    phone = normalize_phone(payload.phone)
-    if not phone:
-        raise HTTPException(status_code=400, detail="invalid phone")
-    row = _find_client_by_phone(phone)
-    if not row or not row.get("max_user_id"):
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "Для этого номера нет привязки к MAX. "
-                "Сначала напишите боту /start или оставьте заявку с сайта, "
-                "затем повторите вход."
+    audience = payload.audience or "client"
+    staff_email = (payload.email or "").strip().lower() or None
+
+    if audience == "staff":
+        if not staff_email or "@" not in staff_email:
+            raise HTTPException(status_code=400, detail="Укажите рабочий email сотрудника.")
+        if get_staff_role_by_email(staff_email) is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Email не найден в staff-ролях. Обратитесь к администратору.",
+            )
+        pending = create_pending(audience="staff", staff_email=staff_email)
+        return MaxOtpRequestResponse(
+            ok=True,
+            ticket=pending.ticket_id,
+            pair_code=pending.pair_code,
+            expires_in=max(60, int(pending.expires_at - time.time())),
+            max_bot_url=settings.max_chat_url,
+            status="pending_pair",
+            message=(
+                f"Откройте MAX, напишите /start и отправьте код {pending.pair_code}. "
+                "Затем нажмите «Подтвердить вход» — после этого вход подтвердит руководитель."
             ),
         )
-    bot = MaxBotClient()
-    if not bot.available:
-        raise HTTPException(status_code=503, detail="MAX bot not configured")
 
-    contact = _ensure_auth_email_for_client(row, phone=phone)
-    issued = issue_login_link(contact=contact, max_user_id=str(row["max_user_id"]))
-    text = confirm_web_login_message(code=issued.code)
-    attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
-    try:
-        bot.send_message(
-            text=text,
-            user_id=str(row["max_user_id"]),
-            attachments=attachments,
+    pending = create_pending()
+    phone_raw = (payload.phone or "").strip()
+
+    if phone_raw:
+        phone = normalize_phone(phone_raw)
+        if not phone:
+            raise HTTPException(status_code=400, detail="invalid phone")
+        row = _find_client_by_phone(phone)
+        if not row:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Номер не найден. Нажмите «Подтвердить вход через MAX» без номера "
+                    "и введите код из кабинета в чат бота — или войдите по email."
+                ),
+            )
+        if not row.get("max_user_id"):
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Для номера нет привязки к MAX. Откройте бота, напишите /start, "
+                    "введите код с экрана кабинета и подтвердите вход."
+                ),
+            )
+        contact = _ensure_auth_email_for_client(row, phone=phone)
+        bind_max_direct(
+            ticket_id=pending.ticket_id,
+            max_user_id=str(row["max_user_id"]),
+            contact=contact,
         )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(
-            status_code=502,
-            detail="Не удалось отправить сообщение в MAX. Откройте бота и напишите /start.",
-        ) from exc
+        bot = MaxBotClient()
+        if not bot.available:
+            raise HTTPException(status_code=503, detail="MAX bot not configured")
+        text = confirm_web_login_message()
+        attachments = inline_callback_keyboard(
+            CONFIRM_WEB_LOGIN_LABEL,
+            callback_payload_for(pending.ticket_id),
+        )
+        try:
+            bot.send_message(
+                text=text,
+                user_id=str(row["max_user_id"]),
+                attachments=attachments,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=502,
+                detail="Не удалось отправить сообщение в MAX. Откройте бота и напишите /start.",
+            ) from exc
+        ClientChannelRepository().audit(
+            str(row.get("user_id") or row.get("id")),
+            f"login_otp_max_sent:{row['max_user_id']}",
+        )
+        return MaxOtpRequestResponse(
+            ok=True,
+            ticket=pending.ticket_id,
+            pair_code=pending.pair_code,
+            expires_in=max(60, int(pending.expires_at - time.time())),
+            max_bot_url=settings.max_chat_url,
+            status="pending_confirm",
+            message=(
+                "В MAX отправлено «Подтвердить вход». Нажмите кнопку в чате на телефоне — "
+                "кабинет откроется на этом компьютере."
+            ),
+        )
 
-    ClientChannelRepository().audit(
-        str(row.get("user_id") or row.get("id")),
-        f"login_otp_max_sent:{row['max_user_id']}",
-    )
     return MaxOtpRequestResponse(
         ok=True,
-        ticket=issued.ticket,
-        expires_in=issued.expires_in,
+        ticket=pending.ticket_id,
+        pair_code=pending.pair_code,
+        expires_in=max(60, int(pending.expires_at - time.time())),
         max_bot_url=settings.max_chat_url,
-        message="Сообщение отправлено в MAX. Откройте чат с ботом и подтвердите вход.",
+        status="pending_pair",
+        message=(
+            f"Откройте MAX, напишите /start и отправьте код {pending.pair_code}. "
+            "Затем нажмите «Подтвердить вход в веб кабинет» в чате — кабинет откроется здесь."
+        ),
+    )
+
+
+@router.get("/auth/otp/poll", response_model=MaxOtpPollResponse)
+def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
+    """ПК опрашивает: подтвердил ли клиент/сотрудник вход в MAX."""
+    from sfrfr.security.login_pending import get_pending
+
+    pending = get_pending(ticket)
+    if not pending:
+        return MaxOtpPollResponse(ok=False, status="expired", message="Сессия входа не найдена или устарела.")
+    if pending.status == "approved" and pending.token_hash:
+        return MaxOtpPollResponse(
+            ok=True,
+            status="approved",
+            token_hash=pending.token_hash,
+            email=pending.email or "",
+            type="email",
+            message="Вход подтверждён",
+        )
+    if pending.status == "expired":
+        return MaxOtpPollResponse(ok=False, status="expired", message="Время подтверждения истекло.")
+    if pending.status == "pending_manager":
+        return MaxOtpPollResponse(
+            ok=True,
+            status="pending_manager",
+            message="Ожидаем подтверждение руководителя в MAX…",
+        )
+    if pending.status == "pending_confirm":
+        return MaxOtpPollResponse(
+            ok=True,
+            status="pending_confirm",
+            message="Ожидаем нажатие «Подтвердить вход» в MAX на телефоне…",
+        )
+    return MaxOtpPollResponse(
+        ok=True,
+        status="pending_pair",
+        message=f"Отправьте в MAX код {pending.pair_code}, затем подтвердите вход.",
     )
 
 

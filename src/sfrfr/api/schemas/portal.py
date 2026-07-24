@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -95,21 +95,34 @@ class LinkWebFromMaxResponse(BaseModel):
 
 
 class MaxOtpRequest(BaseModel):
-    """Запрос кода входа через MAX (вместо SMS)."""
+    """Запрос входа через MAX. phone опционален (номер из дела)."""
 
-    phone: str = Field(min_length=10, max_length=32)
+    phone: str | None = Field(default=None, max_length=32)
+    audience: Literal["client", "staff"] = "client"
+    email: str | None = Field(default=None, max_length=254)
 
 
 class MaxOtpRequestResponse(BaseModel):
     ok: bool
     ticket: str = ""
+    pair_code: str = ""
     expires_in: int = 0
     max_bot_url: str = ""
+    status: str = "pending_pair"
+    message: str = ""
+
+
+class MaxOtpPollResponse(BaseModel):
+    ok: bool
+    status: str
+    token_hash: str = ""
+    email: str = ""
+    type: str = "email"
     message: str = ""
 
 
 class MaxOtpVerifyRequest(BaseModel):
-    ticket: str = Field(min_length=20, max_length=500)
+    ticket: str = Field(min_length=8, max_length=500)
     code: str = Field(min_length=4, max_length=12)
 
 

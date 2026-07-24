@@ -95,3 +95,69 @@ def list_staff_roles() -> list[dict[str, Any]]:
             email = None
         enriched.append({**row, "email": email})
     return enriched
+
+
+def get_staff_role_by_email(email: str) -> StaffRole | None:
+    """Роль сотрудника по рабочему email или None."""
+    user = find_user_by_email(email)
+    if user is None:
+        return None
+    client = get_supabase_client()
+    rows = (
+        client.table("staff_roles")
+        .select("role")
+        .eq("user_id", user_id_of(user))
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not rows:
+        return None
+    try:
+        return StaffRole(str(rows[0]["role"]))
+    except ValueError:
+        return None
+
+
+def set_staff_max_user_id(*, user_id: str, max_user_id: str) -> dict[str, Any]:
+    """Привязать MAX к строке staff_roles (для уведомлений руководителю)."""
+    client = get_supabase_client()
+    response = (
+        client.table("staff_roles")
+        .update({"max_user_id": str(max_user_id)})
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not response.data:
+        raise RuntimeError("staff_roles max_user_id update empty")
+    return response.data[0]
+
+
+def list_manager_max_user_ids(*, extra_ids: str = "") -> list[str]:
+    """MAX id руководителей: admin в staff_roles + STAFF_LOGIN_APPROVER_MAX_USER_IDS."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for part in (extra_ids or "").split(","):
+        uid = part.strip()
+        if uid and uid not in seen:
+            seen.add(uid)
+            ids.append(uid)
+    try:
+        client = get_supabase_client()
+        rows = (
+            client.table("staff_roles")
+            .select("max_user_id, role")
+            .eq("role", StaffRole.ADMIN.value)
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            uid = str(row.get("max_user_id") or "").strip()
+            if uid and uid not in seen:
+                seen.add(uid)
+                ids.append(uid)
+    except Exception:  # noqa: BLE001 - env-only fallback
+        pass
+    return ids

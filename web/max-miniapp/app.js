@@ -7,6 +7,18 @@
   );
   const botUrl = cfg.maxBotUrl || "https://max.ru/";
 
+  const PIPELINE_STEPS = [
+    "intake",
+    "documents_received",
+    "ocr_done",
+    "classified",
+    "extracted",
+    "audited",
+    "draft_ready",
+    "human_review",
+    "completed",
+  ];
+
   const els = {
     boot: document.getElementById("panel-boot"),
     form: document.getElementById("panel-form"),
@@ -28,16 +40,26 @@
     caseNextText: document.getElementById("case-next-text"),
     caseChecklist: document.getElementById("case-checklist"),
     caseChecklistList: document.getElementById("case-checklist-list"),
+    checklistEmpty: document.getElementById("checklist-empty"),
     caseDraft: document.getElementById("case-draft"),
     caseDraftBody: document.getElementById("case-draft-body"),
+    draftEmpty: document.getElementById("draft-empty"),
     caseSubmitHint: document.getElementById("case-submit-hint"),
     caseWarning: document.getElementById("case-warning"),
     fileInput: document.getElementById("file-input"),
+    fileInputDocs: document.getElementById("file-input-docs"),
     btnRefresh: document.getElementById("btn-refresh"),
     btnRun: document.getElementById("btn-run"),
     btnWeb: document.getElementById("btn-web-cabinet"),
     btnChat: document.getElementById("btn-chat"),
     btnBackList: document.getElementById("btn-back-list"),
+    btnMenu: document.getElementById("btn-menu"),
+    drawer: document.getElementById("drawer"),
+    drawerBackdrop: document.getElementById("drawer-backdrop"),
+    stepsList: document.getElementById("steps-list"),
+    appbarSub: document.getElementById("appbar-sub"),
+    drawerWeb: document.getElementById("drawer-web"),
+    drawerChatBot: document.getElementById("drawer-chat-bot"),
     ordersList: document.getElementById("orders-list"),
     ordersEmpty: document.getElementById("orders-empty"),
     payCabinetLink: document.getElementById("pay-cabinet-link"),
@@ -62,10 +84,92 @@
   let me = null;
   let statusLabels = {};
   let statusHints = {};
+  let currentView = "overview";
 
   function show(el) {
     [els.boot, els.form, els.list, els.panel].forEach((p) => p && p.classList.add("hidden"));
     el.classList.remove("hidden");
+  }
+
+  function setMenuOpen(open) {
+    els.drawer?.classList.toggle("open", open);
+    els.drawerBackdrop?.classList.toggle("hidden", !open);
+    document.body.classList.toggle("menu-open", open);
+    if (els.btnMenu) els.btnMenu.setAttribute("aria-expanded", open ? "true" : "false");
+    if (els.drawer) els.drawer.setAttribute("aria-hidden", open ? "false" : "true");
+  }
+
+  function renderSteps(status) {
+    if (!els.stepsList) return;
+    const cur = status === "failed" ? "failed" : status || "intake";
+    const idx = PIPELINE_STEPS.indexOf(cur);
+    const labels = { ...statusLabels };
+    if (!Object.keys(labels).length) {
+      Object.assign(labels, {
+        intake: "Приём данных",
+        documents_received: "Документы получены",
+        ocr_done: "Текст распознан",
+        classified: "Классификация",
+        extracted: "Периоды",
+        audited: "Сверка",
+        draft_ready: "Черновик",
+        human_review: "Проверка",
+        completed: "Завершено",
+        failed: "Ошибка",
+      });
+    }
+    const steps = cur === "failed" ? [...PIPELINE_STEPS.slice(0, -1), "failed"] : PIPELINE_STEPS;
+    els.stepsList.innerHTML = steps
+      .map((key, i) => {
+        let cls = "future";
+        if (cur === "failed" && key === "failed") cls = "current";
+        else if (idx >= 0) {
+          if (i < idx) cls = "done";
+          else if (i === idx) cls = "current";
+        } else if (key === cur) cls = "current";
+        const title = escapeHtml(labels[key] || key);
+        return `<li class="${cls}"><span class="dot" aria-hidden="true"></span><span>${title}</span></li>`;
+      })
+      .join("");
+  }
+
+  function setView(name) {
+    const view = name === "payments" ? "pay" : name;
+    if (view === "list") {
+      setMenuOpen(false);
+      void (async () => {
+        try {
+          const cases = await api("/api/portal/me/cases");
+          renderList(cases || []);
+        } catch (err) {
+          toast(err.message);
+        }
+      })();
+      return;
+    }
+    currentView = view;
+    document.querySelectorAll("#panel-case .view").forEach((node) => {
+      node.classList.toggle("hidden", node.id !== `view-${view}`);
+    });
+    document.querySelectorAll("#drawer-nav .nav-item").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
+    });
+    if (els.appbarSub) {
+      const titles = {
+        overview: "Обзор",
+        docs: "Документы",
+        checklist: "Чек-лист",
+        draft: "Черновик",
+        pay: "Оплаты",
+        result: "Результат",
+        chat: "Сообщения",
+      };
+      els.appbarSub.textContent = titles[view] || "Кабинет";
+    }
+    setMenuOpen(false);
+    if (view === "pay") void loadOrders();
+    if (view === "result") void loadResult();
+    if (view === "chat") void loadMessages();
   }
 
   function toast(msg) {
@@ -80,6 +184,7 @@
       if (b) b.disabled = busy;
     });
     if (els.fileInput) els.fileInput.disabled = busy;
+    if (els.fileInputDocs) els.fileInputDocs.disabled = busy;
   }
 
   function authHeaders(extra = {}) {
@@ -151,8 +256,12 @@
     els.status.textContent = c.status_label;
     els.statusHint.textContent = c.status_hint || "";
     els.caseId.textContent = c.id;
-    els.caseName.textContent = c.client_name;
+    if (els.caseName) els.caseName.textContent = c.client_name;
     els.caseDocs.textContent = String(c.document_count);
+    renderSteps(c.status);
+    if (els.appbarSub && currentView === "overview") {
+      els.appbarSub.textContent = c.status_label || "Обзор";
+    }
 
     if (c.error) {
       els.caseError.textContent = c.error;
@@ -189,7 +298,7 @@
     }
 
     const checklist = Array.isArray(c.checklist_items) ? c.checklist_items : [];
-    if (els.caseChecklist && els.caseChecklistList) {
+    if (els.caseChecklistList) {
       if (checklist.length) {
         els.caseChecklistList.innerHTML = checklist
           .slice(0, 12)
@@ -199,19 +308,23 @@
             return `<li><strong>${title}</strong> <span class="hint">${st}</span></li>`;
           })
           .join("");
-        els.caseChecklist.classList.remove("hidden");
+        if (els.checklistEmpty) els.checklistEmpty.classList.add("hidden");
       } else {
-        els.caseChecklist.classList.add("hidden");
+        els.caseChecklistList.innerHTML = "";
+        if (els.checklistEmpty) els.checklistEmpty.classList.remove("hidden");
       }
     }
 
     const draft = c.draft;
-    if (els.caseDraft && els.caseDraftBody) {
+    if (els.caseDraftBody) {
       if (draft && (draft.body || draft.title)) {
         els.caseDraftBody.textContent = [draft.title, draft.body].filter(Boolean).join("\n\n");
-        els.caseDraft.classList.remove("hidden");
+        els.caseDraftBody.classList.remove("hidden");
+        if (els.draftEmpty) els.draftEmpty.classList.add("hidden");
       } else {
-        els.caseDraft.classList.add("hidden");
+        els.caseDraftBody.textContent = "";
+        els.caseDraftBody.classList.add("hidden");
+        if (els.draftEmpty) els.draftEmpty.classList.remove("hidden");
       }
     }
 
@@ -225,21 +338,14 @@
     if (els.resultCabinetLink) els.resultCabinetLink.href = resultUrl;
 
     show(els.panel);
+    setView(currentView === "list" ? "overview" : currentView);
     void loadOrders();
     void loadResult();
     void loadMessages();
   }
 
   function setTab(name) {
-    document.querySelectorAll("#case-tabs .tab").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-tab") === name);
-    });
-    ["pay", "result", "chat"].forEach((id) => {
-      const panel = document.getElementById(`tab-${id}`);
-      if (!panel) return;
-      panel.classList.toggle("hidden", name !== id);
-    });
-    // вкладка «дело» — основной контент над табами всегда виден
+    setView(name === "case" ? "overview" : name);
   }
 
   async function loadOrders() {
@@ -388,6 +494,8 @@
       });
     }
     show(els.list);
+    if (els.appbarSub) els.appbarSub.textContent = "Мои дела";
+    setMenuOpen(false);
   }
 
   async function loadLabels() {
@@ -395,8 +503,10 @@
       const meta = await api("/api/portal/meta/status-labels");
       statusLabels = meta.labels || {};
       statusHints = meta.hints || {};
+      renderSteps(currentCase?.status || "intake");
     } catch {
       /* fallback пустой — сервер всё равно шлёт label в detail */
+      renderSteps(currentCase?.status || "intake");
     }
   }
 
@@ -591,6 +701,40 @@
     }
   });
 
+  els.fileInputDocs?.addEventListener("change", async () => {
+    const file = els.fileInputDocs.files?.[0];
+    els.fileInputDocs.value = "";
+    if (!file) return;
+    try {
+      setBusy(true);
+      await uploadFile(file);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  els.btnMenu?.addEventListener("click", () => {
+    const open = !els.drawer?.classList.contains("open");
+    setMenuOpen(open);
+  });
+  els.drawerBackdrop?.addEventListener("click", () => setMenuOpen(false));
+  document.querySelectorAll("#drawer-nav .nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => setView(btn.getAttribute("data-view") || "overview"));
+  });
+  if (els.drawerWeb) {
+    els.drawerWeb.addEventListener("click", (event) => {
+      event.preventDefault();
+      setMenuOpen(false);
+      void openWebCabinet();
+    });
+  }
+  if (els.drawerChatBot) {
+    els.drawerChatBot.href = botUrl;
+    els.drawerChatBot.addEventListener("click", () => setMenuOpen(false));
+  }
+
   if (els.btnWeb) {
     els.btnWeb.addEventListener("click", (event) => {
       event.preventDefault();
@@ -610,16 +754,17 @@
     window.open(botUrl, "_blank", "noopener,noreferrer");
   });
 
-  document.querySelectorAll("#case-tabs .tab").forEach((btn) => {
-    btn.addEventListener("click", () => setTab(btn.getAttribute("data-tab") || "case"));
-  });
-
   els.messageForm?.addEventListener("submit", (event) => void sendMessage(event));
 
-  // deep-link ?view=payments|result|chat
+  // deep-link ?view=payments|result|chat|docs|checklist|draft
   const initialView = new URLSearchParams(location.search).get("view");
-  if (initialView && ["pay", "payments", "result", "chat"].includes(initialView)) {
-    setTimeout(() => setTab(initialView === "payments" ? "pay" : initialView), 800);
+  if (
+    initialView &&
+    ["pay", "payments", "result", "chat", "docs", "checklist", "draft", "overview"].includes(
+      initialView,
+    )
+  ) {
+    setTimeout(() => setView(initialView === "payments" ? "pay" : initialView), 800);
   }
 
   els.btnBackList?.addEventListener("click", async () => {

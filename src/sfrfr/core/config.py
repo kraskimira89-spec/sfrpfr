@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     yookassa_send_receipt: bool = False
     public_lead_token: str = ""
     cabinet_public_url: str = "https://cabinet.taxi-doroga-dobra.ru"
+    admin_public_url: str = "https://admin.taxi-doroga-dobra.ru"
+    # MAX user_id руководителей (через запятую) — подтверждение входа сотрудников
+    staff_login_approver_max_user_ids: str = ""
+    # chat_id диалогов руководителей (через запятую, тот же порядок что user_id)
+    staff_login_approver_max_chat_ids: str = ""
     # Диалог с ботом (вход / «написать боту») — без ?startapp
     max_chat_url: str = "https://max.ru/id8905998693_1_bot"
     # Deep-link на mini-app (?startapp) — лендинг, открытие приложения

@@ -1,7 +1,15 @@
 # История беседы (кратко)
 
+## 2026-07-24 (вечер)
+
+- Кабинет сотрудника: вход через MAX как у клиента + этап подтверждения руководителем
+  (`pending_manager`, кнопка «Разрешить вход сотруднику»).
+- Руководитель: `max_user_id=6407832`, `chat_id=321180237` —
+  в `staff_roles` (admin taganai89) и `STAFF_LOGIN_APPROVER_*` (локально + VPS).
+
 ## 2026-07-24
 
+- Лендинг: усиленный hero, блок ситуаций (`#situacii`), блок для родственников (`#rodstvenniki`); без обещаний перерасчёта.
 - MAX UX для пожилых: чат без `?startapp`; кнопка/сообщение «Подтвердить вход в веб кабинет»; одноразовая ссылка `/?auth=max&t=`; webhook `message_callback`.
 - Вход в кабинет: вкладка **MAX** + кнопка «Получить код в MAX» (`/api/portal/auth/otp/request|verify`); код уходит в бот по `max_user_id`, сессия через Supabase `token_hash`. Выложено на VPS (API + cabinet).
 - ЮKassa на VPS: в `/opt/sfrfr/.env` прописаны `YOOKASSA_*` (shop `1417002`, live-ключ), `sfrfr-api` перезапущен, `client_available=True`. Webhook URL по Basic Auth только вручную в ЛК ЮKassa (API webhooks — OAuth).

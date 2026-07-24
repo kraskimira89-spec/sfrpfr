@@ -128,6 +128,11 @@ export function AdminCabinet() {
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [authChannel, setAuthChannel] = useState<"max" | "email">("max");
+  const [maxTicket, setMaxTicket] = useState("");
+  const [maxPairCode, setMaxPairCode] = useState("");
+  const [maxWaitStatus, setMaxWaitStatus] = useState("");
+  const [maxBotUrl, setMaxBotUrl] = useState("https://max.ru/id8905998693_1_bot");
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -231,6 +236,97 @@ export function AdminCabinet() {
     setOtpSent(true);
     setNotice("Код отправлен на рабочий email.");
   }
+
+  async function requestMaxLogin() {
+    if (!apiBase) {
+      setNotice("API не настроен.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setNotice("Укажите рабочий email.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience: "staff", email: email.trim().toLowerCase() }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        ticket?: string;
+        pair_code?: string;
+        max_bot_url?: string;
+        message?: string;
+        status?: string;
+      };
+      if (!response.ok) {
+        throw new Error(
+          typeof body.detail === "string" ? body.detail : "Не удалось начать вход через MAX.",
+        );
+      }
+      setMaxTicket(body.ticket || "");
+      setMaxPairCode(body.pair_code || "");
+      setMaxWaitStatus(body.status || "pending_pair");
+      if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
+      setOtpSent(true);
+      setNotice(body.message || "Ожидаем подтверждение в MAX…");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ПК ждёт: сотрудник в MAX → руководитель в MAX → сессия
+  useEffect(() => {
+    if (!supabase || !apiBase || !maxTicket || session || authChannel !== "max" || !otpSent) {
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const response = await fetch(
+            `${apiBase}/api/portal/auth/otp/poll?ticket=${encodeURIComponent(maxTicket)}`,
+          );
+          const body = (await response.json().catch(() => ({}))) as {
+            status?: string;
+            token_hash?: string;
+            type?: "email" | "sms";
+            message?: string;
+          };
+          if (cancelled) return;
+          if (body.status) setMaxWaitStatus(body.status);
+          if (body.message) setNotice(body.message);
+          if (body.status === "approved" && body.token_hash) {
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: body.token_hash,
+              type: body.type || "email",
+            });
+            if (error) throw error;
+            setOtpSent(false);
+            setMaxTicket("");
+            setMaxPairCode("");
+            setNotice("");
+          }
+          if (body.status === "expired") {
+            setNotice(body.message || "Время подтверждения истекло. Начните вход снова.");
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setNotice(err instanceof Error ? err.message : "Ошибка ожидания входа.");
+          }
+        }
+      })();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [supabase, apiBase, maxTicket, session, authChannel, otpSent]);
 
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -432,8 +528,98 @@ export function AdminCabinet() {
             Проверка стажа · сотрудники
           </p>
           <h1>Кабинет сотрудника</h1>
-          <p className="lead">Вход по одноразовому коду. Роль проверяется на сервере.</p>
-          {!otpSent ? (
+          <p className="lead">
+            Вход через MAX (как у клиента) + подтверждение руководителем. Либо код на email.
+          </p>
+          <div className="tabs" style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <button
+              type="button"
+              className={authChannel === "max" ? "tab active" : "tab"}
+              onClick={() => {
+                setAuthChannel("max");
+                setOtpSent(false);
+                setNotice("");
+                setMaxTicket("");
+                setMaxPairCode("");
+              }}
+            >
+              MAX
+            </button>
+            <button
+              type="button"
+              className={authChannel === "email" ? "tab active" : "tab"}
+              onClick={() => {
+                setAuthChannel("email");
+                setOtpSent(false);
+                setNotice("");
+                setMaxTicket("");
+              }}
+            >
+              Email
+            </button>
+          </div>
+          {authChannel === "max" ? (
+            !otpSent ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void requestMaxLogin();
+                }}
+              >
+                <label htmlFor="email-max">Рабочий email</label>
+                <input
+                  id="email-max"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <button type="submit" disabled={busy}>
+                  Подтвердить вход через MAX
+                </button>
+                <p className="muted" style={{ marginTop: "0.75rem", fontSize: "0.9rem" }}>
+                  1) Код в боте → 2) подтверждение на телефоне → 3) разрешение руководителя в MAX.
+                </p>
+              </form>
+            ) : (
+              <div>
+                {maxPairCode ? (
+                  <p>
+                    Код для бота: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
+                  </p>
+                ) : null}
+                <p>
+                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                    Открыть чат с ботом MAX
+                  </a>
+                </p>
+                {maxWaitStatus === "pending_pair" ? (
+                  <p>
+                    Напишите /start и отправьте код <strong>{maxPairCode}</strong>
+                  </p>
+                ) : null}
+                {maxWaitStatus === "pending_confirm" ? (
+                  <p>Нажмите на телефоне «Подтвердить вход в веб кабинет»</p>
+                ) : null}
+                {maxWaitStatus === "pending_manager" ? (
+                  <p>Ожидаем подтверждение руководителя в MAX…</p>
+                ) : null}
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setMaxTicket("");
+                    setMaxPairCode("");
+                    setMaxWaitStatus("");
+                    setNotice("");
+                  }}
+                >
+                  Начать заново
+                </button>
+              </div>
+            )
+          ) : !otpSent ? (
             <form onSubmit={signIn}>
               <label htmlFor="email">Рабочий email</label>
               <input

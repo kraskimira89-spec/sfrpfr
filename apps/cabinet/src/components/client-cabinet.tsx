@@ -109,7 +109,11 @@ type PortalMe = {
 };
 
 type View = "cases" | "case" | "docs" | "payments" | "result";
+/** phone — только в архиве, пока AUTH_SMS_PUBLISHED = false */
 type AuthChannel = "email" | "phone" | "max";
+
+/** SMS-вход не публикуем (см. apps/cabinet/src/archive/auth-sms.md). */
+const AUTH_SMS_PUBLISHED = false;
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -201,6 +205,8 @@ export function ClientCabinet() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [maxTicket, setMaxTicket] = useState("");
+  const [maxPairCode, setMaxPairCode] = useState("");
+  const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
   const [maxLinkBusy, setMaxLinkBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -475,7 +481,11 @@ export function ClientCabinet() {
   async function requestOtp(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (authChannel === "max") {
-      await requestMaxOtp();
+      await requestMaxOtp(Boolean(phone.trim()));
+      return;
+    }
+    if (authChannel === "phone" && !AUTH_SMS_PUBLISHED) {
+      setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
       return;
     }
     if (!supabase) {
@@ -493,13 +503,16 @@ export function ClientCabinet() {
           },
         });
         if (error) throw error;
-      } else {
+      } else if (AUTH_SMS_PUBLISHED) {
+        // Архив SMS: apps/cabinet/src/archive/auth-sms.md
         const normalized = phone.replace(/[^\d+]/g, "");
         const { error } = await supabase.auth.signInWithOtp({
           phone: normalized,
           options: { shouldCreateUser: true },
         });
         if (error) throw error;
+      } else {
+        throw new Error("sms_archived");
       }
       setOtpSent(true);
       setNotice("");
@@ -514,17 +527,15 @@ export function ClientCabinet() {
           "Слишком много запросов. Подождите несколько минут и проверьте уже пришедшее письмо.",
         );
       } else if (
-        /phone_provider|unsupported phone|sms/i.test(msg) ||
+        /phone_provider|unsupported phone|sms|sms_archived/i.test(msg) ||
         code === "phone_provider_disabled"
       ) {
-        setNotice(
-          "Вход по SMS пока не подключён. Войдите по email или получите код в MAX.",
-        );
+        setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
       } else {
         setNotice(
           authChannel === "email"
             ? "Не удалось отправить письмо. Проверьте адрес и попробуйте снова."
-            : "Не удалось отправить код. Проверьте номер или войдите по email / MAX.",
+            : "Не удалось отправить код. Войдите через MAX или email.",
         );
       }
     } finally {
@@ -532,9 +543,13 @@ export function ClientCabinet() {
     }
   }
 
-  async function requestMaxOtp() {
+  async function requestMaxOtp(withPhone = false) {
     if (!apiBase) {
       setNotice("API кабинета не настроен.");
+      return;
+    }
+    if (withPhone && !phone.trim()) {
+      setNotice("Укажите телефон из дела или нажмите вход без номера.");
       return;
     }
     setBusy(true);
@@ -543,36 +558,92 @@ export function ClientCabinet() {
       const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify(withPhone ? { phone } : {}),
       });
       const body = (await response.json().catch(() => ({}))) as {
         detail?: string;
         ticket?: string;
+        pair_code?: string;
         max_bot_url?: string;
         message?: string;
+        status?: string;
       };
       if (!response.ok) {
         const detail =
           typeof body.detail === "string"
             ? body.detail
-            : "Не удалось отправить код в MAX.";
+            : "Не удалось начать вход через MAX.";
         throw new Error(detail);
       }
       setMaxTicket(body.ticket || "");
+      setMaxPairCode(body.pair_code || "");
+      setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
       setOtpSent(true);
-      setNotice(body.message || "Код отправлен в MAX.");
+      setNotice(body.message || "Ожидаем подтверждение в MAX…");
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось отправить код в MAX.");
+      setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
     } finally {
       setBusy(false);
     }
   }
 
+  // ПК ждёт подтверждение кнопки в MAX на телефоне
+  useEffect(() => {
+    if (!supabase || !apiBase || !maxTicket || session || authChannel !== "max" || !otpSent) {
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const response = await fetch(
+            `${apiBase}/api/portal/auth/otp/poll?ticket=${encodeURIComponent(maxTicket)}`,
+          );
+          const body = (await response.json().catch(() => ({}))) as {
+            status?: string;
+            token_hash?: string;
+            type?: "email" | "sms";
+            message?: string;
+          };
+          if (cancelled) return;
+          if (body.status) setMaxWaitStatus(body.status);
+          if (body.message) setNotice(body.message);
+          if (body.status === "approved" && body.token_hash) {
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: body.token_hash,
+              type: body.type || "email",
+            });
+            if (error) throw error;
+            setOtpSent(false);
+            setMaxTicket("");
+            setMaxPairCode("");
+            setNotice("");
+          }
+          if (body.status === "expired") {
+            setNotice(body.message || "Время подтверждения истекло. Начните вход снова.");
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setNotice(err instanceof Error ? err.message : "Ошибка ожидания входа.");
+          }
+        }
+      })();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [supabase, apiBase, maxTicket, session, authChannel, otpSent]);
+
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (authChannel === "max") {
       await verifyMaxOtp();
+      return;
+    }
+    if (authChannel === "phone" && !AUTH_SMS_PUBLISHED) {
+      setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
       return;
     }
     if (!supabase) return;
@@ -585,13 +656,16 @@ export function ClientCabinet() {
           type: "email",
         });
         if (error) throw error;
-      } else {
+      } else if (AUTH_SMS_PUBLISHED) {
+        // Архив SMS: apps/cabinet/src/archive/auth-sms.md
         const { error } = await supabase.auth.verifyOtp({
           phone: phone.replace(/[^\d+]/g, ""),
           token: otpCode,
           type: "sms",
         });
         if (error) throw error;
+      } else {
+        throw new Error("sms_archived");
       }
       setNotice("");
     } catch {
@@ -798,8 +872,8 @@ export function ClientCabinet() {
           </p>
           <h1>Кабинет клиента</h1>
           <p className="lead">
-            Проще всего — через MAX: откройте чат с ботом и нажмите «Подтвердить вход в веб
-            кабинет». Также можно войти по email.
+            Рекомендуемый вход — через MAX: откройте чат, напишите <strong>/start</strong> и
+            нажмите «Подтвердить вход в веб кабинет». Также можно войти по email.
           </p>
           <p className="hint" style={{ marginBottom: "1rem" }}>
             <a className="button-link" href={maxBotUrl} target="_blank" rel="noreferrer">
@@ -831,69 +905,143 @@ export function ClientCabinet() {
             >
               Email
             </button>
-            <button
-              type="button"
-              className={authChannel === "phone" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("phone");
-                setOtpSent(false);
-                setMaxTicket("");
-                setNotice("");
-              }}
-            >
-              Телефон
-            </button>
+            {AUTH_SMS_PUBLISHED ? (
+              <button
+                type="button"
+                className={authChannel === "phone" ? "tab active" : "tab"}
+                onClick={() => {
+                  setAuthChannel("phone");
+                  setOtpSent(false);
+                  setMaxTicket("");
+                  setNotice("");
+                }}
+              >
+                Телефон
+              </button>
+            ) : null}
           </div>
           {!otpSent ? (
+            authChannel === "max" ? (
+              <div className="auth-mail-sent">
+                <h2>Вход через MAX</h2>
+                <ol>
+                  <li>
+                    Нажмите кнопку ниже на <strong>этом компьютере</strong>
+                  </li>
+                  <li>
+                    Откройте{" "}
+                    <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                      чат MAX
+                    </a>{" "}
+                    и напишите <strong>/start</strong>
+                  </li>
+                  <li>Отправьте боту код с экрана</li>
+                  <li>
+                    В MAX нажмите «Подтвердить вход в веб кабинет» — кабинет откроется{" "}
+                    <strong>здесь</strong>
+                  </li>
+                </ol>
+                <button type="button" disabled={busy} onClick={() => void requestMaxOtp(false)}>
+                  Подтвердить вход через MAX
+                </button>
+                <p className="muted" style={{ marginTop: "0.75rem" }}>
+                  Кабинет откроется на компьютере только после кнопки в MAX на телефоне.
+                </p>
+                <details style={{ marginTop: "1rem" }}>
+                  <summary>У меня уже есть номер в деле</summary>
+                  <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
+                    <label htmlFor="phone-max">Телефон из дела</label>
+                    <input
+                      id="phone-max"
+                      type="tel"
+                      placeholder="+79001234567"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      required
+                      autoComplete="tel"
+                    />
+                    <button type="submit" disabled={busy}>
+                      Запросить подтверждение на этот номер
+                    </button>
+                  </form>
+                </details>
+              </div>
+            ) : authChannel === "email" || !AUTH_SMS_PUBLISHED ? (
             <form onSubmit={requestOtp}>
-              {authChannel === "email" ? (
-                <>
-                  <label htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                </>
-              ) : (
-                <>
-                  <label htmlFor="phone">Телефон</label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    placeholder="+79001234567"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    required
-                    autoComplete="tel"
-                  />
-                  {authChannel === "phone" ? (
-                    <p className="hint">
-                      SMS-вход подключается отдельно. Надёжнее — MAX или email.
-                    </p>
-                  ) : (
-                    <p className="hint">
-                      Или укажите номер из дела — мы пришлём в MAX сообщение «Подтвердить вход в
-                      веб кабинет». Сначала напишите боту /start.{" "}
-                      <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                        Открыть чат
-                      </a>
-                    </p>
-                  )}
-                </>
-              )}
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                autoComplete="email"
+              />
               <button type="submit" disabled={busy}>
-                {authChannel === "email"
-                  ? "Получить письмо"
-                  : authChannel === "max"
-                    ? "Получить код в MAX"
-                    : "Получить код"}
+                Получить письмо
               </button>
             </form>
-          ) : authChannel === "email" ? (
+            ) : (
+            <form onSubmit={requestOtp}>
+              <label htmlFor="phone">Телефон</label>
+              <input
+                id="phone"
+                type="tel"
+                placeholder="+79001234567"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                required
+                autoComplete="tel"
+              />
+              <button type="submit" disabled={busy}>
+                Получить код
+              </button>
+            </form>
+            )
+          ) : authChannel === "max" ? (
+            <div className="auth-mail-sent">
+              <h2>Ожидаем подтверждение в MAX</h2>
+              {maxPairCode ? (
+                <p>
+                  Код для бота: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
+                </p>
+              ) : null}
+              <ol>
+                <li>
+                  Откройте{" "}
+                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                    чат MAX
+                  </a>
+                </li>
+                {maxWaitStatus === "pending_pair" ? (
+                  <li>
+                    Напишите /start и отправьте код <strong>{maxPairCode}</strong>
+                  </li>
+                ) : (
+                  <li>Откройте сообщение от бота</li>
+                )}
+                <li>
+                  Нажмите на телефоне «Подтвердить вход в веб кабинет»
+                </li>
+              </ol>
+              <p className="muted">
+                После нажатия в MAX кабинет откроется автоматически на этом компьютере…
+              </p>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setOtpSent(false);
+                  setMaxTicket("");
+                  setMaxPairCode("");
+                  setMaxWaitStatus("");
+                  setNotice("");
+                }}
+              >
+                Отмена
+              </button>
+            </div>
+          ) : authChannel === "email" || !AUTH_SMS_PUBLISHED ? (
             <div className="auth-mail-sent">
               <h2>Письмо отправлено</h2>
               <p>
@@ -922,9 +1070,7 @@ export function ClientCabinet() {
             </div>
           ) : (
             <form onSubmit={verifyOtp}>
-              <label htmlFor="otp">
-                {authChannel === "max" ? "Код из MAX" : "Код из SMS"}
-              </label>
+              <label htmlFor="otp">Код из SMS</label>
               <input
                 id="otp"
                 inputMode="numeric"
@@ -933,14 +1079,6 @@ export function ClientCabinet() {
                 required
                 autoComplete="one-time-code"
               />
-              {authChannel === "max" && (
-                <p className="hint">
-                  Код пришёл в чат с ботом.{" "}
-                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                    Открыть MAX
-                  </a>
-                </p>
-              )}
               <button type="submit" disabled={busy}>
                 Войти
               </button>

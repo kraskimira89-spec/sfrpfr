@@ -50,3 +50,4 @@ def test_confirm_web_login_copy() -> None:
     text = confirm_web_login_message(code="123456")
     assert CONFIRM_WEB_LOGIN_LABEL in text
     assert "123456" in text
+    assert "компьютер" in text.lower()
