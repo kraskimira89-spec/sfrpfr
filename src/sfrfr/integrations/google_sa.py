@@ -11,7 +11,11 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def load_service_account_info(raw: str, *, env_name: str = "GOOGLE_*_CREDENTIALS_JSON") -> dict[str, Any]:
+def load_service_account_info(
+    raw: str,
+    *,
+    env_name: str = "GOOGLE_*_CREDENTIALS_JSON",
+) -> dict[str, Any]:
     text = raw.strip().strip('"').strip("'")
     if not text:
         raise ValueError(f"{env_name} пуст")

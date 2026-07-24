@@ -303,7 +303,11 @@ class DriveClient:
             )
             current = str(result.get("id") or "")
             if not current:
-                return {"ok": False, "error": "empty folder id after create", "path_created": created}
+                return {
+                    "ok": False,
+                    "error": "empty folder id after create",
+                    "path_created": created,
+                }
         return {
             "ok": True,
             "folder_id": current,
@@ -320,7 +324,12 @@ class DriveClient:
         for path in WORKSPACE_TREE_PATHS:
             result = self.ensure_path(list(path), parent_id=root)
             if not result.get("ok"):
-                return {"ok": False, "error": result.get("error"), "failed_path": "/".join(path), "nodes": nodes}
+                return {
+                    "ok": False,
+                    "error": result.get("error"),
+                    "failed_path": "/".join(path),
+                    "nodes": nodes,
+                }
             nodes.append({"path": "/".join(path), "folder_id": result.get("folder_id")})
         return {"ok": True, "root_id": root, "folders": len(nodes), "nodes": nodes}
 

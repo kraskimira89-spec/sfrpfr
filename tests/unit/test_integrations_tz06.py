@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 from sfrfr.integrations.payments import YooKassaClient
 from sfrfr.integrations.sheets import SheetsExporter, rows_to_values
 from sfrfr.security.integrations import SIGNED_URL_TTL_SECONDS
@@ -178,7 +180,7 @@ def test_calendar_create_mocked(monkeypatch) -> None:
         '{"type":"service_account","client_email":"cal@x.iam.gserviceaccount.com"}',
     )
     monkeypatch.setenv("GOOGLE_CALENDAR_ID", "team@group.calendar.google.com")
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from sfrfr.core.config import get_settings
     from sfrfr.integrations.calendar import CalendarClient
@@ -222,7 +224,7 @@ def test_calendar_create_mocked(monkeypatch) -> None:
     result = CalendarClient().create_event(
         case_id="CASE-1",
         title="consult",
-        start=datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc),
+        start=datetime(2026, 7, 25, 12, 0, tzinfo=UTC),
     )
     assert result["ok"] is True
     assert result["case_id"] == "CASE-1"

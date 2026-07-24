@@ -6,7 +6,7 @@ GOOGLE_CALENDAR_ID — id календаря (не «primary» для чисто
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
@@ -68,7 +68,7 @@ class CalendarClient:
                         "maxResults": max(1, min(max_results, 50)),
                         "singleEvents": "true",
                         "orderBy": "startTime",
-                        "timeMin": datetime.now(timezone.utc).isoformat(),
+                        "timeMin": datetime.now(UTC).isoformat(),
                     },
                 )
             if resp.status_code >= 400:
@@ -129,7 +129,7 @@ class CalendarClient:
         summary = f"[{cid[:36]}] {safe_title}"
         description = f"case_id={cid}\ntask={task_type}\nsource=sfrfr"
         if start.tzinfo is None:
-            start = start.replace(tzinfo=timezone.utc)
+            start = start.replace(tzinfo=UTC)
         end = start + timedelta(minutes=max(15, min(duration_minutes, 8 * 60)))
 
         try:
