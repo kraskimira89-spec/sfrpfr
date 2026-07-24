@@ -115,6 +115,8 @@ const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://taxi-doroga-dobra.ru";
+const CABINET_PUBLIC_URL =
+  process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.taxi-doroga-dobra.ru";
 const DEFAULT_MAX_BOT = "https://max.ru/id8905998693_1_bot?startapp";
 
 const PACKAGE_LABELS: Record<string, string> = {
@@ -179,7 +181,16 @@ async function apiFetch<T>(
 
 export function ClientCabinet() {
   const supabase = useMemo(
-    () => (supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null),
+    () =>
+      supabaseUrl && supabaseKey
+        ? createClient(supabaseUrl, supabaseKey, {
+            auth: {
+              detectSessionInUrl: true,
+              persistSession: true,
+              flowType: "pkce",
+            },
+          })
+        : null,
     [],
   );
   const [session, setSession] = useState<Session | null>(null);
@@ -392,8 +403,8 @@ export function ClientCabinet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cases]);
 
-  async function requestOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function requestOtp(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (!supabase) {
       setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
       return;
@@ -403,7 +414,10 @@ export function ClientCabinet() {
       if (authChannel === "email") {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { shouldCreateUser: true },
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
+          },
         });
         if (error) throw error;
       } else {
@@ -415,9 +429,20 @@ export function ClientCabinet() {
         if (error) throw error;
       }
       setOtpSent(true);
-      setNotice("Код отправлен. Введите его ниже.");
-    } catch {
-      setNotice("Не удалось отправить код. Проверьте данные и попробуйте снова.");
+      setNotice("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (/rate limit|over_email/i.test(msg)) {
+        setNotice(
+          "Слишком много запросов. Подождите несколько минут и проверьте уже пришедшее письмо.",
+        );
+      } else {
+        setNotice(
+          authChannel === "email"
+            ? "Не удалось отправить письмо. Проверьте адрес и попробуйте снова."
+            : "Не удалось отправить код. Проверьте данные и попробуйте снова.",
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -615,7 +640,8 @@ export function ClientCabinet() {
           </p>
           <h1>Кабинет клиента</h1>
           <p className="lead">
-            Вход по одноразовому коду. Вы увидите только дела, к которым вам выдан доступ.
+            Вход по письму на email или коду на телефон. Вы увидите только дела, к которым вам
+            выдан доступ.
           </p>
           <div className="tabs" role="tablist">
             <button
@@ -668,12 +694,39 @@ export function ClientCabinet() {
                 </>
               )}
               <button type="submit" disabled={busy}>
-                Получить код
+                {authChannel === "email" ? "Получить письмо" : "Получить код"}
               </button>
             </form>
+          ) : authChannel === "email" ? (
+            <div className="auth-mail-sent">
+              <h2>Письмо отправлено</h2>
+              <p>
+                На адрес <strong>{email}</strong> направлено письмо авторизации.
+              </p>
+              <ol>
+                <li>Откройте почтовый ящик</li>
+                <li>Найдите письмо о входе в кабинет</li>
+                <li>Нажмите на ссылку в письме</li>
+              </ol>
+              <p className="muted">Если письма нет — проверьте «Спам» и «Промоакции».</p>
+              <button type="button" disabled={busy} onClick={() => void requestOtp()}>
+                Отправить ещё раз
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtpCode("");
+                  setNotice("");
+                }}
+              >
+                Изменить email
+              </button>
+            </div>
           ) : (
             <form onSubmit={verifyOtp}>
-              <label htmlFor="otp">Код из {authChannel === "email" ? "письма" : "SMS"}</label>
+              <label htmlFor="otp">Код из SMS</label>
               <input
                 id="otp"
                 inputMode="numeric"
@@ -693,7 +746,7 @@ export function ClientCabinet() {
                   setOtpCode("");
                 }}
               >
-                Изменить контакт
+                Изменить телефон
               </button>
             </form>
           )}

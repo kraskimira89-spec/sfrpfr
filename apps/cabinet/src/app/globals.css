@@ -190,6 +190,29 @@ header span { color: var(--muted); font-size: 0.9rem; }
 .plain-list li { display: grid; gap: 2px; }
 .ok { color: var(--ok); font-weight: 600; }
 .notice { color: var(--muted); margin-top: 16px; }
+.auth-mail-sent {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+.auth-mail-sent h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.auth-mail-sent p {
+  margin: 0;
+  line-height: 1.45;
+}
+.auth-mail-sent ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 6px;
+  line-height: 1.45;
+}
+.auth-mail-sent .muted {
+  margin: 0;
+}
 .file-label {
   display: grid;
   gap: 8px;
