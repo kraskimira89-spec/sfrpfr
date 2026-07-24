@@ -404,6 +404,26 @@ def sheets_sync() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("drive-list")
+def drive_list(
+    page_size: int = typer.Option(10, "--page-size", "-n", min=1, max=100),
+    folder_id: str | None = typer.Option(
+        None, "--folder-id", "-f", help="ID папки; иначе GOOGLE_DRIVE_FOLDER_ID"
+    ),
+) -> None:
+    """Список файлов Google Drive через service account (без ПДн)."""
+    import json
+
+    from sfrfr.integrations.drive import DriveClient
+
+    result = DriveClient().list_files(page_size=page_size, folder_id=folder_id)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("taganay-sync")
 def taganay_sync(
     case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),

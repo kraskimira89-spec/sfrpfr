@@ -1,7 +1,8 @@
 # История беседы (кратко)
 
-## 2026-07-23
+## 2026-07-24
 
+- Google Drive: модуль `integrations/drive`, CLI `drive-list`, ключ `secrets/sfrfr-sheets-disk-*.json` (`GOOGLE_DRIVE_CREDENTIALS_JSON`).
 - DOCX ТЗ-10: strip `**`/` из списков/таблиц/заголовков; `*.docx` в `.gitignore`, файл не коммитить (сборка `scripts/render_landing_tz_docx.py`).
 - Реализован ТЗ-09: единый portal для mini-app (MAX auth), link_token, deep-link case, CTA уведомлений.
 - Реализован ТЗ-08: feedback→RAG registry, rejected вне поиска, тесты приёмки knowledge.

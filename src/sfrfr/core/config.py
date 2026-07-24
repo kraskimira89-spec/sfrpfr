@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     # Путь к JSON ключу SA или сам JSON одной строкой
     google_sheets_credentials_json: str = ""
     google_sheets_webhook_url: str = ""
+    # Google Drive (отдельный SA JSON; папки шарить на client_email)
+    google_drive_credentials_json: str = ""
+    google_drive_folder_id: str = ""
     # ЮKassa
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""

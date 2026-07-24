@@ -1,5 +1,6 @@
-"""Интеграции: MAX, Taganay, Sheets, ЮKassa, шаблоны заявлений."""
+"""Интеграции: MAX, Taganay, Sheets, Drive, ЮKassa, шаблоны заявлений."""
 
+from sfrfr.integrations.drive import DriveClient
 from sfrfr.integrations.max import MaxBotClient, handle_max_update
 from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.integrations.sheets import SheetsExporter, sanitize_rows
@@ -12,6 +13,7 @@ __all__ = [
     "sync_case_to_taganay",
     "SheetsExporter",
     "sanitize_rows",
+    "DriveClient",
     "YooKassaClient",
     "parse_yookassa_event",
 ]

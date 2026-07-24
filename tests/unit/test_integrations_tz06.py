@@ -92,3 +92,69 @@ def test_sheets_api_push_mocked(monkeypatch) -> None:
 
 def test_signed_ttl_constant() -> None:
     assert SIGNED_URL_TTL_SECONDS == 60
+
+
+def test_drive_skips_without_credentials(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.drive import DriveClient
+
+    get_settings.cache_clear()
+    result = DriveClient().list_files()
+    assert result.get("skipped") is True
+    get_settings.cache_clear()
+
+
+def test_drive_list_mocked(monkeypatch) -> None:
+    monkeypatch.setenv(
+        "GOOGLE_DRIVE_CREDENTIALS_JSON",
+        '{"type":"service_account","client_email":"sa@x.iam.gserviceaccount.com"}',
+    )
+    monkeypatch.setenv("GOOGLE_DRIVE_FOLDER_ID", "")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.drive import DriveClient
+
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.drive.load_service_account_info",
+        lambda _raw: {"type": "service_account", "client_email": "sa@x.iam.gserviceaccount.com"},
+    )
+    monkeypatch.setattr("sfrfr.integrations.drive._access_token", lambda _info: "tok")
+
+    class _Resp:
+        status_code = 200
+        text = "ok"
+
+        def json(self) -> dict:
+            return {
+                "files": [
+                    {
+                        "id": "1",
+                        "name": "report.xlsx",
+                        "mimeType": "application/vnd.google-apps.spreadsheet",
+                        "modifiedTime": "2026-07-24T00:00:00.000Z",
+                    }
+                ]
+            }
+
+    class _Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url, **kwargs):
+            assert url.endswith("/files")
+            assert kwargs["headers"]["Authorization"] == "Bearer tok"
+            return _Resp()
+
+    monkeypatch.setattr("sfrfr.integrations.drive.httpx.Client", _Client)
+    result = DriveClient().list_files(page_size=5)
+    assert result["ok"] is True
+    assert result["count"] == 1
+    assert result["files"][0]["name"] == "report.xlsx"
+    get_settings.cache_clear()
