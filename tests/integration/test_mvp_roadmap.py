@@ -24,7 +24,7 @@ class _SilentBot:
     def available(self) -> bool:
         return True
 
-    def send_message(self, *, text: str, user_id=None, chat_id=None):  # noqa: ANN001
+    def send_message(self, *, text: str, user_id=None, chat_id=None, attachments=None):  # noqa: ANN001
         self.sent.append((user_id or chat_id, text))
         return {"ok": True}
 

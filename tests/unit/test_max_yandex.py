@@ -28,6 +28,7 @@ class _SilentBot(MaxBotClient):
         text: str,
         user_id=None,
         chat_id=None,
+        attachments=None,
     ):
         self.sent.append((user_id or chat_id, text))
         return {"ok": True}
