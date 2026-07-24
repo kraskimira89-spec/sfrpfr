@@ -109,7 +109,7 @@ type PortalMe = {
 };
 
 type View = "cases" | "case" | "docs" | "payments" | "result";
-type AuthChannel = "email" | "phone";
+type AuthChannel = "email" | "phone" | "max";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

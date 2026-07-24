@@ -271,38 +271,22 @@ def _find_client_by_phone(phone: str) -> dict | None:
         return None
     client = get_supabase_client()
     digits = "".join(ch for ch in normalized if ch.isdigit())
-    # Точное совпадение и варианты хранения
     candidates = {normalized, digits, "+" + digits}
     if digits.startswith("7") and len(digits) == 11:
         candidates.add("8" + digits[1:])
         candidates.add("+7" + digits[1:])
     for value in candidates:
-        row = (
+        rows = (
             client.table("clients")
             .select("*")
             .eq("phone", value)
             .limit(1)
             .execute()
             .data
-        )
-        if row:
-            return row[0]
-    # fallback: ilike по хвосту номера
-    tail = digits[-10:]
-    if len(tail) >= 10:
-        rows = (
-            client.table("clients")
-            .select("*")
-            .not_.is_("max_user_id", "null")
-            .limit(50)
-            .execute()
-            .data
             or []
         )
-        for item in rows:
-            stored = "".join(ch for ch in str(item.get("phone") or "") if ch.isdigit())
-            if stored.endswith(tail):
-                return item
+        if rows:
+            return rows[0]
     return None
 
 
@@ -317,12 +301,22 @@ def _ensure_auth_email_for_client(row: dict, *, phone: str) -> str:
 
 
 def _supabase_magic_token_hash(email: str) -> str:
-    from sfrfr.db.staff_roles import ensure_user, find_user_by_email
+    from sfrfr.db.staff_roles import find_user_by_email
 
     client = get_supabase_client()
     existing = find_user_by_email(email)
     if existing is None:
-        ensure_user(email, invite=True)
+        created = client.auth.admin.create_user(
+            {
+                "email": email.strip().lower(),
+                "email_confirm": True,
+                "app_metadata": {"role_source": "max_otp_login"},
+            }
+        )
+        if getattr(created, "user", None) is None and not (
+            isinstance(created, dict) and created.get("user")
+        ):
+            raise HTTPException(status_code=502, detail="failed to create auth user")
     link = client.auth.admin.generate_link({"type": "magiclink", "email": email})
     props = getattr(link, "properties", None)
     if props is None and isinstance(link, dict):
@@ -414,22 +408,13 @@ def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
     email = contact if "@" in contact else _ensure_auth_email_for_client(row, phone="")
     token_hash = _supabase_magic_token_hash(email)
 
-    # Связать auth user_id с clients, если ещё пусто
     from sfrfr.db.staff_roles import find_user_by_email, user_id_of
 
     user = find_user_by_email(email)
     if user is not None and not row.get("user_id"):
-        try:
-            ClientChannelRepository().link_web_user(
-                client_id=str(row["id"]),
-                user_id=user_id_of(user),
-                email=email,
-            )
-        except Exception:  # noqa: BLE001
-            # link_web_user может отсутствовать — fallback update
-            client.table("clients").update({"user_id": user_id_of(user), "email": email}).eq(
-                "id", row["id"]
-            ).execute()
+        client.table("clients").update(
+            {"user_id": user_id_of(user), "email": email}
+        ).eq("id", row["id"]).execute()
 
     ClientChannelRepository().audit(
         str(row.get("user_id") or row.get("id")),

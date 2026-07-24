@@ -104,13 +104,28 @@ def _areas(names: list[str]) -> list[str]:
     return areas or ["проект"]
 
 
-def _change_hints(patch: str) -> list[str]:
-    """Грубые подсказки из добавленных строк diff (не из всего файла)."""
+def _iter_added_lines(patch: str, *, skip_files: set[str] | None = None) -> list[str]:
+    """Только строки '+' из diff, с опциональным исключением файлов."""
+    skip = {p.replace("\\", "/") for p in (skip_files or set())}
+    current: str | None = None
     added: list[str] = []
     for line in patch.splitlines():
+        if line.startswith("diff --git "):
+            # diff --git a/path b/path
+            parts = line.split()
+            current = parts[-1][2:] if len(parts) >= 4 else None
+            continue
+        if current and current.replace("\\", "/") in skip:
+            continue
         if line.startswith("+") and not line.startswith("+++"):
             added.append(line[1:])
-    lowered = "\n".join(added).lower()
+    return added
+
+
+def _change_hints(patch: str, names: list[str] | None = None) -> list[str]:
+    """Грубые подсказки из добавленных строк diff (не из всего файла)."""
+    skip = {"scripts/compose_commit_message.py"}
+    lowered = "\n".join(_iter_added_lines(patch, skip_files=skip)).lower()
     if not lowered.strip():
         return []
 
@@ -125,7 +140,7 @@ def _change_hints(patch: str) -> list[str]:
         (r"deploy-vps|workflow_dispatch|github/workflows", "деплой / CI"),
         (r"compose_commit_message|auto_commit_push|AUTO_COMMIT_MSG", "автосообщения коммитов"),
         (r"smtp_|mailer_|noreply@", "почта / SMTP"),
-        (r"supabase\.co|createClient\(|signInWithOtp", "Supabase Auth"),
+        (r"supabase\.co|createClient\(", "Supabase Auth"),
         (r"hooks\.json|followup_message|stop-hook", "хуки Cursor"),
     )
     for pattern, label in checks:
@@ -133,6 +148,9 @@ def _change_hints(patch: str) -> list[str]:
             hints.append(label)
         if len(hints) >= 4:
             break
+    # если правили только генератор сообщений
+    if names and all(n.replace("\\", "/").endswith("compose_commit_message.py") for n in names):
+        return ["автосообщения коммитов"]
     return hints
 
 
@@ -204,7 +222,7 @@ def _heuristic(names: list[str], stat: str, patch: str) -> str:
     areas = _areas(names)
     area = ", ".join(areas[:3])
     title = _kind_title(kind)
-    hints = _change_hints(patch)
+    hints = _change_hints(patch, names)
 
     if len(names) == 1:
         subject = f"{title}: правки в «{area}» ({Path(names[0]).name})"
