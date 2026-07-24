@@ -199,6 +199,8 @@ export function ClientCabinet() {
   const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [maxTicket, setMaxTicket] = useState("");
+  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_BOT);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -405,6 +407,10 @@ export function ClientCabinet() {
 
   async function requestOtp(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (authChannel === "max") {
+      await requestMaxOtp();
+      return;
+    }
     if (!supabase) {
       setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
       return;
@@ -445,13 +451,13 @@ export function ClientCabinet() {
         code === "phone_provider_disabled"
       ) {
         setNotice(
-          "Вход по SMS пока не подключён. Войдите по email или напишите в MAX — подключим телефон позже.",
+          "Вход по SMS пока не подключён. Войдите по email или получите код в MAX.",
         );
       } else {
         setNotice(
           authChannel === "email"
             ? "Не удалось отправить письмо. Проверьте адрес и попробуйте снова."
-            : "Не удалось отправить код. Проверьте номер или войдите по email.",
+            : "Не удалось отправить код. Проверьте номер или войдите по email / MAX.",
         );
       }
     } finally {
@@ -459,8 +465,49 @@ export function ClientCabinet() {
     }
   }
 
+  async function requestMaxOtp() {
+    if (!apiBase) {
+      setNotice("API кабинета не настроен.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        ticket?: string;
+        max_bot_url?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.detail === "string"
+            ? body.detail
+            : "Не удалось отправить код в MAX.";
+        throw new Error(detail);
+      }
+      setMaxTicket(body.ticket || "");
+      if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
+      setOtpSent(true);
+      setNotice(body.message || "Код отправлен в MAX.");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось отправить код в MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (authChannel === "max") {
+      await verifyMaxOtp();
+      return;
+    }
     if (!supabase) return;
     setBusy(true);
     try {
@@ -482,6 +529,39 @@ export function ClientCabinet() {
       setNotice("");
     } catch {
       setNotice("Неверный или просроченный код.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyMaxOtp() {
+    if (!supabase || !apiBase) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`${apiBase}/api/portal/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket: maxTicket, code: otpCode }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        token_hash?: string;
+        type?: "email" | "sms";
+      };
+      if (!response.ok) {
+        throw new Error(
+          typeof body.detail === "string" ? body.detail : "Неверный или просроченный код.",
+        );
+      }
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: body.token_hash || "",
+        type: body.type || "email",
+      });
+      if (error) throw error;
+      setNotice("");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Неверный или просроченный код.");
     } finally {
       setBusy(false);
     }
@@ -651,8 +731,7 @@ export function ClientCabinet() {
           </p>
           <h1>Кабинет клиента</h1>
           <p className="lead">
-            Вход по письму на email или коду на телефон. Вы увидите только дела, к которым вам
-            выдан доступ.
+            Вход по email, SMS или коду в MAX. Вы увидите только дела, к которым вам выдан доступ.
           </p>
           <div className="tabs" role="tablist">
             <button
@@ -661,6 +740,8 @@ export function ClientCabinet() {
               onClick={() => {
                 setAuthChannel("email");
                 setOtpSent(false);
+                setMaxTicket("");
+                setNotice("");
               }}
             >
               Email
@@ -671,9 +752,23 @@ export function ClientCabinet() {
               onClick={() => {
                 setAuthChannel("phone");
                 setOtpSent(false);
+                setMaxTicket("");
+                setNotice("");
               }}
             >
               Телефон
+            </button>
+            <button
+              type="button"
+              className={authChannel === "max" ? "tab active" : "tab"}
+              onClick={() => {
+                setAuthChannel("max");
+                setOtpSent(false);
+                setMaxTicket("");
+                setNotice("");
+              }}
+            >
+              MAX
             </button>
           </div>
           {!otpSent ? (
@@ -702,13 +797,26 @@ export function ClientCabinet() {
                     required
                     autoComplete="tel"
                   />
-                  <p className="hint">
-                    SMS-вход подключается отдельно. Сейчас надёжнее войти по email.
-                  </p>
+                  {authChannel === "phone" ? (
+                    <p className="hint">
+                      SMS-вход подключается отдельно. Надёжнее — email или код в MAX.
+                    </p>
+                  ) : (
+                    <p className="hint">
+                      Номер должен быть в деле, а бот MAX — уже открыт (/start).{" "}
+                      <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                        Открыть бота
+                      </a>
+                    </p>
+                  )}
                 </>
               )}
               <button type="submit" disabled={busy}>
-                {authChannel === "email" ? "Получить письмо" : "Получить код"}
+                {authChannel === "email"
+                  ? "Получить письмо"
+                  : authChannel === "max"
+                    ? "Получить код в MAX"
+                    : "Получить код"}
               </button>
             </form>
           ) : authChannel === "email" ? (
@@ -740,7 +848,9 @@ export function ClientCabinet() {
             </div>
           ) : (
             <form onSubmit={verifyOtp}>
-              <label htmlFor="otp">Код из SMS</label>
+              <label htmlFor="otp">
+                {authChannel === "max" ? "Код из MAX" : "Код из SMS"}
+              </label>
               <input
                 id="otp"
                 inputMode="numeric"
@@ -749,8 +859,24 @@ export function ClientCabinet() {
                 required
                 autoComplete="one-time-code"
               />
+              {authChannel === "max" && (
+                <p className="hint">
+                  Код пришёл в чат с ботом.{" "}
+                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                    Открыть MAX
+                  </a>
+                </p>
+              )}
               <button type="submit" disabled={busy}>
                 Войти
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={() => void requestOtp()}
+              >
+                Отправить ещё раз
               </button>
               <button
                 type="button"
@@ -758,6 +884,8 @@ export function ClientCabinet() {
                 onClick={() => {
                   setOtpSent(false);
                   setOtpCode("");
+                  setMaxTicket("");
+                  setNotice("");
                 }}
               >
                 Изменить телефон

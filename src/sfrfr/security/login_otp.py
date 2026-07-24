@@ -12,6 +12,7 @@ from sfrfr.core.config import get_settings
 
 _TTL_SECONDS = 10 * 60
 _CODE_DIGITS = 6
+_SEP = "|"
 
 
 def _secret() -> bytes:
@@ -48,18 +49,20 @@ def issue_login_otp(*, contact: str, max_user_id: str, ttl_seconds: int = _TTL_S
     contact_n = contact.strip().lower()
     if not contact_n or not max_user_id:
         raise ValueError("contact and max_user_id required")
+    if _SEP in contact_n or _SEP in str(max_user_id):
+        raise ValueError("contact/max_user_id must not contain separator")
     code = f"{secrets.randbelow(10**_CODE_DIGITS):0{_CODE_DIGITS}d}"
     exp = int(time.time()) + ttl_seconds
-    digest = _code_hash(code, contact_n, max_user_id, exp)
-    # ticket: contact.max_user_id.exp.digest.sig
-    body = f"{contact_n}.{max_user_id}.{exp}.{digest}"
+    digest = _code_hash(code, contact_n, str(max_user_id), exp)
+    # ticket: contact|max_user_id|exp|digest|sig  (| — чтобы email с точками не ломал разбор)
+    body = f"{contact_n}{_SEP}{max_user_id}{_SEP}{exp}{_SEP}{digest}"
     sig = hmac.new(_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
-    return LoginOtpIssue(code=code, ticket=f"{body}.{sig}", expires_in=ttl_seconds)
+    return LoginOtpIssue(code=code, ticket=f"{body}{_SEP}{sig}", expires_in=ttl_seconds)
 
 
 def verify_login_otp(*, ticket: str, code: str) -> tuple[str, str] | None:
     """Вернуть (contact, max_user_id) или None."""
-    parts = (ticket or "").strip().split(".")
+    parts = (ticket or "").strip().split(_SEP)
     if len(parts) != 5:
         return None
     contact, max_user_id, exp_s, digest, sig = parts
@@ -69,7 +72,7 @@ def verify_login_otp(*, ticket: str, code: str) -> tuple[str, str] | None:
         return None
     if exp < int(time.time()):
         return None
-    body = f"{contact}.{max_user_id}.{exp_s}.{digest}"
+    body = f"{contact}{_SEP}{max_user_id}{_SEP}{exp_s}{_SEP}{digest}"
     expected_sig = hmac.new(_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
     if not hmac.compare_digest(expected_sig, sig):
         return None

@@ -12,7 +12,8 @@ def test_normalize_phone_ru() -> None:
 def test_issue_and_verify_login_otp() -> None:
     issued = issue_login_otp(contact="max_1@clients.sfrfr.local", max_user_id="12345")
     assert len(issued.code) == 6
-    assert issued.ticket
+    assert "|" in issued.ticket
+    assert issued.ticket.count(".") >= 2  # домен в email
     ok = verify_login_otp(ticket=issued.ticket, code=issued.code)
     assert ok == ("max_1@clients.sfrfr.local", "12345")
 

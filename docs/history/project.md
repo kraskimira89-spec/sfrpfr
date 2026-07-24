@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-24 (вход через MAX OTP)
+
+- Кабинет: вкладка MAX + «Получить код в MAX»; API `POST /api/portal/auth/otp/request|verify`; HMAC ticket в `login_otp.py`; доставка через `MaxBotClient`.
+
 ## 2026-07-24 (Google MVP рядом с Supabase)
 
 - **SoT:** FastAPI + Supabase. Google — вспомогательно (без дублирования дел).
