@@ -2,6 +2,7 @@
 
 ## 2026-07-24
 
+- Google Drive: дерево «SFRFR — Пенсионные дела» (`drive-init-tree`), кейсы `drive-case-mkdir` только по `case_id`; ключ disk SA; сканы — в Supabase Storage.
 - Google Drive: модуль `integrations/drive`, CLI `drive-list`, ключ `secrets/sfrfr-sheets-disk-*.json` (`GOOGLE_DRIVE_CREDENTIALS_JSON`).
 - DOCX ТЗ-10: strip `**`/` из списков/таблиц/заголовков; `*.docx` в `.gitignore`, файл не коммитить (сборка `scripts/render_landing_tz_docx.py`).
 - Реализован ТЗ-09: единый portal для mini-app (MAX auth), link_token, deep-link case, CTA уведомлений.

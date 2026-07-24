@@ -665,23 +665,32 @@ header .custom-logo-link img {
   font-size: clamp(0.95rem, 2vw, 1.1rem) !important;
 }
 
-/* CTA в меню — в рамке */
+/* CTA в меню — в рамке (компактные отступы сверху/снизу) */
 .main-header-menu > .menu-item.sfrfr-menu-cta > a.menu-link,
 .ast-builder-menu-1 .menu-item.sfrfr-menu-cta > a.menu-link,
+.ast-builder-menu-1 .main-header-menu .menu-item.sfrfr-menu-cta .menu-link,
 .menu-item.sfrfr-menu-cta > a,
 .menu-item a[href*="#kak-rabotat"] {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  height: auto !important;
   min-height: 0 !important;
-  padding: 0.2rem 0.55rem !important;
+  max-height: none !important;
+  padding-top: 0.1rem !important;
+  padding-bottom: 0.1rem !important;
+  padding-left: 0.55rem !important;
+  padding-right: 0.55rem !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   margin-left: 0.35rem;
   border: 2px solid var(--sfrfr-accent) !important;
   border-radius: 8px !important;
   color: var(--sfrfr-accent) !important;
   background: transparent !important;
-  line-height: 1.2 !important;
+  line-height: 1.15 !important;
   white-space: nowrap;
+  box-sizing: border-box !important;
 }
 
 .main-header-menu > .menu-item.sfrfr-menu-cta > a.menu-link:hover,

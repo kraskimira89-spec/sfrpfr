@@ -444,6 +444,53 @@ def drive_mkdir(
         raise typer.Exit(code=1)
 
 
+@app.command("drive-init-tree")
+def drive_init_tree(
+    rename_root: bool = typer.Option(
+        True,
+        "--rename-root/--keep-root-name",
+        help="Переименовать корень в «SFRFR — Пенсионные дела»",
+    ),
+) -> None:
+    """Создать рекомендованное дерево папок в GOOGLE_DRIVE_FOLDER_ID."""
+    import json
+
+    from sfrfr.integrations.drive import ROOT_FOLDER_NAME, DriveClient
+
+    client = DriveClient()
+    if rename_root and client.folder_id:
+        renamed = client.rename(client.folder_id, ROOT_FOLDER_NAME)
+        if not renamed.get("ok"):
+            typer.echo(json.dumps({"rename_root": renamed}, ensure_ascii=False))
+            raise typer.Exit(code=1)
+    result = client.ensure_workspace_tree()
+    # старую папку «Клиенты» не трогаем — структура 02_Кейсы_клиентов создаётся отдельно
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("drive-case-mkdir")
+def drive_case_mkdir(
+    case_id: str = typer.Argument(..., help="Только case_id, без ФИО/СНИЛС"),
+    status: str = typer.Option(
+        "active",
+        "--status",
+        "-s",
+        help="active|done|archive → Активные|Завершённые|Архив_по_сроку_хранения",
+    ),
+) -> None:
+    """Создать папку дела в 02_Кейсы_клиентов/... (после согласия на ПДн)."""
+    import json
+
+    from sfrfr.integrations.drive import DriveClient
+
+    result = DriveClient().ensure_case_tree(case_id, status=status)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("taganay-sync")
 def taganay_sync(
     case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),

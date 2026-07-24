@@ -241,3 +241,158 @@ class DriveClient:
             }
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    def rename(self, file_id: str, name: str) -> dict[str, Any]:
+        """Переименовать файл/папку."""
+        new_name = (name or "").strip()
+        fid = (file_id or "").strip()
+        if not new_name or not fid:
+            return {"ok": False, "error": "file_id and name required"}
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no GOOGLE_DRIVE_CREDENTIALS_JSON"}
+        try:
+            info, headers = self._auth()
+            with httpx.Client(timeout=45.0) as client:
+                resp = client.patch(
+                    f"{_DRIVE_API}/files/{fid}",
+                    headers=headers,
+                    params={
+                        "supportsAllDrives": "true",
+                        "fields": "id,name,mimeType,webViewLink",
+                    },
+                    json={"name": new_name},
+                )
+            if resp.status_code >= 400:
+                return {
+                    "ok": False,
+                    "status_code": resp.status_code,
+                    "error": (resp.text or "")[:500],
+                    "sa_email": info.get("client_email"),
+                }
+            body = resp.json() or {}
+            return {
+                "ok": True,
+                "id": body.get("id"),
+                "name": body.get("name"),
+                "webViewLink": body.get("webViewLink"),
+                "sa_email": info.get("client_email"),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    def ensure_path(self, segments: list[str], *, parent_id: str | None = None) -> dict[str, Any]:
+        """Создать цепочку папок parent/a/b/c (idempotent)."""
+        current = (parent_id if parent_id is not None else self.folder_id).strip()
+        if not current:
+            return {"ok": False, "error": "parent folder id required"}
+        created: list[dict[str, Any]] = []
+        for segment in segments:
+            name = (segment or "").strip()
+            if not name:
+                continue
+            result = self.create_folder(name, parent_id=current)
+            if not result.get("ok"):
+                return {**result, "path_created": created}
+            created.append(
+                {
+                    "id": result.get("id"),
+                    "name": result.get("name"),
+                    "created": result.get("created"),
+                    "existed": result.get("existed"),
+                }
+            )
+            current = str(result.get("id") or "")
+            if not current:
+                return {"ok": False, "error": "empty folder id after create", "path_created": created}
+        return {
+            "ok": True,
+            "folder_id": current,
+            "path": "/".join(s.strip() for s in segments if s.strip()),
+            "nodes": created,
+        }
+
+    def ensure_workspace_tree(self, *, root_id: str | None = None) -> dict[str, Any]:
+        """Создать рекомендованное дерево SFRFR в корневой папке Drive."""
+        root = (root_id if root_id is not None else self.folder_id).strip()
+        if not root:
+            return {"ok": False, "error": "GOOGLE_DRIVE_FOLDER_ID required"}
+        nodes: list[dict[str, Any]] = []
+        for path in WORKSPACE_TREE_PATHS:
+            result = self.ensure_path(list(path), parent_id=root)
+            if not result.get("ok"):
+                return {"ok": False, "error": result.get("error"), "failed_path": "/".join(path), "nodes": nodes}
+            nodes.append({"path": "/".join(path), "folder_id": result.get("folder_id")})
+        return {"ok": True, "root_id": root, "folders": len(nodes), "nodes": nodes}
+
+    def ensure_case_tree(
+        self,
+        case_id: str,
+        *,
+        status: str = "active",
+        root_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Папка дела только по case_id (без ФИО/СНИЛС), после согласия на ПДн."""
+        cid = (case_id or "").strip()
+        if not cid:
+            return {"ok": False, "error": "case_id required"}
+        if any(ch in cid for ch in ("/", "\\", "\n", "\r")):
+            return {"ok": False, "error": "invalid case_id"}
+        bucket = {
+            "active": "Активные",
+            "done": "Завершённые",
+            "archive": "Архив_по_сроку_хранения",
+        }.get((status or "active").strip().lower(), "Активные")
+        root = (root_id if root_id is not None else self.folder_id).strip()
+        # сначала путь до case_id, потом подпапки
+        base = self.ensure_path(["02_Кейсы_клиентов", bucket, cid], parent_id=root)
+        if not base.get("ok"):
+            return base
+        case_folder_id = str(base.get("folder_id") or "")
+        children: list[dict[str, Any]] = []
+        for sub in CASE_SUBFOLDERS:
+            child = self.create_folder(sub, parent_id=case_folder_id)
+            if not child.get("ok"):
+                return {**child, "case_folder_id": case_folder_id}
+            children.append({"name": sub, "id": child.get("id"), "created": child.get("created")})
+        return {
+            "ok": True,
+            "case_id": cid,
+            "status_bucket": bucket,
+            "case_folder_id": case_folder_id,
+            "webViewLink": f"https://drive.google.com/drive/folders/{case_folder_id}",
+            "children": children,
+            "note": "Сканы предпочтительно в Supabase Storage; Drive — шаблоны/обмен",
+        }
+
+
+# Рекомендованное дерево (пути от корня GOOGLE_DRIVE_FOLDER_ID).
+WORKSPACE_TREE_PATHS: tuple[tuple[str, ...], ...] = (
+    ("00_Управление", "Оферта_и_согласия"),
+    ("00_Управление", "Шаблоны_договоров"),
+    ("00_Управление", "Политики_и_регламенты"),
+    ("01_Шаблоны_документов", "Заявления_в_СФР"),
+    ("01_Шаблоны_документов", "Запросы_в_архивы"),
+    ("01_Шаблоны_документов", "Сопроводительные_письма"),
+    ("01_Шаблоны_документов", "Чек_листы"),
+    ("02_Кейсы_клиентов", "Активные"),
+    ("02_Кейсы_клиентов", "Завершённые"),
+    ("02_Кейсы_клиентов", "Архив_по_сроку_хранения"),
+    ("03_Обезличенная_аналитика", "Google_Sheets"),
+    ("03_Обезличенная_аналитика", "Отчёты"),
+    ("04_База_знаний", "Нормативные_акты"),
+    ("04_База_знаний", "Разъяснения_СФР"),
+    ("04_База_знаний", "Проверенные_кейсы_без_ПДн"),
+    ("04_База_знаний", "FAQ"),
+    ("99_Техническое", "Импорт_и_временные_файлы"),
+)
+
+CASE_SUBFOLDERS: tuple[str, ...] = (
+    "01_Исходные_документы",
+    "02_ИЛС_и_стаж",
+    "03_Архивные_справки",
+    "04_Подготовленные_документы",
+    "05_Ответы_СФР_и_результат",
+    "06_Договор_и_согласия",
+)
+
+ROOT_FOLDER_NAME = "SFRFR — Пенсионные дела"
