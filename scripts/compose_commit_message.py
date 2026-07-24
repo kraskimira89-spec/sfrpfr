@@ -105,21 +105,28 @@ def _areas(names: list[str]) -> list[str]:
 
 
 def _change_hints(patch: str) -> list[str]:
-    """Грубые подсказки из diff для тела сообщения."""
+    """Грубые подсказки из добавленных строк diff (не из всего файла)."""
+    added: list[str] = []
+    for line in patch.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            added.append(line[1:])
+    lowered = "\n".join(added).lower()
+    if not lowered.strip():
+        return []
+
     hints: list[str] = []
-    lowered = patch.lower()
     checks = (
-        (r"emailredirectto|письм[оа]|otp|signInWithOtp", "вход / OTP / письмо авторизации"),
-        (r"site_url|redirect", "редиректы / URL авторизации"),
-        (r"recaptcha", "проверка reCAPTCHA"),
-        (r"calendar", "календарь"),
-        (r"drive|folder", "Google Drive / папки"),
-        (r"ruff|lint|e501|up017", "линт / стиль кода"),
-        (r"deploy|workflow|github.actions", "деплой / CI"),
-        (r"compose_commit|auto_commit|commit.?message", "автосообщения коммитов"),
-        (r"smtp|mail\.|email", "почта"),
-        (r"supabase", "Supabase"),
-        (r"hook", "хуки Cursor"),
+        (r"emailredirectto|письм[оа] отправлено|signInWithOtp|verifyOtp", "вход / OTP / письмо авторизации"),
+        (r"site_url|emailRedirectTo|redirect_to", "редиректы / URL авторизации"),
+        (r"recaptcha|grecaptcha", "проверка reCAPTCHA"),
+        (r"calendar\.google|CalendarClient|calendar_id", "календарь"),
+        (r"drive\.google|DriveClient|folder_id", "Google Drive / папки"),
+        (r"\bruff\b|E501|UP017", "линт / стиль кода"),
+        (r"deploy-vps|workflow_dispatch|github/workflows", "деплой / CI"),
+        (r"compose_commit_message|auto_commit_push|AUTO_COMMIT_MSG", "автосообщения коммитов"),
+        (r"smtp_|mailer_|noreply@", "почта / SMTP"),
+        (r"supabase\.co|createClient\(|signInWithOtp", "Supabase Auth"),
+        (r"hooks\.json|followup_message|stop-hook", "хуки Cursor"),
     )
     for pattern, label in checks:
         if re.search(pattern, lowered) and label not in hints:

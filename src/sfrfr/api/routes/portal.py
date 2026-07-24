@@ -18,6 +18,10 @@ from sfrfr.api.schemas.portal import (
     LinkMaxRequest,
     LinkWebFromMaxRequest,
     LinkWebFromMaxResponse,
+    MaxOtpRequest,
+    MaxOtpRequestResponse,
+    MaxOtpVerifyRequest,
+    MaxOtpVerifyResponse,
     PipelineRunResponse,
     PortalMeResponse,
     PreferencesUpdateRequest,
@@ -256,6 +260,187 @@ def me_notification_links(
         preferred_channel=row.get("preferred_channel"),
         max_linked=bool(row.get("max_user_id")),
         case_id=case_id,
+    )
+
+
+def _find_client_by_phone(phone: str) -> dict | None:
+    from sfrfr.security.login_otp import normalize_phone
+
+    normalized = normalize_phone(phone)
+    if not normalized:
+        return None
+    client = get_supabase_client()
+    digits = "".join(ch for ch in normalized if ch.isdigit())
+    # Точное совпадение и варианты хранения
+    candidates = {normalized, digits, "+" + digits}
+    if digits.startswith("7") and len(digits) == 11:
+        candidates.add("8" + digits[1:])
+        candidates.add("+7" + digits[1:])
+    for value in candidates:
+        row = (
+            client.table("clients")
+            .select("*")
+            .eq("phone", value)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if row:
+            return row[0]
+    # fallback: ilike по хвосту номера
+    tail = digits[-10:]
+    if len(tail) >= 10:
+        rows = (
+            client.table("clients")
+            .select("*")
+            .not_.is_("max_user_id", "null")
+            .limit(50)
+            .execute()
+            .data
+            or []
+        )
+        for item in rows:
+            stored = "".join(ch for ch in str(item.get("phone") or "") if ch.isdigit())
+            if stored.endswith(tail):
+                return item
+    return None
+
+
+def _ensure_auth_email_for_client(row: dict, *, phone: str) -> str:
+    """Email для Supabase session: из клиента или синтетический."""
+    email = (row.get("email") or "").strip().lower()
+    if email and "@" in email:
+        return email
+    max_uid = str(row.get("max_user_id") or "unknown")
+    # стабильный технический email, подтверждённый через service role
+    return f"max_{max_uid}@clients.sfrfr.local"
+
+
+def _supabase_magic_token_hash(email: str) -> str:
+    from sfrfr.db.staff_roles import ensure_user, find_user_by_email
+
+    client = get_supabase_client()
+    existing = find_user_by_email(email)
+    if existing is None:
+        ensure_user(email, invite=True)
+    link = client.auth.admin.generate_link({"type": "magiclink", "email": email})
+    props = getattr(link, "properties", None)
+    if props is None and isinstance(link, dict):
+        props = link.get("properties") or link
+    hashed = None
+    if props is not None:
+        hashed = getattr(props, "hashed_token", None) or (
+            props.get("hashed_token") if isinstance(props, dict) else None
+        )
+    if not hashed:
+        raise HTTPException(status_code=502, detail="failed to create auth session")
+    return str(hashed)
+
+
+@router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
+def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
+    """Отправить код входа в MAX (нужен phone с привязанным max_user_id и /start)."""
+    from sfrfr.integrations.max.client import MaxBotClient
+    from sfrfr.security.login_otp import issue_login_otp, normalize_phone
+
+    settings = get_settings()
+    phone = normalize_phone(payload.phone)
+    if not phone:
+        raise HTTPException(status_code=400, detail="invalid phone")
+    row = _find_client_by_phone(phone)
+    if not row or not row.get("max_user_id"):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Для этого номера нет привязки к MAX. "
+                "Сначала напишите боту /start или оставьте заявку с сайта, "
+                "затем повторите вход."
+            ),
+        )
+    bot = MaxBotClient()
+    if not bot.available:
+        raise HTTPException(status_code=503, detail="MAX bot not configured")
+
+    contact = _ensure_auth_email_for_client(row, phone=phone)
+    issued = issue_login_otp(contact=contact, max_user_id=str(row["max_user_id"]))
+    text = (
+        "Код входа в кабинет «Проверка стажа»:\n\n"
+        f"{issued.code}\n\n"
+        "Никому не сообщайте код. Действует около 10 минут."
+    )
+    try:
+        bot.send_message(text=text, user_id=str(row["max_user_id"]))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=502,
+            detail="Не удалось отправить сообщение в MAX. Откройте бота и напишите /start.",
+        ) from exc
+
+    ClientChannelRepository().audit(
+        str(row.get("user_id") or row.get("id")),
+        f"login_otp_max_sent:{row['max_user_id']}",
+    )
+    return MaxOtpRequestResponse(
+        ok=True,
+        ticket=issued.ticket,
+        expires_in=issued.expires_in,
+        max_bot_url=settings.max_public_bot_url,
+        message="Код отправлен в MAX. Откройте чат с ботом.",
+    )
+
+
+@router.post("/auth/otp/verify", response_model=MaxOtpVerifyResponse)
+def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
+    """Проверить код из MAX и выдать token_hash для Supabase verifyOtp."""
+    from sfrfr.security.login_otp import verify_login_otp
+
+    verified = verify_login_otp(ticket=payload.ticket, code=payload.code)
+    if not verified:
+        raise HTTPException(status_code=400, detail="invalid or expired code")
+    contact, max_user_id = verified
+    client = get_supabase_client()
+    row = (
+        client.table("clients")
+        .select("*")
+        .eq("max_user_id", max_user_id)
+        .limit(1)
+        .execute()
+        .data
+        or [None]
+    )[0]
+    if not row:
+        raise HTTPException(status_code=404, detail="client not found")
+
+    email = contact if "@" in contact else _ensure_auth_email_for_client(row, phone="")
+    token_hash = _supabase_magic_token_hash(email)
+
+    # Связать auth user_id с clients, если ещё пусто
+    from sfrfr.db.staff_roles import find_user_by_email, user_id_of
+
+    user = find_user_by_email(email)
+    if user is not None and not row.get("user_id"):
+        try:
+            ClientChannelRepository().link_web_user(
+                client_id=str(row["id"]),
+                user_id=user_id_of(user),
+                email=email,
+            )
+        except Exception:  # noqa: BLE001
+            # link_web_user может отсутствовать — fallback update
+            client.table("clients").update({"user_id": user_id_of(user), "email": email}).eq(
+                "id", row["id"]
+            ).execute()
+
+    ClientChannelRepository().audit(
+        str(row.get("user_id") or row.get("id")),
+        f"login_otp_max_ok:{max_user_id}",
+    )
+    return MaxOtpVerifyResponse(
+        ok=True,
+        token_hash=token_hash,
+        email=email,
+        type="email",
+        message="Код принят",
     )
 
 
