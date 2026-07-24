@@ -94,6 +94,33 @@ class LinkWebFromMaxResponse(BaseModel):
     message: str
 
 
+class MaxOtpRequest(BaseModel):
+    """Запрос кода входа через MAX (вместо SMS)."""
+
+    phone: str = Field(min_length=10, max_length=32)
+
+
+class MaxOtpRequestResponse(BaseModel):
+    ok: bool
+    ticket: str = ""
+    expires_in: int = 0
+    max_bot_url: str = ""
+    message: str = ""
+
+
+class MaxOtpVerifyRequest(BaseModel):
+    ticket: str = Field(min_length=20, max_length=500)
+    code: str = Field(min_length=4, max_length=12)
+
+
+class MaxOtpVerifyResponse(BaseModel):
+    ok: bool
+    token_hash: str = ""
+    email: str = ""
+    type: str = "email"
+    message: str = ""
+
+
 class CreateCaseRequest(BaseModel):
     full_name: str | None = Field(default=None, max_length=200)
     problem_type: str | None = Field(default=None, max_length=120)

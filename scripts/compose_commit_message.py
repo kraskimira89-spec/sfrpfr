@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""Сформировать короткое сообщение git-коммита на русском по staged-изменениям.
+"""Сформировать понятное сообщение git-коммита на русском по staged-изменениям.
+
+Формат:
+  заголовок (1 строка)
+  <пустая строка>
+  тело: что изменилось и зачем (2–6 коротких пунктов)
 
 1) Если доступен LLM проекта (Yandex/OpenAI) — просит ИИ.
-2) Иначе — эвристика по путям файлов.
+2) Иначе — развёрнутая эвристика по путям/diff.
 """
 
 from __future__ import annotations
@@ -14,8 +19,9 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[1]
-MAX_DIFF_CHARS = 6000
-MAX_SUBJECT = 90
+MAX_DIFF_CHARS = 10000
+MAX_SUBJECT = 100
+MAX_BODY_LINES = 8
 
 
 def _git(*args: str) -> str:
@@ -38,7 +44,7 @@ def _staged_stat() -> str:
 
 
 def _staged_patch() -> str:
-    return _git("diff", "--cached", "-U1", "--no-color")
+    return _git("diff", "--cached", "-U2", "--no-color")
 
 
 def _guess_kind(names: list[str], patch: str) -> str:
@@ -55,12 +61,23 @@ def _guess_kind(names: list[str], patch: str) -> str:
         return "fix"
     if re.search(r"refactor|переимен|очист", joined):
         return "refactor"
-    if re.search(r"hooks?\.json|workflow|\.github/|auto_commit", joined):
+    if re.search(r"hooks?\.json|workflow|\.github/|auto_commit|compose_commit", joined):
         return "chore"
     return "feat"
 
 
-def _area(names: list[str]) -> str:
+def _kind_title(kind: str) -> str:
+    return {
+        "feat": "Новое",
+        "fix": "Исправление",
+        "docs": "Документация",
+        "test": "Тесты",
+        "refactor": "Рефакторинг",
+        "chore": "Служебное",
+    }.get(kind, "Обновление")
+
+
+def _areas(names: list[str]) -> list[str]:
     areas: list[str] = []
     mapping = (
         ("apps/cabinet", "кабинет клиента"),
@@ -77,53 +94,140 @@ def _area(names: list[str]) -> str:
         ("docs/", "документация"),
         ("tests/", "тесты"),
         ("web/", "веб"),
+        ("supabase/", "Supabase"),
     )
     lower_names = [n.replace("\\", "/") for n in names]
     for prefix, label in mapping:
         if any(n.startswith(prefix) or f"/{prefix}" in n for n in lower_names):
             if label not in areas:
                 areas.append(label)
-    if not areas:
-        return "проект"
-    return ", ".join(areas[:2])
+    return areas or ["проект"]
+
+
+def _change_hints(patch: str) -> list[str]:
+    """Грубые подсказки из diff для тела сообщения."""
+    hints: list[str] = []
+    lowered = patch.lower()
+    checks = (
+        (r"emailredirectto|письм[оа]|otp|signInWithOtp", "вход / OTP / письмо авторизации"),
+        (r"site_url|redirect", "редиректы / URL авторизации"),
+        (r"recaptcha", "проверка reCAPTCHA"),
+        (r"calendar", "календарь"),
+        (r"drive|folder", "Google Drive / папки"),
+        (r"ruff|lint|e501|up017", "линт / стиль кода"),
+        (r"deploy|workflow|github.actions", "деплой / CI"),
+        (r"compose_commit|auto_commit|commit.?message", "автосообщения коммитов"),
+        (r"smtp|mail\.|email", "почта"),
+        (r"supabase", "Supabase"),
+        (r"hook", "хуки Cursor"),
+    )
+    for pattern, label in checks:
+        if re.search(pattern, lowered) and label not in hints:
+            hints.append(label)
+        if len(hints) >= 4:
+            break
+    return hints
+
+
+def _format_message(subject: str, body_lines: list[str]) -> str:
+    subject = _clean_subject(subject)
+    body: list[str] = []
+    for raw in body_lines:
+        line = raw.strip()
+        if not line:
+            continue
+        line = line.lstrip("-•* ").strip()
+        if not line:
+            continue
+        body.append(f"- {line}")
+        if len(body) >= MAX_BODY_LINES:
+            break
+    if not body:
+        return subject
+    return subject + "\n\n" + "\n".join(body)
+
+
+def _clean_subject(text: str) -> str:
+    text = text.strip().strip('"').strip("'")
+    text = re.sub(r"\s+", " ", text)
+    text = text.replace("AUTO:", "").strip()
+    # убрать markdown-обёртки
+    text = re.sub(r"^#+\s*", "", text)
+    if len(text) > MAX_SUBJECT:
+        text = text[: MAX_SUBJECT - 1].rstrip() + "…"
+    return text
+
+
+def _normalize_llm_message(raw: str) -> str | None:
+    text = raw.strip().strip("`")
+    if not text:
+        return None
+    # убрать возможные префиксы вроде «Сообщение:»
+    text = re.sub(r"^(сообщение коммита|commit message)\s*:\s*", "", text, flags=re.I)
+    lines = [ln.rstrip() for ln in text.splitlines()]
+    # отбросить пустые в начале
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    if not lines:
+        return None
+
+    subject = _clean_subject(lines[0])
+    rest = lines[1:]
+    # пропустить одну пустую после заголовка
+    if rest and not rest[0].strip():
+        rest = rest[1:]
+
+    body_lines: list[str] = []
+    for ln in rest:
+        s = ln.strip()
+        if not s:
+            continue
+        if s.lower() in {"```", "```text", "```markdown"}:
+            continue
+        body_lines.append(s)
+
+    if not body_lines:
+        # модель вернула одну строку — развернём минимально
+        return subject
+    return _format_message(subject, body_lines)
 
 
 def _heuristic(names: list[str], stat: str, patch: str) -> str:
     kind = _guess_kind(names, patch)
-    area = _area(names)
-    labels = {
-        "feat": "добавить",
-        "fix": "исправить",
-        "docs": "обновить документацию",
-        "test": "обновить тесты",
-        "refactor": "рефакторинг",
-        "chore": "служебные правки",
-    }
-    verb = labels.get(kind, "обновить")
-    file_hint = Path(names[0]).name if names else "файлы"
-    extra = ""
+    areas = _areas(names)
+    area = ", ".join(areas[:3])
+    title = _kind_title(kind)
+    hints = _change_hints(patch)
+
     if len(names) == 1:
-        extra = f" ({file_hint})"
-    elif len(names) <= 3:
-        extra = " (" + ", ".join(Path(n).name for n in names) + ")"
+        subject = f"{title}: правки в «{area}» ({Path(names[0]).name})"
     else:
-        extra = f" ({len(names)} файлов)"
-    subject = f"{verb}: {area}{extra}"
-    # чуть контекста из stat первой строки
-    first_stat = next((ln.strip() for ln in stat.splitlines() if "|" in ln), "")
-    if first_stat and len(subject) < 50:
-        subject = f"{verb}: {area} — {file_hint}"
-    return _clean(subject)
+        subject = f"{title}: правки в «{area}» ({len(names)} файлов)"
 
+    body: list[str] = [
+        f"Затронуты области: {area}.",
+    ]
+    if hints:
+        body.append("По содержанию изменений: " + "; ".join(hints) + ".")
+    else:
+        body.append("Обновлены рабочие файлы проекта по текущей задаче агента.")
 
-def _clean(text: str) -> str:
-    text = text.strip().strip('"').strip("'")
-    text = re.sub(r"\s+", " ", text)
-    text = text.replace("AUTO:", "").strip()
-    if len(text) > MAX_SUBJECT:
-        text = text[: MAX_SUBJECT - 1].rstrip() + "…"
-    # первая буква строчная после типа? оставляем как есть
-    return text
+    show = names[:6]
+    listed = ", ".join(Path(n).name for n in show)
+    if len(names) > 6:
+        listed += f" и ещё {len(names) - 6}"
+    body.append(f"Файлы: {listed}.")
+
+    # краткая сводка из --stat
+    summary = next(
+        (ln.strip() for ln in reversed(stat.splitlines()) if "changed" in ln or "файл" in ln),
+        "",
+    )
+    if summary:
+        body.append(f"Сводка diff: {summary}.")
+
+    body.append("Цель: зафиксировать результат шага работы, чтобы CI/деплой подхватил актуальный код.")
+    return _format_message(subject, body)
 
 
 def _llm_message(names: list[str], stat: str, patch: str) -> str | None:
@@ -141,30 +245,42 @@ def _llm_message(names: list[str], stat: str, patch: str) -> str | None:
         return None
 
     kind = _guess_kind(names, patch)
-    area = _area(names)
+    areas = ", ".join(_areas(names))
     clipped = patch[:MAX_DIFF_CHARS]
     system = (
-        "Ты помощник для git commit. Ответь ОДНОЙ строкой на русском — "
-        "готовым сообщением коммита. Без кавычек, без markdown, без пояснений. "
-        "Формат: «глагол: краткое описание». Фокус на зачем/что изменилось. "
-        "Не используй AUTO, timestamp и английские шаблоны agent stop."
+        "Ты пишешь сообщения git commit на русском для команды разработки.\n"
+        "Ответ — ТОЛЬКО текст коммита, без кавычек и без markdown-оград.\n\n"
+        "Структура строго такая:\n"
+        "1) Первая строка — заголовок до 100 символов: понятно «что сделали».\n"
+        "2) Пустая строка.\n"
+        "3) Тело из 3–6 пунктов, каждый с новой строки, начинай с «- ».\n"
+        "В теле объясни: что изменилось, зачем это нужно пользователю/системе, "
+        "на что обратить внимание (риски, деплой, конфиг).\n"
+        "Пиши простым языком, без воды и без шаблонов AUTO/agent stop/timestamp.\n"
+        "Не копируй весь diff — суммируй смысл."
     )
     user = (
-        f"Предполагаемый тип: {kind}\n"
-        f"Область: {area}\n"
-        f"Файлы:\n" + "\n".join(f"- {n}" for n in names[:40]) + "\n\n"
-        f"stat:\n{stat[:1500]}\n\n"
+        f"Тип изменений (подсказка): {kind} ({_kind_title(kind)})\n"
+        f"Области: {areas}\n"
+        f"Файлы ({len(names)}):\n"
+        + "\n".join(f"- {n}" for n in names[:50])
+        + "\n\n"
+        f"stat:\n{stat[:2000]}\n\n"
         f"diff (усечённый):\n{clipped}"
     )
     try:
-        raw = client.chat(system=system, user=user, temperature=0.2)
+        raw = client.chat(system=system, user=user, temperature=0.3)
     except Exception:
         return None
-    if not raw or not raw.strip():
-        return None
-    # взять первую непустую строку
-    line = next((ln.strip() for ln in raw.splitlines() if ln.strip()), "")
-    return _clean(line) if line else None
+    return _normalize_llm_message(raw or "")
+
+
+def _emit(msg: str, out_path: Path | None) -> None:
+    text = msg.rstrip() + "\n"
+    if out_path is not None:
+        out_path.write_text(text, encoding="utf-8", newline="\n")
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
 
 
 def main() -> int:
@@ -182,11 +298,25 @@ def main() -> int:
     try:
         names = _staged_names()
     except subprocess.CalledProcessError as exc:
-        msg = f"chore: синхронизация изменений ({exc.returncode})"
-        _emit(msg, out_path)
+        _emit(
+            _format_message(
+                "Служебное: синхронизация изменений",
+                [
+                    f"Не удалось прочитать staged-diff (код {exc.returncode}).",
+                    "Коммит создан как технический снимок текущего состояния.",
+                ],
+            ),
+            out_path,
+        )
         return 0
     if not names:
-        _emit("chore: нет staged-изменений", out_path)
+        _emit(
+            _format_message(
+                "Служебное: нет staged-изменений",
+                ["Индекс пуст — коммитить нечего."],
+            ),
+            out_path,
+        )
         return 0
 
     stat = ""
@@ -202,15 +332,6 @@ def main() -> int:
         msg = _heuristic(names, stat, patch)
     _emit(msg, out_path)
     return 0
-
-
-def _emit(msg: str, out_path: Path | None) -> None:
-    text = msg.rstrip() + "\n"
-    if out_path is not None:
-        out_path.write_text(text, encoding="utf-8", newline="\n")
-    # для отладки в консоли
-    sys.stdout.buffer.write(text.encode("utf-8"))
-    sys.stdout.buffer.flush()
 
 
 if __name__ == "__main__":
