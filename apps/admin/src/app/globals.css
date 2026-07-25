@@ -1,6 +1,6 @@
 :root {
   --ink: #142033;
-  --muted: #5a6a7f;
+  --muted: #3d4f66;
   --brand: #172e67;
   --brand-deep: #0f1f4a;
   --accent: #2e7d5b;
@@ -11,6 +11,10 @@
   --warn-line: #e6c56c;
   --radius: 10px;
   --font: "Manrope", "Segoe UI", sans-serif;
+  --font-size-base: 1.125rem;
+  --font-size-code: 2rem;
+  --btn-h: 56px;
+  --tap: 48px;
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +34,16 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   margin: 0 auto;
   padding-bottom: 48px;
 }
-.auth-layout { min-height: 100vh; display: grid; place-items: center; }
+.auth-layout {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+.auth-layout .card.auth-card {
+  width: min(520px, 100%);
+}
 
 .card, .panel, .metrics article, .case-list li {
   background: var(--surface);
@@ -213,6 +226,77 @@ header div { display: grid; gap: 3px; }
 .messages .meta { color: var(--muted); font-size: 0.85rem; }
 .messages p { margin: 6px 0 0; }
 .notice { margin-top: 16px; }
+.lead-compact {
+  margin: 0 0 1.25rem;
+  font-size: 1.1rem;
+  line-height: 1.45;
+}
+.auth-form { display: grid; gap: 0.65rem; margin-top: 0.5rem; }
+.max-wizard { margin-top: 0.85rem; }
+.max-wizard--actions { display: grid; gap: 0.85rem; }
+.max-action-btn {
+  width: 100%;
+  font-size: 1.15rem;
+  min-height: 60px;
+}
+.max-login-steps {
+  margin: 0;
+  padding-left: 1.35rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.max-wizard-status {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.max-code-block {
+  margin: 0;
+  text-align: center;
+  font-size: 1.15rem;
+}
+.max-pair-code {
+  display: inline-block;
+  letter-spacing: 0.28em;
+  font-size: var(--font-size-code);
+  font-variant-numeric: tabular-nums;
+  padding: 0.35rem 0.5rem;
+}
+.auth-alt-hint {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+}
+.auth-alt-hint details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+}
+.auth-alt-hint summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+}
+.auth-alt-list {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+.auth-alt-list .linkish {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.auth-staff-hint {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
 
 @media (max-width: 640px) {
   .auth-layout, .app-layout { width: calc(100% - 20px); }

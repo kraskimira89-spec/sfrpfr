@@ -102,6 +102,21 @@ const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://taxi-doroga-dobra.ru";
+const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
+
+/** Экран входа: MAX (основной) | код на почту (запасной). Саморегистрации нет. */
+type AuthScreen = "max" | "email_otp";
+
+function chatUrlOnly(url: string): string {
+  try {
+    const u = new URL(url || DEFAULT_MAX_CHAT);
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return DEFAULT_MAX_CHAT;
+  }
+}
 
 function BrandHomeLink({
   children,
@@ -154,11 +169,11 @@ export function AdminCabinet() {
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [authChannel, setAuthChannel] = useState<"max" | "email">("max");
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("max");
   const [maxTicket, setMaxTicket] = useState("");
   const [maxPairCode, setMaxPairCode] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
-  const [maxBotUrl, setMaxBotUrl] = useState("https://max.ru/id8905998693_1_bot");
+  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -270,7 +285,7 @@ export function AdminCabinet() {
       return;
     }
     if (!email.trim() || !email.includes("@")) {
-      setNotice("Укажите рабочий email.");
+      setNotice("Укажите рабочий email — роль должна быть уже выдана администратором.");
       return;
     }
     setBusy(true);
@@ -299,7 +314,7 @@ export function AdminCabinet() {
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
       setOtpSent(true);
-      setNotice(body.message || "Ожидаем подтверждение в чате MAX…");
+      setNotice("");
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
     } finally {
@@ -307,9 +322,38 @@ export function AdminCabinet() {
     }
   }
 
-  // ПК ждёт: сотрудник в MAX → руководитель в MAX → сессия
+  function openMaxChat() {
+    window.open(chatUrlOnly(maxBotUrl), "_blank", "noopener,noreferrer");
+  }
+
+  async function startMaxLogin() {
+    if (!email.trim() || !email.includes("@")) {
+      setNotice("Сначала укажите рабочий email.");
+      return;
+    }
+    openMaxChat();
+    await requestMaxLogin();
+  }
+
+  function resetMaxWizard() {
+    setOtpSent(false);
+    setMaxTicket("");
+    setMaxPairCode("");
+    setMaxWaitStatus("");
+    setNotice("");
+  }
+
+  function goAuthScreen(next: AuthScreen) {
+    setAuthScreen(next);
+    setOtpSent(false);
+    setOtpCode("");
+    setNotice("");
+    if (next === "max") resetMaxWizard();
+  }
+
+  // ПК ждёт: код в MAX → (при первом входе) руководитель → сессия
   useEffect(() => {
-    if (!supabase || !apiBase || !maxTicket || session || authChannel !== "max" || !otpSent) {
+    if (!supabase || !apiBase || !maxTicket || session || authScreen !== "max" || !otpSent) {
       return;
     }
     let cancelled = false;
@@ -353,7 +397,7 @@ export function AdminCabinet() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [supabase, apiBase, maxTicket, session, authChannel, otpSent]);
+  }, [supabase, apiBase, maxTicket, session, authScreen, otpSent]);
 
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -580,7 +624,7 @@ export function AdminCabinet() {
   if (!session) {
     return (
       <main className="auth-layout">
-        <section className="card">
+        <section className="card auth-card">
           <p className="eyebrow">
             <BrandHomeLink>
               <img
@@ -594,120 +638,135 @@ export function AdminCabinet() {
             </BrandHomeLink>
           </p>
           <h1>Кабинет сотрудника</h1>
-          <p className="lead">
-            Вход через MAX: руководитель одобряет только первый вход с устройства, дальше — сами.
-            Запасной вариант — код на email.
+          <p className="lead lead-compact">
+            Войдите через чат MAX. Роль выдаёт администратор заранее — открытой регистрации нет.
           </p>
-          <div className="tabs" style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-            <button
-              type="button"
-              className={authChannel === "max" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("max");
-                setOtpSent(false);
-                setNotice("");
-                setMaxTicket("");
-                setMaxPairCode("");
-              }}
-            >
-              MAX
-            </button>
-            <button
-              type="button"
-              className={authChannel === "email" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("email");
-                setOtpSent(false);
-                setNotice("");
-                setMaxTicket("");
-              }}
-            >
-              Email
-            </button>
-          </div>
-          {authChannel === "max" ? (
-            !otpSent ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void requestMaxLogin();
-                }}
-              >
-                <label htmlFor="email-max">Рабочий email</label>
-                <input
-                  id="email-max"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" disabled={busy}>
-                  Подтвердить вход через MAX
-                </button>
-                <p className="muted" style={{ marginTop: "0.75rem", fontSize: "0.9rem" }}>
-                  1) Код в чат MAX → 2) «Подтвердить вход в браузере» → 3) руководитель только при
-                  первом входе с этого чата MAX.
-                </p>
-              </form>
-            ) : (
-              <div>
-                {maxPairCode ? (
-                  <p>
-                    Код для чата MAX: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
-                  </p>
-                ) : null}
-                <p>
-                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                    Открыть чат MAX
-                  </a>
-                </p>
-                {maxWaitStatus === "pending_pair" ? (
-                  <p>
-                    В чате MAX нажмите «Начать» и отправьте код <strong>{maxPairCode}</strong> со
-                    страницы входа
-                  </p>
-                ) : null}
-                {maxWaitStatus === "pending_confirm" ? (
-                  <p>В чате MAX нажмите «Подтвердить вход в браузере»</p>
-                ) : null}
-                {maxWaitStatus === "pending_manager" ? (
-                  <p>Ожидаем подтверждение руководителя в чате MAX…</p>
-                ) : null}
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setMaxTicket("");
-                    setMaxPairCode("");
-                    setMaxWaitStatus("");
-                    setNotice("");
-                  }}
-                >
-                  Начать заново
-                </button>
-              </div>
-            )
-          ) : !otpSent ? (
-            <form onSubmit={signIn}>
-              <label htmlFor="email">Рабочий email</label>
+
+          {authScreen === "max" ? (
+            <>
+              <label htmlFor="email-max">Рабочий email</label>
               <input
-                id="email"
+                id="email-max"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
+                disabled={otpSent && Boolean(maxTicket)}
+                placeholder="name@company.ru"
               />
-              <button type="submit">Получить код</button>
-            </form>
-          ) : (
-            <form onSubmit={verifyOtp}>
-              <label htmlFor="otp">Код</label>
-              <input id="otp" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} required />
-              <button type="submit">Войти</button>
-            </form>
-          )}
+              <div className="max-wizard max-wizard--actions">
+                {!otpSent ? (
+                  <>
+                    <button
+                      type="button"
+                      className="max-action-btn"
+                      disabled={busy}
+                      onClick={() => void startMaxLogin()}
+                    >
+                      Войти через MAX
+                    </button>
+                    <ol className="max-login-steps">
+                      <li>Откроется чат</li>
+                      <li>Нажмите «Начать»</li>
+                      <li>Пришлите код с этой страницы</li>
+                    </ol>
+                    <p className="hint">
+                      При первом входе руководитель подтвердит доступ в чате MAX. Дальше — только код.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="max-wizard-status" role="status">
+                      {maxWaitStatus === "pending_manager"
+                        ? "Код принят. Ждём руководителя в чате MAX…"
+                        : maxWaitStatus === "pending_confirm"
+                          ? "Код принят. Открываем кабинет…"
+                          : "Пришлите этот код в чат MAX"}
+                    </p>
+                    {maxPairCode ? (
+                      <p className="max-code-block">
+                        Код: <strong className="max-pair-code">{maxPairCode}</strong>
+                      </p>
+                    ) : null}
+                    <ol className="max-login-steps">
+                      <li>Откройте чат MAX</li>
+                      <li>Нажмите «Начать», если ещё не нажимали</li>
+                      <li>Отправьте код сообщением</li>
+                    </ol>
+                    {maxWaitStatus === "pending_manager" ? (
+                      <p className="hint">
+                        Руководитель нажмёт «Разрешить вход» — кабинет откроется сам.
+                      </p>
+                    ) : (
+                      <p className="hint">После кода вход откроется на этой странице сам.</p>
+                    )}
+                    <button type="button" className="ghost" onClick={resetMaxWizard}>
+                      Начать заново
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="auth-alt-hint">
+                <details>
+                  <summary>Другие способы</summary>
+                  <div className="auth-alt-list">
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => goAuthScreen("email_otp")}
+                    >
+                      Код на рабочую почту
+                    </button>
+                  </div>
+                </details>
+              </div>
+            </>
+          ) : null}
+
+          {authScreen === "email_otp" ? (
+            <>
+              {!otpSent ? (
+                <form className="auth-form" onSubmit={signIn}>
+                  <label htmlFor="email">Рабочий email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <button type="submit" disabled={busy}>
+                    Получить код
+                  </button>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={verifyOtp}>
+                  <label htmlFor="otp">Код с почты</label>
+                  <input
+                    id="otp"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                  <button type="submit">Войти</button>
+                </form>
+              )}
+              <p className="hint">
+                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
+                  ← Войти через MAX
+                </button>
+              </p>
+            </>
+          ) : null}
+
           {notice && <p className="notice">{notice}</p>}
+          <p className="hint auth-staff-hint">
+            Нет доступа? Попросите администратора добавить вас в разделе «Роли».
+          </p>
         </section>
       </main>
     );
@@ -716,10 +775,13 @@ export function AdminCabinet() {
   if (me && !me.is_staff) {
     return (
       <main className="auth-layout">
-        <section className="card">
+        <section className="card auth-card">
           <h1>Нет доступа</h1>
-          <p>Учётка без staff-роли. Обратитесь к администратору.</p>
-          <button type="button" onClick={() => void supabase?.auth.signOut()}>
+          <p className="lead lead-compact">
+            Вход выполнен, но staff-роли нет. Попросите администратора добавить вас в разделе
+            «Роли» — открытой регистрации нет.
+          </p>
+          <button type="button" className="max-action-btn" onClick={() => void supabase?.auth.signOut()}>
             Выйти
           </button>
         </section>
