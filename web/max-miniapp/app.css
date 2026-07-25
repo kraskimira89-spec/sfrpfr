@@ -81,6 +81,19 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.brand-home {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+
+.brand-home:hover,
+.brand-home:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+
 .tag {
   margin: 1px 0 0;
   color: var(--muted);

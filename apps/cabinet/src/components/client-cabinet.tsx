@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type Session } from "@supabase/supabase-js";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type CaseSummary = {
   id: string;
@@ -134,6 +134,25 @@ const CABINET_PUBLIC_URL =
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
 const MAX_BOT_HANDLE = "@id8905998693_1_bot";
+
+function BrandHomeLink({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <a
+      className={className ? `brand-home-link ${className}` : "brand-home-link"}
+      href={SITE_URL}
+      title="На главную"
+      aria-label="На главную"
+    >
+      {children}
+    </a>
+  );
+}
 
 /** Единые термины: чат MAX / браузер / страница входа / почта (как в боте). */
 const AUTH_COPY = {
@@ -1368,8 +1387,16 @@ export function ClientCabinet() {
       <main className="auth-layout">
         <section className="card auth-card">
           <p className="eyebrow">
-            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
-            Проверка стажа
+            <BrandHomeLink>
+              <img
+                className="brand-logo"
+                src="/logo-light.png"
+                width={40}
+                height={40}
+                alt="Проверка стажа"
+              />
+              Проверка стажа
+            </BrandHomeLink>
           </p>
           <h1>{recoveryMode ? "Новый пароль" : "Пароль личного кабинета"}</h1>
           <p className="lead lead-compact">
@@ -1427,8 +1454,16 @@ export function ClientCabinet() {
       <main className="auth-layout">
         <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
           <p className="eyebrow">
-            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
-            Проверка стажа
+            <BrandHomeLink>
+              <img
+                className="brand-logo"
+                src="/logo-light.png"
+                width={40}
+                height={40}
+                alt="Проверка стажа"
+              />
+              Проверка стажа
+            </BrandHomeLink>
           </p>
           <h1>Личный кабинет</h1>
 
@@ -1773,11 +1808,19 @@ export function ClientCabinet() {
     <main className="app-layout">
       <header>
         <div className="brand-block">
-          <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
-          <div>
-            <strong>Проверка стажа</strong>
-            <span>Личный кабинет</span>
-          </div>
+          <BrandHomeLink className="brand-home-link--header">
+            <img
+              className="brand-logo"
+              src="/logo-light.png"
+              width={40}
+              height={40}
+              alt="Проверка стажа"
+            />
+            <div>
+              <strong>Проверка стажа</strong>
+              <span>Личный кабинет</span>
+            </div>
+          </BrandHomeLink>
         </div>
         <div className="header-actions">
           <a

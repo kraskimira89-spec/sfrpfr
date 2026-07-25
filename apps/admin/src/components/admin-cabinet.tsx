@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type Session } from "@supabase/supabase-js";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
 
@@ -95,6 +95,26 @@ type View = "dashboard" | "cases" | "case" | "finance" | "analytics" | "roles";
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+const SITE_URL = "https://taxi-doroga-dobra.ru";
+
+function BrandHomeLink({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <a
+      className={className ? `brand-home-link ${className}` : "brand-home-link"}
+      href={SITE_URL}
+      title="На главную"
+      aria-label="На главную"
+    >
+      {children}
+    </a>
+  );
+}
 
 const CHANNEL_LABELS: Record<string, string> = {
   max_miniapp: "MAX",
@@ -524,8 +544,16 @@ export function AdminCabinet() {
       <main className="auth-layout">
         <section className="card">
           <p className="eyebrow">
-            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
-            Проверка стажа · сотрудники
+            <BrandHomeLink>
+              <img
+                className="brand-logo"
+                src="/logo-light.png"
+                width={40}
+                height={40}
+                alt="Проверка стажа"
+              />
+              Проверка стажа · сотрудники
+            </BrandHomeLink>
           </p>
           <h1>Кабинет сотрудника</h1>
           <p className="lead">
@@ -667,13 +695,21 @@ export function AdminCabinet() {
     <main className="app-layout">
       <header>
         <div className="brand-block">
-          <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
-          <div>
-            <strong>Проверка стажа</strong>
-            <span>
-              Кабинет сотрудника · {me?.role ?? "…"} · {me?.email ?? ""}
-            </span>
-          </div>
+          <BrandHomeLink className="brand-home-link--header">
+            <img
+              className="brand-logo"
+              src="/logo-light.png"
+              width={40}
+              height={40}
+              alt="Проверка стажа"
+            />
+            <div>
+              <strong>Проверка стажа</strong>
+              <span>
+                Кабинет сотрудника · {me?.role ?? "…"} · {me?.email ?? ""}
+              </span>
+            </div>
+          </BrandHomeLink>
         </div>
         <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
           Выйти

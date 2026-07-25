@@ -63,6 +63,36 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   align-items: center;
   gap: 0.55rem;
 }
+.brand-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: inherit;
+  text-decoration: none;
+}
+.brand-home-link:hover,
+.brand-home-link:focus-visible {
+  color: var(--brand-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+.brand-home-link--header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+.brand-home-link--header:hover,
+.brand-home-link--header:focus-visible {
+  text-decoration: none;
+}
+.brand-home-link--header:hover strong,
+.brand-home-link--header:focus-visible strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .brand-logo {
   width: 40px;
   height: 40px;
