@@ -435,7 +435,10 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
                 status_code=502,
-                detail="Не удалось отправить сообщение в чат MAX. Откройте чат MAX и нажмите «Начать».",
+                detail=(
+                    "Не удалось отправить сообщение в чат MAX. "
+                    "Откройте чат MAX и нажмите «Начать»."
+                ),
             ) from exc
         ClientChannelRepository().audit(
             str(row.get("user_id") or row.get("id")),
