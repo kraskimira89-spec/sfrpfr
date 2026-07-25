@@ -281,11 +281,15 @@ export function ClientCabinet() {
   const [result, setResult] = useState<ResultPayload | null>(null);
   const [view, setView] = useState<View>("cases");
   const [busy, setBusy] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [me, setMe] = useState<PortalMe | null>(null);
   const ensureCaseRef = useRef(false);
 
   const token = session?.access_token;
+  const needsPasswordGate = Boolean(
+    session && (recoveryMode || !hasPasswordSet(session)),
+  );
 
   // Query: ?mode=register|recover|login; ?channel=max; ?get_code=1
   useEffect(() => {
@@ -471,10 +475,11 @@ export function ClientCabinet() {
   }, [token]);
 
   useEffect(() => {
-    // Первичная загрузка списка дел при появлении токена.
+    // Первичная загрузка списка дел при появлении токена (после пароля).
+    if (needsPasswordGate) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on auth ready
     void loadCases();
-  }, [loadCases]);
+  }, [loadCases, needsPasswordGate]);
 
   useEffect(() => {
     if (!token) {
@@ -486,10 +491,18 @@ export function ClientCabinet() {
   }, [token]);
 
   useEffect(() => {
-    // Первичная загрузка профиля / link_max.
+    // Первичная загрузка профиля / link_max (после пароля).
+    if (needsPasswordGate) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on auth ready
     void loadMe();
-  }, [loadMe]);
+  }, [loadMe, needsPasswordGate]);
+
+  // На экране пароля не блокируем кнопку глобальным busy от MAX/дел
+  useEffect(() => {
+    if (!needsPasswordGate) return;
+    const t = window.setTimeout(() => setBusy(false), 0);
+    return () => window.clearTimeout(t);
+  }, [needsPasswordGate]);
 
   const openCase = useCallback(
     async (caseId: string, nextView: View = "case") => {
@@ -517,8 +530,9 @@ export function ClientCabinet() {
     [token, loadCases],
   );
 
-  // P0: после первого входа сразу создать и открыть дело, если списка нет
+  // P0: после пароля сразу создать и открыть дело, если списка нет
   useEffect(() => {
+    if (needsPasswordGate) return;
     if (!token || !apiBase || !casesReady || ensureCaseRef.current) return;
     if (cases.length > 0) {
       ensureCaseRef.current = true;
@@ -556,7 +570,7 @@ export function ClientCabinet() {
     }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, casesReady, cases, openCase, loadCases]);
+  }, [token, casesReady, cases, openCase, loadCases, needsPasswordGate]);
 
   async function loadPayments(caseId: string) {
     if (!token || !caseId) return;
@@ -891,7 +905,7 @@ export function ClientCabinet() {
       setNotice("Пароли не совпадают.");
       return;
     }
-    setBusy(true);
+    setSavingPassword(true);
     setNotice("");
     try {
       const { data, error } = await supabase.auth.updateUser({
@@ -916,7 +930,7 @@ export function ClientCabinet() {
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось сохранить пароль.");
     } finally {
-      setBusy(false);
+      setSavingPassword(false);
     }
   }
 
@@ -1285,7 +1299,7 @@ export function ClientCabinet() {
   }
 
   // После входа/регистрации без пароля — назначить пароль кабинета
-  if (session && (recoveryMode || !hasPasswordSet(session))) {
+  if (needsPasswordGate) {
     return (
       <main className="auth-layout">
         <section className="card auth-card">
@@ -1328,8 +1342,8 @@ export function ClientCabinet() {
               minLength={MIN_PASSWORD_LEN}
               autoComplete="new-password"
             />
-            <button type="submit" disabled={busy}>
-              Сохранить пароль
+            <button type="submit" disabled={savingPassword}>
+              {savingPassword ? "Сохраняем…" : "Сохранить пароль"}
             </button>
           </form>
           {notice && <p className="notice">{notice}</p>}
