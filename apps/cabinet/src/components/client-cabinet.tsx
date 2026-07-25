@@ -111,9 +111,18 @@ type PortalMe = {
 type View = "cases" | "case" | "docs" | "payments" | "result";
 /** phone — только в архиве, пока AUTH_SMS_PUBLISHED = false */
 type AuthChannel = "email" | "phone" | "max";
+type AuthScreen = "login" | "register" | "recover" | "max" | "email_otp";
+type RegisterChannel = "email" | "max";
 
 /** SMS-вход не публикуем (см. apps/cabinet/src/archive/auth-sms.md). */
 const AUTH_SMS_PUBLISHED = false;
+const MIN_PASSWORD_LEN = 8;
+
+function hasPasswordSet(session: Session | null): boolean {
+  if (!session?.user) return false;
+  const meta = session.user.user_metadata as Record<string, unknown> | undefined;
+  return meta?.password_set === true;
+}
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -199,9 +208,13 @@ export function ClientCabinet() {
     [],
   );
   const [session, setSession] = useState<Session | null>(null);
-  const [authChannel, setAuthChannel] = useState<AuthChannel>("max");
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("login");
+  const [registerChannel, setRegisterChannel] = useState<RegisterChannel>("email");
+  const [authChannel, setAuthChannel] = useState<AuthChannel>("email");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [maxTicket, setMaxTicket] = useState("");
@@ -212,7 +225,7 @@ export function ClientCabinet() {
   const [maxWizardStep, setMaxWizardStep] = useState<1 | 2 | 3>(1);
   const [maxStep1Done, setMaxStep1Done] = useState(false);
   const [maxStep2Done, setMaxStep2Done] = useState(false);
-  const [showAltAuth, setShowAltAuth] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -229,23 +242,37 @@ export function ClientCabinet() {
 
   const token = session?.access_token;
 
-  // С лендинга: /?channel=max&from=landing → сразу мастер MAX
+  // Query: ?mode=register|recover|login; ?channel=max — явный MAX; ?from=* без автозапуска мастера
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const mode = (params.get("mode") || "").toLowerCase();
     const channel = (params.get("channel") || "").toLowerCase();
-    if (channel !== "max" && params.get("from") !== "landing") return;
     const t = window.setTimeout(() => {
-      setAuthChannel("max");
-      setShowAltAuth(false);
+      if (mode === "register") setAuthScreen("register");
+      else if (mode === "recover") setAuthScreen("recover");
+      else if (mode === "login") setAuthScreen("login");
+      if (channel === "max") {
+        setAuthScreen("max");
+        setAuthChannel("max");
+        setRegisterChannel("max");
+      }
     }, 0);
     return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
     if (!supabase) return;
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        setAuthScreen("recover");
+      } else if (!nextSession) {
+        setRecoveryMode(false);
+      }
     });
     return () => data.subscription.unsubscribe();
   }, [supabase]);
@@ -499,6 +526,57 @@ export function ClientCabinet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cases]);
 
+  function goAuthScreen(next: AuthScreen) {
+    setAuthScreen(next);
+    setNotice("");
+    setOtpSent(false);
+    setOtpCode("");
+    setPassword("");
+    setPasswordConfirm("");
+    if (next === "max") {
+      setAuthChannel("max");
+      setMaxWizardStep(1);
+      setMaxStep1Done(false);
+      setMaxStep2Done(false);
+      setMaxTicket("");
+      setMaxPairCode("");
+      setMaxWaitStatus("");
+    } else if (next === "email_otp" || next === "register") {
+      setAuthChannel("email");
+    }
+  }
+
+  async function signInWithPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) {
+      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      return;
+    }
+    if (!email.trim() || !password) {
+      setNotice("Укажите email и пароль.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      setNotice("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (/invalid login|invalid credentials/i.test(msg)) {
+        setNotice("Неверный email или пароль.");
+      } else {
+        setNotice(msg || "Не удалось войти. Проверьте данные или войдите по коду / через MAX.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestOtp(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (authChannel === "max") {
@@ -513,19 +591,22 @@ export function ClientCabinet() {
       setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
       return;
     }
+    if (!email.trim()) {
+      setNotice("Укажите email.");
+      return;
+    }
     setBusy(true);
     try {
       if (authChannel === "email") {
         const { error } = await supabase.auth.signInWithOtp({
-          email,
+          email: email.trim(),
           options: {
-            shouldCreateUser: true,
+            shouldCreateUser: authScreen === "register",
             emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
           },
         });
         if (error) throw error;
       } else if (AUTH_SMS_PUBLISHED) {
-        // Архив SMS: apps/cabinet/src/archive/auth-sms.md
         const normalized = phone.replace(/[^\d+]/g, "");
         const { error } = await supabase.auth.signInWithOtp({
           phone: normalized,
@@ -536,7 +617,7 @@ export function ClientCabinet() {
         throw new Error("sms_archived");
       }
       setOtpSent(true);
-      setNotice("");
+      setNotice("Код отправлен на email. Введите его ниже.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       const code =
@@ -552,13 +633,137 @@ export function ClientCabinet() {
         code === "phone_provider_disabled"
       ) {
         setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
+      } else if (/signups not allowed|user not found|unable to find/i.test(msg)) {
+        setNotice("Аккаунт не найден. Зарегистрируйтесь или войдите через MAX.");
       } else {
         setNotice(
           authChannel === "email"
-            ? "Не удалось отправить письмо. Проверьте адрес и попробуйте снова."
+            ? "Не удалось отправить код. Проверьте адрес и попробуйте снова."
             : "Не удалось отправить код. Войдите через MAX или email.",
         );
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestPasswordReset(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (!supabase) {
+      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      return;
+    }
+    if (!email.trim()) {
+      setNotice("Укажите email.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${CABINET_PUBLIC_URL}/?mode=recover`,
+      });
+      if (error) throw error;
+      setOtpSent(true);
+      setNotice(
+        "Если аккаунт с таким email есть, мы отправили письмо со ссылкой и кодом для смены пароля.",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (/rate limit|over_email/i.test(msg)) {
+        setNotice("Слишком много запросов. Подождите несколько минут.");
+      } else {
+        setNotice("Не удалось отправить письмо. Проверьте адрес и попробуйте снова.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (!otpCode.trim()) {
+      setNotice("Введите код из письма.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const otpType =
+        authScreen === "recover" || recoveryMode
+          ? ("recovery" as const)
+          : authScreen === "register"
+            ? ("signup" as const)
+            : ("email" as const);
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: otpType,
+      });
+      if (error) {
+        // fallback: часть проектов шлёт email OTP как type email и при регистрации
+        if (otpType !== "email") {
+          const second = await supabase.auth.verifyOtp({
+            email: email.trim(),
+            token: otpCode.trim(),
+            type: "email",
+          });
+          if (second.error) throw error;
+        } else {
+          throw error;
+        }
+      }
+      setOtpSent(false);
+      setOtpCode("");
+      if (authScreen === "recover") setRecoveryMode(true);
+      setNotice(
+        authScreen === "recover" || recoveryMode
+          ? "Код принят. Задайте новый пароль."
+          : "Код принят. Задайте пароль для личного кабинета.",
+      );
+    } catch {
+      setNotice("Неверный или просроченный код.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCabinetPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (password.length < MIN_PASSWORD_LEN) {
+      setNotice(`Пароль не короче ${MIN_PASSWORD_LEN} символов.`);
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setNotice("Пароли не совпадают.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password,
+        data: { password_set: true },
+      });
+      if (error) throw error;
+      setPassword("");
+      setPasswordConfirm("");
+      setRecoveryMode(false);
+      if (data.user) {
+        setSession((prev) =>
+          prev
+            ? {
+                ...prev,
+                user: data.user,
+              }
+            : prev,
+        );
+      }
+      setNotice("Пароль сохранён. Добро пожаловать в личный кабинет.");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось сохранить пароль.");
     } finally {
       setBusy(false);
     }
@@ -634,7 +839,14 @@ export function ClientCabinet() {
 
   // ПК ждёт подтверждение кнопки в MAX на телефоне
   useEffect(() => {
-    if (!supabase || !apiBase || !maxTicket || session || authChannel !== "max" || !otpSent) {
+    if (
+      !supabase ||
+      !apiBase ||
+      !maxTicket ||
+      session ||
+      authChannel !== "max" ||
+      !otpSent
+    ) {
       return;
     }
     let cancelled = false;
@@ -679,45 +891,6 @@ export function ClientCabinet() {
       window.clearInterval(timer);
     };
   }, [supabase, apiBase, maxTicket, session, authChannel, otpSent]);
-
-  async function verifyOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (authChannel === "max") {
-      await verifyMaxOtp();
-      return;
-    }
-    if (authChannel === "phone" && !AUTH_SMS_PUBLISHED) {
-      setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
-      return;
-    }
-    if (!supabase) return;
-    setBusy(true);
-    try {
-      if (authChannel === "email") {
-        const { error } = await supabase.auth.verifyOtp({
-          email,
-          token: otpCode,
-          type: "email",
-        });
-        if (error) throw error;
-      } else if (AUTH_SMS_PUBLISHED) {
-        // Архив SMS: apps/cabinet/src/archive/auth-sms.md
-        const { error } = await supabase.auth.verifyOtp({
-          phone: phone.replace(/[^\d+]/g, ""),
-          token: otpCode,
-          type: "sms",
-        });
-        if (error) throw error;
-      } else {
-        throw new Error("sms_archived");
-      }
-      setNotice("");
-    } catch {
-      setNotice("Неверный или просроченный код.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function verifyMaxOtp() {
     if (!supabase || !apiBase) return;
@@ -906,7 +1079,7 @@ export function ClientCabinet() {
     }
   }
 
-  if (!session) {
+  function renderMaxWizard(title: string) {
     const stepState = (n: 1 | 2 | 3): "done" | "current" | "todo" => {
       if (n === 1) return maxStep1Done ? "done" : maxWizardStep === 1 ? "current" : "todo";
       if (n === 2)
@@ -914,225 +1087,326 @@ export function ClientCabinet() {
       if (otpSent && maxWaitStatus === "approved") return "done";
       return maxWizardStep === 3 || otpSent ? "current" : "todo";
     };
+    return (
+      <>
+        <p className="lead lead-compact">{title}</p>
+        <div className="max-wizard">
+          <ol className="max-wizard-steps" aria-label="Шаги входа через MAX">
+            {(
+              [
+                { n: 1 as const, title: "Откройте чат с ботом" },
+                { n: 2 as const, title: "В чате нажмите «Начать»" },
+                { n: 3 as const, title: "Подтвердите вход в кабинет" },
+              ] as const
+            ).map((s) => {
+              const st = stepState(s.n);
+              return (
+                <li key={s.n} className={`max-wizard-step max-wizard-step--${st}`}>
+                  <span className="max-wizard-marker" aria-hidden="true">
+                    {st === "done" ? "✓" : st === "current" ? "●" : "○"}
+                  </span>
+                  <span className="max-wizard-step-num">{s.n}.</span>
+                  <span className="max-wizard-step-title">{s.title}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="max-wizard-panel">
+            {maxWizardStep === 1 ? (
+              <>
+                <h2>Шаг 1. Откройте чат с ботом</h2>
+                <p className="muted">
+                  Чат откроется в новой вкладке на телефоне или в приложении MAX.
+                </p>
+                <button type="button" onClick={openMaxChat}>
+                  Открыть чат MAX
+                </button>
+              </>
+            ) : null}
+            {maxWizardStep === 2 ? (
+              <>
+                <h2>Шаг 2. Начните диалог в MAX</h2>
+                <p>
+                  В чате нажмите кнопку <strong>«Начать»</strong> от бота (или «Старт»
+                  внизу).
+                </p>
+                <button type="button" onClick={markMaxStarted}>
+                  Я нажал «Начать»
+                </button>
+                <button type="button" className="ghost" onClick={openMaxChat}>
+                  Открыть чат MAX ещё раз
+                </button>
+              </>
+            ) : null}
+            {maxWizardStep === 3 ? (
+              <>
+                <h2>Шаг 3. Подтвердите вход</h2>
+                {!otpSent ? (
+                  <>
+                    <p className="muted">
+                      Нажмите кнопку ниже — появится код. Отправьте его в MAX, затем
+                      нажмите «Подтвердить вход» в чате.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void requestMaxOtp(false)}
+                    >
+                      Получить подтверждение в MAX
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="max-wizard-status" role="status">
+                      {maxWaitStatus === "pending_confirm"
+                        ? "Ожидаем кнопку «Подтвердить вход» в MAX…"
+                        : maxWaitStatus === "pending_pair"
+                          ? "Отправьте код в чат MAX…"
+                          : "Ожидаем…"}
+                    </p>
+                    {maxWaitStatus === "pending_pair" && maxPairCode ? (
+                      <p>
+                        Отправьте боту код{" "}
+                        <strong className="max-pair-code">{maxPairCode}</strong>
+                      </p>
+                    ) : (
+                      <p className="muted">
+                        В MAX нажмите «Подтвердить вход» — кабинет откроется здесь.
+                      </p>
+                    )}
+                    <button type="button" className="ghost" onClick={resetMaxWizard}>
+                      Начать заново
+                    </button>
+                  </>
+                )}
+                <details className="max-wizard-extra">
+                  <summary>У меня уже есть номер в деле</summary>
+                  <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
+                    <label htmlFor="phone-max">Телефон из дела</label>
+                    <input
+                      id="phone-max"
+                      type="tel"
+                      placeholder="+79001234567"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      required
+                      autoComplete="tel"
+                    />
+                    <button type="submit" disabled={busy}>
+                      Запросить подтверждение на этот номер
+                    </button>
+                  </form>
+                </details>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </>
+    );
+  }
 
+  // После входа/регистрации без пароля — назначить пароль кабинета
+  if (session && (recoveryMode || !hasPasswordSet(session))) {
     return (
       <main className="auth-layout">
-        <section className={`card ${authChannel === "max" && !showAltAuth ? "auth-wizard" : ""}`}>
+        <section className="card auth-card">
           <p className="eyebrow">
             <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
             Проверка стажа
           </p>
-          <h1>Кабинет клиента</h1>
+          <h1>{recoveryMode ? "Новый пароль" : "Пароль личного кабинета"}</h1>
+          <p className="lead lead-compact">
+            {recoveryMode
+              ? "Задайте новый пароль для входа по email."
+              : "При первой регистрации назначьте пароль — им можно входить с компьютера без MAX."}
+          </p>
+          <form className="auth-form" onSubmit={saveCabinetPassword}>
+            <label htmlFor="new-password">Пароль</label>
+            <input
+              id="new-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={MIN_PASSWORD_LEN}
+              autoComplete="new-password"
+            />
+            <label htmlFor="new-password-confirm">Повторите пароль</label>
+            <input
+              id="new-password-confirm"
+              type="password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              required
+              minLength={MIN_PASSWORD_LEN}
+              autoComplete="new-password"
+            />
+            <button type="submit" disabled={busy}>
+              Сохранить пароль
+            </button>
+          </form>
+          {notice && <p className="notice">{notice}</p>}
+          <p className="hint">
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => void supabase?.auth.signOut()}
+            >
+              Выйти
+            </button>
+          </p>
+        </section>
+      </main>
+    );
+  }
 
-          {authChannel === "max" && !showAltAuth ? (
+  if (!session) {
+    const showMax =
+      authScreen === "max" ||
+      (authScreen === "register" && registerChannel === "max");
+
+    return (
+      <main className="auth-layout">
+        <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
+          <p className="eyebrow">
+            <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
+            Проверка стажа
+          </p>
+          <h1>Личный кабинет</h1>
+
+          {!showMax && authScreen !== "recover" && authScreen !== "email_otp" ? (
+            <div className="auth-mode-tabs" role="tablist" aria-label="Режим">
+              <button
+                type="button"
+                className={authScreen === "login" ? "tab active" : "tab"}
+                onClick={() => goAuthScreen("login")}
+              >
+                Вход
+              </button>
+              <button
+                type="button"
+                className={authScreen === "register" ? "tab active" : "tab"}
+                onClick={() => goAuthScreen("register")}
+              >
+                Регистрация
+              </button>
+            </div>
+          ) : null}
+
+          {authScreen === "login" ? (
             <>
               <p className="lead lead-compact">
-                Вход через MAX — по шагам. На компьютере смотрите этот экран, действия в чате
-                делайте на телефоне.
+                Войдите по email и паролю или выберите другой способ.
               </p>
-
-              <div className="max-wizard">
-                <ol className="max-wizard-steps" aria-label="Шаги входа">
-                  {(
-                    [
-                      { n: 1 as const, title: "Откройте чат с ботом" },
-                      { n: 2 as const, title: "В чате нажмите «Начать»" },
-                      { n: 3 as const, title: "Подтвердите вход в кабинет" },
-                    ] as const
-                  ).map((s) => {
-                    const st = stepState(s.n);
-                    return (
-                      <li key={s.n} className={`max-wizard-step max-wizard-step--${st}`}>
-                        <span className="max-wizard-marker" aria-hidden="true">
-                          {st === "done" ? "✓" : st === "current" ? "●" : "○"}
-                        </span>
-                        <span className="max-wizard-step-num">{s.n}.</span>
-                        <span className="max-wizard-step-title">{s.title}</span>
-                      </li>
-                    );
-                  })}
-                </ol>
-
-                <div className="max-wizard-panel">
-                  {maxWizardStep === 1 ? (
-                    <>
-                      <h2>Шаг 1. Откройте чат с ботом</h2>
-                      <p className="muted">
-                        Чат откроется в новой вкладке на телефоне или в приложении MAX.
-                      </p>
-                      <button type="button" onClick={openMaxChat}>
-                        Открыть чат MAX
-                      </button>
-                      <p className="hint">
-                        <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                          Открыть чат MAX ещё раз
-                        </a>
-                      </p>
-                    </>
-                  ) : null}
-
-                  {maxWizardStep === 2 ? (
-                    <>
-                      <h2>Шаг 2. Начните диалог в MAX</h2>
-                      <p>
-                        В чате нажмите кнопку <strong>«Начать»</strong> от бота (или «Старт»
-                        внизу). Печатать команды не нужно.
-                      </p>
-                      <button type="button" onClick={markMaxStarted}>
-                        Я нажал «Начать»
-                      </button>
-                      <button type="button" className="ghost" onClick={openMaxChat}>
-                        Открыть чат MAX ещё раз
-                      </button>
-                    </>
-                  ) : null}
-
-                  {maxWizardStep === 3 ? (
-                    <>
-                      <h2>Шаг 3. Подтвердите вход</h2>
-                      {!otpSent ? (
-                        <>
-                          <p className="muted">
-                            Нажмите кнопку ниже — на экране появится код. Отправьте его в MAX,
-                            затем нажмите «Подтвердить вход» в чате.
-                          </p>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void requestMaxOtp(false)}
-                          >
-                            Получить подтверждение в MAX
-                          </button>
-                          <button type="button" className="ghost" onClick={openMaxChat}>
-                            Открыть чат MAX ещё раз
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <p className="max-wizard-status" role="status">
-                            {maxWaitStatus === "pending_confirm"
-                              ? "Ожидаем кнопку «Подтвердить вход» в MAX…"
-                              : maxWaitStatus === "pending_pair"
-                                ? "Отправьте код в чат MAX…"
-                                : "Ожидаем…"}
-                          </p>
-                          {maxWaitStatus === "pending_pair" && maxPairCode ? (
-                            <p>
-                              Отправьте боту код{" "}
-                              <strong className="max-pair-code">{maxPairCode}</strong> одним
-                              сообщением.
-                            </p>
-                          ) : (
-                            <p className="muted">
-                              В MAX нажмите кнопку «Подтвердить вход» — кабинет откроется здесь.
-                            </p>
-                          )}
-                          <button type="button" className="ghost" onClick={openMaxChat}>
-                            Открыть чат MAX ещё раз
-                          </button>
-                          <button type="button" className="ghost" onClick={resetMaxWizard}>
-                            Начать заново
-                          </button>
-                        </>
-                      )}
-                      <details className="max-wizard-extra">
-                        <summary>У меня уже есть номер в деле</summary>
-                        <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
-                          <label htmlFor="phone-max">Телефон из дела</label>
-                          <input
-                            id="phone-max"
-                            type="tel"
-                            placeholder="+79001234567"
-                            value={phone}
-                            onChange={(event) => setPhone(event.target.value)}
-                            required
-                            autoComplete="tel"
-                          />
-                          <button type="submit" disabled={busy}>
-                            Запросить подтверждение на этот номер
-                          </button>
-                        </form>
-                      </details>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-
-              <p className="hint auth-alt-hint">
-                Также можно войти по email, если MAX недоступен.{" "}
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => {
-                    setShowAltAuth(true);
-                    setAuthChannel("email");
-                    setOtpSent(false);
-                    setNotice("");
-                  }}
-                >
-                  Войти по email
+              <form className="auth-form" onSubmit={signInWithPassword}>
+                <label htmlFor="login-email">Email</label>
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+                <label htmlFor="login-password">Пароль</label>
+                <input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button type="submit" disabled={busy}>
+                  Войти
+                </button>
+              </form>
+              <p className="auth-links">
+                <button type="button" className="linkish" onClick={() => goAuthScreen("recover")}>
+                  Забыли пароль?
                 </button>
               </p>
-            </>
-          ) : (
-            <>
-              <p className="lead lead-compact">Вход по email. Также доступен вход через MAX.</p>
-              <div className="tabs" role="tablist">
+              <div className="auth-alt-row">
+                <button type="button" className="ghost" onClick={() => goAuthScreen("max")}>
+                  Войти через MAX
+                </button>
                 <button
                   type="button"
-                  className={authChannel === "max" ? "tab active" : "tab"}
+                  className="ghost"
+                  onClick={() => goAuthScreen("email_otp")}
+                >
+                  Войти по коду на email
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {authScreen === "register" && registerChannel === "email" ? (
+            <>
+              <p className="lead lead-compact">
+                Регистрация: код придёт на email, затем вы сами назначите пароль.
+              </p>
+              <div className="tabs" role="tablist" aria-label="Канал регистрации">
+                <button
+                  type="button"
+                  className="tab active"
+                  onClick={() => setRegisterChannel("email")}
+                >
+                  Email
+                </button>
+                <button
+                  type="button"
+                  className="tab"
                   onClick={() => {
+                    setRegisterChannel("max");
                     setAuthChannel("max");
-                    setShowAltAuth(false);
-                    setOtpSent(false);
-                    setNotice("");
+                    setMaxWizardStep(1);
+                    setMaxStep1Done(false);
+                    setMaxStep2Done(false);
                   }}
                 >
                   MAX
                 </button>
-                <button
-                  type="button"
-                  className={authChannel === "email" ? "tab active" : "tab"}
-                  onClick={() => {
-                    setAuthChannel("email");
-                    setShowAltAuth(true);
-                    setOtpSent(false);
-                    setMaxTicket("");
-                    setNotice("");
-                  }}
-                >
-                  Email
-                </button>
               </div>
               {!otpSent ? (
-                <form onSubmit={requestOtp}>
-                  <label htmlFor="email">Email</label>
+                <form className="auth-form" onSubmit={requestOtp}>
+                  <label htmlFor="reg-email">Email</label>
                   <input
-                    id="email"
+                    id="reg-email"
                     type="email"
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
                   />
                   <button type="submit" disabled={busy}>
-                    Получить письмо
+                    Получить код на email
                   </button>
                 </form>
               ) : (
-                <div className="auth-mail-sent">
-                  <h2>Письмо отправлено</h2>
-                  <p>
-                    На адрес <strong>{email}</strong> направлено письмо авторизации.
+                <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <p className="muted">
+                    Код отправлен на <strong>{email}</strong>. Введите его ниже.
                   </p>
-                  <ol>
-                    <li>Откройте почтовый ящик</li>
-                    <li>Найдите письмо о входе в кабинет</li>
-                    <li>Нажмите на ссылку в письме</li>
-                  </ol>
-                  <p className="muted">Если письма нет — проверьте «Спам» и «Промоакции».</p>
-                  <button type="button" disabled={busy} onClick={() => void requestOtp()}>
-                    Отправить ещё раз
+                  <label htmlFor="reg-otp">Код из письма</label>
+                  <input
+                    id="reg-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Подтвердить код
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestOtp()}
+                  >
+                    Отправить код ещё раз
                   </button>
                   <button
                     type="button"
@@ -1140,16 +1414,168 @@ export function ClientCabinet() {
                     onClick={() => {
                       setOtpSent(false);
                       setOtpCode("");
-                      setNotice("");
                     }}
                   >
                     Изменить email
                   </button>
-                </div>
+                </form>
               )}
             </>
-          )}
+          ) : null}
+
+          {authScreen === "register" && registerChannel === "max"
+            ? renderMaxWizard(
+                "Регистрация через MAX. После подтверждения в чате назначьте пароль кабинета.",
+              )
+            : null}
+
+          {authScreen === "register" && registerChannel === "max" ? (
+            <p className="hint auth-alt-hint">
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => {
+                  setRegisterChannel("email");
+                  setAuthChannel("email");
+                  setOtpSent(false);
+                }}
+              >
+                Регистрация по email
+              </button>
+              {" · "}
+              <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
+                Уже есть аккаунт? Войти
+              </button>
+            </p>
+          ) : null}
+
+          {authScreen === "email_otp" ? (
+            <>
+              <p className="lead lead-compact">
+                Код авторизации придёт на email. Затем при необходимости задайте пароль.
+              </p>
+              {!otpSent ? (
+                <form className="auth-form" onSubmit={requestOtp}>
+                  <label htmlFor="otp-email">Email</label>
+                  <input
+                    id="otp-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <button type="submit" disabled={busy}>
+                    Получить код
+                  </button>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <label htmlFor="login-otp">Код из письма</label>
+                  <input
+                    id="login-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Войти по коду
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestOtp()}
+                  >
+                    Отправить ещё раз
+                  </button>
+                </form>
+              )}
+              <p className="hint">
+                <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
+                  ← Назад ко входу с паролем
+                </button>
+              </p>
+            </>
+          ) : null}
+
+          {authScreen === "recover" ? (
+            <>
+              <p className="lead lead-compact">
+                Укажите email — пришлём ссылку и код для восстановления пароля.
+              </p>
+              {!otpSent ? (
+                <form className="auth-form" onSubmit={requestPasswordReset}>
+                  <label htmlFor="recover-email">Email</label>
+                  <input
+                    id="recover-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <button type="submit" disabled={busy}>
+                    Восстановить пароль
+                  </button>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <p className="muted">
+                    Если письмо пришло с кодом — введите его. Или откройте ссылку из письма.
+                  </p>
+                  <label htmlFor="recover-otp">Код из письма</label>
+                  <input
+                    id="recover-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                  />
+                  <button type="submit" disabled={busy || !otpCode.trim()}>
+                    Подтвердить код
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestPasswordReset()}
+                  >
+                    Отправить ещё раз
+                  </button>
+                </form>
+              )}
+              <p className="hint">
+                <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
+                  ← Вернуться ко входу
+                </button>
+              </p>
+            </>
+          ) : null}
+
+          {authScreen === "max"
+            ? renderMaxWizard(
+                "Вход через MAX — по шагам. На компьютере этот экран, действия в чате — на телефоне.",
+              )
+            : null}
+
+          {authScreen === "max" ? (
+            <p className="hint auth-alt-hint">
+              <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
+                ← Вход по email и паролю
+              </button>
+            </p>
+          ) : null}
+
           {notice && <p className="notice">{notice}</p>}
+          <p className="hint auth-site-hint">
+            Нужна проверка стажа без кабинета?{" "}
+            <a href={`${SITE_URL}/#zayavka`} target="_blank" rel="noreferrer">
+              Оставить заявку на сайте
+            </a>
+          </p>
         </section>
       </main>
     );
@@ -1162,7 +1588,7 @@ export function ClientCabinet() {
           <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
           <div>
             <strong>Проверка стажа</strong>
-            <span>Кабинет клиента</span>
+            <span>Личный кабинет</span>
           </div>
         </div>
         <div className="header-actions">

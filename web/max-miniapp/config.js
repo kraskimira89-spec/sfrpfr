@@ -4,5 +4,5 @@ window.SFRFR_CONFIG = {
   botChatUrl: "https://max.ru/id8905998693_1_bot",
   botDeepLink: "https://max.ru/id8905998693_1_bot?startapp",
   maxBotUrl: "https://max.ru/id8905998693_1_bot?startapp",
-  cabinetUrl: "https://cabinet.taxi-doroga-dobra.ru/?channel=max&from=landing",
+  cabinetUrl: "https://cabinet.taxi-doroga-dobra.ru/?from=max",
 };
