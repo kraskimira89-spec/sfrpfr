@@ -103,7 +103,12 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
     )
 
 
-def _filter_staff_case(case: dict[str, Any], principal: Principal) -> dict[str, Any]:
+def _filter_staff_case(
+    case: dict[str, Any],
+    principal: Principal,
+    *,
+    representatives: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Оператор не видит OCR/findings/черновик; эксперт и админ — полный контур."""
     client = case.get("clients") or {}
     settings = get_settings()
@@ -151,7 +156,7 @@ def _filter_staff_case(case: dict[str, Any], principal: Principal) -> dict[str, 
             "max_bot_url": settings.max_public_bot_url,
             "max_miniapp_url": settings.max_miniapp_url,
         },
-        "representatives": _repo().list_representatives(str(case["id"])),
+        "representatives": representatives if representatives is not None else [],
         "warning": "Решение принимает СФР. Результат не гарантирован.",
         "role_capabilities": {
             "can_edit_pipeline": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
@@ -286,7 +291,11 @@ def admin_get_case(
     repo = _repo()
     case = repo.require_case(principal, case_id)
     repo.audit(case_id, principal.user_id, "staff_case_viewed")
-    payload = _filter_staff_case(case, principal)
+    payload = _filter_staff_case(
+        case,
+        principal,
+        representatives=repo.list_representatives(case_id),
+    )
     if principal.role is StaffRole.OPERATOR:
         payload["orders"] = []
         # оператор видит только факт наличия счетов, без сумм платежей
