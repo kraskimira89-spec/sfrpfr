@@ -890,40 +890,7 @@ export function ClientCabinet() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [supabase, apiBase, maxTicket, session, authChannel, otpSent]);
-
-  async function verifyMaxOtp() {
-    if (!supabase || !apiBase) return;
-    setBusy(true);
-    setNotice("");
-    try {
-      const response = await fetch(`${apiBase}/api/portal/auth/otp/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticket: maxTicket, code: otpCode }),
-      });
-      const body = (await response.json().catch(() => ({}))) as {
-        detail?: string;
-        token_hash?: string;
-        type?: "email" | "sms";
-      };
-      if (!response.ok) {
-        throw new Error(
-          typeof body.detail === "string" ? body.detail : "Неверный или просроченный код.",
-        );
-      }
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: body.token_hash || "",
-        type: body.type || "email",
-      });
-      if (error) throw error;
-      setNotice("");
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Неверный или просроченный код.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, [supabase, maxTicket, session, authChannel, otpSent]);
 
   async function acceptConsent() {
     if (!token || !selectedId) return;

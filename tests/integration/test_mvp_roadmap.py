@@ -29,17 +29,22 @@ class _SilentBot:
         return {"ok": True}
 
 
-def test_stage1_wp_cta_points_to_channel_chooser() -> None:
+def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     seed = (REPO / "scripts/wp_seed_site_tz02.sh").read_text(encoding="utf-8")
-    assert "/#kak-rabotat" in seed
+    assert "/#zayavka" in seed
+    assert "Личный кабинет" in seed
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
-    assert "kak-rabotat" in home
+    assert 'id="zayavka"' in home
+    assert "kak-rabotat" in home  # блок каналов остаётся справочным
     assert "cabinet.taxi-doroga-dobra.ru" in home
+    assert "Личный кабинет" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
     # форма явно без file upload field type
     assert "'type' => 'file'" not in form
+    assert "Личный кабинет" in form
+    assert "channel=max" not in form
 
 
 def test_stage4_success_fee_formula() -> None:
