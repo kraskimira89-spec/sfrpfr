@@ -42,16 +42,17 @@
 ## 3. Рубрики и URL
 
 ```text
-/blog/                          — список статей
-/blog/ils/                      — выписка ИЛС
-/blog/stazh/                    — стаж, трудовая, периоды
-/blog/dokumenty/                — справки, архив, МФЦ
-/blog/podacha/                  — подача в СФР / Госуслуги
-/blog/dlya-rodstvennikov/       — помощь близким
-/blog/usluga/                   — как устроен сервис (редко)
+/blog/                              — список статей
+/blog/slug-na-translite/            — статья
+/blog/rubrika/ils/                  — выписка ИЛС
+/blog/rubrika/stazh/                — стаж, трудовая, периоды
+/blog/rubrika/dokumenty/            — справки, архив, МФЦ
+/blog/rubrika/podacha/              — подача в СФР / Госуслуги
+/blog/rubrika/dlya-rodstvennikov/   — помощь близким
+/blog/rubrika/usluga/               — как устроен сервис (редко)
 ```
 
-URL записи: `/blog/slug-na-translite/`.
+> WP: `category_base` нельзя ставить просто `blog` — иначе rewrite перехватывает URL статей и отдаёт 404. Префикс рубрик: `blog/rubrika`.
 
 ### Меню сайта
 

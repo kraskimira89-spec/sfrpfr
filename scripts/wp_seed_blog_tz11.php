@@ -212,7 +212,9 @@ if ($frontId > 0) {
     update_option('page_on_front', $frontId);
 }
 update_option('page_for_posts', $blogId);
-update_option('category_base', 'blog');
+// Не ставить category_base=blog: конфликт с /blog/%postname%/ → 404 у статей.
+// Рубрики: /blog/rubrika/{slug}/ ; статьи: /blog/{slug}/ ; архив: /blog/
+update_option('category_base', 'blog/rubrika');
 update_option('posts_per_page', 9);
 
 // Permalink /blog/%postname%/

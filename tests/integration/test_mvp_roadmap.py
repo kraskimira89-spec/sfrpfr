@@ -60,6 +60,7 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "arhivnaya-spravka-dlya-sfr-zachem-i-kuda" in php
     assert "#kak-rabotat" in php
     assert "Не являемся СФР" in php
+    assert "blog/rubrika" in php
     for name in (
         "01-ils-stazh.html",
         "02-trudovaya-ils.html",
