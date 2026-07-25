@@ -1153,17 +1153,30 @@ export function ClientCabinet() {
               [
                 { n: 1 as const, title: `Откройте ${AUTH_COPY.chatMax}` },
                 { n: 2 as const, title: `В чате MAX нажмите «Начать»` },
-                { n: 3 as const, title: `Код с ${AUTH_COPY.loginPage} → в ${AUTH_COPY.chatMax}` },
+                {
+                  n: 3 as const,
+                  title: `Код со страницы входа → в ${AUTH_COPY.chatMax}`,
+                },
               ] as const
             ).map((s) => {
               const st = stepState(s.n);
               return (
                 <li key={s.n} className={`max-wizard-step max-wizard-step--${st}`}>
-                  <span className="max-wizard-marker" aria-hidden="true">
-                    {st === "done" ? "✓" : st === "current" ? "●" : "○"}
-                  </span>
-                  <span className="max-wizard-step-num">{s.n}.</span>
-                  <span className="max-wizard-step-title">{s.title}</span>
+                  <button
+                    type="button"
+                    className="max-wizard-step-btn"
+                    aria-current={maxWizardStep === s.n ? "step" : undefined}
+                    onClick={() => {
+                      setMaxWizardStep(s.n);
+                      setNotice("");
+                    }}
+                  >
+                    <span className="max-wizard-marker" aria-hidden="true">
+                      {st === "done" ? "✓" : st === "current" ? "●" : "○"}
+                    </span>
+                    <span className="max-wizard-step-num">{s.n}.</span>
+                    <span className="max-wizard-step-title">{s.title}</span>
+                  </button>
                 </li>
               );
             })}
