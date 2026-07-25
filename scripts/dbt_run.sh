@@ -28,6 +28,7 @@ if [[ ! -x "$DBT_BIN" ]]; then
 fi
 
 "$DBT_BIN" debug --profiles-dir .
-# Нужен direct PostgreSQL endpoint с IPv4 add-on; pooler для DDL dbt ненадёжен.
-"$DBT_BIN" build --profiles-dir .
-"$DBT_BIN" docs generate --profiles-dir .
+# Нужен direct PostgreSQL endpoint с IPv4 add-on; запускаем последовательно,
+# чтобы DDL витрин не пересекался с другим соединением dbt.
+"$DBT_BIN" build --profiles-dir . --threads 1 --no-populate-cache
+"$DBT_BIN" docs generate --profiles-dir . --threads 1 --no-populate-cache

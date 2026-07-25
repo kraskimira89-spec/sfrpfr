@@ -43,8 +43,8 @@ public → analytics_source (обезличенные views) → analytics (ви
 cd analytics
 dbt debug --profiles-dir .
 dbt parse --profiles-dir .
-dbt build --profiles-dir .
-dbt docs generate --profiles-dir .
+dbt build --profiles-dir . --threads 1 --no-populate-cache
+dbt docs generate --profiles-dir . --threads 1 --no-populate-cache
 ```
 
 На VPS есть обёртка для ручного запуска:
@@ -71,7 +71,8 @@ journalctl -u sfrfr-dbt.service -n 100 --no-pager
 ```
 
 Timer запускает dbt ежедневно в 05:30 по Москве, сохраняет пропущенный запуск после
-перезагрузки VPS и ограничивает выполнение 45 минут. Логи остаются в `journald` на VPS.
+перезагрузки VPS и ограничивает выполнение 45 минут. dbt работает последовательно
+(`--threads 1 --no-populate-cache`), а логи остаются в `journald` на VPS.
 
 ### Требование подключения
 
