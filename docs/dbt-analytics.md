@@ -72,7 +72,8 @@ journalctl -u sfrfr-dbt.service -n 100 --no-pager
 
 Timer запускает dbt ежедневно в 05:30 по Москве, сохраняет пропущенный запуск после
 перезагрузки VPS и ограничивает выполнение 45 минут. dbt работает последовательно
-(`--threads 1 --no-populate-cache`), а логи остаются в `journald` на VPS.
+(`--threads 1 --no-populate-cache`); RLS/REVOKE для витрин применяются
+отдельным `scripts/dbt_apply_rls.sh` после build. Логи — в `journald` на VPS.
 
 ### Требование подключения
 

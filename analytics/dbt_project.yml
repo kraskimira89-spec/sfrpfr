@@ -13,8 +13,5 @@ models:
       +materialized: view
     marts:
       +materialized: table
-      # Advisor: RLS on; no policies → anon/authenticated blocked if schema ever exposed.
-      # Owner analytics_transformer bypasses RLS for rebuilds.
-      +post-hook:
-        - "alter table {{ this }} enable row level security"
-        - "revoke all on {{ this }} from public, anon, authenticated"
+      # RLS/REVOKE применяются после build в scripts/dbt_run.sh:
+      # post-hook внутри dbt зависает на Supabase (idle COMMIT / futex).
