@@ -18,54 +18,62 @@ class CaseRepository:
     def __init__(self) -> None:
         self.client = get_supabase_client()
 
+    @staticmethod
+    def _one_or_none(response: Any) -> dict[str, Any] | None:
+        """Безопасно вытащить одну строку: пустой maybe_single даёт response=None."""
+        if response is None:
+            return None
+        data = getattr(response, "data", None)
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, list) and data:
+            return data[0]
+        return None
+
     def _client_id(self, user_id: str) -> str | None:
         if user_id.startswith("max:"):
             max_uid = user_id.removeprefix("max:")
-            response = (
+            row = self._one_or_none(
                 self.client.table("clients")
                 .select("id")
                 .eq("max_user_id", max_uid)
-                .maybe_single()
+                .limit(1)
                 .execute()
             )
-            row: dict[str, Any] | None = response.data
             return str(row["id"]) if row else None
-        response = (
+        row = self._one_or_none(
             self.client.table("clients")
             .select("id")
             .eq("user_id", user_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        row = response.data
         return str(row["id"]) if row else None
 
     def _client_id_for_principal(self, principal: Principal) -> str | None:
         if principal.max_user_id:
-            response = (
+            row = self._one_or_none(
                 self.client.table("clients")
                 .select("id")
                 .eq("max_user_id", principal.max_user_id)
-                .maybe_single()
+                .limit(1)
                 .execute()
             )
-            row: dict[str, Any] | None = response.data
             if row:
                 return str(row["id"])
         return self._client_id(principal.user_id)
 
     def _case(self, case_id: str) -> dict[str, Any] | None:
-        response = (
+        return self._one_or_none(
             self.client.table("cases")
             .select(
                 "*, clients(full_name, phone, email, max_user_id, preferred_channel, "
                 "preferred_channel_set_at, user_id), checklist_items(*), documents(*)"
             )
             .eq("id", case_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        return response.data
 
     def can_access(self, principal: Principal, case: dict[str, Any]) -> bool:
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
@@ -78,15 +86,15 @@ class CaseRepository:
             return True
         if principal.is_max_only:
             return False
-        representative = (
+        representative = self._one_or_none(
             self.client.table("case_representatives")
             .select("case_id")
             .eq("case_id", case["id"])
             .eq("user_id", principal.user_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        return bool(representative.data)
+        return bool(representative)
 
     def require_case(self, principal: Principal, case_id: str) -> dict[str, Any]:
         case = self._case(case_id)
@@ -291,13 +299,12 @@ class CaseRepository:
         return draft if isinstance(draft, dict) else None
 
     def get_pipeline_row(self, case_id: str) -> dict[str, Any] | None:
-        return (
+        return self._one_or_none(
             self.client.table("case_pipeline_data")
             .select("findings, draft, error, ocr_texts, updated_at")
             .eq("case_id", case_id)
-            .maybe_single()
+            .limit(1)
             .execute()
-            .data
         )
 
     def get_pipeline_findings(self, case_id: str) -> list[dict[str, Any]]:
@@ -464,14 +471,13 @@ class CaseRepository:
         return response.data[0]
 
     def get_order(self, case_id: str, order_id: str) -> dict[str, Any] | None:
-        return (
+        return self._one_or_none(
             self.client.table("orders")
             .select("*, payments(*)")
             .eq("id", order_id)
             .eq("case_id", case_id)
-            .maybe_single()
+            .limit(1)
             .execute()
-            .data
         )
 
     def create_payment_record(

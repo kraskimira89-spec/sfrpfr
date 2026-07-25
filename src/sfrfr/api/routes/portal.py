@@ -863,14 +863,13 @@ def get_case(
     case = repo.require_case(principal, case_id)
     repo.audit(case_id, principal.audit_actor_id(), "case_viewed")
     if principal.is_staff:
-        pipeline = (
+        pipeline = CaseRepository._one_or_none(
             get_supabase_client()
             .table("case_pipeline_data")
             .select("*")
             .eq("case_id", case_id)
-            .maybe_single()
+            .limit(1)
             .execute()
-            .data
         )
         case["pipeline_data"] = pipeline
         return case
@@ -1186,15 +1185,14 @@ def create_document_signed_url(
     """Выдать краткоживущую ссылку после проверки доступа к делу."""
     repo = _repo()
     repo.require_case(principal, case_id)
-    row = (
+    row = CaseRepository._one_or_none(
         get_supabase_client()
         .table("documents")
         .select("storage_path")
         .eq("id", document_id)
         .eq("case_id", case_id)
-        .maybe_single()
+        .limit(1)
         .execute()
-        .data
     )
     if not row:
         raise HTTPException(status_code=404, detail="document not found")

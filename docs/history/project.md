@@ -5,6 +5,7 @@
 - Logger `sfrfr.auth.portal` + `auth_event()` без ПДн.
 - `RedactingFilter` больше не ломает access-логи uvicorn.
 - Автосоздание `clients` при MAX session, если строки ещё нет.
+- Пустые `maybe_single` → 500 на `/me` и создании дела; заменено на `limit(1)`.
 
 ## 2026-07-25 (P0 путь клиента)
 
