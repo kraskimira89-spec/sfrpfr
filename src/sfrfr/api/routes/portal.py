@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import NoReturn
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -37,6 +38,7 @@ from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.client_channels import ClientChannelRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.models.case_status import STATUS_HINTS_RU, STATUS_LABELS_RU, CaseStatus, status_label_ru
+from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.auth import Principal, get_current_principal
 from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
@@ -334,6 +336,27 @@ def _supabase_magic_token_hash(email: str) -> str:
     return str(hashed)
 
 
+def _raise_auth(
+    status_code: int,
+    detail: str,
+    *,
+    event: str,
+    audience: str = "client",
+    ticket: str | None = None,
+    **extra: object,
+) -> NoReturn:
+    auth_event(
+        event,
+        outcome="denied" if status_code < 500 else "error",
+        audience=audience,
+        status_code=status_code,
+        detail=detail,
+        ticket=ticket,
+        **extra,
+    )
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
 def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     """Старт входа через MAX: страница входа создаёт сессию, чат MAX подтверждает.
@@ -362,13 +385,29 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
 
     if audience == "staff":
         if not staff_email or "@" not in staff_email:
-            raise HTTPException(status_code=400, detail="Укажите рабочий email сотрудника.")
+            _raise_auth(
+                400,
+                "Укажите рабочий email сотрудника.",
+                event="otp_request",
+                audience="staff",
+                reason="missing_email",
+            )
         if get_staff_role_by_email(staff_email) is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Email не найден в staff-ролях. Обратитесь к администратору.",
+            _raise_auth(
+                403,
+                "Email не найден в staff-ролях. Обратитесь к администратору.",
+                event="otp_request",
+                audience="staff",
+                reason="staff_email_unknown",
             )
         pending = create_pending(audience="staff", staff_email=staff_email)
+        auth_event(
+            "otp_request",
+            outcome="ok",
+            audience="staff",
+            ticket=pending.ticket_id,
+            status="pending_pair",
+        )
         return MaxOtpRequestResponse(
             ok=True,
             ticket=pending.ticket_id,
@@ -389,23 +428,35 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     if phone_raw:
         phone = normalize_phone(phone_raw)
         if not phone:
-            raise HTTPException(status_code=400, detail="invalid phone")
+            _raise_auth(
+                400,
+                "invalid phone",
+                event="otp_request",
+                ticket=pending.ticket_id,
+                reason="invalid_phone",
+            )
         row = _find_client_by_phone(phone)
         if not row:
-            raise HTTPException(
-                status_code=404,
-                detail=(
+            _raise_auth(
+                404,
+                (
                     "Номер не найден. На странице входа выберите вход через чат MAX без номера "
                     "и отправьте код со страницы входа в чат MAX — или войдите по почте."
                 ),
+                event="otp_request",
+                ticket=pending.ticket_id,
+                reason="phone_not_found",
             )
         if not row.get("max_user_id"):
-            raise HTTPException(
-                status_code=404,
-                detail=(
+            _raise_auth(
+                404,
+                (
                     "Для номера нет привязки к чату MAX. Откройте чат MAX, нажмите «Начать», "
                     "отправьте код со страницы входа и подтвердите вход в браузере."
                 ),
+                event="otp_request",
+                ticket=pending.ticket_id,
+                reason="phone_no_max",
             )
         contact = _ensure_auth_email_for_client(row, phone=phone)
         bind_max_direct(
@@ -415,7 +466,13 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         )
         bot = MaxBotClient()
         if not bot.available:
-            raise HTTPException(status_code=503, detail="MAX bot not configured")
+            _raise_auth(
+                503,
+                "MAX bot not configured",
+                event="otp_request",
+                ticket=pending.ticket_id,
+                reason="max_bot_missing",
+            )
         issued = issue_login_link(
             contact=contact,
             max_user_id=str(row["max_user_id"]),
@@ -433,6 +490,15 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 attachments=attachments,
             )
         except Exception as exc:  # noqa: BLE001
+            auth_event(
+                "otp_request",
+                outcome="error",
+                status_code=502,
+                ticket=pending.ticket_id,
+                max_user_id=str(row["max_user_id"]),
+                reason="max_send_failed",
+                detail=type(exc).__name__,
+            )
             raise HTTPException(
                 status_code=502,
                 detail=(
@@ -443,6 +509,14 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         ClientChannelRepository().audit(
             str(row.get("user_id") or row.get("id")),
             f"login_otp_max_sent:{row['max_user_id']}",
+        )
+        auth_event(
+            "otp_request",
+            outcome="ok",
+            ticket=pending.ticket_id,
+            max_user_id=str(row["max_user_id"]),
+            status="pending_confirm",
+            mode="phone",
         )
         return MaxOtpRequestResponse(
             ok=True,
@@ -457,6 +531,13 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             ),
         )
 
+    auth_event(
+        "otp_request",
+        outcome="ok",
+        ticket=pending.ticket_id,
+        status="pending_pair",
+        mode="pair_code",
+    )
     return MaxOtpRequestResponse(
         ok=True,
         ticket=pending.ticket_id,
@@ -478,12 +559,26 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
 
     pending = get_pending(ticket)
     if not pending:
+        auth_event(
+            "otp_poll",
+            outcome="denied",
+            ticket=ticket,
+            status="expired",
+            reason="missing_or_stale",
+        )
         return MaxOtpPollResponse(
             ok=False,
             status="expired",
             message="Сессия входа не найдена или устарела.",
         )
     if pending.status == "approved" and pending.token_hash:
+        auth_event(
+            "otp_poll",
+            outcome="ok",
+            audience=pending.audience,
+            ticket=ticket,
+            status="approved",
+        )
         return MaxOtpPollResponse(
             ok=True,
             status="approved",
@@ -493,6 +588,14 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             message="Вход подтверждён",
         )
     if pending.status == "expired":
+        auth_event(
+            "otp_poll",
+            outcome="denied",
+            audience=pending.audience,
+            ticket=ticket,
+            status="expired",
+            reason="ttl",
+        )
         return MaxOtpPollResponse(
             ok=False,
             status="expired",
@@ -521,24 +624,39 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
 
 
 def _session_from_max_identity(*, contact: str, max_user_id: str) -> MaxOtpVerifyResponse:
-    client = get_supabase_client()
-    row = (
-        client.table("clients")
-        .select("*")
-        .eq("max_user_id", max_user_id)
-        .limit(1)
-        .execute()
-        .data
-        or [None]
-    )[0]
+    from sfrfr.db.client_channels import ClientChannelRepository
+
+    repo = ClientChannelRepository()
+    row = repo.get_by_max_user_id(max_user_id)
     if not row:
-        raise HTTPException(status_code=404, detail="client not found")
+        # Клиент мог ещё не успеть создаться в MAX — создаём здесь
+        try:
+            row = repo.ensure_for_max_user(max_user_id)
+        except Exception as exc:  # noqa: BLE001
+            auth_event(
+                "session_from_max",
+                outcome="error",
+                status_code=502,
+                max_user_id=max_user_id,
+                reason="ensure_client_failed",
+                detail=type(exc).__name__,
+            )
+            raise HTTPException(status_code=502, detail="failed to create client") from exc
+    if not row:
+        _raise_auth(
+            404,
+            "client not found",
+            event="session_from_max",
+            max_user_id=max_user_id,
+            reason="client_missing",
+        )
 
     email = contact if "@" in contact else _ensure_auth_email_for_client(row, phone="")
     token_hash = _supabase_magic_token_hash(email)
 
     from sfrfr.db.staff_roles import find_user_by_email, user_id_of
 
+    client = get_supabase_client()
     user = find_user_by_email(email)
     if user is not None and not row.get("user_id"):
         client.table("clients").update(
@@ -565,9 +683,22 @@ def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
 
     verified = verify_login_otp(ticket=payload.ticket, code=payload.code)
     if not verified:
-        raise HTTPException(status_code=400, detail="invalid or expired code")
+        _raise_auth(
+            400,
+            "invalid or expired code",
+            event="otp_verify",
+            ticket=payload.ticket,
+            reason="bad_code",
+        )
     contact, max_user_id = verified
-    return _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+    response = _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+    auth_event(
+        "otp_verify",
+        outcome="ok",
+        ticket=payload.ticket,
+        max_user_id=max_user_id,
+    )
+    return response
 
 
 @router.post("/auth/otp/link", response_model=MaxOtpVerifyResponse)
@@ -578,9 +709,19 @@ def verify_max_login_link(payload: MaxOtpLinkRequest) -> MaxOtpVerifyResponse:
 
     verified = verify_login_link(link_token=payload.t)
     if not verified:
-        raise HTTPException(status_code=400, detail="invalid or expired link")
+        _raise_auth(
+            400,
+            "invalid or expired link",
+            event="otp_link",
+            reason="bad_link",
+        )
     contact, max_user_id = verified
     response = _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+    auth_event(
+        "otp_link",
+        outcome="ok",
+        max_user_id=max_user_id,
+    )
     # Если вход начали на ПК — одобряем poll-сессию при открытии ссылки с телефона
     pending = latest_for_max(max_user_id)
     if (

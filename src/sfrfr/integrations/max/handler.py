@@ -15,6 +15,7 @@ from sfrfr.integrations.max.client import (
     inline_confirm_login_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
+from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
@@ -513,16 +514,37 @@ def _complete_pc_login(
 
     tokens = _token_hash_for_max(user_id)
     if not tokens:
+        auth_event(
+            "max_login",
+            outcome="error",
+            max_user_id=user_id,
+            ticket=pending.ticket_id,
+            reason="login_token_failed",
+        )
         reply = "Ошибка входа. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
     email, token_hash = tokens
     approved = approve(ticket_id=pending.ticket_id, token_hash=token_hash, email=email)
     if not approved:
+        auth_event(
+            "max_login",
+            outcome="denied",
+            max_user_id=user_id,
+            ticket=pending.ticket_id,
+            reason="login_expired",
+        )
         reply = "Сессия устарела. Начните вход снова на компьютере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
+    auth_event(
+        "max_login",
+        outcome="ok",
+        max_user_id=user_id,
+        ticket=pending.ticket_id,
+        status="approved",
+    )
     _send_open_cabinet_link(bot, user_id=user_id, chat_id=chat_id, contact=email)
     reply = channel_choice_after_login_message()
     return MaxHandleResult(ok=True, action="login_approved", reply=reply)
@@ -675,6 +697,12 @@ def _handle_pair_code(
 ) -> MaxHandleResult:
     row = _ensure_client_row(user_id)
     if not row:
+        auth_event(
+            "max_pair",
+            outcome="error",
+            max_user_id=user_id,
+            reason="pair_no_client",
+        )
         reply = (
             "Не удалось связать аккаунт. На странице входа нажмите "
             "«Показать код для MAX» и пришлите новый код."
@@ -684,9 +712,22 @@ def _handle_pair_code(
     contact = _auth_email_for_row(row, user_id)
     pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
     if not pending:
+        auth_event(
+            "max_pair",
+            outcome="denied",
+            max_user_id=user_id,
+            reason="pair_invalid",
+        )
         reply = "Код не найден. Начните вход снова на странице входа в браузере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_invalid", reply=reply)
+    auth_event(
+        "max_pair",
+        outcome="ok",
+        max_user_id=user_id,
+        ticket=pending.ticket_id,
+        status=pending.status,
+    )
     # Код принят → сразу авторизация на ПК, без «Начать» и без лишней кнопки подтверждения
     return _complete_pc_login(
         bot,

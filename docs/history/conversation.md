@@ -1,5 +1,12 @@
 # История беседы (кратко)
 
+## 2026-07-25 (auth logging → кабинет)
+
+- Структурированные события `sfrfr.auth.portal` (otp_request/poll/verify/link, max_pair/login).
+- Фикс `RedactingFilter`: не трогать `uvicorn.access` (иначе ValueError в api.err).
+- `_session_from_max_identity` сам создаёт clients при отсутствии строки.
+- Юнит-тесты smoke OTP + poll approved; деплой на VPS.
+
 ## 2026-07-25 (fix: связать MAX-аккаунт)
 
 - `maybe_single()` на пустых `clients` ломал создание профиля → «Не удалось связать аккаунт».

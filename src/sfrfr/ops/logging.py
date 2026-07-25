@@ -41,12 +41,21 @@ class RedactingFilter(logging.Filter):
     """Фильтр: маскирует ПДн и токены в сообщениях лога."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        # AccessFormatter uvicorn ждёт исходный msg + 5 args — не трогаем.
+        if record.name.startswith("uvicorn.access"):
+            return True
         try:
-            msg = record.getMessage()
+            if record.args:
+                try:
+                    msg = record.getMessage()
+                except Exception:  # noqa: BLE001
+                    return True
+                record.msg = redact_log_text(msg)
+                record.args = ()
+            else:
+                record.msg = redact_log_text(str(record.msg))
         except Exception:  # noqa: BLE001
             return True
-        record.msg = redact_log_text(msg)
-        record.args = ()
         return True
 
 
@@ -63,8 +72,9 @@ def configure_logging(*, app_env: str, debug: bool) -> None:
         root.setLevel(level)
 
     redactor = RedactingFilter()
-    for name in ("", "uvicorn", "uvicorn.error", "uvicorn.access", "sfrfr"):
-        logger = logging.getLogger(name) if name else root
+    # Не вешать на root/uvicorn.access: AccessFormatter ломается после clear args.
+    for name in ("sfrfr", "sfrfr.auth.portal", "uvicorn.error"):
+        logger = logging.getLogger(name)
         if not any(isinstance(f, RedactingFilter) for f in logger.filters):
             logger.addFilter(redactor)
     if app_env == "production":

@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-25 (логирование входа клиента)
+
+- Logger `sfrfr.auth.portal` + `auth_event()` без ПДн.
+- `RedactingFilter` больше не ломает access-логи uvicorn.
+- Автосоздание `clients` при MAX session, если строки ещё нет.
+
 ## 2026-07-25 (P0 путь клиента)
 
 - Лендинг: главные CTA → `#kak-rabotat`; «В браузере» → register через MAX.
