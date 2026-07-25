@@ -344,7 +344,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     Для staff после шага 2 — ещё подтверждение руководителем.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
-    from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
+    from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
         confirm_web_login_message,
@@ -420,8 +420,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             contact=contact,
             max_user_id=str(row["max_user_id"]),
         )
-        text = confirm_web_login_message()
-        attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
+        text = f"{confirm_web_login_message()}\n{issued.login_url}"
+        attachments = inline_confirm_login_keyboard(
+            ticket_id=pending.ticket_id,
+            login_url=issued.login_url,
+            label=CONFIRM_WEB_LOGIN_LABEL,
+        )
         try:
             bot.send_message(
                 text=text,

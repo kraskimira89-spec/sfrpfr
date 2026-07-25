@@ -11,6 +11,7 @@ from sfrfr.integrations.max.attachments import download_file, extract_downloadab
 from sfrfr.integrations.max.client import (
     MaxBotClient,
     inline_callback_keyboard,
+    inline_confirm_login_keyboard,
     inline_link_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
@@ -145,7 +146,7 @@ def _reply(
     chat_id: int | str | None,
     text: str,
     attachments: list[dict[str, Any]] | None = None,
-) -> None:
+) -> bool:
     try:
         bot.send_message(
             text=text,
@@ -153,8 +154,17 @@ def _reply(
             chat_id=chat_id,
             attachments=attachments,
         )
-    except Exception:
-        pass
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "max_reply_failed user_id=%s chat_id=%s err=%s",
+            user_id,
+            chat_id,
+            exc,
+        )
+        return False
 
 
 def _login_menu_keyboard() -> list[dict[str, Any]]:
@@ -234,8 +244,10 @@ def _handle_bot_start(
         case_id = existing.case_id
         action = "resume"
 
-    # Веб-шаг 3 ещё не начат: код появится после «Получить подтверждение»
-    reply = "Готово. На компьютере нажмите «Получить подтверждение», затем пришлите код сюда."
+    reply = (
+        "Готово. На компьютере нажмите «Получить подтверждение» и пришлите сюда "
+        "6-значный код с экрана — после этого появится кнопка входа."
+    )
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
@@ -568,24 +580,43 @@ def _send_confirm_button(
     chat_id: int | str | None,
     ticket_id: str,
 ) -> None:
-    """Кнопка-ссылка: открывает кабинет в браузере (?auth=max&t=…)."""
-    del ticket_id  # ticket одобряется при открытии ссылки / запасном callback
-    _ensure_supabase_max_client(user_id)
-    row = _client_row_by_max(user_id)
-    if not row:
-        # без профиля — запасной callback (ПК через poll)
-        text = confirm_web_login_message()
-        attachments = inline_callback_keyboard(
-            CONFIRM_WEB_LOGIN_LABEL,
-            CONFIRM_WEB_LOGIN_CALLBACK,
-        )
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
-        return
-    contact = _auth_email_for_row(row, user_id)
-    issued = issue_login_link(contact=contact, max_user_id=str(user_id))
+    """Кнопка подтверждения: callback + link (если удалось выпустить URL)."""
+    login_url: str | None = None
+    try:
+        _ensure_supabase_max_client(user_id)
+        row = _client_row_by_max(user_id)
+        if row:
+            contact = _auth_email_for_row(row, user_id)
+            login_url = issue_login_link(
+                contact=contact,
+                max_user_id=str(user_id),
+            ).login_url
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning("max_login_link_failed: %s", exc)
+
     text = confirm_web_login_message()
-    attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
+    if login_url:
+        text = f"{text}\n{login_url}"
+    attachments = inline_confirm_login_keyboard(
+        ticket_id=ticket_id,
+        login_url=login_url,
+        label=CONFIRM_WEB_LOGIN_LABEL,
+    )
+    ok = _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
+    if not ok:
+        # запас: только callback без link
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=confirm_web_login_message(),
+            attachments=inline_callback_keyboard(
+                CONFIRM_WEB_LOGIN_LABEL,
+                f"confirm_web_login|{ticket_id}",
+            ),
+        )
 
 
 def _send_open_cabinet_link(
@@ -723,9 +754,10 @@ def handle_max_update(
             callback_payload=callback,
         )
 
-    # Код с экрана компьютера (6 цифр)
+    # Код с экрана компьютера (6 цифр), допускаем короткие фразы вокруг
     digits_only = "".join(ch for ch in text if ch.isdigit())
-    if len(digits_only) == 6 and len(text.replace(" ", "")) <= 8:
+    compact = "".join(ch for ch in text if not ch.isspace())
+    if len(digits_only) == 6 and len(compact) <= 24:
         return _handle_pair_code(bot, user_id=user_id, chat_id=chat_id, code=digits_only)
 
     record = store.find_by_max_user(user_id)

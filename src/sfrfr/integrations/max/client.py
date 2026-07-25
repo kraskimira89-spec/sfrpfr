@@ -40,6 +40,32 @@ def inline_link_keyboard(text: str, url: str) -> list[dict[str, Any]]:
     ]
 
 
+def inline_confirm_login_keyboard(
+    *,
+    ticket_id: str,
+    login_url: str | None = None,
+    label: str = "Подтвердить вход в веб кабинет",
+) -> list[dict[str, Any]]:
+    """Callback (всегда видна) + опционально link (открывает браузер)."""
+    rows: list[list[dict[str, Any]]] = [
+        [
+            {
+                "type": "callback",
+                "text": label,
+                "payload": f"confirm_web_login|{ticket_id}",
+            }
+        ]
+    ]
+    if login_url:
+        rows.append([{"type": "link", "text": "Открыть кабинет", "url": login_url}])
+    return [
+        {
+            "type": "inline_keyboard",
+            "payload": {"buttons": rows},
+        }
+    ]
+
+
 class MaxBotClient:
     """Минимальный HTTP-клиент к platform-api2.max.ru."""
 
