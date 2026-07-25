@@ -63,12 +63,12 @@ def test_unified_login_terms() -> None:
 
 
 def test_channel_choice_after_login() -> None:
+    from sfrfr.integrations.max.client import inline_channel_choice_keyboard
     from sfrfr.security.login_otp import (
         WORK_IN_APP_LABEL,
         WORK_IN_INTERFACE_LABEL,
         channel_choice_after_login_message,
     )
-    from sfrfr.integrations.max.client import inline_channel_choice_keyboard
 
     text = channel_choice_after_login_message()
     assert "Вход выполнен" in text
