@@ -1,9 +1,15 @@
 # История беседы (кратко)
 
+## 2026-07-25 (вечер)
+
+- Кабинет клиента: интерактивный мастер входа MAX (3 шага); лендинг/miniapp → `?channel=max&from=landing`.
+
 ## 2026-07-25 (день)
 
 - Nightly dbt оставлен на VPS: systemd timer в 05:30 МСК и direct PostgreSQL
   endpoint после Supabase IPv4 add-on; внешние GitHub Actions не используются.
+- Чистый `dbt build` на VPS: **35/35 PASS**; RLS через `dbt_apply_rls.sh`
+  (post-hook в dbt зависал на COMMIT).
 
 ## 2026-07-25 (утро)
 

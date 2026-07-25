@@ -256,7 +256,84 @@ header span { color: var(--muted); font-size: 0.9rem; }
 .messages p { margin: 6px 0 0; }
 .message-form { margin-top: 12px; }
 
+.card.auth-wizard {
+  width: min(760px, 100%);
+}
+.lead-compact {
+  margin: 0 0 1.25rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+.max-wizard {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.9fr) minmax(240px, 1.2fr);
+  gap: 1.25rem 1.5rem;
+  align-items: start;
+}
+.max-wizard-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.max-wizard-step {
+  display: grid;
+  grid-template-columns: 1.4rem auto 1fr;
+  gap: 0.35rem 0.45rem;
+  align-items: start;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.max-wizard-step--current {
+  color: var(--brand);
+  font-weight: 700;
+}
+.max-wizard-step--done {
+  color: var(--ok);
+  font-weight: 600;
+}
+.max-wizard-marker {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.max-wizard-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.15rem;
+  background: #f8fafc;
+  display: grid;
+  gap: 0.65rem;
+}
+.max-wizard-panel h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.max-wizard-panel .muted { margin: 0; }
+.max-wizard-status {
+  margin: 0;
+  font-weight: 700;
+  color: var(--brand);
+  font-size: 1.05rem;
+}
+.max-pair-code {
+  font-size: 1.45rem;
+  letter-spacing: 0.06em;
+}
+.max-wizard-extra {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.auth-alt-hint {
+  margin: 1.25rem 0 0;
+}
+
 @media (max-width: 640px) {
   .auth-layout, .app-layout { width: min(100% - 20px, 960px); }
   .card { padding: 24px 18px; }
+  .max-wizard {
+    grid-template-columns: 1fr;
+  }
 }

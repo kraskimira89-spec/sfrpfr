@@ -209,6 +209,10 @@ export function ClientCabinet() {
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
   const [maxLinkBusy, setMaxLinkBusy] = useState(false);
+  const [maxWizardStep, setMaxWizardStep] = useState<1 | 2 | 3>(1);
+  const [maxStep1Done, setMaxStep1Done] = useState(false);
+  const [maxStep2Done, setMaxStep2Done] = useState(false);
+  const [showAltAuth, setShowAltAuth] = useState(false);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -224,6 +228,18 @@ export function ClientCabinet() {
   const [me, setMe] = useState<PortalMe | null>(null);
 
   const token = session?.access_token;
+
+  // С лендинга: /?channel=max&from=landing → сразу мастер MAX
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const channel = (params.get("channel") || "").toLowerCase();
+    if (channel !== "max" && params.get("from") !== "landing") return;
+    const t = window.setTimeout(() => {
+      setAuthChannel("max");
+      setShowAltAuth(false);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -585,12 +601,35 @@ export function ClientCabinet() {
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
       setOtpSent(true);
+      setMaxWizardStep(3);
       setNotice(body.message || "Ожидаем подтверждение в MAX…");
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function openMaxChat() {
+    window.open(maxBotUrl, "_blank", "noopener,noreferrer");
+    setMaxStep1Done(true);
+    setMaxWizardStep(2);
+    setNotice("");
+  }
+
+  function markMaxStarted() {
+    setMaxStep2Done(true);
+    setMaxWizardStep(3);
+    setNotice("");
+  }
+
+  function resetMaxWizard() {
+    setOtpSent(false);
+    setMaxTicket("");
+    setMaxPairCode("");
+    setMaxWaitStatus("");
+    setNotice("");
+    setMaxWizardStep(maxStep2Done ? 3 : maxStep1Done ? 2 : 1);
   }
 
   // ПК ждёт подтверждение кнопки в MAX на телефоне
@@ -868,246 +907,247 @@ export function ClientCabinet() {
   }
 
   if (!session) {
+    const stepState = (n: 1 | 2 | 3): "done" | "current" | "todo" => {
+      if (n === 1) return maxStep1Done ? "done" : maxWizardStep === 1 ? "current" : "todo";
+      if (n === 2)
+        return maxStep2Done ? "done" : maxWizardStep === 2 ? "current" : "todo";
+      if (otpSent && maxWaitStatus === "approved") return "done";
+      return maxWizardStep === 3 || otpSent ? "current" : "todo";
+    };
+
     return (
       <main className="auth-layout">
-        <section className="card">
+        <section className={`card ${authChannel === "max" && !showAltAuth ? "auth-wizard" : ""}`}>
           <p className="eyebrow">
             <img className="brand-logo" src="/logo-light.png" width={40} height={40} alt="" />
             Проверка стажа
           </p>
           <h1>Кабинет клиента</h1>
-          <p className="lead">
-            Рекомендуемый вход — через MAX: откройте чат, напишите <strong>/start</strong> и
-            нажмите «Подтвердить вход в веб кабинет». Также можно войти по email.
-          </p>
-          <p className="hint" style={{ marginBottom: "1rem" }}>
-            <a className="button-link" href={maxBotUrl} target="_blank" rel="noreferrer">
-              Открыть чат MAX
-            </a>
-          </p>
-          <div className="tabs" role="tablist">
-            <button
-              type="button"
-              className={authChannel === "max" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("max");
-                setOtpSent(false);
-                setMaxTicket("");
-                setNotice("");
-              }}
-            >
-              MAX
-            </button>
-            <button
-              type="button"
-              className={authChannel === "email" ? "tab active" : "tab"}
-              onClick={() => {
-                setAuthChannel("email");
-                setOtpSent(false);
-                setMaxTicket("");
-                setNotice("");
-              }}
-            >
-              Email
-            </button>
-            {AUTH_SMS_PUBLISHED ? (
-              <button
-                type="button"
-                className={authChannel === "phone" ? "tab active" : "tab"}
-                onClick={() => {
-                  setAuthChannel("phone");
-                  setOtpSent(false);
-                  setMaxTicket("");
-                  setNotice("");
-                }}
-              >
-                Телефон
-              </button>
-            ) : null}
-          </div>
-          {!otpSent ? (
-            authChannel === "max" ? (
-              <div className="auth-mail-sent">
-                <h2>Вход через MAX</h2>
-                <ol>
-                  <li>
-                    Нажмите кнопку ниже на <strong>этом компьютере</strong>
-                  </li>
-                  <li>
-                    Откройте{" "}
-                    <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                      чат MAX
-                    </a>{" "}
-                    и напишите <strong>/start</strong>
-                  </li>
-                  <li>Отправьте боту код с экрана</li>
-                  <li>
-                    В MAX нажмите «Подтвердить вход в веб кабинет» — кабинет откроется{" "}
-                    <strong>здесь</strong>
-                  </li>
+
+          {authChannel === "max" && !showAltAuth ? (
+            <>
+              <p className="lead lead-compact">
+                Вход через MAX — по шагам. На компьютере смотрите этот экран, действия в чате
+                делайте на телефоне.
+              </p>
+
+              <div className="max-wizard">
+                <ol className="max-wizard-steps" aria-label="Шаги входа">
+                  {(
+                    [
+                      { n: 1 as const, title: "Откройте чат с ботом" },
+                      { n: 2 as const, title: "В чате нажмите «Начать»" },
+                      { n: 3 as const, title: "Подтвердите вход в кабинет" },
+                    ] as const
+                  ).map((s) => {
+                    const st = stepState(s.n);
+                    return (
+                      <li key={s.n} className={`max-wizard-step max-wizard-step--${st}`}>
+                        <span className="max-wizard-marker" aria-hidden="true">
+                          {st === "done" ? "✓" : st === "current" ? "●" : "○"}
+                        </span>
+                        <span className="max-wizard-step-num">{s.n}.</span>
+                        <span className="max-wizard-step-title">{s.title}</span>
+                      </li>
+                    );
+                  })}
                 </ol>
-                <button type="button" disabled={busy} onClick={() => void requestMaxOtp(false)}>
-                  Подтвердить вход через MAX
-                </button>
-                <p className="muted" style={{ marginTop: "0.75rem" }}>
-                  Кабинет откроется на компьютере только после кнопки в MAX на телефоне.
-                </p>
-                <details style={{ marginTop: "1rem" }}>
-                  <summary>У меня уже есть номер в деле</summary>
-                  <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
-                    <label htmlFor="phone-max">Телефон из дела</label>
-                    <input
-                      id="phone-max"
-                      type="tel"
-                      placeholder="+79001234567"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      required
-                      autoComplete="tel"
-                    />
-                    <button type="submit" disabled={busy}>
-                      Запросить подтверждение на этот номер
-                    </button>
-                  </form>
-                </details>
+
+                <div className="max-wizard-panel">
+                  {maxWizardStep === 1 ? (
+                    <>
+                      <h2>Шаг 1. Откройте чат с ботом</h2>
+                      <p className="muted">
+                        Чат откроется в новой вкладке на телефоне или в приложении MAX.
+                      </p>
+                      <button type="button" onClick={openMaxChat}>
+                        Открыть чат MAX
+                      </button>
+                      <p className="hint">
+                        <a href={maxBotUrl} target="_blank" rel="noreferrer">
+                          Открыть чат MAX ещё раз
+                        </a>
+                      </p>
+                    </>
+                  ) : null}
+
+                  {maxWizardStep === 2 ? (
+                    <>
+                      <h2>Шаг 2. Начните диалог в MAX</h2>
+                      <p>
+                        В чате нажмите кнопку <strong>«Начать»</strong> от бота (или «Старт»
+                        внизу). Печатать команды не нужно.
+                      </p>
+                      <button type="button" onClick={markMaxStarted}>
+                        Я нажал «Начать»
+                      </button>
+                      <button type="button" className="ghost" onClick={openMaxChat}>
+                        Открыть чат MAX ещё раз
+                      </button>
+                    </>
+                  ) : null}
+
+                  {maxWizardStep === 3 ? (
+                    <>
+                      <h2>Шаг 3. Подтвердите вход</h2>
+                      {!otpSent ? (
+                        <>
+                          <p className="muted">
+                            Нажмите кнопку ниже — на экране появится код. Отправьте его в MAX,
+                            затем нажмите «Подтвердить вход» в чате.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void requestMaxOtp(false)}
+                          >
+                            Получить подтверждение в MAX
+                          </button>
+                          <button type="button" className="ghost" onClick={openMaxChat}>
+                            Открыть чат MAX ещё раз
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="max-wizard-status" role="status">
+                            {maxWaitStatus === "pending_confirm"
+                              ? "Ожидаем кнопку «Подтвердить вход» в MAX…"
+                              : maxWaitStatus === "pending_pair"
+                                ? "Отправьте код в чат MAX…"
+                                : "Ожидаем…"}
+                          </p>
+                          {maxWaitStatus === "pending_pair" && maxPairCode ? (
+                            <p>
+                              Отправьте боту код{" "}
+                              <strong className="max-pair-code">{maxPairCode}</strong> одним
+                              сообщением.
+                            </p>
+                          ) : (
+                            <p className="muted">
+                              В MAX нажмите кнопку «Подтвердить вход» — кабинет откроется здесь.
+                            </p>
+                          )}
+                          <button type="button" className="ghost" onClick={openMaxChat}>
+                            Открыть чат MAX ещё раз
+                          </button>
+                          <button type="button" className="ghost" onClick={resetMaxWizard}>
+                            Начать заново
+                          </button>
+                        </>
+                      )}
+                      <details className="max-wizard-extra">
+                        <summary>У меня уже есть номер в деле</summary>
+                        <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
+                          <label htmlFor="phone-max">Телефон из дела</label>
+                          <input
+                            id="phone-max"
+                            type="tel"
+                            placeholder="+79001234567"
+                            value={phone}
+                            onChange={(event) => setPhone(event.target.value)}
+                            required
+                            autoComplete="tel"
+                          />
+                          <button type="submit" disabled={busy}>
+                            Запросить подтверждение на этот номер
+                          </button>
+                        </form>
+                      </details>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            ) : authChannel === "email" || !AUTH_SMS_PUBLISHED ? (
-            <form onSubmit={requestOtp}>
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                autoComplete="email"
-              />
-              <button type="submit" disabled={busy}>
-                Получить письмо
-              </button>
-            </form>
-            ) : (
-            <form onSubmit={requestOtp}>
-              <label htmlFor="phone">Телефон</label>
-              <input
-                id="phone"
-                type="tel"
-                placeholder="+79001234567"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                required
-                autoComplete="tel"
-              />
-              <button type="submit" disabled={busy}>
-                Получить код
-              </button>
-            </form>
-            )
-          ) : authChannel === "max" ? (
-            <div className="auth-mail-sent">
-              <h2>Ожидаем подтверждение в MAX</h2>
-              {maxPairCode ? (
-                <p>
-                  Код для бота: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
-                </p>
-              ) : null}
-              <ol>
-                <li>
-                  Откройте{" "}
-                  <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                    чат MAX
-                  </a>
-                </li>
-                {maxWaitStatus === "pending_pair" ? (
-                  <li>
-                    Напишите /start и отправьте код <strong>{maxPairCode}</strong>
-                  </li>
-                ) : (
-                  <li>Откройте сообщение от бота</li>
-                )}
-                <li>
-                  Нажмите на телефоне «Подтвердить вход в веб кабинет»
-                </li>
-              </ol>
-              <p className="muted">
-                После нажатия в MAX кабинет откроется автоматически на этом компьютере…
+
+              <p className="hint auth-alt-hint">
+                Также можно войти по email, если MAX недоступен.{" "}
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => {
+                    setShowAltAuth(true);
+                    setAuthChannel("email");
+                    setOtpSent(false);
+                    setNotice("");
+                  }}
+                >
+                  Войти по email
+                </button>
               </p>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  setOtpSent(false);
-                  setMaxTicket("");
-                  setMaxPairCode("");
-                  setMaxWaitStatus("");
-                  setNotice("");
-                }}
-              >
-                Отмена
-              </button>
-            </div>
-          ) : authChannel === "email" || !AUTH_SMS_PUBLISHED ? (
-            <div className="auth-mail-sent">
-              <h2>Письмо отправлено</h2>
-              <p>
-                На адрес <strong>{email}</strong> направлено письмо авторизации.
-              </p>
-              <ol>
-                <li>Откройте почтовый ящик</li>
-                <li>Найдите письмо о входе в кабинет</li>
-                <li>Нажмите на ссылку в письме</li>
-              </ol>
-              <p className="muted">Если письма нет — проверьте «Спам» и «Промоакции».</p>
-              <button type="button" disabled={busy} onClick={() => void requestOtp()}>
-                Отправить ещё раз
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtpCode("");
-                  setNotice("");
-                }}
-              >
-                Изменить email
-              </button>
-            </div>
+            </>
           ) : (
-            <form onSubmit={verifyOtp}>
-              <label htmlFor="otp">Код из SMS</label>
-              <input
-                id="otp"
-                inputMode="numeric"
-                value={otpCode}
-                onChange={(event) => setOtpCode(event.target.value)}
-                required
-                autoComplete="one-time-code"
-              />
-              <button type="submit" disabled={busy}>
-                Войти
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={() => void requestOtp()}
-              >
-                Отправить ещё раз
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtpCode("");
-                  setMaxTicket("");
-                  setNotice("");
-                }}
-              >
-                Изменить телефон
-              </button>
-            </form>
+            <>
+              <p className="lead lead-compact">Вход по email. Также доступен вход через MAX.</p>
+              <div className="tabs" role="tablist">
+                <button
+                  type="button"
+                  className={authChannel === "max" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setAuthChannel("max");
+                    setShowAltAuth(false);
+                    setOtpSent(false);
+                    setNotice("");
+                  }}
+                >
+                  MAX
+                </button>
+                <button
+                  type="button"
+                  className={authChannel === "email" ? "tab active" : "tab"}
+                  onClick={() => {
+                    setAuthChannel("email");
+                    setShowAltAuth(true);
+                    setOtpSent(false);
+                    setMaxTicket("");
+                    setNotice("");
+                  }}
+                >
+                  Email
+                </button>
+              </div>
+              {!otpSent ? (
+                <form onSubmit={requestOtp}>
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <button type="submit" disabled={busy}>
+                    Получить письмо
+                  </button>
+                </form>
+              ) : (
+                <div className="auth-mail-sent">
+                  <h2>Письмо отправлено</h2>
+                  <p>
+                    На адрес <strong>{email}</strong> направлено письмо авторизации.
+                  </p>
+                  <ol>
+                    <li>Откройте почтовый ящик</li>
+                    <li>Найдите письмо о входе в кабинет</li>
+                    <li>Нажмите на ссылку в письме</li>
+                  </ol>
+                  <p className="muted">Если письма нет — проверьте «Спам» и «Промоакции».</p>
+                  <button type="button" disabled={busy} onClick={() => void requestOtp()}>
+                    Отправить ещё раз
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtpCode("");
+                      setNotice("");
+                    }}
+                  >
+                    Изменить email
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {notice && <p className="notice">{notice}</p>}
         </section>

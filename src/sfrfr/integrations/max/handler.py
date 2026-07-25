@@ -16,6 +16,8 @@ from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
+    START_DIALOG_CALLBACK,
+    START_DIALOG_LABEL,
     confirm_web_login_message,
 )
 from sfrfr.security.login_pending import (
@@ -50,6 +52,16 @@ _LOGIN_TRIGGERS = frozenset(
         CONFIRM_WEB_LOGIN_LABEL.lower(),
         CONFIRM_WEB_LOGIN_CALLBACK,
         "confirm_web_login",
+    }
+)
+
+_START_TRIGGERS = frozenset(
+    {
+        "/start",
+        "старт",
+        "начать",
+        START_DIALOG_LABEL.lower(),
+        START_DIALOG_CALLBACK,
     }
 )
 
@@ -148,9 +160,82 @@ def _login_menu_keyboard() -> list[dict[str, Any]]:
     return inline_callback_keyboard(CONFIRM_WEB_LOGIN_LABEL, CONFIRM_WEB_LOGIN_CALLBACK)
 
 
+def _start_dialog_keyboard() -> list[dict[str, Any]]:
+    return inline_callback_keyboard(START_DIALOG_LABEL, START_DIALOG_CALLBACK)
+
+
 def _channel_choice_text() -> str:
-    """Следующий шаг входа — без длинной инструкции."""
-    return "\n\nПришлите код с экрана компьютера."
+    return ""
+
+
+def _reply_need_start(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+) -> MaxHandleResult:
+    """Просьба начать диалог — всегда с кнопкой «Начать»."""
+    reply = "Нажмите кнопку."
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=_start_dialog_keyboard(),
+    )
+    return MaxHandleResult(ok=True, action="need_start", reply=reply)
+
+
+def _resume_pending_confirm_if_any(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+) -> MaxHandleResult | None:
+    """Если вход уже ждёт подтверждения — снова показать кнопку."""
+    pending = latest_for_max(user_id)
+    if pending is None or pending.status != "pending_confirm":
+        return None
+    _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
+    reply = "Нажмите кнопку."
+    return MaxHandleResult(ok=True, action="login_need_confirm", reply=reply)
+
+
+def _handle_bot_start(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+) -> MaxHandleResult:
+    """Старт диалога: синхрон с веб-шагом 2 → дальше код с компьютера."""
+    resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
+    if resumed is not None:
+        return resumed
+
+    _ensure_supabase_max_client(user_id)
+    existing = store.find_by_max_user(user_id)
+    if not existing:
+        record = store.create(
+            client_name=f"MAX user {user_id}",
+            snils_masked="***-***-*** **",
+            consent_given=True,
+        )
+        store.bind_max(
+            record.case_id,
+            max_user_id=user_id,
+            max_chat_id=str(chat_id) if chat_id is not None else None,
+        )
+        case_id = record.case_id
+        action = "create"
+    else:
+        case_id = existing.case_id
+        action = "resume"
+
+    # Веб-шаг 3 ещё не начат: код появится после «Получить подтверждение»
+    reply = "Готово. На компьютере нажмите «Получить подтверждение», затем пришлите код сюда."
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
 
 def _ensure_supabase_max_client(max_user_id: str) -> None:
@@ -326,9 +411,7 @@ def _complete_pc_login(
         _ensure_supabase_max_client(user_id)
         row = _client_row_by_max(user_id)
         if not row:
-            reply = "Напишите /start."
-            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=False, action="login_need_start", reply=reply)
+            return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
         contact = _auth_email_for_row(row, user_id)
         pending = bind_max_by_code(
             pair_code=pending.pair_code,
@@ -501,9 +584,7 @@ def _handle_pair_code(
     _ensure_supabase_max_client(user_id)
     row = _client_row_by_max(user_id)
     if not row:
-        reply = "Напишите /start."
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=False, action="pair_need_start", reply=reply)
+        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
     contact = _auth_email_for_row(row, user_id)
     pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
     if not pending:
@@ -574,6 +655,11 @@ def handle_max_update(
     lower = text.lower()
     confirm_cb = parse_confirm_callback(callback)
     manager_ticket = parse_manager_callback(callback)
+    start_hit = (
+        callback == START_DIALOG_CALLBACK
+        or lower in _START_TRIGGERS
+        or lower.startswith("/start")
+    )
     login_hit = (
         confirm_cb is not None
         or lower in _LOGIN_TRIGGERS
@@ -594,6 +680,9 @@ def handle_max_update(
             ticket_id=manager_ticket,
         )
 
+    if start_hit:
+        return _handle_bot_start(bot, user_id=user_id, chat_id=chat_id, store=store)
+
     if login_hit:
         return _send_confirm_web_login(
             bot,
@@ -607,46 +696,31 @@ def handle_max_update(
     if len(digits_only) == 6 and len(text.replace(" ", "")) <= 8:
         return _handle_pair_code(bot, user_id=user_id, chat_id=chat_id, code=digits_only)
 
-    if lower.startswith("/start") or lower in {"старт", "начать"}:
-        _ensure_supabase_max_client(user_id)
-        existing = store.find_by_max_user(user_id)
-        if existing:
-            reply = (
-                f"Кейс {existing.case_id}: {status_label_ru(existing.ctx.status)}."
-                + _channel_choice_text()
-            )
-            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=True, action="resume", case_id=existing.case_id, reply=reply)
-
-        record = store.create(
-            client_name=f"MAX user {user_id}",
-            snils_masked="***-***-*** **",
-            consent_given=True,
-        )
-        store.bind_max(
-            record.case_id,
-            max_user_id=user_id,
-            max_chat_id=str(chat_id) if chat_id is not None else None,
-        )
-        reply = "Пришлите код с экрана компьютера."
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=True, action="create", case_id=record.case_id, reply=reply)
-
     record = store.find_by_max_user(user_id)
     if record is None:
-        reply = "Напишите /start."
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=True, action="need_start", reply=reply)
+        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
+
+    # Если уже ждём кнопку подтверждения — не теряем пользователя
+    resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
+    if resumed is not None and not lower.startswith("/"):
+        # обычный текст без команды — напомнить кнопку
+        return resumed
 
     if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
+        pending = latest_for_max(user_id)
+        if pending is not None and pending.status == "pending_confirm":
+            _send_confirm_button(
+                bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id
+            )
+            reply = "Нажмите кнопку."
+            return MaxHandleResult(
+                ok=True,
+                action="help_login",
+                case_id=record.case_id,
+                reply=reply,
+            )
         reply = "Пришлите код с экрана или документ. Команды: /docs /run /draft /status"
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=reply,
-            attachments=_login_menu_keyboard(),
-        )
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
 
     if lower.startswith("/docs") or lower in {"документы", "что прислать"}:
@@ -715,12 +789,6 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = "Пришлите код с экрана, документ или /help."
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=reply,
-        attachments=_login_menu_keyboard(),
-    )
+    reply = "Пришлите код с экрана или документ."
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)

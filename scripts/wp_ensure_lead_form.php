@@ -82,7 +82,7 @@ $settings = [
     'confirmations' => [
         '1' => [
             'type' => 'message',
-            'message' => '<p>Спасибо! Заявка принята.</p><p>Выберите канал работы с делом:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Мини-приложение MAX</a></li><li><a href="https://cabinet.taxi-doroga-dobra.ru/">Веб-кабинет</a></li></ul><p>Сканы документов загружайте только в MAX или кабинете — не через эту форму.</p>',
+            'message' => '<p>Спасибо! Заявка принята.</p><p>Выберите канал работы с делом:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Мини-приложение MAX</a></li><li><a href="https://cabinet.taxi-doroga-dobra.ru/?channel=max&from=landing">Веб-кабинет</a></li></ul><p>Сканы документов загружайте только в MAX или кабинете — не через эту форму.</p>',
             'message_scroll' => '1',
         ],
     ],

@@ -19,6 +19,8 @@ _SEP = "|"
 CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход"
 CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
 APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
+START_DIALOG_LABEL = "Начать"
+START_DIALOG_CALLBACK = "start_dialog"
 
 
 def _secret() -> bytes:
