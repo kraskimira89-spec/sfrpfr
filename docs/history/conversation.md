@@ -2,8 +2,8 @@
 
 ## 2026-07-25 (день)
 
-- Nightly dbt перенесён с VPS в GitHub Actions: расписание 05:30 МСК,
-  `--threads 1 --no-populate-cache`, artifacts и Secrets для DBT-подключения.
+- Nightly dbt оставлен на VPS: systemd timer в 05:30 МСК и direct PostgreSQL
+  endpoint после Supabase IPv4 add-on; внешние GitHub Actions не используются.
 
 ## 2026-07-25 (утро)
 

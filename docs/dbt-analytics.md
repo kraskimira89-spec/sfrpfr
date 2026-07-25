@@ -20,14 +20,16 @@ public → analytics_source (обезличенные views) → analytics (ви
 3. На VPS в `/opt/sfrfr/.env` укажите (значения как в локальном `.env` после настройки):
 
    ```env
-   DBT_HOST=aws-<region>.pooler.supabase.com
+   DBT_HOST=db.<project-ref>.supabase.co
    DBT_PORT=5432
-   DBT_USER=analytics_transformer.<project-ref>
+   DBT_USER=analytics_transformer
    DBT_PASSWORD=...
    DBT_DBNAME=postgres
    ```
 
-   Используйте **direct connection** или **session pooler** PostgreSQL. Для session pooler имя роли имеет суффикс `.<project-ref>`. Transaction pooler не подходит для DDL dbt.
+   Для стабильных DDL dbt используйте **direct PostgreSQL connection**. Для IPv4-only VPS
+   включите [Supabase IPv4 add-on](https://supabase.com/docs/guides/platform/ipv4-address);
+   session/transaction pooler не используются.
 4. Скопируйте `analytics/profiles.yml.example` в `analytics/profiles.yml`. Файл игнорируется Git и читает только `DBT_*`.
 5. Установите зависимости на машине запуска:
 
@@ -41,8 +43,8 @@ public → analytics_source (обезличенные views) → analytics (ви
 cd analytics
 dbt debug --profiles-dir .
 dbt parse --profiles-dir .
-dbt build --profiles-dir . --threads 1 --no-populate-cache
-dbt docs generate --profiles-dir . --no-populate-cache
+dbt build --profiles-dir .
+dbt docs generate --profiles-dir .
 ```
 
 На VPS есть обёртка для ручного запуска:
@@ -53,32 +55,29 @@ SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 
 Не добавляйте dbt в FastAPI startup или `scripts/vps_deploy.sh`.
 
-## Nightly в GitHub Actions
+### Nightly systemd timer на VPS
 
-Workflow [dbt-nightly.yml](../.github/workflows/dbt-nightly.yml) запускается ежедневно
-в 05:30 МСК и доступен вручную через **Actions → dbt-nightly → Run workflow**.
+После включения IPv4 add-on и обновления `DBT_*` в `/opt/sfrfr/.env`:
 
-В GitHub repository secrets добавьте значения из защищённого `.env`:
+```bash
+sudo cp /opt/sfrfr/docs/systemd/sfrfr-dbt.service /etc/systemd/system/
+sudo cp /opt/sfrfr/docs/systemd/sfrfr-dbt.timer /etc/systemd/system/
+sudo -u sfrfr cp /opt/sfrfr/analytics/profiles.yml.example /opt/sfrfr/analytics/profiles.yml
+sudo systemctl daemon-reload
+sudo systemctl enable --now sfrfr-dbt.timer
+sudo systemctl start sfrfr-dbt.service
+systemctl list-timers sfrfr-dbt.timer
+journalctl -u sfrfr-dbt.service -n 100 --no-pager
+```
 
-- `DBT_HOST`
-- `DBT_PORT`
-- `DBT_USER`
-- `DBT_PASSWORD`
-- `DBT_DBNAME`
+Timer запускает dbt ежедневно в 05:30 по Москве, сохраняет пропущенный запуск после
+перезагрузки VPS и ограничивает выполнение 45 минут. Логи остаются в `journald` на VPS.
 
-Workflow использует session pooler с одним потоком и отключённым relation cache
-(`--threads 1 --no-populate-cache`), не допускает параллельных запусков и
-сохраняет `analytics/target/` и `analytics/logs/` как artifact на 14 дней.
-Cron dbt на VPS должен оставаться выключенным.
+### Требование подключения
 
-### Замечания по VPS / pooler
-
-- Direct host `db.<ref>.supabase.co` с VPS сейчас только IPv6 → `Network is unreachable`. Нужен IPv4 add-on или session pooler.
-- Через session pooler `dbt build` на VPS часто зависает (relation cache / rename views / «idle in transaction» с ExclusiveLock). Локально с тем же pooler обычно стабильнее.
-- Флаги в `dbt_run.sh`: `--threads 1 --no-populate-cache`.
-- После серии оборванных прогонов убивайте сессии роли:  
-  `select pg_terminate_backend(pid) from pg_stat_activity where usename = 'analytics_transformer' and pid <> pg_backend_pid();`
-- Пока cron на VPS лучше не включать, пока нет direct IPv4; nightly выполняется в GitHub Actions.
+До включения IPv4 add-on direct host `db.<project-ref>.supabase.co` на VPS недоступен:
+у него только IPv6, а сеть VPS IPv6 не маршрутизирует. Не используйте session pooler
+для dbt DDL: ранее он оставлял транзакции с блокировками и приводил к зависанию сборки.
 
 ## Контроль доступа
 

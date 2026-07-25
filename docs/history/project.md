@@ -2,10 +2,10 @@
 
 ## 2026-07-25 (nightly dbt)
 
-- Nightly dbt вынесен в GitHub Actions: 05:30 МСК, ручной запуск, один поток,
-  отключённый relation cache и artifact логов/результатов.
-- Для workflow нужны GitHub Secrets `DBT_HOST`, `DBT_PORT`, `DBT_USER`,
-  `DBT_PASSWORD`, `DBT_DBNAME`; cron dbt на VPS остаётся выключенным.
+- Nightly dbt запускается автономно на VPS через `sfrfr-dbt.timer` в 05:30 МСК;
+  логи остаются в journald на сервере.
+- Для устойчивого dbt DDL выбран direct PostgreSQL endpoint после включения
+  Supabase IPv4 add-on; GitHub Actions не используется.
 
 ## 2026-07-25 (VPS + dbt)
 

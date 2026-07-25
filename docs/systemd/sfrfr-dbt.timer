@@ -1,0 +1,12 @@
+[Unit]
+Description=Run SFRFR dbt analytics daily
+
+[Timer]
+OnCalendar=*-*-* 05:30:00 Europe/Moscow
+Persistent=true
+AccuracySec=1min
+Unit=sfrfr-dbt.service
+
+[Install]
+WantedBy=timers.target
+

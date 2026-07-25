@@ -35,7 +35,8 @@
 SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 ```
 
-Запланируйте отдельный systemd timer или cron от `sfrfr` (например, раз в сутки). Не используйте transaction pooler и не добавляйте этот запуск в `vps_deploy.sh`.
+Используйте `sfrfr-dbt.timer` от `sfrfr` (ежедневно в 05:30 МСК) с direct PostgreSQL
+endpoint после включения IPv4 add-on. Не добавляйте этот запуск в `vps_deploy.sh`.
 
 ## Google (MVP) — чеклист
 

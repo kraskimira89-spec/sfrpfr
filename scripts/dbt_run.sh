@@ -28,7 +28,6 @@ if [[ ! -x "$DBT_BIN" ]]; then
 fi
 
 "$DBT_BIN" debug --profiles-dir .
-# Session pooler (Supavisor) + VPS: relation cache / multi-statement rename can hang.
-# Prefer direct Postgres IPv4 when available; until then keep cache off and 1 thread.
-"$DBT_BIN" build --profiles-dir . --threads 1 --no-populate-cache
-"$DBT_BIN" docs generate --profiles-dir . --no-populate-cache || true
+# Нужен direct PostgreSQL endpoint с IPv4 add-on; pooler для DDL dbt ненадёжен.
+"$DBT_BIN" build --profiles-dir .
+"$DBT_BIN" docs generate --profiles-dir .
