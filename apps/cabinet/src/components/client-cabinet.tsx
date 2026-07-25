@@ -211,6 +211,52 @@ function labelStatus(value: string) {
   return STATUS_LABELS[value] ?? value;
 }
 
+/** Короткие статусы для пенсионера (без OCR / findings). */
+function humanCaseStatus(pipeline: string, b2c: string): string {
+  const p = (pipeline || "").toLowerCase();
+  const b = (b2c || "").toLowerCase();
+  if (b.includes("success_fee") || b.includes("result_confirmed")) return "Есть результат";
+  if (b.includes("service_paid") || b.includes("diagnostic_paid")) return "Оплата получена";
+  if (p.includes("draft") || p.includes("human_review")) return "Готов черновик / проверка специалиста";
+  if (p.includes("failed")) return "Нужна помощь специалиста";
+  if (
+    p.includes("ocr") ||
+    p.includes("classif") ||
+    p.includes("extract") ||
+    p.includes("audit")
+  ) {
+    return "Идёт проверка";
+  }
+  if (p.includes("document") || b.includes("documents")) return "Документы получены";
+  if (p.includes("completed") || b.includes("closed")) return "Дело завершено";
+  return "Нужны документы";
+}
+
+function packageLabel(code: string) {
+  return PACKAGE_LABELS[code] ?? code;
+}
+
+type HomeStepKey = "consent" | "upload" | "check";
+
+function resolveHomeStep(detail: {
+  consent_accepted: boolean;
+  documents: { id: string }[];
+}): { current: HomeStepKey; nowNeed: string } {
+  if (!detail.consent_accepted) {
+    return { current: "consent", nowNeed: "подтвердить согласие" };
+  }
+  if (detail.documents.length === 0) {
+    return { current: "upload", nowNeed: "загрузить документы" };
+  }
+  return { current: "check", nowNeed: "отправить документы на проверку" };
+}
+
+function authorLabel(kind: string) {
+  if (kind === "client") return "Вы";
+  if (kind === "expert" || kind === "operator" || kind === "system") return "Специалист";
+  return kind;
+}
+
 function shortId(id: string) {
   return id.slice(0, 8);
 }
@@ -267,6 +313,14 @@ export function ClientCabinet() {
   const [maxLinkBusy, setMaxLinkBusy] = useState(false);
   const getCodeOnceRef = useRef(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [passwordDeferred, setPasswordDeferred] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.sessionStorage.getItem("sfrfr_pwd_later") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [casesReady, setCasesReady] = useState(false);
@@ -286,8 +340,29 @@ export function ClientCabinet() {
 
   const token = session?.access_token;
   const needsPasswordGate = Boolean(
-    session && (recoveryMode || !hasPasswordSet(session)),
+    session &&
+      (recoveryMode || (!hasPasswordSet(session) && !passwordDeferred)),
   );
+
+  function deferPassword() {
+    try {
+      window.sessionStorage.setItem("sfrfr_pwd_later", "1");
+    } catch {
+      /* ignore */
+    }
+    setPasswordDeferred(true);
+    setNotice("");
+  }
+
+  function openPasswordSetup() {
+    try {
+      window.sessionStorage.removeItem("sfrfr_pwd_later");
+    } catch {
+      /* ignore */
+    }
+    setPasswordDeferred(false);
+    setNotice("");
+  }
 
   // Query: ?mode=login|register|recover; ?channel=max; ?get_code=1
   // MAX = единый вход и регистрация; отдельной «регистрации MAX» нет.
@@ -1068,8 +1143,8 @@ export function ClientCabinet() {
   async function uploadDocument(file: File, docType?: string) {
     if (!token || !selectedId) return;
     if (!detail?.consent_accepted) {
-      setNotice("Сначала подтвердите согласие на обработку ПДн.");
-      setView("docs");
+      setNotice("Сначала подтвердите согласие.");
+      setView("case");
       return;
     }
     const allowed = ["application/pdf", "image/jpeg", "image/png"];
@@ -1187,8 +1262,7 @@ export function ClientCabinet() {
     return (
       <>
         <p className="lead lead-compact">
-          Один способ для первого раза и для повторного входа: подтвердите вход в чате MAX —
-          кабинет откроется здесь. Потом можно задать пароль.
+          Войдите через чат MAX — и в первый раз, и потом.
         </p>
         <div className="max-wizard max-wizard--actions">
           {!otpSent ? (
@@ -1201,25 +1275,29 @@ export function ClientCabinet() {
               >
                 Войти через MAX
               </button>
-              <p className="muted max-action-hint">
-                Откроется чат. Нажмите «Начать», отправьте код с этой страницы — и всё.
-              </p>
+              <ol className="max-login-steps">
+                <li>Откроется чат</li>
+                <li>Нажмите «Начать»</li>
+                <li>Пришлите код с этой страницы</li>
+              </ol>
             </>
           ) : (
             <>
               <p className="max-wizard-status" role="status">
                 {maxWaitStatus === "pending_confirm"
-                  ? "Код принят. Завершаем вход…"
-                  : "Отправьте код в чат MAX"}
+                  ? "Код принят. Открываем кабинет…"
+                  : "Пришлите этот код в чат MAX"}
               </p>
               {maxPairCode ? (
                 <p className="max-code-block">
                   Код: <strong className="max-pair-code">{maxPairCode}</strong>
                 </p>
               ) : null}
-              <p className="muted max-action-hint">
-                Введите код в чате — кабинет откроется на этой странице сам.
-              </p>
+              <ol className="max-login-steps">
+                <li>Откройте чат MAX</li>
+                <li>Нажмите «Начать», если ещё не нажимали</li>
+                <li>Отправьте код сообщением</li>
+              </ol>
               <button type="button" className="ghost" onClick={resetMaxWizard}>
                 Начать заново
               </button>
@@ -1230,7 +1308,7 @@ export function ClientCabinet() {
     );
   }
 
-  // После входа/регистрации без пароля — назначить пароль кабинета
+  // После входа — пароль по желанию (кроме восстановления)
   if (needsPasswordGate) {
     return (
       <main className="auth-layout">
@@ -1247,12 +1325,17 @@ export function ClientCabinet() {
               Проверка стажа
             </BrandHomeLink>
           </p>
-          <h1>{recoveryMode ? "Новый пароль" : "Пароль личного кабинета"}</h1>
+          <h1>{recoveryMode ? "Новый пароль" : "Пароль — по желанию"}</h1>
           <p className="lead lead-compact">
             {recoveryMode
               ? "Задайте новый пароль для входа по почте."
-              : "При первой регистрации назначьте пароль — им можно входить с компьютера без чата MAX."}
+              : "Можно сразу перейти к делу. Пароль пригодится позже для входа без чата MAX."}
           </p>
+          {!recoveryMode ? (
+            <button type="button" className="max-action-btn" onClick={deferPassword}>
+              Перейти к делу без пароля
+            </button>
+          ) : null}
           <form className="auth-form" onSubmit={saveCabinetPassword}>
             <label htmlFor="new-password">Пароль</label>
             <input
@@ -1316,30 +1399,33 @@ export function ClientCabinet() {
           {authScreen === "max" ? (
             <>
               {renderMaxWizard()}
-              <p className="hint auth-alt-hint">
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => goAuthScreen("password")}
-                >
-                  Войти по паролю
-                </button>
-                {" · "}
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => {
-                    setEmailCreateUser(false);
-                    goAuthScreen("email_otp");
-                  }}
-                >
-                  Код на почту
-                </button>
-                {" · "}
-                <button type="button" className="linkish" onClick={openEmailFirstTime}>
-                  Первый раз без MAX
-                </button>
-              </p>
+              <div className="auth-alt-hint">
+                <details>
+                  <summary>Другие способы</summary>
+                  <div className="auth-alt-list">
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => goAuthScreen("password")}
+                    >
+                      По паролю
+                    </button>
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => {
+                        setEmailCreateUser(false);
+                        goAuthScreen("email_otp");
+                      }}
+                    >
+                      Код на почту
+                    </button>
+                    <button type="button" className="linkish" onClick={openEmailFirstTime}>
+                      Первый раз без MAX
+                    </button>
+                  </div>
+                </details>
+              </div>
             </>
           ) : null}
 
@@ -1501,6 +1587,25 @@ export function ClientCabinet() {
     );
   }
 
+  const maxChatHref =
+    selectedId
+      ? `${DEFAULT_MAX_MINIAPP}${DEFAULT_MAX_MINIAPP.includes("?") ? "&" : "?"}startapp=case_${selectedId.slice(0, 8)}`
+      : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP;
+  const home =
+    detail && view === "case" ? resolveHomeStep(detail) : null;
+  const stepDone = {
+    consent: Boolean(detail?.consent_accepted),
+    upload: Boolean(detail && detail.documents.length > 0),
+    check: Boolean(
+      detail &&
+        detail.documents.length > 0 &&
+        detail.consent_accepted &&
+        !["new", "intake", "documents_requested", ""].includes(
+          (detail.pipeline_status || "").toLowerCase(),
+        ),
+    ),
+  };
+
   return (
     <main className="app-layout">
       <header>
@@ -1520,112 +1625,38 @@ export function ClientCabinet() {
           </BrandHomeLink>
         </div>
         <div className="header-actions">
-          <a
-            className="ghost"
-            href={
-              selectedId
-                ? `${DEFAULT_MAX_MINIAPP}${
-                    DEFAULT_MAX_MINIAPP.includes("?") ? "&" : "?"
-                  }startapp=case_${selectedId.slice(0, 8)}`
-                : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Продолжить в чате MAX
-          </a>
           <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
             Выйти
           </button>
         </div>
       </header>
 
-      <section className="warning" role="note">
-        Решение принимает СФР. Результат не гарантирован.
-      </section>
-
-      <section className="card channel-card">
-        <h2>Канал работы</h2>
-        <p className="muted">
-          Можно вести одно дело и в чате MAX, и в браузере.
-          {me?.max_linked
-            ? " Чат MAX уже привязан."
-            : " Чтобы связать чат MAX — откройте ссылку из мини-приложения."}
-        </p>
-        <div className="tabs" role="group" aria-label="Предпочтительный канал">
-          <button
-            type="button"
-            className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
-            disabled={busy}
-            onClick={() => void setPreferredChannel("web_cabinet")}
-          >
-            Веб-кабинет
-          </button>
-          <button
-            type="button"
-            className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
-            disabled={busy}
-            onClick={() => void setPreferredChannel("max_miniapp")}
-          >
-            MAX
-          </button>
-          <button
-            type="button"
-            className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
-            disabled={busy}
-            onClick={() => void setPreferredChannel("unset")}
-          >
-            Не задан
-          </button>
-        </div>
-      </section>
-
-      {selectedId && (
-        <nav className="case-nav" aria-label="Разделы дела">
-          <button type="button" className="ghost" onClick={() => setView("cases")}>
-            ← К списку дел
-          </button>
-          <button
-            type="button"
-            className={view === "case" ? "tab active" : "tab"}
-            onClick={() => void openCase(selectedId, "case")}
-          >
-            Дело
-          </button>
-          <button
-            type="button"
-            className={view === "docs" ? "tab active" : "tab"}
-            onClick={() => void openCase(selectedId, "docs")}
-          >
-            Документы и согласия
-          </button>
-          <button
-            type="button"
-            className={view === "payments" ? "tab active" : "tab"}
-            onClick={() => void loadPayments(selectedId)}
-          >
-            Оплаты
-          </button>
-          <button
-            type="button"
-            className={view === "result" ? "tab active" : "tab"}
-            onClick={() => void loadResult(selectedId)}
-          >
-            Результат
+      {selectedId && view !== "cases" && view !== "case" ? (
+        <nav className="case-nav case-nav--back" aria-label="Назад">
+          <button type="button" className="ghost" onClick={() => void openCase(selectedId, "case")}>
+            ← К вашему делу
           </button>
         </nav>
-      )}
+      ) : null}
+
+      {cases.length > 1 && view !== "cases" && view === "case" ? (
+        <p className="hint">
+          <button type="button" className="linkish" onClick={() => setView("cases")}>
+            Другие дела
+          </button>
+        </p>
+      ) : null}
 
       {view === "cases" && (
         <section>
-          <h1>Мои дела</h1>
-          <p className="lead">Клиент и законный представитель видят только доступные им дела.</p>
+          <h1>Ваши дела</h1>
           {cases.length === 0 ? (
-            <p>
-              {busy
-                ? "Создаём ваше дело…"
-                : "Дел пока нет. Обновите страницу — дело создастся автоматически."}
-            </p>
+            <div className="panel accent">
+              <p>{busy ? "Готовим ваше дело…" : "Готовим ваше дело…"}</p>
+              <button type="button" onClick={() => void loadCases()} disabled={busy}>
+                Обновить
+              </button>
+            </div>
           ) : (
             <ul className="case-list">
               {cases.map((caseItem) => (
@@ -1635,20 +1666,12 @@ export function ClientCabinet() {
                     className="case-card-button"
                     onClick={() => void openCase(caseItem.id)}
                   >
-                    <strong>Дело {shortId(caseItem.id)}</strong>
-                    <span>Статус: {labelStatus(caseItem.b2c_status)} · этап {labelStatus(caseItem.pipeline_status)}</span>
+                    <strong>Ваше дело</strong>
                     <span>
-                      Ответственный:{" "}
-                      {caseItem.expert_assigned ? "сотрудник назначен" : "ожидает назначения"}
+                      {humanCaseStatus(caseItem.pipeline_status, caseItem.b2c_status)}
                     </span>
                     <span>
-                      Ближайшее действие: {caseItem.next_action ?? "нет открытых пунктов"}
-                    </span>
-                    <span>
-                      Непрочитанных сообщений: {caseItem.unread_messages}
-                      {caseItem.checklist_open_count > 0
-                        ? ` · открытых пунктов: ${caseItem.checklist_open_count}`
-                        : ""}
+                      Сейчас нужно: {caseItem.next_action ?? "открыть дело"}
                     </span>
                   </button>
                 </li>
@@ -1658,44 +1681,42 @@ export function ClientCabinet() {
         </section>
       )}
 
-      {view === "case" && detail && (
+      {view === "case" && detail && home && (
         <section className="stack">
-          <h1>Дело {shortId(detail.id)}</h1>
-          <p>
-            Текущий этап:{" "}
-            <strong>{detail.status_label || labelStatus(detail.pipeline_status)}</strong>
-            {" · "}
-            {labelStatus(detail.b2c_status)}
+          <h1>Ваше дело</h1>
+          <p className="status-line">
+            {humanCaseStatus(detail.pipeline_status, detail.b2c_status)}
           </p>
-          {detail.status_hint && <p className="hint">{detail.status_hint}</p>}
-          {detail.next_action && (
-            <p>
-              Ближайшее действие: <strong>{detail.next_action}</strong>
-            </p>
-          )}
-          <p>
-            Ответственный сотрудник:{" "}
-            {detail.expert_assigned ? "назначен" : "ещё не назначен"}
+          <p className="now-need">
+            Сейчас нужно: <strong>{home.nowNeed}</strong>
           </p>
 
-          <div className="panel accent">
-            <h2>Проверка документов</h2>
-            <p className="hint">
-              Запускает сверку / передаёт дело специалисту. Подачи в СФР от вашего имени нет.
-            </p>
-            <button type="button" onClick={() => void runCheck()} disabled={busy || !detail.consent_accepted}>
-              Запустить проверку
-            </button>
-            {!detail.consent_accepted && (
-              <p className="hint">Сначала подтвердите согласие на обработку ПДн.</p>
-            )}
-          </div>
+          <ol className="home-steps">
+            <li className={stepDone.consent ? "done" : home.current === "consent" ? "current" : ""}>
+              <span className="mark" aria-hidden>
+                {stepDone.consent ? "✓" : home.current === "consent" ? "●" : "○"}
+              </span>
+              Шаг 1. Согласие
+            </li>
+            <li className={stepDone.upload ? "done" : home.current === "upload" ? "current" : ""}>
+              <span className="mark" aria-hidden>
+                {stepDone.upload ? "✓" : home.current === "upload" ? "●" : "○"}
+              </span>
+              Шаг 2. Загрузить документы
+            </li>
+            <li className={stepDone.check ? "done" : home.current === "check" ? "current" : ""}>
+              <span className="mark" aria-hidden>
+                {stepDone.check ? "✓" : home.current === "check" ? "●" : "○"}
+              </span>
+              Шаг 3. Отправить на проверку
+            </li>
+          </ol>
 
-          {!detail.consent_accepted && (
+          {home.current === "consent" && (
             <div className="panel accent">
-              <h2>Согласие на обработку ПДн</h2>
+              <h2>Подтвердите согласие</h2>
               <p>
-                Подтвердите согласие до загрузки документов.{" "}
+                Нужно до загрузки документов.{" "}
                 <a href={`${SITE_URL}/soglasie/`} target="_blank" rel="noreferrer">
                   Текст согласия
                 </a>
@@ -1706,119 +1727,155 @@ export function ClientCabinet() {
             </div>
           )}
 
-          <div className="panel">
-            <h2>Возможные расхождения</h2>
-            {detail.pipeline_error && <p className="notice">{detail.pipeline_error}</p>}
-            {!detail.findings?.length ? (
-              <p>Пока нет findings. Загрузите документы и запустите проверку.</p>
-            ) : (
+          {home.current === "upload" && (
+            <div className="panel accent">
+              <h2>Загрузить документы</h2>
+              <p className="hint">Выписка ИЛС — PDF или фото (JPG / PNG).</p>
+              {detail.required_documents.length > 0 && (
+                <ul className="plain-list">
+                  {detail.required_documents.map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                  ))}
+                </ul>
+              )}
+              <label className="file-label">
+                Загрузить выписку ИЛС (PDF или фото)
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadDocument(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          {home.current === "check" && (
+            <div className="panel accent">
+              <h2>Отправить на проверку</h2>
+              <p className="hint">
+                Документы уйдут специалисту. Подачи в СФР от вашего имени нет.
+              </p>
+              <button type="button" onClick={() => void runCheck()} disabled={busy}>
+                Отправить документы на проверку
+              </button>
+              <label className="file-label">
+                Добавить ещё документ
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadDocument(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          <p className="docs-count">
+            Уже загружено: {detail.documents.length}{" "}
+            {detail.documents.length === 1
+              ? "документ"
+              : detail.documents.length > 1 && detail.documents.length < 5
+                ? "документа"
+                : "документов"}
+          </p>
+          {detail.documents.length > 0 && (
+            <ul className="plain-list">
+              {detail.documents.map((doc) => (
+                <li key={doc.id}>
+                  <button type="button" className="linkish" onClick={() => void openSignedUrl(doc.id)}>
+                    {doc.storage_path.split("/").pop() ?? doc.id}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="home-actions">
+            <a className="secondary" href="#messages">
+              Написать специалисту
+            </a>
+            <a className="ghost" href={maxChatHref} target="_blank" rel="noopener noreferrer">
+              Открыть чат MAX
+            </a>
+          </div>
+
+          {(detail.findings?.length ?? 0) > 0 && (
+            <div className="panel">
+              <h2>Что нашли в документах</h2>
+              {detail.pipeline_error && <p className="notice">{detail.pipeline_error}</p>}
               <ul className="plain-list">
-                {detail.findings.map((f, idx) => (
+                {(detail.findings ?? []).map((f, idx) => (
                   <li key={`${f.type}-${idx}`}>
                     <strong>{f.type}</strong>
                     {f.detail ? `: ${f.detail}` : ""}
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="panel">
-            <h2>Персональный чек-лист</h2>
-            {detail.checklist_items.length === 0 ? (
-              <p>Чек-лист появится после аудита документов.</p>
-            ) : (
+          {detail.checklist_items.length > 0 && (
+            <div className="panel">
+              <h2>Что ещё нужно сделать</h2>
               <ul className="plain-list">
                 {detail.checklist_items.map((item) => (
                   <li key={item.id}>
                     <strong>{item.title}</strong>
                     <span>
-                      {item.status} · {item.owner === "client" ? "ваше действие" : "эксперт"}
-                      {item.due_at ? ` · до ${new Date(item.due_at).toLocaleDateString("ru-RU")}` : ""}
+                      {item.owner === "client" ? "ваше действие" : "специалист"}
+                      {item.due_at
+                        ? ` · до ${new Date(item.due_at).toLocaleDateString("ru-RU")}`
+                        : ""}
                     </span>
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="panel">
-            <h2>Требуемые документы</h2>
-            {detail.required_documents.length === 0 ? (
-              <p>Сейчас нет открытых запросов документов.</p>
-            ) : (
-              <ul className="plain-list">
-                {detail.required_documents.map((item) => (
-                  <li key={item.id}>{item.title}</li>
-                ))}
-              </ul>
-            )}
-            <label className="file-label">
-              Загрузить PDF / JPG / PNG
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                disabled={busy || !detail.consent_accepted}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void uploadDocument(file);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-            {!detail.consent_accepted && (
-              <p className="hint">Загрузка недоступна без согласия на обработку ПДн.</p>
-            )}
-            {detail.documents.length > 0 && (
-              <ul className="plain-list">
-                {detail.documents.map((doc) => (
-                  <li key={doc.id}>
-                    <button type="button" className="linkish" onClick={() => void openSignedUrl(doc.id)}>
-                      {doc.storage_path.split("/").pop() ?? doc.id}
-                    </button>
-                    <span className="hint"> · временная ссылка</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {detail.draft && (
+            <div className="panel">
+              <h2>Черновик заявления</h2>
+              <p>
+                <strong>{detail.draft.title ?? "Черновик"}</strong>
+                {detail.draft.needs_human_review ? " · нужна проверка специалиста" : ""}
+              </p>
+              <pre className="draft">{detail.draft.body}</pre>
+            </div>
+          )}
 
-          <div className="panel">
-            <h2>Черновик заявления</h2>
-            {detail.draft ? (
-              <>
-                <p>
-                  <strong>{detail.draft.title ?? "Черновик"}</strong>
-                  {detail.draft.needs_human_review ? " · требуется проверка эксперта" : ""}
-                </p>
-                <pre className="draft">{detail.draft.body}</pre>
-              </>
-            ) : (
-              <p>Черновик появится после подготовки экспертом.</p>
-            )}
-          </div>
+          {detail.submission_instruction && stepDone.check && (
+            <div className="panel">
+              <h2>Как подать самостоятельно</h2>
+              <p>{detail.submission_instruction}</p>
+            </div>
+          )}
 
-          <div className="panel">
-            <h2>Как подать самостоятельно</h2>
-            <p>{detail.submission_instruction}</p>
-            <p className="hint">Кнопки «Подать в СФР от вашего имени» в кабинете нет и не будет.</p>
-          </div>
-
-          <div className="panel">
-            <h2>Сообщения и уведомления</h2>
+          <div className="panel" id="messages">
+            <h2>Написать специалисту</h2>
             <ul className="messages">
               {messages.length === 0 && <li>Сообщений пока нет.</li>}
               {messages.map((message) => (
                 <li key={message.id} className={message.author_kind === "client" ? "mine" : ""}>
                   <span className="meta">
-                    {message.author_kind} · {new Date(message.created_at).toLocaleString("ru-RU")}
+                    {authorLabel(message.author_kind)} ·{" "}
+                    {new Date(message.created_at).toLocaleString("ru-RU")}
                   </span>
                   <p>{message.body}</p>
                 </li>
               ))}
             </ul>
             <form className="message-form" onSubmit={sendMessage}>
-              <label htmlFor="message">Новое сообщение</label>
+              <label htmlFor="message">Ваше сообщение</label>
               <textarea
                 id="message"
                 rows={3}
@@ -1832,19 +1889,52 @@ export function ClientCabinet() {
               </button>
             </form>
           </div>
+
+          <details className="home-more">
+            <summary>Ещё</summary>
+            <div className="home-more-links">
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => void loadPayments(selectedId!)}
+              >
+                Оплаты
+              </button>
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => void loadResult(selectedId!)}
+              >
+                Результат
+              </button>
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => void openCase(selectedId!, "docs")}
+              >
+                Согласие и договор
+              </button>
+              {!hasPasswordSet(session) ? (
+                <button type="button" className="linkish" onClick={openPasswordSetup}>
+                  Задать пароль
+                </button>
+              ) : null}
+            </div>
+          </details>
         </section>
       )}
 
       {view === "docs" && detail && consents && (
         <section className="stack">
-          <h1>Документы и согласия</h1>
+          <h1>Согласие и договор</h1>
           <div className="panel">
             <h2>Согласие на обработку ПДн</h2>
             <p>
               <a href={consents.consent_url} target="_blank" rel="noreferrer">
                 Текст согласия
               </a>
-              {" · "}
+            </p>
+            <p>
               <a href={consents.pdn_url} target="_blank" rel="noreferrer">
                 Политика ПДн
               </a>
@@ -1865,17 +1955,17 @@ export function ClientCabinet() {
             </ul>
           </div>
           <div className="panel">
-            <h2>Оферта и индивидуальный заказ</h2>
+            <h2>Условия услуги</h2>
             <p>
               <a href={consents.offer_url} target="_blank" rel="noreferrer">
                 Публичная оферта
               </a>
             </p>
             <button type="button" onClick={() => void acceptContract()} disabled={busy}>
-              Акцептовать оферту и заказ
+              Принять условия услуги
             </button>
             <ul className="plain-list">
-              {consents.contract_acceptances.length === 0 && <li>Акцептов пока нет.</li>}
+              {consents.contract_acceptances.length === 0 && <li>Пока не принято.</li>}
               {consents.contract_acceptances.map((row) => (
                 <li key={row.id}>
                   оферта {row.offer_version} · {new Date(row.accepted_at).toLocaleString("ru-RU")}
@@ -1890,8 +1980,8 @@ export function ClientCabinet() {
         <section className="stack">
           <h1>Оплаты</h1>
           <p className="lead">
-            Диагностика и сопровождение — фиксированные счета. Post-payment появляется только после
-            подтверждения результата.
+            Диагностика — фиксированный счёт. Оплата после результата появляется только после
+            подтверждения.
           </p>
           {orders.length === 0 ? (
             <p>Счетов пока нет.</p>
@@ -1902,10 +1992,13 @@ export function ClientCabinet() {
                 const canPay = order.status === "pending" || order.status === "awaiting_payment";
                 return (
                   <li key={order.id}>
-                    <strong>{PACKAGE_LABELS[order.package_code] ?? order.package_code}</strong>
+                    <strong>{packageLabel(order.package_code)}</strong>
                     <span>
-                      {order.amount_rub} ₽ · статус {order.status}
-                      {isPost ? " · post-payment" : ""}
+                      {order.amount_rub} ₽ ·{" "}
+                      {order.status === "paid" || order.status === "succeeded"
+                        ? "оплачено"
+                        : "к оплате"}
+                      {isPost ? " · оплата после результата" : " · диагностика"}
                     </span>
                     {(order.payments ?? []).map((payment) => (
                       <span key={payment.id}>
@@ -1931,7 +2024,7 @@ export function ClientCabinet() {
             </ul>
           )}
           <p className="hint">
-            Если онлайн-оплата недоступна, оператор отметит оплату вручную — статус обновится здесь.
+            Если онлайн-оплата недоступна, специалист отметит оплату вручную — статус обновится здесь.
           </p>
         </section>
       )}
@@ -1964,20 +2057,20 @@ export function ClientCabinet() {
                 <li>Новый размер: {result.evidence.monthly_after_rub ?? "—"} ₽</li>
                 <li>Единовременная выплата: {result.evidence.lump_sum_rub ?? "—"} ₽</li>
                 <li>
-                  Подтверждение эксперта:{" "}
+                  Подтверждение специалиста:{" "}
                   {result.evidence.confirmed_at
                     ? new Date(result.evidence.confirmed_at).toLocaleString("ru-RU")
                     : "ещё не подтверждено"}
                 </li>
               </ul>
             ) : (
-              <p>Данные результата появятся после загрузки решения и проверки экспертом.</p>
+              <p>Данные появятся после загрузки решения и проверки специалистом.</p>
             )}
           </div>
           <div className="panel">
             <h2>Расчёт вознаграждения</h2>
             <ul className="plain-list">
-              <li>10% от ЕДВ: {result.success_fee.sf_lump} ₽</li>
+              <li>10% от единовременной выплаты: {result.success_fee.sf_lump} ₽</li>
               <li>50% прибавки × 3 мес.: {result.success_fee.sf_month} ₽</li>
               <li>
                 <strong>Итого: {result.success_fee.sf_total} ₽</strong>
@@ -1990,6 +2083,10 @@ export function ClientCabinet() {
 
       {notice && <p className="notice">{notice}</p>}
       {busy && <p className="hint">Загрузка…</p>}
+
+      <p className="warning warning--footer" role="note">
+        Решение принимает СФР. Результат не гарантирован.
+      </p>
     </main>
   );
 }
