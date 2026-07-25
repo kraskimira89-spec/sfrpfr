@@ -203,16 +203,30 @@ def _reply_need_start(
 
 def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
     """Гарантированно получить/создать строку clients для max_user_id."""
-    _ensure_supabase_max_client(max_user_id)
-    row = _client_row_by_max(max_user_id)
-    if row:
-        return row
+    import logging
+
+    log = logging.getLogger(__name__)
     try:
         from sfrfr.db.client_channels import ClientChannelRepository
 
-        return ClientChannelRepository().ensure_for_max_user(max_user_id)
-    except Exception:
+        return ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+    except Exception as exc:  # noqa: BLE001
+        log.exception("ensure_client_row_failed max=%s: %s", max_user_id, exc)
         return _client_row_by_max(max_user_id)
+
+
+def _ensure_supabase_max_client(max_user_id: str) -> None:
+    """Неблокирующая регистрация клиента MAX в Supabase (единый профиль ТЗ-09)."""
+    try:
+        from sfrfr.db.client_channels import ClientChannelRepository
+
+        ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "ensure_supabase_max_client_failed max=%s", max_user_id
+        )
 
 
 def _resume_pending_confirm_if_any(
@@ -267,16 +281,6 @@ def _handle_bot_start(
     reply = after_start_login_hint()
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
-
-
-def _ensure_supabase_max_client(max_user_id: str) -> None:
-    """Неблокирующая регистрация клиента MAX в Supabase (единый профиль ТЗ-09)."""
-    try:
-        from sfrfr.db.client_channels import ClientChannelRepository
-
-        ClientChannelRepository().ensure_for_max_user(max_user_id)
-    except Exception:
-        pass
 
 
 def _client_row_by_max(max_user_id: str) -> dict[str, Any] | None:

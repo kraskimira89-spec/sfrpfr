@@ -234,57 +234,70 @@ body.page-template-default {
   gap: clamp(0.85rem, 2.5vw, 1.25rem);
 }
 
-/* Планшет: 2 колонки */
+/*
+  Чередование раскладок по разделам:
+  --row  = вертикальные карточки в горизонтальный ряд
+  --stack = горизонтальные карточки-полосы стол
+*/
+.sfrfr-cards--stack {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .sfrfr-cards--stack .sfrfr-card {
+    display: grid;
+    grid-template-columns: minmax(11rem, 16rem) minmax(0, 1fr);
+    column-gap: 1.25rem;
+    row-gap: 0.35rem;
+    align-items: start;
+  }
+
+  .sfrfr-cards--stack .sfrfr-card h3 {
+    margin: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .sfrfr-cards--stack .sfrfr-card > p,
+  .sfrfr-cards--stack .sfrfr-card > .sfrfr-price,
+  .sfrfr-cards--stack .sfrfr-card > a,
+  .sfrfr-cards--stack .sfrfr-card > .sfrfr-btn {
+    grid-column: 2;
+  }
+
+  .sfrfr-cards--stack .sfrfr-card > p:first-of-type {
+    grid-row: 1;
+  }
+
+  /* карточка только с текстом (без h3) — на всю ширину */
+  .sfrfr-cards--stack .sfrfr-card > p:only-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Планшет: 2 колонки для ряда */
 @media (min-width: 560px) {
-  .sfrfr-cards--2,
-  .sfrfr-cards--3,
-  .sfrfr-cards--4 {
+  .sfrfr-cards--row.sfrfr-cards--2,
+  .sfrfr-cards--row.sfrfr-cards--3,
+  .sfrfr-cards--row.sfrfr-cards--4 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* Десктоп: 3 колонки */
 @media (min-width: 900px) {
-  .sfrfr-cards--3 {
+  .sfrfr-cards--row.sfrfr-cards--3 {
     grid-template-columns: repeat(3, 1fr);
   }
-}
 
-@media (min-width: 1100px) {
-  .sfrfr-cards--4 {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .sfrfr-cards--pain {
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  .sfrfr-cards--pain .sfrfr-card:nth-child(1),
-  .sfrfr-cards--pain .sfrfr-card:nth-child(2),
-  .sfrfr-cards--pain .sfrfr-card:nth-child(3) {
-    grid-column: span 2;
-  }
-
-  .sfrfr-cards--pain .sfrfr-card:nth-child(4),
-  .sfrfr-cards--pain .sfrfr-card:nth-child(5) {
-    grid-column: span 3;
-  }
-}
-
-@media (min-width: 560px) {
-  .sfrfr-cards--pain {
+  .sfrfr-cards--row.sfrfr-cards--2 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 900px) and (max-width: 1099px) {
-  .sfrfr-cards--pain {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .sfrfr-cards--pain .sfrfr-card:nth-child(4),
-  .sfrfr-cards--pain .sfrfr-card:nth-child(5) {
-    grid-column: span 1;
+@media (min-width: 1100px) {
+  .sfrfr-cards--row.sfrfr-cards--4 {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -356,24 +369,73 @@ body.page-template-default {
   counter-reset: step;
 }
 
+.sfrfr-steps--stack {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .sfrfr-steps--stack .sfrfr-step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .sfrfr-steps--stack .sfrfr-step::before {
+    margin-bottom: 0;
+  }
+
+  .sfrfr-steps--stack .sfrfr-step h3 {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sfrfr-steps--stack .sfrfr-step p {
+    grid-column: 2;
+  }
+}
+
 @media (min-width: 560px) {
-  .sfrfr-steps {
+  .sfrfr-steps--row {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (min-width: 900px) {
-  .sfrfr-steps {
+  .sfrfr-steps--row {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (min-width: 1100px) {
-  .sfrfr-steps {
+  .sfrfr-steps--row:not(.sfrfr-steps--3) {
     grid-template-columns: repeat(5, 1fr);
   }
 
-  .sfrfr-steps--3 {
+  .sfrfr-steps--row.sfrfr-steps--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* fallback без --row/--stack: как ряд */
+@media (min-width: 560px) {
+  .sfrfr-steps:not(.sfrfr-steps--stack):not(.sfrfr-steps--row) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .sfrfr-steps:not(.sfrfr-steps--stack):not(.sfrfr-steps--row) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .sfrfr-steps:not(.sfrfr-steps--stack):not(.sfrfr-steps--row) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .sfrfr-steps--3:not(.sfrfr-steps--stack) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -420,8 +482,12 @@ body.page-template-default {
   gap: clamp(0.85rem, 2.5vw, 1.25rem);
 }
 
+.sfrfr-cols--stack {
+  grid-template-columns: 1fr;
+}
+
 @media (min-width: 720px) {
-  .sfrfr-cols {
+  .sfrfr-cols:not(.sfrfr-cols--stack) {
     grid-template-columns: 1fr 1fr;
   }
 }
