@@ -62,8 +62,8 @@ def test_unified_login_terms() -> None:
     assert "Показать код для MAX" not in hint
     assert "Получить подтверждение" not in hint
     assert "код" in hint.lower()
-    url = get_code_in_browser_url(mode="register")
-    assert "mode=register" in url
+    url = get_code_in_browser_url(mode="login")
+    assert "mode=login" in url
     assert "channel=max" in url
     assert "get_code=1" in url
 
