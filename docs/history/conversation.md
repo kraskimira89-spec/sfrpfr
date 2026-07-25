@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-25 (день)
+
+- Nightly dbt перенесён с VPS в GitHub Actions: расписание 05:30 МСК,
+  `--threads 1 --no-populate-cache`, artifacts и Secrets для DBT-подключения.
+
 ## 2026-07-25 (утро)
 
 - Проверка VPS по SSH: хост жив, `DBT_*` и dbt debug OK; `dbt build` через pooler зависает.

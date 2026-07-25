@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-25 (nightly dbt)
+
+- Nightly dbt вынесен в GitHub Actions: 05:30 МСК, ручной запуск, один поток,
+  отключённый relation cache и artifact логов/результатов.
+- Для workflow нужны GitHub Secrets `DBT_HOST`, `DBT_PORT`, `DBT_USER`,
+  `DBT_PASSWORD`, `DBT_DBNAME`; cron dbt на VPS остаётся выключенным.
+
 ## 2026-07-25 (VPS + dbt)
 
 - SSH к VPS ок: `DBT_*`, `profiles.yml`, `dbt` 1.12, `sfrfr-api` active.

@@ -45,13 +45,31 @@ dbt build --profiles-dir . --threads 1 --no-populate-cache
 dbt docs generate --profiles-dir . --no-populate-cache
 ```
 
-На VPS есть обёртка:
+На VPS есть обёртка для ручного запуска:
 
 ```bash
 SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 ```
 
-Запускайте её отдельным systemd timer или cron от пользователя `sfrfr`, например раз в сутки. Не добавляйте dbt в FastAPI startup или `scripts/vps_deploy.sh`.
+Не добавляйте dbt в FastAPI startup или `scripts/vps_deploy.sh`.
+
+## Nightly в GitHub Actions
+
+Workflow [dbt-nightly.yml](../.github/workflows/dbt-nightly.yml) запускается ежедневно
+в 05:30 МСК и доступен вручную через **Actions → dbt-nightly → Run workflow**.
+
+В GitHub repository secrets добавьте значения из защищённого `.env`:
+
+- `DBT_HOST`
+- `DBT_PORT`
+- `DBT_USER`
+- `DBT_PASSWORD`
+- `DBT_DBNAME`
+
+Workflow использует session pooler с одним потоком и отключённым relation cache
+(`--threads 1 --no-populate-cache`), не допускает параллельных запусков и
+сохраняет `analytics/target/` и `analytics/logs/` как artifact на 14 дней.
+Cron dbt на VPS должен оставаться выключенным.
 
 ### Замечания по VPS / pooler
 
@@ -60,7 +78,7 @@ SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 - Флаги в `dbt_run.sh`: `--threads 1 --no-populate-cache`.
 - После серии оборванных прогонов убивайте сессии роли:  
   `select pg_terminate_backend(pid) from pg_stat_activity where usename = 'analytics_transformer' and pid <> pg_backend_pid();`
-- Пока cron на VPS лучше не включать, пока нет direct IPv4; витрины можно пересобирать с ПК.
+- Пока cron на VPS лучше не включать, пока нет direct IPv4; nightly выполняется в GitHub Actions.
 
 ## Контроль доступа
 
