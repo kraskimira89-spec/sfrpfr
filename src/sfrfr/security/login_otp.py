@@ -33,17 +33,16 @@ WORK_IN_APP_LABEL = "Работать в приложении"
 WORK_IN_INTERFACE_LABEL = "Работать в интерфейсе"
 
 
-def get_code_in_browser_url(*, mode: str = "register") -> str:
-    """Ссылка из MAX: страница регистрации/входа с автопоказом кода."""
+def get_code_in_browser_url(*, mode: str = "login") -> str:
+    """Ссылка из MAX: страница входа с автопоказом кода (вход = регистрация через MAX)."""
     cabinet = get_settings().cabinet_public_url.rstrip("/")
-    mode_q = "login" if mode == "login" else "register"
-    return f"{cabinet}/?mode={mode_q}&channel=max&get_code=1"
+    return f"{cabinet}/?mode=login&channel=max&get_code=1"
 
 
 def after_start_login_hint() -> str:
     """Ответ бота после «Начать»: кнопка ведёт на страницу с кодом."""
     return (
-        f"Нажмите «{GET_CODE_IN_BROWSER_LABEL}» — откроется страница регистрации "
+        f"Нажмите «{GET_CODE_IN_BROWSER_LABEL}» — откроется страница входа "
         f"с кодом. Пришлите этот 6-значный код сюда."
     )
 

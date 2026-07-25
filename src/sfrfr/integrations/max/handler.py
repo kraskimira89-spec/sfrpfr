@@ -285,7 +285,7 @@ def _handle_bot_start(
     reply = after_start_login_hint()
     attachments = inline_link_keyboard(
         GET_CODE_IN_BROWSER_LABEL,
-        get_code_in_browser_url(mode="register"),
+        get_code_in_browser_url(mode="login"),
     )
     _reply(
         bot,
