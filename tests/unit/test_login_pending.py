@@ -94,5 +94,5 @@ def test_callback_payload_roundtrip() -> None:
 def test_confirm_message_is_pc_oriented() -> None:
     text = confirm_web_login_message()
     assert "Нажмите кнопку" in text
-    assert "кабинет" in text.lower()
-    assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в веб кабинет"
+    assert "браузер" in text.lower()
+    assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в браузере"

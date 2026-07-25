@@ -15,12 +15,44 @@ _TTL_SECONDS = 10 * 60
 _CODE_DIGITS = 6
 _SEP = "|"
 
-# Единая формулировка для кнопки и сообщения в MAX
-CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в веб кабинет"
+# Единые термины и подписи кнопок (чат MAX / браузер / страница входа / почта)
+TERM_CHAT_MAX = "чат MAX"
+TERM_BROWSER = "браузер"
+TERM_LOGIN_PAGE = "страница входа"
+TERM_EMAIL = "почта"
+
+CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в браузере"
 CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
 APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 START_DIALOG_LABEL = "Начать"
 START_DIALOG_CALLBACK = "start_dialog"
+SHOW_CODE_BUTTON_LABEL = "Показать код для MAX"
+OPEN_CABINET_BUTTON_LABEL = "Открыть кабинет в браузере"
+
+
+def after_start_login_hint() -> str:
+    """Ответ бота после «Начать»: что нажать на странице входа."""
+    return (
+        f"Готово. В браузере на странице входа нажмите "
+        f"«{SHOW_CODE_BUTTON_LABEL}» и пришлите сюда 6-значный код — "
+        f"после этого в чате MAX появится кнопка входа."
+    )
+
+
+def ask_code_from_login_page() -> str:
+    return "Пришлите код со страницы входа."
+
+
+def confirm_web_login_message(*, code: str | None = None) -> str:
+    """Один шаг: нажать кнопку — откроется кабинет в браузере."""
+    if code:
+        return f"Код: {code}\nНажмите кнопку — откроется кабинет в браузере."
+    return "Нажмите кнопку — откроется кабинет в браузере."
+
+
+def pair_code_prompt_message(*, pair_code: str) -> str:
+    """Один шаг: прислать код со страницы входа."""
+    return f"Пришлите код со страницы входа: {pair_code}"
 
 
 def _secret() -> bytes:
@@ -152,16 +184,4 @@ def verify_login_link(*, link_token: str) -> tuple[str, str] | None:
     if not hmac.compare_digest(expected_sig, sig):
         return None
     return contact, max_user_id
-
-
-def confirm_web_login_message(*, code: str | None = None) -> str:
-    """Один шаг: нажать кнопку — откроется кабинет в браузере."""
-    if code:
-        return f"Код: {code}\nНажмите кнопку — откроется кабинет."
-    return "Нажмите кнопку — откроется кабинет."
-
-
-def pair_code_prompt_message(*, pair_code: str) -> str:
-    """Один шаг: прислать код с ПК."""
-    return f"Пришлите код с экрана: {pair_code}"
 

@@ -45,6 +45,23 @@ def test_issue_and_verify_login_link() -> None:
     assert verify_login_link(link_token="bad") is None
 
 
+def test_unified_login_terms() -> None:
+    from sfrfr.security.login_otp import (
+        CONFIRM_WEB_LOGIN_LABEL,
+        SHOW_CODE_BUTTON_LABEL,
+        after_start_login_hint,
+    )
+
+    assert SHOW_CODE_BUTTON_LABEL == "Показать код для MAX"
+    assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в браузере"
+    hint = after_start_login_hint()
+    assert SHOW_CODE_BUTTON_LABEL in hint
+    assert "Получить подтверждение" not in hint
+    assert "странице входа" in hint
+    assert "браузере" in hint
+    assert "чате MAX" in hint
+
+
 def test_confirm_web_login_copy() -> None:
     text = confirm_web_login_message(code="123456")
     assert "123456" in text

@@ -272,7 +272,7 @@ export function AdminCabinet() {
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
       setOtpSent(true);
-      setNotice(body.message || "Ожидаем подтверждение в MAX…");
+      setNotice(body.message || "Ожидаем подтверждение в чате MAX…");
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
     } finally {
@@ -579,32 +579,33 @@ export function AdminCabinet() {
                   Подтвердить вход через MAX
                 </button>
                 <p className="muted" style={{ marginTop: "0.75rem", fontSize: "0.9rem" }}>
-                  1) Код в боте → 2) подтверждение на телефоне → 3) руководитель только при
-                  первом входе с этого MAX.
+                  1) Код в чат MAX → 2) «Подтвердить вход в браузере» → 3) руководитель только при
+                  первом входе с этого чата MAX.
                 </p>
               </form>
             ) : (
               <div>
                 {maxPairCode ? (
                   <p>
-                    Код для бота: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
+                    Код для чата MAX: <strong style={{ fontSize: "1.4rem" }}>{maxPairCode}</strong>
                   </p>
                 ) : null}
                 <p>
                   <a href={maxBotUrl} target="_blank" rel="noreferrer">
-                    Открыть чат с ботом MAX
+                    Открыть чат MAX
                   </a>
                 </p>
                 {maxWaitStatus === "pending_pair" ? (
                   <p>
-                    Напишите /start и отправьте код <strong>{maxPairCode}</strong>
+                    В чате MAX нажмите «Начать» и отправьте код <strong>{maxPairCode}</strong> со
+                    страницы входа
                   </p>
                 ) : null}
                 {maxWaitStatus === "pending_confirm" ? (
-                  <p>Нажмите на телефоне «Подтвердить вход в веб кабинет»</p>
+                  <p>В чате MAX нажмите «Подтвердить вход в браузере»</p>
                 ) : null}
                 {maxWaitStatus === "pending_manager" ? (
-                  <p>Ожидаем подтверждение руководителя в MAX…</p>
+                  <p>Ожидаем подтверждение руководителя в чате MAX…</p>
                 ) : null}
                 <button
                   type="button"

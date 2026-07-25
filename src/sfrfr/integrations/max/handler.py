@@ -18,8 +18,11 @@ from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
+    OPEN_CABINET_BUTTON_LABEL,
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
+    after_start_login_hint,
+    ask_code_from_login_page,
     confirm_web_login_message,
     issue_login_link,
 )
@@ -244,10 +247,7 @@ def _handle_bot_start(
         case_id = existing.case_id
         action = "resume"
 
-    reply = (
-        "Готово. На компьютере нажмите «Получить подтверждение» и пришлите сюда "
-        "6-значный код с экрана — после этого появится кнопка входа."
-    )
+    reply = after_start_login_hint()
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
@@ -416,7 +416,7 @@ def _complete_pc_login(
     if pending is None:
         pending = latest_for_max(user_id)
     if pending is None or pending.status not in {"pending_confirm", "pending_pair"}:
-        reply = "Пришлите код с экрана компьютера."
+        reply = ask_code_from_login_page()
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_no_pending", reply=reply)
 
@@ -500,7 +500,7 @@ def _complete_pc_login(
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
     _send_open_cabinet_link(bot, user_id=user_id, chat_id=chat_id, contact=email)
-    reply = "Готово. Откройте кабинет или смотрите компьютер."
+    reply = "Готово. Откройте кабинет в браузере или смотрите страницу входа."
     return MaxHandleResult(ok=True, action="login_approved", reply=reply)
 
 
@@ -627,12 +627,12 @@ def _send_open_cabinet_link(
     contact: str,
 ) -> None:
     issued = issue_login_link(contact=contact, max_user_id=str(user_id))
-    attachments = inline_link_keyboard("Открыть кабинет", issued.login_url)
+    attachments = inline_link_keyboard(OPEN_CABINET_BUTTON_LABEL, issued.login_url)
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
-        text="Готово. Откройте кабинет или смотрите компьютер.",
+        text="Готово. Откройте кабинет в браузере или смотрите страницу входа.",
         attachments=attachments,
     )
 
@@ -651,7 +651,7 @@ def _handle_pair_code(
     contact = _auth_email_for_row(row, user_id)
     pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
     if not pending:
-        reply = "Код не найден. Начните вход снова на компьютере."
+        reply = "Код не найден. Начните вход снова на странице входа в браузере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_invalid", reply=reply)
     _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
@@ -706,7 +706,7 @@ def handle_max_update(
     """
     Сценарий MVP:
     /start — создать/продолжить кейс + кнопка входа в веб-кабинет
-    «Подтвердить вход в веб кабинет» — одноразовая ссылка
+    «Подтвердить вход в браузере» — одноразовая ссылка / callback
     /status, /run, /draft, /docs, /help
     вложения — скачать по url или file_bytes
     """
@@ -783,7 +783,7 @@ def handle_max_update(
                 case_id=record.case_id,
                 reply=reply,
             )
-        reply = "Пришлите код с экрана веб интерфейса. Команды: /docs /run /draft /status"
+        reply = f"{ask_code_from_login_page()} Команды: /docs /run /draft /status"
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
 
@@ -853,6 +853,6 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = "Пришлите код с экрана веб интерфейса."
+    reply = ask_code_from_login_page()
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)

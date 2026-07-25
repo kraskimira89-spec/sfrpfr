@@ -336,11 +336,11 @@ def _supabase_magic_token_hash(email: str) -> str:
 
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
 def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
-    """Старт входа через MAX: ПК создаёт сессию, телефон только подтверждает.
+    """Старт входа через MAX: страница входа создаёт сессию, чат MAX подтверждает.
 
-    1) На сайте жмут «Подтвердить вход через MAX».
-    2) В MAX вводят код с экрана (или номер уже привязан) и жмут подтверждение.
-    3) Кабинет открывается на компьютере (poll), не на телефоне.
+    1) На странице входа жмут «Показать код для MAX».
+    2) В чате MAX вводят код и жмут «Подтвердить вход в браузере».
+    3) Кабинет открывается в браузере (poll).
     Для staff после шага 2 — ещё подтверждение руководителем.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
@@ -377,9 +377,9 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             max_bot_url=settings.max_chat_url,
             status="pending_pair",
             message=(
-                f"Откройте MAX, напишите /start и отправьте код {pending.pair_code}. "
-                "Затем нажмите «Подтвердить вход». "
-                "При первом входе нужно одобрение руководителя; дальше — только ваш MAX."
+                f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
+                "Затем нажмите «Подтвердить вход в браузере». "
+                "При первом входе нужно одобрение руководителя; дальше — только ваш чат MAX."
             ),
         )
 
@@ -395,16 +395,16 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             raise HTTPException(
                 status_code=404,
                 detail=(
-                    "Номер не найден. Нажмите «Подтвердить вход через MAX» без номера "
-                    "и введите код из кабинета в чат бота — или войдите по email."
+                    "Номер не найден. На странице входа выберите вход через чат MAX без номера "
+                    "и отправьте код со страницы входа в чат MAX — или войдите по почте."
                 ),
             )
         if not row.get("max_user_id"):
             raise HTTPException(
                 status_code=404,
                 detail=(
-                    "Для номера нет привязки к MAX. Откройте бота, напишите /start, "
-                    "введите код с экрана кабинета и подтвердите вход."
+                    "Для номера нет привязки к чату MAX. Откройте чат MAX, нажмите «Начать», "
+                    "отправьте код со страницы входа и подтвердите вход в браузере."
                 ),
             )
         contact = _ensure_auth_email_for_client(row, phone=phone)
@@ -435,7 +435,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
                 status_code=502,
-                detail="Не удалось отправить сообщение в MAX. Откройте бота и напишите /start.",
+                detail="Не удалось отправить сообщение в чат MAX. Откройте чат MAX и нажмите «Начать».",
             ) from exc
         ClientChannelRepository().audit(
             str(row.get("user_id") or row.get("id")),
@@ -449,9 +449,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             max_bot_url=settings.max_chat_url,
             status="pending_confirm",
             message=(
-                "В MAX отправлена кнопка «Подтвердить вход в веб кабинет». "
-                "Нажмите её на телефоне — откроется кабинет; на этом компьютере вход "
-                "подтвердится автоматически."
+                "В чат MAX отправлена кнопка «Подтвердить вход в браузере». "
+                "Нажмите её — откроется кабинет; на странице входа вход подтвердится автоматически."
             ),
         )
 
@@ -463,8 +462,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         max_bot_url=settings.max_chat_url,
         status="pending_pair",
         message=(
-            f"Откройте MAX, напишите /start и отправьте код {pending.pair_code}. "
-            "Затем нажмите «Подтвердить вход в веб кабинет» в чате — кабинет откроется здесь."
+            f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
+            "Затем нажмите «Подтвердить вход в браузере»."
         ),
     )
 
@@ -500,18 +499,21 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
         return MaxOtpPollResponse(
             ok=True,
             status="pending_manager",
-            message="Ожидаем подтверждение руководителя в MAX…",
+            message="Ожидаем подтверждение руководителя в чате MAX…",
         )
     if pending.status == "pending_confirm":
         return MaxOtpPollResponse(
             ok=True,
             status="pending_confirm",
-            message="Ожидаем нажатие «Подтвердить вход» в MAX на телефоне…",
+            message="Ожидаем нажатие «Подтвердить вход в браузере» в чате MAX…",
         )
     return MaxOtpPollResponse(
         ok=True,
         status="pending_pair",
-        message=f"Отправьте в MAX код {pending.pair_code}, затем подтвердите вход.",
+        message=(
+            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа, "
+            "затем нажмите «Подтвердить вход в браузере»."
+        ),
     )
 
 

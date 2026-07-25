@@ -44,20 +44,25 @@ def inline_confirm_login_keyboard(
     *,
     ticket_id: str,
     login_url: str | None = None,
-    label: str = "Подтвердить вход в веб кабинет",
+    label: str | None = None,
 ) -> list[dict[str, Any]]:
     """Callback (всегда видна) + опционально link (открывает браузер)."""
+    from sfrfr.security.login_otp import CONFIRM_WEB_LOGIN_LABEL, OPEN_CABINET_BUTTON_LABEL
+
+    button_label = label or CONFIRM_WEB_LOGIN_LABEL
     rows: list[list[dict[str, Any]]] = [
         [
             {
                 "type": "callback",
-                "text": label,
+                "text": button_label,
                 "payload": f"confirm_web_login|{ticket_id}",
             }
         ]
     ]
     if login_url:
-        rows.append([{"type": "link", "text": "Открыть кабинет", "url": login_url}])
+        rows.append(
+            [{"type": "link", "text": OPEN_CABINET_BUTTON_LABEL, "url": login_url}]
+        )
     return [
         {
             "type": "inline_keyboard",

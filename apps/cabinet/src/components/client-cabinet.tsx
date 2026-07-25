@@ -135,6 +135,18 @@ const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
 const MAX_BOT_HANDLE = "@id8905998693_1_bot";
 
+/** Единые термины: чат MAX / браузер / страница входа / почта (как в боте). */
+const AUTH_COPY = {
+  chatMax: "чат MAX",
+  browser: "браузер",
+  loginPage: "страница входа",
+  email: "почта",
+  showCodeBtn: "Показать код для MAX",
+  confirmBtn: "Подтвердить вход в браузере",
+  openedChatBtn: "Я открыл чат MAX",
+  pressedStartBtn: "Я нажал «Начать» — продолжить на странице входа",
+} as const;
+
 /** Ссылка на диалог с ботом (без ?startapp — иначе веб показывает «Запустить бота»). */
 function chatUrlOnly(url: string): string {
   try {
@@ -309,7 +321,7 @@ export function ClientCabinet() {
       if (cancelled) return;
       setMaxLinkBusy(true);
       setBusy(true);
-      setNotice("Подтверждаем вход из MAX…");
+      setNotice("Подтверждаем вход из чата MAX…");
     }, 0);
 
     void (async () => {
@@ -328,7 +340,7 @@ export function ClientCabinet() {
           throw new Error(
             typeof body.detail === "string"
               ? body.detail
-              : "Ссылка недействительна или устарела. Запросите вход снова в MAX.",
+              : `Ссылка недействительна или устарела. Запросите вход снова в ${AUTH_COPY.chatMax}.`,
           );
         }
         const { error } = await supabase.auth.verifyOtp({
@@ -348,7 +360,7 @@ export function ClientCabinet() {
           setNotice(
             err instanceof Error
               ? err.message
-              : "Не удалось войти по ссылке из MAX.",
+              : "Не удалось войти по ссылке из чата MAX.",
           );
         }
       } finally {
@@ -598,7 +610,7 @@ export function ClientCabinet() {
       return;
     }
     if (!email.trim() || !password) {
-      setNotice("Укажите email и пароль.");
+      setNotice("Укажите почту и пароль.");
       return;
     }
     setBusy(true);
@@ -613,9 +625,9 @@ export function ClientCabinet() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (/invalid login|invalid credentials/i.test(msg)) {
-        setNotice("Неверный email или пароль.");
+        setNotice("Неверная почта или пароль.");
       } else {
-        setNotice(msg || "Не удалось войти. Проверьте данные или войдите по коду / через MAX.");
+        setNotice(msg || "Не удалось войти. Проверьте данные или войдите по коду / через чат MAX.");
       }
     } finally {
       setBusy(false);
@@ -629,7 +641,7 @@ export function ClientCabinet() {
       return;
     }
     if (authChannel === "phone" && !AUTH_SMS_PUBLISHED) {
-      setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
+      setNotice("Вход по SMS пока недоступен. Войдите через чат MAX или почту.");
       return;
     }
     if (!supabase) {
@@ -637,7 +649,7 @@ export function ClientCabinet() {
       return;
     }
     if (!email.trim()) {
-      setNotice("Укажите email.");
+      setNotice("Укажите почту.");
       return;
     }
     setBusy(true);
@@ -662,7 +674,7 @@ export function ClientCabinet() {
         throw new Error("sms_archived");
       }
       setOtpSent(true);
-      setNotice("Код отправлен на email. Введите его ниже.");
+      setNotice("Код отправлен на почту. Введите его ниже.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       const code =
@@ -677,14 +689,14 @@ export function ClientCabinet() {
         /phone_provider|unsupported phone|sms|sms_archived/i.test(msg) ||
         code === "phone_provider_disabled"
       ) {
-        setNotice("Вход по SMS пока недоступен. Войдите через MAX или email.");
+        setNotice("Вход по SMS пока недоступен. Войдите через чат MAX или почту.");
       } else if (/signups not allowed|user not found|unable to find/i.test(msg)) {
-        setNotice("Аккаунт не найден. Зарегистрируйтесь или войдите через MAX.");
+        setNotice("Аккаунт не найден. Зарегистрируйтесь или войдите через чат MAX.");
       } else {
         setNotice(
           authChannel === "email"
             ? "Не удалось отправить код. Проверьте адрес и попробуйте снова."
-            : "Не удалось отправить код. Войдите через MAX или email.",
+            : "Не удалось отправить код. Войдите через чат MAX или почту.",
         );
       }
     } finally {
@@ -699,7 +711,7 @@ export function ClientCabinet() {
       return;
     }
     if (!email.trim()) {
-      setNotice("Укажите email.");
+      setNotice("Укажите почту.");
       return;
     }
     setBusy(true);
@@ -711,7 +723,7 @@ export function ClientCabinet() {
       if (error) throw error;
       setOtpSent(true);
       setNotice(
-        "Если аккаунт с таким email есть, мы отправили письмо со ссылкой и кодом для смены пароля.",
+        "Если аккаунт с такой почтой есть, мы отправили письмо со ссылкой и кодом для смены пароля.",
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -843,7 +855,7 @@ export function ClientCabinet() {
         const detail =
           typeof body.detail === "string"
             ? body.detail
-            : "Не удалось начать вход через MAX.";
+            : "Не удалось начать вход через чат MAX.";
         throw new Error(detail);
       }
       setMaxTicket(body.ticket || "");
@@ -852,9 +864,9 @@ export function ClientCabinet() {
       if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
       setOtpSent(true);
       setMaxWizardStep(3);
-      setNotice(body.message || "Ожидаем подтверждение в MAX…");
+      setNotice(body.message || `Ожидаем подтверждение в чате MAX…`);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
+      setNotice(err instanceof Error ? err.message : "Не удалось начать вход через чат MAX.");
     } finally {
       setBusy(false);
     }
@@ -880,14 +892,16 @@ export function ClientCabinet() {
     setMaxStep1Done(true);
     setMaxWizardStep(2);
     setNotice(
-      "Оставайтесь на этой вкладке кабинета. В MAX нажмите «Начать», затем вернитесь сюда.",
+      `Оставайтесь на ${AUTH_COPY.loginPage} в ${AUTH_COPY.browser}. В чате MAX нажмите «Начать», затем вернитесь сюда.`,
     );
   }
 
   function markChatOpenedWithoutBrowser() {
     setMaxStep1Done(true);
     setMaxWizardStep(2);
-    setNotice("Хорошо. В чате MAX нажмите «Начать», затем вернитесь на эту вкладку.");
+    setNotice(
+      `Хорошо. В чате MAX нажмите «Начать», затем вернитесь на ${AUTH_COPY.loginPage}.`,
+    );
   }
 
   function markMaxStarted() {
@@ -1134,12 +1148,12 @@ export function ClientCabinet() {
           ) : null}
         </p>
         <div className="max-wizard">
-          <ol className="max-wizard-steps" aria-label="Шаги входа через MAX">
+          <ol className="max-wizard-steps" aria-label="Шаги входа">
             {(
               [
-                { n: 1 as const, title: "Откройте чат с ботом в MAX" },
-                { n: 2 as const, title: "В чате нажмите «Начать»" },
-                { n: 3 as const, title: "Код с этого экрана → в MAX" },
+                { n: 1 as const, title: `Откройте ${AUTH_COPY.chatMax}` },
+                { n: 2 as const, title: `В чате MAX нажмите «Начать»` },
+                { n: 3 as const, title: `Код с ${AUTH_COPY.loginPage} → в ${AUTH_COPY.chatMax}` },
               ] as const
             ).map((s) => {
               const st = stepState(s.n);
@@ -1157,75 +1171,80 @@ export function ClientCabinet() {
           <div className="max-wizard-panel">
             {maxWizardStep === 1 ? (
               <>
-                <h2>Шаг 1. Откройте чат с ботом</h2>
+                <h2>Шаг 1. Откройте {AUTH_COPY.chatMax}</h2>
                 <p className="muted">
-                  Не уходите с этой страницы. Переключитесь в уже открытое приложение MAX
-                  (поиск {MAX_BOT_HANDLE}) или нажмите кнопку ниже — кабинет останется здесь.
+                  Не уходите с {AUTH_COPY.loginPage}. Переключитесь в уже открытый{" "}
+                  {AUTH_COPY.chatMax} (поиск {MAX_BOT_HANDLE}) — {AUTH_COPY.browser} с кабинетом
+                  останется здесь.
                 </p>
                 <button type="button" onClick={markChatOpenedWithoutBrowser}>
-                  Я открыл чат в MAX
+                  {AUTH_COPY.openedChatBtn}
                 </button>
                 <button type="button" className="ghost" onClick={openMaxChat}>
-                  Открыть ссылку на бота
+                  Открыть ссылку на чат MAX
                 </button>
                 <p className="hint">
-                  Ссылка может на секунду открыть max.ru — сразу вернитесь на вкладку кабинета.
+                  Ссылка может на секунду открыть max.ru — сразу вернитесь на{" "}
+                  {AUTH_COPY.loginPage} в {AUTH_COPY.browser}.
                 </p>
               </>
             ) : null}
             {maxWizardStep === 2 ? (
               <>
-                <h2>Шаг 2. Начните диалог в MAX</h2>
+                <h2>Шаг 2. Начните диалог в чате MAX</h2>
                 <p>
-                  В чате нажмите <strong>«Начать»</strong> (или «Старт»). Затем вернитесь{" "}
-                  <strong>на эту вкладку</strong> кабинета — не на страницу «Запустить бота».
+                  В чате MAX нажмите <strong>«Начать»</strong> (или «Старт»). Затем
+                  вернитесь на <strong>{AUTH_COPY.loginPage}</strong> в {AUTH_COPY.browser} — не
+                  на страницу «Запустить бота».
                 </p>
                 <button type="button" onClick={markMaxStarted}>
-                  Я нажал «Начать» — продолжить здесь
+                  {AUTH_COPY.pressedStartBtn}
                 </button>
                 <button type="button" className="ghost" onClick={openMaxChat}>
-                  Снова открыть ссылку на бота
+                  Снова открыть ссылку на чат MAX
                 </button>
               </>
             ) : null}
             {maxWizardStep === 3 ? (
               <>
-                <h2>Шаг 3. Код с этого экрана</h2>
+                <h2>Шаг 3. Код с {AUTH_COPY.loginPage}</h2>
                 {!otpSent ? (
                   <>
                     <p className="muted">
-                      Нажмите кнопку — код появится <strong>здесь</strong>. Посмотрите на код и
-                      отправьте его боту в MAX. Лишние окна браузера не нужны.
+                      Нажмите «{AUTH_COPY.showCodeBtn}» — код появится здесь. Посмотрите на код и
+                      отправьте его в {AUTH_COPY.chatMax}. Лишние окна {AUTH_COPY.browser} не
+                      нужны.
                     </p>
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void requestMaxOtp(false)}
                     >
-                      Показать код для MAX
+                      {AUTH_COPY.showCodeBtn}
                     </button>
                   </>
                 ) : (
                   <>
                     <p className="max-wizard-status" role="status">
                       {maxWaitStatus === "pending_confirm"
-                        ? "В MAX нажмите «Подтвердить вход в веб кабинет»…"
+                        ? `В чате MAX нажмите «${AUTH_COPY.confirmBtn}»…`
                         : maxWaitStatus === "pending_pair"
-                          ? "Смотрите код ниже и отправьте его в MAX"
+                          ? `Смотрите код ниже и отправьте его в ${AUTH_COPY.chatMax}`
                           : "Ожидаем…"}
                     </p>
                     {maxWaitStatus === "pending_pair" && maxPairCode ? (
                       <p>
-                        Код для MAX:{" "}
+                        Код для {AUTH_COPY.chatMax}:{" "}
                         <strong className="max-pair-code">{maxPairCode}</strong>
                         <br />
                         <span className="muted">
-                          Введите его в чат бота, оставаясь на этой странице кабинета.
+                          Введите его в чате MAX, оставаясь на {AUTH_COPY.loginPage}.
                         </span>
                       </p>
                     ) : (
                       <p className="muted">
-                        После кнопки в MAX кабинет откроется на этой же вкладке.
+                        После кнопки в {AUTH_COPY.chatMax} кабинет откроется на этой же{" "}
+                        {AUTH_COPY.loginPage}.
                       </p>
                     )}
                     <button type="button" className="ghost" onClick={resetMaxWizard}>
@@ -1271,8 +1290,8 @@ export function ClientCabinet() {
           <h1>{recoveryMode ? "Новый пароль" : "Пароль личного кабинета"}</h1>
           <p className="lead lead-compact">
             {recoveryMode
-              ? "Задайте новый пароль для входа по email."
-              : "При первой регистрации назначьте пароль — им можно входить с компьютера без MAX."}
+              ? "Задайте новый пароль для входа по почте."
+              : "При первой регистрации назначьте пароль — им можно входить с компьютера без чата MAX."}
           </p>
           <form className="auth-form" onSubmit={saveCabinetPassword}>
             <label htmlFor="new-password">Пароль</label>
@@ -1360,15 +1379,15 @@ export function ClientCabinet() {
                   onClick={() => chooseLoginMethod("password")}
                 >
                   <strong>Пароль</strong>
-                  <span>Ранее заданный вами пароль кабинета</span>
+                  <span>Ранее заданный пароль на {AUTH_COPY.loginPage}</span>
                 </button>
                 <button
                   type="button"
                   className={loginMethod === "max" ? "auth-method active" : "auth-method"}
                   onClick={() => chooseLoginMethod("max")}
                 >
-                  <strong>Код в MAX</strong>
-                  <span>Подтверждение входа в мессенджере</span>
+                  <strong>Код в {AUTH_COPY.chatMax}</strong>
+                  <span>Подтверждение входа в чате MAX</span>
                 </button>
                 <button
                   type="button"
@@ -1377,8 +1396,8 @@ export function ClientCabinet() {
                   }
                   onClick={() => chooseLoginMethod("email_otp")}
                 >
-                  <strong>Временный код на email</strong>
-                  <span>Одноразовый код письмом на почту</span>
+                  <strong>Временный код на {AUTH_COPY.email}</strong>
+                  <span>Одноразовый код письмом на {AUTH_COPY.email}</span>
                 </button>
               </div>
             </>
@@ -1387,7 +1406,7 @@ export function ClientCabinet() {
           {showLoginMethods && loginMethod === "password" ? (
             <>
               <form className="auth-form" onSubmit={signInWithPassword}>
-                <label htmlFor="login-email">Email</label>
+                <label htmlFor="login-email">Почта</label>
                 <input
                   id="login-email"
                   type="email"
@@ -1420,11 +1439,11 @@ export function ClientCabinet() {
           {showLoginMethods && loginMethod === "email_otp" ? (
             <>
               <p className="muted">
-                На email придёт временный одноразовый код. Введите его ниже.
+                На почту придёт временный одноразовый код. Введите его ниже.
               </p>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestOtp}>
-                  <label htmlFor="otp-email">Email</label>
+                  <label htmlFor="otp-email">Почта</label>
                   <input
                     id="otp-email"
                     type="email"
@@ -1467,7 +1486,7 @@ export function ClientCabinet() {
           {authScreen === "register" && registerChannel === "email" ? (
             <>
               <p className="lead lead-compact">
-                Регистрация: код придёт на email, затем вы сами назначите пароль.
+                Регистрация: код придёт на почту, затем вы сами назначите пароль.
               </p>
               <div className="tabs" role="tablist" aria-label="Канал регистрации">
                 <button
@@ -1475,7 +1494,7 @@ export function ClientCabinet() {
                   className="tab active"
                   onClick={() => setRegisterChannel("email")}
                 >
-                  Email
+                  Почта
                 </button>
                 <button
                   type="button"
@@ -1488,12 +1507,12 @@ export function ClientCabinet() {
                     setMaxStep2Done(false);
                   }}
                 >
-                  MAX
+                  Чат MAX
                 </button>
               </div>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestOtp}>
-                  <label htmlFor="reg-email">Email</label>
+                  <label htmlFor="reg-email">Почта</label>
                   <input
                     id="reg-email"
                     type="email"
@@ -1503,7 +1522,7 @@ export function ClientCabinet() {
                     autoComplete="email"
                   />
                   <button type="submit" disabled={busy}>
-                    Получить код на email
+                    Получить код на почту
                   </button>
                 </form>
               ) : (
@@ -1539,7 +1558,7 @@ export function ClientCabinet() {
                       setOtpCode("");
                     }}
                   >
-                    Изменить email
+                    Изменить почту
                   </button>
                 </form>
               )}
@@ -1548,8 +1567,8 @@ export function ClientCabinet() {
 
           {authScreen === "register" && registerChannel === "max"
             ? renderMaxWizard(
-                "Регистрация через MAX.",
-                "После подтверждения в чате MAX назначьте себе пароль кабинета.",
+                "Регистрация через чат MAX.",
+                `После подтверждения в ${AUTH_COPY.chatMax} назначьте себе пароль на ${AUTH_COPY.loginPage}.`,
               )
             : null}
 
@@ -1564,7 +1583,7 @@ export function ClientCabinet() {
                   setOtpSent(false);
                 }}
               >
-                Регистрация по email
+                Регистрация по почте
               </button>
               {" · "}
               <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
@@ -1576,11 +1595,11 @@ export function ClientCabinet() {
           {authScreen === "recover" ? (
             <>
               <p className="lead lead-compact">
-                Укажите email — пришлём ссылку и код для восстановления пароля.
+                Укажите почту — пришлём ссылку и код для восстановления пароля.
               </p>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestPasswordReset}>
-                  <label htmlFor="recover-email">Email</label>
+                  <label htmlFor="recover-email">Почта</label>
                   <input
                     id="recover-email"
                     type="email"
@@ -1629,8 +1648,8 @@ export function ClientCabinet() {
 
           {showLoginMethods && loginMethod === "max"
             ? renderMaxWizard(
-                "Вход через MAX.",
-                "Код смотрите на этой странице и отправьте его в чат MAX — без лишних вкладок браузера.",
+                "Вход через чат MAX.",
+                `Код смотрите на ${AUTH_COPY.loginPage} в ${AUTH_COPY.browser} и отправьте его в ${AUTH_COPY.chatMax}.`,
               )
             : null}
 
@@ -1669,7 +1688,7 @@ export function ClientCabinet() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Продолжить в MAX
+            Продолжить в чате MAX
           </a>
           <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
             Выйти
@@ -1684,8 +1703,10 @@ export function ClientCabinet() {
       <section className="card channel-card">
         <h2>Канал работы</h2>
         <p className="muted">
-          Можно вести одно дело и в MAX, и в браузере.
-          {me?.max_linked ? " MAX уже привязан." : " Чтобы связать MAX — откройте ссылку из мини-приложения."}
+          Можно вести одно дело и в чате MAX, и в браузере.
+          {me?.max_linked
+            ? " Чат MAX уже привязан."
+            : " Чтобы связать чат MAX — откройте ссылку из мини-приложения."}
         </p>
         <div className="tabs" role="group" aria-label="Предпочтительный канал">
           <button
