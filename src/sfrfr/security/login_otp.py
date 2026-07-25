@@ -28,6 +28,8 @@ START_DIALOG_LABEL = "Начать"
 START_DIALOG_CALLBACK = "start_dialog"
 SHOW_CODE_BUTTON_LABEL = "Показать код для MAX"
 OPEN_CABINET_BUTTON_LABEL = "Открыть кабинет в браузере"
+WORK_IN_APP_LABEL = "Работать в приложении"
+WORK_IN_INTERFACE_LABEL = "Работать в интерфейсе"
 
 
 def after_start_login_hint() -> str:
@@ -35,7 +37,7 @@ def after_start_login_hint() -> str:
     return (
         f"Готово. В браузере на странице входа нажмите "
         f"«{SHOW_CODE_BUTTON_LABEL}» и пришлите сюда 6-значный код — "
-        f"после этого в чате MAX появится кнопка входа."
+        f"вход подтвердится сам."
     )
 
 
@@ -48,6 +50,10 @@ def confirm_web_login_message(*, code: str | None = None) -> str:
     if code:
         return f"Код: {code}\nНажмите кнопку — откроется кабинет в браузере."
     return "Нажмите кнопку — откроется кабинет в браузере."
+
+
+def channel_choice_after_login_message() -> str:
+    return "Вход выполнен. Выберите, где работать:"
 
 
 def pair_code_prompt_message(*, pair_code: str) -> str:

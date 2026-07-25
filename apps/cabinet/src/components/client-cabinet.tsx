@@ -1220,7 +1220,7 @@ export function ClientCabinet() {
             ) : null}
             {maxWizardStep === 3 ? (
               <>
-                <h2>Шаг 3. Код с {AUTH_COPY.loginPage}</h2>
+                <h2>Шаг 3. Код со страницы входа</h2>
                 {!otpSent ? (
                   <>
                     <p className="muted">
@@ -1240,7 +1240,7 @@ export function ClientCabinet() {
                   <>
                     <p className="max-wizard-status" role="status">
                       {maxWaitStatus === "pending_confirm"
-                        ? `В чате MAX нажмите «${AUTH_COPY.confirmBtn}»…`
+                        ? "Код принят в чате MAX. Завершаем вход…"
                         : maxWaitStatus === "pending_pair"
                           ? `Смотрите код ниже и отправьте его в ${AUTH_COPY.chatMax}`
                           : "Ожидаем…"}
@@ -1256,8 +1256,7 @@ export function ClientCabinet() {
                       </p>
                     ) : (
                       <p className="muted">
-                        После кнопки в {AUTH_COPY.chatMax} кабинет откроется на этой же{" "}
-                        {AUTH_COPY.loginPage}.
+                        После кода кабинет откроется на этой же {AUTH_COPY.loginPage}.
                       </p>
                     )}
                     <button type="button" className="ghost" onClick={resetMaxWizard}>

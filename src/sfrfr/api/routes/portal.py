@@ -339,8 +339,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     """Старт входа через MAX: страница входа создаёт сессию, чат MAX подтверждает.
 
     1) На странице входа жмут «Показать код для MAX».
-    2) В чате MAX вводят код и жмут «Подтвердить вход в браузере».
-    3) Кабинет открывается в браузере (poll).
+    2) В чате MAX вводят код — вход на ПК подтверждается сразу.
+    3) В чате MAX предлагаются кнопки: приложение или интерфейс.
     Для staff после шага 2 — ещё подтверждение руководителем.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
@@ -378,7 +378,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             status="pending_pair",
             message=(
                 f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
-                "Затем нажмите «Подтвердить вход в браузере». "
+                "После кода вход на странице входа подтвердится сам. "
                 "При первом входе нужно одобрение руководителя; дальше — только ваш чат MAX."
             ),
         )
@@ -466,7 +466,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         status="pending_pair",
         message=(
             f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
-            "Затем нажмите «Подтвердить вход в браузере»."
+            "После кода вход на этой странице подтвердится сам."
         ),
     )
 
@@ -508,14 +508,14 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
         return MaxOtpPollResponse(
             ok=True,
             status="pending_confirm",
-            message="Ожидаем нажатие «Подтвердить вход в браузере» в чате MAX…",
+            message="Код принят в чате MAX. Завершаем вход…",
         )
     return MaxOtpPollResponse(
         ok=True,
         status="pending_pair",
         message=(
-            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа, "
-            "затем нажмите «Подтвердить вход в браузере»."
+            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
+            "после этого вход откроется сам."
         ),
     )
 

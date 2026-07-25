@@ -11,18 +11,18 @@ from sfrfr.integrations.max.attachments import download_file, extract_downloadab
 from sfrfr.integrations.max.client import (
     MaxBotClient,
     inline_callback_keyboard,
+    inline_channel_choice_keyboard,
     inline_confirm_login_keyboard,
-    inline_link_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
-    OPEN_CABINET_BUTTON_LABEL,
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
     after_start_login_hint,
     ask_code_from_login_page,
+    channel_choice_after_login_message,
     confirm_web_login_message,
     issue_login_link,
 )
@@ -180,7 +180,7 @@ def _start_dialog_keyboard() -> list[dict[str, Any]]:
 
 
 def _channel_choice_text() -> str:
-    return ""
+    return channel_choice_after_login_message()
 
 
 def _reply_need_start(
@@ -201,19 +201,36 @@ def _reply_need_start(
     return MaxHandleResult(ok=True, action="need_start", reply=reply)
 
 
+def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
+    """Гарантированно получить/создать строку clients для max_user_id."""
+    _ensure_supabase_max_client(max_user_id)
+    row = _client_row_by_max(max_user_id)
+    if row:
+        return row
+    try:
+        from sfrfr.db.client_channels import ClientChannelRepository
+
+        return ClientChannelRepository().ensure_for_max_user(max_user_id)
+    except Exception:
+        return _client_row_by_max(max_user_id)
+
+
 def _resume_pending_confirm_if_any(
     bot: MaxBotClient,
     *,
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult | None:
-    """Если вход уже ждёт подтверждения — снова показать кнопку."""
+    """Если вход уже ждёт подтверждения — сразу завершить (без лишней кнопки)."""
     pending = latest_for_max(user_id)
     if pending is None or pending.status != "pending_confirm":
         return None
-    _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
-    reply = "Нажмите кнопку."
-    return MaxHandleResult(ok=True, action="login_need_confirm", reply=reply)
+    return _complete_pc_login(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        ticket_id=pending.ticket_id,
+    )
 
 
 def _handle_bot_start(
@@ -421,11 +438,14 @@ def _complete_pc_login(
         return MaxHandleResult(ok=False, action="login_no_pending", reply=reply)
 
     if pending.status == "pending_pair" or not pending.max_user_id:
-        # ещё не ввели код — привяжем текущего пользователя и попросим подтвердить ещё раз
-        _ensure_supabase_max_client(user_id)
-        row = _client_row_by_max(user_id)
+        # ещё не ввели код — привяжем текущего пользователя и сразу завершим вход
+        row = _ensure_client_row(user_id)
         if not row:
-            return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
+            reply = (
+                "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
+            )
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
         contact = _auth_email_for_row(row, user_id)
         pending = bind_max_by_code(
             pair_code=pending.pair_code,
@@ -433,9 +453,9 @@ def _complete_pc_login(
             contact=contact,
         ) or pending
         if pending.status != "pending_confirm":
-            _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
-            reply = "Нажмите кнопку."
-            return MaxHandleResult(ok=True, action="login_need_confirm", reply=reply)
+            reply = ask_code_from_login_page()
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(ok=False, action="login_need_code", reply=reply)
 
     # Staff: первый вход — руководитель; дальше тот же MAX входит сам
     if pending.audience == "staff":
@@ -500,7 +520,7 @@ def _complete_pc_login(
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
     _send_open_cabinet_link(bot, user_id=user_id, chat_id=chat_id, contact=email)
-    reply = "Готово. Откройте кабинет в браузере или смотрите страницу входа."
+    reply = channel_choice_after_login_message()
     return MaxHandleResult(ok=True, action="login_approved", reply=reply)
 
 
@@ -626,13 +646,18 @@ def _send_open_cabinet_link(
     chat_id: int | str | None,
     contact: str,
 ) -> None:
+    settings = get_settings()
     issued = issue_login_link(contact=contact, max_user_id=str(user_id))
-    attachments = inline_link_keyboard(OPEN_CABINET_BUTTON_LABEL, issued.login_url)
+    app_url = (settings.max_miniapp_url or settings.max_chat_url).rstrip("/") + "/"
+    attachments = inline_channel_choice_keyboard(
+        app_url=app_url,
+        cabinet_url=issued.login_url,
+    )
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
-        text="Готово. Откройте кабинет в браузере или смотрите страницу входа.",
+        text=channel_choice_after_login_message(),
         attachments=attachments,
     )
 
@@ -644,19 +669,27 @@ def _handle_pair_code(
     chat_id: int | str | None,
     code: str,
 ) -> MaxHandleResult:
-    _ensure_supabase_max_client(user_id)
-    row = _client_row_by_max(user_id)
+    row = _ensure_client_row(user_id)
     if not row:
-        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
+        reply = (
+            "Не удалось связать аккаунт. На странице входа нажмите "
+            "«Показать код для MAX» и пришлите новый код."
+        )
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=False, action="pair_no_client", reply=reply)
     contact = _auth_email_for_row(row, user_id)
     pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
     if not pending:
         reply = "Код не найден. Начните вход снова на странице входа в браузере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_invalid", reply=reply)
-    _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
-    reply = "Нажмите кнопку."
-    return MaxHandleResult(ok=True, action="pair_ok", reply=reply)
+    # Код принят → сразу авторизация на ПК, без «Начать» и без лишней кнопки подтверждения
+    return _complete_pc_login(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        ticket_id=pending.ticket_id,
+    )
 
 
 def _send_confirm_web_login(
@@ -773,15 +806,11 @@ def handle_max_update(
     if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
         pending = latest_for_max(user_id)
         if pending is not None and pending.status == "pending_confirm":
-            _send_confirm_button(
-                bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id
-            )
-            reply = "Нажмите кнопку."
-            return MaxHandleResult(
-                ok=True,
-                action="help_login",
-                case_id=record.case_id,
-                reply=reply,
+            return _complete_pc_login(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                ticket_id=pending.ticket_id,
             )
         reply = f"{ask_code_from_login_page()} Команды: /docs /run /draft /status"
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)

@@ -59,10 +59,26 @@ def test_unified_login_terms() -> None:
     assert "Получить подтверждение" not in hint
     assert "странице входа" in hint
     assert "браузере" in hint
-    assert "чате MAX" in hint
+    assert "код" in hint.lower()
 
 
-def test_confirm_web_login_copy() -> None:
+def test_channel_choice_after_login() -> None:
+    from sfrfr.security.login_otp import (
+        WORK_IN_APP_LABEL,
+        WORK_IN_INTERFACE_LABEL,
+        channel_choice_after_login_message,
+    )
+    from sfrfr.integrations.max.client import inline_channel_choice_keyboard
+
+    text = channel_choice_after_login_message()
+    assert "Вход выполнен" in text
+    kb = inline_channel_choice_keyboard(
+        app_url="https://example.com/app/",
+        cabinet_url="https://example.com/cabinet/?auth=max&t=1",
+    )
+    buttons = kb[0]["payload"]["buttons"]
+    labels = {btn[0]["text"] for btn in buttons}
+    assert labels == {WORK_IN_APP_LABEL, WORK_IN_INTERFACE_LABEL}
     text = confirm_web_login_message(code="123456")
     assert "123456" in text
     assert "кнопк" in text.lower()
