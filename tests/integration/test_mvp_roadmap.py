@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from sfrfr.ai.schemas.agents import DraftResult
@@ -81,6 +82,27 @@ def test_tz11_blog_mvp_assets() -> None:
     assert 'id="faq"' in home
     assert "Подробнее" in home
     assert (REPO / "docs/ops-blog-editor.md").exists()
+
+
+def test_blog_situations_from_deepseek() -> None:
+    """Обезличенные ситуации (1 на клиента) + аналитика каждые 5."""
+    manifest = REPO / "scripts/assets/blog/situations/manifest.json"
+    assert manifest.exists()
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    assert len(data["situations"]) == 25
+    assert len(data["analytics"]) == 5
+    assert len(data["analytics"]) * 5 == len(data["situations"])
+    for s in data["situations"]:
+        blob = json.dumps(s, ensure_ascii=False).lower()
+        assert "гарантируем" not in blob
+        assert "мирошниченко" not in blob
+        assert "наталия" not in blob
+    index = REPO / "scripts/assets/blog/situations/html/index.json"
+    assert index.exists()
+    items = json.loads(index.read_text(encoding="utf-8"))
+    assert len(items) == 30
+    assert (REPO / "scripts/wp_seed_blog_situations.sh").exists()
+    assert (REPO / "scripts/generate_blog_situations.py").exists()
 
 
 def test_stage4_success_fee_formula() -> None:

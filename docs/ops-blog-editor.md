@@ -37,3 +37,12 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash /opt/sfrfr/scripts/wp_seed_blog_tz11.sh
 ```
 
 После правок главной (`sfrfr-home.html`) — обычный `wp_seed_site_tz02.sh` или `wp_apply_home.php`.
+
+## Серия «Примеры ситуаций» (из DeepSeek)
+
+- Манифест: `scripts/assets/blog/situations/manifest.json` (без ПДн).
+- Генерация HTML: `python scripts/generate_blog_situations.py`
+- Сид WP: `bash scripts/wp_seed_blog_situations.sh`
+- Рубрики: `/blog/rubrika/situacii/`, `/blog/rubrika/analitika/`
+- Правило: **1 клиентский кейс → 1 статья-пример**; **каждые 5 → аналитика**.
+- Не копировать `summary` из `knowledge/cases/*.json` в блог как есть (там draft и возможны остатки ПДн).

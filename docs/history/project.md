@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-25 (блог: ситуации DeepSeek)
+
+- 25 обезличенных «примеров ситуаций» + 5 аналитических (каждые 5 клиентов).
+- `manifest.json` → `generate_blog_situations.py` → `wp_seed_blog_situations`.
+- CASE-2026-016 (НКО) пропущен; в CASE-005 summary убраны явные ФИО.
+
 ## 2026-07-25 (блог: fix rewrite 404)
 
 - `category_base=blog/rubrika` — иначе `/blog/slug/` статей давал 404.

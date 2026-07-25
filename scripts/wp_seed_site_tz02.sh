@@ -272,3 +272,8 @@ if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_bl
   echo "==> Блог ТЗ-11"
   bash "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" || echo "WARN: blog seed failed"
 fi
+
+if [ -f "${SCRIPT_DIR}/wp_seed_blog_situations.sh" ]; then
+  echo "==> Блог: ситуации DeepSeek + аналитика"
+  bash "${SCRIPT_DIR}/wp_seed_blog_situations.sh" || echo "WARN: situations seed failed"
+fi

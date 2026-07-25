@@ -936,6 +936,13 @@ header .custom-logo-link img {
   color: var(--muted, #5a6a7f);
   font-size: 0.95rem;
 }
+.sfrfr-example-badge {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(30, 78, 121, 0.06);
+  border-left: 3px solid var(--sfrfr-primary, #1e4e79);
+  border-radius: 0 8px 8px 0;
+}
 .single-post .entry-content,
 .blog .entry-content,
 .category .entry-content {
