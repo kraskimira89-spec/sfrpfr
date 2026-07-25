@@ -445,8 +445,10 @@ export function ClientCabinet() {
   useEffect(() => {
     if (!token) {
       ensureCaseRef.current = false;
-      setCasesReady(false);
+      const t = window.setTimeout(() => setCasesReady(false), 0);
+      return () => window.clearTimeout(t);
     }
+    return undefined;
   }, [token]);
 
   useEffect(() => {
@@ -487,31 +489,38 @@ export function ClientCabinet() {
     if (cases.length > 0) {
       ensureCaseRef.current = true;
       if (cases.length === 1 && view === "cases" && !selectedId) {
-        void openCase(cases[0].id);
+        const caseId = cases[0].id;
+        const t = window.setTimeout(() => {
+          void openCase(caseId);
+        }, 0);
+        return () => window.clearTimeout(t);
       }
       return;
     }
     ensureCaseRef.current = true;
-    void (async () => {
-      try {
-        setBusy(true);
-        const created = await apiFetch<{ id: string }>("/api/portal/cases", token, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        await loadCases();
-        if (created?.id) {
-          await openCase(created.id);
-          setNotice("Дело создано. Примите согласие и загрузите документы.");
+    const t = window.setTimeout(() => {
+      void (async () => {
+        try {
+          setBusy(true);
+          const created = await apiFetch<{ id: string }>("/api/portal/cases", token, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          await loadCases();
+          if (created?.id) {
+            await openCase(created.id);
+            setNotice("Дело создано. Примите согласие и загрузите документы.");
+          }
+        } catch {
+          ensureCaseRef.current = false;
+          setNotice("Не удалось создать дело. Обновите страницу или начните через MAX.");
+        } finally {
+          setBusy(false);
         }
-      } catch {
-        ensureCaseRef.current = false;
-        setNotice("Не удалось создать дело. Обновите страницу или начните через MAX.");
-      } finally {
-        setBusy(false);
-      }
-    })();
+      })();
+    }, 0);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casesReady, cases, openCase, loadCases]);
 

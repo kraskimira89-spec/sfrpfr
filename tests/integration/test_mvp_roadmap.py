@@ -31,13 +31,15 @@ class _SilentBot:
 
 def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     seed = (REPO / "scripts/wp_seed_site_tz02.sh").read_text(encoding="utf-8")
-    assert "/#zayavka" in seed
+    assert "/#kak-rabotat" in seed
     assert "Личный кабинет" in seed
+    assert "mode=login" in seed
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
-    assert 'id="zayavka"' in home
-    assert "kak-rabotat" in home  # блок каналов остаётся справочным
-    assert "cabinet.taxi-doroga-dobra.ru" in home
-    assert "Личный кабинет" in home
+    assert 'id="zayavka"' in home  # форма заявки остаётся
+    assert 'id="kak-rabotat"' in home
+    assert 'href="#kak-rabotat"' in home  # главные CTA → выбор канала
+    assert "cabinet.taxi-doroga-dobra.ru/?mode=register&amp;channel=max" in home
+    assert "Начать в браузере" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
