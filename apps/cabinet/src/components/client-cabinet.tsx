@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type Session } from "@supabase/supabase-js";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type CaseSummary = {
   id: string;
@@ -233,10 +233,10 @@ export function ClientCabinet() {
     [],
   );
   const [session, setSession] = useState<Session | null>(null);
-  const [authScreen, setAuthScreen] = useState<AuthScreen>("login");
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("register");
   const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
-  const [registerChannel, setRegisterChannel] = useState<RegisterChannel>("email");
-  const [authChannel, setAuthChannel] = useState<AuthChannel>("email");
+  const [registerChannel, setRegisterChannel] = useState<RegisterChannel>("max");
+  const [authChannel, setAuthChannel] = useState<AuthChannel>("max");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -254,6 +254,7 @@ export function ClientCabinet() {
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [casesReady, setCasesReady] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [messages, setMessages] = useState<CaseMessage[]>([]);
@@ -265,26 +266,41 @@ export function ClientCabinet() {
   const [busy, setBusy] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [me, setMe] = useState<PortalMe | null>(null);
+  const ensureCaseRef = useRef(false);
 
   const token = session?.access_token;
 
-  // Query: ?mode=register|recover|login; ?channel=max — явный MAX; ?from=* без автозапуска мастера
+  // Query: ?mode=register|recover|login; ?channel=max; ?register=max
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").toLowerCase();
     const channel = (params.get("channel") || "").toLowerCase();
+    const registerMax =
+      params.get("register")?.toLowerCase() === "max" || channel === "max";
     const t = window.setTimeout(() => {
-      if (mode === "register") setAuthScreen("register");
-      else if (mode === "recover") setAuthScreen("recover");
-      else if (mode === "login") {
-        setAuthScreen("login");
-        setLoginMethod("password");
+      if (mode === "recover") {
+        setAuthScreen("recover");
+        return;
       }
-      if (channel === "max") {
+      if (mode === "login") {
         setAuthScreen("login");
-        setLoginMethod("max");
-        setAuthChannel("max");
-        setRegisterChannel("max");
+        if (registerMax) {
+          setLoginMethod("max");
+          setAuthChannel("max");
+        } else {
+          setLoginMethod("password");
+          setAuthChannel("email");
+        }
+        return;
+      }
+      // register (явный) или дефолт новичка через MAX
+      if (mode === "register" || registerMax || !mode) {
+        setAuthScreen("register");
+        if (registerMax || !mode) {
+          setRegisterChannel("max");
+          setAuthChannel("max");
+          setMaxWizardStep(1);
+        }
       }
     }, 0);
     return () => window.clearTimeout(t);
@@ -382,8 +398,10 @@ export function ClientCabinet() {
     try {
       const rows = await apiFetch<CaseSummary[]>("/api/portal/me/cases", token);
       setCases(rows);
+      setCasesReady(true);
       setNotice("");
     } catch {
+      setCasesReady(true);
       setNotice("Не удалось загрузить дела. Повторите попытку позже.");
     }
   }, [token]);
@@ -425,6 +443,13 @@ export function ClientCabinet() {
   }, [loadCases]);
 
   useEffect(() => {
+    if (!token) {
+      ensureCaseRef.current = false;
+      setCasesReady(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
     // Первичная загрузка профиля / link_max.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on auth ready
     void loadMe();
@@ -455,6 +480,40 @@ export function ClientCabinet() {
     },
     [token, loadCases],
   );
+
+  // P0: после первого входа сразу создать и открыть дело, если списка нет
+  useEffect(() => {
+    if (!token || !apiBase || !casesReady || ensureCaseRef.current) return;
+    if (cases.length > 0) {
+      ensureCaseRef.current = true;
+      if (cases.length === 1 && view === "cases" && !selectedId) {
+        void openCase(cases[0].id);
+      }
+      return;
+    }
+    ensureCaseRef.current = true;
+    void (async () => {
+      try {
+        setBusy(true);
+        const created = await apiFetch<{ id: string }>("/api/portal/cases", token, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        await loadCases();
+        if (created?.id) {
+          await openCase(created.id);
+          setNotice("Дело создано. Примите согласие и загрузите документы.");
+        }
+      } catch {
+        ensureCaseRef.current = false;
+        setNotice("Не удалось создать дело. Обновите страницу или начните через MAX.");
+      } finally {
+        setBusy(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, casesReady, cases, openCase, loadCases]);
 
   async function loadPayments(caseId: string) {
     if (!token || !caseId) return;
@@ -579,7 +638,11 @@ export function ClientCabinet() {
       setLoginMethod("email_otp");
       setAuthChannel("email");
     } else if (next === "register") {
-      setAuthChannel("email");
+      setRegisterChannel("max");
+      setAuthChannel("max");
+      setMaxWizardStep(1);
+      setMaxStep1Done(false);
+      setMaxStep2Done(false);
     }
   }
 
@@ -1503,13 +1566,6 @@ export function ClientCabinet() {
               <div className="tabs" role="tablist" aria-label="Канал регистрации">
                 <button
                   type="button"
-                  className="tab active"
-                  onClick={() => setRegisterChannel("email")}
-                >
-                  Почта
-                </button>
-                <button
-                  type="button"
                   className="tab"
                   onClick={() => {
                     setRegisterChannel("max");
@@ -1520,6 +1576,13 @@ export function ClientCabinet() {
                   }}
                 >
                   Чат MAX
+                </button>
+                <button
+                  type="button"
+                  className="tab active"
+                  onClick={() => setRegisterChannel("email")}
+                >
+                  Почта
                 </button>
               </div>
               {!otpSent ? (
@@ -1578,10 +1641,30 @@ export function ClientCabinet() {
           ) : null}
 
           {authScreen === "register" && registerChannel === "max"
-            ? renderMaxWizard(
-                "Регистрация через чат MAX.",
-                `После подтверждения в ${AUTH_COPY.chatMax} назначьте себе пароль на ${AUTH_COPY.loginPage}.`,
-              )
+            ? (
+              <>
+                <div className="tabs" role="tablist" aria-label="Канал регистрации">
+                  <button type="button" className="tab active">
+                    Чат MAX
+                  </button>
+                  <button
+                    type="button"
+                    className="tab"
+                    onClick={() => {
+                      setRegisterChannel("email");
+                      setAuthChannel("email");
+                      setOtpSent(false);
+                    }}
+                  >
+                    Почта
+                  </button>
+                </div>
+                {renderMaxWizard(
+                  "Регистрация через чат MAX.",
+                  `После подтверждения в ${AUTH_COPY.chatMax} назначьте себе пароль на ${AUTH_COPY.loginPage}.`,
+                )}
+              </>
+            )
             : null}
 
           {authScreen === "register" && registerChannel === "max" ? (
@@ -1790,9 +1873,9 @@ export function ClientCabinet() {
           <p className="lead">Клиент и законный представитель видят только доступные им дела.</p>
           {cases.length === 0 ? (
             <p>
-              Дел пока нет. Начните обращение через{" "}
-              <a href={DEFAULT_MAX_CHAT}>MAX</a> или{" "}
-              <a href={SITE_URL}>публичный сайт</a>.
+              {busy
+                ? "Создаём ваше дело…"
+                : "Дел пока нет. Обновите страницу — дело создастся автоматически."}
             </p>
           ) : (
             <ul className="case-list">
