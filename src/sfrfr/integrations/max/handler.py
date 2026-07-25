@@ -783,7 +783,7 @@ def handle_max_update(
                 case_id=record.case_id,
                 reply=reply,
             )
-        reply = "Пришлите код с экрана или документ. Команды: /docs /run /draft /status"
+        reply = "Пришлите код с экрана веб интерфейса. Команды: /docs /run /draft /status"
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
 
@@ -853,6 +853,6 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = "Пришлите код с экрана или документ."
+    reply = "Пришлите код с экрана веб интерфейса."
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)
