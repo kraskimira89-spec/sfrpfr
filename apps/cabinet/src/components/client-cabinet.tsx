@@ -133,6 +133,18 @@ const CABINET_PUBLIC_URL =
   process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.taxi-doroga-dobra.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
+const MAX_BOT_HANDLE = "@id8905998693_1_bot";
+
+/** Ссылка на диалог с ботом (без ?startapp — иначе веб показывает «Запустить бота»). */
+function chatUrlOnly(url: string): string {
+  try {
+    const u = new URL(url || DEFAULT_MAX_CHAT);
+    u.searchParams.delete("startapp");
+    return u.toString().replace(/\?$/, "");
+  } catch {
+    return DEFAULT_MAX_CHAT;
+  }
+}
 
 const PACKAGE_LABELS: Record<string, string> = {
   DIAG: "Диагностика",
@@ -837,7 +849,7 @@ export function ClientCabinet() {
       setMaxTicket(body.ticket || "");
       setMaxPairCode(body.pair_code || "");
       setMaxWaitStatus(body.status || "pending_pair");
-      if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
+      if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
       setOtpSent(true);
       setMaxWizardStep(3);
       setNotice(body.message || "Ожидаем подтверждение в MAX…");
@@ -849,10 +861,33 @@ export function ClientCabinet() {
   }
 
   function openMaxChat() {
-    window.open(maxBotUrl, "_blank", "noopener,noreferrer");
+    // Не уводим вкладку кабинета. Ссылка без startapp; фокус сразу возвращаем сюда.
+    const url = chatUrlOnly(maxBotUrl);
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => {
+      try {
+        window.focus();
+      } catch {
+        /* ignore */
+      }
+      // Если ОС уже открыла приложение MAX, служебная вкладка max.ru часто не нужна
+      try {
+        popup?.close();
+      } catch {
+        /* ignore */
+      }
+    }, 600);
     setMaxStep1Done(true);
     setMaxWizardStep(2);
-    setNotice("");
+    setNotice(
+      "Оставайтесь на этой вкладке кабинета. В MAX нажмите «Начать», затем вернитесь сюда.",
+    );
+  }
+
+  function markChatOpenedWithoutBrowser() {
+    setMaxStep1Done(true);
+    setMaxWizardStep(2);
+    setNotice("Хорошо. В чате MAX нажмите «Начать», затем вернитесь на эту вкладку.");
   }
 
   function markMaxStarted() {
@@ -1079,7 +1114,7 @@ export function ClientCabinet() {
     }
   }
 
-  function renderMaxWizard(title: string) {
+  function renderMaxWizard(title: string, lead?: string) {
     const stepState = (n: 1 | 2 | 3): "done" | "current" | "todo" => {
       if (n === 1) return maxStep1Done ? "done" : maxWizardStep === 1 ? "current" : "todo";
       if (n === 2)
@@ -1089,14 +1124,22 @@ export function ClientCabinet() {
     };
     return (
       <>
-        <p className="lead lead-compact">{title}</p>
+        <p className="lead lead-compact">
+          <strong>{title}</strong>
+          {lead ? (
+            <>
+              <br />
+              {lead}
+            </>
+          ) : null}
+        </p>
         <div className="max-wizard">
           <ol className="max-wizard-steps" aria-label="Шаги входа через MAX">
             {(
               [
-                { n: 1 as const, title: "Откройте чат с ботом" },
+                { n: 1 as const, title: "Откройте чат с ботом в MAX" },
                 { n: 2 as const, title: "В чате нажмите «Начать»" },
-                { n: 3 as const, title: "Подтвердите вход в кабинет" },
+                { n: 3 as const, title: "Код с этого экрана → в MAX" },
               ] as const
             ).map((s) => {
               const st = stepState(s.n);
@@ -1116,63 +1159,73 @@ export function ClientCabinet() {
               <>
                 <h2>Шаг 1. Откройте чат с ботом</h2>
                 <p className="muted">
-                  Чат откроется в новой вкладке на телефоне или в приложении MAX.
+                  Не уходите с этой страницы. Переключитесь в уже открытое приложение MAX
+                  (поиск {MAX_BOT_HANDLE}) или нажмите кнопку ниже — кабинет останется здесь.
                 </p>
-                <button type="button" onClick={openMaxChat}>
-                  Открыть чат MAX
+                <button type="button" onClick={markChatOpenedWithoutBrowser}>
+                  Я открыл чат в MAX
                 </button>
+                <button type="button" className="ghost" onClick={openMaxChat}>
+                  Открыть ссылку на бота
+                </button>
+                <p className="hint">
+                  Ссылка может на секунду открыть max.ru — сразу вернитесь на вкладку кабинета.
+                </p>
               </>
             ) : null}
             {maxWizardStep === 2 ? (
               <>
                 <h2>Шаг 2. Начните диалог в MAX</h2>
                 <p>
-                  В чате нажмите кнопку <strong>«Начать»</strong> от бота (или «Старт»
-                  внизу).
+                  В чате нажмите <strong>«Начать»</strong> (или «Старт»). Затем вернитесь{" "}
+                  <strong>на эту вкладку</strong> кабинета — не на страницу «Запустить бота».
                 </p>
                 <button type="button" onClick={markMaxStarted}>
-                  Я нажал «Начать»
+                  Я нажал «Начать» — продолжить здесь
                 </button>
                 <button type="button" className="ghost" onClick={openMaxChat}>
-                  Открыть чат MAX ещё раз
+                  Снова открыть ссылку на бота
                 </button>
               </>
             ) : null}
             {maxWizardStep === 3 ? (
               <>
-                <h2>Шаг 3. Подтвердите вход</h2>
+                <h2>Шаг 3. Код с этого экрана</h2>
                 {!otpSent ? (
                   <>
                     <p className="muted">
-                      Нажмите кнопку ниже — появится код. Отправьте код боту в MAX одним
-                      сообщением. После этого в чате появится кнопка «Подтвердить вход в веб
-                      кабинет».
+                      Нажмите кнопку — код появится <strong>здесь</strong>. Посмотрите на код и
+                      отправьте его боту в MAX. Лишние окна браузера не нужны.
                     </p>
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void requestMaxOtp(false)}
                     >
-                      Получить подтверждение в MAX
+                      Показать код для MAX
                     </button>
                   </>
                 ) : (
                   <>
                     <p className="max-wizard-status" role="status">
                       {maxWaitStatus === "pending_confirm"
-                        ? "Ожидаем кнопку «Подтвердить вход» в MAX…"
+                        ? "В MAX нажмите «Подтвердить вход в веб кабинет»…"
                         : maxWaitStatus === "pending_pair"
-                          ? "Отправьте код в чат MAX…"
+                          ? "Смотрите код ниже и отправьте его в MAX"
                           : "Ожидаем…"}
                     </p>
                     {maxWaitStatus === "pending_pair" && maxPairCode ? (
                       <p>
-                        Отправьте боту код{" "}
+                        Код для MAX:{" "}
                         <strong className="max-pair-code">{maxPairCode}</strong>
+                        <br />
+                        <span className="muted">
+                          Введите его в чат бота, оставаясь на этой странице кабинета.
+                        </span>
                       </p>
                     ) : (
                       <p className="muted">
-                        В MAX нажмите «Подтвердить вход» — кабинет откроется здесь.
+                        После кнопки в MAX кабинет откроется на этой же вкладке.
                       </p>
                     )}
                     <button type="button" className="ghost" onClick={resetMaxWizard}>
@@ -1495,7 +1548,8 @@ export function ClientCabinet() {
 
           {authScreen === "register" && registerChannel === "max"
             ? renderMaxWizard(
-                "Регистрация через MAX. После подтверждения в чате назначьте пароль кабинета.",
+                "Регистрация через MAX.",
+                "После подтверждения в чате MAX назначьте себе пароль кабинета.",
               )
             : null}
 
@@ -1575,7 +1629,8 @@ export function ClientCabinet() {
 
           {showLoginMethods && loginMethod === "max"
             ? renderMaxWizard(
-                "Вход через MAX — по шагам. На компьютере этот экран, действия в чате — на телефоне.",
+                "Вход через MAX.",
+                "Код смотрите на этой странице и отправьте его в чат MAX — без лишних вкладок браузера.",
               )
             : null}
 
