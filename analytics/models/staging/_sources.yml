@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: analytics_source
+    schema: analytics_source
+    tables:
+      - name: cases
+      - name: orders
+      - name: payments
+      - name: result_evidence
+      - name: communications_agg

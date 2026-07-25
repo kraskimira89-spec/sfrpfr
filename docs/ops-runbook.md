@@ -25,6 +25,17 @@
 5. Google Sheets — только обезличенные агрегаты, не production-ПДн.
 6. Google Drive — шаблоны/кейсы по `case_id`; сканы ПДн — в Supabase Storage.
 7. Calendar / reCAPTCHA / Search Console — см. раздел ниже; Gmail клиентам на MVP не подключаем.
+8. dbt запускается отдельно от API и деплоя: роль `analytics_transformer` читает только `analytics_source`, пишет только `analytics`.
+
+## dbt-аналитика
+
+Подробная настройка: [dbt-analytics.md](dbt-analytics.md).
+
+```bash
+SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
+```
+
+Запланируйте отдельный systemd timer или cron от `sfrfr` (например, раз в сутки). Не используйте transaction pooler и не добавляйте этот запуск в `vps_deploy.sh`.
 
 ## Google (MVP) — чеклист
 

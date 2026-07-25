@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: stg_cases
+    description: "Обезличенные признаки пенсионного дела из analytics_source."
+    columns:
+      - name: case_id
+        tests: [not_null, unique]
+      - name: preferred_channel
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["max_miniapp", "web_cabinet", "unset"]
+
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: case_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_cases')
+                field: case_id
+      - name: package_code
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["DIAG", "ACCOMP", "SF_LUMP", "SF_MONTH"]
+      - name: amount_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["0", "1–5 тыс.", "5–10 тыс.", "10+ тыс."]
+
+  - name: stg_payments
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]
+      - name: order_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+
+  - name: stg_result_evidence
+    columns:
+      - name: evidence_id
+        tests: [not_null, unique]
+      - name: case_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_cases')
+                field: case_id
+
+  - name: fct_case_funnel
+    description: "Одна строка на дело; только статусы, даты и диапазоны сумм."
+    columns:
+      - name: case_id
+        tests: [not_null, unique]
+      - name: monthly_increase_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["0", "1–5 тыс.", "5–10 тыс.", "10+ тыс.", "unknown"]
+      - name: lump_sum_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["0", "1–5 тыс.", "5–10 тыс.", "10+ тыс.", "unknown"]
+
+  - name: fct_payments
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]
+
+  - name: fct_success_fee
+    columns:
+      - name: case_id
+        tests: [not_null]
+
+  - name: fct_silent_cases
+    columns:
+      - name: case_id
+        tests: [not_null]
+
+  - name: dim_case_segment
+    columns:
+      - name: preferred_channel
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["max_miniapp", "web_cabinet", "unset"]
+
+  - name: mart_management_dashboard
+    columns:
+      - name: created_month
+        tests: [not_null]

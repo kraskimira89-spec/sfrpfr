@@ -1,0 +1,20 @@
+name: sfrfr_analytics
+version: "1.0.0"
+config-version: 2
+profile: sfrfr_analytics
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  sfrfr_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+      # Advisor: RLS on; no policies → anon/authenticated blocked if schema ever exposed.
+      # Owner analytics_transformer bypasses RLS for rebuilds.
+      +post-hook:
+        - "alter table {{ this }} enable row level security"
+        - "revoke all on {{ this }} from public, anon, authenticated"

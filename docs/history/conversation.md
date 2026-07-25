@@ -1,7 +1,14 @@
 # История беседы (кратко)
 
+## 2026-07-25 (утро)
+
+- Проверка VPS по SSH: хост жив, `DBT_*` и dbt debug OK; `dbt build` через pooler зависает.
+- Витрины пересобраны `psql` (staging + marts + RLS); cron dbt отключён до IPv4/direct.
+
 ## 2026-07-24 (вечер)
 
+- RLS на витринах `analytics.*` через dbt post-hook; SSH к VPS по-прежнему timeout.
+- dbt: Supabase `analytics_source`/`analytics` и роль `analytics_transformer`; `dbt build` — 35/35 PASS. Витрины исключают ПДн и точные суммы.
 - Кабинет сотрудника: вход через MAX как у клиента + этап подтверждения руководителем
   (`pending_manager`, кнопка «Разрешить вход сотруднику»).
 - Руководитель: `max_user_id=6407832`, `chat_id=321180237` —

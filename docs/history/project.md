@@ -1,5 +1,21 @@
 # История проекта SFRFR
 
+## 2026-07-25 (VPS + dbt)
+
+- SSH к VPS ок: `DBT_*`, `profiles.yml`, `dbt` 1.12, `sfrfr-api` active.
+- Direct Supabase с VPS только IPv6; session pooler + `dbt build` на VPS зависает (locks / futex).
+- Витрины восстановлены через `psql` по одному statement; cron dbt временно выключен.
+- `dbt_run.sh`: `--threads 1 --no-populate-cache`.
+
+## 2026-07-25 (dbt: RLS на витринах)
+
+- RLS на `analytics.*` marts через dbt post-hook (владелец `analytics_transformer`); без политик для anon/authenticated.
+
+## 2026-07-24 (dbt: обезличенная аналитика)
+
+- Добавлены схемы `analytics_source` и `analytics`, роль `analytics_transformer` и dbt-витрины для воронки, платежей, success fee, silent cases и управленческого дашборда.
+- Контракт источников исключает ПДн, документы, тексты сообщений, внешние ID платежей и точные суммы; для денег используются диапазоны.
+
 ## 2026-07-24 (вход через MAX OTP)
 
 - Кабинет: вкладка MAX + «Получить код в MAX»; API `POST /api/portal/auth/otp/request|verify|link`; HMAC ticket/link в `login_otp.py`; кнопка бота «Подтвердить вход в веб кабинет»; `max_chat_url` без `?startapp`.

@@ -70,3 +70,10 @@ supabase/.temp/
 # Local CLI logs
 supabase-start.log
 *.log
+
+# dbt (profiles.yml on VPS contains DBT_PASSWORD)
+analytics/profiles.yml
+analytics/.user.yml
+analytics/target/
+analytics/dbt_packages/
+analytics/logs/
