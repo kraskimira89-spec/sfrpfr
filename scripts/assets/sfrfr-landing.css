@@ -901,3 +901,48 @@ header .custom-logo-link img {
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
+
+/* ТЗ-11: блог */
+.sfrfr-blog-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  line-height: 1.35;
+}
+.sfrfr-blog-card h3 a {
+  color: var(--ink, #14233a);
+  text-decoration: none;
+}
+.sfrfr-blog-card h3 a:hover,
+.sfrfr-blog-card h3 a:focus-visible {
+  color: var(--brand, #1e4e79);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sfrfr-article-cta {
+  margin: 1.75rem 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--line, #c9d6e5);
+  border-radius: 10px;
+  background: #f3faf6;
+}
+.sfrfr-article-cta .sfrfr-btn {
+  margin: 0.35rem 0.5rem 0.35rem 0;
+  display: inline-block;
+}
+.sfrfr-article-disclaimer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line, #c9d6e5);
+  color: var(--muted, #5a6a7f);
+  font-size: 0.95rem;
+}
+.single-post .entry-content,
+.blog .entry-content,
+.category .entry-content {
+  font-size: 1.08rem;
+  line-height: 1.65;
+  max-width: 42rem;
+}
+.single-post .entry-content h2 {
+  margin-top: 1.6rem;
+}

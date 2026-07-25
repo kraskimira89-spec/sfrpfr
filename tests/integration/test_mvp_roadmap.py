@@ -49,6 +49,39 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "channel=max" not in form
 
 
+def test_tz11_blog_mvp_assets() -> None:
+    """ТЗ-11 MVP: сид, 4 статьи, блок на главной, дисклеймер, CTA."""
+    assert (REPO / "scripts/wp_seed_blog_tz11.sh").exists()
+    assert (REPO / "scripts/wp_seed_blog_tz11.php").exists()
+    php = (REPO / "scripts/wp_seed_blog_tz11.php").read_text(encoding="utf-8")
+    assert "kak-proverit-stazh-v-vypiske-ils" in php
+    assert "kak-sverit-trudovuyu-knizhku-i-ils" in php
+    assert "chto-delat-esli-period-raboty-ne-uchten" in php
+    assert "arhivnaya-spravka-dlya-sfr-zachem-i-kuda" in php
+    assert "#kak-rabotat" in php
+    assert "Не являемся СФР" in php
+    for name in (
+        "01-ils-stazh.html",
+        "02-trudovaya-ils.html",
+        "03-period-ne-uchten.html",
+        "04-arhivnaya-spravka.html",
+    ):
+        body = (REPO / "scripts/assets/blog" / name).read_text(encoding="utf-8")
+        assert "<h1>" in body
+        assert "гарантируем перерасчёт" not in body.lower()
+        assert "официальный сервис" not in body.lower()
+        assert "100%" not in body
+        # разрешено отрицание («не гарантия»), запрещены обещания без «не»
+        assert "мы гарантируем" not in body.lower()
+    home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
+    assert 'id="stati"' in home
+    assert "Читайте также" in home
+    assert "/blog/kak-proverit-stazh-v-vypiske-ils/" in home
+    assert 'id="faq"' in home
+    assert "Подробнее" in home
+    assert (REPO / "docs/ops-blog-editor.md").exists()
+
+
 def test_stage4_success_fee_formula() -> None:
     fee = calc_success_fee(lump_sum_rub=100_000, monthly_increase_rub=2_000)
     assert fee["sf_lump"] == 10_000

@@ -267,3 +267,8 @@ echo "==> Тема: без сайдбара"
 
 chown -R www-data:www-data "$SITE_DIR"
 echo "==> OK ТЗ-02/07: CTA → /#kak-rabotat, кабинет register=max, MAX=${MAX_BTN_URL}"
+
+if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ]; then
+  echo "==> Блог ТЗ-11"
+  bash "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" || echo "WARN: blog seed failed"
+fi
