@@ -10,6 +10,10 @@
 - Проверка VPS по SSH: хост жив, `DBT_*` и dbt debug OK; `dbt build` через pooler зависает.
 - Витрины пересобраны `psql` (staging + marts + RLS); cron dbt отключён до IPv4/direct.
 
+## 2026-07-25
+
+- MAX: короткие ответы «1 сообщение = 1 действие» (вход, /start, /docs, статус).
+
 ## 2026-07-24 (вечер)
 
 - RLS на витринах `analytics.*` через dbt post-hook; SSH к VPS по-прежнему timeout.

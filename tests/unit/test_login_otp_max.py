@@ -3,7 +3,6 @@
 from urllib.parse import parse_qs, urlparse
 
 from sfrfr.security.login_otp import (
-    CONFIRM_WEB_LOGIN_LABEL,
     confirm_web_login_message,
     issue_login_link,
     issue_login_otp,
@@ -48,6 +47,11 @@ def test_issue_and_verify_login_link() -> None:
 
 def test_confirm_web_login_copy() -> None:
     text = confirm_web_login_message(code="123456")
-    assert CONFIRM_WEB_LOGIN_LABEL in text
     assert "123456" in text
-    assert "компьютер" in text.lower()
+    assert "кнопк" in text.lower()
+
+
+def test_confirm_message_is_short_action() -> None:
+    text = confirm_web_login_message()
+    assert "Нажмите кнопку" in text
+    assert len(text) < 40

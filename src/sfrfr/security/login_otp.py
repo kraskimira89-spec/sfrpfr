@@ -16,9 +16,9 @@ _CODE_DIGITS = 6
 _SEP = "|"
 
 # Единая формулировка для кнопки и сообщения в MAX
-CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в веб кабинет"
+CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход"
 CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
-APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход сотруднику"
+APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 
 
 def _secret() -> bytes:
@@ -153,25 +153,13 @@ def verify_login_link(*, link_token: str) -> tuple[str, str] | None:
 
 
 def confirm_web_login_message(*, code: str | None = None) -> str:
-    """Текст в MAX: подтверждение открывает кабинет на компьютере."""
-    lines = [
-        f"{CONFIRM_WEB_LOGIN_LABEL}",
-        "",
-        "На компьютере уже открыт кабинет и ждёт подтверждение.",
-        "Нажмите кнопку ниже — вход завершится на компьютере.",
-        "Не пересылайте это сообщение.",
-    ]
+    """Один шаг: нажать кнопку подтверждения."""
     if code:
-        lines.extend(["", f"Запасной код (если нужно): {code}"])
-    return "\n".join(lines)
+        return f"Код: {code}\nНажмите кнопку."
+    return "Нажмите кнопку."
 
 
 def pair_code_prompt_message(*, pair_code: str) -> str:
-    return (
-        "Чтобы войти в веб-кабинет на компьютере:\n"
-        f"1) На сайте нажмите «Подтвердить вход через MAX».\n"
-        f"2) Введите здесь код с экрана компьютера (сейчас: {pair_code}).\n"
-        "3) Затем нажмите «Подтвердить вход в веб кабинет» в этом чате.\n"
-        "Кабинет откроется на компьютере, не на телефоне."
-    )
+    """Один шаг: прислать код с ПК."""
+    return f"Пришлите код с экрана: {pair_code}"
 

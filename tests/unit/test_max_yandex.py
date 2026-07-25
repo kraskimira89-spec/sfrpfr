@@ -112,7 +112,7 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     )
     assert status.action == "status"
     assert status.case_id == created.case_id
-    assert any("Этап" in t for _, t in bot.sent)
+    assert any("Документов" in t for _, t in bot.sent)
     get_settings.cache_clear()
 
 

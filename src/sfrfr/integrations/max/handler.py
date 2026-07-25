@@ -42,12 +42,6 @@ class MaxHandleResult:
     detail: str = ""
 
 
-_DEFAULT_DOC_REQUESTS = (
-    "Выписка ИЛС (лицевой счёт)",
-    "Трудовая книжка / сведения о стаже",
-    "Решение СФР (если уже есть)",
-)
-
 _LOGIN_TRIGGERS = frozenset(
     {
         "/login",
@@ -155,16 +149,8 @@ def _login_menu_keyboard() -> list[dict[str, Any]]:
 
 
 def _channel_choice_text() -> str:
-    settings = get_settings()
-    cabinet = settings.cabinet_public_url.rstrip("/")
-    return (
-        "\n\n"
-        "Как войти в кабинет на компьютере:\n"
-        f"1) Откройте {cabinet}/\n"
-        "2) Нажмите «Подтвердить вход через MAX».\n"
-        "3) Пришлите сюда код с экрана компьютера.\n"
-        "4) Нажмите «Подтвердить вход в веб кабинет» — кабинет откроется на ПК."
-    )
+    """Следующий шаг входа — без длинной инструкции."""
+    return "\n\nПришлите код с экрана компьютера."
 
 
 def _ensure_supabase_max_client(max_user_id: str) -> None:
@@ -285,11 +271,7 @@ def _notify_managers_staff_login(
     if not manager_ids and not chat_ids:
         return 0
     email = pending.staff_email or pending.contact or "сотрудник"
-    text = (
-        f"Сотрудник {email} запросил вход в кабинет сотрудника (первый раз с этого MAX).\n"
-        "После одобрения следующие входы пройдут без вашего участия.\n"
-        "Если это ожидаемый вход — нажмите кнопку ниже."
-    )
+    text = f"Вход: {email}\nНажмите кнопку."
     attachments = inline_callback_keyboard(
         APPROVE_STAFF_LOGIN_LABEL,
         manager_callback_payload_for(pending.ticket_id),
@@ -335,10 +317,7 @@ def _complete_pc_login(
     if pending is None:
         pending = latest_for_max(user_id)
     if pending is None or pending.status not in {"pending_confirm", "pending_pair"}:
-        reply = (
-            "Сначала на компьютере откройте кабинет и нажмите "
-            "«Подтвердить вход через MAX», затем пришлите код сюда."
-        )
+        reply = "Пришлите код с экрана компьютера."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_no_pending", reply=reply)
 
@@ -347,7 +326,7 @@ def _complete_pc_login(
         _ensure_supabase_max_client(user_id)
         row = _client_row_by_max(user_id)
         if not row:
-            reply = "Сначала /start, затем код с компьютера."
+            reply = "Напишите /start."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_need_start", reply=reply)
         contact = _auth_email_for_row(row, user_id)
@@ -358,7 +337,7 @@ def _complete_pc_login(
         ) or pending
         if pending.status != "pending_confirm":
             _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
-            reply = "Нажмите кнопку подтверждения ещё раз."
+            reply = "Нажмите кнопку."
             return MaxHandleResult(ok=True, action="login_need_confirm", reply=reply)
 
     # Staff: первый вход — руководитель; дальше тот же MAX входит сам
@@ -370,14 +349,14 @@ def _complete_pc_login(
 
         staff_email = (pending.staff_email or "").strip().lower()
         if not staff_email or get_staff_role_by_email(staff_email) is None:
-            reply = "Этот email не в staff-ролях. Вход отклонён."
+            reply = "Нет доступа. Обратитесь к администратору."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_not_staff", reply=reply)
 
         if is_staff_login_trusted(email=staff_email, max_user_id=user_id):
             token_hash = _token_hash_for_email(staff_email)
             if not token_hash:
-                reply = "Не удалось завершить вход. Попробуйте ещё раз через минуту."
+                reply = "Ошибка входа. Попробуйте позже."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
             approved = approve(
@@ -386,59 +365,44 @@ def _complete_pc_login(
                 email=staff_email,
             )
             if not approved:
-                reply = "Сессия устарела. На компьютере начните вход через MAX снова."
+                reply = "Сессия устарела. Начните вход снова на компьютере."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_expired", reply=reply)
-            reply = (
-                "Вход подтверждён (устройство уже одобрено руководителем).\n"
-                "Кабинет откроется на компьютере."
-            )
+            reply = "Готово. Смотрите компьютер."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=True, action="login_approved_trusted", reply=reply)
 
         waiting = mark_pending_manager(ticket_id=pending.ticket_id)
         if not waiting:
-            reply = "Сессия устарела. На компьютере начните вход через MAX снова."
+            reply = "Сессия устарела. Начните вход снова на компьютере."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_expired", reply=reply)
         sent = _notify_managers_staff_login(bot, pending=waiting)
         if sent == 0:
-            reply = (
-                "Вы подтвердили вход. Руководители не настроены в системе "
-                "(нужен max_user_id у admin или STAFF_LOGIN_APPROVER_MAX_USER_IDS). "
-                "Обратитесь к администратору."
-            )
+            reply = "Нет руководителя в системе. Обратитесь к администратору."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=True,
                 action="login_pending_manager_no_approvers",
                 reply=reply,
             )
-        reply = (
-            "Вы подтвердили вход.\n"
-            "Это первый вход с этого MAX — ожидайте подтверждения руководителя.\n"
-            "После одобрения следующие входы пройдут без него."
-        )
+        reply = "Ждите руководителя."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="login_pending_manager", reply=reply)
 
     tokens = _token_hash_for_max(user_id)
     if not tokens:
-        reply = "Не удалось завершить вход. Попробуйте ещё раз через минуту."
+        reply = "Ошибка входа. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
     email, token_hash = tokens
     approved = approve(ticket_id=pending.ticket_id, token_hash=token_hash, email=email)
     if not approved:
-        reply = "Сессия устарела. На компьютере нажмите вход через MAX снова."
+        reply = "Сессия устарела. Начните вход снова на компьютере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
-    reply = (
-        "Вход подтверждён.\n"
-        "Кабинет должен открыться на компьютере в течение нескольких секунд.\n"
-        "Если не открылся — обновите страницу кабинета."
-    )
+    reply = "Готово. Смотрите компьютер."
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(ok=True, action="login_approved", reply=reply)
 
@@ -462,31 +426,31 @@ def _approve_staff_by_manager(
         extra_ids=settings.staff_login_approver_max_user_ids,
     )
     if str(user_id) not in {str(m) for m in manager_ids}:
-        reply = "У вас нет права подтверждать вход сотрудников."
+        reply = "Нет права на это действие."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_forbidden", reply=reply)
 
     pending = get_pending(ticket_id)
     if pending is None or pending.status != "pending_manager":
-        reply = "Заявка на вход не найдена или уже обработана."
+        reply = "Заявка уже обработана или устарела."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_no_pending", reply=reply)
 
     staff_email = (pending.staff_email or "").strip().lower()
     if not staff_email or get_staff_role_by_email(staff_email) is None:
-        reply = "Email сотрудника не в staff-ролях."
+        reply = "Сотрудник не найден."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_not_staff", reply=reply)
 
     token_hash = _token_hash_for_email(staff_email)
     if not token_hash:
-        reply = "Не удалось выдать сессию. Попробуйте позже."
+        reply = "Ошибка входа. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_token_failed", reply=reply)
 
     approved = approve(ticket_id=pending.ticket_id, token_hash=token_hash, email=staff_email)
     if not approved:
-        reply = "Не удалось подтвердить (сессия устарела)."
+        reply = "Сессия устарела."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_expired", reply=reply)
 
@@ -498,17 +462,13 @@ def _approve_staff_by_manager(
         except Exception:
             pass
 
-    reply = (
-        f"Вход для {staff_email} разрешён (однократно).\n"
-        "Дальше этот сотрудник будет входить сам с того же MAX.\n"
-        "Кабинет откроется на компьютере сотрудника."
-    )
+    reply = "Готово."
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     # уведомить сотрудника в MAX, если известен
     if pending.max_user_id and str(pending.max_user_id) != str(user_id):
         try:
             bot.send_message(
-                text="Руководитель разрешил вход. Кабинет должен открыться на компьютере.",
+                text="Готово. Смотрите компьютер.",
                 user_id=str(pending.max_user_id),
             )
         except Exception:
@@ -541,25 +501,17 @@ def _handle_pair_code(
     _ensure_supabase_max_client(user_id)
     row = _client_row_by_max(user_id)
     if not row:
-        reply = "Сначала напишите /start, затем снова отправьте код с компьютера."
+        reply = "Напишите /start."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_need_start", reply=reply)
     contact = _auth_email_for_row(row, user_id)
     pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
     if not pending:
-        reply = (
-            "Код не найден или устарел. На компьютере снова нажмите "
-            "«Подтвердить вход через MAX» и пришлите новый код."
-        )
+        reply = "Код не найден. Начните вход снова на компьютере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_invalid", reply=reply)
     _send_confirm_button(bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id)
-    if pending.audience == "staff":
-        reply = (
-            "Код принят. Нажмите кнопку ниже — затем вход подтвердит руководитель."
-        )
-    else:
-        reply = "Код принят. Нажмите кнопку ниже — кабинет откроется на компьютере."
+    reply = "Нажмите кнопку."
     return MaxHandleResult(ok=True, action="pair_ok", reply=reply)
 
 
@@ -582,27 +534,19 @@ def _send_confirm_web_login(
 
 
 def _docs_request_text(*, has_docs: bool) -> str:
-    lines = ["Нужны документы для проверки:"]
-    for i, title in enumerate(_DEFAULT_DOC_REQUESTS, start=1):
-        lines.append(f"{i}. {title}")
-    lines.append("Пришлите файлы в этот чат (PDF/JPG/PNG) или загрузите в кабинете.")
     if has_docs:
-        lines.append("Часть файлов уже получена — можно /status или /run.")
-    return "\n".join(lines)
+        return "Пришлите следующий документ (PDF/JPG/PNG) или /run."
+    return "Пришлите выписку ИЛС (PDF/JPG/PNG)."
 
 
 def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
     draft = record.ctx.draft
     if not draft:
-        return (
-            "Черновик ещё не готов. Пришлите документы и выполните /run "
-            "(до этапа проверки специалистом)."
-        )
+        return "Черновик ещё не готов. Пришлите документы, затем /run."
     body = (draft.body or "").strip()
     preview = body[:1500] + ("…" if len(body) > 1500 else "")
     title = draft.title or "Черновик заявления"
-    note = "\n\n⚠️ Это черновик для проверки специалистом, не подача в СФР."
-    return f"{title}\n\n{preview}{note}"
+    return f"{title}\n\n{preview}"
 
 
 def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
@@ -668,9 +612,7 @@ def handle_max_update(
         existing = store.find_by_max_user(user_id)
         if existing:
             reply = (
-                f"Снова здравствуйте. Ваш кейс: {existing.case_id}\n"
-                f"Этап: {status_label_ru(existing.ctx.status)}\n"
-                + _docs_request_text(has_docs=bool(existing.ctx.document_paths))
+                f"Кейс {existing.case_id}: {status_label_ru(existing.ctx.status)}."
                 + _channel_choice_text()
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -686,28 +628,18 @@ def handle_max_update(
             max_user_id=user_id,
             max_chat_id=str(chat_id) if chat_id is not None else None,
         )
-        reply = (
-            "Здравствуйте! Я помогу с аудитом пенсионного дела.\n"
-            f"Создан кейс: {record.case_id}\n"
-            + _docs_request_text(has_docs=False)
-            + "\nКоманды: /status, /docs, /run, /draft, /help"
-            + _channel_choice_text()
-        )
+        reply = "Пришлите код с экрана компьютера."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="create", case_id=record.case_id, reply=reply)
 
     record = store.find_by_max_user(user_id)
     if record is None:
-        reply = "Напишите /start, чтобы создать кейс."
+        reply = "Напишите /start."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="need_start", reply=reply)
 
     if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
-        reply = (
-            "Команды: /start, /status, /docs, /run, /draft, /help, /login."
-            " Документы — файлом в чат."
-            + _channel_choice_text()
-        )
+        reply = "Пришлите код с экрана или документ. Команды: /docs /run /draft /status"
         _reply(
             bot,
             user_id=user_id,
@@ -734,22 +666,16 @@ def handle_max_update(
 
     if lower.startswith("/status"):
         reply = (
-            f"Кейс {record.case_id}\n"
-            f"Этап: {status_label_ru(record.ctx.status)}\n"
-            f"Документов: {len(record.ctx.document_paths)}\n"
-            f"Распознано текстов: {len(record.ctx.ocr_texts)}\n"
-            f"Находок: {len(record.ctx.findings)}\n"
-            f"Черновик: {'есть — /draft' if record.ctx.draft else 'ещё нет'}"
+            f"{status_label_ru(record.ctx.status)}. "
+            f"Документов: {len(record.ctx.document_paths)}. "
+            "Дальше: /docs или /run."
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = (
-                "Сначала пришлите документы.\n"
-                + _docs_request_text(has_docs=False)
-            )
+            reply = "Сначала пришлите документ."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,
@@ -758,16 +684,8 @@ def handle_max_update(
                 reply=reply,
             )
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
-        draft_note = (
-            " Черновик готов — откройте /draft."
-            if updated.ctx.draft
-            else ""
-        )
-        reply = (
-            f"Этап: {status_label_ru(updated.ctx.status)}. "
-            f"Находок: {len(updated.ctx.findings)}."
-            f"{draft_note}"
-        )
+        draft_note = " Откройте /draft." if updated.ctx.draft else ""
+        reply = f"Готово: {status_label_ru(updated.ctx.status)}.{draft_note}"
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
@@ -775,10 +693,7 @@ def handle_max_update(
     file_bytes = update.get("file_bytes")
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
-        reply = (
-            f"Файл «{file_name}» принят. Документов: {len(fresh.ctx.document_paths)}. "
-            "Когда будете готовы — /run. Список нужных — /docs"
-        )
+        reply = f"Файл принят ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
 
@@ -794,23 +709,13 @@ def handle_max_update(
             except Exception:
                 continue
         if names:
-            reply = (
-                f"Принято файлов: {len(names)} ({', '.join(names)}). "
-                f"Всего документов: {len(fresh.ctx.document_paths)}. "
-                "Команда /run запустит проверку."
-            )
+            reply = f"Файлы приняты ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = (
-        "Принял сообщение. Пришлите файл или команды:\n"
-        f"«{CONFIRM_WEB_LOGIN_LABEL}» или /login — вход в веб-кабинет\n"
-        "/docs — что загрузить\n"
-        "/status /run /draft /help\n"
-        f"Текущий этап: {status_label_ru(record.ctx.status)}"
-    )
+    reply = "Пришлите код с экрана, документ или /help."
     _reply(
         bot,
         user_id=user_id,

@@ -83,7 +83,7 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
         bot=bot,
     )
     assert created.case_id
-    assert any("ИЛС" in t for _, t in bot.sent)
+    assert any("код" in t.lower() for _, t in bot.sent)
 
     docs = handle_max_update(
         {
@@ -96,6 +96,7 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
         bot=bot,
     )
     assert docs.action == "docs_request"
+    assert any("ИЛС" in t for _, t in bot.sent)
 
     store = get_case_store()
     with store._lock:  # noqa: SLF001

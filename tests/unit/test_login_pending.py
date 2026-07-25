@@ -1,6 +1,6 @@
 """Тесты pending-входа через MAX (ПК ждёт подтверждение)."""
 
-from sfrfr.security.login_otp import confirm_web_login_message
+from sfrfr.security.login_otp import CONFIRM_WEB_LOGIN_LABEL, confirm_web_login_message
 from sfrfr.security.login_pending import (
     approve,
     bind_max_by_code,
@@ -93,5 +93,5 @@ def test_callback_payload_roundtrip() -> None:
 
 def test_confirm_message_is_pc_oriented() -> None:
     text = confirm_web_login_message()
-    assert "компьютер" in text.lower()
-    assert "Подтвердить вход" in text
+    assert "Нажмите кнопку" in text
+    assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход"
