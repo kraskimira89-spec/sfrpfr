@@ -6,6 +6,7 @@
 - Фикс `RedactingFilter`: не трогать `uvicorn.access` (иначе ValueError в api.err).
 - `_session_from_max_identity` сам создаёт clients при отсутствии строки.
 - Юнит-тесты smoke OTP + poll approved; деплой на VPS.
+- E2E: pair→approve→session OK; `/me` 500 из‑за `staff_roles.maybe_single` → `limit(1)`.
 
 ## 2026-07-25 (fix: связать MAX-аккаунт)
 

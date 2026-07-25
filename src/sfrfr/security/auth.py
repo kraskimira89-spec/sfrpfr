@@ -57,15 +57,17 @@ def _unauthorized(detail: str = "authentication required") -> HTTPException:
 
 def _lookup_role(user_id: str) -> StaffRole | None:
     """Роли читаются только server-side service client, не из user_metadata."""
+    # limit(1), не maybe_single: пустой результат не должен давать response=None
     response = (
         get_supabase_client()
         .table("staff_roles")
         .select("role")
         .eq("user_id", user_id)
-        .maybe_single()
+        .limit(1)
         .execute()
     )
-    row: dict[str, Any] | None = response.data
+    rows = response.data or []
+    row: dict[str, Any] | None = rows[0] if rows else None
     if not row:
         return None
     try:
