@@ -7,10 +7,15 @@ APP_USER="${APP_USER:-sfrfr}"
 BRANCH="${BRANCH:-main}"
 
 cd "$APP_DIR"
-# Файлы, созданные от root (WP seed и т.п.), ломают git reset от sfrfr
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-sudo -u "$APP_USER" git fetch origin
-sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
+
+# После git reset нужно перезапустить ЭТУ же копию скрипта с диска,
+# иначе bash продолжает старую версию (без пересборки Next.js).
+if [[ "${1:-}" != "--post-update" ]]; then
+  chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+  sudo -u "$APP_USER" git fetch origin
+  sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
+  exec bash "$APP_DIR/scripts/vps_deploy.sh" --post-update
+fi
 
 sudo -u "$APP_USER" bash -lc "
   cd '$APP_DIR'
@@ -21,7 +26,6 @@ sudo -u "$APP_USER" bash -lc "
 systemctl restart sfrfr-api
 systemctl is-active --quiet sfrfr-api
 
-# Кабинеты Next.js (если unit-файлы установлены)
 rebuild_next_app() {
   local name="$1"
   local dir="$2"
@@ -38,7 +42,7 @@ rebuild_next_app() {
   sudo -u "$APP_USER" bash -lc "
     set -euo pipefail
     cd '$dir'
-    export PATH=\"\$HOME/.nvm/versions/node/\$(ls \"\$HOME/.nvm/versions/node\" 2>/dev/null | tail -1)/bin:/usr/local/bin:\$PATH\"
+    export PATH=\"/usr/local/bin:/usr/bin:\$PATH\"
     command -v npm >/dev/null
     if [[ -f package-lock.json ]]; then npm ci; else npm install; fi
     npm run build
