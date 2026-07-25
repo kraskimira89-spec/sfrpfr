@@ -326,22 +326,50 @@ header span { color: var(--muted); font-size: 0.9rem; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #fff;
-  color: inherit;
+  color: var(--ink, #1a2332);
   cursor: pointer;
   font: inherit;
 }
 .auth-method strong {
   font-size: 0.98rem;
+  color: inherit;
 }
 .auth-method span {
   font-size: 0.88rem;
   color: var(--muted);
   font-weight: 400;
 }
+.auth-method:hover,
+.auth-method:focus-visible {
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #fff;
+}
+.auth-method:hover strong,
+.auth-method:hover span,
+.auth-method:focus-visible strong,
+.auth-method:focus-visible span {
+  color: #fff;
+}
 .auth-method.active {
   border-color: var(--brand);
   background: #f3f8fb;
   box-shadow: inset 0 0 0 1px var(--brand);
+  color: var(--ink, #1a2332);
+}
+.auth-method.active span {
+  color: var(--muted);
+}
+.auth-method.active:hover,
+.auth-method.active:focus-visible {
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #fff;
+  box-shadow: none;
+}
+.auth-method.active:hover span,
+.auth-method.active:focus-visible span {
+  color: #fff;
 }
 .auth-alt-row {
   display: grid;
