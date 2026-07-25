@@ -113,6 +113,7 @@ type View = "cases" | "case" | "docs" | "payments" | "result";
 type AuthChannel = "email" | "phone" | "max";
 type AuthScreen = "login" | "register" | "recover" | "max" | "email_otp";
 type RegisterChannel = "email" | "max";
+type LoginMethod = "password" | "max" | "email_otp";
 
 /** SMS-вход не публикуем (см. apps/cabinet/src/archive/auth-sms.md). */
 const AUTH_SMS_PUBLISHED = false;
@@ -209,6 +210,7 @@ export function ClientCabinet() {
   );
   const [session, setSession] = useState<Session | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>("login");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
   const [registerChannel, setRegisterChannel] = useState<RegisterChannel>("email");
   const [authChannel, setAuthChannel] = useState<AuthChannel>("email");
   const [email, setEmail] = useState("");
@@ -250,9 +252,13 @@ export function ClientCabinet() {
     const t = window.setTimeout(() => {
       if (mode === "register") setAuthScreen("register");
       else if (mode === "recover") setAuthScreen("recover");
-      else if (mode === "login") setAuthScreen("login");
+      else if (mode === "login") {
+        setAuthScreen("login");
+        setLoginMethod("password");
+      }
       if (channel === "max") {
-        setAuthScreen("max");
+        setAuthScreen("login");
+        setLoginMethod("max");
         setAuthChannel("max");
         setRegisterChannel("max");
       }
@@ -533,7 +539,11 @@ export function ClientCabinet() {
     setOtpCode("");
     setPassword("");
     setPasswordConfirm("");
-    if (next === "max") {
+    if (next === "login") {
+      setLoginMethod("password");
+      setAuthChannel("email");
+    } else if (next === "max") {
+      setLoginMethod("max");
       setAuthChannel("max");
       setMaxWizardStep(1);
       setMaxStep1Done(false);
@@ -541,7 +551,30 @@ export function ClientCabinet() {
       setMaxTicket("");
       setMaxPairCode("");
       setMaxWaitStatus("");
-    } else if (next === "email_otp" || next === "register") {
+    } else if (next === "email_otp") {
+      setLoginMethod("email_otp");
+      setAuthChannel("email");
+    } else if (next === "register") {
+      setAuthChannel("email");
+    }
+  }
+
+  function chooseLoginMethod(method: LoginMethod) {
+    setLoginMethod(method);
+    setAuthScreen("login");
+    setNotice("");
+    setOtpSent(false);
+    setOtpCode("");
+    setPassword("");
+    if (method === "max") {
+      setAuthChannel("max");
+      setMaxWizardStep(1);
+      setMaxStep1Done(false);
+      setMaxStep2Done(false);
+      setMaxTicket("");
+      setMaxPairCode("");
+      setMaxWaitStatus("");
+    } else {
       setAuthChannel("email");
     }
   }
@@ -1230,8 +1263,9 @@ export function ClientCabinet() {
 
   if (!session) {
     const showMax =
-      authScreen === "max" ||
+      (authScreen === "login" && loginMethod === "max") ||
       (authScreen === "register" && registerChannel === "max");
+    const showLoginMethods = authScreen === "login";
 
     return (
       <main className="auth-layout">
@@ -1242,7 +1276,7 @@ export function ClientCabinet() {
           </p>
           <h1>Личный кабинет</h1>
 
-          {!showMax && authScreen !== "recover" && authScreen !== "email_otp" ? (
+          {authScreen !== "recover" ? (
             <div className="auth-mode-tabs" role="tablist" aria-label="Режим">
               <button
                 type="button"
@@ -1261,11 +1295,44 @@ export function ClientCabinet() {
             </div>
           ) : null}
 
-          {authScreen === "login" ? (
+          {showLoginMethods ? (
             <>
-              <p className="lead lead-compact">
-                Войдите по email и паролю или выберите другой способ.
-              </p>
+              <p className="lead lead-compact">Выберите способ входа:</p>
+              <div className="auth-method-list" role="tablist" aria-label="Способ входа">
+                <button
+                  type="button"
+                  className={
+                    loginMethod === "password" ? "auth-method active" : "auth-method"
+                  }
+                  onClick={() => chooseLoginMethod("password")}
+                >
+                  <strong>Пароль</strong>
+                  <span>Ранее заданный вами пароль кабинета</span>
+                </button>
+                <button
+                  type="button"
+                  className={loginMethod === "max" ? "auth-method active" : "auth-method"}
+                  onClick={() => chooseLoginMethod("max")}
+                >
+                  <strong>Код в MAX</strong>
+                  <span>Подтверждение входа в мессенджере</span>
+                </button>
+                <button
+                  type="button"
+                  className={
+                    loginMethod === "email_otp" ? "auth-method active" : "auth-method"
+                  }
+                  onClick={() => chooseLoginMethod("email_otp")}
+                >
+                  <strong>Временный код на email</strong>
+                  <span>Одноразовый код письмом на почту</span>
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {showLoginMethods && loginMethod === "password" ? (
+            <>
               <form className="auth-form" onSubmit={signInWithPassword}>
                 <label htmlFor="login-email">Email</label>
                 <input
@@ -1294,18 +1361,53 @@ export function ClientCabinet() {
                   Забыли пароль?
                 </button>
               </p>
-              <div className="auth-alt-row">
-                <button type="button" className="ghost" onClick={() => goAuthScreen("max")}>
-                  Войти через MAX
-                </button>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => goAuthScreen("email_otp")}
-                >
-                  Войти по коду на email
-                </button>
-              </div>
+            </>
+          ) : null}
+
+          {showLoginMethods && loginMethod === "email_otp" ? (
+            <>
+              <p className="muted">
+                На email придёт временный одноразовый код. Введите его ниже.
+              </p>
+              {!otpSent ? (
+                <form className="auth-form" onSubmit={requestOtp}>
+                  <label htmlFor="otp-email">Email</label>
+                  <input
+                    id="otp-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <button type="submit" disabled={busy}>
+                    Получить временный код
+                  </button>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <label htmlFor="login-otp">Код из письма</label>
+                  <input
+                    id="login-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Войти по коду
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestOtp()}
+                  >
+                    Отправить ещё раз
+                  </button>
+                </form>
+              )}
             </>
           ) : null}
 
@@ -1417,58 +1519,6 @@ export function ClientCabinet() {
             </p>
           ) : null}
 
-          {authScreen === "email_otp" ? (
-            <>
-              <p className="lead lead-compact">
-                Код авторизации придёт на email. Затем при необходимости задайте пароль.
-              </p>
-              {!otpSent ? (
-                <form className="auth-form" onSubmit={requestOtp}>
-                  <label htmlFor="otp-email">Email</label>
-                  <input
-                    id="otp-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <button type="submit" disabled={busy}>
-                    Получить код
-                  </button>
-                </form>
-              ) : (
-                <form className="auth-form" onSubmit={verifyEmailOtp}>
-                  <label htmlFor="login-otp">Код из письма</label>
-                  <input
-                    id="login-otp"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                  />
-                  <button type="submit" disabled={busy}>
-                    Войти по коду
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={busy}
-                    onClick={() => void requestOtp()}
-                  >
-                    Отправить ещё раз
-                  </button>
-                </form>
-              )}
-              <p className="hint">
-                <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
-                  ← Назад ко входу с паролем
-                </button>
-              </p>
-            </>
-          ) : null}
-
           {authScreen === "recover" ? (
             <>
               <p className="lead lead-compact">
@@ -1523,19 +1573,11 @@ export function ClientCabinet() {
             </>
           ) : null}
 
-          {authScreen === "max"
+          {showLoginMethods && loginMethod === "max"
             ? renderMaxWizard(
                 "Вход через MAX — по шагам. На компьютере этот экран, действия в чате — на телефоне.",
               )
             : null}
-
-          {authScreen === "max" ? (
-            <p className="hint auth-alt-hint">
-              <button type="button" className="linkish" onClick={() => goAuthScreen("login")}>
-                ← Вход по email и паролю
-              </button>
-            </p>
-          ) : null}
 
           {notice && <p className="notice">{notice}</p>}
           <p className="hint auth-site-hint">
