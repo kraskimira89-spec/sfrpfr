@@ -11,6 +11,7 @@ from sfrfr.integrations.max.attachments import download_file, extract_downloadab
 from sfrfr.integrations.max.client import (
     MaxBotClient,
     inline_callback_keyboard,
+    inline_link_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.security.login_otp import (
@@ -19,11 +20,11 @@ from sfrfr.security.login_otp import (
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
     confirm_web_login_message,
+    issue_login_link,
 )
 from sfrfr.security.login_pending import (
     approve,
     bind_max_by_code,
-    callback_payload_for,
     get_pending,
     latest_for_max,
     manager_callback_payload_for,
@@ -50,6 +51,7 @@ _LOGIN_TRIGGERS = frozenset(
         "войти",
         "вход",
         CONFIRM_WEB_LOGIN_LABEL.lower(),
+        "подтвердить вход",
         CONFIRM_WEB_LOGIN_CALLBACK,
         "confirm_web_login",
     }
@@ -485,8 +487,8 @@ def _complete_pc_login(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
-    reply = "Готово. Смотрите компьютер."
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    _send_open_cabinet_link(bot, user_id=user_id, chat_id=chat_id, contact=email)
+    reply = "Готово. Откройте кабинет или смотрите компьютер."
     return MaxHandleResult(ok=True, action="login_approved", reply=reply)
 
 
@@ -566,12 +568,42 @@ def _send_confirm_button(
     chat_id: int | str | None,
     ticket_id: str,
 ) -> None:
+    """Кнопка-ссылка: открывает кабинет в браузере (?auth=max&t=…)."""
+    del ticket_id  # ticket одобряется при открытии ссылки / запасном callback
+    _ensure_supabase_max_client(user_id)
+    row = _client_row_by_max(user_id)
+    if not row:
+        # без профиля — запасной callback (ПК через poll)
+        text = confirm_web_login_message()
+        attachments = inline_callback_keyboard(
+            CONFIRM_WEB_LOGIN_LABEL,
+            CONFIRM_WEB_LOGIN_CALLBACK,
+        )
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
+        return
+    contact = _auth_email_for_row(row, user_id)
+    issued = issue_login_link(contact=contact, max_user_id=str(user_id))
     text = confirm_web_login_message()
-    attachments = inline_callback_keyboard(
-        CONFIRM_WEB_LOGIN_LABEL,
-        callback_payload_for(ticket_id),
-    )
+    attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
     _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
+
+
+def _send_open_cabinet_link(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    contact: str,
+) -> None:
+    issued = issue_login_link(contact=contact, max_user_id=str(user_id))
+    attachments = inline_link_keyboard("Открыть кабинет", issued.login_url)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text="Готово. Откройте кабинет или смотрите компьютер.",
+        attachments=attachments,
+    )
 
 
 def _handle_pair_code(

@@ -54,4 +54,5 @@ def test_confirm_web_login_copy() -> None:
 def test_confirm_message_is_short_action() -> None:
     text = confirm_web_login_message()
     assert "Нажмите кнопку" in text
-    assert len(text) < 40
+    assert "кабинет" in text.lower()
+    assert len(text) < 80

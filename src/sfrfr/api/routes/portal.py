@@ -344,15 +344,15 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     Для staff после шага 2 — ещё подтверждение руководителем.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
-    from sfrfr.integrations.max.client import MaxBotClient, inline_callback_keyboard
+    from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
         confirm_web_login_message,
+        issue_login_link,
         normalize_phone,
     )
     from sfrfr.security.login_pending import (
         bind_max_direct,
-        callback_payload_for,
         create_pending,
     )
 
@@ -416,11 +416,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         bot = MaxBotClient()
         if not bot.available:
             raise HTTPException(status_code=503, detail="MAX bot not configured")
-        text = confirm_web_login_message()
-        attachments = inline_callback_keyboard(
-            CONFIRM_WEB_LOGIN_LABEL,
-            callback_payload_for(pending.ticket_id),
+        issued = issue_login_link(
+            contact=contact,
+            max_user_id=str(row["max_user_id"]),
         )
+        text = confirm_web_login_message()
+        attachments = inline_link_keyboard(CONFIRM_WEB_LOGIN_LABEL, issued.login_url)
         try:
             bot.send_message(
                 text=text,
@@ -444,8 +445,9 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             max_bot_url=settings.max_chat_url,
             status="pending_confirm",
             message=(
-                "В MAX отправлено «Подтвердить вход». Нажмите кнопку в чате на телефоне — "
-                "кабинет откроется на этом компьютере."
+                "В MAX отправлена кнопка «Подтвердить вход в веб кабинет». "
+                "Нажмите её на телефоне — откроется кабинет; на этом компьютере вход "
+                "подтвердится автоматически."
             ),
         )
 
@@ -563,12 +565,28 @@ def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
 def verify_max_login_link(payload: MaxOtpLinkRequest) -> MaxOtpVerifyResponse:
     """Обмен одноразовой ссылки из MAX на token_hash (вход без ввода кода)."""
     from sfrfr.security.login_otp import verify_login_link
+    from sfrfr.security.login_pending import approve, latest_for_max
 
     verified = verify_login_link(link_token=payload.t)
     if not verified:
         raise HTTPException(status_code=400, detail="invalid or expired link")
     contact, max_user_id = verified
-    return _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+    response = _session_from_max_identity(contact=contact, max_user_id=max_user_id)
+    # Если вход начали на ПК — одобряем poll-сессию при открытии ссылки с телефона
+    pending = latest_for_max(max_user_id)
+    if (
+        pending is not None
+        and pending.audience == "client"
+        and pending.status in {"pending_confirm", "pending_pair"}
+        and response.token_hash
+        and response.email
+    ):
+        approve(
+            ticket_id=pending.ticket_id,
+            token_hash=response.token_hash,
+            email=response.email,
+        )
+    return response
 
 
 @router.post("/link/max", response_model=PortalMeResponse)

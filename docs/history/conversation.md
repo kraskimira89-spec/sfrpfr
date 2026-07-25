@@ -7,6 +7,7 @@
   Redirect recovery: `https://cabinet.taxi-doroga-dobra.ru/?mode=recover`
   (в Supabase Auth → URL Configuration должен быть allow-list на cabinet.*).
 - Синхронизация веб-мастера и MAX: шаг «Начать» ↔ кнопка «Начать»; шаг 3 ↔ код + «Подтвердить вход»; без ложных confirm и ручного `/start`.
+- MAX: кнопка «Подтвердить вход в веб кабинет» снова link (`?auth=max&t=`) — открывает браузер; poll на ПК одобряется при открытии ссылки.
 - Кабинет клиента: интерактивный мастер входа MAX (3 шага); лендинг/miniapp → кабинет без форса MAX-wizard.
 
 ## 2026-07-25 (день)

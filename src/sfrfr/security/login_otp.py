@@ -16,7 +16,7 @@ _CODE_DIGITS = 6
 _SEP = "|"
 
 # Единая формулировка для кнопки и сообщения в MAX
-CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход"
+CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в веб кабинет"
 CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
 APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 START_DIALOG_LABEL = "Начать"
@@ -155,10 +155,10 @@ def verify_login_link(*, link_token: str) -> tuple[str, str] | None:
 
 
 def confirm_web_login_message(*, code: str | None = None) -> str:
-    """Один шаг: нажать кнопку подтверждения."""
+    """Один шаг: нажать кнопку — откроется кабинет в браузере."""
     if code:
-        return f"Код: {code}\nНажмите кнопку."
-    return "Нажмите кнопку."
+        return f"Код: {code}\nНажмите кнопку — откроется кабинет."
+    return "Нажмите кнопку — откроется кабинет."
 
 
 def pair_code_prompt_message(*, pair_code: str) -> str:
