@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import time
 import uuid
 from pathlib import Path
@@ -65,10 +66,50 @@ def main() -> None:
         debug_log("H0", "DBT environment incomplete", missing=missing)
         raise SystemExit(2)
 
+    host = os.environ["DBT_HOST"]
+    port = int(os.environ["DBT_PORT"])
+    host_kind = (
+        "direct"
+        if host.startswith("db.")
+        else "pooler"
+        if ".pooler.supabase.com" in host
+        else "other"
+    )
+    try:
+        addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        families = {
+            "ipv4": sum(address[0] == socket.AF_INET for address in addresses),
+            "ipv6": sum(address[0] == socket.AF_INET6 for address in addresses),
+        }
+        debug_log("H5", "DNS resolved", host_kind=host_kind, **families)
+    except OSError as error:
+        debug_log("H5", "DNS resolution error", host_kind=host_kind, error=str(error)[:500])
+        raise
+
+    started_at = time.monotonic()
+    try:
+        with socket.create_connection((host, port), timeout=10):
+            debug_log(
+                "H6",
+                "TCP port reachable",
+                host_kind=host_kind,
+                elapsed_ms=round((time.monotonic() - started_at) * 1000),
+            )
+    except OSError as error:
+        debug_log(
+            "H6",
+            "TCP port unreachable",
+            host_kind=host_kind,
+            elapsed_ms=round((time.monotonic() - started_at) * 1000),
+            error_type=type(error).__name__,
+            error=str(error)[:500],
+        )
+        raise
+
     try:
         with psycopg.connect(
-            host=os.environ["DBT_HOST"],
-            port=os.environ["DBT_PORT"],
+            host=host,
+            port=port,
             user=os.environ["DBT_USER"],
             password=os.environ["DBT_PASSWORD"],
             dbname=os.environ["DBT_DBNAME"],
@@ -77,13 +118,6 @@ def main() -> None:
             application_name="sfrfr-dbt-runtime-probe",
             autocommit=False,
         ) as connection:
-            host_kind = (
-                "direct"
-                if os.environ["DBT_HOST"].startswith("db.")
-                else "pooler"
-                if ".pooler.supabase.com" in os.environ["DBT_HOST"]
-                else "other"
-            )
             debug_log("H1", "dbt connection established", host_kind=host_kind, port=os.environ["DBT_PORT"])
             with connection.cursor() as cursor:
                 execute_probe(
