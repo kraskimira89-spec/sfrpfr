@@ -145,10 +145,13 @@ def _filter_staff_case(case: dict[str, Any], principal: Principal) -> dict[str, 
         ],
         "checklist_items": case.get("checklist_items") or [],
         "channels": {
-            "cabinet_url": f"{settings.cabinet_public_url.rstrip('/')}/?case={case['id']}",
+            "cabinet_url": (
+                f"{settings.cabinet_public_url.rstrip('/')}/cases/{case['id']}"
+            ),
             "max_bot_url": settings.max_public_bot_url,
             "max_miniapp_url": settings.max_miniapp_url,
         },
+        "representatives": _repo().list_representatives(str(case["id"])),
         "warning": "Решение принимает СФР. Результат не гарантирован.",
         "role_capabilities": {
             "can_edit_pipeline": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
@@ -345,6 +348,48 @@ def assign_expert(
     repo = _repo()
     repo.require_case(principal, case_id)
     return repo.assign_expert(case_id, payload.expert_user_id, principal.user_id)
+
+
+@router.get("/admin/cases/{case_id}/representatives")
+def list_case_representatives(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """Законные представители дела (ТЗ-03)."""
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    return {"items": repo.list_representatives(case_id)}
+
+
+@router.post("/admin/cases/{case_id}/representatives", status_code=201)
+def add_case_representative(
+    case_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """Выдать доступ представителю по email или user_id (staff)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="staff role required")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    email = (payload.get("email") or "").strip() or None
+    user_id = (payload.get("user_id") or "").strip() or None
+    return repo.add_representative(
+        case_id, actor_id=principal.user_id, user_id=user_id, email=email
+    )
+
+
+@router.delete("/admin/cases/{case_id}/representatives/{user_id}")
+def remove_case_representative(
+    case_id: str,
+    user_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="staff role required")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    return repo.remove_representative(case_id, user_id=user_id, actor_id=principal.user_id)
 
 
 @router.post("/admin/cases/{case_id}/checklist", status_code=201)

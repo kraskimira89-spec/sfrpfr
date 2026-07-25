@@ -787,9 +787,11 @@ def link_web_from_max(payload: LinkWebFromMaxRequest) -> LinkWebFromMaxResponse:
     token = make_max_link_token(max_uid)
     settings = get_settings()
     qs = f"link_max={max_uid}&link_token={token}"
+    base = settings.cabinet_public_url.rstrip("/")
     if payload.case_id:
-        qs += f"&case={payload.case_id}"
-    cabinet = f"{settings.cabinet_public_url.rstrip('/')}/?{qs}"
+        cabinet = f"{base}/cases/{payload.case_id}?{qs}"
+    else:
+        cabinet = f"{base}/?{qs}"
     return LinkWebFromMaxResponse(
         client_id=str(row["id"]),
         max_user_id=max_uid,
@@ -884,11 +886,10 @@ def get_case(
 
 @router.get("/meta/status-labels")
 def status_labels() -> dict:
-    """Общие RU-лейблы этапов для веб и mini-app."""
-    return {
-        "labels": {s.value: STATUS_LABELS_RU[s] for s in CaseStatus},
-        "hints": {s.value: STATUS_HINTS_RU[s] for s in CaseStatus},
-    }
+    """Общие RU-лейблы этапов для веб и mini-app (ТЗ-09 §5.2)."""
+    from sfrfr.models.case_status import status_labels_payload
+
+    return status_labels_payload()
 
 
 @router.post("/cases/{case_id}/run", response_model=PipelineRunResponse)
@@ -1042,6 +1043,21 @@ def accept_consent(
         ip=ip,
         user_agent=request.headers.get("user-agent"),
     )
+
+
+@router.get("/cases/{case_id}/representatives")
+def list_case_representatives_client(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    """Клиент/представитель: кто имеет доступ к делу (ТЗ-03)."""
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    items = repo.list_representatives(case_id)
+    return {
+        "items": items,
+        "you_are_representative": repo.is_representative(principal, case_id),
+    }
 
 
 @router.get("/cases/{case_id}/consents")

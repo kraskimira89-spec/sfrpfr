@@ -78,6 +78,12 @@ type StaffCaseDetail = {
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
   channels: { cabinet_url: string; max_bot_url: string; max_miniapp_url: string };
+  representatives?: {
+    user_id: string;
+    email?: string | null;
+    full_name?: string | null;
+    created_at?: string | null;
+  }[];
   crm_url?: string | null;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
@@ -185,6 +191,7 @@ export function AdminCabinet() {
   const [newRoleUserId, setNewRoleUserId] = useState("");
   const [newRole, setNewRole] = useState<StaffRole>("operator");
   const [orderAmount, setOrderAmount] = useState("");
+  const [repEmail, setRepEmail] = useState("");
   const [orderCode, setOrderCode] = useState<"DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH">("DIAG");
 
   const token = session?.access_token;
@@ -515,6 +522,37 @@ export function AdminCabinet() {
     setMessageBody("");
     const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
     setMessages(next);
+  }
+
+  async function addRepresentative(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !detail || !repEmail.trim()) return;
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/representatives`, token, {
+        method: "POST",
+        body: JSON.stringify({ email: repEmail.trim() }),
+      });
+      setRepEmail("");
+      setNotice("Представитель добавлен.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось добавить представителя.");
+    }
+  }
+
+  async function removeRepresentative(userId: string) {
+    if (!token || !detail) return;
+    try {
+      await apiFetch(
+        `/api/portal/admin/cases/${detail.id}/representatives/${userId}`,
+        token,
+        { method: "DELETE" },
+      );
+      setNotice("Доступ представителя снят.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось снять доступ.");
+    }
   }
 
   async function openSigned(docId: string) {
@@ -860,6 +898,41 @@ export function AdminCabinet() {
             <button type="button" onClick={() => void requestReview()} disabled={busy}>
               Запросить проверку / run
             </button>
+          </div>
+
+          <div className="panel">
+            <h2>Законные представители</h2>
+            <p className="hint">
+              Доступ только к этому делу. У представителя должен быть вход в веб-кабинет (email).
+            </p>
+            <ul className="plain-list">
+              {(detail.representatives ?? []).length === 0 && <li>Пока нет</li>}
+              {(detail.representatives ?? []).map((rep) => (
+                <li key={rep.user_id}>
+                  {rep.full_name || rep.email || rep.user_id.slice(0, 8)}
+                  {" "}
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => void removeRepresentative(rep.user_id)}
+                  >
+                    Снять доступ
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <form className="row-actions" onSubmit={(e) => void addRepresentative(e)}>
+              <input
+                type="email"
+                placeholder="email представителя"
+                value={repEmail}
+                onChange={(e) => setRepEmail(e.target.value)}
+                required
+              />
+              <button type="submit" disabled={busy}>
+                Выдать доступ
+              </button>
+            </form>
           </div>
 
           <div className="panel">

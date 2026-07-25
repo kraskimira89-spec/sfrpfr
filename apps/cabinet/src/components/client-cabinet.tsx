@@ -2,6 +2,7 @@
 
 import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 
 type CaseSummary = {
   id: string;
@@ -182,56 +183,6 @@ const PACKAGE_LABELS: Record<string, string> = {
   SF_MONTH: "Post-payment (ежемесячная прибавка)",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  intake: "Приём",
-  documents_received: "Документы получены",
-  ocr_done: "OCR",
-  classified: "Классификация",
-  extracted: "Извлечение",
-  audited: "Аудит",
-  draft_ready: "Черновик готов",
-  human_review: "Проверка эксперта",
-  completed: "Завершено",
-  failed: "Ошибка",
-  lead: "Заявка",
-  consent_accepted: "Согласие принято",
-  diagnostic_paid: "Диагностика оплачена",
-  contract_accepted: "Заказ принят",
-  service_paid: "Сопровождение оплачено",
-  package_delivered: "Пакет выдан",
-  awaiting_client_submission: "Ожидаем вашу подачу",
-  result_pending: "Ждём решение СФР",
-  result_confirmed: "Результат подтверждён",
-  success_fee_due: "Счёт за результат",
-  success_fee_paid: "Вознаграждение оплачено",
-  closed: "Закрыто",
-};
-
-function labelStatus(value: string) {
-  return STATUS_LABELS[value] ?? value;
-}
-
-/** Короткие статусы для пенсионера (без OCR / findings). */
-function humanCaseStatus(pipeline: string, b2c: string): string {
-  const p = (pipeline || "").toLowerCase();
-  const b = (b2c || "").toLowerCase();
-  if (b.includes("success_fee") || b.includes("result_confirmed")) return "Есть результат";
-  if (b.includes("service_paid") || b.includes("diagnostic_paid")) return "Оплата получена";
-  if (p.includes("draft") || p.includes("human_review")) return "Готов черновик / проверка специалиста";
-  if (p.includes("failed")) return "Нужна помощь специалиста";
-  if (
-    p.includes("ocr") ||
-    p.includes("classif") ||
-    p.includes("extract") ||
-    p.includes("audit")
-  ) {
-    return "Идёт проверка";
-  }
-  if (p.includes("document") || b.includes("documents")) return "Документы получены";
-  if (p.includes("completed") || b.includes("closed")) return "Дело завершено";
-  return "Нужны документы";
-}
-
 function packageLabel(code: string) {
   return PACKAGE_LABELS[code] ?? code;
 }
@@ -253,12 +204,10 @@ function resolveHomeStep(detail: {
 
 function authorLabel(kind: string) {
   if (kind === "client") return "Вы";
-  if (kind === "expert" || kind === "operator" || kind === "system") return "Специалист";
+  if (kind === "representative") return "Представитель";
+  if (kind === "system") return "Система";
+  if (kind === "expert" || kind === "operator" || kind === "staff") return "Специалист";
   return kind;
-}
-
-function shortId(id: string) {
-  return id.slice(0, 8);
 }
 
 async function apiFetch<T>(
@@ -336,7 +285,16 @@ export function ClientCabinet() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [me, setMe] = useState<PortalMe | null>(null);
+  const [youAreRepresentative, setYouAreRepresentative] = useState(false);
+  const [representatives, setRepresentatives] = useState<
+    { user_id: string; email?: string | null; full_name?: string | null }[]
+  >([]);
   const ensureCaseRef = useRef(false);
+
+  useEffect(() => {
+    if (!apiBase) return;
+    void loadStatusLabels(apiBase);
+  }, []);
 
   const token = session?.access_token;
   const needsPasswordGate = Boolean(
@@ -574,15 +532,24 @@ export function ClientCabinet() {
       setBusy(true);
       setNotice("");
       try {
-        const [caseDetail, caseMessages, consentBundle] = await Promise.all([
+        const [caseDetail, caseMessages, consentBundle, reps] = await Promise.all([
           apiFetch<CaseDetail>(`/api/portal/cases/${caseId}`, token),
           apiFetch<CaseMessage[]>(`/api/portal/cases/${caseId}/messages`, token),
           apiFetch<ConsentBundle>(`/api/portal/cases/${caseId}/consents`, token),
+          apiFetch<{
+            items: { user_id: string; email?: string | null; full_name?: string | null }[];
+            you_are_representative: boolean;
+          }>(`/api/portal/cases/${caseId}/representatives`, token).catch(() => ({
+            items: [],
+            you_are_representative: false,
+          })),
         ]);
         setSelectedId(caseId);
         setDetail(caseDetail);
         setMessages(caseMessages);
         setConsents(consentBundle);
+        setRepresentatives(reps.items || []);
+        setYouAreRepresentative(Boolean(reps.you_are_representative));
         setView(nextView);
         void loadCases();
       } catch {
@@ -1684,6 +1651,9 @@ export function ClientCabinet() {
       {view === "case" && detail && home && (
         <section className="stack">
           <h1>Ваше дело</h1>
+          {youAreRepresentative ? (
+            <p className="ok">Вы законный представитель по этому делу</p>
+          ) : null}
           <p className="status-line">
             {humanCaseStatus(detail.pipeline_status, detail.b2c_status)}
           </p>
@@ -1893,6 +1863,9 @@ export function ClientCabinet() {
           <details className="home-more">
             <summary>Ещё</summary>
             <div className="home-more-links">
+              <a className="linkish" href={maxChatHref} target="_blank" rel="noopener noreferrer">
+                Продолжить в MAX
+              </a>
               <button
                 type="button"
                 className="linkish"
@@ -1918,6 +1891,43 @@ export function ClientCabinet() {
                 <button type="button" className="linkish" onClick={openPasswordSetup}>
                   Задать пароль
                 </button>
+              ) : null}
+            </div>
+            <div className="channel-prefs">
+              <p className="hint">Куда удобнее получать уведомления?</p>
+              <div className="channel-prefs-buttons" role="group" aria-label="Предпочтительный канал">
+                <button
+                  type="button"
+                  className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
+                  disabled={busy}
+                  onClick={() => void setPreferredChannel("web_cabinet")}
+                >
+                  Веб-кабинет
+                </button>
+                <button
+                  type="button"
+                  className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
+                  disabled={busy}
+                  onClick={() => void setPreferredChannel("max_miniapp")}
+                >
+                  MAX
+                </button>
+                <button
+                  type="button"
+                  className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
+                  disabled={busy}
+                  onClick={() => void setPreferredChannel("unset")}
+                >
+                  Не задан
+                </button>
+              </div>
+              {representatives.length > 0 ? (
+                <p className="hint">
+                  Представители:{" "}
+                  {representatives
+                    .map((r) => r.full_name || r.email || r.user_id.slice(0, 8))
+                    .join(", ")}
+                </p>
               ) : null}
             </div>
           </details>

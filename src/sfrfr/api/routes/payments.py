@@ -37,7 +37,7 @@ def _return_url(case_id: str, channel: ReturnChannel) -> str:
         mini = settings.max_miniapp_url.rstrip("/") + "/"
         return f"{mini}?case={case_id}&view=payments&paid=1"
     cabinet = settings.cabinet_public_url.rstrip("/")
-    return f"{cabinet}/?case={case_id}&view=payments&paid=1"
+    return f"{cabinet}/cases/{case_id}?view=payments&paid=1"
 
 
 @router.post("/cases/{case_id}/orders/{order_id}/pay")

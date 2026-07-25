@@ -144,7 +144,16 @@ class CaseRepository:
         by_id = {str(row["id"]): row for row in [*own, *represented_cases]}
         return list(by_id.values())
 
-    def update_case_status(self, case_id: str, status_value: str, actor_id: str) -> dict[str, Any]:
+    def update_case_status(
+        self,
+        case_id: str,
+        status_value: str,
+        actor_id: str,
+        *,
+        notify: bool = True,
+    ) -> dict[str, Any]:
+        previous = self._case(case_id)
+        prev_status = str(previous.get("pipeline_status") or "") if previous else ""
         response = (
             self.client.table("cases")
             .update({"pipeline_status": status_value})
@@ -154,12 +163,143 @@ class CaseRepository:
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
         self.audit(case_id, actor_id, "pipeline_status_updated")
-        return response.data[0]
+        updated = response.data[0]
+        if notify and prev_status != status_value:
+            try:
+                from sfrfr.integrations.client_channels.notifications import (
+                    notify_case_status_change,
+                )
+
+                client_row: dict[str, Any] = {}
+                client_id = updated.get("client_id") or (previous or {}).get("client_id")
+                if client_id:
+                    client_resp = (
+                        self.client.table("clients")
+                        .select("email, max_user_id, preferred_channel")
+                        .eq("id", client_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    rows = client_resp.data or []
+                    if rows:
+                        client_row = rows[0]
+                notify_case_status_change(
+                    case_id=case_id,
+                    status_value=status_value,
+                    previous_status=prev_status or None,
+                    client=client_row,
+                )
+            except Exception:  # noqa: BLE001 — смена статуса важнее доставки
+                pass
+        return updated
 
     def audit(self, case_id: str, actor_id: str | None, action: str) -> None:
         self.client.table("access_audit").insert(
             {"case_id": case_id, "actor_id": actor_id, "action": action}
         ).execute()
+
+    def list_representatives(self, case_id: str) -> list[dict[str, Any]]:
+        rows = (
+            self.client.table("case_representatives")
+            .select("case_id, user_id, created_at")
+            .eq("case_id", case_id)
+            .execute()
+            .data
+            or []
+        )
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            user_id = str(row["user_id"])
+            client = self._one_or_none(
+                self.client.table("clients")
+                .select("id, full_name, email, phone, user_id")
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+            )
+            result.append(
+                {
+                    "user_id": user_id,
+                    "case_id": str(row["case_id"]),
+                    "created_at": row.get("created_at"),
+                    "full_name": (client or {}).get("full_name"),
+                    "email": (client or {}).get("email"),
+                    "phone": (client or {}).get("phone"),
+                }
+            )
+        return result
+
+    def add_representative(
+        self,
+        case_id: str,
+        *,
+        actor_id: str,
+        user_id: str | None = None,
+        email: str | None = None,
+    ) -> dict[str, Any]:
+        """Выдать доступ законному представителю (только staff через API)."""
+        resolved_user_id = user_id
+        if not resolved_user_id and email:
+            client = self._one_or_none(
+                self.client.table("clients")
+                .select("user_id, email")
+                .ilike("email", email.strip())
+                .limit(1)
+                .execute()
+            )
+            if not client or not client.get("user_id"):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="client with this email has no web account yet",
+                )
+            resolved_user_id = str(client["user_id"])
+        if not resolved_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="user_id or email required",
+            )
+        existing = self._one_or_none(
+            self.client.table("case_representatives")
+            .select("case_id, user_id")
+            .eq("case_id", case_id)
+            .eq("user_id", resolved_user_id)
+            .limit(1)
+            .execute()
+        )
+        if existing:
+            return {
+                "case_id": case_id,
+                "user_id": resolved_user_id,
+                "already": True,
+            }
+        self.client.table("case_representatives").insert(
+            {"case_id": case_id, "user_id": resolved_user_id}
+        ).execute()
+        self.audit(case_id, actor_id, f"representative_added:{resolved_user_id[:8]}")
+        return {"case_id": case_id, "user_id": resolved_user_id, "already": False}
+
+    def remove_representative(
+        self, case_id: str, *, user_id: str, actor_id: str
+    ) -> dict[str, Any]:
+        self.client.table("case_representatives").delete().eq("case_id", case_id).eq(
+            "user_id", user_id
+        ).execute()
+        self.audit(case_id, actor_id, f"representative_removed:{user_id[:8]}")
+        return {"ok": True, "case_id": case_id, "user_id": user_id}
+
+    def is_representative(self, principal: Principal, case_id: str) -> bool:
+        if principal.is_max_only or not principal.user_id:
+            return False
+        return bool(
+            self._one_or_none(
+                self.client.table("case_representatives")
+                .select("case_id")
+                .eq("case_id", case_id)
+                .eq("user_id", principal.user_id)
+                .limit(1)
+                .execute()
+            )
+        )
 
     def create_case_for_client(
         self,

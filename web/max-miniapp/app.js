@@ -105,15 +105,16 @@
     const idx = PIPELINE_STEPS.indexOf(cur);
     const labels = { ...statusLabels };
     if (!Object.keys(labels).length) {
+      // Синхронно с shared/status-labels.json и /api/portal/meta/status-labels
       Object.assign(labels, {
         intake: "Приём данных",
         documents_received: "Документы получены",
         ocr_done: "Текст распознан",
-        classified: "Классификация",
-        extracted: "Периоды",
-        audited: "Сверка",
-        draft_ready: "Черновик",
-        human_review: "Проверка",
+        classified: "Документы классифицированы",
+        extracted: "Периоды извлечены",
+        audited: "Сверка завершена",
+        draft_ready: "Черновик готов",
+        human_review: "На проверке специалиста",
         completed: "Завершено",
         failed: "Ошибка",
       });
@@ -332,8 +333,8 @@
       els.caseSubmitHint.textContent = c.submission_instruction;
     }
 
-    const payUrl = `${cabinetBase}?case=${encodeURIComponent(c.id)}&view=payments`;
-    const resultUrl = `${cabinetBase}?case=${encodeURIComponent(c.id)}&view=result`;
+    const payUrl = `${cabinetBase}cases/${encodeURIComponent(c.id)}?view=payments`;
+    const resultUrl = `${cabinetBase}cases/${encodeURIComponent(c.id)}?view=result`;
     if (els.payCabinetLink) els.payCabinetLink.href = payUrl;
     if (els.resultCabinetLink) els.resultCabinetLink.href = resultUrl;
 
@@ -595,12 +596,18 @@
           case_id: currentCase?.id || null,
         }),
       });
-      const url = body.cabinet_url || `${cabinetBase}?link_max=${maxUserId}`;
+      const url =
+        body.cabinet_url ||
+        (currentCase?.id
+          ? `${cabinetBase}cases/${encodeURIComponent(currentCase.id)}?link_max=${maxUserId}`
+          : `${cabinetBase}?link_max=${maxUserId}`);
       if (els.btnWeb) els.btnWeb.href = url;
       window.open(url, "_blank", "noopener,noreferrer");
       toast("Откройте веб-кабинет и войдите по коду");
     } catch (err) {
-      const fallback = `${cabinetBase}?link_max=${encodeURIComponent(maxUserId || "")}`;
+      const fallback = currentCase?.id
+        ? `${cabinetBase}cases/${encodeURIComponent(currentCase.id)}?link_max=${encodeURIComponent(maxUserId || "")}`
+        : `${cabinetBase}?link_max=${encodeURIComponent(maxUserId || "")}`;
       window.open(fallback, "_blank", "noopener,noreferrer");
       toast(err.message || "Открыт веб-кабинет");
     }

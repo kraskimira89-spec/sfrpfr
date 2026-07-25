@@ -22,7 +22,7 @@ def test_notification_links_prefer_max() -> None:
         case_id="11111111-2222-3333-4444-555555555555",
     )
     assert payload["links"][0]["channel"] == "max_miniapp"
-    assert "case=" in payload["links"][1]["url"]
+    assert "/cases/" in payload["links"][1]["url"]
     assert "не гарантирован" in payload["warning"].lower() or "СФР" in payload["warning"]
 
 

@@ -34,6 +34,7 @@ PIPELINE_ORDER: tuple[CaseStatus, ...] = (
 )
 
 # Отображаемые названия этапов для бота / UI
+# Совпадают с shared/status-labels.json (единый словарь ТЗ-09 §5.2).
 STATUS_LABELS_RU: dict[CaseStatus, str] = {
     CaseStatus.INTAKE: "Приём данных",
     CaseStatus.DOCUMENTS_RECEIVED: "Документы получены",
@@ -60,17 +61,72 @@ STATUS_HINTS_RU: dict[CaseStatus, str] = {
     CaseStatus.FAILED: "Произошла ошибка при обработке.",
 }
 
+B2C_LABELS_RU: dict[str, str] = {
+    "lead": "Заявка",
+    "consent_accepted": "Согласие принято",
+    "diagnostic_paid": "Диагностика оплачена",
+    "contract_accepted": "Заказ принят",
+    "service_paid": "Сопровождение оплачено",
+    "package_delivered": "Пакет выдан",
+    "awaiting_client_submission": "Ожидаем вашу подачу",
+    "result_pending": "Ждём решение СФР",
+    "result_confirmed": "Результат подтверждён",
+    "success_fee_due": "Счёт за результат",
+    "success_fee_paid": "Вознаграждение оплачено",
+    "closed": "Закрыто",
+}
+
 
 def status_label_ru(status: CaseStatus | str | None) -> str:
     """Русское название статуса/этапа для пользователя."""
     if status is None:
         return "Неизвестно"
+    raw = str(status)
     try:
-        value = status if isinstance(status, CaseStatus) else CaseStatus(str(status))
+        value = status if isinstance(status, CaseStatus) else CaseStatus(raw)
     except ValueError:
-        return str(status)
-    return STATUS_LABELS_RU.get(value, str(value))
+        return B2C_LABELS_RU.get(raw, raw)
+    return STATUS_LABELS_RU.get(value, B2C_LABELS_RU.get(raw, raw))
 
+
+def human_case_status(pipeline: str | None, b2c: str | None = None) -> str:
+    """Короткий статус для пенсионера (без OCR / findings). Совпадает с senior в JSON."""
+    p = (pipeline or "").lower()
+    b = (b2c or "").lower()
+    if "success_fee" in b or "result_confirmed" in b:
+        return "Есть результат"
+    if "service_paid" in b or "diagnostic_paid" in b:
+        return "Оплата получена"
+    if "draft" in p or "human_review" in p:
+        return "Готов черновик / проверка специалиста"
+    if "failed" in p:
+        return "Нужна помощь специалиста"
+    if any(x in p for x in ("ocr", "classif", "extract", "audit")):
+        return "Идёт проверка"
+    if "document" in p or "documents" in b:
+        return "Документы получены"
+    if "completed" in p or "closed" in b:
+        return "Дело завершено"
+    return "Нужны документы"
+
+
+def status_labels_payload() -> dict[str, dict[str, str]]:
+    """Общий пакет лейблов для /meta/status-labels и фронтов."""
+    return {
+        "labels": {s.value: STATUS_LABELS_RU[s] for s in CaseStatus},
+        "hints": {s.value: STATUS_HINTS_RU[s] for s in CaseStatus},
+        "b2c": dict(B2C_LABELS_RU),
+        "senior": {
+            "needs_documents": "Нужны документы",
+            "documents_received": "Документы получены",
+            "in_review": "Идёт проверка",
+            "draft_or_expert": "Готов черновик / проверка специалиста",
+            "needs_help": "Нужна помощь специалиста",
+            "payment_received": "Оплата получена",
+            "has_result": "Есть результат",
+            "completed": "Дело завершено",
+        },
+    }
 
 def next_status(current: CaseStatus) -> CaseStatus | None:
     """Следующий статус по happy-path или None, если конец / FAILED."""

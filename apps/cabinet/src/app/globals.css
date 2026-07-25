@@ -486,6 +486,24 @@ header span { color: var(--muted); font-size: 1rem; }
   min-height: var(--tap);
   justify-content: flex-start;
   text-align: left;
+  display: inline-flex;
+  align-items: center;
+}
+.channel-prefs {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.65rem;
+}
+.channel-prefs-buttons {
+  display: grid;
+  gap: 0.5rem;
+}
+.channel-prefs-buttons .tab {
+  min-height: var(--btn-h);
+  width: 100%;
+  justify-content: center;
 }
 .warning--footer {
   margin-top: 1.5rem;

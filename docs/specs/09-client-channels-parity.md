@@ -260,12 +260,13 @@ GET|POST messages, consents, orders, result  -- как в текущем portal
 
 1. Оплаты ЮKassa в cabinet и mini-app (`POST .../orders/{id}/pay`, webhook, опциональный чек).
 2. Результат и сообщения в mini-app; handoff в чат бота.
-3. Mini-app на portal API (`X-MAX-InitData`); deep-link кабинета `?case=&view=`.
+3. Mini-app на portal API (`X-MAX-InitData`); deep-link кабинета `/cases/{id}` (и `?case=` как алиас).
 
-### Этап D — приёмка и регресс
+### Этап D — приёмка и регресс (частично ✅)
 
-1. E2E сценарии ниже.
-2. Обновить `03-client-cabinet.md` ссылкой на это ТЗ; чеклист в QA.
+1. Unit/авто: конфликт `max_user_id` 409, CTA по `preferred_channel`, `/cases/{id}`, representatives API.
+2. Чеклист QA: [docs/qa/tz09-stage-d.md](docs/qa/tz09-stage-d.md) — ручные E2E WP↔MAX остаются для живой приёмки.
+3. Уведомления о смене статуса: MAX + системное сообщение в деле с двумя ссылками.
 
 ---
 
@@ -290,8 +291,8 @@ GET|POST messages, consents, orders, result  -- как в текущем portal
 - [ ] Mini-app → «Открыть в браузере» → OTP → то же `case_id`
 - [ ] Веб → «Продолжить в MAX» → mini-app видит документы
 - [ ] `run`/проверка из веба отражается в mini-app и наоборот
-- [ ] Конфликт: второй auth не перехватывает чужой `max_user_id`
-- [ ] Preferred channel меняет текст/порядок ссылок в уведомлении-заглушке
+- [x] Конфликт: второй auth не перехватывает чужой `max_user_id` (unit)
+- [x] Preferred channel меняет порядок ссылок в уведомлении (unit + рассылка при смене статуса)
 
 ---
 
