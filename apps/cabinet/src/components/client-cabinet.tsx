@@ -133,7 +133,6 @@ const CABINET_PUBLIC_URL =
   process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.taxi-doroga-dobra.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
-const MAX_BOT_HANDLE = "@id8905998693_1_bot";
 
 function BrandHomeLink({
   children,
@@ -160,10 +159,10 @@ const AUTH_COPY = {
   browser: "браузер",
   loginPage: "страница входа",
   email: "почта",
-  showCodeBtn: "Показать код для MAX",
+  showCodeBtn: "Показать код здесь",
+  getCodeInBrowser: "Получить код в браузере",
+  openChatBtn: "Открыть чат MAX",
   confirmBtn: "Подтвердить вход в браузере",
-  openedChatBtn: "Я открыл чат MAX",
-  pressedStartBtn: "Я нажал «Начать» — продолжить на странице входа",
 } as const;
 
 /** Ссылка на диалог с ботом (без ?startapp — иначе веб показывает «Запустить бота»). */
@@ -267,9 +266,8 @@ export function ClientCabinet() {
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
   const [maxLinkBusy, setMaxLinkBusy] = useState(false);
-  const [maxWizardStep, setMaxWizardStep] = useState<1 | 2 | 3>(1);
-  const [maxStep1Done, setMaxStep1Done] = useState(false);
-  const [maxStep2Done, setMaxStep2Done] = useState(false);
+  const [maxChatOpened, setMaxChatOpened] = useState(false);
+  const getCodeOnceRef = useRef(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [notice, setNotice] = useState("");
   const [cases, setCases] = useState<CaseSummary[]>([]);
@@ -289,13 +287,14 @@ export function ClientCabinet() {
 
   const token = session?.access_token;
 
-  // Query: ?mode=register|recover|login; ?channel=max; ?register=max
+  // Query: ?mode=register|recover|login; ?channel=max; ?get_code=1
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").toLowerCase();
     const channel = (params.get("channel") || "").toLowerCase();
     const registerMax =
       params.get("register")?.toLowerCase() === "max" || channel === "max";
+    const wantCode = params.get("get_code") === "1";
     const t = window.setTimeout(() => {
       if (mode === "recover") {
         setAuthScreen("recover");
@@ -303,7 +302,7 @@ export function ClientCabinet() {
       }
       if (mode === "login") {
         setAuthScreen("login");
-        if (registerMax) {
+        if (registerMax || wantCode) {
           setLoginMethod("max");
           setAuthChannel("max");
         } else {
@@ -313,17 +312,33 @@ export function ClientCabinet() {
         return;
       }
       // register (явный) или дефолт новичка через MAX
-      if (mode === "register" || registerMax || !mode) {
+      if (mode === "register" || registerMax || !mode || wantCode) {
         setAuthScreen("register");
-        if (registerMax || !mode) {
+        if (registerMax || !mode || wantCode) {
           setRegisterChannel("max");
           setAuthChannel("max");
-          setMaxWizardStep(1);
         }
       }
     }, 0);
     return () => window.clearTimeout(t);
   }, []);
+
+  // Из MAX: «Получить код в браузере» → ?get_code=1 — сразу показать код
+  useEffect(() => {
+    if (!apiBase || session || getCodeOnceRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("get_code") !== "1") return;
+    getCodeOnceRef.current = true;
+    const t = window.setTimeout(() => {
+      params.delete("get_code");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", next);
+      setMaxChatOpened(true);
+      void requestMaxOtp(false);
+    }, 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once on mount from MAX link
+  }, [apiBase, session]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -656,21 +671,14 @@ export function ClientCabinet() {
     } else if (next === "max") {
       setLoginMethod("max");
       setAuthChannel("max");
-      setMaxWizardStep(1);
-      setMaxStep1Done(false);
-      setMaxStep2Done(false);
-      setMaxTicket("");
-      setMaxPairCode("");
-      setMaxWaitStatus("");
+      resetMaxWizard();
     } else if (next === "email_otp") {
       setLoginMethod("email_otp");
       setAuthChannel("email");
     } else if (next === "register") {
       setRegisterChannel("max");
       setAuthChannel("max");
-      setMaxWizardStep(1);
-      setMaxStep1Done(false);
-      setMaxStep2Done(false);
+      resetMaxWizard();
     }
   }
 
@@ -683,12 +691,7 @@ export function ClientCabinet() {
     setPassword("");
     if (method === "max") {
       setAuthChannel("max");
-      setMaxWizardStep(1);
-      setMaxStep1Done(false);
-      setMaxStep2Done(false);
-      setMaxTicket("");
-      setMaxPairCode("");
-      setMaxWaitStatus("");
+      resetMaxWizard();
     } else {
       setAuthChannel("email");
     }
@@ -954,7 +957,6 @@ export function ClientCabinet() {
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
       setOtpSent(true);
-      setMaxWizardStep(3);
       setNotice(body.message || `Ожидаем подтверждение в чате MAX…`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через чат MAX.");
@@ -973,32 +975,16 @@ export function ClientCabinet() {
       } catch {
         /* ignore */
       }
-      // Если ОС уже открыла приложение MAX, служебная вкладка max.ru часто не нужна
       try {
         popup?.close();
       } catch {
         /* ignore */
       }
     }, 600);
-    setMaxStep1Done(true);
-    setMaxWizardStep(2);
+    setMaxChatOpened(true);
     setNotice(
-      `Оставайтесь на ${AUTH_COPY.loginPage} в ${AUTH_COPY.browser}. В чате MAX нажмите «Начать», затем вернитесь сюда.`,
+      `В чате MAX нажмите «Начать», затем «${AUTH_COPY.getCodeInBrowser}» — вернётесь сюда с кодом.`,
     );
-  }
-
-  function markChatOpenedWithoutBrowser() {
-    setMaxStep1Done(true);
-    setMaxWizardStep(2);
-    setNotice(
-      `Хорошо. В чате MAX нажмите «Начать», затем вернитесь на ${AUTH_COPY.loginPage}.`,
-    );
-  }
-
-  function markMaxStarted() {
-    setMaxStep2Done(true);
-    setMaxWizardStep(3);
-    setNotice("");
   }
 
   function resetMaxWizard() {
@@ -1007,7 +993,8 @@ export function ClientCabinet() {
     setMaxPairCode("");
     setMaxWaitStatus("");
     setNotice("");
-    setMaxWizardStep(maxStep2Done ? 3 : maxStep1Done ? 2 : 1);
+    setMaxChatOpened(false);
+    getCodeOnceRef.current = false;
   }
 
   // ПК ждёт подтверждение кнопки в MAX на телефоне
@@ -1220,13 +1207,6 @@ export function ClientCabinet() {
   }
 
   function renderMaxWizard(title: string, lead?: string) {
-    const stepState = (n: 1 | 2 | 3): "done" | "current" | "todo" => {
-      if (n === 1) return maxStep1Done ? "done" : maxWizardStep === 1 ? "current" : "todo";
-      if (n === 2)
-        return maxStep2Done ? "done" : maxWizardStep === 2 ? "current" : "todo";
-      if (otpSent && maxWaitStatus === "approved") return "done";
-      return maxWizardStep === 3 || otpSent ? "current" : "todo";
-    };
     return (
       <>
         <p className="lead lead-compact">
@@ -1238,144 +1218,67 @@ export function ClientCabinet() {
             </>
           ) : null}
         </p>
-        <div className="max-wizard">
-          <ol className="max-wizard-steps" aria-label="Шаги входа">
-            {(
-              [
-                { n: 1 as const, title: `Откройте ${AUTH_COPY.chatMax}` },
-                { n: 2 as const, title: `В чате MAX нажмите «Начать»` },
-                {
-                  n: 3 as const,
-                  title: `Код со страницы входа → в ${AUTH_COPY.chatMax}`,
-                },
-              ] as const
-            ).map((s) => {
-              const st = stepState(s.n);
-              return (
-                <li key={s.n} className={`max-wizard-step max-wizard-step--${st}`}>
-                  <button
-                    type="button"
-                    className="max-wizard-step-btn"
-                    aria-current={maxWizardStep === s.n ? "step" : undefined}
-                    onClick={() => {
-                      setMaxWizardStep(s.n);
-                      setNotice("");
-                    }}
-                  >
-                    <span className="max-wizard-marker" aria-hidden="true">
-                      {st === "done" ? "✓" : st === "current" ? "●" : "○"}
-                    </span>
-                    <span className="max-wizard-step-num">{s.n}.</span>
-                    <span className="max-wizard-step-title">{s.title}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          <div className="max-wizard-panel">
-            {maxWizardStep === 1 ? (
-              <>
-                <h2>Шаг 1. Откройте {AUTH_COPY.chatMax}</h2>
-                <p className="muted">
-                  Не уходите с {AUTH_COPY.loginPage}. Переключитесь в уже открытый{" "}
-                  {AUTH_COPY.chatMax} (поиск {MAX_BOT_HANDLE}) — {AUTH_COPY.browser} с кабинетом
-                  останется здесь.
+        <div className="max-wizard max-wizard--actions">
+          {!otpSent ? (
+            <>
+              <button type="button" className="max-action-btn" onClick={openMaxChat}>
+                1. {AUTH_COPY.openChatBtn}
+              </button>
+              <p className="muted max-action-hint">
+                В чате нажмите «Начать», затем «{AUTH_COPY.getCodeInBrowser}» — откроется эта
+                страница с кодом. Оставайтесь в {AUTH_COPY.browser}.
+              </p>
+              {maxChatOpened ? (
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy}
+                  onClick={() => void requestMaxOtp(false)}
+                >
+                  {AUTH_COPY.showCodeBtn}
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p className="max-wizard-status" role="status">
+                {maxWaitStatus === "pending_confirm"
+                  ? "Код принят в чате MAX. Завершаем вход…"
+                  : maxWaitStatus === "pending_pair"
+                    ? `2. Отправьте код в ${AUTH_COPY.chatMax}`
+                    : "Ожидаем…"}
+              </p>
+              {maxWaitStatus === "pending_pair" && maxPairCode ? (
+                <p className="max-code-block">
+                  Код: <strong className="max-pair-code">{maxPairCode}</strong>
                 </p>
-                <button type="button" onClick={markChatOpenedWithoutBrowser}>
-                  {AUTH_COPY.openedChatBtn}
-                </button>
-                <button type="button" className="ghost" onClick={openMaxChat}>
-                  Открыть ссылку на чат MAX
-                </button>
-                <p className="hint">
-                  Ссылка может на секунду открыть max.ru — сразу вернитесь на{" "}
-                  {AUTH_COPY.loginPage} в {AUTH_COPY.browser}.
-                </p>
-              </>
-            ) : null}
-            {maxWizardStep === 2 ? (
-              <>
-                <h2>Шаг 2. Начните диалог в чате MAX</h2>
-                <p>
-                  В чате MAX нажмите <strong>«Начать»</strong> (или «Старт»). Затем
-                  вернитесь на <strong>{AUTH_COPY.loginPage}</strong> в {AUTH_COPY.browser} — не
-                  на страницу «Запустить бота».
-                </p>
-                <button type="button" onClick={markMaxStarted}>
-                  {AUTH_COPY.pressedStartBtn}
-                </button>
-                <button type="button" className="ghost" onClick={openMaxChat}>
-                  Снова открыть ссылку на чат MAX
-                </button>
-              </>
-            ) : null}
-            {maxWizardStep === 3 ? (
-              <>
-                <h2>Шаг 3. Код со страницы входа</h2>
-                {!otpSent ? (
-                  <>
-                    <p className="muted">
-                      Нажмите «{AUTH_COPY.showCodeBtn}» — код появится здесь. Посмотрите на код и
-                      отправьте его в {AUTH_COPY.chatMax}. Лишние окна {AUTH_COPY.browser} не
-                      нужны.
-                    </p>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void requestMaxOtp(false)}
-                    >
-                      {AUTH_COPY.showCodeBtn}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="max-wizard-status" role="status">
-                      {maxWaitStatus === "pending_confirm"
-                        ? "Код принят в чате MAX. Завершаем вход…"
-                        : maxWaitStatus === "pending_pair"
-                          ? `Смотрите код ниже и отправьте его в ${AUTH_COPY.chatMax}`
-                          : "Ожидаем…"}
-                    </p>
-                    {maxWaitStatus === "pending_pair" && maxPairCode ? (
-                      <p>
-                        Код для {AUTH_COPY.chatMax}:{" "}
-                        <strong className="max-pair-code">{maxPairCode}</strong>
-                        <br />
-                        <span className="muted">
-                          Введите его в чате MAX, оставаясь на {AUTH_COPY.loginPage}.
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="muted">
-                        После кода кабинет откроется на этой же {AUTH_COPY.loginPage}.
-                      </p>
-                    )}
-                    <button type="button" className="ghost" onClick={resetMaxWizard}>
-                      Начать заново
-                    </button>
-                  </>
-                )}
-                <details className="max-wizard-extra">
-                  <summary>У меня уже есть номер в деле</summary>
-                  <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
-                    <label htmlFor="phone-max">Телефон из дела</label>
-                    <input
-                      id="phone-max"
-                      type="tel"
-                      placeholder="+79001234567"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      required
-                      autoComplete="tel"
-                    />
-                    <button type="submit" disabled={busy}>
-                      Запросить подтверждение на этот номер
-                    </button>
-                  </form>
-                </details>
-              </>
-            ) : null}
-          </div>
+              ) : null}
+              <p className="muted max-action-hint">
+                Введите код в {AUTH_COPY.chatMax} — кабинет откроется на этой странице.
+              </p>
+              <button type="button" className="ghost" onClick={resetMaxWizard}>
+                Начать заново
+              </button>
+            </>
+          )}
+          <details className="max-wizard-extra">
+            <summary>У меня уже есть номер в деле</summary>
+            <form onSubmit={requestOtp} style={{ marginTop: "0.75rem" }}>
+              <label htmlFor="phone-max">Телефон из дела</label>
+              <input
+                id="phone-max"
+                type="tel"
+                placeholder="+79001234567"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                required
+                autoComplete="tel"
+              />
+              <button type="submit" disabled={busy}>
+                Запросить подтверждение на этот номер
+              </button>
+            </form>
+          </details>
         </div>
       </>
     );
@@ -1614,9 +1517,7 @@ export function ClientCabinet() {
                   onClick={() => {
                     setRegisterChannel("max");
                     setAuthChannel("max");
-                    setMaxWizardStep(1);
-                    setMaxStep1Done(false);
-                    setMaxStep2Done(false);
+                    resetMaxWizard();
                   }}
                 >
                   Чат MAX
@@ -1705,7 +1606,7 @@ export function ClientCabinet() {
                 </div>
                 {renderMaxWizard(
                   "Регистрация через чат MAX.",
-                  `После подтверждения в ${AUTH_COPY.chatMax} назначьте себе пароль на ${AUTH_COPY.loginPage}.`,
+                  `Откройте чат, нажмите «${AUTH_COPY.getCodeInBrowser}», вернитесь сюда с кодом. Затем назначьте пароль.`,
                 )}
               </>
             )
@@ -1788,7 +1689,7 @@ export function ClientCabinet() {
           {showLoginMethods && loginMethod === "max"
             ? renderMaxWizard(
                 "Вход через чат MAX.",
-                `Код смотрите на ${AUTH_COPY.loginPage} в ${AUTH_COPY.browser} и отправьте его в ${AUTH_COPY.chatMax}.`,
+                `Откройте чат, нажмите «${AUTH_COPY.getCodeInBrowser}», затем отправьте код обратно в чат.`,
               )
             : null}
 

@@ -48,18 +48,24 @@ def test_issue_and_verify_login_link() -> None:
 def test_unified_login_terms() -> None:
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
+        GET_CODE_IN_BROWSER_LABEL,
         SHOW_CODE_BUTTON_LABEL,
         after_start_login_hint,
+        get_code_in_browser_url,
     )
 
-    assert SHOW_CODE_BUTTON_LABEL == "Показать код для MAX"
+    assert GET_CODE_IN_BROWSER_LABEL == "Получить код в браузере"
+    assert SHOW_CODE_BUTTON_LABEL == "Показать код здесь"
     assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в браузере"
     hint = after_start_login_hint()
-    assert SHOW_CODE_BUTTON_LABEL in hint
+    assert GET_CODE_IN_BROWSER_LABEL in hint
+    assert "Показать код для MAX" not in hint
     assert "Получить подтверждение" not in hint
-    assert "странице входа" in hint
-    assert "браузере" in hint
     assert "код" in hint.lower()
+    url = get_code_in_browser_url(mode="register")
+    assert "mode=register" in url
+    assert "channel=max" in url
+    assert "get_code=1" in url
 
 
 def test_channel_choice_after_login() -> None:

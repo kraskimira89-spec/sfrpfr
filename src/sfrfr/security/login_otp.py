@@ -26,18 +26,25 @@ CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
 APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 START_DIALOG_LABEL = "Начать"
 START_DIALOG_CALLBACK = "start_dialog"
-SHOW_CODE_BUTTON_LABEL = "Показать код для MAX"
+SHOW_CODE_BUTTON_LABEL = "Показать код здесь"
+GET_CODE_IN_BROWSER_LABEL = "Получить код в браузере"
 OPEN_CABINET_BUTTON_LABEL = "Открыть кабинет в браузере"
 WORK_IN_APP_LABEL = "Работать в приложении"
 WORK_IN_INTERFACE_LABEL = "Работать в интерфейсе"
 
 
+def get_code_in_browser_url(*, mode: str = "register") -> str:
+    """Ссылка из MAX: страница регистрации/входа с автопоказом кода."""
+    cabinet = get_settings().cabinet_public_url.rstrip("/")
+    mode_q = "login" if mode == "login" else "register"
+    return f"{cabinet}/?mode={mode_q}&channel=max&get_code=1"
+
+
 def after_start_login_hint() -> str:
-    """Ответ бота после «Начать»: что нажать на странице входа."""
+    """Ответ бота после «Начать»: кнопка ведёт на страницу с кодом."""
     return (
-        f"Готово. В браузере на странице входа нажмите "
-        f"«{SHOW_CODE_BUTTON_LABEL}» и пришлите сюда 6-значный код — "
-        f"вход подтвердится сам."
+        f"Нажмите «{GET_CODE_IN_BROWSER_LABEL}» — откроется страница регистрации "
+        f"с кодом. Пришлите этот 6-значный код сюда."
     )
 
 

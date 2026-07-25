@@ -13,18 +13,21 @@ from sfrfr.integrations.max.client import (
     inline_callback_keyboard,
     inline_channel_choice_keyboard,
     inline_confirm_login_keyboard,
+    inline_link_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
+    GET_CODE_IN_BROWSER_LABEL,
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
     after_start_login_hint,
     ask_code_from_login_page,
     channel_choice_after_login_message,
     confirm_web_login_message,
+    get_code_in_browser_url,
     issue_login_link,
 )
 from sfrfr.security.login_pending import (
@@ -280,7 +283,17 @@ def _handle_bot_start(
         action = "resume"
 
     reply = after_start_login_hint()
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    attachments = inline_link_keyboard(
+        GET_CODE_IN_BROWSER_LABEL,
+        get_code_in_browser_url(mode="register"),
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=attachments,
+    )
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
 
@@ -704,8 +717,8 @@ def _handle_pair_code(
             reason="pair_no_client",
         )
         reply = (
-            "Не удалось связать аккаунт. На странице входа нажмите "
-            "«Показать код для MAX» и пришлите новый код."
+            "Не удалось связать аккаунт. В чате MAX нажмите "
+            "«Получить код в браузере» и пришлите новый код."
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="pair_no_client", reply=reply)
