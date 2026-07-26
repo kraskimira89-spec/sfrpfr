@@ -1070,9 +1070,9 @@ def list_consents(
     return {
         "consents": repo.list_consents(case_id),
         "contract_acceptances": repo.list_contract_acceptances(case_id),
-        "offer_url": "https://taxi-doroga-dobra.ru/oferta/",
-        "pdn_url": "https://taxi-doroga-dobra.ru/politika-pdn/",
-        "consent_url": "https://taxi-doroga-dobra.ru/soglasie/",
+        "offer_url": "https://proverkastaza.ru/oferta/",
+        "pdn_url": "https://proverkastaza.ru/politika-pdn/",
+        "consent_url": "https://proverkastaza.ru/soglasie/",
     }
 
 

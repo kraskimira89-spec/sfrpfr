@@ -1,5 +1,11 @@
 # История беседы (кратко)
 
+## 2026-07-26 (выбор и cutover домена)
+
+- Выбран основной `proverkastaza.ru` (не `ptostaz` / без дефиса).
+- Куплены также `proverka-staza.ru` и `prostaz.ru` (редиректы).
+- В репо: DNS-инструкция, Apache-конфиги, `vps_cutover_proverkastaza.sh`, URL в коде.
+
 ## 2026-07-26 (dbt Labs plugin demo)
 
 - Показан плагин: skill analytics engineering → gap analysis → Tier-1 тесты в `schema.yml`.

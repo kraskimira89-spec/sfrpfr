@@ -4,8 +4,8 @@ Next.js apps for authenticated users:
 
 | App | Path | Public URL (planned) | Local port |
 |-----|------|----------------------|------------|
-| Client | `apps/cabinet` | https://cabinet.taxi-doroga-dobra.ru | 3001 |
-| Staff | `apps/admin` | https://admin.taxi-doroga-dobra.ru | 3002 |
+| Client | `apps/cabinet` | https://cabinet.proverkastaza.ru | 3001 |
+| Staff | `apps/admin` | https://admin.proverkastaza.ru | 3002 |
 
 Both call FastAPI `/api/portal/*` with Supabase access token (`Authorization: Bearer …`).
 

@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-26 (домен proverkastaza.ru)
+
+- Куплены: `proverkastaza.ru` (основной), `proverka-staza.ru`, `prostaz.ru`.
+- Apache vhosts + cutover: `scripts/vps_cutover_proverkastaza.sh`, DNS: `docs/ops/dns-proverkastaza.md`.
+- 301 со старого `taxi-doroga-dobra.ru` и алиасов; WP остаётся в `/var/www/taxi-doroga-dobra`.
+
 ## 2026-07-26 (dbt: Tier-1 тесты)
 
 - Плагин dbt Labs: закрыты пробелы в `analytics/models/schema.yml`.

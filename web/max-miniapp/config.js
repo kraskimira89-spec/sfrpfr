@@ -1,8 +1,8 @@
 window.SFRFR_CONFIG = {
-  apiBase: "https://api.taxi-doroga-dobra.ru",
+  apiBase: "https://api.proverkastaza.ru",
   botUsername: "id8905998693_1_bot",
   botChatUrl: "https://max.ru/id8905998693_1_bot",
   botDeepLink: "https://max.ru/id8905998693_1_bot?startapp",
   maxBotUrl: "https://max.ru/id8905998693_1_bot?startapp",
-  cabinetUrl: "https://cabinet.taxi-doroga-dobra.ru/?from=max",
+  cabinetUrl: "https://cabinet.proverkastaza.ru/?from=max",
 };

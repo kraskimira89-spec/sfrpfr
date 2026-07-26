@@ -7,8 +7,8 @@
 - **Сайт:** WordPress на VPS; **API** на поддомене (`api.…`). DNS — reg.ru. См. [deploy-vps.md](deploy-vps.md).
 
 ```text
-Клиент ──MAX──► api.taxi-doroga-dobra.ru/webhook
-Витрина ─WP──► taxi-doroga-dobra.ru  (посадочная SFRFR)
+Клиент ──MAX──► api.proverkastaza.ru/webhook
+Витрина ─WP──► proverkastaza.ru  (посадочная SFRFR)
 API     ──────► Yandex AI Studio + OCR + audit
 ```
 

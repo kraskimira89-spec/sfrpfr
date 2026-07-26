@@ -46,7 +46,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_BASE_URL: https://api.taxi-doroga-dobra.ru
+          NEXT_PUBLIC_API_BASE_URL: https://api.proverkastaza.ru
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public-anon-key
 
@@ -70,7 +70,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_BASE_URL: https://api.taxi-doroga-dobra.ru
+          NEXT_PUBLIC_API_BASE_URL: https://api.proverkastaza.ru
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public-anon-key
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Выкладка мини-приложения MAX на витрину:
-#   https://taxi-doroga-dobra.ru/app/
+#   https://proverkastaza.ru/app/
 # Использование на VPS (из /opt/sfrfr после git pull):
 #   bash scripts/deploy_max_miniapp.sh
 # Или с ПК через SSH, указав SRC.

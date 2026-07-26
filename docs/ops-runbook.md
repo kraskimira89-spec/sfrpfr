@@ -6,9 +6,9 @@
 
 | Инструмент | URL / команда |
 |---|---|
-| Swagger | https://api.taxi-doroga-dobra.ru/docs (без `service_role` в браузере) |
-| Health | https://api.taxi-doroga-dobra.ru/health |
-| MAX webhook health | https://api.taxi-doroga-dobra.ru/api/integrations/max/health |
+| Swagger | https://api.proverkastaza.ru/docs (без `service_role` в браузере) |
+| Health | https://api.proverkastaza.ru/health |
+| MAX webhook health | https://api.proverkastaza.ru/api/integrations/max/health |
 | Ops status | `GET /ops/status` + заголовок `X-Ops-Token: $OPS_MONITOR_TOKEN` |
 | Supabase | Dashboard → миграции, Auth, Storage, RLS |
 | Логи API | `journalctl -u sfrfr-api -f` |
@@ -46,7 +46,7 @@ endpoint после включения IPv4 add-on. Не добавляйте э
 | Drive | код + SA | `sfrfr drive-init-tree`, `drive-case-mkdir CASE-…` |
 | Calendar | код | Расшарить календарь на `sfrpfr-google-calendar@…`, задать `GOOGLE_CALENDAR_ID`, затем `sfrfr calendar-create --case-id … --start …` |
 | reCAPTCHA Enterprise | код | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA |
-| Search Console | ops | Добавить `https://taxi-doroga-dobra.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
+| Search Console | ops | Добавить `https://proverkastaza.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
 | Looker Studio | ops | Новый отчёт → Google Sheets → spreadsheet Analytics (без ПДн) |
 | Gmail / Meet / Forms / Docs API / Vision | отложено | — |
 
@@ -91,7 +91,7 @@ Windows:
 
 ```powershell
 .\scripts\ops_check.ps1
-.\scripts\ops_check.ps1 -Url https://api.taxi-doroga-dobra.ru
+.\scripts\ops_check.ps1 -Url https://api.proverkastaza.ru
 ```
 
 Порог алертов: `OPS_FAILED_ALERT_THRESHOLD` (по умолчанию 1).  
@@ -102,9 +102,9 @@ Windows:
 ## Smoke после деплоя
 
 ```bash
-curl -fsS https://api.taxi-doroga-dobra.ru/health
-curl -fsS https://api.taxi-doroga-dobra.ru/api/integrations/max/health
-curl -fsS -o /dev/null -w "%{http_code}\n" https://api.taxi-doroga-dobra.ru/docs
+curl -fsS https://api.proverkastaza.ru/health
+curl -fsS https://api.proverkastaza.ru/api/integrations/max/health
+curl -fsS -o /dev/null -w "%{http_code}\n" https://api.proverkastaza.ru/docs
 ```
 
 Ожидание: HTTP 200, JSON без ПДн, `/docs` открывается без ключа.

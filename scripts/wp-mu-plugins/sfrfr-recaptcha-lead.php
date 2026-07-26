@@ -72,7 +72,7 @@ function sfrfr_public_lead_url(): string
         $url = (string) SFRFR_PUBLIC_LEAD_URL;
     }
     if ($url === '') {
-        $url = 'https://api.taxi-doroga-dobra.ru/api/public/leads';
+        $url = 'https://api.proverkastaza.ru/api/public/leads';
     }
     return trim($url);
 }

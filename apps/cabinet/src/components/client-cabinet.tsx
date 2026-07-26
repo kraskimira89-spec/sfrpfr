@@ -128,9 +128,9 @@ function hasPasswordSet(session: Session | null): boolean {
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-const SITE_URL = "https://taxi-doroga-dobra.ru";
+const SITE_URL = "https://proverkastaza.ru";
 const CABINET_PUBLIC_URL =
-  process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.taxi-doroga-dobra.ru";
+  process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.proverkastaza.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
 

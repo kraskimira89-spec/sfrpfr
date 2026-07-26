@@ -38,12 +38,12 @@ YOOKASSA_SHOP_ID=ваш_shop_id
 YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 YOOKASSA_API_BASE=https://api.yookassa.ru/v3
 # Куда вернуть клиента после оплаты (опционально; иначе cabinet/mini-app)
-YOOKASSA_RETURN_URL=https://cabinet.taxi-doroga-dobra.ru/
+YOOKASSA_RETURN_URL=https://cabinet.proverkastaza.ru/
 # Чеки 54-ФЗ через ЮKassa (нужен email клиента)
 YOOKASSA_SEND_RECEIPT=false
-CABINET_PUBLIC_URL=https://cabinet.taxi-doroga-dobra.ru
-MAX_MINIAPP_URL=https://taxi-doroga-dobra.ru/app/
-PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru
+CABINET_PUBLIC_URL=https://cabinet.proverkastaza.ru
+MAX_MINIAPP_URL=https://proverkastaza.ru/app/
+PUBLIC_BASE_URL=https://api.proverkastaza.ru
 ```
 
 Перезапустите API (`sfrfr-api` / systemd).
@@ -58,7 +58,7 @@ PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru
 2. URL:
 
 ```text
-https://api.taxi-doroga-dobra.ru/api/integrations/payments/yookassa/webhook
+https://api.proverkastaza.ru/api/integrations/payments/yookassa/webhook
 ```
 
 3. События минимум: `payment.succeeded`, желательно `payment.canceled`, `payment.waiting_for_capture`.

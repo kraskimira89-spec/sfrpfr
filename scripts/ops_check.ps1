@@ -1,7 +1,7 @@
 # Мониторинг API (ТЗ-05) с Windows / локально.
 # Пример:
 #   .\scripts\ops_check.ps1
-#   .\scripts\ops_check.ps1 -Url https://api.taxi-doroga-dobra.ru
+#   .\scripts\ops_check.ps1 -Url https://api.proverkastaza.ru
 
 param(
     [string]$Url = ""

@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.SFRFR_CONFIG || {};
   const apiBase = (cfg.apiBase || "").replace(/\/$/, "");
-  const cabinetBase = (cfg.cabinetUrl || "https://cabinet.taxi-doroga-dobra.ru/").replace(
+  const cabinetBase = (cfg.cabinetUrl || "https://cabinet.proverkastaza.ru/").replace(
     /\/?$/,
     "/",
   );

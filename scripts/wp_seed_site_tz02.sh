@@ -243,7 +243,7 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" post term set "$CTA_ITEM" nav_menu "$MENU_ID" >/dev/null 2>&1 || true
     "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true
   fi
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.taxi-doroga-dobra.ru}/?mode=login" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/?mode=login" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
@@ -256,7 +256,7 @@ if [ -n "${FMENU_ID}" ]; then
   "${WP[@]}" menu item add-post "$FMENU_ID" "$PRIVACY_ID" --title="Политика ПДн" >/dev/null
   "${WP[@]}" menu item add-post "$FMENU_ID" "$CONSENT_ID" --title="Согласие" >/dev/null
   "${WP[@]}" menu item add-custom "$FMENU_ID" "MAX" "$MAX_BTN_URL" >/dev/null
-  "${WP[@]}" menu item add-custom "$FMENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.taxi-doroga-dobra.ru/}" >/dev/null
+  "${WP[@]}" menu item add-custom "$FMENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru/}" >/dev/null
   "${WP[@]}" menu location assign "$FMENU_ID" footer_menu >/dev/null 2>&1 || true
 fi
 

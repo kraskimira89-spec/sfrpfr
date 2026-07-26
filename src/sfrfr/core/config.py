@@ -10,12 +10,12 @@ class Settings(BaseSettings):
     app_debug: bool = True
     app_secret_key: str = "change-me"
     app_name: str = "SFRFR"
-    public_base_url: str = "https://api.taxi-doroga-dobra.ru"
+    public_base_url: str = "https://api.proverkastaza.ru"
     cors_allowed_origins: str = (
-        "https://taxi-doroga-dobra.ru,"
-        "https://www.taxi-doroga-dobra.ru,"
-        "https://cabinet.taxi-doroga-dobra.ru,"
-        "https://admin.taxi-doroga-dobra.ru"
+        "https://proverkastaza.ru,"
+        "https://www.proverkastaza.ru,"
+        "https://cabinet.proverkastaza.ru,"
+        "https://admin.proverkastaza.ru"
     )
 
     supabase_url: str = ""
@@ -85,8 +85,8 @@ class Settings(BaseSettings):
     yookassa_return_url: str = ""
     yookassa_send_receipt: bool = False
     public_lead_token: str = ""
-    cabinet_public_url: str = "https://cabinet.taxi-doroga-dobra.ru"
-    admin_public_url: str = "https://admin.taxi-doroga-dobra.ru"
+    cabinet_public_url: str = "https://cabinet.proverkastaza.ru"
+    admin_public_url: str = "https://admin.proverkastaza.ru"
     # MAX user_id руководителей (через запятую) — подтверждение входа сотрудников
     staff_login_approver_max_user_ids: str = ""
     # chat_id диалогов руководителей (через запятую, тот же порядок что user_id)
@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     max_chat_url: str = "https://max.ru/id8905998693_1_bot"
     # Deep-link на mini-app (?startapp) — лендинг, открытие приложения
     max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
-    max_miniapp_url: str = "https://taxi-doroga-dobra.ru/app/"
+    max_miniapp_url: str = "https://proverkastaza.ru/app/"
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

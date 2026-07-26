@@ -101,7 +101,7 @@ type View = "dashboard" | "cases" | "case" | "finance" | "analytics" | "roles";
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-const SITE_URL = "https://taxi-doroga-dobra.ru";
+const SITE_URL = "https://proverkastaza.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
 
 /** Экран входа: MAX (основной) | код на почту (запасной). Саморегистрации нет. */

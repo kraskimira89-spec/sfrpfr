@@ -1,17 +1,21 @@
 # Деплой: WordPress + API на VPS (reg.ru)
 
+## Домены (актуально)
+
+Основной: **proverkastaza.ru**. Алиасы с 301: `proverka-staza.ru`, `prostaz.ru`, старый `taxi-doroga-dobra.ru`.  
+DNS: [ops/dns-proverkastaza.md](ops/dns-proverkastaza.md). Cutover на VPS: `scripts/vps_cutover_proverkastaza.sh`.  
+Папка WP на диске: `/var/www/taxi-doroga-dobra` (имя каталога не меняли).
+
 ## Топология
 
 ```text
-домен taxi-doroga-dobra.ru (reg.ru DNS)
-├── taxi-doroga-dobra.ru      → WordPress (витрина / посадочная SFRFR)
-│                                 папка: /var/www/taxi-doroga-dobra
-│   └── /app/                → мини-приложение MAX (статика web/max-miniapp)
-└── api.taxi-doroga-dobra.ru  → FastAPI SFRFR (uvicorn + Apache proxy)
-                              │
-                              ├─ код: /opt/sfrfr
-                              ├─ HTTPS webhook MAX
-                              └─ LLM → Yandex AI Studio
+домен proverkastaza.ru (reg.ru DNS)
+├── proverkastaza.ru      → WordPress (витрина / посадочная SFRFR)
+│                             папка: /var/www/taxi-doroga-dobra
+│   └── /app/            → мини-приложение MAX (статика web/max-miniapp)
+├── api.proverkastaza.ru  → FastAPI SFRFR (uvicorn + Apache proxy)
+├── cabinet.proverkastaza.ru → Next.js клиент (:3001)
+└── admin.proverkastaza.ru   → Next.js staff (:3002)
 ```
 
 Витрина: `/var/www/taxi-doroga-dobra` (Apache). На VPS уже Apache/PHP/MySQL — nginx не используем.
@@ -95,7 +99,8 @@ Cursor hook: после `stop` агента вызывается `.cursor/hooks/
 
 ## 4. DNS (reg.ru)
 
-Домен: `taxi-doroga-dobra.ru`. IP VPS: **`91.229.11.147`**.
+Домен: `proverkastaza.ru`. IP VPS: **`91.229.11.147`**.  
+Полная таблица (алиасы): [ops/dns-proverkastaza.md](ops/dns-proverkastaza.md).
 
 | Тип | Имя | Значение |
 |-----|-----|----------|
@@ -111,19 +116,20 @@ SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный H
 
 Порты 80/443 заняты Apache. Конфиги в репозитории:
 
-- `docs/apache-vhost-taxi-doroga-dobra.ru.conf` → `/var/www/taxi-doroga-dobra`
-- `docs/apache-vhost-api.taxi-doroga-dobra.ru.conf` → proxy на `127.0.0.1:8011`
-- `docs/apache-vhost-cabinet.taxi-doroga-dobra.ru.conf` → Next.js `127.0.0.1:3001`
-- `docs/apache-vhost-admin.taxi-doroga-dobra.ru.conf` → Next.js `127.0.0.1:3002`
+- `docs/apache-vhost-proverkastaza.ru.conf` → `/var/www/taxi-doroga-dobra`
+- `docs/apache-vhost-api.proverkastaza.ru.conf` → proxy на `127.0.0.1:8011`
+- `docs/apache-vhost-cabinet.proverkastaza.ru.conf` → Next.js `127.0.0.1:3001`
+- `docs/apache-vhost-admin.proverkastaza.ru.conf` → Next.js `127.0.0.1:3002`
+- `docs/apache-vhost-redirect-aliases.conf` → 301 с алиасов и старого корня
 
 systemd units кабинетов: `docs/systemd/sfrfr-cabinet.service`, `docs/systemd/sfrfr-admin.service`.
 
 После `a2ensite` + `certbot --apache` появляются `*-le-ssl.conf` (HTTPS + redirect).
 
 ```apache
-# api.taxi-doroga-dobra.ru (эскиз HTTP; SSL добавляет certbot)
+# api.proverkastaza.ru (эскиз HTTP; SSL добавляет certbot)
 <VirtualHost *:80>
-    ServerName api.taxi-doroga-dobra.ru
+    ServerName api.proverkastaza.ru
     ProxyPreserveHost On
     ProxyPass / http://127.0.0.1:8011/
     ProxyPassReverse / http://127.0.0.1:8011/
@@ -131,10 +137,10 @@ systemd units кабинетов: `docs/systemd/sfrfr-cabinet.service`, `docs/sy
 ```
 
 ```apache
-# taxi-doroga-dobra.ru — витрина (DocumentRoot)
+# proverkastaza.ru — витрина (DocumentRoot)
 <VirtualHost *:80>
-    ServerName taxi-doroga-dobra.ru
-    ServerAlias www.taxi-doroga-dobra.ru
+    ServerName proverkastaza.ru
+    ServerAlias www.proverkastaza.ru
     DocumentRoot /var/www/taxi-doroga-dobra
     <Directory /var/www/taxi-doroga-dobra>
         AllowOverride All
@@ -153,7 +159,7 @@ systemd units кабинетов: `docs/systemd/sfrfr-cabinet.service`, `docs/sy
 Файл `/opt/sfrfr/.env` (заполнить ключи; сервис уже слушает `127.0.0.1:8011`):
 
 ```env
-PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru
+PUBLIC_BASE_URL=https://api.proverkastaza.ru
 AI_PROVIDER=yandex
 YANDEX_API_KEY=...
 YANDEX_FOLDER_ID=...
@@ -179,8 +185,8 @@ npx supabase db push
 
 ## 7. Связка с WordPress
 
-- Витрина: https://taxi-doroga-dobra.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Astra** + **Spectra**).
-- Админ: https://taxi-doroga-dobra.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
+- Витрина: https://proverkastaza.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Astra** + **Spectra**).
+- Админ: https://proverkastaza.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
 - Стек (в репо GitHub): `scripts/wp_install_stack.sh`
   - Astra + Spectra (без Elementor);
   - WPForms Lite (заявки; **не** сканы ПДн);
@@ -190,18 +196,18 @@ npx supabase db push
 - Дизайн главной: `scripts/assets/sfrfr-home.html` + `scripts/assets/sfrfr-landing.css` (синий `#1E4E79`, акцент `#2E7D5B`, Manrope).
 - Форма лида: `scripts/wp_ensure_lead_form.php` (имя, телефон/канал, согласие; без файлов и СНИЛС; entries + email admin).
 - Страницы: `/`, `/oferta/`, `/politika-pdn/`, `/soglasie/` (HTTPS).
-- Мини-приложение MAX (кабинет v1): `https://taxi-doroga-dobra.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
-- В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://taxi-doroga-dobra.ru/app/` → Сохранить.
+- Мини-приложение MAX (кабинет v1): `https://proverkastaza.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
+- В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://proverkastaza.ru/app/` → Сохранить.
 - Диплинк: `https://max.ru/id8905998693_1_bot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP. Используйте технический username из `/me`, а не отображаемое имя бота.
 - API MVP / мини-приложение: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run`.
 - API кабинетов (JWT): `GET /api/portal/me/cases`, `GET /api/portal/cases/{id}`, upload/signed-url/messages; staff — `PATCH /api/portal/admin/cases/{id}/pipeline-status`.
-- Next.js кабинеты: `apps/cabinet` → `cabinet.taxi-doroga-dobra.ru`, `apps/admin` → `admin.taxi-doroga-dobra.ru` (Apache proxy + systemd).
+- Next.js кабинеты: `apps/cabinet` → `cabinet.proverkastaza.ru`, `apps/admin` → `admin.proverkastaza.ru` (Apache proxy + systemd).
 - На VPS нужен **Node.js ≥20.9** (факт: Node 22 LTS). Units: `sfrfr-cabinet` (:3001), `sfrfr-admin` (:3002). SSL: общий сертификат Let's Encrypt на оба хоста.
 - После миграций Supabase выдать staff-роль (первый admin через CLI, service role):
   `sfrfr staff-grant --email you@company.com --role admin --invite`
   Список: `sfrfr staff-list`. Дальше роли можно править в UI admin → «Роли».
 - CORS: `CORS_ALLOWED_ORIGINS` в `.env` (витрина + cabinet + admin).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
-- Webhook API: `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
+- Webhook API: `https://api.proverkastaza.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
 - ПДн-сканы не через WP-формы; загрузка — MAX / кабинет `/app/`.
 - `service_role` только на сервере API, не в JS.

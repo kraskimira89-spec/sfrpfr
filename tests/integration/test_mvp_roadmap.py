@@ -39,7 +39,7 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home
     assert 'href="#kak-rabotat"' in home  # главные CTA → выбор канала
-    assert "cabinet.taxi-doroga-dobra.ru/?channel=max" in home
+    assert "cabinet.proverkastaza.ru/?channel=max" in home
     assert "Начать в браузере" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
