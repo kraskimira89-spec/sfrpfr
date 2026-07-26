@@ -48,7 +48,7 @@ endpoint после включения IPv4 add-on. Не добавляйте э
 | Sheets | код + SA | `sfrfr sheets-sync` |
 | Drive | код + SA | `sfrfr drive-init-tree`, `drive-case-mkdir CASE-…` |
 | Calendar | код | Расшарить календарь на `sfrpfr-google-calendar@…`, задать `GOOGLE_CALENDAR_ID`, затем `sfrfr calendar-create --case-id … --start …` |
-| reCAPTCHA Enterprise | код | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA |
+| reCAPTCHA Enterprise | код + GCP domains | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA; после смены домена — domains в GCP (`docs/ops/cutover-manual-checklist.md`, скрипт `scripts/ops_patch_recaptcha_domains.py` — нужен IAM `keys.get/update`) |
 | Search Console | ops | Добавить `https://proverkastaza.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
 | Looker Studio | ops | Новый отчёт → Google Sheets → spreadsheet Analytics (без ПДн) |
 | Gmail / Meet / Forms / Docs API / Vision | отложено | — |

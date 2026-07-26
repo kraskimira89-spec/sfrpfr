@@ -8,6 +8,14 @@
 - Hover кнопок с контрастным текстом; секции ~экран; padding карточек 24px.
 - `#zayavka` без двойного `--alt` после статей.
 
+## 2026-07-26 (хвосты cutover: MAX / Supabase / reCAPTCHA)
+
+- На VPS уже ок: `MAX_MINIAPP_URL`, `/app/` 200, cabinet/API URL.
+- MAX mini-app URL — только UI business.max.ru (Bot API не меняет).
+- Supabase redirects — только Dashboard (док обновлён + deep link).
+- reCAPTCHA domains: SA без `keys.get` → скрипт `ops_patch_recaptcha_domains.py` готов, нужен клик в GCP или IAM.
+- Чеклист: `docs/ops/cutover-manual-checklist.md`.
+
 ## 2026-07-26 (fix редиректов prostaz.ru / proverka-staza.ru)
 
 - Симптом: `http://prostaz.ru` → Apache2 Default Page (не 301).

@@ -11,6 +11,11 @@
 - `docs/qa/lead-taganay-e2e.md`; ТЗ-10 P0 формы/юристы обновлены по факту smoke.
 - Notion `np/` / MCP — отложено (auth недоступен).
 
+## 2026-07-26 (хвосты cutover)
+
+- Чеклист: `docs/ops/cutover-manual-checklist.md` (MAX URL, Supabase Auth, reCAPTCHA domains).
+- Скрипт доменов reCAPTCHA: `scripts/ops_patch_recaptcha_domains.py` (SA сейчас без IAM на keys).
+
 ## 2026-07-26 (fix редиректов алиасов)
 
 - `prostaz.ru` / `proverka-staza.ru`: после certbot отдавали default Apache; починены чистые HTTP+HTTPS 301 → `proverkastaza.ru`.
