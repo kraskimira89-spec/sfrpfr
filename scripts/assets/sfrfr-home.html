@@ -76,17 +76,19 @@
   <section id="kak-rabotat" class="sfrfr-section">
     <div class="sfrfr-wrap">
       <h2>Как вам удобнее работать?</h2>
-      <p class="sfrfr-section__lead">Один и тот же статус дела и документы — выберите канал.</p>
+      <p class="sfrfr-section__lead">Основной канал — MAX. Веб-кабинет — тот же аккаунт для работы с большого экрана. Документы на WordPress не загружаются.</p>
       <div class="sfrfr-cards sfrfr-cards--stack">
-        <article class="sfrfr-card">
+        <article class="sfrfr-card sfrfr-card--channel-primary">
+          <p class="sfrfr-badge">Основной канал</p>
           <h3>В MAX</h3>
-          <p>Быстро из мессенджера: мини-приложение и чат с ботом.</p>
+          <p>Получите список документов, отправляйте файлы и следите за статусом дела в мессенджере.</p>
           <p><a class="sfrfr-btn sfrfr-btn--primary" href="{{MAX_BTN_URL}}" target="_blank" rel="noopener noreferrer">Открыть в MAX</a></p>
         </article>
         <article class="sfrfr-card">
+          <p class="sfrfr-badge sfrfr-badge--muted">Дополнительно</p>
           <h3>В браузере</h3>
-          <p>Веб-кабинет удобнее с компьютера и большим экраном. Старт через чат MAX — один и тот же аккаунт.</p>
-          <p><a class="sfrfr-btn sfrfr-btn--ghost" href="https://cabinet.proverkastaza.ru/?channel=max" target="_blank" rel="noopener noreferrer">Начать в браузере</a></p>
+          <p>Веб-кабинет удобнее с компьютера. Вход через MAX — один и тот же аккаунт и статус дела.</p>
+          <p><a class="sfrfr-btn sfrfr-btn--ghost" href="https://cabinet.proverkastaza.ru/?channel=max" target="_blank" rel="noopener noreferrer">Открыть кабинет</a></p>
         </article>
       </div>
     </div>
@@ -197,7 +199,35 @@
           <p>Если подтверждён результат: 10% от единовременной выплаты и 50% от суммы ежемесячной прибавки за первые 3 месяца.</p>
         </article>
       </div>
-      <p class="sfrfr-note">Условия и расчёт вознаграждения фиксируются в индивидуальном соглашении. При отсутствии повышения пенсии оплата за результат не начисляется.</p>
+      <details class="sfrfr-calc">
+        <summary>Пример расчёта вознаграждения за результат</summary>
+        <p>Если подтверждена прибавка <strong>5&nbsp;000&nbsp;₽ в месяц</strong>, за первые три месяца база расчёта — <strong>15&nbsp;000&nbsp;₽</strong> (5&nbsp;000&nbsp;×&nbsp;3). 50% от этой базы — ориентир для части вознаграждения; плюс 10% от единовременной выплаты, если она есть. Порядок и срок оплаты определяются индивидуальным соглашением. Это не обещание результата и не гарантия суммы.</p>
+      </details>
+      <p class="sfrfr-note">Условия и расчёт вознаграждения фиксируются в индивидуальном соглашении. При отсутствии повышения пенсии оплата за результат не начисляется. Фиксированные услуги оплачиваются по выбранному пакету.</p>
+    </div>
+  </section>
+
+  <section class="sfrfr-section sfrfr-section--alt" id="o-servise">
+    <div class="sfrfr-wrap">
+      <h2>Кто оказывает услугу</h2>
+      <p class="sfrfr-section__lead">Прозрачные правила и понятный исполнитель — без «анонимного сервиса».</p>
+      <div class="sfrfr-trust" style="margin-top:1.25rem">
+        <div class="sfrfr-trust__main">
+          <p class="sfrfr-trust__name">Лопакова Наталия Федоровна</p>
+          <p class="sfrfr-trust__role">Генеральный директор ООО «ПОД ПРИСМОТРОМ»</p>
+          <p>Сопровождаем сверку стажа и ИЛС, подготовку документов и план обращения в СФР. Не являемся государственным органом и не принимаем решение о перерасчёте.</p>
+        </div>
+        <ul class="sfrfr-trust__rules">
+          <li>Работаем по оферте и индивидуальному соглашению.</li>
+          <li>Сканы документов — только в MAX или защищённом кабинете, не через сайт.</li>
+          <li>Заявление в СФР / МФЦ / Госуслуги подаёте вы самостоятельно.</li>
+          <li>Оплата за результат — только при подтверждённом повышении пенсии.</li>
+        </ul>
+      </div>
+      <div class="sfrfr-cta-row" style="margin-top:1.25rem">
+        <a class="sfrfr-btn sfrfr-btn--ghost" href="/oferta/">Оферта</a>
+        <a class="sfrfr-btn sfrfr-btn--primary" href="#kak-rabotat">Начать проверку</a>
+      </div>
     </div>
   </section>
 
@@ -263,12 +293,12 @@
     </div>
   </section>
 
-  <section class="sfrfr-section sfrfr-section--alt" id="zayavka">
+  <section class="sfrfr-section" id="zayavka">
     <div class="sfrfr-wrap sfrfr-final">
       <h2>Начните с проверки пенсионного дела</h2>
-      <p>Оставьте заявку — подскажем, какие документы подготовить для первичной диагностики. Не загружайте сканы через сайт.</p>
+      <p>Оставьте заявку или напишите в MAX — подскажем, какие документы подготовить. Не загружайте сканы через сайт.</p>
       <div class="sfrfr-cta-row">
-        <a class="sfrfr-btn sfrfr-btn--ghost" href="{{MAX_BTN_URL}}" target="_blank" rel="noopener noreferrer">Открыть MAX</a>
+        <a class="sfrfr-btn sfrfr-btn--primary" href="{{MAX_BTN_URL}}" target="_blank" rel="noopener noreferrer">Написать в MAX</a>
         <a class="sfrfr-btn sfrfr-btn--ghost" href="https://cabinet.proverkastaza.ru/" target="_blank" rel="noopener noreferrer">Личный кабинет</a>
       </div>
       <div class="sfrfr-form-block" id="form-lead">

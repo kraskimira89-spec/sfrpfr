@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-26 (лендинг: UI-сверка)
+
+- `sfrfr-home.html` / `sfrfr-landing.css`: пример тарифа, «Кто оказывает», MAX primary, hover, секции/24px.
+
 ## 2026-07-26 (P0/P1: блог §13, QA D, лид→Taganay)
 
 - `11-blog.md` восстановлен из git + §13; UI assets + MU-plugin + deploy script.
