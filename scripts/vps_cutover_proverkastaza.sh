@@ -67,10 +67,16 @@ a2ensite proverkastaza.ru.conf \
   admin.proverkastaza.ru.conf \
   redirect-proverkastaza-aliases.conf >/dev/null
 
-# Старый DocumentRoot-vhost заменяем редиректом (SSL-конфиги certbot трогаем ниже)
-if [[ -f /etc/apache2/sites-available/taxi-doroga-dobra.ru.conf ]]; then
-  a2dissite taxi-doroga-dobra.ru.conf >/dev/null 2>&1 || true
-fi
+# Старый DocumentRoot-vhost → HTTP 301 (SSL-vhost патчим ниже)
+cat >/etc/apache2/sites-available/taxi-doroga-dobra.ru.conf <<EOF
+<VirtualHost *:80>
+    ServerName taxi-doroga-dobra.ru
+    ServerAlias www.taxi-doroga-dobra.ru
+    RewriteEngine On
+    RewriteRule ^ https://${NEW_ROOT}%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+EOF
+a2ensite taxi-doroga-dobra.ru.conf >/dev/null
 # Старые api/cabinet/admin оставляем до редирект-патча SSL (ниже)
 
 apachectl configtest
