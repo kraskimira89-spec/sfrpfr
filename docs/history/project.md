@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-26 (P0/P1: блог §13, QA D, лид→Taganay)
+
+- `11-blog.md` восстановлен из git + §13; UI assets + MU-plugin + deploy script.
+- `docs/qa/tz09-stage-d.md` — пошаговый runbook; браузерный E2E 1–5 не закрыт.
+- `docs/qa/lead-taganay-e2e.md`; ТЗ-10 P0 формы/юристы обновлены по факту smoke.
+- Notion `np/` / MCP — отложено (auth недоступен).
+
 ## 2026-07-26 (домен proverkastaza.ru)
 
 - Куплены: `proverkastaza.ru` (основной), `proverka-staza.ru`, `prostaz.ru`.

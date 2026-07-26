@@ -38,6 +38,35 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash /opt/sfrfr/scripts/wp_seed_blog_tz11.sh
 
 После правок главной (`sfrfr-home.html`) — обычный `wp_seed_site_tz02.sh` или `wp_apply_home.php`.
 
+## UI §13 (чипы / TOC / CTA)
+
+Спека: [docs/specs/11-blog.md](../specs/11-blog.md) §13. Файлы:
+
+- `scripts/wp-mu-plugins/sfrfr-blog-ui.php`
+- `scripts/assets/blog/ui/blog-ui.css`
+- `scripts/assets/blog/ui/blog-ui.js`
+
+Выкат на VPS (после `git pull` в `/opt/sfrfr`):
+
+```bash
+sudo bash /opt/sfrfr/scripts/wp_deploy_blog_ui.sh
+# при другом пути к WP:
+# WP_CONTENT=/var/www/SITE/wp-content sudo -E bash /opt/sfrfr/scripts/wp_deploy_blog_ui.sh
+```
+
+Проверка:
+
+1. `/blog/` — чипы рубрик + один CTA «Начать проверку».
+2. Статья — блок «Содержание» (если ≥2 заголовка), CTA mid/end, «Похожие статьи».
+3. Главная — блок из 3 карточек (сид ТЗ-11), без обязательного CTA блока.
+
+Smoke:
+
+```bash
+curl -sI https://proverkastaza.ru/blog/ | head -n1
+curl -sI https://taxi-doroga-dobra.ru/blog/ | head -n1
+```
+
 ## Серия «Примеры ситуаций» (из DeepSeek)
 
 - Манифест: `scripts/assets/blog/situations/manifest.json` (без ПДн).

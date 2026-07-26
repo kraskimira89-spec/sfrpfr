@@ -1,5 +1,14 @@
 # История беседы (кратко)
 
+## 2026-07-26 (закрытие открытых P0/P1 docs)
+
+- Восстановлен `docs/specs/11-blog.md` (был DISK FULL) + §13 UI; ref `11-blog-ref-entuziastov.md`.
+- UI блога: `scripts/assets/blog/ui/` + MU `sfrfr-blog-ui.php` + `wp_deploy_blog_ui.sh`.
+- ТЗ-09 D: детальный runbook в `docs/qa/tz09-stage-d.md`; E2E 1–5 ещё `[ ]` (нужен MAX).
+- Smoke: health/blog на `taxi-doroga-dobra.ru` OK; `proverkastaza.ru` DNS пока нет.
+- Лид→Taganay: чеклист `docs/qa/lead-taganay-e2e.md`; POST leads без токена → 401.
+- Юрпроверка оферты/success fee и Notion MCP/`np/` — внешние блокеры.
+
 ## 2026-07-26 (выбор и cutover домена)
 
 - Выбран основной `proverkastaza.ru` (не `ptostaz` / без дефиса).
@@ -16,6 +25,7 @@
 - История чатов в UI Cursor после переноса AppData потеряна (не восстановить как UI-сессии).
 - Собран читаемый архив содержимого из `agent-transcripts`: `docs/history/recovered-chats-2026-07-26.md`.
 - Обработаны только топ-уровневые чаты (без subagents); пустые чаты отмечены отдельно.
+
 ## 2026-07-25 (ситуации из DeepSeek → блог)
 
 - Запрос: каждый клиент — статья; каждые 5 — аналитика.

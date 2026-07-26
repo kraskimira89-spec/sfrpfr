@@ -1,0 +1,145 @@
+/* ТЗ-11 §13 — UI блога SFRFR */
+:root {
+  --sfrfr-blog-ink: #1a2332;
+  --sfrfr-blog-muted: #5a6575;
+  --sfrfr-blog-line: #d8dee8;
+  --sfrfr-blog-chip: #eef2f7;
+  --sfrfr-blog-chip-on: #1a2332;
+  --sfrfr-blog-chip-on-text: #fff;
+  --sfrfr-blog-cta: #0b6e4f;
+  --sfrfr-blog-cta-hover: #095a41;
+  --sfrfr-blog-bg: #f7f9fc;
+}
+
+.sfrfr-blog-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sfrfr-blog-chips a {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: var(--sfrfr-blog-chip);
+  color: var(--sfrfr-blog-ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  border: 1px solid transparent;
+}
+
+.sfrfr-blog-chips a:hover,
+.sfrfr-blog-chips a:focus-visible {
+  border-color: var(--sfrfr-blog-ink);
+  outline: none;
+}
+
+.sfrfr-blog-chips a.is-active {
+  background: var(--sfrfr-blog-chip-on);
+  color: var(--sfrfr-blog-chip-on-text);
+}
+
+.sfrfr-blog-archive-cta,
+.sfrfr-blog-cta {
+  margin: 1.5rem 0;
+  padding: 1.1rem 1.25rem;
+  background: var(--sfrfr-blog-bg);
+  border: 1px solid var(--sfrfr-blog-line);
+  border-radius: 12px;
+}
+
+.sfrfr-blog-cta__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  color: var(--sfrfr-blog-ink);
+}
+
+.sfrfr-blog-cta__text {
+  margin: 0 0 0.85rem;
+  color: var(--sfrfr-blog-muted);
+  font-size: 1rem;
+}
+
+.sfrfr-blog-cta__btn {
+  display: inline-block;
+  padding: 0.7rem 1.2rem;
+  background: var(--sfrfr-blog-cta);
+  color: #fff !important;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.sfrfr-blog-cta__btn:hover,
+.sfrfr-blog-cta__btn:focus-visible {
+  background: var(--sfrfr-blog-cta-hover);
+  outline: 2px solid var(--sfrfr-blog-cta);
+  outline-offset: 2px;
+}
+
+.sfrfr-blog-toc {
+  margin: 1rem 0 1.5rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--sfrfr-blog-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sfrfr-blog-toc__title {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  color: var(--sfrfr-blog-ink);
+}
+
+.sfrfr-blog-toc details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--sfrfr-blog-ink);
+  list-style: none;
+}
+
+.sfrfr-blog-toc details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sfrfr-blog-toc ol {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.sfrfr-blog-toc a {
+  color: var(--sfrfr-blog-ink);
+  text-decoration: none;
+}
+
+.sfrfr-blog-toc a:hover,
+.sfrfr-blog-toc a:focus-visible {
+  text-decoration: underline;
+}
+
+.sfrfr-blog-related {
+  margin: 2rem 0 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sfrfr-blog-line);
+}
+
+.sfrfr-blog-related__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+}
+
+.sfrfr-blog-related ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+@media (min-width: 900px) {
+  .sfrfr-blog-toc--desktop {
+    position: sticky;
+    top: 1rem;
+  }
+}
