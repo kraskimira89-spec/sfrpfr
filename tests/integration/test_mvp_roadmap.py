@@ -33,8 +33,10 @@ class _SilentBot:
 def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     seed = (REPO / "scripts/wp_seed_site_tz02.sh").read_text(encoding="utf-8")
     assert "/#kak-rabotat" in seed
+    assert "/#kak-prohodit" in seed
+    assert "/#o-servise" in seed
+    assert "Статьи" in seed
     assert "Личный кабинет" in seed
-    assert "mode=login" in seed
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home

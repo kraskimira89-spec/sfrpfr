@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Применить короткую главную + CSS + статьи 01–09 на VPS WordPress.
+# Запуск на сервере: bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
+set -euo pipefail
+SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+APP_DIR="${APP_DIR:-/opt/sfrfr}"
+WP=(wp --allow-root --path="$SITE_DIR")
+
+export SFRFR_HOME_PATH="${APP_DIR}/scripts/assets/sfrfr-home.html"
+export SFRFR_CSS_PATH="${APP_DIR}/scripts/assets/sfrfr-landing.css"
+export SFRFR_BLOG_ASSETS="${APP_DIR}/scripts/assets/blog"
+
+if [ -f "${APP_DIR}/.env" ]; then
+  MAX_CHAT_URL="$(grep -m1 '^MAX_CHAT_URL=' "${APP_DIR}/.env" | cut -d= -f2- | tr -d '"\r' || true)"
+  MAX_PUBLIC_BOT_URL="$(grep -m1 '^MAX_PUBLIC_BOT_URL=' "${APP_DIR}/.env" | cut -d= -f2- | tr -d '"\r' || true)"
+  export MAX_CHAT_URL MAX_PUBLIC_BOT_URL
+fi
+
+cd "$APP_DIR"
+git log -1 --oneline
+test -f scripts/assets/sfrfr-home.html
+test -f scripts/assets/blog/09-faq-rasshirennyy.html
+
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_landing_css.php"
+echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_home.php"
+echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
+echo
+
+# Меню под короткую воронку (оферта/ПДн — в footer)
+MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) { if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; } }
+' || true)"
+if [ -n "${MENU_ID}" ]; then
+  ITEMS="$("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true)"
+  for iid in $ITEMS; do
+    "${WP[@]}" menu item delete "$iid" >/dev/null 2>&1 || true
+  done
+  HOME_ID="$("${WP[@]}" option get page_on_front)"
+  "${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "О сервисе" "/#o-servise" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
+  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "/#kak-rabotat" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${CTA_ITEM:-}" ]; then
+    "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true
+  fi
+  echo "MENU primary updated id=${MENU_ID}"
+fi
+
+echo DONE
