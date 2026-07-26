@@ -40,7 +40,10 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'id="kak-rabotat"' in home
     assert 'href="#kak-rabotat"' in home  # главные CTA → выбор канала
     assert "cabinet.proverkastaza.ru/?channel=max" in home
-    assert "Начать в браузере" in home
+    assert "Открыть кабинет" in home
+    assert "Основной канал" in home
+    assert 'id="o-servise"' in home
+    assert "Пример расчёта вознаграждения" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
