@@ -4,6 +4,7 @@
 
 - Исследование custom fields → ТЗ-12 и модуль sync в коде.
 - Env: AMO_SUBDOMAIN / AMO_ACCESS_TOKEN; без токена — skipped.
+- Сохранена пошаговая настройка UI: `docs/ops/amocrm-setup.md`.
 
 ## 2026-07-26 (лендинг: сжатие + перенос в блог)
 

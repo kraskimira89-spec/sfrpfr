@@ -1,7 +1,8 @@
 # ТЗ-12: интеграция amoCRM
 
 **Статус:** MVP в коде (`src/sfrfr/integrations/amocrm/`)  
-**Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md), Taganay (параллельный адаптер)
+**Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md), Taganay (параллельный адаптер)  
+**Пошаговая настройка в UI amoCRM:** [../ops/amocrm-setup.md](../ops/amocrm-setup.md)
 
 ## Цель
 
@@ -45,6 +46,8 @@ WP / API public leads
 
 ## Env (VPS `/opt/sfrfr/.env`)
 
+Полный чеклист кликов в amo — [ops/amocrm-setup.md](../ops/amocrm-setup.md). Кратко:
+
 ```env
 AMO_SUBDOMAIN=youraccount
 AMO_ACCESS_TOKEN=
@@ -53,8 +56,8 @@ AMO_STATUS_ID=
 AMO_CASE_URL_TEMPLATE=https://{subdomain}.amocrm.ru/leads/detail/{id}
 ```
 
-- `AMO_PIPELINE_ID` / `AMO_STATUS_ID` — стартовый этап «Новый лид» (числа из amo).
-- Токен — long-lived из интеграции в кабинете разработчика amo.
+- Токен: амоМаркет → интеграция → **Ключи** → **Сгенерировать токен** (долгосрочный, 1 день–5 лет; виден один раз).
+- `AMO_PIPELINE_ID` / `AMO_STATUS_ID` — `GET /api/v4/leads/pipelines` или UI воронки.
 
 ## CLI
 

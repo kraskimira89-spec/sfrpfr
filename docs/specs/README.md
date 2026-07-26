@@ -13,7 +13,8 @@
 9. [09-client-channels-parity.md](09-client-channels-parity.md) — паритет MAX mini-app и веб-кабинета, выбор канала.
 10. [10-landing-audit-and-implementation.md](10-landing-audit-and-implementation.md) — аудит и внедрение лендинга.
 11. [11-blog.md](11-blog.md) — блог: SEO-справочник, рубрики, шаблон статей, CTA в каналы.
-12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.
+12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.  
+    Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).
 
 ## Принцип
 

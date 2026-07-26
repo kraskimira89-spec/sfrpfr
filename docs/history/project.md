@@ -5,6 +5,7 @@
 - Спека `docs/specs/12-amocrm.md`; модуль `integrations/amocrm/`.
 - Custom fields CASE_ID и др.; sync из public leads и admin; CLI ensure-fields/sync.
 - Taganay остаётся параллельным адаптером.
+- Ops: `docs/ops/amocrm-setup.md` — пошагово где кликать в амоМаркете/воронках/полях.
 
 ## 2026-07-26 (лендинг: сжатие воронки)
 
