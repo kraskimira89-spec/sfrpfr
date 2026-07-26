@@ -1,5 +1,12 @@
 # История беседы (кратко)
 
+## 2026-07-26 (fix редиректов prostaz.ru / proverka-staza.ru)
+
+- Симптом: `http://prostaz.ru` → Apache2 Default Page (не 301).
+- Причина: certbot закомментировал кросс-доменный RewriteRule и завёл конфликтующие *:80 в `*-le-ssl.conf`.
+- На VPS переписаны `redirect-proverkastaza-aliases.conf` + `-le-ssl.conf`; снаружи все алиасы → `https://proverkastaza.ru/`.
+- В репо: шаблон `docs/apache-vhost-redirect-aliases-le-ssl.conf`; cutover после certbot ставит чистые конфиги.
+
 ## 2026-07-26 (закрытие открытых P0/P1 docs)
 
 - Восстановлен `docs/specs/11-blog.md` (был DISK FULL) + §13 UI; ref `11-blog-ref-entuziastov.md`.

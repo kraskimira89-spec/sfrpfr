@@ -7,6 +7,11 @@
 - `docs/qa/lead-taganay-e2e.md`; ТЗ-10 P0 формы/юристы обновлены по факту smoke.
 - Notion `np/` / MCP — отложено (auth недоступен).
 
+## 2026-07-26 (fix редиректов алиасов)
+
+- `prostaz.ru` / `proverka-staza.ru`: после certbot отдавали default Apache; починены чистые HTTP+HTTPS 301 → `proverkastaza.ru`.
+- Шаблон SSL: `docs/apache-vhost-redirect-aliases-le-ssl.conf`; cutover переустанавливает его после certbot.
+
 ## 2026-07-26 (домен proverkastaza.ru)
 
 - Куплены: `proverkastaza.ru` (основной), `proverka-staza.ru`, `prostaz.ru`.

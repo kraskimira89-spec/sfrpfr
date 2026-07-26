@@ -121,15 +121,18 @@ run_certbot -d "admin.$NEW_ROOT"
 run_certbot -d "proverka-staza.ru" -d "www.proverka-staza.ru"
 run_certbot -d "prostaz.ru" -d "www.prostaz.ru"
 
-# HTTPS-редиректы с алиасов (certbot создаёт *-le-ssl.conf без кросс-доменного 301)
-ensure_ssl_redirect /etc/apache2/sites-available/proverka-staza.ru-le-ssl.conf "$NEW_ROOT"
-ensure_ssl_redirect /etc/apache2/sites-available/prostaz.ru-le-ssl.conf "$NEW_ROOT"
-# Имена файлов certbot могут совпадать с ServerName из redirect-конфига
-for f in /etc/apache2/sites-available/*proverka-staza*-le-ssl.conf \
-         /etc/apache2/sites-available/*prostaz*-le-ssl.conf; do
-  [[ -e "$f" ]] || continue
-  ensure_ssl_redirect "$f" "$NEW_ROOT"
+# Certbot --apache ломает алиасы: комментирует кросс-доменный 301, плодит *:80 в *-le-ssl.
+# Ставим чистые HTTP+HTTPS редиректы из репо и глушим отдельные certbot-vhosts алиасов.
+install -m 644 "$APP_DIR/docs/apache-vhost-redirect-aliases.conf" \
+  /etc/apache2/sites-available/redirect-proverkastaza-aliases.conf
+install -m 644 "$APP_DIR/docs/apache-vhost-redirect-aliases-le-ssl.conf" \
+  /etc/apache2/sites-available/redirect-proverkastaza-aliases-le-ssl.conf
+for f in proverka-staza.ru-le-ssl.conf prostaz.ru-le-ssl.conf \
+         www.proverka-staza.ru-le-ssl.conf www.prostaz.ru-le-ssl.conf; do
+  a2dissite "$f" 2>/dev/null || true
 done
+a2ensite redirect-proverkastaza-aliases.conf >/dev/null
+a2ensite redirect-proverkastaza-aliases-le-ssl.conf >/dev/null
 
 # Старый корневой домен: SSL-vhost → 301 на новый (сохраняем сертификат)
 if [[ -f /etc/apache2/sites-available/taxi-doroga-dobra.ru-le-ssl.conf ]]; then
