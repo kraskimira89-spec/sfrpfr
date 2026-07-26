@@ -6,6 +6,10 @@
 - Custom fields CASE_ID и др.; sync из public leads и admin; CLI ensure-fields/sync.
 - Taganay остаётся параллельным адаптером.
 
+## 2026-07-26 (лендинг: сжатие воронки)
+
+- Короткая главная; контент → blog 05–09; sticky MAX; SVG в hero.
+
 ## 2026-07-26 (лендинг: UI-сверка)
 
 - `sfrfr-home.html` / `sfrfr-landing.css`: пример тарифа, «Кто оказывает», MAX primary, hover, секции/24px.

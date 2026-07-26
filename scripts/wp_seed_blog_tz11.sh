@@ -18,4 +18,4 @@ export SFRFR_CSS_PATH="${SCRIPT_DIR}/assets/sfrfr-landing.css"
 echo "==> Сид блога ТЗ-11"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_blog_tz11.php"
 
-echo "==> OK ТЗ-11: /blog/ + 4 статьи, CTA → /#kak-rabotat"
+echo "==> OK ТЗ-11: /blog/ + статьи (вкл. контент с главной), CTA → /#kak-rabotat"

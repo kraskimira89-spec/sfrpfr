@@ -38,12 +38,15 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home
-    assert 'href="#kak-rabotat"' in home  # главные CTA → выбор канала
     assert "cabinet.proverkastaza.ru/?channel=max" in home
     assert "Открыть кабинет" in home
     assert "Основной канал" in home
+    assert "Написать в MAX" in home
     assert 'id="o-servise"' in home
     assert "Пример расчёта вознаграждения" in home
+    assert 'id="komu"' in home
+    assert "sfrfr-sticky-cta" in home
+    assert 'id="stati"' not in home  # тизер блога убран с главной
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
@@ -54,7 +57,7 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
 
 
 def test_tz11_blog_mvp_assets() -> None:
-    """ТЗ-11 MVP: сид, 4 статьи, блок на главной, дисклеймер, CTA."""
+    """ТЗ-11: сид статей (включая контент с главной), дисклеймер, CTA."""
     assert (REPO / "scripts/wp_seed_blog_tz11.sh").exists()
     assert (REPO / "scripts/wp_seed_blog_tz11.php").exists()
     php = (REPO / "scripts/wp_seed_blog_tz11.php").read_text(encoding="utf-8")
@@ -62,6 +65,11 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "kak-sverit-trudovuyu-knizhku-i-ils" in php
     assert "chto-delat-esli-period-raboty-ne-uchten" in php
     assert "arhivnaya-spravka-dlya-sfr-zachem-i-kuda" in php
+    assert "tipichnye-situacii-proverki-stazha" in php
+    assert "kak-pomoch-rodstvenniku-proverit-stazh" in php
+    assert "chto-vy-poluchite-posle-proverki-stazha" in php
+    assert "kak-rabotat-v-max-i-lichnom-kabinete" in php
+    assert "chastye-voprosy-o-proverke-stazha" in php
     assert "#kak-rabotat" in php
     assert "Не являемся СФР" in php
     assert "blog/rubrika" in php
@@ -70,20 +78,23 @@ def test_tz11_blog_mvp_assets() -> None:
         "02-trudovaya-ils.html",
         "03-period-ne-uchten.html",
         "04-arhivnaya-spravka.html",
+        "05-tipichnye-situacii.html",
+        "06-dlya-rodstvennikov.html",
+        "07-chto-vy-poluchite.html",
+        "08-max-i-kabinet.html",
+        "09-faq-rasshirennyy.html",
     ):
         body = (REPO / "scripts/assets/blog" / name).read_text(encoding="utf-8")
         assert "<h1>" in body
         assert "гарантируем перерасчёт" not in body.lower()
         assert "официальный сервис" not in body.lower()
         assert "100%" not in body
-        # разрешено отрицание («не гарантия»), запрещены обещания без «не»
         assert "мы гарантируем" not in body.lower()
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
-    assert 'id="stati"' in home
-    assert "Читайте также" in home
-    assert "/blog/kak-proverit-stazh-v-vypiske-ils/" in home
     assert 'id="faq"' in home
-    assert "Подробнее" in home
+    assert "/blog/tipichnye-situacii-proverki-stazha/" in home
+    assert "/blog/chastye-voprosy-o-proverke-stazha/" in home
+    assert "/blog/kak-proverit-stazh-v-vypiske-ils/" in home
     assert (REPO / "docs/ops-blog-editor.md").exists()
 
 
