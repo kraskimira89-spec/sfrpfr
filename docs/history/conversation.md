@@ -4,6 +4,7 @@
 
 - Восстановлен `docs/specs/11-blog.md` (был DISK FULL) + §13 UI; ref `11-blog-ref-entuziastov.md`.
 - UI блога: `scripts/assets/blog/ui/` + MU `sfrfr-blog-ui.php` + `wp_deploy_blog_ui.sh`.
+- **Деплой:** MU на VPS (`taxi-doroga-dobra.ru/blog/` — чипы/CSS live); хук в `vps_deploy.sh`.
 - ТЗ-09 D: детальный runbook в `docs/qa/tz09-stage-d.md`; E2E 1–5 ещё `[ ]` (нужен MAX).
 - Smoke: health/blog на `taxi-doroga-dobra.ru` OK; `proverkastaza.ru` DNS пока нет.
 - Лид→Taganay: чеклист `docs/qa/lead-taganay-e2e.md`; POST leads без токена → 401.
