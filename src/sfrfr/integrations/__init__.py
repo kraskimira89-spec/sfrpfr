@@ -1,5 +1,6 @@
-"""Интеграции: MAX, Taganay, Sheets, Drive, Calendar, reCAPTCHA, ЮKassa."""
+"""Интеграции: MAX, Taganay, amoCRM, Sheets, Drive, Calendar, reCAPTCHA, ЮKassa."""
 
+from sfrfr.integrations.amocrm import AmoCrmClient, sync_case_to_amocrm
 from sfrfr.integrations.calendar import CalendarClient
 from sfrfr.integrations.drive import DriveClient
 from sfrfr.integrations.max import MaxBotClient, handle_max_update
@@ -14,6 +15,8 @@ __all__ = [
     "handle_max_update",
     "TaganayClient",
     "sync_case_to_taganay",
+    "AmoCrmClient",
+    "sync_case_to_amocrm",
     "SheetsExporter",
     "sanitize_rows",
     "DriveClient",

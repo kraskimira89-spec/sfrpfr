@@ -121,6 +121,7 @@ def test_stage3_signed_url_short_ttl() -> None:
 def test_stage6_sheets_and_taganay_modules_exist() -> None:
     assert (REPO / "src/sfrfr/integrations/sheets/__init__.py").exists()
     assert (REPO / "src/sfrfr/integrations/taganay/__init__.py").exists()
+    assert (REPO / "src/sfrfr/integrations/amocrm/__init__.py").exists()
     assert (REPO / "src/sfrfr/integrations/payments/__init__.py").exists()
 
 

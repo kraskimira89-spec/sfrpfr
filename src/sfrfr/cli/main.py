@@ -581,5 +581,45 @@ def taganay_sync(
         raise typer.Exit(code=1)
 
 
+@app.command("amocrm-ensure-fields")
+def amocrm_ensure_fields() -> None:
+    """Создать в amoCRM недостающие custom fields сделки (CASE_ID и др.)."""
+    import json
+
+    from sfrfr.integrations.amocrm import ensure_amocrm_lead_fields
+
+    result = ensure_amocrm_lead_fields()
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("amocrm-sync")
+def amocrm_sync(
+    case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),
+) -> None:
+    """Отправить минимум данных дела в amoCRM."""
+    import json
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
+    from sfrfr.security.auth import Principal, StaffRole
+
+    repo = CaseRepository()
+    principal = Principal(user_id="cli", role=StaffRole.ADMIN, email=None)
+    case = repo.require_case(principal, case_id)
+    result = push_case_to_amocrm(case, task="cli_sync")
+    lead_id = result.get("lead_id")
+    if lead_id and result.get("ok"):
+        persist_crm_external_id(case_id, str(lead_id))
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

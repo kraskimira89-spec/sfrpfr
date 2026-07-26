@@ -9,7 +9,7 @@
 | API | FastAPI |
 | Авторизация и БД | Supabase |
 | Документы | Supabase Storage, private bucket |
-| CRM | Taganay |
+| CRM | Taganay и/или amoCRM (ТЗ-12) |
 | Сообщения | MAX Bot API |
 | AI | Yandex AI Studio |
 | Аналитика | Google Sheets, обезличенные данные |
@@ -34,6 +34,12 @@
 - Передавать лиды, воронку и задачи.
 - Хранить в CRM минимум данных, нужных для работы с клиентом.
 - Связывать карточки по внутреннему `case_id`.
+
+### amoCRM
+
+- Сделка + контакт через API v4; custom fields с `code` (`CASE_ID` и др.) — см. [12-amocrm.md](12-amocrm.md).
+- Файлы и чувствительные ПДн в amo не передавать.
+- `cases.crm_external_id` = ID сделки; параллельно с Taganay, если оба настроены.
 
 ### Google Sheets
 

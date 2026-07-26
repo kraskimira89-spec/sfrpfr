@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     # Taganay: исходящий webhook (лиды/этапы по case_id), минимум контактов
     taganay_webhook_url: str = ""
     taganay_api_token: str = ""
+    # amoCRM API v4 (ТЗ-12); параллельно с Taganay, если оба заданы
+    amo_subdomain: str = ""
+    amo_access_token: str = ""
+    amo_pipeline_id: str = ""
+    amo_status_id: str = ""
+    amo_case_url_template: str = "https://{subdomain}.amocrm.ru/leads/detail/{id}"
     # Google Sheets: API (service account) предпочтительно; webhook — fallback
     google_sheets_spreadsheet_id: str = ""
     google_sheets_worksheet: str = "Analytics"
