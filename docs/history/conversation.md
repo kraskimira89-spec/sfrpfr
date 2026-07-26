@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-26 (dbt Labs plugin demo)
+
+- Показан плагин: skill analytics engineering → gap analysis → Tier-1 тесты в `schema.yml`.
+- `stg_communications` был без YAML; marts без unique/relationships на case_id.
+
 ## 2026-07-26 (восстановление чатов после переноса AppData)
 
 - История чатов в UI Cursor после переноса AppData потеряна (не восстановить как UI-сессии).

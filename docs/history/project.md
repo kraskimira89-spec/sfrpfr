@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-26 (dbt: Tier-1 тесты)
+
+- Плагин dbt Labs: закрыты пробелы в `analytics/models/schema.yml`.
+- Добавлен `stg_communications` (unique/not_null/relationships).
+- Усилены PK/FK: `fct_success_fee`, `fct_silent_cases`; not_null в dim/mart.
+
 ## 2026-07-26 (дубль ТЗ-09)
 
 - Удалён корневой дубль `09-client-channels-parity.md`; канон — `docs/specs/`.

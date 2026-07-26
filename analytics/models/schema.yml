@@ -55,6 +55,23 @@ models:
                 to: ref('stg_cases')
                 field: case_id
 
+  - name: stg_communications
+    description: "Агрегат коммуникаций по делу из analytics_source.communications_agg."
+    columns:
+      - name: case_id
+        description: "PK: одно агрегированное наблюдение на дело."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_cases')
+                field: case_id
+      - name: channel
+        tests: [not_null]
+      - name: communication_count
+        tests: [not_null]
+
   - name: fct_case_funnel
     description: "Одна строка на дело; только статусы, даты и диапазоны сумм."
     columns:
@@ -77,24 +94,55 @@ models:
         tests: [not_null, unique]
 
   - name: fct_success_fee
+    description: "Дела с начисленным success fee; зерно — case_id (подмножество fct_case_funnel)."
     columns:
       - name: case_id
-        tests: [not_null]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('fct_case_funnel')
+                field: case_id
 
   - name: fct_silent_cases
+    description: "Дела без активности 180+ дней; зерно — case_id."
     columns:
       - name: case_id
-        tests: [not_null]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('fct_case_funnel')
+                field: case_id
 
   - name: dim_case_segment
+    description: "Справочник сегментов дел (segment × region × problem × channel)."
     columns:
       - name: preferred_channel
         tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: ["max_miniapp", "web_cabinet", "unset"]
+      - name: segment
+        tests: [not_null]
+      - name: region_bucket
+        tests: [not_null]
+      - name: problem_type
+        tests: [not_null]
 
   - name: mart_management_dashboard
+    description: "Управленческий срез воронки по месяцу создания и сегментам."
     columns:
       - name: created_month
+        tests: [not_null]
+      - name: preferred_channel
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["max_miniapp", "web_cabinet", "unset"]
+      - name: cases_total
         tests: [not_null]
