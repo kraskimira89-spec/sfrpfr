@@ -23,10 +23,8 @@
 ## 2026-07-26 (хвосты cutover: MAX / Supabase / reCAPTCHA)
 
 - На VPS уже ок: `MAX_MINIAPP_URL`, `/app/` 200, cabinet/API URL.
-- MAX mini-app URL — только UI business.max.ru (Bot API не меняет).
-- Supabase redirects — только Dashboard (док обновлён + deep link).
-- reCAPTCHA domains: SA без `keys.get` → скрипт `ops_patch_recaptcha_domains.py` готов, нужен клик в GCP или IAM.
-- Чеклист: `docs/ops/cutover-manual-checklist.md`.
+- Пользователь закрыл вручную: MAX mini-app URL, reCAPTCHA domains, Supabase redirects (`cabinet.proverkastaza.ru/**` + recover).
+- Чеклист: `docs/ops/cutover-manual-checklist.md` — все три ✅.
 
 ## 2026-07-26 (fix редиректов prostaz.ru / proverka-staza.ru)
 

@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | `.env` `MAX_MINIAPP_URL=https://proverkastaza.ru/app/` | ✅ VPS | `/opt/sfrfr/.env` |
 | Статика `/app/` отдаёт 200 | ✅ | `https://proverkastaza.ru/app/` |
-| URL mini-app в кабинете MAX | ⬜ вручную | business.max.ru |
-| Supabase Auth redirect URLs | ⬜ вручную | Dashboard |
-| reCAPTCHA Enterprise domains | ⬜ скрипт/консоль | GCP / `ops_patch_recaptcha_domains.py` |
+| URL mini-app в кабинете MAX | ✅ вручную | business.max.ru |
+| Supabase Auth redirect URLs | ✅ вручную | Dashboard (cabinet.proverkastaza.ru + recover + старые taxi-*) |
+| reCAPTCHA Enterprise domains | ✅ вручную | GCP Console |
 
 ---
 
