@@ -1,25 +1,49 @@
 # ТЗ-12: интеграция amoCRM
 
 **Статус:** MVP в коде (`src/sfrfr/integrations/amocrm/`)  
-**Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md), Taganay (параллельный адаптер)  
-**Пошаговая настройка в UI amoCRM:** [../ops/amocrm-setup.md](../ops/amocrm-setup.md)
+**Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md)  
+**Пошаговая настройка в UI amoCRM (исполнять по порядку):**  
+➜ **[../ops/amocrm-setup.md](../ops/amocrm-setup.md)**
 
-## Цель
+Официальные доки: [OAuth по шагам](https://www.amocrm.ru/developers/content/oauth/step-by-step) · [custom fields](https://www.amocrm.ru/developers/content/crm_platform/custom-fields) · [leads API](https://www.amocrm.ru/developers/content/crm_platform/leads-api)
 
-Синхронизировать лиды и этапы дел SFRFR в [amoCRM](https://www.amocrm.ru/developers/content/crm_platform/custom-fields): сделка + контакт, связь по `case_id`, без файлов и чувствительных ПДн.
+---
+
+## 1. Цель
+
+Синхронизировать лиды и этапы дел SFRFR в amoCRM: **сделка + контакт**, связь по `case_id`, без файлов и чувствительных ПДн.
 
 Источник истины по делу — FastAPI + Supabase. amoCRM — операторская воронка.
 
-## Принципы
+---
+
+## 2. Принципы
 
 1. Минимум контактов: ФИО, телефон/email, согласие (флаг), канал.
 2. **Не передавать:** СНИЛС, паспорт, ИЛС, OCR, Storage URL, сканы.
-3. Ключ связи: custom field сделки `CASE_ID` (text) + `cases.crm_external_id` = ID сделки amo.
+3. Ключ связи: custom field сделки `CASE_ID` + `cases.crm_external_id` = ID сделки amo.
 4. Taganay и amo могут работать параллельно, если оба сконфигурированы.
 
-## Custom fields (сделка)
+---
 
-Создаются CLI `sfrfr amocrm-ensure-fields` или вручную. Коды стабильные (`field_code` в API).
+## 3. Где и что настраивать в amoCRM (сводка)
+
+Полный текст с кликами — в [amocrm-setup.md](../ops/amocrm-setup.md). Кратко:
+
+| Шаг | Где в amoCRM | Что |
+|-----|--------------|-----|
+| 0 | URL аккаунта | Поддомен → `AMO_SUBDOMAIN` |
+| 1 | **амоМаркет** → ⋯ → **Создать интеграцию** | Интеграция «SFRFR», доступ к сделкам и контактам |
+| 2 | Интеграция → **Ключи** → **Сгенерировать токен** | Долгосрочный Bearer → `AMO_ACCESS_TOKEN` (1 раз на экране) |
+| 3 | **Настройки** → воронки сделок | Воронка «Проверка стажа», этап «Новый лид» → `AMO_PIPELINE_ID` / `AMO_STATUS_ID` |
+| 4 | Поля сделок или CLI `amocrm-ensure-fields` | Коды `CASE_ID`, `SFRFR_CASE_URL`, `PIPELINE_STATUS`, `CHANNEL`, `SOURCE`, `CONSENT` |
+| 5 | (вне amo) VPS `.env` | Прописать переменные, `systemctl restart sfrfr-api` |
+| 6 | CLI + **Сделки** | Тестовый sync, проверка карточки |
+| 7 | **Настройки** → пользователи | Доступ операторов к воронке |
+
+---
+
+## 4. Custom fields (сделка)
 
 | code | Тип | Описание |
 |------|-----|----------|
@@ -30,9 +54,11 @@
 | `SOURCE` | text | `wordpress` / `sfrfr` / … |
 | `CONSENT` | checkbox | Согласие на связь |
 
-Группа полей в UI: «SFRFR» (опционально).
+Группа в UI: «SFRFR» (опционально).
 
-## Поток
+---
+
+## 5. Поток данных
 
 ```text
 WP / API public leads
@@ -44,9 +70,9 @@ WP / API public leads
   → push_case_to_amocrm (PATCH lead + поля)
 ```
 
-## Env (VPS `/opt/sfrfr/.env`)
+---
 
-Полный чеклист кликов в amo — [ops/amocrm-setup.md](../ops/amocrm-setup.md). Кратко:
+## 6. Env (VPS)
 
 ```env
 AMO_SUBDOMAIN=youraccount
@@ -56,26 +82,30 @@ AMO_STATUS_ID=
 AMO_CASE_URL_TEMPLATE=https://{subdomain}.amocrm.ru/leads/detail/{id}
 ```
 
-- Токен: амоМаркет → интеграция → **Ключи** → **Сгенерировать токен** (долгосрочный, 1 день–5 лет; виден один раз).
-- `AMO_PIPELINE_ID` / `AMO_STATUS_ID` — `GET /api/v4/leads/pipelines` или UI воронки.
+---
 
-## CLI
+## 7. CLI
 
 ```bash
-sfrfr amocrm-ensure-fields   # создать недостающие custom fields
+sfrfr amocrm-ensure-fields
 sfrfr amocrm-sync --case-id <uuid>
 ```
 
-## Критерии приёмки
+---
 
-- [ ] Без `AMO_ACCESS_TOKEN` sync возвращает `skipped`, дело создаётся.
-- [ ] С токеном: после лида в amo есть сделка с `CASE_ID` и контакт с телефоном/email.
-- [ ] В admin отображается `crm_url` на карточку сделки.
-- [ ] В payload нет СНИЛС/файлов.
-- [ ] Taganay при настроенном webhook продолжает вызываться независимо.
+## 8. Критерии приёмки
 
-## Вне scope MVP
+- [ ] Выполнены шаги 0–7 из [amocrm-setup.md](../ops/amocrm-setup.md)
+- [ ] Без `AMO_ACCESS_TOKEN` sync возвращает `skipped`, дело создаётся
+- [ ] С токеном: после лида в amo есть сделка с `CASE_ID` и контакт
+- [ ] В admin отображается `crm_url`
+- [ ] В payload нет СНИЛС/файлов
+- [ ] Taganay при настроенном webhook работает независимо
 
-- Входящие webhooks amo → SFRFR (обратный sync этапов).
-- Поле типа `file` в amo.
-- OAuth refresh-автоматика (токен обновлять вручную/скриптом ops).
+---
+
+## 9. Вне scope MVP
+
+- Входящие webhooks amo → SFRFR
+- Поле типа `file` в amo
+- Автообновление OAuth refresh (при долгосрочном токене не нужно до даты окончания)

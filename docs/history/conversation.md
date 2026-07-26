@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-26 (amoCRM: ТЗ настройки UI)
+
+- По доке OAuth/custom fields сохранены шаги 0–7: амоМаркет → токен → воронка → поля → VPS.
+- Файлы: `docs/ops/amocrm-setup.md`, обновлён `docs/specs/12-amocrm.md`.
+
 ## 2026-07-26 (amoCRM)
 
 - Исследование custom fields → ТЗ-12 и модуль sync в коде.

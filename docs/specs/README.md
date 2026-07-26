@@ -14,6 +14,7 @@
 10. [10-landing-audit-and-implementation.md](10-landing-audit-and-implementation.md) — аудит и внедрение лендинга.
 11. [11-blog.md](11-blog.md) — блог: SEO-справочник, рубрики, шаблон статей, CTA в каналы.
 12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.  
+    Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).  
     Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).
 
 ## Принцип
