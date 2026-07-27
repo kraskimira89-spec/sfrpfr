@@ -27,6 +27,8 @@ echo
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
 echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_hide_astra_copyright.php"
+echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 

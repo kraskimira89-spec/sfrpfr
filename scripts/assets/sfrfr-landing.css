@@ -805,14 +805,17 @@ body.page-template-default {
 
 /* Убрать «Авторское право © … Тема Astra» под футером */
 .ast-footer-copyright,
+.ast-footer-copyright.ast-builder-layout-element,
+.ast-builder-layout-element.ast-footer-copyright,
 .site-footer .ast-footer-copyright,
 .ast-small-footer-wrap .ast-footer-copyright,
-.ast-builder-grid-row .ast-footer-copyright {
+.ast-builder-grid-row .ast-footer-copyright,
+.site-below-footer-wrap .ast-footer-copyright {
   display: none !important;
 }
 
-.site-below-footer-wrap .ast-builder-html-element:empty,
-.ast-small-footer .ast-footer-site-title {
+/* Нижняя белая полоска Astra — только копирайт; кнопку «наверх» не трогаем */
+.site-below-footer-wrap[data-section="section-below-footer-builder"] {
   display: none !important;
 }
 
