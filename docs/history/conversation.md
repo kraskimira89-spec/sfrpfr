@@ -58,6 +58,11 @@
 - Hover кнопок с контрастным текстом; секции ~экран; padding карточек 24px.
 - `#zayavka` без двойного `--alt` после статей.
 
+## 2026-07-27 (оглавление документации MAX)
+
+- Папка `MAX/`: `01-polzovatelskaya-dokumentaciya.md`, `02-dokumentaciya-razrabotchika.md`.
+- Таблицы: ссылка / раздел / кратко / приоритет SFRFR (business/help + API/Bridge).
+
 ## 2026-07-27 (оглавление документации amoCRM)
 
 - Папка `amo CRM/`: `01-polzovatelskaya-dokumentaciya.md`, `02-dokumentaciya-razrabotchika.md`.

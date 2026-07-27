@@ -54,6 +54,10 @@
 - `prostaz.ru` / `proverka-staza.ru`: после certbot отдавали default Apache; починены чистые HTTP+HTTPS 301 → `proverkastaza.ru`.
 - Шаблон SSL: `docs/apache-vhost-redirect-aliases-le-ssl.conf`; cutover переустанавливает его после certbot.
 
+## 2026-07-27 (оглавление документации MAX)
+
+- Папка `MAX/`: пользовательская (business/help) и developer (API/Bridge/UI) сводки для ориентации SFRFR.
+
 ## 2026-07-27 (оглавление документации amoCRM)
 
 - Папка `amo CRM/`: пользовательская и developer-сводки (таблицы ссылка/раздел/кратко/приоритет SFRFR).
