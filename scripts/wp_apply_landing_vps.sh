@@ -29,6 +29,11 @@ echo
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_hide_astra_copyright.php"
 echo
+# MU: скрытие копирайта Astra (на случай если CSS Customizer проигрывает)
+cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-hide-astra-copyright.php" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-hide-astra-copyright.php"
+echo "MU hide-copyright OK"
+echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 
