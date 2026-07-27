@@ -120,9 +120,11 @@ sudo systemctl restart sfrfr-api
 | `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
 | Admin: кнопки «Создать Телемост» / «Письмо» | audit + `meeting_url` |
 
-> **Почта SMTP:** в [настройках Яндекс Почты](https://mail.yandex.ru/#setup/client) включите доступ почтовых клиентов (IMAP) и **«Пароли приложений и OAuth-токены»**. Иначе SMTP вернёт *access rights* при верном XOAUTH2.
+> **Почта SMTP/IMAP (проверено 2026-07-27):** после включения в настройках Почты IMAP + OAuth-токены — `smtp` и `imap` с XOAUTH2 работают на `proverkastaza@yandex.ru`.
 >
-> **Телемост API** на личном `@yandex.ru` часто отвечает `ApiRestrictedToOrganizations`. Тогда: подключить Яндекс 360 **или** вставлять ссылку встречи вручную в карточку после создания в UI Телемоста.
+> **Телемост API** на личном `@yandex.ru` отвечает `ApiRestrictedToOrganizations` — нужен **Яндекс 360 для бизнеса** (отдельный контур API). До 360: создавать встречу в UI Телемоста и сохранять URL вручную / позже поле `meeting_url`.
+>
+> **Календарь CalDAV** — PROPFIND OK. **Диск API** доступен по токену, но в продукте `YANDEX_DISK_ENABLED=false` (ПДн → Storage).
 
 Пока модуля нет — проверки вручную:
 
