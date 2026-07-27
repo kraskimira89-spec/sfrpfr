@@ -48,7 +48,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Пример расчёта вознаграждения" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home
-    assert 'id="stati"' not in home  # тизер блога убран с главной
+    assert 'id="stati"' in home  # 3 карточки блога (§13.3)
+    assert "Полезные статьи" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "СНИЛС" in form or "Без СНИЛС" in form
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
@@ -67,8 +68,17 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "kak-sverit-trudovuyu-knizhku-i-ils" in php
     assert "chto-delat-esli-period-raboty-ne-uchten" in php
     assert "arhivnaya-spravka-dlya-sfr-zachem-i-kuda" in php
-    assert "tipichnye-situacii-proverki-stazha" in php
+    assert "kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr" in php
+    assert "kak-podat-zayavlenie-cherez-gosuslugi-ili-mfc" in php
+    assert "otkaz-sfr-chto-proverit-v-dokumentah" in php
+    assert "pensiya-po-invalidnosti-i-stazh-na-chto-smotret" in php
     assert "kak-pomoch-rodstvenniku-proverit-stazh" in php
+    assert "chem-otlichaetsya-diagnostika-ot-soprovozhdeniya" in php
+    assert "pochemu-reshenie-prinimaet-tolko-sfr" in php
+    assert "chek-list-pered-zapisju-v-mfc" in php
+    assert "rodstvenniki" in php
+    assert "default_comment_status" in php
+    assert "tipichnye-situacii-proverki-stazha" in php
     assert "chto-vy-poluchite-posle-proverki-stazha" in php
     assert "kak-rabotat-v-max-i-lichnom-kabinete" in php
     assert "chastye-voprosy-o-proverke-stazha" in php
@@ -85,6 +95,13 @@ def test_tz11_blog_mvp_assets() -> None:
         "07-chto-vy-poluchite.html",
         "08-max-i-kabinet.html",
         "09-faq-rasshirennyy.html",
+        "10-dokumenty-do-sfr.html",
+        "11-podacha-gosuslugi-mfc.html",
+        "12-otkaz-sfr.html",
+        "13-invalidnost-i-stazh.html",
+        "14-diagnostika-vs-soprovozhdenie.html",
+        "15-pochemu-reshenie-sfr.html",
+        "16-chek-list-mfc.html",
     ):
         body = (REPO / "scripts/assets/blog" / name).read_text(encoding="utf-8")
         assert "<h1>" in body
@@ -94,10 +111,14 @@ def test_tz11_blog_mvp_assets() -> None:
         assert "мы гарантируем" not in body.lower()
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
     assert 'id="faq"' in home
+    assert 'id="stati"' in home
     assert "/blog/tipichnye-situacii-proverki-stazha/" in home
     assert "/blog/chastye-voprosy-o-proverke-stazha/" in home
     assert "/blog/kak-proverit-stazh-v-vypiske-ils/" in home
     assert (REPO / "docs/ops-blog-editor.md").exists()
+    mu = (REPO / "scripts/wp-mu-plugins/sfrfr-blog-ui.php").read_text(encoding="utf-8")
+    assert "'rodstvenniki'" in mu
+    assert "dlya-rodstvennikov" not in mu
 
 
 def test_blog_situations_from_deepseek() -> None:

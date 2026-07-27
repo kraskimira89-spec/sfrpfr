@@ -26,7 +26,16 @@
 - Обещать перерасчёт, сумму, «100%».
 - Upload документов в формах WP.
 - ФИО, кейсы с ПДн, печати/гербы СФР.
-- Комментарии к постам (не включать).
+- Комментарии к постам (сид закрывает `comment_status` и `default_comment_status`).
+
+## Sitemap
+
+Rank Math обычно отдаёт:
+
+- `https://proverkastaza.ru/sitemap_index.xml`
+- или `https://proverkastaza.ru/sitemap.xml`
+
+Если 404 — в WP: Rank Math → Sitemap Settings → включить sitemap и сбросить permalinks.
 
 ## Сид с сервера
 

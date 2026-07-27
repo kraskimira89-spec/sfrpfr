@@ -48,7 +48,7 @@
 /blog/rubrika/stazh/                — стаж, трудовая, периоды
 /blog/rubrika/dokumenty/            — справки, архив, МФЦ
 /blog/rubrika/podacha/              — подача в СФР / Госуслуги
-/blog/rubrika/dlya-rodstvennikov/   — помощь близким (чип UI: rodstvenniki)
+/blog/rubrika/rodstvenniki/         — помощь близким
 /blog/rubrika/usluga/               — как устроен сервис (редко)
 /blog/rubrika/situacii/             — примеры ситуаций (обезличенные)
 /blog/rubrika/analitika/            — аналитика по пачкам ситуаций

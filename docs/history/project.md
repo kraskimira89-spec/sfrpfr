@@ -21,6 +21,10 @@
 - Основная CRM — amoCRM (ТЗ-12).
 - Ops: `docs/ops/amocrm-setup.md` — пошагово где кликать в амоМаркете/воронках/полях.
 
+## 2026-07-27 (ТЗ-11 P0 дожим)
+
+- Статьи 10–16; `#stati` на главной; comments off; chip `rodstvenniki`.
+
 ## 2026-07-26 (лендинг: меню IA)
 
 - `wp_seed_site_tz02.sh`: меню под 8 блоков; оферта в footer; apply-скрипт `wp_apply_landing_vps.sh`.

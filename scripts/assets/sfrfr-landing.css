@@ -1063,6 +1063,9 @@ header .custom-logo-link img {
 }
 
 /* ТЗ-11: блог */
+.sfrfr-blog-teaser {
+  margin-top: 1.25rem;
+}
 .sfrfr-blog-card h3 {
   margin: 0 0 0.5rem;
   font-size: 1.1rem;

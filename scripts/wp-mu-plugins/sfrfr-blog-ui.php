@@ -20,7 +20,7 @@ function sfrfr_blog_ui_chip_map(): array
         'stazh' => 'Стаж',
         'dokumenty' => 'Документы',
         'podacha' => 'Подача',
-        'dlya-rodstvennikov' => 'Родственникам',
+        'rodstvenniki' => 'Родственникам',
         'usluga' => 'Услуга',
         'situacii' => 'Ситуации',
         'analitika' => 'Аналитика',
