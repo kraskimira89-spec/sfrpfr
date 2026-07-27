@@ -13,6 +13,44 @@ NS: `ns1.reg.ru` / `ns2.reg.ru` (как у старого домена).
 | A | `cabinet` | `91.229.11.147` |
 | A | `admin` | `91.229.11.147` |
 
+## Почта Яндекс 360 (MX)
+
+Официальная инструкция: [MX-запись Яндекс 360](https://yandex.ru/support/yandex-360/business/admin/ru/domains/dns/mx.html).
+
+DNS у **reg.ru** (`ns1.reg.ru` / `ns2.reg.ru`). Сейчас MX для `proverkastaza.ru` **нет** — почта на домене не заработает, пока не добавите.
+
+### В панели reg.ru
+
+1. [reg.ru](https://www.reg.ru) → домен `proverkastaza.ru` → **DNS-серверы и управление зоной**.
+2. **Удалите** все существующие MX (если появятся).
+3. **Добавьте** MX:
+
+| Тип | Subdomain / хост | Mail Server / значение | Priority |
+|-----|------------------|------------------------|----------|
+| MX | `@` | `mx.yandex.net.` (точка в конце) | `10` |
+
+4. Рекомендуется сразу SPF (TXT), чтобы письма не уходили в спам:
+
+| Тип | Хост | Значение |
+|-----|------|----------|
+| TXT | `@` | `v=spf1 redirect=_spf.yandex.net` |
+
+(Точное значение SPF также смотрите в подсказках admin.yandex.ru для вашего домена — иногда Яндекс показывает готовый TXT.)
+
+5. **Не трогайте** A-записи `@` / `www` / `api` / `cabinet` / `admin` → `91.229.11.147`.
+
+6. Подождите распространения DNS (минуты–часы, редко до 72 ч). В [admin.yandex.ru/domains](https://admin.yandex.ru/domains) → домен → **Проверить**.
+
+Проверка:
+
+```powershell
+nslookup -type=MX proverkastaza.ru 8.8.8.8
+```
+
+Ожидается: `proverkastaza.ru MX preference = 10, mail exchanger = mx.yandex.net`.
+
+После MX: создайте сотрудника `info@proverkastaza.ru` (или аналог) и этим ящиком выпускайте OAuth для Телемост API.
+
 ## Защитные домены (только редирект)
 
 ### `proverka-staza.ru`
