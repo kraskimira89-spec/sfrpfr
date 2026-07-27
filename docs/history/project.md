@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-27 (ТЗ-13 document ingest v2)
+
+- Спроектирован ingest поверх `ocr/engine.py`: text layer → Vision/Tesseract, quality gate, HITL эксперта.
+- Спека: `docs/specs/13-document-ingest-v2.md`.
+
 ## 2026-07-27 (код без Taganay)
 
 - Удалён модуль `integrations/taganay`; env TAGANAY_*; CLI `taganay-sync`.

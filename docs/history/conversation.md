@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-27 (ТЗ-13 document ingest v2)
+
+- Спека: пороги text layer, артефакты extracted.md/ingest.json, Vision vs Tesseract, HITL сверка в admin.
+- Файл: `docs/specs/13-document-ingest-v2.md`.
+
 ## 2026-07-27 (код: убран Taganay)
 
 - Удалён `integrations/taganay`; sync только amoCRM (public leads, admin, CLI).

@@ -15,6 +15,7 @@
 11. [11-blog.md](11-blog.md) — блог: SEO-справочник, рубрики, шаблон статей, CTA в каналы.
 12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.  
     Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).
+13. [13-document-ingest-v2.md](13-document-ingest-v2.md) — ingest документов: text layer / Vision / Tesseract, артефакты, HITL сверка.
 
 ## Принцип
 

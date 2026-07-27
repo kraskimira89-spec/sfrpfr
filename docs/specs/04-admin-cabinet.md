@@ -25,7 +25,8 @@
 
 ### 3. Карточка дела
 
-- исходные документы и OCR;
+- исходные документы и OCR / ingest v2 ([13-document-ingest-v2.md](13-document-ingest-v2.md));
+- при `needs_ingest_review` — сверка скан↔текст (эксперт), правка extracted, re-run OCR;
 - сравнение ИЛС и трудовой;
 - findings;
 - персональный чек-лист;
