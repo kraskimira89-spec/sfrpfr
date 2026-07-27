@@ -101,21 +101,11 @@ if [ ! -f "$OFFER_FILE" ]; then
 fi
 
 
-PRIVACY_CONTENT='<!-- wp:paragraph -->
-<p><strong>Черновик</strong> политики обработки персональных данных (SFRFR).</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Оператор обрабатывает данные обращения (имя, телефон / канал связи) для связи с заявителем и организации услуг диагностики и сопровождения.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Сканы ИЛС, трудовых книжек, паспортов и СНИЛС не принимаются через сайт WordPress. Такие документы загружаются только в мессенджер MAX или защищённый кабинет.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Правовые основания — согласие субъекта и договор (оферта / индивидуальный заказ). Срок хранения — в соответствии с целями обработки и требованиями законодательства.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p><a href="/soglasie/">Согласие на обработку</a> · <a href="/oferta/">Оферта</a></p>
-<!-- /wp:paragraph -->'
+PRIVACY_FILE="${SCRIPT_DIR}/assets/sfrfr-privacy.html"
+if [ ! -f "$PRIVACY_FILE" ]; then
+  echo "ERROR: файл политики ПДн не найден: $PRIVACY_FILE" >&2
+  exit 1
+fi
 
 CONSENT_FILE="${SCRIPT_DIR}/assets/sfrfr-consent.html"
 if [ ! -f "$CONSENT_FILE" ]; then
@@ -127,7 +117,7 @@ echo "==> Страницы"
 HOME_ID="$(upsert_page glavnaya "Главная" "$HOME_FILE")"
 rm -f "$HOME_FILE"
 OFFER_ID="$(upsert_page oferta "Публичная оферта" "$OFFER_FILE")"
-PRIVACY_ID="$(upsert_page politika-pdn "Политика обработки ПДн" "$PRIVACY_CONTENT")"
+PRIVACY_ID="$(upsert_page politika-pdn "Политика обработки персональных данных" "$PRIVACY_FILE")"
 CONSENT_ID="$(upsert_page soglasie "Согласие на обработку персональных данных" "$CONSENT_FILE")"
 COOKIES_FILE="${SCRIPT_DIR}/assets/sfrfr-cookies.html"
 COOKIES_ID=""

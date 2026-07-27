@@ -58,7 +58,7 @@ function sfrfr_site_footer_html(): string
       <p><strong>Документы</strong></p>
       <p class="sfrfr-legal-links">
         <a href="{$home}oferta/">Оферта</a><br>
-        <a href="{$home}politika-pdn/">Политика обработки ПДн (СОПД)</a><br>
+        <a href="{$home}politika-pdn/">Политика обработки персональных данных</a><br>
         <a href="{$home}soglasie/">Согласие на обработку ПДн</a><br>
         <a href="{$home}cookies/">Файлы браузера</a><br>
         <a href="{$home}blog/">Статьи</a>

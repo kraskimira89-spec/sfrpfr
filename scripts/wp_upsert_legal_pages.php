@@ -18,6 +18,11 @@ $pages = [
         'file' => 'sfrfr-oferta.html',
     ],
     [
+        'slug' => 'politika-pdn',
+        'title' => 'Политика обработки персональных данных',
+        'file' => 'sfrfr-privacy.html',
+    ],
+    [
         'slug' => 'soglasie',
         'title' => 'Согласие на обработку персональных данных',
         'file' => 'sfrfr-consent.html',
