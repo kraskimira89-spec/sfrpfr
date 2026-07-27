@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-27 (доки: Taganay → amoCRM)
+
+- Во всех ТЗ и docs заменена CRM Taganay на amoCRM; QA-чеклист → `docs/qa/lead-amocrm-e2e.md`.
+- Удалён `docs/qa/lead-taganay-e2e.md`; поправлены битые фразы после replace.
+
 ## 2026-07-26 (лендинг: меню под короткую воронку)
 
 - Primary: Как это работает / Тарифы / Вопросы / О сервисе / Статьи / CTA.
@@ -62,7 +67,7 @@
 - **Деплой:** MU на VPS (`taxi-doroga-dobra.ru/blog/` — чипы/CSS live); хук в `vps_deploy.sh`.
 - **Cutover DNS/SSL:** `vps_cutover_proverkastaza.sh` — LE-сертификаты на `proverkastaza.ru` + api/cabinet/admin + алиасы; WP home/siteurl → новый домен.
 - ТЗ-09 D: детальный runbook в `docs/qa/tz09-stage-d.md`; E2E 1–5 ещё `[ ]` (нужен MAX).
-- Лид→Taganay: чеклист `docs/qa/lead-taganay-e2e.md`; POST leads без токена → 401.
+- Лид→amoCRM: чеклист `docs/qa/lead-amocrm-e2e.md`; POST leads без токена → 401.
 - Юрпроверка оферты/success fee и Notion MCP/`np/` — внешние блокеры.
 - Вручную: MAX mini-app URL, Supabase redirects, добавить `proverkastaza.ru` в allowlist reCAPTCHA Enterprise.
 
@@ -219,7 +224,7 @@
 - Реализован ТЗ-09: единый portal для mini-app (MAX auth), link_token, deep-link case, CTA уведомлений.
 - Реализован ТЗ-08: feedback→RAG registry, rejected вне поиска, тесты приёмки knowledge.
 - Реализован ТЗ-07 MVP: публичный lead API, WP CTA выбора канала, MAX /docs+/draft, оплата с fallback.
-- Реализован ТЗ-06: Taganay webhook, Sheets без ПДн, ЮKassa pay+webhook, тесты RLS/Storage/Sheets.
+- Реализован ТЗ-06: amoCRM API, Sheets без ПДн, ЮKassa pay+webhook, тесты RLS/Storage/Sheets.
 - Реализован ТЗ-05: health/ops, безопасные логи, CI gate, ранбук.
 - Логотип для светлого фона на витрине (Astra + favicon + hero) и в иконках cabinet/admin.
 - Письмо reg.ru: DNS `cabinet`/`admin` добавлены; порты 80/443 открыты. Подняты HTTPS + Next.js кабинеты на VPS (пароль root от них **не нужен** — есть deploy key).
@@ -242,7 +247,7 @@
 
 - Стек MVP: FastAPI + Supabase/Postgres + Tesseract OCR + LLM/RAG.
 - Модель продукта: диагностика + сопровождение + success fee.
-- B2C only: оферта + индивидуальный заказ; CRM Taganay; чек-листы индивидуально; Sheets без ПДн.
+- B2C only: оферта + индивидуальный заказ; amoCRM; чек-листы индивидуально; Sheets без ПДн.
 - Success fee: 10% ЕДВ + 50% от суммы прибавок за 3 месяца; постоплата через 2–3 месяца после повышения; 6 месяцев молчания → эскалация/суд (после юриста).
 - AI: pipeline-оркестратор + узкие агенты (не swarm); сверка — детерминированный код.
 - API/CLI завязаны на `CaseStore` + local upload + OCR при `advance`/`run`.

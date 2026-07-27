@@ -2,7 +2,7 @@
 
 **Версия:** 0.1  
 **Дата:** 2026-07-22  
-**Стек:** FastAPI + Supabase/Postgres + CRM Taganay + Google Sheets (обезличенно)
+**Стек:** FastAPI + Supabase/Postgres + amoCRM + Google Sheets (обезличенно)
 
 ## 1. Модули кода (целевая структура)
 
@@ -18,7 +18,7 @@ src/sfrfr/
 │   │   ├── results.py           # NEW
 │   │   └── integrations/
 │   │       ├── max_webhook.py
-│   │       ├── crm_taganay.py   # NEW
+│   │       ├── amocrm.py            # NEW
 │   │       └── sheets.py        # NEW
 │   └── schemas/
 ├── models/
@@ -36,7 +36,7 @@ src/sfrfr/
 │   └── notifications.py         # NEW
 ├── integrations/
 │   ├── max/
-│   ├── crm_taganay/             # NEW
+│   ├── amocrm/             # NEW
 │   └── google_sheets/           # NEW
 └── security/
 ```
@@ -205,7 +205,7 @@ create policy cases_select_own on public.cases
 
 ## 5. Интеграции
 
-### 5.1. CRM Taganay ([login](https://taganay.clientbase.ru/login.php))
+### 5.1. amoCRM ([login](https://proverkastaza.amocrm.ru/))
 
 - Создание/обновление лида и сделки при смене `b2c_status`.
 - Поле связи: `case_id` (UUID SFRFR).

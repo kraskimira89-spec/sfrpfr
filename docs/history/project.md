@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-27 (документация CRM)
+
+- Во всех ТЗ/доках CRM Taganay заменена на amoCRM; единый E2E-чеклист `docs/qa/lead-amocrm-e2e.md`.
+
 ## 2026-07-26 (ТЗ-12 amoCRM: пошаговая настройка)
 
 - Расширен `docs/ops/amocrm-setup.md`: шаги 0–7 где кликать в амоМаркете/воронках/полях.
@@ -9,7 +13,7 @@
 
 - Спека `docs/specs/12-amocrm.md`; модуль `integrations/amocrm/`.
 - Custom fields CASE_ID и др.; sync из public leads и admin; CLI ensure-fields/sync.
-- Taganay остаётся параллельным адаптером.
+- Основная CRM — amoCRM (ТЗ-12).
 - Ops: `docs/ops/amocrm-setup.md` — пошагово где кликать в амоМаркете/воронках/полях.
 
 ## 2026-07-26 (лендинг: меню IA)
@@ -24,11 +28,11 @@
 
 - `sfrfr-home.html` / `sfrfr-landing.css`: пример тарифа, «Кто оказывает», MAX primary, hover, секции/24px.
 
-## 2026-07-26 (P0/P1: блог §13, QA D, лид→Taganay)
+## 2026-07-26 (P0/P1: блог §13, QA D, лид→amoCRM)
 
 - `11-blog.md` восстановлен из git + §13; UI assets + MU-plugin + deploy script.
 - `docs/qa/tz09-stage-d.md` — пошаговый runbook; браузерный E2E 1–5 не закрыт.
-- `docs/qa/lead-taganay-e2e.md`; ТЗ-10 P0 формы/юристы обновлены по факту smoke.
+- `docs/qa/lead-amocrm-e2e.md`; ТЗ-10 P0 формы/юристы обновлены по факту smoke.
 - Notion `np/` / MCP — отложено (auth недоступен).
 
 ## 2026-07-26 (хвосты cutover)
@@ -162,14 +166,14 @@
 
 ## 2026-07-23 (ТЗ-07: очередность MVP)
 
-- Этап 1: `POST /api/public/leads` (WPForms/JSON) → client+case+checklist+Taganay; WP CTA меню → `/#kak-rabotat`; форма с выбором канала.
+- Этап 1: `POST /api/public/leads` (WPForms/JSON) → client+case+checklist+amoCRM; WP CTA меню → `/#kak-rabotat`; форма с выбором канала.
 - MAX: `/docs`, `/draft`, скачивание вложений по URL.
 - Оплаты: кнопка «Оплатить онлайн» в cabinet + fallback на ручной счёт.
 - Чеклист: `docs/ops-mvp-checklist.md`; тесты `tests/integration/test_mvp_roadmap.py`.
 
 ## 2026-07-23 (ТЗ-06: интеграции и безопасность)
 
-- Taganay: webhook-клиент + sync по `case_id` (минимум контактов, без OCR/файлов); CLI `taganay-sync`.
+- amoCRM: webhook-клиент + sync по `case_id` (минимум контактов, без OCR/файлов); CLI `amocrm-sync`.
 - Google Sheets: whitelist-выгрузка без ПДн; `POST /admin/analytics/sheets-sync`, CLI `sheets-sync`.
 - ЮKassa: create payment + webhook → `payments`/`orders`; пути `/api/portal/.../pay` и `/api/integrations/payments/...`.
 - Константы: signed URL TTL 60с, private bucket `pension-docs`; проверка frontend `.env.example` без `service_role`.
@@ -198,7 +202,7 @@
 - Admin UI: дашборд, реестр (поиск/фильтры/каналы), карточка, финансы, аналитика, роли.
 - API `/api/portal/admin/*` + `GET /me`; ролевые ограничения operator/expert/admin на сервере.
 - Миграция: `preferred_channel`, `max_user_id`, `case_knowledge_feedback`.
-- В карточке: паритет каналов MAX↔веб, Taganay URL, audit, knowledge feedback → verified/template.
+- В карточке: паритет каналов MAX↔веб, amoCRM URL, audit, knowledge feedback → verified/template.
 
 ## 2026-07-23 (ТЗ-03: клиентский кабинет)
 
@@ -351,7 +355,7 @@
 - Установлены agent skills: `supabase`, `supabase-postgres-best-practices`.
 - Выполнен `supabase init` — появилась папка `supabase/` с `config.toml`.
 - Репозиторий подключён к GitHub: https://github.com/kraskimira89-spec/sfrpfr (ветка `main`, initial commit).
-- Подготовлен комплект B2C-ТЗ: монетизация, journey, архитектура данных/RLS, черновики оферты и индивидуального заказа; CRM Taganay; success fee 10% ЕДВ + 50%×3 мес.; постоплата через 2–3 мес.; эскалация при молчании 6 мес.
+- Подготовлен комплект B2C-ТЗ: монетизация, journey, архитектура данных/RLS, черновики оферты и индивидуального заказа; amoCRM; success fee 10% ЕДВ + 50%×3 мес.; постоплата через 2–3 мес.; эскалация при молчании 6 мес.
 - Автокоммит/пуш (`scripts/auto_commit_push.ps1` + Cursor hook), автодеплой на VPS `/opt/sfrfr`, миграция Supabase B2C+RLS.
 - Цель MVP: карточка дела → загрузка документов → OCR → сверка ИЛС/трудовой → черновик заявления.
 - Каркас AI: `CaseStatus`, `CaseOrchestrator`, агенты classifier/extractor/drafter, RAG stub, `knowledge/`.

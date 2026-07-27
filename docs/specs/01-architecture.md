@@ -13,8 +13,7 @@ admin.домен     → внутренний кабинет сотрудник�
 api.домен       → FastAPI API
 
 Supabase        → Auth, PostgreSQL, Storage, RLS
-Taganay CRM     → лиды, воронка, задачи (опционально)
-amoCRM          → лиды/сделки + custom fields CASE_ID (ТЗ-12; параллельно Taganay)
+amoCRM          → лиды, сделки, custom fields CASE_ID (ТЗ-12)
 MAX Bot API     → диалог с клиентом и уведомления
 Yandex AI Studio→ AI-агенты
 Google Sheets   → только обезличенная аналитика

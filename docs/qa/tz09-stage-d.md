@@ -143,4 +143,4 @@ curl -fsS https://api.taxi-doroga-dobra.ru/api/portal/meta/status-labels
 ## Связанные документы
 
 - [docs/specs/09-client-channels-parity.md](../specs/09-client-channels-parity.md) §10
-- [docs/qa/lead-taganay-e2e.md](lead-taganay-e2e.md)
+- [docs/qa/lead-amocrm-e2e.md](lead-amocrm-e2e.md)

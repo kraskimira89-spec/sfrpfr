@@ -43,7 +43,7 @@ CLI: `sfrfr case-*`, `sfrfr max-subscribe`
 - [contracts/offer-draft.md](contracts/offer-draft.md)
 - [contracts/individual-order-template.md](contracts/individual-order-template.md)
 
-CRM: [Taganay «Клиентская база»](https://taganay.clientbase.ru/login.php).  
+CRM: [amoCRM](https://proverkastaza.amocrm.ru/).  
 Google Sheets — только обезличенные метрики.  
 Подача в СФР — клиентом самостоятельно. Success fee: 10% ЕДВ + 50% × 3 мес. прибавки, оплата через 2–3 мес. после результата.
 
