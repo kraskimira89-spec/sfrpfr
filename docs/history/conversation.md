@@ -280,3 +280,8 @@
 - Публичный сайт ТЗ-02 этап 1: лендинг + оферта + ПДн/согласие + кнопка MAX + форма лида (WPForms, без сканов).
 - Кабинет v1 мини-приложения: статус дела + загрузка документов; URL `https://taxi-doroga-dobra.ru/app/`; технический username бота `id8905998693_1_bot`.
 - Кнопка на лендинге: «Открыть в MAX» → `https://max.ru/id8905998693_1_bot?startapp` (username из `/me`, не StazhIPensiyaBot).
+
+## 2026-07-27 — CTA «Задать вопрос» + FAQ
+- CTA mid/end/archive/seed: «Задать вопрос в MAX» + «Оставить заявку» (#zayavka) + «Начать проверку».
+- Обновлены FAQ на главной и статья /blog/chastye-voprosy-o-proverke-stazha/.
+

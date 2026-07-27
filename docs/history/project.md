@@ -379,3 +379,7 @@
 - Связка API/CLI: upload → local storage → OCR в `advance`/`run`, in-memory `CaseStore`.
 - Решение каналов: диалог клиента в **MAX**; LLM через **Yandex AI Studio** (OpenAI-compatible).
 - Каркас: `LLMClient` (yandex), `integrations/max` + webhook, деплой WP+API на VPS (`docs/deploy-vps.md`).
+
+## 2026-07-27
+- Блог/лендинг: CTA «Задать вопрос» → MAX + форма лида; расширен FAQ.
+

@@ -98,6 +98,28 @@
   outline-offset: 2px;
 }
 
+.sfrfr-blog-cta__btn--ghost {
+  margin-left: 0.35rem;
+  margin-top: 0.5rem;
+  background: transparent;
+  color: var(--sfrfr-blog-cta) !important;
+  border: 2px solid var(--sfrfr-blog-cta);
+}
+
+.sfrfr-blog-cta__btn--ghost:hover,
+.sfrfr-blog-cta__btn--ghost:focus-visible {
+  background: rgba(11, 110, 79, 0.08);
+  color: var(--sfrfr-blog-cta-hover) !important;
+  border-color: var(--sfrfr-blog-cta-hover);
+}
+
+.sfrfr-blog-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+  align-items: center;
+}
+
 .sfrfr-blog-toc {
   margin: 1rem 0 1.5rem;
   padding: 1rem 1.15rem;

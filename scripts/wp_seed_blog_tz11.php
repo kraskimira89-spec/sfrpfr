@@ -14,12 +14,15 @@ $homeUrl = home_url('/');
 
 $disclaimer = '<p class="sfrfr-article-disclaimer"><em>Не являемся СФР. Решение о перерасчёте принимает СФР. Материал носит справочный характер.</em></p>';
 
+$maxUrl = getenv('MAX_CHAT_URL') ?: getenv('MAX_PUBLIC_BOT_URL') ?: 'https://max.ru/id8905998693_1_bot';
+$maxUrl = htmlspecialchars((string) $maxUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
 $ctaBlock = <<<HTML
 <div class="sfrfr-article-cta">
-  <p><strong>Готовы проверить своё дело?</strong></p>
-  <p><a class="sfrfr-btn sfrfr-btn--primary" href="{$homeUrl}#kak-rabotat">Начать проверку</a>
-  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#tarify">Услуги и тарифы</a>
-  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#faq">Читать FAQ</a></p>
+  <p><strong>Задать вопрос</strong></p>
+  <p><a class="sfrfr-btn sfrfr-btn--primary" href="{$maxUrl}" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a>
+  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#zayavka">Оставить заявку</a>
+  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#kak-rabotat">Начать проверку</a></p>
 </div>
 HTML;
 

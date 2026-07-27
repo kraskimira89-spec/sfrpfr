@@ -88,11 +88,23 @@
     var h2s = article.querySelectorAll("h2");
     var anchor = h2s.length >= 2 ? h2s[1] : null;
     var cta = document.createElement("aside");
+    var cfg = window.sfrfrBlogUi || {};
+    var maxUrl = cfg.maxUrl || "https://max.ru/id8905998693_1_bot";
+    var formUrl = cfg.formUrl || "/#zayavka";
+    var startUrl = cfg.startUrl || "/#kak-rabotat";
     cta.className = "sfrfr-blog-cta sfrfr-blog-cta--mid";
     cta.innerHTML =
-      '<p class="sfrfr-blog-cta__title">Нужна проверка документов?</p>' +
-      '<p class="sfrfr-blog-cta__text">Разберём дело в MAX или в веб-кабинете — без загрузки сканов на этот сайт.</p>' +
-      '<a class="sfrfr-blog-cta__btn" href="/#kak-rabotat">Начать проверку</a>';
+      '<p class="sfrfr-blog-cta__title">Задать вопрос</p>' +
+      '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку — без загрузки сканов на этот сайт.</p>' +
+      '<a class="sfrfr-blog-cta__btn" href="' +
+      maxUrl +
+      '" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a> ' +
+      '<a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' +
+      formUrl +
+      '">Оставить заявку</a> ' +
+      '<a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' +
+      startUrl +
+      '">Начать проверку</a>';
 
     if (anchor && anchor.parentNode === article) {
       article.insertBefore(cta, anchor);

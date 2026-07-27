@@ -32,6 +32,33 @@ add_filter('comments_template', static function ($template) {
 });
 
 /**
+ * Публичный URL бота MAX для CTA «Задать вопрос».
+ */
+function sfrfr_blog_max_chat_url(): string
+{
+    $url = getenv('MAX_CHAT_URL') ?: getenv('MAX_PUBLIC_BOT_URL') ?: '';
+    $url = is_string($url) ? trim($url) : '';
+    if ($url === '') {
+        $url = (string) get_option('sfrfr_max_chat_url', '');
+    }
+    if ($url === '') {
+        $url = 'https://max.ru/id8905998693_1_bot';
+    }
+    return $url;
+}
+
+/**
+ * Кнопки «Задать вопрос»: MAX + форма лида.
+ */
+function sfrfr_blog_ask_cta_buttons_html(): string
+{
+    $max = esc_url(sfrfr_blog_max_chat_url());
+    $form = esc_url(home_url('/#zayavka'));
+    return '<a class="sfrfr-blog-cta__btn" href="' . $max . '" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a>'
+        . ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . $form . '">Оставить заявку</a>';
+}
+
+/**
  * @return array<string, string> slug => label
  */
 function sfrfr_blog_ui_chip_map(): array
@@ -69,10 +96,15 @@ add_action('wp_enqueue_scripts', static function (): void {
         return;
     }
     $base = sfrfr_blog_ui_asset_base();
-    $ver = '20260727';
+    $ver = '20260727c';
     wp_enqueue_style('sfrfr-blog-ui', $base . '/blog-ui.css', [], $ver);
     if (is_singular('post')) {
         wp_enqueue_script('sfrfr-blog-ui', $base . '/blog-ui.js', [], $ver, true);
+        wp_localize_script('sfrfr-blog-ui', 'sfrfrBlogUi', [
+            'maxUrl' => sfrfr_blog_max_chat_url(),
+            'formUrl' => home_url('/#zayavka'),
+            'startUrl' => home_url('/#kak-rabotat'),
+        ]);
     }
 });
 
@@ -120,9 +152,10 @@ add_action('loop_start', static function ($query): void {
     echo '</ul>';
 
     echo '<aside class="sfrfr-blog-archive-cta sfrfr-blog-cta">';
-    echo '<p class="sfrfr-blog-cta__title">Готовы проверить своё дело?</p>';
-    echo '<p class="sfrfr-blog-cta__text">Выберите MAX или веб-кабинет — документы загружаются только в защищённый контур.</p>';
-    echo '<a class="sfrfr-blog-cta__btn" href="' . esc_url(home_url('/#kak-rabotat')) . '">Начать проверку</a>';
+    echo '<p class="sfrfr-blog-cta__title">Задать вопрос</p>';
+    echo '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку. Документы — только в защищённом контуре, не через сайт.</p>';
+    echo sfrfr_blog_ask_cta_buttons_html();
+    echo ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . esc_url(home_url('/#kak-rabotat')) . '">Начать проверку</a>';
     echo '</aside>';
 });
 
@@ -138,9 +171,10 @@ add_filter('the_content', static function (string $content): string {
     }
 
     $cta = '<aside class="sfrfr-blog-cta sfrfr-blog-cta--end">'
-        . '<p class="sfrfr-blog-cta__title">Начать проверку</p>'
-        . '<p class="sfrfr-blog-cta__text">Одинаковые шаги в MAX и в браузере. Решение всегда принимает СФР.</p>'
-        . '<a class="sfrfr-blog-cta__btn" href="' . esc_url(home_url('/#kak-rabotat')) . '">Выбрать канал</a>'
+        . '<p class="sfrfr-blog-cta__title">Задать вопрос</p>'
+        . '<p class="sfrfr-blog-cta__text">Ответим в MAX или по заявке. Решение о перерасчёте всегда принимает СФР.</p>'
+        . sfrfr_blog_ask_cta_buttons_html()
+        . ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . esc_url(home_url('/#kak-rabotat')) . '">Начать проверку</a>'
         . '</aside>';
 
     $related = '';
