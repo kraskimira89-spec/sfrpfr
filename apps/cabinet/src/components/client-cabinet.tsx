@@ -1096,7 +1096,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/contract-acceptances`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offer_version: "offer-v1" }),
+        body: JSON.stringify({ offer_version: "offer-2026-07-27" }),
       });
       setNotice("Акцепт оферты и индивидуального заказа зафиксирован.");
       await openCase(selectedId, "docs");

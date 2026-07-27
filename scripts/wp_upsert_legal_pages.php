@@ -13,6 +13,11 @@ $assets = getenv('SFRFR_LEGAL_ASSETS') ?: (__DIR__ . '/assets');
 
 $pages = [
     [
+        'slug' => 'oferta',
+        'title' => 'Публичная оферта',
+        'file' => 'sfrfr-oferta.html',
+    ],
+    [
         'slug' => 'cookies',
         'title' => 'Политика cookies',
         'file' => 'sfrfr-cookies.html',
