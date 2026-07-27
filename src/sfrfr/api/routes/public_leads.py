@@ -12,7 +12,6 @@ from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.amocrm import sync_case_to_amocrm
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id
 from sfrfr.integrations.recaptcha import RecaptchaVerifier
-from sfrfr.integrations.taganay import sync_case_to_taganay
 
 router = APIRouter()
 
@@ -46,7 +45,6 @@ class PublicLeadResponse(BaseModel):
     max_bot_url: str
     cabinet_url: str
     channel_choice_hint: str
-    taganay: dict[str, Any] | None = None
     amocrm: dict[str, Any] | None = None
     detail: str = ""
 
@@ -204,16 +202,6 @@ def _create_lead(
             }
         ).execute()
 
-    taganay = sync_case_to_taganay(
-        case_id=case_id,
-        b2c_status="lead",
-        pipeline_status="intake",
-        full_name=payload.full_name.strip(),
-        phone=phone,
-        email=email,
-        task=f"lead:{payload.source}",
-    )
-
     admin_base = (settings.admin_public_url or "").rstrip("/")
     amocrm = sync_case_to_amocrm(
         case_id=case_id,
@@ -242,7 +230,6 @@ def _create_lead(
             "Выберите канал: мини-приложение MAX или веб-кабинет. "
             "Сканы документов — только там, не через сайт."
         ),
-        taganay=taganay,
         amocrm=amocrm,
         detail="lead_created",
     )
@@ -253,7 +240,7 @@ async def create_public_lead(
     request: Request,
     x_public_lead_token: str | None = Header(default=None),
 ) -> PublicLeadResponse:
-    """Создать лид в Supabase + sync Taganay/amoCRM. Документы через форму не принимаются."""
+    """Создать лид в Supabase + sync amoCRM. Документы через форму не принимаются."""
     _require_public_token(x_public_lead_token)
     raw = await request.json()
     if not isinstance(raw, dict):

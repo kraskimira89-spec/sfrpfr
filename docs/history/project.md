@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-27 (код без Taganay)
+
+- Удалён модуль `integrations/taganay`; env TAGANAY_*; CLI `taganay-sync`.
+- Единственная CRM в коде — amoCRM (ТЗ-12).
+
 ## 2026-07-27 (документация CRM)
 
 - Во всех ТЗ/доках CRM Taganay заменена на amoCRM; единый E2E-чеклист `docs/qa/lead-amocrm-e2e.md`.

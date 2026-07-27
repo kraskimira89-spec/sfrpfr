@@ -8,9 +8,9 @@ import pytest
 from fastapi import HTTPException
 
 from sfrfr.db.case_repository import CaseRepository
+from sfrfr.integrations.amocrm import AmoCrmClient
 from sfrfr.integrations.payments import parse_yookassa_event
 from sfrfr.integrations.sheets import SHEETS_WHITELIST, assert_anonymized_row, sanitize_rows
-from sfrfr.integrations.taganay import TaganayClient
 from sfrfr.security.auth import Principal
 from sfrfr.security.integrations import (
     PRIVATE_STORAGE_BUCKET,
@@ -130,32 +130,26 @@ def test_yookassa_event_parse() -> None:
     assert parsed["order_id"] == "ord"
 
 
-def test_taganay_payload_excludes_files(monkeypatch) -> None:
+def test_amocrm_payload_excludes_files(monkeypatch) -> None:
     captured: dict = {}
 
-    class _Resp:
-        status_code = 200
-        text = "{}"
+    def _request(self, method, path, *, json_body=None, params=None):
+        captured["method"] = method
+        captured["path"] = path
+        captured["json"] = json_body
+        return {
+            "ok": True,
+            "status_code": 200,
+            "response": {"_embedded": {"leads": [{"id": 99}]}},
+        }
 
-        def json(self):
-            return {"ok": True}
+    monkeypatch.setenv("AMO_SUBDOMAIN", "demo")
+    monkeypatch.setenv("AMO_ACCESS_TOKEN", "token")
+    from sfrfr.core.config import get_settings
 
-    class _Client:
-        def __init__(self, *a, **k):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def post(self, url, json=None, headers=None):
-            captured["json"] = json
-            return _Resp()
-
-    monkeypatch.setattr("sfrfr.integrations.taganay.httpx.Client", _Client)
-    client = TaganayClient(webhook_url="https://example.test/hook", api_token="t")
+    get_settings.cache_clear()
+    monkeypatch.setattr(AmoCrmClient, "_request", _request)
+    client = AmoCrmClient()
     result = client.sync_case(
         case_id="c1",
         b2c_status="lead",
@@ -163,9 +157,15 @@ def test_taganay_payload_excludes_files(monkeypatch) -> None:
         full_name="Иван",
         phone="+7900",
     )
+    get_settings.cache_clear()
     assert result["ok"] is True
     body = captured["json"]
-    assert body["case_id"] == "c1"
-    assert "ocr" not in body
-    assert "storage_path" not in body
-    assert "findings" not in body
+    assert isinstance(body, list) and body
+    lead = body[0]
+    blob = str(lead)
+    assert "ocr" not in blob.lower()
+    assert "storage_path" not in blob
+    assert "findings" not in blob
+    assert "snils" not in blob.lower()
+    codes = {item.get("field_code") for item in lead.get("custom_fields_values") or []}
+    assert "CASE_ID" in codes

@@ -917,7 +917,7 @@ export function AdminCabinet() {
                   </span>
                   {item.crm_url && (
                     <span>
-                      Taganay: <a href={item.crm_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>открыть</a>
+                      amoCRM: <a href={item.crm_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>открыть</a>
                     </span>
                   )}
                 </button>
@@ -954,7 +954,7 @@ export function AdminCabinet() {
               <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет дела</a>
               <a href={detail.channels.max_bot_url} target="_blank" rel="noreferrer">Бот MAX</a>
               {detail.crm_url && (
-                <a href={detail.crm_url} target="_blank" rel="noreferrer">Taganay CRM</a>
+                <a href={detail.crm_url} target="_blank" rel="noreferrer">amoCRM</a>
               )}
             </div>
             <button type="button" onClick={() => void requestReview()} disabled={busy}>

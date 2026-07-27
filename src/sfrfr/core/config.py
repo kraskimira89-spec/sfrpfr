@@ -55,11 +55,7 @@ class Settings(BaseSettings):
 
     default_diagnostic_price_rub: int = 3000
     success_fee_percent: int = 10
-    taganay_case_url_template: str = "https://taganay.clientbase.ru/"
-    # Taganay: исходящий webhook (лиды/этапы по case_id), минимум контактов
-    taganay_webhook_url: str = ""
-    taganay_api_token: str = ""
-    # amoCRM API v4 (ТЗ-12); параллельно с Taganay, если оба заданы
+    # amoCRM API v4 (ТЗ-12)
     amo_subdomain: str = ""
     amo_access_token: str = ""
     amo_pipeline_id: str = ""

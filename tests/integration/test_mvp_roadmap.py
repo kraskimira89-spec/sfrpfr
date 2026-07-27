@@ -131,11 +131,11 @@ def test_stage3_signed_url_short_ttl() -> None:
     assert SIGNED_URL_TTL_SECONDS <= 120
 
 
-def test_stage6_sheets_and_taganay_modules_exist() -> None:
+def test_stage6_sheets_and_amocrm_modules_exist() -> None:
     assert (REPO / "src/sfrfr/integrations/sheets/__init__.py").exists()
-    assert (REPO / "src/sfrfr/integrations/taganay/__init__.py").exists()
     assert (REPO / "src/sfrfr/integrations/amocrm/__init__.py").exists()
     assert (REPO / "src/sfrfr/integrations/payments/__init__.py").exists()
+    assert not (REPO / "src/sfrfr/integrations/taganay/__init__.py").exists()
 
 
 def test_public_leads_route_registered() -> None:

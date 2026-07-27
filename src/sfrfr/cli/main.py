@@ -559,28 +559,6 @@ def gsc_sites() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command("taganay-sync")
-def taganay_sync(
-    case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),
-) -> None:
-    """Отправить минимум данных дела в Taganay CRM."""
-    import json
-
-    from sfrfr.db.case_repository import CaseRepository
-    from sfrfr.integrations.taganay.sync import push_case_to_taganay
-    from sfrfr.security.auth import Principal, StaffRole
-
-    repo = CaseRepository()
-    principal = Principal(user_id="cli", role=StaffRole.ADMIN, email=None)
-    case = repo.require_case(principal, case_id)
-    result = push_case_to_taganay(case, task="cli_sync")
-    typer.echo(json.dumps(result, ensure_ascii=False))
-    if result.get("skipped"):
-        raise typer.Exit(code=0)
-    if not result.get("ok"):
-        raise typer.Exit(code=1)
-
-
 @app.command("amocrm-ensure-fields")
 def amocrm_ensure_fields() -> None:
     """Создать в amoCRM недостающие custom fields сделки (CASE_ID и др.)."""

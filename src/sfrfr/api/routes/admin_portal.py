@@ -29,7 +29,6 @@ from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
 from sfrfr.integrations.sheets import SheetsExporter, sanitize_rows
-from sfrfr.integrations.taganay.sync import push_case_to_taganay
 from sfrfr.security.auth import (
     Principal,
     StaffRole,
@@ -74,22 +73,17 @@ def _crm_url(crm_external_id: str | None) -> str | None:
     if not crm_external_id:
         return None
     settings = get_settings()
-    if str(crm_external_id).isdigit() and (settings.amo_subdomain or "").strip():
-        template = settings.amo_case_url_template or (
-            "https://{subdomain}.amocrm.ru/leads/detail/{id}"
-        )
-        return template.replace("{subdomain}", settings.amo_subdomain.strip()).replace(
-            "{id}", str(crm_external_id)
-        )
-    template = settings.taganay_case_url_template
-    if "{id}" in template:
-        return template.replace("{id}", crm_external_id)
-    return template.rstrip("/") + f"?case_id={crm_external_id}"
+    subdomain = (settings.amo_subdomain or "").strip()
+    if not subdomain:
+        return None
+    template = settings.amo_case_url_template or (
+        "https://{subdomain}.amocrm.ru/leads/detail/{id}"
+    )
+    return template.replace("{subdomain}", subdomain).replace("{id}", str(crm_external_id))
 
 
 def _push_case_crm(case: dict[str, Any], *, task: str | None = None) -> None:
-    """Неблокирующий sync в настроенные CRM (Taganay и/или amo)."""
-    push_case_to_taganay(case, task=task)
+    """Неблокирующий sync в amoCRM."""
     amo = push_case_to_amocrm(case, task=task)
     lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
     if lead_id and amo.get("ok") and not case.get("crm_external_id"):

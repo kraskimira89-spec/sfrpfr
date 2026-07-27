@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-27 (код: убран Taganay)
+
+- Удалён `integrations/taganay`; sync только amoCRM (public leads, admin, CLI).
+- Admin UI: ссылки «amoCRM»; тест payload без файлов переведён на AmoCrmClient.
+
 ## 2026-07-27 (доки: Taganay → amoCRM)
 
 - Во всех ТЗ и docs заменена CRM Taganay на amoCRM; QA-чеклист → `docs/qa/lead-amocrm-e2e.md`.
