@@ -35,6 +35,8 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-hide-astra-copyright.php" \
 echo "MU hide-copyright OK"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-footer.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
+cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
 echo "MU site-footer OK"
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"

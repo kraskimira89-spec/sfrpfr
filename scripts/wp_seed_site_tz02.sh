@@ -44,10 +44,11 @@ echo "==> Тема Astra"
 "${WP[@]}" theme install astra --activate --force >/dev/null
 "${WP[@]}" plugin activate wpforms-lite 2>/dev/null || true
 
-echo "==> MU-plugin: reCAPTCHA Enterprise + lead API"
+echo "==> MU-plugin: reCAPTCHA Enterprise + lead API + Yandex verification"
 mkdir -p "${SITE_DIR}/wp-content/mu-plugins"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-recaptcha-lead.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.php"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.js"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-verification.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
 mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-recaptcha-lead.js"
 chown -R www-data:www-data "${SITE_DIR}/wp-content/mu-plugins" "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
