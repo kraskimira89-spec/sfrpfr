@@ -102,6 +102,11 @@
       if (kids[mid]) article.insertBefore(cta, kids[mid]);
       else article.appendChild(cta);
     }
+
+    // Не вкладывать CTA внутрь списков/блоков с overflow
+    if (cta.parentElement && cta.parentElement !== article) {
+      article.insertBefore(cta, cta.parentElement);
+    }
   }
 
   if (document.body.classList.contains("single-post") || document.body.classList.contains("sfrfr-blog-single")) {

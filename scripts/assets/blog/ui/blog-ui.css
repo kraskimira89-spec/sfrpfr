@@ -45,11 +45,21 @@
 
 .sfrfr-blog-archive-cta,
 .sfrfr-blog-cta {
-  margin: 1.5rem 0;
-  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1.25rem 1.35rem 1.4rem;
   background: var(--sfrfr-blog-bg);
   border: 1px solid var(--sfrfr-blog-line);
   border-radius: 12px;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+  clear: both;
+  box-sizing: border-box;
+}
+
+.sfrfr-blog-cta--mid {
+  margin-top: 1.75rem;
+  margin-bottom: 2.25rem;
 }
 
 .sfrfr-blog-cta__title {
@@ -59,19 +69,26 @@
 }
 
 .sfrfr-blog-cta__text {
-  margin: 0 0 0.85rem;
+  margin: 0 0 1rem;
   color: var(--sfrfr-blog-muted);
   font-size: 1rem;
 }
 
 .sfrfr-blog-cta__btn {
-  display: inline-block;
-  padding: 0.7rem 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0.75rem 1.35rem;
   background: var(--sfrfr-blog-cta);
   color: #fff !important;
-  text-decoration: none;
+  text-decoration: none !important;
   border-radius: 8px;
   font-weight: 600;
+  line-height: 1.25;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .sfrfr-blog-cta__btn:hover,
@@ -87,6 +104,9 @@
   border: 1px solid var(--sfrfr-blog-line);
   border-radius: 12px;
   background: #fff;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
 }
 
 .sfrfr-blog-toc__title {
@@ -137,9 +157,26 @@
   padding-left: 1.2rem;
 }
 
-@media (min-width: 900px) {
-  .sfrfr-blog-toc--desktop {
-    position: sticky;
-    top: 1rem;
-  }
+/* Sticky TOC только если тема даёт сайдбар; в потоке статьи sticky наезжает на CTA. */
+.sfrfr-blog-single .sfrfr-blog-toc--desktop,
+.single-post .sfrfr-blog-toc--desktop {
+  position: static;
+}
+
+/* Astra иногда режет overflow у блоков в entry-content */
+.sfrfr-blog-single .entry-content,
+.single-post .entry-content,
+.sfrfr-blog-single .entry-content .sfrfr-blog-cta,
+.single-post .entry-content .sfrfr-blog-cta,
+.sfrfr-blog-single .entry-content .sfrfr-article-cta,
+.single-post .entry-content .sfrfr-article-cta {
+  overflow: visible !important;
+}
+
+.sfrfr-blog-single .entry-content h2,
+.single-post .entry-content h2 {
+  clear: both;
+  position: relative;
+  z-index: 0;
+  margin-top: 1.75rem;
 }

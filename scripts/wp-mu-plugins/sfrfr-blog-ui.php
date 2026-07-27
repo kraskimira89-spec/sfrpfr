@@ -69,11 +69,11 @@ add_action('wp_enqueue_scripts', static function (): void {
         return;
     }
     $base = sfrfr_blog_ui_asset_base();
-    $ver = '20260726';
-    wp_enqueue_style('sfrfr-blog-ui', $base . '/blog-ui.css', [], $ver);
-    if (is_singular('post')) {
-        wp_enqueue_script('sfrfr-blog-ui', $base . '/blog-ui.js', [], $ver, true);
-    }
+  var ver = '20260727';
+  wp_enqueue_style('sfrfr-blog-ui', $base . '/blog-ui.css', [], $ver);
+  if (is_singular('post')) {
+      wp_enqueue_script('sfrfr-blog-ui', $base . '/blog-ui.js', [], $ver, true);
+  }
 });
 
 add_filter('body_class', static function (array $classes): array {
