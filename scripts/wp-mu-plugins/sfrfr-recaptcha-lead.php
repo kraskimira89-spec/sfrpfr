@@ -90,7 +90,7 @@ function sfrfr_public_lead_token(): string
 }
 
 add_action('wp_enqueue_scripts', function () {
-    if (is_admin()) {
+    if (is_admin() || !is_front_page()) {
         return;
     }
     $site_key = sfrfr_recaptcha_site_key();
@@ -137,6 +137,9 @@ add_action('wp_enqueue_scripts', function () {
 }, 20);
 
 add_action('wp_head', function () {
+    if (!is_front_page()) {
+        return;
+    }
     echo '<style id="sfrfr-recaptcha-hide">.wpforms-field.sfrfr-recaptcha-token,.wpforms-field-recaptcha_token{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important;}</style>' . "\n";
 }, 5);
 

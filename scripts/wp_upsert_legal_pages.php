@@ -24,7 +24,7 @@ $pages = [
     ],
     [
         'slug' => 'cookies',
-        'title' => 'Политика cookies',
+        'title' => 'Правила использования файлов браузера',
         'file' => 'sfrfr-cookies.html',
     ],
 ];

@@ -132,7 +132,7 @@ CONSENT_ID="$(upsert_page soglasie "Согласие на обработку п�
 COOKIES_FILE="${SCRIPT_DIR}/assets/sfrfr-cookies.html"
 COOKIES_ID=""
 if [ -f "$COOKIES_FILE" ]; then
-  COOKIES_ID="$(upsert_page cookies "Политика cookies" "$COOKIES_FILE")"
+  COOKIES_ID="$(upsert_page cookies "Правила использования файлов браузера" "$COOKIES_FILE")"
 fi
 echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID COOKIES=$COOKIES_ID"
 

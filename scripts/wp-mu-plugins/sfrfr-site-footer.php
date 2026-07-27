@@ -60,7 +60,7 @@ function sfrfr_site_footer_html(): string
         <a href="{$home}oferta/">Оферта</a><br>
         <a href="{$home}politika-pdn/">Политика обработки ПДн (СОПД)</a><br>
         <a href="{$home}soglasie/">Согласие на обработку ПДн</a><br>
-        <a href="{$home}cookies/">Политика cookies</a><br>
+        <a href="{$home}cookies/">Файлы браузера</a><br>
         <a href="{$home}blog/">Статьи</a>
       </p>
     </div>
@@ -68,7 +68,7 @@ function sfrfr_site_footer_html(): string
       <p><strong>Контакты</strong></p>
       <p class="sfrfr-req">
         Телефон: <a href="tel:+79091950408">+7&nbsp;909&nbsp;195‑04‑08</a><br>
-        Email: <a href="mailto:prismotr89@yandex.ru">prismotr89@yandex.ru</a><br>
+        Почта: <a href="mailto:prismotr89@yandex.ru">prismotr89@yandex.ru</a><br>
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Написать в MAX</a>
       </p>
       <p><strong>Банковские реквизиты</strong></p>
