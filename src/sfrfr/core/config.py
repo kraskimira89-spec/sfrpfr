@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     yandex_folder_id: str = ""
     yandex_model: str = "yandexgpt/latest"
     yandex_base_url: str = "https://llm.api.cloud.yandex.net/v1"
+    # Яндекс Workspace OAuth (ТЗ-14) — отдельно от Cloud AI
+    yandex_oauth_client_id: str = ""
+    yandex_oauth_client_secret: str = ""
+    yandex_oauth_access_token: str = ""
+    yandex_oauth_refresh_token: str = ""
+    yandex_workspace_email: str = "proverkastaza@yandex.ru"
+    yandex_telemost_enabled: bool = True
+    yandex_mail_enabled: bool = True
+    yandex_calendar_enabled: bool = True
+    yandex_disk_enabled: bool = False
     # Алиасы из раздела «Аналитика» / docs (часто заполнены вместо YANDEX_*)
     llm_api_key: str = ""
     llm_folder_id: str = ""

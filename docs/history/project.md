@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-27 (код ТЗ-14 Yandex Workspace)
+
+- Реализованы oauth/mail/telemost/calendar; Диск off.
+- Admin + CLI; `cases.meeting_url`; Telemost API требует 360 на личном ящике.
+
 ## 2026-07-27 (ТЗ-14 Яндекс Workspace)
 
 - Спека OAuth сервисов аккаунта (почта/Телемост/календарь) отдельно от Cloud AI Studio.

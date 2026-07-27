@@ -22,6 +22,7 @@ class StaffCaseSummary(BaseModel):
     client_phone: str | None = None
     crm_external_id: str | None = None
     crm_url: str | None = None
+    meeting_url: str | None = None
     preferred_channel: str = "unset"
     max_linked: bool = False
     web_linked: bool = False
@@ -67,7 +68,14 @@ class ResultConfirmRequest(BaseModel):
 class OrderCreateRequest(BaseModel):
     package_code: Literal["DIAG", "ACCOMP", "SF_LUMP", "SF_MONTH"]
     amount_rub: float = Field(gt=0)
-    status: str = "pending"
+    status: Literal["draft", "pending", "paid", "cancelled"] = "pending"
+
+
+class YandexMailRequest(BaseModel):
+    template: Literal["request_docs", "reminder", "custom"] = "request_docs"
+    to: str | None = Field(default=None, max_length=200)
+    subject: str | None = Field(default=None, max_length=200)
+    body: str | None = Field(default=None, max_length=4000)
 
 
 class KnowledgeFeedbackRequest(BaseModel):

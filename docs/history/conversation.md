@@ -1,5 +1,11 @@
 # История беседы (кратко)
 
+## 2026-07-27 (код ТЗ-14 Yandex Workspace)
+
+- Модуль `integrations/yandex_workspace`: ping, Телемост, SMTP XOAUTH2, CalDAV.
+- CLI + admin API `/telemost` `/email`; кнопка в admin; миграция `cases.meeting_url`.
+- Телемост на личном аккаунте → 403 Organizations (нужен 360).
+
 ## 2026-07-27 (ТЗ-14 Яндекс Workspace)
 
 - OAuth ID для `proverkastaza@yandex.ru`: почта, Телемост, календарь; Диск off по умолчанию.

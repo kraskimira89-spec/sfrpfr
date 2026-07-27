@@ -18,6 +18,7 @@ from sfrfr.api.schemas.admin import (
     ResultConfirmRequest,
     StaffCaseSummary,
     StaffRoleUpsert,
+    YandexMailRequest,
 )
 from sfrfr.api.schemas.portal import CaseStatusUpdate, CaseSummary
 from sfrfr.core.config import get_settings
@@ -108,6 +109,7 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         client_phone=client.get("phone") if show_contact else None,
         crm_external_id=case.get("crm_external_id"),
         crm_url=_crm_url(case.get("crm_external_id")),
+        meeting_url=case.get("meeting_url"),
         preferred_channel=client.get("preferred_channel") or "unset",
         max_linked=bool(client.get("max_user_id")),
         web_linked=bool(client.get("user_id")),
@@ -134,6 +136,7 @@ def _filter_staff_case(
         "expert_user_id": case.get("expert_user_id"),
         "crm_external_id": case.get("crm_external_id"),
         "crm_url": _crm_url(case.get("crm_external_id")),
+        "meeting_url": case.get("meeting_url"),
         "segment": case.get("segment"),
         "region_bucket": case.get("region_bucket"),
         "problem_type": case.get("problem_type"),
@@ -462,6 +465,63 @@ def request_review(
     repo = _repo()
     repo.require_case(principal, case_id)
     return repo.request_pipeline_run(case_id, principal.user_id)
+
+
+@router.post("/admin/cases/{case_id}/telemost")
+def create_case_telemost(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Создать встречу Яндекс Телемост и сохранить meeting_url (ТЗ-14)."""
+    from sfrfr.db.session import get_supabase_client
+    from sfrfr.integrations.yandex_workspace import create_conference
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    result = create_conference(title_note=f"case:{case_id}")
+    if result.get("ok") and result.get("join_url"):
+        try:
+            get_supabase_client().table("cases").update(
+                {"meeting_url": str(result["join_url"])}
+            ).eq("id", case_id).execute()
+            repo.audit(
+                case_id,
+                principal.audit_actor_id,
+                f"yandex_telemost_create:{result.get('conference_id')}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            result["persist_error"] = type(exc).__name__
+            result["persist_detail"] = str(exc)[:200]
+    return result
+
+
+@router.post("/admin/cases/{case_id}/email")
+def send_case_email(
+    case_id: str,
+    payload: YandexMailRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Исходящее письмо с ящика Workspace (без вложений/OCR)."""
+    from sfrfr.integrations.yandex_workspace import send_mail
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    client = case.get("clients") or {}
+    if isinstance(client, list):
+        client = client[0] if client else {}
+    to_addr = (payload.to or client.get("email") or "").strip()
+    if not to_addr:
+        raise HTTPException(status_code=400, detail="client email required (or pass to)")
+    result = send_mail(
+        to=to_addr,
+        template=payload.template,
+        case_id=case_id,
+        subject=payload.subject,
+        body=payload.body,
+    )
+    if result.get("ok"):
+        repo.audit(case_id, principal.audit_actor_id, f"yandex_mail_send:{payload.template}")
+    return result
 
 
 @router.post("/admin/cases/{case_id}/result/confirm")

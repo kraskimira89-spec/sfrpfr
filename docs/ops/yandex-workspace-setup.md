@@ -115,10 +115,14 @@ sudo systemctl restart sfrfr-api
 
 | Проверка | Ожидание |
 |----------|----------|
-| `sfrfr yandex-workspace-ping` | `ok` / scopes видны |
-| Создать Телемост на тестовом `case_id` | URL `https://telemost.yandex.ru/…` |
-| Тестовое письмо на свой ящик | From = `proverkastaza@yandex.ru` |
-| Disk API | не вызывается при `YANDEX_DISK_ENABLED=false` |
+| `sfrfr yandex-workspace-ping` | `ok`, login `proverkastaza` |
+| `sfrfr yandex-telemost-create -c <uuid>` | `join_url` **или** `403 ApiRestrictedToOrganizations` → нужен Яндекс 360 |
+| `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
+| Admin: кнопки «Создать Телемост» / «Письмо» | audit + `meeting_url` |
+
+> **Почта SMTP:** в [настройках Яндекс Почты](https://mail.yandex.ru/#setup/client) включите доступ почтовых клиентов (IMAP) и **«Пароли приложений и OAuth-токены»**. Иначе SMTP вернёт *access rights* при верном XOAUTH2.
+>
+> **Телемост API** на личном `@yandex.ru` часто отвечает `ApiRestrictedToOrganizations`. Тогда: подключить Яндекс 360 **или** вставлять ссылку встречи вручную в карточку после создания в UI Телемоста.
 
 Пока модуля нет — проверки вручную:
 

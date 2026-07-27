@@ -22,6 +22,7 @@ type StaffCaseSummary = {
   checklist_open_count: number;
   crm_external_id: string | null;
   crm_url: string | null;
+  meeting_url?: string | null;
   preferred_channel: string;
   max_linked: boolean;
   web_linked: boolean;
@@ -85,6 +86,7 @@ type StaffCaseDetail = {
     created_at?: string | null;
   }[];
   crm_url?: string | null;
+  meeting_url?: string | null;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
   orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
@@ -476,6 +478,61 @@ export function AdminCabinet() {
     await apiFetch(`/api/portal/admin/cases/${detail.id}/request-review`, token, { method: "POST" });
     setNotice("Проверка запрошена.");
     await openCase(detail.id);
+  }
+
+  async function createTelemost() {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{
+        ok?: boolean;
+        skipped?: boolean;
+        join_url?: string;
+        error?: string;
+        hint?: string;
+        detail?: unknown;
+      }>(`/api/portal/admin/cases/${detail.id}/telemost`, token, { method: "POST" });
+      if (result.ok && result.join_url) {
+        setNotice(`Телемост создан: ${result.join_url}`);
+        await openCase(detail.id);
+      } else if (result.skipped) {
+        setNotice("Телемост пропущен (нет токена / выключен).");
+      } else {
+        setNotice(
+          `Телемост: ${result.error || "ошибка"}${result.hint ? ` — ${result.hint}` : ""}`,
+        );
+      }
+    } catch {
+      setNotice("Не удалось создать Телемост.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendWorkspaceEmail() {
+    if (!token || !detail) return;
+    if (!detail.client.email) {
+      setNotice("У клиента нет email — письмо не отправить.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ ok?: boolean; skipped?: boolean; error?: string }>(
+        `/api/portal/admin/cases/${detail.id}/email`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({ template: "request_docs" }),
+        },
+      );
+      if (result.ok) setNotice("Письмо «запрос документов» отправлено.");
+      else if (result.skipped) setNotice("Почта пропущена (нет токена / выключена).");
+      else setNotice(`Почта: ${result.error || "ошибка"}`);
+    } catch {
+      setNotice("Не удалось отправить письмо.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function savePipeline() {
@@ -956,10 +1013,21 @@ export function AdminCabinet() {
               {detail.crm_url && (
                 <a href={detail.crm_url} target="_blank" rel="noreferrer">amoCRM</a>
               )}
+              {detail.meeting_url && (
+                <a href={detail.meeting_url} target="_blank" rel="noreferrer">Телемост</a>
+              )}
             </div>
-            <button type="button" onClick={() => void requestReview()} disabled={busy}>
-              Запросить проверку / run
-            </button>
+            <div className="row-actions">
+              <button type="button" onClick={() => void requestReview()} disabled={busy}>
+                Запросить проверку / run
+              </button>
+              <button type="button" onClick={() => void createTelemost()} disabled={busy}>
+                Создать Телемост
+              </button>
+              <button type="button" onClick={() => void sendWorkspaceEmail()} disabled={busy}>
+                Письмо: запрос документов
+              </button>
+            </div>
           </div>
 
           <div className="panel">

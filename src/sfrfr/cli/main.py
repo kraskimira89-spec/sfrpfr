@@ -599,5 +599,86 @@ def amocrm_sync(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-workspace-ping")
+def yandex_workspace_ping() -> None:
+    """Проверить OAuth-токен Яндекс Workspace (ТЗ-14)."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import ping
+
+    result = ping()
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-telemost-create")
+def yandex_telemost_create(
+    case_id: str = typer.Option(..., "--case-id", "-c", help="UUID дела"),
+) -> None:
+    """Создать встречу Телемост и сохранить meeting_url на деле."""
+    import json
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.db.session import get_supabase_client
+    from sfrfr.integrations.yandex_workspace import create_conference
+    from sfrfr.security.auth import Principal, StaffRole
+
+    repo = CaseRepository()
+    principal = Principal(user_id="cli", role=StaffRole.ADMIN, email=None)
+    repo.require_case(principal, case_id)
+    result = create_conference(title_note=f"case:{case_id}")
+    if result.get("ok") and result.get("join_url"):
+        try:
+            get_supabase_client().table("cases").update(
+                {"meeting_url": str(result["join_url"])}
+            ).eq("id", case_id).execute()
+            repo.audit(case_id, None, f"yandex_telemost_create:{result.get('conference_id')}")
+        except Exception as exc:  # noqa: BLE001
+            result["persist_error"] = type(exc).__name__
+            result["persist_detail"] = str(exc)[:200]
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-mail-send")
+def yandex_mail_send(
+    to: str = typer.Option(..., "--to", help="Email получателя"),
+    template: str = typer.Option("request_docs", "--template", "-t"),
+    case_id: str | None = typer.Option(None, "--case-id", "-c"),
+    subject: str | None = typer.Option(None, "--subject"),
+    body: str | None = typer.Option(None, "--body"),
+) -> None:
+    """Отправить письмо с ящика Workspace (шаблоны request_docs|reminder|custom)."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import send_mail
+
+    result = send_mail(
+        to=to,
+        template=template,
+        case_id=case_id,
+        subject=subject,
+        body=body,
+    )
+    if case_id and result.get("ok"):
+        try:
+            from sfrfr.db.case_repository import CaseRepository
+
+            CaseRepository().audit(case_id, None, f"yandex_mail_send:{template}")
+        except Exception:  # noqa: BLE001
+            pass
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
