@@ -1078,7 +1078,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/consents`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: "pdn-v1" }),
+        body: JSON.stringify({ version: "pdn-consent-2026-07-27" }),
       });
       setNotice("Согласие на обработку ПДн зафиксировано.");
       await openCase(selectedId, view === "docs" ? "docs" : "case");
@@ -1953,7 +1953,7 @@ export function ClientCabinet() {
               <p className="ok">Согласие принято.</p>
             ) : (
               <button type="button" onClick={() => void acceptConsent()} disabled={busy}>
-                Подтвердить согласие
+                Даю согласие на обработку персональных данных
               </button>
             )}
             <ul className="plain-list">

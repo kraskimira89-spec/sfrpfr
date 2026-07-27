@@ -13,6 +13,8 @@ from fastapi import HTTPException, status
 from sfrfr.db.session import get_supabase_client
 from sfrfr.security.auth import Principal, StaffRole
 
+CURRENT_CONSENT_VERSION = "pdn-consent-2026-07-27"
+
 
 class CaseRepository:
     def __init__(self) -> None:
@@ -349,6 +351,7 @@ class CaseRepository:
             self.client.table("consents")
             .select("id")
             .eq("case_id", case_id)
+            .eq("version", CURRENT_CONSENT_VERSION)
             .limit(1)
             .execute()
         )

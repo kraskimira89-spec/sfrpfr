@@ -117,25 +117,18 @@ PRIVACY_CONTENT='<!-- wp:paragraph -->
 <p><a href="/soglasie/">Согласие на обработку</a> · <a href="/oferta/">Оферта</a></p>
 <!-- /wp:paragraph -->'
 
-CONSENT_CONTENT='<!-- wp:paragraph -->
-<p><strong>Черновик</strong> формы согласия на обработку персональных данных.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Отправляя заявку на сайте или начиная диалог в MAX, вы подтверждаете согласие на обработку указанных вами данных обращения (имя, телефон / предпочтительный канал связи) в целях обратной связи и оказания услуг SFRFR.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Вы можете отозвать согласие, направив обращение оператору. Отказ от согласия может сделать невозможным оказание услуги.</p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p>Подробнее: <a href="/politika-pdn/">Политика обработки ПДн</a> · <a href="/oferta/">Оферта</a></p>
-<!-- /wp:paragraph -->'
+CONSENT_FILE="${SCRIPT_DIR}/assets/sfrfr-consent.html"
+if [ ! -f "$CONSENT_FILE" ]; then
+  echo "ERROR: файл согласия не найден: $CONSENT_FILE" >&2
+  exit 1
+fi
 
 echo "==> Страницы"
 HOME_ID="$(upsert_page glavnaya "Главная" "$HOME_FILE")"
 rm -f "$HOME_FILE"
 OFFER_ID="$(upsert_page oferta "Публичная оферта" "$OFFER_FILE")"
 PRIVACY_ID="$(upsert_page politika-pdn "Политика обработки ПДн" "$PRIVACY_CONTENT")"
-CONSENT_ID="$(upsert_page soglasie "Согласие на обработку ПДн" "$CONSENT_CONTENT")"
+CONSENT_ID="$(upsert_page soglasie "Согласие на обработку персональных данных" "$CONSENT_FILE")"
 COOKIES_FILE="${SCRIPT_DIR}/assets/sfrfr-cookies.html"
 COOKIES_ID=""
 if [ -f "$COOKIES_FILE" ]; then

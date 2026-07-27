@@ -59,8 +59,8 @@
         <input id="client-name" type="text" maxlength="200" autocomplete="name" placeholder="Как к вам обращаться" />
       </label>
       <label class="check">
-        <input id="consent" type="checkbox" checked />
-        <span>Согласие на обработку ПДн (pdn-v1)</span>
+        <input id="consent" type="checkbox" />
+        <span>Даю <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a></span>
       </label>
       <button type="button" id="btn-open" class="btn primary">Открыть кабинет</button>
     </section>
@@ -89,6 +89,15 @@
         <div id="case-next" class="meta-block hidden">
           <p class="label">Ближайшее действие</p>
           <p id="case-next-text">—</p>
+        </div>
+        <div id="case-consent" class="meta-block hidden">
+          <p class="label">Согласие на обработку персональных данных</p>
+          <p class="hint">Ознакомьтесь с <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">текстом согласия</a>.</p>
+          <label class="check">
+            <input id="case-consent-check" type="checkbox" />
+            <span>Даю согласие редакции pdn-consent-2026-07-27</span>
+          </label>
+          <button type="button" id="btn-case-consent" class="btn primary" disabled>Зафиксировать согласие</button>
         </div>
         <div class="actions">
           <label class="btn secondary file-btn">

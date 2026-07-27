@@ -6,6 +6,7 @@
     "/",
   );
   const botUrl = cfg.maxBotUrl || "https://max.ru/";
+  const CONSENT_VERSION = "pdn-consent-2026-07-27";
 
   const PIPELINE_STEPS = [
     "intake",
@@ -38,6 +39,9 @@
     caseFindings: document.getElementById("case-findings"),
     caseNext: document.getElementById("case-next"),
     caseNextText: document.getElementById("case-next-text"),
+    caseConsent: document.getElementById("case-consent"),
+    caseConsentCheck: document.getElementById("case-consent-check"),
+    btnCaseConsent: document.getElementById("btn-case-consent"),
     caseChecklist: document.getElementById("case-checklist"),
     caseChecklistList: document.getElementById("case-checklist-list"),
     checklistEmpty: document.getElementById("checklist-empty"),
@@ -298,6 +302,16 @@
       els.caseNext.classList.add("hidden");
     }
 
+    if (els.caseConsent) {
+      els.caseConsent.classList.toggle("hidden", Boolean(c.consent_accepted));
+    }
+    if (els.caseConsentCheck && !c.consent_accepted) {
+      els.caseConsentCheck.checked = false;
+    }
+    if (els.btnCaseConsent) {
+      els.btnCaseConsent.disabled = true;
+    }
+
     const checklist = Array.isArray(c.checklist_items) ? c.checklist_items : [];
     if (els.caseChecklistList) {
       if (checklist.length) {
@@ -514,7 +528,7 @@
   async function ensureConsent(caseId) {
     await api(`/api/portal/cases/${encodeURIComponent(caseId)}/consents`, {
       method: "POST",
-      body: JSON.stringify({ version: "pdn-v1" }),
+      body: JSON.stringify({ version: CONSENT_VERSION }),
     });
   }
 
@@ -559,8 +573,7 @@
   async function uploadFile(file) {
     if (!currentCase?.id) throw new Error("Сначала откройте дело");
     if (!currentCase.consent_accepted) {
-      await ensureConsent(currentCase.id);
-      currentCase.consent_accepted = true;
+      throw new Error("Сначала отдельно подтвердите согласие на обработку персональных данных");
     }
     const fd = new FormData();
     fd.append("file", file, file.name);
@@ -575,8 +588,7 @@
   async function runPipeline() {
     if (!currentCase?.id) return;
     if (!currentCase.consent_accepted) {
-      await ensureConsent(currentCase.id);
-      currentCase.consent_accepted = true;
+      throw new Error("Сначала отдельно подтвердите согласие на обработку персональных данных");
     }
     const result = await api(`/api/portal/cases/${encodeURIComponent(currentCase.id)}/run`, {
       method: "POST",
@@ -676,6 +688,26 @@
       setBusy(true);
       await refreshCase();
       toast("Обновлено");
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  els.caseConsentCheck?.addEventListener("change", () => {
+    if (els.btnCaseConsent) {
+      els.btnCaseConsent.disabled = !els.caseConsentCheck.checked;
+    }
+  });
+
+  els.btnCaseConsent?.addEventListener("click", async () => {
+    if (!currentCase?.id || !els.caseConsentCheck?.checked) return;
+    try {
+      setBusy(true);
+      await ensureConsent(currentCase.id);
+      toast("Согласие зафиксировано");
+      await refreshCase();
     } catch (err) {
       toast(err.message);
     } finally {
@@ -790,10 +822,6 @@
         method: "POST",
         body: JSON.stringify({ full_name: me?.full_name, problem_type: "max_miniapp" }),
       });
-      if (els.consent?.checked !== false) {
-        await ensureConsent(c.id).catch(() => null);
-        c.consent_accepted = true;
-      }
       renderCase(c);
     } catch (err) {
       toast(err.message);

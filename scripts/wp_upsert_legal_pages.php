@@ -18,6 +18,11 @@ $pages = [
         'file' => 'sfrfr-oferta.html',
     ],
     [
+        'slug' => 'soglasie',
+        'title' => 'Согласие на обработку персональных данных',
+        'file' => 'sfrfr-consent.html',
+    ],
+    [
         'slug' => 'cookies',
         'title' => 'Политика cookies',
         'file' => 'sfrfr-cookies.html',
