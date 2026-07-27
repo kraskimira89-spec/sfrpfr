@@ -30,12 +30,8 @@
 
 ## Sitemap
 
-Rank Math обычно отдаёт:
-
-- `https://proverkastaza.ru/sitemap_index.xml`
-- или `https://proverkastaza.ru/sitemap.xml`
-
-Если 404 — в WP: Rank Math → Sitemap Settings → включить sitemap и сбросить permalinks.
+На live: `https://proverkastaza.ru/sitemap.xml` → 301 на `https://proverkastaza.ru/wp-sitemap.xml` (ядро WP / Rank Math).  
+Если 404 — Rank Math → Sitemap Settings → включить и сбросить permalinks.
 
 ## Сид с сервера
 
