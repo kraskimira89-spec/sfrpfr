@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-27 (ТЗ-15 локализация ПДн)
+
+- Спека `docs/specs/15-data-localization-ru.md`: целевой РФ-контур, MVP на Cloud, план миграции.
+- Ссылки в README, ТЗ-01/06/07.
+
 ## 2026-07-27 (код ТЗ-14 Yandex Workspace)
 
 - Реализованы oauth/mail/telemost/calendar; Диск off.

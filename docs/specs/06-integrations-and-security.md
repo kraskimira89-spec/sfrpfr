@@ -7,11 +7,12 @@
 | Публичный сайт | WordPress с лёгкой темой, Elementor или Spectra |
 | Кабинеты | React/Next.js или React/Vite |
 | API | FastAPI |
-| Авторизация и БД | Supabase |
-| Документы | Supabase Storage, private bucket |
+| Авторизация и БД | Supabase (MVP: Cloud; целевой: self-hosted в Yandex Cloud, ТЗ-15) |
+| Документы | Supabase Storage, private bucket (целевой: Object Storage в РФ, ТЗ-15) |
 | CRM | amoCRM (ТЗ-12) |
 | Сообщения | MAX Bot API |
 | AI | Yandex AI Studio |
+| Captcha | MVP: Google reCAPTCHA Enterprise; целевой: Yandex SmartCaptcha (ТЗ-15) |
 | Аналитика | Google Sheets, обезличенные данные |
 | Оплаты | ЮKassa или иной провайдер с чеками |
 
@@ -55,6 +56,7 @@
 - Для доступа выдаются signed URL с коротким TTL.
 - Все скачивания, загрузки, смены прав и акцепты фиксируются в audit log.
 - `SUPABASE_SERVICE_ROLE_KEY` используется только серверной частью FastAPI.
+- Локализация баз в РФ и отказ от иностранного Cloud после MVP — [15-data-localization-ru.md](15-data-localization-ru.md).
 
 ## Критерии приёмки
 

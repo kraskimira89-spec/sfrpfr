@@ -1,5 +1,12 @@
 # История беседы (кратко)
 
+## 2026-07-27 (ТЗ-15 локализация ПДн)
+
+- Рекомендации 152-ФЗ сохранены в `docs/specs/15-data-localization-ru.md`.
+- MVP: оставляем Supabase Cloud; целевой — self-host Supabase в Yandex Cloud + SmartCaptcha.
+- План миграции фазы 0–4; пояснение Supabase ≠ Yandex Cloud.
+- Canvas: `data-localization-options.canvas.tsx`.
+
 ## 2026-07-27 (код ТЗ-14 Yandex Workspace)
 
 - Модуль `integrations/yandex_workspace`: ping, Телемост, SMTP XOAUTH2, CalDAV.

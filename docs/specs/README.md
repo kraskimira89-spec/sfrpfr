@@ -18,6 +18,7 @@
 13. [13-document-ingest-v2.md](13-document-ingest-v2.md) — ingest документов: text layer / Vision / Tesseract, артефакты, HITL сверка.
 14. [14-yandex-workspace.md](14-yandex-workspace.md) — Яндекс ID: почта, Телемост, календарь (аккаунт `proverkastaza@…`).  
     Настройка OAuth: [../ops/yandex-workspace-setup.md](../ops/yandex-workspace-setup.md).
+15. [15-data-localization-ru.md](15-data-localization-ru.md) — локализация ПДн (152-ФЗ): MVP на Supabase Cloud, целевой self-hosted Supabase в Yandex Cloud + SmartCaptcha; план миграции.
 
 ## Принцип
 
