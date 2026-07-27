@@ -764,6 +764,8 @@ body.page-template-default {
   background: #163a5a;
   color: rgba(255, 255, 255, 0.88);
   font-size: clamp(0.9rem, 2.3vw, 0.98rem);
+  font-family: var(--sfrfr-font, "Manrope", "PT Sans", system-ui, sans-serif);
+  width: 100%;
 }
 
 .sfrfr-site-footer a {
