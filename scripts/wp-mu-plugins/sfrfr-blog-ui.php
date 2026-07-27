@@ -9,6 +9,28 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/** ТЗ-11 §8: комментарии к постам выключены (спам + риск ПДн). */
+add_filter('comments_open', static function ($open, $post_id) {
+    $post = get_post($post_id);
+    if ($post && $post->post_type === 'post') {
+        return false;
+    }
+    return $open;
+}, 20, 2);
+add_filter('pings_open', static function ($open, $post_id) {
+    $post = get_post($post_id);
+    if ($post && $post->post_type === 'post') {
+        return false;
+    }
+    return $open;
+}, 20, 2);
+add_filter('comments_template', static function ($template) {
+    if (is_singular('post')) {
+        return __DIR__ . '/sfrfr-blog-ui-empty-comments.php';
+    }
+    return $template;
+});
+
 /**
  * @return array<string, string> slug => label
  */

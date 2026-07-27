@@ -9,6 +9,7 @@ ASSETS_DST="${MU}/sfrfr-blog-ui-assets"
 
 mkdir -p "${MU}" "${ASSETS_DST}"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-blog-ui.php" "${MU}/sfrfr-blog-ui.php"
+cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-blog-ui-empty-comments.php" "${MU}/sfrfr-blog-ui-empty-comments.php"
 cp -f "${ASSETS_SRC}/blog-ui.css" "${ASSETS_DST}/blog-ui.css"
 cp -f "${ASSETS_SRC}/blog-ui.js" "${ASSETS_DST}/blog-ui.js"
 echo "OK: ${MU}/sfrfr-blog-ui.php"
