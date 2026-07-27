@@ -42,20 +42,38 @@ def _ensure_loaded() -> None:
         load_workspace_secrets()
 
 
-def oauth_headers() -> dict[str, str]:
+def oauth_headers(*, token: str | None = None) -> dict[str, str]:
     _ensure_loaded()
     settings = get_settings()
-    token = (settings.yandex_oauth_access_token or "").strip()
+    access = (token if token is not None else settings.yandex_oauth_access_token) or ""
+    access = access.strip()
     return {
-        "Authorization": f"OAuth {token}",
+        "Authorization": f"OAuth {access}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
 
 
+def telemost_token() -> str:
+    """Токен SFRFR_telemost; если задан client_id Телемост — общий Workspace-токен не подставляем."""
+    _ensure_loaded()
+    settings = get_settings()
+    dedicated = (settings.yandex_telemost_oauth_access_token or "").strip()
+    telemost_client = (settings.yandex_telemost_oauth_client_id or "").strip()
+    if dedicated:
+        return dedicated
+    if telemost_client:
+        return ""
+    return (settings.yandex_oauth_access_token or "").strip()
+
+
 def token_available() -> bool:
     _ensure_loaded()
     return bool((get_settings().yandex_oauth_access_token or "").strip())
+
+
+def telemost_token_available() -> bool:
+    return bool(telemost_token())
 
 
 def workspace_email() -> str:

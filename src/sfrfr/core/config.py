@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     yandex_oauth_access_token: str = ""
     yandex_oauth_refresh_token: str = ""
     yandex_workspace_email: str = "proverkastaza@yandex.ru"
+    # Отдельное OAuth-приложение только для Телемост (часто нужно 360)
+    yandex_telemost_oauth_client_id: str = ""
+    yandex_telemost_oauth_client_secret: str = ""
+    yandex_telemost_oauth_access_token: str = ""
     yandex_telemost_enabled: bool = True
     yandex_mail_enabled: bool = True
     yandex_calendar_enabled: bool = True

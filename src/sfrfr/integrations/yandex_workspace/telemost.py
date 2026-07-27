@@ -7,7 +7,11 @@ from typing import Any
 import httpx
 
 from sfrfr.core.config import get_settings
-from sfrfr.integrations.yandex_workspace.oauth import oauth_headers, token_available
+from sfrfr.integrations.yandex_workspace.oauth import (
+    oauth_headers,
+    telemost_token,
+    telemost_token_available,
+)
 
 _TELEMOST_URL = "https://cloud-api.yandex.net/v1/telemost-api/conferences"
 
@@ -24,16 +28,28 @@ def create_conference(
     settings = get_settings()
     if not settings.yandex_telemost_enabled:
         return {"ok": False, "skipped": True, "reason": "YANDEX_TELEMOST_ENABLED=false"}
-    if not token_available():
-        return {"ok": False, "skipped": True, "reason": "no YANDEX_OAUTH_ACCESS_TOKEN"}
+    if not telemost_token_available():
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": "no YANDEX_TELEMOST_OAUTH_ACCESS_TOKEN (или YANDEX_OAUTH_ACCESS_TOKEN)",
+            "hint": (
+                "Выпустите токен для client_id Телемост: "
+                "https://oauth.yandex.ru/authorize?response_type=token&client_id="
+                f"{(settings.yandex_telemost_oauth_client_id or '').strip()}"
+            ),
+        }
 
     payload: dict[str, Any] = {"waiting_room_level": waiting_room_level}
-    # title_note есть не во всех схемах API; в MVP отправляем пустой body-fields.
     _ = title_note
 
     try:
         with httpx.Client(timeout=25.0) as client:
-            response = client.post(_TELEMOST_URL, headers=oauth_headers(), json=payload)
+            response = client.post(
+                _TELEMOST_URL,
+                headers=oauth_headers(token=telemost_token()),
+                json=payload,
+            )
         body: Any
         try:
             body = response.json() if response.content else {}
@@ -57,7 +73,8 @@ def create_conference(
             "error": err or "telemost_failed",
             "detail": body if isinstance(body, dict) else str(body)[:300],
             "hint": (
-                "Нужен Яндекс 360 / scope telemost-api:conferences.create"
+                "Нужен Яндекс 360 для бизнеса; отдельный OAuth-app без 360 не снимет "
+                "ApiRestrictedToOrganizations"
                 if response.status_code == 403
                 else None
             ),
