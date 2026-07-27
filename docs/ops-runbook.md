@@ -17,6 +17,7 @@
 | Deploy | `.github/workflows/deploy-vps.yml` — только после api+cabinet+admin |
 | QA ТЗ-09 D | [qa/tz09-stage-d.md](qa/tz09-stage-d.md) |
 | QA лид→amoCRM | [qa/lead-amocrm-e2e.md](qa/lead-amocrm-e2e.md) |
+| Яндекс Workspace OAuth | [ops/yandex-workspace-setup.md](ops/yandex-workspace-setup.md) (ТЗ-14) |
 | Блог UI §13 | [ops-blog-editor.md](ops-blog-editor.md) + `scripts/wp_deploy_blog_ui.sh` |
 
 ## Правила

@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-27 (ТЗ-14 Яндекс Workspace)
+
+- OAuth ID для `proverkastaza@yandex.ru`: почта, Телемост, календарь; Диск off по умолчанию.
+- Файлы: `docs/specs/14-yandex-workspace.md`, `docs/ops/yandex-workspace-setup.md`.
+
 ## 2026-07-27 (ТЗ-13 document ingest v2)
 
 - Спека: пороги text layer, артефакты extracted.md/ingest.json, Vision vs Tesseract, HITL сверка в admin.

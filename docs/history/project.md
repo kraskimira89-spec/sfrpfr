@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-27 (ТЗ-14 Яндекс Workspace)
+
+- Спека OAuth сервисов аккаунта (почта/Телемост/календарь) отдельно от Cloud AI Studio.
+- Ops: `docs/ops/yandex-workspace-setup.md`.
+
 ## 2026-07-27 (ТЗ-13 document ingest v2)
 
 - Спроектирован ingest поверх `ocr/engine.py`: text layer → Vision/Tesseract, quality gate, HITL эксперта.

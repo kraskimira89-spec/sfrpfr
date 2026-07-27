@@ -30,6 +30,12 @@
 - Не использовать LLM для детерминированной сверки ИЛС и трудовой.
 - Не использовать LLM как основной OCR: сканы — Yandex Vision / Tesseract (см. [13-document-ingest-v2.md](13-document-ingest-v2.md)).
 
+### Яндекс Workspace (ID)
+
+- Почта / Телемост / календарь под `proverkastaza@yandex.ru` через OAuth — [14-yandex-workspace.md](14-yandex-workspace.md).
+- Настройка: [../ops/yandex-workspace-setup.md](../ops/yandex-workspace-setup.md).
+- Не путать с API-ключом Cloud AI; ПДн-сканы на Яндекс.Диск не выгружать.
+
 ### amoCRM
 
 - Сделка + контакт через API v4; custom fields с `code` (`CASE_ID` и др.) — см. [12-amocrm.md](12-amocrm.md).

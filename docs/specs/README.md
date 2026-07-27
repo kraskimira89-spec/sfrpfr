@@ -16,6 +16,8 @@
 12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.  
     Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).
 13. [13-document-ingest-v2.md](13-document-ingest-v2.md) — ingest документов: text layer / Vision / Tesseract, артефакты, HITL сверка.
+14. [14-yandex-workspace.md](14-yandex-workspace.md) — Яндекс ID: почта, Телемост, календарь (аккаунт `proverkastaza@…`).  
+    Настройка OAuth: [../ops/yandex-workspace-setup.md](../ops/yandex-workspace-setup.md).
 
 ## Принцип
 
