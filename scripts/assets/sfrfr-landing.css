@@ -604,6 +604,16 @@ body.page-template-default {
   border-left: 4px solid var(--sfrfr-warn);
 }
 
+.sfrfr-legal-note {
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  background: rgba(30, 78, 121, 0.06);
+  color: #163a5a;
+  border-left-color: var(--sfrfr-primary);
+}
+
 .sfrfr-badge {
   display: inline-block;
   margin: 0 0 0.35rem;
@@ -791,6 +801,19 @@ body.page-template-default {
 .sfrfr-site-footer strong {
   color: #fff;
   font-weight: 600;
+}
+
+/* Убрать «Авторское право © … Тема Astra» под футером */
+.ast-footer-copyright,
+.site-footer .ast-footer-copyright,
+.ast-small-footer-wrap .ast-footer-copyright,
+.ast-builder-grid-row .ast-footer-copyright {
+  display: none !important;
+}
+
+.site-below-footer-wrap .ast-builder-html-element:empty,
+.ast-small-footer .ast-footer-site-title {
+  display: none !important;
 }
 
 /* WPForms: компактная форма, комментарии справа от полей */
