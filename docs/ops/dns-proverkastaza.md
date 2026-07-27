@@ -13,43 +13,49 @@ NS: `ns1.reg.ru` / `ns2.reg.ru` (как у старого домена).
 | A | `cabinet` | `91.229.11.147` |
 | A | `admin` | `91.229.11.147` |
 
-## Почта Яндекс 360 (MX)
+## Почта Яндекс 360 (MX + DKIM)
 
-Официальная инструкция: [MX-запись Яндекс 360](https://yandex.ru/support/yandex-360/business/admin/ru/domains/dns/mx.html).
+Официальные инструкции: [MX](https://yandex.ru/support/yandex-360/business/admin/ru/domains/dns/mx.html) · [DKIM](https://yandex.ru/support/yandex-360/business/admin/ru/domains/dns/dkim.html).
 
-DNS у **reg.ru** (`ns1.reg.ru` / `ns2.reg.ru`). Сейчас MX для `proverkastaza.ru` **нет** — почта на домене не заработает, пока не добавите.
+DNS у **reg.ru** (`ns1.reg.ru` / `ns2.reg.ru`).
 
-### В панели reg.ru
-
-1. [reg.ru](https://www.reg.ru) → домен `proverkastaza.ru` → **DNS-серверы и управление зоной**.
-2. **Удалите** все существующие MX (если появятся).
-3. **Добавьте** MX:
+### MX (сделано, если nslookup показывает mx.yandex.net)
 
 | Тип | Subdomain / хост | Mail Server / значение | Priority |
 |-----|------------------|------------------------|----------|
 | MX | `@` | `mx.yandex.net.` (точка в конце) | `10` |
 
-4. Рекомендуется сразу SPF (TXT), чтобы письма не уходили в спам:
+### SPF (TXT на `@`)
 
 | Тип | Хост | Значение |
 |-----|------|----------|
 | TXT | `@` | `v=spf1 redirect=_spf.yandex.net` |
 
-(Точное значение SPF также смотрите в подсказках admin.yandex.ru для вашего домена — иногда Яндекс показывает готовый TXT.)
+### DKIM (нужно сейчас — «письма попадут в спам»)
 
-5. **Не трогайте** A-записи `@` / `www` / `api` / `cabinet` / `admin` → `91.229.11.147`.
+1. В [admin.yandex.ru/domains](https://admin.yandex.ru/domains) → **Настроить DKIM** → скопировать **публичный ключ** (строка `v=DKIM1; k=rsa; … p=…`).
+2. В reg.ru → DNS-зона `proverkastaza.ru` → добавить **TXT**:
 
-6. Подождите распространения DNS (минуты–часы, редко до 72 ч). В [admin.yandex.ru/domains](https://admin.yandex.ru/domains) → домен → **Проверить**.
+| Тип | Subdomain / хост | Text / значение |
+|-----|------------------|-----------------|
+| TXT | `mail._domainkey` | *вставить ключ целиком из кабинета Яндекса* |
 
-Проверка:
+3. Подождать 5–30 мин → в кабинете **Проверить**.
+4. **Не трогать** A-записи сайта (`@` / `www` / `api` … → `91.229.11.147`).
+
+Проверка MX:
 
 ```powershell
 nslookup -type=MX proverkastaza.ru 8.8.8.8
 ```
 
-Ожидается: `proverkastaza.ru MX preference = 10, mail exchanger = mx.yandex.net`.
+Проверка DKIM:
 
-После MX: создайте сотрудника `info@proverkastaza.ru` (или аналог) и этим ящиком выпускайте OAuth для Телемост API.
+```powershell
+nslookup -type=TXT mail._domainkey.proverkastaza.ru 8.8.8.8
+```
+
+После зелёного статуса DNS: сотрудник `info@proverkastaza.ru` (или аналог) → OAuth Телемост этим ящиком.
 
 ## Защитные домены (только редирект)
 
