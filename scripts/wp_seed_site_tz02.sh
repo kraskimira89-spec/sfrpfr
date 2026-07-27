@@ -185,7 +185,12 @@ rm -f "$HOME_FILE"
 OFFER_ID="$(upsert_page oferta "Оферта" "$OFFER_CONTENT")"
 PRIVACY_ID="$(upsert_page politika-pdn "Политика обработки ПДн" "$PRIVACY_CONTENT")"
 CONSENT_ID="$(upsert_page soglasie "Согласие на обработку ПДн" "$CONSENT_CONTENT")"
-echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID"
+COOKIES_FILE="${SCRIPT_DIR}/assets/sfrfr-cookies.html"
+COOKIES_ID=""
+if [ -f "$COOKIES_FILE" ]; then
+  COOKIES_ID="$(upsert_page cookies "Политика cookies" "$COOKIES_FILE")"
+fi
+echo "HOME=$HOME_ID OFFER=$OFFER_ID PRIVACY=$PRIVACY_ID CONSENT=$CONSENT_ID COOKIES=$COOKIES_ID"
 
 "${WP[@]}" option update show_on_front page
 "${WP[@]}" option update page_on_front "$HOME_ID"

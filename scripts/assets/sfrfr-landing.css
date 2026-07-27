@@ -364,6 +364,14 @@ body.page-template-default {
   border-left: 4px solid var(--sfrfr-primary);
   border-right: none;
   min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sfrfr-cards--row .sfrfr-card .sfrfr-price {
+  margin-top: auto;
+  padding-top: 0.85rem;
 }
 
 .sfrfr-section--alt .sfrfr-card {
@@ -504,6 +512,9 @@ body.page-template-default {
   counter-increment: step;
   border-left: 4px solid var(--sfrfr-accent);
   min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .sfrfr-step::before {
@@ -535,6 +546,7 @@ body.page-template-default {
 .sfrfr-cols {
   display: grid;
   gap: clamp(0.85rem, 2.5vw, 1.25rem);
+  align-items: stretch;
 }
 
 .sfrfr-cols--stack {
@@ -542,7 +554,8 @@ body.page-template-default {
 }
 
 @media (min-width: 720px) {
-  .sfrfr-cols:not(.sfrfr-cols--stack) {
+  .sfrfr-cols:not(.sfrfr-cols--stack),
+  .sfrfr-cols--row {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -551,6 +564,8 @@ body.page-template-default {
   border-radius: var(--sfrfr-radius);
   padding: clamp(1.1rem, 3vw, 1.5rem);
   min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .sfrfr-panel--ok {
@@ -645,7 +660,7 @@ body.page-template-default {
 @media (min-width: 720px) {
   .sfrfr-trust {
     grid-template-columns: 1.2fr 1fr;
-    align-items: start;
+    align-items: stretch;
   }
 }
 
@@ -657,6 +672,8 @@ body.page-template-default {
   background: var(--sfrfr-bg);
   border: 1px solid rgba(30, 78, 121, 0.1);
   border-left: 4px solid var(--sfrfr-primary);
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .sfrfr-trust__name {
@@ -1160,5 +1177,26 @@ header .custom-logo-link img {
 
   .sfrfr-landing {
     padding-bottom: 4.5rem;
+  }
+}
+
+/* reCAPTCHA badge — левый нижний угол (не перекрывает CTA справа) */
+.grecaptcha-badge {
+  width: 70px !important;
+  overflow: hidden !important;
+  transition: all 0.3s ease !important;
+  left: 4px !important;
+  right: auto !important;
+  bottom: 14px !important;
+  z-index: 90 !important;
+}
+
+.grecaptcha-badge:hover {
+  width: 256px !important;
+}
+
+@media (max-width: 767px) {
+  .grecaptcha-badge {
+    bottom: 5.25rem !important;
   }
 }

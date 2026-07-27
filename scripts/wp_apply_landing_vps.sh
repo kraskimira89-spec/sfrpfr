@@ -25,6 +25,8 @@ test -f scripts/assets/blog/09-faq-rasshirennyy.html
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_home.php"
 echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
+echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 
