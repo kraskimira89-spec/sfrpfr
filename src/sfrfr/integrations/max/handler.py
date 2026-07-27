@@ -769,6 +769,11 @@ def _send_confirm_web_login(
 
 
 def _docs_request_text(*, has_docs: bool) -> str:
+    if get_settings().app_env.strip().lower() == "production":
+        return (
+            "Загрузите документы в защищённом кабинете после подтверждения согласия. "
+            "Через сообщения MAX документы не принимаются."
+        )
     if has_docs:
         return "Пришлите следующий документ (PDF/JPG/PNG) или /run."
     return "Пришлите выписку ИЛС (PDF/JPG/PNG)."
@@ -799,7 +804,7 @@ def handle_max_update(
     /start — создать/продолжить кейс + кнопка входа в веб-кабинет
     «Подтвердить вход в браузере» — одноразовая ссылка / callback
     /status, /run, /draft, /docs, /help
-    вложения — скачать по url или file_bytes
+    вложения — только для локальной разработки; в production загрузка через кабинет
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -900,7 +905,11 @@ def handle_max_update(
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = "Сначала пришлите документ."
+            reply = (
+                "Сначала загрузите документ в защищённом кабинете."
+                if get_settings().app_env.strip().lower() == "production"
+                else "Сначала пришлите документ."
+            )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,
@@ -916,13 +925,28 @@ def handle_max_update(
 
     file_name = update.get("file_name")
     file_bytes = update.get("file_bytes")
+    downloads = extract_downloadable_files(update)
+    is_production = get_settings().app_env.strip().lower() == "production"
+    if is_production and (
+        isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)
+    ):
+        reply = (
+            "Документы через сообщения MAX не принимаются. "
+            "Откройте защищённый кабинет и подтвердите согласие перед загрузкой."
+        )
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(
+            ok=False,
+            action="upload_blocked",
+            case_id=record.case_id,
+            reply=reply,
+        )
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
         reply = f"Файл принят ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
 
-    downloads = extract_downloadable_files(update)
     if downloads:
         names: list[str] = []
         fresh = record

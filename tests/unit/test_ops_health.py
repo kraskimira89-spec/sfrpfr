@@ -47,6 +47,17 @@ def test_docs_open_without_auth() -> None:
     assert response.status_code == 200
 
 
+def test_legacy_api_and_docs_are_disabled_in_production(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+    client = TestClient(create_app())
+
+    assert client.get("/docs").status_code == 404
+    assert client.post("/api/cases", json={}).status_code == 404
+    assert client.post("/api/documents/upload").status_code == 404
+    get_settings.cache_clear()
+
+
 def test_ops_status_requires_token(monkeypatch) -> None:
     monkeypatch.setenv("OPS_MONITOR_TOKEN", "secret-ops-token")
     monkeypatch.setenv("OPS_FAILED_ALERT_THRESHOLD", "1")

@@ -7,6 +7,7 @@
     (window.SFRFR_RECAPTCHA && window.SFRFR_RECAPTCHA.siteKey) ||
     "6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu";
   var ACTION = "lead";
+  var SCRIPT_ID = "sfrfr-recaptcha-enterprise";
 
   function findTokenInput(form) {
     return (
@@ -29,7 +30,19 @@
     return el;
   }
 
+  function loadEnterprise() {
+    if (document.getElementById(SCRIPT_ID)) return;
+    var script = document.createElement("script");
+    script.id = SCRIPT_ID;
+    script.src =
+      "https://www.google.com/recaptcha/enterprise.js?render=" +
+      encodeURIComponent(SITE_KEY);
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
   function readyEnterprise() {
+    loadEnterprise();
     return new Promise(function (resolve, reject) {
       var tries = 0;
       (function wait() {
@@ -66,6 +79,9 @@
         return;
       }
       if (form.getAttribute("data-sfrfr-recaptcha-ok") === "1") {
+        return;
+      }
+      if (!form.querySelector('input[type="checkbox"]:checked')) {
         return;
       }
       ev.preventDefault();

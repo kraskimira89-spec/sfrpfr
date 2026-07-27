@@ -105,7 +105,7 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
     return PublicLeadRequest(
         full_name=values[0][:200],
         contact=values[1][:200],
-        consent=consent or True,  # чекбокс WPForms иногда только в entries
+        consent=consent,
         source="wordpress_wpforms",
         recaptcha_token=recaptcha_token,
     )

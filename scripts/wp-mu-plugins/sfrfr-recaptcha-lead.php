@@ -94,14 +94,6 @@ add_action('wp_enqueue_scripts', function () {
         return;
     }
     $site_key = sfrfr_recaptcha_site_key();
-    wp_enqueue_script(
-        'sfrfr-recaptcha-enterprise',
-        'https://www.google.com/recaptcha/enterprise.js?render=' . rawurlencode($site_key),
-        [],
-        null,
-        false
-    );
-
     $mu_js = WPMU_PLUGIN_DIR . '/sfrfr-recaptcha-lead.js';
     $src_js = '/opt/sfrfr/scripts/assets/sfrfr-recaptcha-lead.js';
     $url = '';
@@ -128,7 +120,7 @@ add_action('wp_enqueue_scripts', function () {
     if ($url === '') {
         return;
     }
-    wp_enqueue_script('sfrfr-recaptcha-lead', $url, ['sfrfr-recaptcha-enterprise'], $ver, true);
+    wp_enqueue_script('sfrfr-recaptcha-lead', $url, [], $ver, true);
     wp_add_inline_script(
         'sfrfr-recaptcha-lead',
         'window.SFRFR_RECAPTCHA=' . wp_json_encode(['siteKey' => $site_key, 'action' => 'lead']) . ';',
