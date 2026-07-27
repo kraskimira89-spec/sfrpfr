@@ -9,7 +9,11 @@ from typing import Any
 import httpx
 
 from sfrfr.core.config import get_settings
-from sfrfr.integrations.yandex_workspace.oauth import oauth_headers, token_available, workspace_email
+from sfrfr.integrations.yandex_workspace.oauth import (
+    oauth_headers,
+    token_available,
+    workspace_email,
+)
 
 # CalDAV домашний календарь пользователя (стандартный путь Яндекса).
 _CALDAV_EVENTS = "https://caldav.yandex.ru/calendars/{email}/events-default/"

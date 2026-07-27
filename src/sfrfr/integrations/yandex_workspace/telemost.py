@@ -28,7 +28,7 @@ def create_conference(
         return {"ok": False, "skipped": True, "reason": "no YANDEX_OAUTH_ACCESS_TOKEN"}
 
     payload: dict[str, Any] = {"waiting_room_level": waiting_room_level}
-    # title_note не во всех схемах API — кладём в live_stream только если нужно; MVP: пустой body-fields
+    # title_note есть не во всех схемах API; в MVP отправляем пустой body-fields.
     _ = title_note
 
     try:
