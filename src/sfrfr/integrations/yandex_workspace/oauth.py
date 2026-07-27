@@ -55,7 +55,7 @@ def oauth_headers(*, token: str | None = None) -> dict[str, str]:
 
 
 def telemost_token() -> str:
-    """Токен SFRFR_telemost; если задан client_id Телемост — общий Workspace-токен не подставляем."""
+    """Токен SFRFR_telemost; при client_id Телемост общий Workspace-токен не подставляем."""
     _ensure_loaded()
     settings = get_settings()
     dedicated = (settings.yandex_telemost_oauth_access_token or "").strip()
