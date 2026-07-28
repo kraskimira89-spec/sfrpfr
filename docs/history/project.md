@@ -74,6 +74,10 @@
 - `prostaz.ru` / `proverka-staza.ru`: после certbot отдавали default Apache; починены чистые HTTP+HTTPS 301 → `proverkastaza.ru`.
 - Шаблон SSL: `docs/apache-vhost-redirect-aliases-le-ssl.conf`; cutover переустанавливает его после certbot.
 
+## 2026-07-28 (оглавление Яндекс ID / Вебмастер / Метрика)
+
+- `Yandex ID/` — OAuth (ТЗ-14); `Yandex Webmaster/` — индексация/sitemap; `Yandex Metrika/` — счётчик/цели без ПДн.
+
 ## 2026-07-28 (оглавление Yandex Cloud + AI Studio)
 
 - `Yandex Cloud/` — IAM, регионы РФ, MPG/Storage/Captcha/Vision (ТЗ-15).
