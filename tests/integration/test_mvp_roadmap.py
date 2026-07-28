@@ -41,7 +41,7 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home
     assert "cabinet.proverkastaza.ru/?channel=max" in home
-    assert "Открыть кабинет" in home
+    assert "Открыть кабинет на сайте" in home
     assert "Основной канал" in home
     assert "Написать в MAX" in home
     assert 'id="o-servise"' in home
@@ -55,7 +55,7 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
     # форма явно без file upload field type
     assert "'type' => 'file'" not in form
-    assert "Личный кабинет" in form
+    assert "Личный кабинет на сайте" in form
     assert "channel=max" not in form
 
 
