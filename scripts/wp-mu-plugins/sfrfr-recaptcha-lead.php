@@ -207,8 +207,13 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             }
             continue;
         }
-        if ($type === 'phone' || str_contains($label, 'телефон') || str_contains($label, 'phone')) {
-            if ($value !== '') {
+        if (
+            $type === 'phone'
+            || str_contains($label, 'телефон')
+            || str_contains($label, 'phone')
+            || ($type === 'text' && str_contains($label, 'телефон'))
+        ) {
+            if ($phone === '' && $value !== '') {
                 $phone = $value;
             }
             continue;
