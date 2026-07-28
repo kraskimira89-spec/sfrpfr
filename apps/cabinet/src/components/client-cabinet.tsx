@@ -256,6 +256,7 @@ export function ClientCabinet() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [fullName, setFullName] = useState("");
+  const [registerConsent, setRegisterConsent] = useState(false);
   const [maxTicket, setMaxTicket] = useState("");
   const [maxVerifyTicket, setMaxVerifyTicket] = useState("");
   const [maxPairCode, setMaxPairCode] = useState("");
@@ -724,6 +725,9 @@ export function ClientCabinet() {
     setPasswordConfirm("");
     setEmailCreateUser(next === "register");
     setMaxVerifyTicket("");
+    if (next === "register") {
+      setRegisterConsent(false);
+    }
     if (next === "max") {
       setAuthChannel("max");
       resetMaxWizard();
@@ -1007,6 +1011,10 @@ export function ClientCabinet() {
 
   async function requestRegister(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (!registerConsent) {
+      setNotice("Отметьте согласие с СОПД — без него регистрацию продолжить нельзя.");
+      return;
+    }
     const hasEmail = Boolean(email.trim());
     const hasPhone = Boolean(phone.trim());
     if (!hasEmail && !hasPhone) {
@@ -1636,7 +1644,26 @@ export function ClientCabinet() {
                     placeholder="по желанию"
                   />
                   <p className="hint">Нужна почта или телефон — хотя бы одно поле.</p>
-                  <button type="submit" disabled={busy}>
+                  <label className="auth-consent" htmlFor="reg-consent">
+                    <input
+                      id="reg-consent"
+                      type="checkbox"
+                      checked={registerConsent}
+                      onChange={(e) => setRegisterConsent(e.target.checked)}
+                      required
+                    />
+                    <span>
+                      Согласен с{" "}
+                      <a
+                        href={`${SITE_URL}/soglasie/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        СОПД
+                      </a>
+                    </span>
+                  </label>
+                  <button type="submit" disabled={busy || !registerConsent}>
                     Зарегистрироваться
                   </button>
                 </form>

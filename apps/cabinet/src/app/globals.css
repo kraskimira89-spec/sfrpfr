@@ -261,6 +261,23 @@ header span { color: var(--muted); font-size: 1rem; }
 /* Auth */
 .auth-card.auth-wizard { width: min(520px, 100%); }
 .auth-form { margin-top: 0.75rem; }
+.auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.auth-consent input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.auth-consent a {
+  color: var(--brand, #0b5);
+  text-decoration: underline;
+}
 .auth-links { margin: 0.75rem 0 0; font-size: 1.05rem; }
 .auth-method-list {
   display: grid;

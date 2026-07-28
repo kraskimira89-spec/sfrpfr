@@ -69,10 +69,11 @@ $fields = [
         'id' => '3',
         'type' => 'checkbox',
         'label' => 'Согласие',
+        'description' => 'Документ: <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a> (согласие на обработку персональных данных).',
         'choices' => [
             '1' => [
-                'label' => 'Даю согласие на обработку имени и контакта для ответа на обращение по пункту 5.1 Политики: https://proverkastaza.ru/politika-pdn/. Сканы через форму не отправляю.',
-                'value' => '',
+                'label' => 'Согласен с СОПД',
+                'value' => '1',
                 'image' => '',
             ],
         ],

@@ -11,6 +11,32 @@ if (!defined('ABSPATH')) {
 const SFRFR_RECAPTCHA_SITE_KEY_DEFAULT = '6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu';
 
 /**
+ * Ссылка на СОПД в description чекбокса формы заявки (HTML).
+ *
+ * @param array<string,mixed> $properties
+ * @param array<string,mixed> $field
+ * @param array<string,mixed> $form_data
+ * @return array<string,mixed>
+ */
+add_filter('wpforms_field_properties', function ($properties, $field, $form_data) {
+    if (($field['type'] ?? '') !== 'checkbox') {
+        return $properties;
+    }
+    $title = (string) ($form_data['settings']['form_title'] ?? '');
+    if ($title !== '' && $title !== 'Заявка с сайта') {
+        return $properties;
+    }
+    $desc = (string) ($field['description'] ?? '');
+    if ($desc === '' || !str_contains($desc, 'soglasie')) {
+        return $properties;
+    }
+    if (isset($properties['description']) && is_array($properties['description'])) {
+        $properties['description']['value'] = wp_kses_post($desc);
+    }
+    return $properties;
+}, 10, 3);
+
+/**
  * @return array<string,string>
  */
 function sfrfr_lead_env_map(): array
@@ -230,7 +256,8 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
         return;
     }
     if (!$consent) {
-        wpforms()->process->errors[$form_id]['header'] = 'Нужно согласие на обработку данных обращения.';
+        wpforms()->process->errors[$form_id]['header'] =
+            'Отметьте согласие с СОПД — без него заявку отправить нельзя.';
         return;
     }
 

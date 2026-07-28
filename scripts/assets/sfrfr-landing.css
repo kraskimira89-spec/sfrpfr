@@ -905,6 +905,16 @@ body.page-template-default {
   color: #5a6a7a !important;
 }
 
+.sfrfr-form-block .wpforms-field-description a {
+  color: #1a5c3a;
+  text-decoration: underline;
+}
+
+.sfrfr-form-block .wpforms-field-checkbox {
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
 /* Планшет+: поле слева, комментарий справа */
 @media (min-width: 640px) {
   .sfrfr-form-block .wpforms-field-name,
