@@ -735,17 +735,6 @@ export function ClientCabinet() {
     }
   }
 
-  function openEmailFirstTime() {
-    setAuthScreen("register");
-    setAuthChannel("email");
-    setEmailCreateUser(true);
-    setOtpSent(false);
-    setOtpCode("");
-    setPassword("");
-    setMaxVerifyTicket("");
-    setNotice("");
-  }
-
   async function signInWithPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) {
