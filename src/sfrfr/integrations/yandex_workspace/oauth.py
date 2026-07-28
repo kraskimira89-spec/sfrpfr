@@ -12,16 +12,15 @@ from sfrfr.core.config import get_settings
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DEFAULT_SECRETS = _REPO_ROOT / "secrets" / "yandex-workspace.env"
+_DEFAULT_DOTENV = _REPO_ROOT / ".env"
 _loaded = False
 
 
-def load_workspace_secrets(*, path: Path | None = None) -> Path | None:
-    """Подмешать secrets/yandex-workspace.env в os.environ (не перезаписывая уже заданные)."""
-    global _loaded
-    secrets_path = path or _DEFAULT_SECRETS
-    if not secrets_path.is_file():
-        return None
-    for line in secrets_path.read_text(encoding="utf-8").splitlines():
+def _merge_yandex_env_file(path: Path) -> None:
+    """Подмешать YANDEX_* из файла в os.environ, не перезаписывая уже заданные."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
         raw = line.strip()
         if not raw or raw.startswith("#") or "=" not in raw:
             continue
@@ -32,9 +31,18 @@ def load_workspace_secrets(*, path: Path | None = None) -> Path | None:
             continue
         if key not in os.environ or not (os.environ.get(key) or "").strip():
             os.environ[key] = value
+
+
+def load_workspace_secrets(*, path: Path | None = None) -> Path | None:
+    """Загрузить YANDEX_* из .env, затем secrets/ (secrets не перекрывает .env/environ)."""
+    global _loaded
+    # Сначала .env проекта — приоритетнее устаревшего secrets на VPS.
+    _merge_yandex_env_file(_DEFAULT_DOTENV)
+    secrets_path = path or _DEFAULT_SECRETS
+    _merge_yandex_env_file(secrets_path)
     get_settings.cache_clear()
     _loaded = True
-    return secrets_path
+    return secrets_path if secrets_path.is_file() else (_DEFAULT_DOTENV if _DEFAULT_DOTENV.is_file() else None)
 
 
 def _ensure_loaded() -> None:

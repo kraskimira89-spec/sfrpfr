@@ -1,10 +1,18 @@
 # Настройка Яндекс Workspace (OAuth) для SFRFR
 
 **ТЗ:** [../specs/14-yandex-workspace.md](../specs/14-yandex-workspace.md)  
-**Аккаунт:** `proverkastaza@yandex.ru`  
-**Версия гайда:** 1.1 (2026-07-28)
+**Версия гайда:** 1.2 (2026-07-28)
 
 Отдельно от **Yandex Cloud AI Studio** (`YANDEX_API_KEY` / `folder_id`) — здесь только доступ к почте / Телемосту / календарю / Диску (ops).
+
+### Модель доступов (обязательно)
+
+| Что | Кто / какой токен | Env |
+|-----|-------------------|-----|
+| Диск, Почта, Календарь | **Общая почта организации** `proverkastaza@yandex.ru` | `YANDEX_OAUTH_*` |
+| Телемост | **Сотрудник организации** `info@proverkastaza.ru` | `YANDEX_TELEMOST_OAUTH_*` |
+
+Не смешивать: токен общей почты не использовать для Телемоста и наоборот.
 
 ---
 
@@ -12,26 +20,26 @@
 
 | Шаг | Статус | Факт |
 |-----|--------|------|
-| 0. Контур | ✅ | Личный `@yandex.ru`; Диск **включён** для `SFRFR-ops`; календарь — dual-write Google↔Яндекс |
-| 1. OAuth-приложение | ✅ | `SFRFR Workspace` + отдельное `SFRFR_telemost` (ClientID в `secrets/yandex-workspace.env`) |
+| 0. Контур | ✅ | Org-mailbox + employee Telemost; Диск `SFRFR-ops`; dual-write календаря |
+| 1. OAuth-приложение | ✅ | `SFRFR Workspace` + `SFRFR_telemost` |
 | 2. Scopes | ✅ | Почта / календарь / Диск / Телемост — токены живые |
-| 3. OAuth-токен | ✅ | `login.yandex.ru/info` → `proverkastaza` |
-| 4. Секреты | ✅ | `secrets/yandex-workspace.env` (gitignore); на VPS — синхронизировать вручную |
+| 3. OAuth-токены | ✅ | Workspace → `proverkastaza`; Telemost → `info@proverkastaza.ru` |
+| 4. Секреты | ✅ | `secrets/yandex-workspace.env` + блок в локальном `.env`; на VPS — сверить вручную |
 | 5. Проверки API | ✅ | см. таблицу ниже |
 | 6. Ротация | ⬜ | по необходимости |
 
-### Проверки API (2026-07-28)
+### Проверки API (2026-07-28, полный healthcheck)
 
 | Проверка | Результат |
 |----------|-----------|
+| Env: блок Yandex в `.env` | **дописан** (раньше только комментарий; рабочие значения были в secrets) |
+| Identities токенов | Workspace=`proverkastaza` ≠ Telemost=`info@proverkastaza.ru` ✅ |
 | `login.info` / ping | **ok**, login `proverkastaza` |
-| Диск `GET /v1/disk/` | **200**, user `proverkastaza` |
-| Календарь CalDAV PROPFIND | **207** |
-| Календарь create (PUT .ics) | **201** |
-| Телемост create | **201**, `join_url` (токен `SFRFR_telemost`) |
-| Почта SMTP XOAUTH2 | **ok** (проверено ранее 2026-07-27) |
-| Google Calendar list | **ok** (upcoming=0; за 90д — 1 прошлое) |
-| Dual-write `calendar-create` | пишет в Google **и** Яндекс (`--mirror-yandex`) |
+| Диск status + `SFRFR-ops` | **ok** |
+| Календарь create (CalDAV) | **201** |
+| Почта SMTP XOAUTH2 | **ok** (письмо на себя) |
+| Телемост create (employee) | **201**, `join_url` |
+| Dual-write Google↔Яндекс | CLI `calendar-create --mirror-yandex` |
 
 CLI:
 

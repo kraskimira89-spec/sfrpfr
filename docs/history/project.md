@@ -4,6 +4,11 @@
 
 - `prompts/system/yandex-ai-studio-agent.md` — LLM / Foundation Models.
 
+## 2026-07-28 (Yandex env + org/employee model)
+
+- Локальный `.env`: полный блок `YANDEX_*`; модель org-mailbox vs employee Telemost в ops/secrets.
+- Полный healthcheck: mail/disk/calendar/telemost ok.
+
 ## 2026-07-28 (Yandex Workspace: Диск + dual calendar)
 
 - `YANDEX_DISK_ENABLED=true`: API disk + папка `SFRFR-ops` (без ПДн).

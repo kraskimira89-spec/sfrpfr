@@ -4,6 +4,12 @@
 
 - `prompts/system/yandex-ai-studio-agent.md` — агент LLM / YandexGPT.
 
+## 2026-07-28 (Yandex: org mailbox + employee Telemost)
+
+- Env: блок Workspace дописан в локальный `.env` (раньше только secrets).
+- Модель: Диск/Почта/Календарь = `proverkastaza`; Телемост = `info@proverkastaza.ru`.
+- Healthcheck: ping/disk/cal/mail/telemost — ok; VPS `.env` ключи на месте.
+
 ## 2026-07-28 (Workspace: Диск + календарь)
 
 - Проверка `yandex-workspace-setup.md`: OAuth apps ок, Disk/CalDAV/Telemost/Mail.
