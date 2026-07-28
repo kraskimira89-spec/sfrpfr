@@ -38,6 +38,25 @@ $fields = [
         'required' => '1',
         'size' => 'medium',
     ],
+    '5' => [
+        'id' => '5',
+        'type' => 'radio',
+        'label' => 'Предпочтительный канал',
+        'choices' => [
+            '1' => [
+                'label' => 'MAX (мессенджер)',
+                'value' => 'max_miniapp',
+                'image' => '',
+            ],
+            '2' => [
+                'label' => 'Личный кабинет на сайте',
+                'value' => 'web_cabinet',
+                'image' => '',
+            ],
+        ],
+        'required' => '1',
+        'choices_images' => '0',
+    ],
     '3' => [
         'id' => '3',
         'type' => 'checkbox',
@@ -82,32 +101,19 @@ $settings = [
     'confirmations' => [
         '1' => [
             'type' => 'message',
-            'message' => '<p>Спасибо! Заявка принята.</p><p>Выберите канал работы с делом:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Мини-приложение MAX</a></li><li><a href="https://cabinet.proverkastaza.ru/?from=lead">Личный кабинет на сайте</a></li></ul><p>Сканы документов загружайте только в защищённом кабинете после отдельного согласия.</p>',
+            'message' => '<p>Спасибо! Заявка принята — мы создали обращение в CRM.</p><p>Продолжите в выбранном канале:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Открыть MAX</a></li><li><a href="https://cabinet.proverkastaza.ru/?from=lead">Личный кабинет на сайте</a></li></ul><p>Сканы загружайте только в MAX или кабинете — не через эту форму. Оператор свяжется с вами по указанному контакту.</p>',
             'message_scroll' => '1',
         ],
     ],
     'disable_entries' => '0',
 ];
 
-# Webhook → FastAPI public lead (если задан SFRFR_PUBLIC_LEAD_URL на VPS).
-$lead_url = getenv('SFRFR_PUBLIC_LEAD_URL') ?: '';
-$lead_token = getenv('SFRFR_PUBLIC_LEAD_TOKEN') ?: getenv('PUBLIC_LEAD_TOKEN') ?: '';
-if ($lead_url !== '') {
-    $settings['webhooks'] = [
-        '1' => [
-            'url' => $lead_url,
-            'method' => 'post',
-            'format' => 'json',
-            'headers' => $lead_token !== ''
-                ? "X-Public-Lead-Token: {$lead_token}"
-                : '',
-        ],
-    ];
-}
+# Источник истины — MU-plugin (wpforms_process). Webhook WPForms отключаем, чтобы не дублировать лиды.
+$settings['webhooks'] = [];
 $form_data = [
     'fields' => $fields,
     'id' => $form_id,
-    'field_id' => 5,
+    'field_id' => 6,
     'settings' => $settings,
     'meta' => ['template' => 'blank'],
 ];

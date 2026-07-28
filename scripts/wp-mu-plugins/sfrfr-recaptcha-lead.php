@@ -136,13 +136,14 @@ add_action('wp_head', function () {
 }, 5);
 
 /**
- * После успешной заявки WPForms — создать лид в FastAPI (с recaptcha_token).
+ * Во время обработки WPForms — создать лид в FastAPI + amoCRM.
+ * При ошибке API форма НЕ считается успешной (клиент видит сообщение).
  *
  * @param array<int|string,mixed> $fields
  * @param array<string,mixed>     $entry
  * @param array<string,mixed>     $form_data
  */
-add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $entry_id) {
+add_action('wpforms_process', function ($fields, $entry, $form_data) {
     $url = sfrfr_public_lead_url();
     if ($url === '') {
         return;
@@ -151,10 +152,19 @@ add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $e
     if ($form_title !== '' && $form_title !== 'Заявка с сайта') {
         return;
     }
+    $form_id = absint($form_data['id'] ?? 0);
+    if ($form_id <= 0 || !function_exists('wpforms')) {
+        return;
+    }
+    // Уже есть ошибки валидации — не дергаем API.
+    if (!empty(wpforms()->process->errors[$form_id])) {
+        return;
+    }
 
     $full_name = '';
     $contact = '';
     $consent = false;
+    $channel = 'unset';
     $recaptcha = '';
 
     if (!is_array($fields)) {
@@ -175,6 +185,15 @@ add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $e
             $consent = $value !== '' && !in_array(mb_strtolower($value), ['0', 'false', 'no', 'нет'], true);
             continue;
         }
+        if (str_contains($label, 'предпочтительн') || (str_contains($label, 'канал') && $type === 'radio')) {
+            $low = mb_strtolower($value);
+            if (str_contains($low, 'max') || str_contains($low, 'мессенджер')) {
+                $channel = 'max_miniapp';
+            } elseif (str_contains($low, 'кабинет') || str_contains($low, 'сайт') || str_contains($low, 'web')) {
+                $channel = 'web_cabinet';
+            }
+            continue;
+        }
         if ($type === 'name' || $label === 'имя' || str_contains($label, 'имя')) {
             if ($full_name === '' && $value !== '') {
                 $full_name = $value;
@@ -184,20 +203,26 @@ add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $e
         if (
             $contact === ''
             && $value !== ''
-            && (str_contains($label, 'телефон') || str_contains($label, 'канал') || $type === 'text')
+            && (str_contains($label, 'телефон') || str_contains($label, 'связ') || $type === 'text' || $type === 'phone')
         ) {
             $contact = $value;
         }
     }
 
     if ($full_name === '' || $contact === '') {
+        wpforms()->process->errors[$form_id]['header'] = 'Заполните имя и контакт для связи.';
+        return;
+    }
+    if (!$consent) {
+        wpforms()->process->errors[$form_id]['header'] = 'Нужно согласие на обработку данных обращения.';
         return;
     }
 
     $payload = [
         'full_name' => mb_substr($full_name, 0, 200),
         'contact' => mb_substr($contact, 0, 200),
-        'consent' => $consent || true,
+        'consent' => true,
+        'preferred_channel' => $channel,
         'source' => 'wordpress_wpforms',
         'recaptcha_token' => $recaptcha !== '' ? mb_substr($recaptcha, 0, 4000) : null,
     ];
@@ -214,7 +239,7 @@ add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $e
     $response = wp_remote_post(
         $url,
         [
-            'timeout' => 20,
+            'timeout' => 25,
             'headers' => $headers,
             'body' => wp_json_encode($payload),
             'data_format' => 'body',
@@ -222,12 +247,18 @@ add_action('wpforms_process_complete', function ($fields, $entry, $form_data, $e
     );
     if (is_wp_error($response)) {
         error_log('SFRFR public lead: ' . $response->get_error_message());
+        wpforms()->process->errors[$form_id]['header'] =
+            'Не удалось отправить заявку. Попробуйте ещё раз или напишите в MAX.';
         return;
     }
     $code = (int) wp_remote_retrieve_response_code($response);
-    if ($code >= 400) {
-        error_log(
-            'SFRFR public lead HTTP ' . $code . ': ' . substr((string) wp_remote_retrieve_body($response), 0, 300)
-        );
+    $body = (string) wp_remote_retrieve_body($response);
+    if ($code < 200 || $code >= 300) {
+        error_log('SFRFR public lead HTTP ' . $code . ': ' . substr($body, 0, 300));
+        $msg = 'Не удалось создать заявку в CRM. Попробуйте ещё раз или напишите в MAX.';
+        if ($code === 400 && str_contains($body, 'recaptcha')) {
+            $msg = 'Проверка защиты не пройдена. Обновите страницу и отправьте заявку снова.';
+        }
+        wpforms()->process->errors[$form_id]['header'] = $msg;
     }
-}, 10, 4);
+}, 20, 3);

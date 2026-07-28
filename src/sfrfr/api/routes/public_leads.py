@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
@@ -9,10 +10,11 @@ from pydantic import BaseModel, Field
 
 from sfrfr.core.config import get_settings
 from sfrfr.db.session import get_supabase_client
-from sfrfr.integrations.amocrm import sync_case_to_amocrm
+from sfrfr.integrations.amocrm import AmoCrmClient, sync_case_to_amocrm
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id
 from sfrfr.integrations.recaptcha import RecaptchaVerifier
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -73,6 +75,20 @@ def _guess_phone_email(contact: str) -> tuple[str | None, str | None]:
     return raw[:64], None
 
 
+def _normalize_channel(raw: str | None) -> str:
+    """Привести выбор канала с формы к max_miniapp | web_cabinet | unset."""
+    s = (raw or "").strip().lower()
+    if not s:
+        return "unset"
+    if s in ("max_miniapp", "web_cabinet", "unset"):
+        return s
+    if "max" in s or "мессенджер" in s:
+        return "max_miniapp"
+    if "кабинет" in s or "web" in s or "сайт" in s or "браузер" in s:
+        return "web_cabinet"
+    return "unset"
+
+
 def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
     """Разобрать webhook WPForms (fields.id → value)."""
     fields = raw.get("fields")
@@ -80,6 +96,7 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         return None
     values: list[str] = []
     consent = False
+    preferred: str | None = None
     recaptcha_token: str | None = None
     for item in fields.values():
         if not isinstance(item, dict):
@@ -92,6 +109,9 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
             continue
         if "соглас" in label:
             consent = bool(value) and value.lower() not in {"0", "false", "no", "нет"}
+            continue
+        if "канал" in label or "channel" in label:
+            preferred = value
             continue
         if value:
             values.append(value)
@@ -106,9 +126,90 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         full_name=values[0][:200],
         contact=values[1][:200],
         consent=consent,
+        preferred_channel=_normalize_channel(preferred),
         source="wordpress_wpforms",
         recaptcha_token=recaptcha_token,
     )
+
+
+def _require_amocrm_lead(amocrm: dict[str, Any] | None) -> None:
+    """После заявки с сайта сделка в amoCRM обязательна (кроме local без ключей)."""
+    settings = get_settings()
+    amo = amocrm if isinstance(amocrm, dict) else {}
+    local = settings.app_env.strip().lower() in ("local", "dev", "development")
+    client = AmoCrmClient()
+    if amo.get("skipped") or not client.available:
+        if local:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="amocrm_not_configured",
+        )
+    if not amo.get("ok") or not amo.get("lead_id"):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="amocrm_sync_failed",
+        )
+
+
+def _notify_max_managers_new_lead(
+    *,
+    case_id: str,
+    full_name: str,
+    contact: str,
+    channel: str,
+    crm_url: str | None,
+) -> dict[str, Any]:
+    """Уведомить операторов в MAX о новом лиде (клиенту без max_user_id писать нельзя)."""
+    try:
+        from sfrfr.db.staff_roles import list_manager_max_user_ids
+        from sfrfr.integrations.max.client import MaxBotClient
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__}
+
+    settings = get_settings()
+    bot = MaxBotClient()
+    if not bot.available:
+        return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+
+    manager_ids = list_manager_max_user_ids(
+        extra_ids=settings.staff_login_approver_max_user_ids,
+    )
+    chat_ids = [
+        p.strip()
+        for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
+        if p.strip()
+    ]
+    if not manager_ids and not chat_ids:
+        return {"ok": False, "skipped": True, "reason": "no managers"}
+
+    lines = [
+        "Новая заявка с сайта",
+        f"Имя: {full_name}",
+        f"Контакт: {contact}",
+        f"Канал: {channel}",
+        f"case_id: {case_id}",
+    ]
+    if crm_url:
+        lines.append(f"amoCRM: {crm_url}")
+    lines.append("Клиенту показаны ссылки MAX и кабинет. Напишите в выбранном канале.")
+    text = "\n".join(lines)
+
+    sent = 0
+    targets = manager_ids or [None] * max(1, len(chat_ids))
+    for i, mid in enumerate(targets):
+        cid = chat_ids[i] if i < len(chat_ids) else None
+        try:
+            bot.send_message(
+                text=text,
+                user_id=str(mid) if mid else None,
+                chat_id=cid,
+            )
+            sent += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max lead notify failed: %s", exc)
+            continue
+    return {"ok": sent > 0, "sent": sent}
 
 
 def _require_recaptcha(token: str | None, *, client_ip: str | None = None) -> None:
@@ -142,9 +243,7 @@ def _create_lead(
 
     settings = get_settings()
     phone, email = _guess_phone_email(payload.contact)
-    preferred = payload.preferred_channel or "unset"
-    if preferred not in ("max_miniapp", "web_cabinet", "unset"):
-        preferred = "unset"
+    preferred = _normalize_channel(payload.preferred_channel)
 
     client = get_supabase_client()
     client_row = (
@@ -210,27 +309,52 @@ def _create_lead(
         full_name=payload.full_name.strip(),
         phone=phone,
         email=email,
-        channel=payload.preferred_channel or "unset",
+        channel=preferred,
         source=payload.source,
         consent=bool(payload.consent),
         case_url=f"{admin_base}/?case={case_id}" if admin_base else None,
         task=f"lead:{payload.source}",
     )
+    _require_amocrm_lead(amocrm if isinstance(amocrm, dict) else None)
     lead_id = amocrm.get("lead_id") if isinstance(amocrm, dict) else None
     if lead_id and amocrm.get("ok"):
         persist_crm_external_id(case_id, str(lead_id))
 
+    crm_url = amocrm.get("crm_url") if isinstance(amocrm, dict) else None
+    max_notify = _notify_max_managers_new_lead(
+        case_id=case_id,
+        full_name=payload.full_name.strip(),
+        contact=payload.contact.strip(),
+        channel=preferred,
+        crm_url=str(crm_url) if crm_url else None,
+    )
+    if isinstance(amocrm, dict):
+        amocrm = {**amocrm, "max_notify": max_notify}
+
     cabinet = settings.cabinet_public_url.rstrip("/")
+    max_url = settings.max_public_bot_url or settings.max_chat_url
+    if preferred == "web_cabinet":
+        channel_hint = (
+            "Вы выбрали веб-кабинет. Откройте кабинет и загрузите сканы только туда. "
+            "При необходимости можно также написать в MAX."
+        )
+    elif preferred == "max_miniapp":
+        channel_hint = (
+            "Вы выбрали MAX. Откройте бота / мини-приложение и продолжите там. "
+            "Сканы — только в MAX или кабинете, не через сайт."
+        )
+    else:
+        channel_hint = (
+            "Выберите канал: мини-приложение MAX или веб-кабинет. "
+            "Сканы документов — только там, не через сайт."
+        )
     return PublicLeadResponse(
         ok=True,
         case_id=case_id,
-        max_bot_url=settings.max_public_bot_url,
+        max_bot_url=max_url,
         cabinet_url=f"{cabinet}/",
-        channel_choice_hint=(
-            "Выберите канал: мини-приложение MAX или веб-кабинет. "
-            "Сканы документов — только там, не через сайт."
-        ),
-        amocrm=amocrm,
+        channel_choice_hint=channel_hint,
+        amocrm=amocrm if isinstance(amocrm, dict) else None,
         detail="lead_created",
     )
 

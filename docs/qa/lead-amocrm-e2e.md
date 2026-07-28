@@ -1,18 +1,19 @@
 # QA: лид WP → API → amoCRM (ТЗ-10 P0 / ТЗ-12)
 
-Цель: заявка с витрины создаёт дело в SFRFR и уходит в **amoCRM** (минимум контактов, без файлов).
+Цель: заявка с витрины создаёт дело в SFRFR и **обязательно** уходит в **amoCRM** (минимум контактов, без файлов).
 
 ## Цепочка
 
 ```text
-WP форма (#kak-rabotat / WPForms)
-  → POST /api/public/leads  (+ X-Public-Lead-Token, recaptcha_token при Enterprise)
+WP форма (#zayavka / WPForms) + канал (MAX|кабинет) + reCAPTCHA
+  → MU wpforms_process → POST /api/public/leads
     → client + case + checklist в Supabase
-    → sync_case_to_amocrm (AMO_SUBDOMAIN + AMO_ACCESS_TOKEN)
-    → thank-you / выбор канала (MAX | веб)
+    → sync_case_to_amocrm (обязателен lead_id; иначе 502/503 → форма не «успех»)
+    → уведомление операторам в MAX (если заданы STAFF_LOGIN_APPROVER_*)
+    → thank-you + ссылки MAX / кабинет
 ```
 
-Код: `src/sfrfr/api/routes/public_leads.py`, `src/sfrfr/integrations/amocrm/`.  
+Код: `src/sfrfr/api/routes/public_leads.py`, `scripts/wp-mu-plugins/sfrfr-recaptcha-lead.php`.  
 Настройка: [docs/ops/amocrm-setup.md](../ops/amocrm-setup.md).
 
 ## Чеклист
@@ -20,12 +21,12 @@ WP форма (#kak-rabotat / WPForms)
 | # | Шаг | Статус | Заметка |
 |---|---|---|---|
 | 1 | На VPS заданы `PUBLIC_LEAD_TOKEN`, при необходимости reCAPTCHA | [ ] | без токена на prod → 401/503 |
-| 2 | `AMO_SUBDOMAIN`, `AMO_ACCESS_TOKEN`, `AMO_PIPELINE_ID`, `AMO_STATUS_ID` | [ ] | иначе `amocrm.skipped=true` |
-| 3 | WP webhook/JSON бьёт в `https://api.proverkastaza.ru/api/public/leads` | [ ] | MU: `sfrfr-recaptcha-lead.php` |
+| 2 | `AMO_SUBDOMAIN`, `AMO_ACCESS_TOKEN`, `AMO_PIPELINE_ID`, `AMO_STATUS_ID` | [ ] | иначе `amocrm_not_configured` |
+| 3 | MU `sfrfr-recaptcha-lead.php` на `wpforms_process` | [ ] | при ошибке API форма не успешна |
 | 4 | Отправка с мобилы и десктопа | [ ] | thank-you без приёма сканов |
-| 5 | В ответе API есть `case_id` | [ ] | |
+| 5 | В ответе API есть `case_id` и `amocrm.lead_id` | [ ] | |
 | 6 | В amoCRM видна сделка с полем `CASE_ID` | [ ] | этап «Новый лид» |
-| 7 | Уведомление оператору (задача/сделка в amo) | [ ] | |
+| 7 | Уведомление оператору в MAX / сделка в amo | [ ] | |
 | 8 | В GTM/Метрику не уходят телефон/ФИО | [ ] | |
 
 ## Smoke (без создания боевого лида)
@@ -46,8 +47,9 @@ curl -s -o NUL -w "%{http_code}\n" -X POST https://api.proverkastaza.ru/api/publ
 
 ## Блокеры
 
-- Без `AMO_ACCESS_TOKEN` дело создаётся, CRM skip — это не «успешный» P0.
+- Без `AMO_ACCESS_TOKEN` на production заявка отклоняется (это ожидаемо).
 - Поля `CASE_ID` и др.: `sfrfr amocrm-ensure-fields`.
+- Клиенту в MAX нельзя написать автоматически без `max_user_id` — пишем операторам + даём deep-link.
 
 ## Юрпроверка (вне scope агента)
 
