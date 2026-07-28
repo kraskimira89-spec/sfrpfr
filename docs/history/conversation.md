@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-07-28 (промпты агентов)
+
+- Папка `prompts/system/`; первый промпт — агент Яндекс.Облако.
+
 ## 2026-07-28 (ops: self-host Supabase в YC)
 
 - Runbook: `docs/ops/supabase-selfhost-yandex-cloud.md` (ВМ + Docker Compose, TLS, бэкапы, cutover).
