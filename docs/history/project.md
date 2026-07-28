@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-28 (ops self-host Supabase YC)
+
+- `docs/ops/supabase-selfhost-yandex-cloud.md` — развёртывание стека на Compute VM.
+
 ## 2026-07-28 (копирайт каналов)
 
 - Success-форма и CTA лендинга: «кабинет на сайте» (не «в браузере»).

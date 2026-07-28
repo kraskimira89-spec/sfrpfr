@@ -138,6 +138,7 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 - [06-integrations-and-security.md](06-integrations-and-security.md)
 - [07-mvp-roadmap.md](07-mvp-roadmap.md)
 - [../contracts/pdn-policy.md](../contracts/pdn-policy.md)
+- [../ops/supabase-selfhost-yandex-cloud.md](../ops/supabase-selfhost-yandex-cloud.md) — пошаговый runbook: Docker Compose на ВМ YC
 - Canvas (схема/сравнение): открыть рядом с чатом `data-localization-options.canvas.tsx`
 
 ## Критерии приёмки ТЗ (документальные)
