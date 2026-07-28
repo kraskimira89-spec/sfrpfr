@@ -81,6 +81,11 @@
 - Hover кнопок с контрастным текстом; секции ~экран; padding карточек 24px.
 - `#zayavka` без двойного `--alt` после статей.
 
+## 2026-07-28 (оглавление Yandex Cloud + AI Studio)
+
+- Папки `Yandex Cloud/` и `Yandex AI Studio/`: по 2 файла (пользователь / разработчик), таблицы ссылка·раздел·кратко·SFRFR.
+- Разведены контуры: Cloud инфра/Vision/Captcha vs AI Studio LLM vs Workspace OAuth (ТЗ-14).
+
 ## 2026-07-27 (оглавление документации MAX)
 
 - Папка `MAX/`: `01-polzovatelskaya-dokumentaciya.md`, `02-dokumentaciya-razrabotchika.md`.

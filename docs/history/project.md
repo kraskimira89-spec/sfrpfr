@@ -74,6 +74,11 @@
 - `prostaz.ru` / `proverka-staza.ru`: после certbot отдавали default Apache; починены чистые HTTP+HTTPS 301 → `proverkastaza.ru`.
 - Шаблон SSL: `docs/apache-vhost-redirect-aliases-le-ssl.conf`; cutover переустанавливает его после certbot.
 
+## 2026-07-28 (оглавление Yandex Cloud + AI Studio)
+
+- `Yandex Cloud/` — IAM, регионы РФ, MPG/Storage/Captcha/Vision (ТЗ-15).
+- `Yandex AI Studio/` — OpenAI-compatible LLM, embeddings, security, SDK.
+
 ## 2026-07-27 (оглавление документации MAX)
 
 - Папка `MAX/`: пользовательская (business/help) и developer (API/Bridge/UI) сводки для ориентации SFRFR.
