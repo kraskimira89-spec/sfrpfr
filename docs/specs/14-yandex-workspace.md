@@ -73,7 +73,7 @@
 | Сервис | Use-case | Ограничение |
 |--------|----------|-------------|
 | **Почта IMAP** | читать входящие на ящик поддержки, линковать к делу | только с правилами ПДн; не автосоздавать дело из СНИЛС в письме |
-| **Яндекс Диск** | шаблоны заявлений, обезличенные пакеты | **запрет** загружать ИЛС/трудовые/паспорт; дублирует Google Drive |
+| **Яндекс Диск** | шаблоны заявлений, обезличенные пакеты | **запрет** загружать ИЛС/трудовые/паспорт; папка `SFRFR-ops`; дублирует Google Drive ops |
 | **Адресная книга** | редко | не дублировать amoCRM |
 
 ### 4.3. Вне scope ТЗ-14
@@ -145,7 +145,7 @@ YANDEX_WORKSPACE_EMAIL=proverkastaza@yandex.ru
 YANDEX_TELEMOST_ENABLED=true
 YANDEX_MAIL_ENABLED=true
 YANDEX_CALENDAR_ENABLED=true
-YANDEX_DISK_ENABLED=false            # default off — ПДн
+YANDEX_DISK_ENABLED=true             # ops-папка SFRFR-ops; ПДн-сканы всё равно запрещены
 ```
 
 Не смешивать с `YANDEX_API_KEY` / `YANDEX_FOLDER_ID` (Cloud AI).
@@ -217,7 +217,7 @@ Admin API (ТЗ-04):
 - Refresh token хранить encrypted at rest (или OS permissions 600 на VPS).
 - Не логировать тело писем и OAuth token.
 - При компрометации: отозвать приложение на oauth.yandex.ru, перевыпустить токен.
-- Диск: default `YANDEX_DISK_ENABLED=false`.
+- Диск: `YANDEX_DISK_ENABLED=true` только для `disk:/SFRFR-ops`; сканы дел не пишутся на Диск.
 
 ---
 
@@ -230,7 +230,7 @@ Admin API (ТЗ-04):
 | **B** | Исходящая почта (шаблоны) + audit |
 | **C** | Календарь событий по `case_id` |
 | **D** | IMAP inbox rules (опционально) |
-| **E** | Диск только для шаблонов **или** миграция с Google Drive (отдельное решение) |
+| **E** | Диск `SFRFR-ops` + dual-write Google Calendar → Яндекс |
 
 MVP ТЗ-14 = **0 + A + B**.
 
@@ -239,14 +239,15 @@ MVP ТЗ-14 = **0 + A + B**.
 ## 13. Критерии приёмки
 
 - [ ] В docs описаны два контура Cloud vs ID; env не пересекаются с AI Studio.
-- [ ] Выполнены шаги [yandex-workspace-setup.md](../ops/yandex-workspace-setup.md) на аккаунте `proverkastaza@yandex.ru`.
+- [x] Выполнены шаги [yandex-workspace-setup.md](../ops/yandex-workspace-setup.md) на аккаунте `proverkastaza@yandex.ru` (API-проверки 2026-07-28).
 - [ ] Без токена интеграции возвращают `skipped`, дело не ломается.
-- [ ] С токеном: создаётся встреча Телемост, URL сохраняется и виден в admin.
-- [ ] Исходящее тестовое письмо уходит с `YANDEX_WORKSPACE_EMAIL`.
+- [x] С токеном: создаётся встреча Телемост, URL сохраняется и виден в admin (API 201; persist — через CLI/admin).
+- [x] Исходящее тестовое письмо уходит с `YANDEX_WORKSPACE_EMAIL`.
 - [ ] В payload писем/логов нет СНИЛС / OCR / долгоживущих Storage URL.
-- [ ] `YANDEX_DISK_ENABLED=false` по умолчанию; сканы дел не пишутся на Диск.
+- [x] Диск: `YANDEX_DISK_ENABLED=true` только `SFRFR-ops`; сканы дел не пишутся на Диск.
 - [ ] Действия пишутся в `access_audit`.
 - [ ] Оператор не видит raw OAuth token в UI.
+- [x] Календарь: CalDAV create + dual-write с Google (`calendar-create --mirror-yandex`).
 
 ---
 

@@ -519,24 +519,39 @@ def calendar_create(
     ),
     duration_minutes: int = typer.Option(60, "--duration", "-d", min=15, max=480),
     task_type: str = typer.Option("consult", "--task", help="consult|deadline|followup"),
+    mirror_yandex: bool = typer.Option(
+        True,
+        "--mirror-yandex/--no-mirror-yandex",
+        help="Дублировать событие в Яндекс Календарь",
+    ),
 ) -> None:
-    """Создать событие Calendar: summary с case_id, без ФИО/телефона."""
+    """Создать событие Calendar: summary с case_id, без ФИО/телефона (+ зеркало в Яндекс)."""
     import json
     from datetime import datetime
 
     from sfrfr.integrations.calendar import CalendarClient
+    from sfrfr.integrations.yandex_workspace import create_on_both
 
     try:
         start_dt = datetime.fromisoformat(start)
     except ValueError as exc:
         raise typer.BadParameter(f"invalid --start: {start}") from exc
-    result = CalendarClient().create_event(
-        case_id=case_id,
-        title=title,
-        start=start_dt,
-        duration_minutes=duration_minutes,
-        task_type=task_type,
-    )
+    if mirror_yandex:
+        result = create_on_both(
+            case_id=case_id,
+            title=title,
+            start=start_dt,
+            duration_minutes=duration_minutes,
+            task_type=task_type,
+        )
+    else:
+        result = CalendarClient().create_event(
+            case_id=case_id,
+            title=title,
+            start=start_dt,
+            duration_minutes=duration_minutes,
+            task_type=task_type,
+        )
     typer.echo(json.dumps(result, ensure_ascii=False))
     if result.get("skipped"):
         raise typer.Exit(code=0)
@@ -643,6 +658,75 @@ def yandex_telemost_create(
     if result.get("skipped"):
         raise typer.Exit(code=0)
     if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-calendar-create")
+def yandex_calendar_create(
+    case_id: str = typer.Option(..., "--case-id", "-c"),
+    start: str = typer.Option(..., "--start", help="ISO datetime"),
+    title: str = typer.Option("consult", "--title", "-t"),
+    duration_minutes: int = typer.Option(30, "--duration", "-d", min=15, max=480),
+) -> None:
+    """Создать событие только в Яндекс Календаре (CalDAV)."""
+    import json
+    from datetime import datetime
+
+    from sfrfr.integrations.yandex_workspace import create_event
+
+    try:
+        start_dt = datetime.fromisoformat(start)
+    except ValueError as exc:
+        raise typer.BadParameter(f"invalid --start: {start}") from exc
+    result = create_event(
+        case_id=case_id,
+        summary=title,
+        starts_at=start_dt,
+        duration_minutes=duration_minutes,
+    )
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("calendar-mirror-yandex")
+def calendar_mirror_yandex(
+    max_results: int = typer.Option(25, "--max", "-n", min=1, max=50),
+) -> None:
+    """Скопировать ближайшие события Google Calendar → Яндекс."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import mirror_google_to_yandex
+
+    result = mirror_google_to_yandex(max_results=max_results)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-status")
+def yandex_disk_status() -> None:
+    """Статус Яндекс Диска + папка SFRFR-ops."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import disk_status, ensure_ops_folder, list_ops
+
+    status = disk_status()
+    if status.get("ok"):
+        folder = ensure_ops_folder()
+        listed = list_ops()
+        status["ops_folder_ensure"] = folder
+        status["ops_list"] = {
+            "ok": listed.get("ok"),
+            "count": listed.get("count"),
+            "items": listed.get("items"),
+        }
+    typer.echo(json.dumps(status, ensure_ascii=False))
+    if status.get("skipped"):
+        raise typer.Exit(code=0)
+    if not status.get("ok"):
         raise typer.Exit(code=1)
 
 

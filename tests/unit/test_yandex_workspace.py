@@ -57,11 +57,21 @@ def test_xoauth2_encoding() -> None:
     assert isinstance(encoded, str) and len(encoded) > 10
 
 
-def test_disk_disabled_by_default(monkeypatch) -> None:
+def test_disk_disabled_when_flag_false(monkeypatch) -> None:
     monkeypatch.setenv("YANDEX_DISK_ENABLED", "false")
     from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
 
+    oauth_mod._loaded = True
     get_settings.cache_clear()
     result = disk_status()
     assert result.get("skipped") is True
     get_settings.cache_clear()
+
+
+def test_disk_path_policy() -> None:
+    from sfrfr.integrations.yandex_workspace.disk import _path_allowed
+
+    assert _path_allowed("disk:/SFRFR-ops/template.docx") is True
+    assert _path_allowed("disk:/SFRFR-ops/cases/scan.pdf") is False
+    assert _path_allowed("disk:/other/file.txt") is False

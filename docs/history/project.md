@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-28 (Yandex Workspace: Диск + dual calendar)
+
+- `YANDEX_DISK_ENABLED=true`: API disk + папка `SFRFR-ops` (без ПДн).
+- Dual-write Google Calendar → Яндекс (`calendar-create --mirror-yandex`, `calendar-mirror-yandex`).
+- Телемост API: create 201 на токене `SFRFR_telemost`.
+- Чеклист выполнения: `docs/ops/yandex-workspace-setup.md` v1.1.
+
 ## 2026-07-28 (промпты агентов)
 
 - `prompts/` — системные промпты Cursor; агент Yandex Cloud.

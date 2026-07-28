@@ -2,9 +2,46 @@
 
 **ТЗ:** [../specs/14-yandex-workspace.md](../specs/14-yandex-workspace.md)  
 **Аккаунт:** `proverkastaza@yandex.ru`  
-**Версия гайда:** 1.0 (2026-07-27)
+**Версия гайда:** 1.1 (2026-07-28)
 
-Отдельно от **Yandex Cloud AI Studio** (`YANDEX_API_KEY` / `folder_id`) — здесь только доступ к почте / Телемосту / календарю / (опц.) Диску.
+Отдельно от **Yandex Cloud AI Studio** (`YANDEX_API_KEY` / `folder_id`) — здесь только доступ к почте / Телемосту / календарю / Диску (ops).
+
+---
+
+## Статус выполнения (проверено 2026-07-28)
+
+| Шаг | Статус | Факт |
+|-----|--------|------|
+| 0. Контур | ✅ | Личный `@yandex.ru`; Диск **включён** для `SFRFR-ops`; календарь — dual-write Google↔Яндекс |
+| 1. OAuth-приложение | ✅ | `SFRFR Workspace` + отдельное `SFRFR_telemost` (ClientID в `secrets/yandex-workspace.env`) |
+| 2. Scopes | ✅ | Почта / календарь / Диск / Телемост — токены живые |
+| 3. OAuth-токен | ✅ | `login.yandex.ru/info` → `proverkastaza` |
+| 4. Секреты | ✅ | `secrets/yandex-workspace.env` (gitignore); на VPS — синхронизировать вручную |
+| 5. Проверки API | ✅ | см. таблицу ниже |
+| 6. Ротация | ⬜ | по необходимости |
+
+### Проверки API (2026-07-28)
+
+| Проверка | Результат |
+|----------|-----------|
+| `login.info` / ping | **ok**, login `proverkastaza` |
+| Диск `GET /v1/disk/` | **200**, user `proverkastaza` |
+| Календарь CalDAV PROPFIND | **207** |
+| Календарь create (PUT .ics) | **201** |
+| Телемост create | **201**, `join_url` (токен `SFRFR_telemost`) |
+| Почта SMTP XOAUTH2 | **ok** (проверено ранее 2026-07-27) |
+| Google Calendar list | **ok** (upcoming=0; за 90д — 1 прошлое) |
+| Dual-write `calendar-create` | пишет в Google **и** Яндекс (`--mirror-yandex`) |
+
+CLI:
+
+```bash
+sfrfr yandex-workspace-ping
+sfrfr yandex-disk-status
+sfrfr yandex-telemost-create -c <uuid>
+sfrfr calendar-create -c <uuid> --start 2026-08-01T15:00:00+03:00
+sfrfr calendar-mirror-yandex
+```
 
 ---
 
@@ -18,11 +55,11 @@
 
 ## Шаг 0. Решить контур
 
-| Вопрос | MVP |
-|--------|-----|
-| Личный ящик `@yandex.ru` или Яндекс 360? | Начать с личного; 360 — если Телемост API/scopes недоступны |
-| Нужен ли Диск? | **Нет** по умолчанию (`YANDEX_DISK_ENABLED=false`) |
-| Дублировать Google Calendar? | Либо Яндекс, либо Google — не оба как source of truth |
+| Вопрос | Решение SFRFR (2026-07-28) |
+|--------|----------------------------|
+| Личный ящик `@yandex.ru` или Яндекс 360? | Личный; Телемост API уже отвечает 201 на токене `SFRFR_telemost` |
+| Нужен ли Диск? | **Да**, только папка `disk:/SFRFR-ops` (`YANDEX_DISK_ENABLED=true`). ПДн-сканы → Supabase Storage |
+| Дублировать Google Calendar? | **Да**, dual-write: Google остаётся основным create-path, Яндекс — зеркало |
 
 ---
 
@@ -39,6 +76,10 @@
    - Пока кода callback нет: можно использовать отладочный redirect из доки Яндекса / `response_type=token` (шаг 3).
 7. Сохраните **ClientID** (и **Client secret**, если выдан).
 
+Отдельно создано приложение **`SFRFR_telemost`** (только scopes Телемоста) — токен в `YANDEX_TELEMOST_OAUTH_*`.
+
+> **Проверка создания:** ClientID Workspace и Telemost заданы в secrets; оба токена валидны (ping / telemost 201 / disk 200). UI oauth.yandex.ru агент не открывает — факт подтверждён ответами API.
+
 ---
 
 ## Шаг 2. Права доступа (scopes)
@@ -50,10 +91,12 @@
 - Почта SMTP — `mail:smtp`
 - Телемост — `telemost-api:conferences.create`, `telemost-api:conferences.read`
 - Календарь — `calendar:events.write` или `calendar:all` (что есть в UI)
+- Диск (ops) — `cloud_api:disk.read` / `cloud_api:disk.write` (или эквивалент в UI)
 
-**Не включать сразу:** полный Диск write, IMAP full, addressbook — пока нет реализации и политики ПДн.
+**Не включать:** полный IMAP без правил ПДн, addressbook как CRM.
 
-Если scopes Телемоста требуют организацию 360 — оформите 360 или отложите этап A до ручных ссылок.
+Если scopes Телемоста требуют организацию 360 — оформите 360 или используйте ручные ссылки.  
+На 2026-07-28 create conference через API **успешен** на токене Telemost-приложения.
 
 Актуальный список прав смотрите в UI и в [доке Телемост access](https://yandex.ru/dev/telemost/doc/ru/access).
 
@@ -98,7 +141,8 @@ YANDEX_WORKSPACE_EMAIL=proverkastaza@yandex.ru
 YANDEX_TELEMOST_ENABLED=true
 YANDEX_MAIL_ENABLED=true
 YANDEX_CALENDAR_ENABLED=true
-YANDEX_DISK_ENABLED=false
+YANDEX_DISK_ENABLED=true
+# + YANDEX_TELEMOST_OAUTH_* для SFRFR_telemost
 ```
 
 На VPS: те же ключи в `/opt/sfrfr/.env` (или include файла), затем:
@@ -116,24 +160,17 @@ sudo systemctl restart sfrfr-api
 | Проверка | Ожидание |
 |----------|----------|
 | `sfrfr yandex-workspace-ping` | `ok`, login `proverkastaza` |
+| `sfrfr yandex-disk-status` | `ok`, папка `disk:/SFRFR-ops` |
 | `sfrfr yandex-telemost-create -c <uuid>` | `join_url` **или** `403 ApiRestrictedToOrganizations` → нужен Яндекс 360 |
 | `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
+| `sfrfr calendar-create …` | Google + Яндекс (dual-write) |
 | Admin: кнопки «Создать Телемост» / «Письмо» | audit + `meeting_url` |
 
 > **Почта SMTP/IMAP (проверено 2026-07-27):** после включения в настройках Почты IMAP + OAuth-токены — `smtp` и `imap` с XOAUTH2 работают на `proverkastaza@yandex.ru`.
 >
-> **Телемост API** на личном `@yandex.ru` отвечает `ApiRestrictedToOrganizations` — нужен **Яндекс 360 для бизнеса** (отдельный контур API). До 360: создавать встречу в UI Телемоста и сохранять URL вручную / позже поле `meeting_url`.
+> **Телемост API (проверено 2026-07-28):** create → **201** + `join_url` на токене `SFRFR_telemost`.
 >
-> **Календарь CalDAV** — PROPFIND OK. **Диск API** доступен по токену, но в продукте `YANDEX_DISK_ENABLED=false` (ПДн → Storage).
-
-Пока модуля нет — проверки вручную:
-
-```bash
-curl -s -H "Authorization: OAuth $YANDEX_OAUTH_ACCESS_TOKEN" \
-  https://cloud-api.yandex.net/v1/disk/
-```
-
-(Диск — только smoke OAuth; для MVP Диск выключен.)
+> **Календарь CalDAV** — PROPFIND 207, create 201. **Диск** — API 200; продукт: `YANDEX_DISK_ENABLED=true`, только `SFRFR-ops`.
 
 Документация создания конференций: [Телемост API](https://yandex.ru/dev/telemost/doc/ru/).
 

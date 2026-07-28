@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-28 (Workspace: Диск + календарь)
+
+- Проверка `yandex-workspace-setup.md`: OAuth apps ок, Disk/CalDAV/Telemost/Mail.
+- Включён Диск (только SFRFR-ops); дублирование Google Calendar в Яндекс.
+
 ## 2026-07-28 (промпты агентов)
 
 - Папка `prompts/system/`; первый промпт — агент Яндекс.Облако.
