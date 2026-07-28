@@ -179,7 +179,11 @@ def upload_ops_file(*, remote_name: str, content: bytes, overwrite: bool = False
                 }
             href = (href_resp.json() or {}).get("href")
             if not href:
-                return {"ok": False, "error": "no_upload_href", "detail": (href_resp.text or "")[:200]}
+                return {
+                    "ok": False,
+                    "error": "no_upload_href",
+                    "detail": (href_resp.text or "")[:200],
+                }
             put = client.put(href, content=content)
         if put.status_code in (200, 201, 202):
             return {"ok": True, "path": path, "status_code": put.status_code}

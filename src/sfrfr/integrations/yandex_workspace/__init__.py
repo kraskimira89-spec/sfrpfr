@@ -1,6 +1,9 @@
 """Интеграция Яндекс Workspace (ТЗ-14): почта, Телемост, календарь, Диск."""
 
-from sfrfr.integrations.yandex_workspace.calendar_mirror import create_on_both, mirror_google_to_yandex
+from sfrfr.integrations.yandex_workspace.calendar_mirror import (
+    create_on_both,
+    mirror_google_to_yandex,
+)
 from sfrfr.integrations.yandex_workspace.calendar_yandex import create_event
 from sfrfr.integrations.yandex_workspace.disk import (
     disk_status,
