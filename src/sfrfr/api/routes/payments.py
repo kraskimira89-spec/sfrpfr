@@ -63,10 +63,16 @@ def start_order_payment(
 
     body = payload or PayOrderRequest(return_channel=return_channel)
     channel = body.return_channel or return_channel
-    email = body.customer_email or principal.email
+    email = (body.customer_email or principal.email or "").strip() or None
     amount = float(order.get("amount_rub") or 0)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="order amount must be positive")
+    settings = get_settings()
+    if settings.yookassa_send_receipt and not email:
+        raise HTTPException(
+            status_code=400,
+            detail="customer email required for fiscal receipt (54-FZ)",
+        )
 
     result = client.create_payment(
         amount_rub=amount,

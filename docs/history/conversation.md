@@ -1,3 +1,11 @@
+# История беседы (кратко)
+
+## 2026-07-28 (ЮKassa / ЮMoney)
+
+- Магазин live nabled; в methods есть yoo_money.
+- Создание платежа падало: фискализация вкл., SEND_RECEIPT=false → Receipt is missing.
+- Вкл. чеки + return_url на cabinet.proverkastaza.ru; pay требует email при чеке.
+
 ## 2026-07-28 (форма: галочка СОПД)
 
 - Перед отправкой заявки и регистрации — обязательный чекбокс СОПД + ссылка `/soglasie/`.

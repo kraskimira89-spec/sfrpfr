@@ -39,8 +39,8 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 YOOKASSA_API_BASE=https://api.yookassa.ru/v3
 # Куда вернуть клиента после оплаты (опционально; иначе cabinet/mini-app)
 YOOKASSA_RETURN_URL=https://cabinet.proverkastaza.ru/
-# Чеки 54-ФЗ через ЮKassa (нужен email клиента)
-YOOKASSA_SEND_RECEIPT=false
+# Чеки 54-ФЗ: true, если в магазине включена фискализация
+YOOKASSA_SEND_RECEIPT=true
 CABINET_PUBLIC_URL=https://cabinet.proverkastaza.ru
 MAX_MINIAPP_URL=https://proverkastaza.ru/app/
 PUBLIC_BASE_URL=https://api.proverkastaza.ru
@@ -48,7 +48,9 @@ PUBLIC_BASE_URL=https://api.proverkastaza.ru
 
 Перезапустите API (`sfrfr-api` / systemd).
 
-Проверка: без ключей `POST .../pay` вернёт **503** `payment provider not configured`.
+Проверка: `GET /v3/me` → `status=enabled`. Без ключей `POST .../pay` → **503**.  
+Без email при `SEND_RECEIPT=true` → **400**.  
+Фискализация вкл. + `SEND_RECEIPT=false` → ЮKassa `Receipt is missing or illegal`.
 
 ## Шаг 3. HTTP-уведомления (webhook)
 

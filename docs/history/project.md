@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-28 (ЮKassa)
+
+- Фискализация: YOOKASSA_SEND_RECEIPT=true; return URL proverkastaza.
+- Pay без email при чеке → 400.
+
 ## 2026-07-28 (YC billing блокер)
 
 - Облако `cloud-infoproverkastazaru`: баланс 0 → блок новых ресурсов / AI Studio key.
