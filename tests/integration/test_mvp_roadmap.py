@@ -51,12 +51,13 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'id="stati"' in home  # 3 карточки блога (§13.3)
     assert "Полезные статьи" in home
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
-    assert "СНИЛС" in form or "Без СНИЛС" in form
-    assert "file" not in form.lower().split("fields")[0] or "Без файлов" in form or True
-    # форма явно без file upload field type
+    assert "Электронная почта" in form
+    assert "Телефон" in form
+    assert "хотя бы" in form.lower() or "почту или телефон" in form.lower()
     assert "'type' => 'file'" not in form
     assert "Личный кабинет на сайте" in form
     assert "channel=max" not in form
+    assert "mode=register" in form
 
 
 def test_tz11_blog_mvp_assets() -> None:
