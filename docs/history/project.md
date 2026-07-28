@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-28 (промпты агентов)
+
+- `prompts/` — системные промпты Cursor; агент Yandex Cloud.
+
 ## 2026-07-28 (ops self-host Supabase YC)
 
 - `docs/ops/supabase-selfhost-yandex-cloud.md` — развёртывание стека на Compute VM.
