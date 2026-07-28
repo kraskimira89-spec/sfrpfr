@@ -477,7 +477,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             contact=contact,
             max_user_id=str(row["max_user_id"]),
         )
-        text = f"{confirm_web_login_message()}\n{issued.login_url}"
+        text = f"{confirm_web_login_message(code=issued.code)}\n{issued.login_url}"
         attachments = inline_confirm_login_keyboard(
             ticket_id=pending.ticket_id,
             login_url=issued.login_url,
@@ -525,9 +525,10 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             expires_in=max(60, int(pending.expires_at - time.time())),
             max_bot_url=settings.max_chat_url,
             status="pending_confirm",
+            verify_ticket=issued.ticket,
             message=(
-                "В чат MAX отправлена кнопка «Подтвердить вход в браузере». "
-                "Нажмите её — откроется кабинет; на странице входа вход подтвердится автоматически."
+                "Проверочный код отправлен в чат MAX. "
+                "Введите его на этой странице или нажмите кнопку в чате."
             ),
         )
 

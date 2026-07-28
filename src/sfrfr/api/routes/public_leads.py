@@ -22,10 +22,12 @@ class PublicLeadRequest(BaseModel):
     """Минимальный лид с сайта: без СНИЛС и файлов (ТЗ-02 / ТЗ-07 этап 1)."""
 
     full_name: str = Field(min_length=1, max_length=200)
-    contact: str = Field(
-        min_length=3,
+    email: str | None = Field(default=None, max_length=200, description="Почта (по желанию)")
+    phone: str | None = Field(default=None, max_length=64, description="Телефон (по желанию)")
+    contact: str | None = Field(
+        default=None,
         max_length=200,
-        description="Телефон или канал связи (MAX/email)",
+        description="Устарело: телефон или email одним полем",
     )
     consent: bool = Field(description="Согласие на связь и обработку данных обращения")
     preferred_channel: str | None = Field(
@@ -75,6 +77,42 @@ def _guess_phone_email(contact: str) -> tuple[str | None, str | None]:
     return raw[:64], None
 
 
+def _normalize_email(raw: str | None) -> str | None:
+    value = (raw or "").strip()
+    if not value or "@" not in value:
+        return None
+    return value[:200]
+
+
+def _normalize_phone_loose(raw: str | None) -> str | None:
+    value = (raw or "").strip()
+    if not value:
+        return None
+    digits = "".join(ch for ch in value if ch.isdigit() or ch == "+")
+    if len("".join(ch for ch in digits if ch.isdigit())) < 10:
+        return value[:64]
+    return digits[:32]
+
+
+def _resolve_lead_contacts(
+    payload: PublicLeadRequest,
+) -> tuple[str | None, str | None, str]:
+    """phone, email и строка контакта для уведомлений. Нужен email или телефон."""
+    email = _normalize_email(payload.email)
+    phone = _normalize_phone_loose(payload.phone)
+    if not email and not phone and (payload.contact or "").strip():
+        phone, email = _guess_phone_email(payload.contact or "")
+        email = _normalize_email(email)
+        phone = _normalize_phone_loose(phone)
+    if not email and not phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="email_or_phone_required",
+        )
+    parts = [p for p in (email, phone) if p]
+    return phone, email, ", ".join(parts)
+
+
 def _normalize_channel(raw: str | None) -> str:
     """Привести выбор канала с формы к max_miniapp | web_cabinet | unset."""
     s = (raw or "").strip().lower()
@@ -94,7 +132,9 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
     fields = raw.get("fields")
     if not isinstance(fields, dict):
         return None
-    values: list[str] = []
+    full_name = ""
+    email: str | None = None
+    phone: str | None = None
     consent = False
     preferred: str | None = None
     recaptcha_token: str | None = None
@@ -102,6 +142,7 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         if not isinstance(item, dict):
             continue
         label = str(item.get("name") or item.get("label") or "").lower()
+        ftype = str(item.get("type") or "").lower()
         value = str(item.get("value") or "").strip()
         if "recaptcha" in label or "g-recaptcha" in label:
             if value:
@@ -113,9 +154,19 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         if "канал" in label or "channel" in label:
             preferred = value
             continue
-        if value:
-            values.append(value)
-    if len(values) < 2:
+        if ftype == "name" or label == "имя" or label.startswith("имя"):
+            if value and not full_name:
+                full_name = value
+            continue
+        if ftype == "email" or "почт" in label or "email" in label:
+            if value:
+                email = value
+            continue
+        if ftype == "phone" or "телефон" in label or "phone" in label:
+            if value:
+                phone = value
+            continue
+    if not full_name or (not email and not phone):
         return None
     if not recaptcha_token:
         recaptcha_token = (
@@ -123,8 +174,9 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
             or None
         )
     return PublicLeadRequest(
-        full_name=values[0][:200],
-        contact=values[1][:200],
+        full_name=full_name[:200],
+        email=email,
+        phone=phone,
         consent=consent,
         preferred_channel=_normalize_channel(preferred),
         source="wordpress_wpforms",
@@ -242,7 +294,7 @@ def _create_lead(
     _require_recaptcha(payload.recaptcha_token, client_ip=client_ip)
 
     settings = get_settings()
-    phone, email = _guess_phone_email(payload.contact)
+    phone, email, contact_display = _resolve_lead_contacts(payload)
     preferred = _normalize_channel(payload.preferred_channel)
 
     client = get_supabase_client()
@@ -324,7 +376,7 @@ def _create_lead(
     max_notify = _notify_max_managers_new_lead(
         case_id=case_id,
         full_name=payload.full_name.strip(),
-        contact=payload.contact.strip(),
+        contact=contact_display,
         channel=preferred,
         crm_url=str(crm_url) if crm_url else None,
     )
@@ -333,26 +385,41 @@ def _create_lead(
 
     cabinet = settings.cabinet_public_url.rstrip("/")
     max_url = settings.max_public_bot_url or settings.max_chat_url
+    from urllib.parse import urlencode
+
+    reg_q = urlencode(
+        {
+            k: v
+            for k, v in {
+                "mode": "register",
+                "email": email or "",
+                "phone": phone or "",
+                "name": payload.full_name.strip(),
+            }.items()
+            if v
+        }
+    )
+    cabinet_register = f"{cabinet}/?{reg_q}" if reg_q else f"{cabinet}/?mode=register"
     if preferred == "web_cabinet":
         channel_hint = (
-            "Вы выбрали веб-кабинет. Откройте кабинет и загрузите сканы только туда. "
-            "При необходимости можно также написать в MAX."
+            "Вы выбрали веб-кабинет. Зарегистрируйтесь: код придёт на почту или в MAX "
+            "(в зависимости от контакта) — введите его на сайте. Сканы — только в кабинете."
         )
     elif preferred == "max_miniapp":
         channel_hint = (
-            "Вы выбрали MAX. Откройте бота / мини-приложение и продолжите там. "
-            "Сканы — только в MAX или кабинете, не через сайт."
+            "Вы выбрали MAX. Откройте бота и зарегистрируйтесь в кабинете: "
+            "проверочный код придёт в MAX или на почту. Сканы — только в MAX или кабинете."
         )
     else:
         channel_hint = (
-            "Выберите канал: мини-приложение MAX или веб-кабинет. "
+            "Зарегистрируйтесь в кабинете: код входа придёт на почту или в MAX. "
             "Сканы документов — только там, не через сайт."
         )
     return PublicLeadResponse(
         ok=True,
         case_id=case_id,
         max_bot_url=max_url,
-        cabinet_url=f"{cabinet}/",
+        cabinet_url=cabinet_register,
         channel_choice_hint=channel_hint,
         amocrm=amocrm if isinstance(amocrm, dict) else None,
         detail="lead_created",
@@ -371,14 +438,16 @@ async def create_public_lead(
         raise HTTPException(status_code=400, detail="JSON object required")
 
     payload: PublicLeadRequest | None = None
-    if "full_name" in raw and "contact" in raw:
+    if "full_name" in raw and (
+        "contact" in raw or "email" in raw or "phone" in raw
+    ):
         payload = PublicLeadRequest.model_validate(raw)
     else:
         payload = _from_wpforms_payload(raw)
     if payload is None:
         raise HTTPException(
             status_code=400,
-            detail="expected full_name+contact+consent or WPForms fields payload",
+            detail="expected full_name+(email|phone|contact)+consent or WPForms fields payload",
         )
     client_ip = request.client.host if request.client else None
     return _create_lead(payload, client_ip=client_ip)

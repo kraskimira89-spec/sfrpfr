@@ -110,6 +110,10 @@ class MaxOtpRequestResponse(BaseModel):
     max_bot_url: str = ""
     status: str = "pending_pair"
     message: str = ""
+    verify_ticket: str = Field(
+        default="",
+        description="Ticket для ввода кода на сайте, когда код отправлен в MAX",
+    )
 
 
 class MaxOtpPollResponse(BaseModel):

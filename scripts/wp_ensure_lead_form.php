@@ -1,7 +1,7 @@
 <?php
 /**
  * Создаёт/обновляет форму WPForms Lite «Заявка с сайта».
- * Поля: имя, телефон/канал, согласие. Без файлов и СНИЛС.
+ * Поля: имя (обяз.), email и телефон (хотя бы одно), канал, согласие.
  * Печатает ID формы в stdout.
  */
 if (!function_exists('wpforms')) {
@@ -30,13 +30,22 @@ $fields = [
         'required' => '1',
         'size' => 'medium',
     ],
+    '6' => [
+        'id' => '6',
+        'type' => 'email',
+        'label' => 'Электронная почта',
+        'description' => 'По желанию. Нужна для кода входа в кабинет, если без телефона.',
+        'required' => '0',
+        'size' => 'medium',
+    ],
     '2' => [
         'id' => '2',
-        'type' => 'text',
-        'label' => 'Телефон или канал связи',
-        'description' => 'Телефон / MAX. Без СНИЛС.',
-        'required' => '1',
+        'type' => 'phone',
+        'label' => 'Телефон',
+        'description' => 'По желанию. Нужен для связи / MAX, если без почты. Заполните почту или телефон.',
+        'required' => '0',
         'size' => 'medium',
+        'format' => 'smart',
     ],
     '5' => [
         'id' => '5',
@@ -84,7 +93,7 @@ $fields = [
 
 $settings = [
     'form_title' => $title,
-    'form_desc' => 'Сканы документов принимаются только в защищённом кабинете после отдельного согласия.',
+    'form_desc' => 'Укажите имя и хотя бы один контакт: почту или телефон — по ним придёт код входа в кабинет. Сканы через форму не принимаются.',
     'submit_text' => 'Отправить заявку',
     'submit_text_processing' => 'Отправка…',
     'notification_enable' => '1',
@@ -101,19 +110,18 @@ $settings = [
     'confirmations' => [
         '1' => [
             'type' => 'message',
-            'message' => '<p>Спасибо! Заявка принята — мы создали обращение в CRM.</p><p>Продолжите в выбранном канале:</p><ul><li><a href="https://max.ru/id8905998693_1_bot?startapp">Открыть MAX</a></li><li><a href="https://cabinet.proverkastaza.ru/?from=lead">Личный кабинет на сайте</a></li></ul><p>Сканы загружайте только в MAX или кабинете — не через эту форму. Оператор свяжется с вами по указанному контакту.</p>',
+            'message' => '<p>Спасибо! Заявка принята — обращение создано в CRM.</p><p>Зарегистрируйтесь в кабинете: на почту или в MAX придёт проверочный код, который нужно ввести на сайте.</p><p><a href="https://cabinet.proverkastaza.ru/?mode=register">Зарегистрироваться в кабинете</a> · <a href="https://max.ru/id8905998693_1_bot?startapp">Открыть MAX</a></p><p>Сканы загружайте только в MAX или кабинете.</p>',
             'message_scroll' => '1',
         ],
     ],
     'disable_entries' => '0',
 ];
 
-# Источник истины — MU-plugin (wpforms_process). Webhook WPForms отключаем, чтобы не дублировать лиды.
 $settings['webhooks'] = [];
 $form_data = [
     'fields' => $fields,
     'id' => $form_id,
-    'field_id' => 6,
+    'field_id' => 7,
     'settings' => $settings,
     'meta' => ['template' => 'blank'],
 ];

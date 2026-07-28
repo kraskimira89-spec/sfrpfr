@@ -112,8 +112,8 @@ type PortalMe = {
 type View = "cases" | "case" | "docs" | "payments" | "result";
 /** phone — только в архиве, пока AUTH_SMS_PUBLISHED = false */
 type AuthChannel = "email" | "phone" | "max";
-/** Единый вход: max (основной) | password | email_otp | recover. SMS не публикуем. */
-type AuthScreen = "max" | "password" | "email_otp" | "recover";
+/** Единый вход: max | register | password | email_otp | recover. SMS не публикуем. */
+type AuthScreen = "max" | "register" | "password" | "email_otp" | "recover";
 
 /** SMS-вход не публикуем (см. apps/cabinet/src/archive/auth-sms.md). */
 const AUTH_SMS_PUBLISHED = false;
@@ -255,7 +255,9 @@ export function ClientCabinet() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [fullName, setFullName] = useState("");
   const [maxTicket, setMaxTicket] = useState("");
+  const [maxVerifyTicket, setMaxVerifyTicket] = useState("");
   const [maxPairCode, setMaxPairCode] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
@@ -322,20 +324,31 @@ export function ClientCabinet() {
     setNotice("");
   }
 
-  // Query: ?mode=login|register|recover; ?channel=max; ?get_code=1
-  // MAX = единый вход и регистрация; отдельной «регистрации MAX» нет.
+  // Query: ?mode=login|register|recover; ?channel=max; ?email=&phone=&name=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").toLowerCase();
     const channel = (params.get("channel") || "").toLowerCase();
+    const qEmail = (params.get("email") || "").trim();
+    const qPhone = (params.get("phone") || "").trim();
+    const qName = (params.get("name") || "").trim();
     const wantMax =
       channel === "max" ||
       params.get("register")?.toLowerCase() === "max" ||
       params.get("get_code") === "1";
     const t = window.setTimeout(() => {
+      if (qEmail) setEmail(qEmail);
+      if (qPhone) setPhone(qPhone);
+      if (qName) setFullName(qName);
       if (mode === "recover") {
         setAuthScreen("recover");
         setAuthChannel("email");
+        return;
+      }
+      if (mode === "register") {
+        setAuthScreen("register");
+        setEmailCreateUser(true);
+        setAuthChannel(qEmail && !qPhone ? "email" : qPhone && !qEmail ? "max" : "email");
         return;
       }
       if (mode === "password" || (mode === "login" && !wantMax && channel === "email")) {
@@ -343,7 +356,6 @@ export function ClientCabinet() {
         setAuthChannel("email");
         return;
       }
-      // register / login / пусто / channel=max → один wizard MAX
       setAuthScreen("max");
       setAuthChannel("max");
     }, 0);
@@ -710,9 +722,13 @@ export function ClientCabinet() {
     setOtpCode("");
     setPassword("");
     setPasswordConfirm("");
-    setEmailCreateUser(false);
+    setEmailCreateUser(next === "register");
+    setMaxVerifyTicket("");
     if (next === "max") {
       setAuthChannel("max");
+      resetMaxWizard();
+    } else if (next === "register") {
+      setAuthChannel("email");
       resetMaxWizard();
     } else if (next === "password" || next === "email_otp" || next === "recover") {
       setAuthChannel("email");
@@ -720,12 +736,13 @@ export function ClientCabinet() {
   }
 
   function openEmailFirstTime() {
-    setAuthScreen("email_otp");
+    setAuthScreen("register");
     setAuthChannel("email");
     setEmailCreateUser(true);
     setOtpSent(false);
     setOtpCode("");
     setPassword("");
+    setMaxVerifyTicket("");
     setNotice("");
   }
 
@@ -972,6 +989,7 @@ export function ClientCabinet() {
       const body = (await response.json().catch(() => ({}))) as {
         detail?: string;
         ticket?: string;
+        verify_ticket?: string;
         pair_code?: string;
         max_bot_url?: string;
         message?: string;
@@ -985,6 +1003,7 @@ export function ClientCabinet() {
         throw new Error(detail);
       }
       setMaxTicket(body.ticket || "");
+      setMaxVerifyTicket(body.verify_ticket || "");
       setMaxPairCode(body.pair_code || "");
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
@@ -992,6 +1011,174 @@ export function ClientCabinet() {
       setNotice(body.message || `Ожидаем подтверждение в чате MAX…`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через чат MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestRegister(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const hasEmail = Boolean(email.trim());
+    const hasPhone = Boolean(phone.trim());
+    if (!hasEmail && !hasPhone) {
+      setNotice("Укажите почту или телефон — на него придёт проверочный код.");
+      return;
+    }
+    if (hasEmail) {
+      setAuthChannel("email");
+      setEmailCreateUser(true);
+      setBusy(true);
+      setNotice("");
+      try {
+        if (!supabase) {
+          setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+          return;
+        }
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
+            data: fullName.trim() ? { full_name: fullName.trim() } : undefined,
+          },
+        });
+        if (error) throw error;
+        setOtpSent(true);
+        setMaxVerifyTicket("");
+        setNotice("Код отправлен на почту. Введите его ниже.");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (/rate limit|over_email/i.test(msg)) {
+          setNotice("Слишком много запросов. Подождите несколько минут.");
+        } else {
+          setNotice("Не удалось отправить код на почту. Проверьте адрес.");
+        }
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    // Только телефон → код в MAX (если номер уже связан) или pair-код для первого раза
+    setAuthChannel("max");
+    setEmailCreateUser(false);
+    setBusy(true);
+    setNotice("");
+    try {
+      if (!apiBase) {
+        setNotice("API кабинета не настроен.");
+        return;
+      }
+      const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        ticket?: string;
+        verify_ticket?: string;
+        pair_code?: string;
+        max_bot_url?: string;
+        message?: string;
+        status?: string;
+      };
+      if (response.ok) {
+        setMaxTicket(body.ticket || "");
+        setMaxVerifyTicket(body.verify_ticket || "");
+        setMaxPairCode(body.pair_code || "");
+        setMaxWaitStatus(body.status || "pending_confirm");
+        if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
+        setOtpSent(true);
+        setNotice(
+          body.message ||
+            "Код отправлен в MAX. Введите его на этой странице.",
+        );
+        return;
+      }
+      // Первый раз без привязки MAX: код на странице → отправить в чат
+      const fallback = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const fb = (await fallback.json().catch(() => ({}))) as {
+        detail?: string;
+        ticket?: string;
+        pair_code?: string;
+        max_bot_url?: string;
+        message?: string;
+        status?: string;
+      };
+      if (!fallback.ok) {
+        throw new Error(
+          typeof body.detail === "string"
+            ? body.detail
+            : typeof fb.detail === "string"
+              ? fb.detail
+              : "Не удалось начать регистрацию через MAX.",
+        );
+      }
+      setMaxTicket(fb.ticket || "");
+      setMaxVerifyTicket("");
+      setMaxPairCode(fb.pair_code || "");
+      setMaxWaitStatus(fb.status || "pending_pair");
+      const bot = chatUrlOnly(fb.max_bot_url || maxBotUrl);
+      if (fb.max_bot_url) setMaxBotUrl(bot);
+      setOtpSent(true);
+      window.open(bot, "_blank", "noopener,noreferrer");
+      setNotice(
+        "Для первого входа через MAX откройте чат, нажмите «Начать» и отправьте код с этой страницы. " +
+          "После привязки код будет приходить в MAX.",
+      );
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось начать регистрацию.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyMaxSiteOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !apiBase) return;
+    if (!maxVerifyTicket || !otpCode.trim()) {
+      setNotice("Введите код из чата MAX.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch(`${apiBase}/api/portal/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticket: maxVerifyTicket,
+          code: otpCode.trim(),
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        token_hash?: string;
+        type?: "email" | "sms";
+      };
+      if (!response.ok) {
+        throw new Error(
+          typeof body.detail === "string"
+            ? body.detail
+            : "Неверный или устаревший код.",
+        );
+      }
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: body.token_hash || "",
+        type: body.type || "email",
+      });
+      if (error) throw error;
+      setOtpSent(false);
+      setMaxTicket("");
+      setMaxVerifyTicket("");
+      setMaxPairCode("");
+      setNotice("");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось войти по коду.");
     } finally {
       setBusy(false);
     }
@@ -1010,8 +1197,10 @@ export function ClientCabinet() {
   function resetMaxWizard() {
     setOtpSent(false);
     setMaxTicket("");
+    setMaxVerifyTicket("");
     setMaxPairCode("");
     setMaxWaitStatus("");
+    setOtpCode("");
     setNotice("");
     getCodeOnceRef.current = false;
   }
@@ -1248,6 +1437,29 @@ export function ClientCabinet() {
                 <li>Пришлите код с этой страницы</li>
               </ol>
             </>
+          ) : maxVerifyTicket ? (
+            <>
+              <p className="max-wizard-status" role="status">
+                Код отправлен в чат MAX — введите его здесь
+              </p>
+              <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
+                <label htmlFor="max-site-otp">Код из MAX</label>
+                <input
+                  id="max-site-otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  required
+                />
+                <button type="submit" disabled={busy}>
+                  Войти по коду
+                </button>
+              </form>
+              <button type="button" className="ghost" onClick={resetMaxWizard}>
+                Начать заново
+              </button>
+            </>
           ) : (
             <>
               <p className="max-wizard-status" role="status">
@@ -1373,6 +1585,13 @@ export function ClientCabinet() {
                     <button
                       type="button"
                       className="linkish"
+                      onClick={() => goAuthScreen("register")}
+                    >
+                      Зарегистрироваться
+                    </button>
+                    <button
+                      type="button"
+                      className="linkish"
                       onClick={() => goAuthScreen("password")}
                     >
                       По паролю
@@ -1387,12 +1606,117 @@ export function ClientCabinet() {
                     >
                       Код на почту
                     </button>
-                    <button type="button" className="linkish" onClick={openEmailFirstTime}>
-                      Первый раз без MAX
-                    </button>
                   </div>
                 </details>
               </div>
+            </>
+          ) : null}
+
+          {authScreen === "register" ? (
+            <>
+              <p className="lead lead-compact">
+                Регистрация: укажите почту или телефон. Проверочный код придёт на почту или в
+                MAX — введите его на этой странице.
+              </p>
+              {!otpSent ? (
+                <form className="auth-form" onSubmit={requestRegister}>
+                  <label htmlFor="reg-name">Имя</label>
+                  <input
+                    id="reg-name"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    autoComplete="name"
+                  />
+                  <label htmlFor="reg-email">Электронная почта</label>
+                  <input
+                    id="reg-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    placeholder="по желанию"
+                  />
+                  <label htmlFor="reg-phone">Телефон</label>
+                  <input
+                    id="reg-phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    autoComplete="tel"
+                    placeholder="по желанию"
+                  />
+                  <p className="hint">Нужна почта или телефон — хотя бы одно поле.</p>
+                  <button type="submit" disabled={busy}>
+                    Зарегистрироваться
+                  </button>
+                </form>
+              ) : maxVerifyTicket ? (
+                <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
+                  <label htmlFor="reg-max-otp">Код из MAX</label>
+                  <input
+                    id="reg-max-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Подтвердить код
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestRegister()}
+                  >
+                    Отправить ещё раз
+                  </button>
+                </form>
+              ) : authChannel === "email" ? (
+                <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <label htmlFor="reg-email-otp">Код из письма</label>
+                  <input
+                    id="reg-email-otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Подтвердить код
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={busy}
+                    onClick={() => void requestRegister()}
+                  >
+                    Отправить ещё раз
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <p className="max-wizard-status" role="status">
+                    Пришлите этот код в чат MAX
+                  </p>
+                  {maxPairCode ? (
+                    <p className="max-code-block">
+                      Код: <strong className="max-pair-code">{maxPairCode}</strong>
+                    </p>
+                  ) : null}
+                  <button type="button" className="ghost" onClick={resetMaxWizard}>
+                    Начать заново
+                  </button>
+                </>
+              )}
+              <p className="auth-links">
+                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
+                  ← Войти через MAX
+                </button>
+              </p>
             </>
           ) : null}
 

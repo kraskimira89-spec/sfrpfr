@@ -162,7 +162,8 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
     }
 
     $full_name = '';
-    $contact = '';
+    $email = '';
+    $phone = '';
     $consent = false;
     $channel = 'unset';
     $recaptcha = '';
@@ -200,17 +201,27 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             }
             continue;
         }
-        if (
-            $contact === ''
-            && $value !== ''
-            && (str_contains($label, 'телефон') || str_contains($label, 'связ') || $type === 'text' || $type === 'phone')
-        ) {
-            $contact = $value;
+        if ($type === 'email' || str_contains($label, 'почт') || str_contains($label, 'email')) {
+            if ($value !== '') {
+                $email = $value;
+            }
+            continue;
+        }
+        if ($type === 'phone' || str_contains($label, 'телефон') || str_contains($label, 'phone')) {
+            if ($value !== '') {
+                $phone = $value;
+            }
+            continue;
         }
     }
 
-    if ($full_name === '' || $contact === '') {
-        wpforms()->process->errors[$form_id]['header'] = 'Заполните имя и контакт для связи.';
+    if ($full_name === '') {
+        wpforms()->process->errors[$form_id]['header'] = 'Укажите имя.';
+        return;
+    }
+    if ($email === '' && $phone === '') {
+        wpforms()->process->errors[$form_id]['header'] =
+            'Укажите электронную почту или телефон — по ним придёт код входа в кабинет.';
         return;
     }
     if (!$consent) {
@@ -220,7 +231,8 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
 
     $payload = [
         'full_name' => mb_substr($full_name, 0, 200),
-        'contact' => mb_substr($contact, 0, 200),
+        'email' => $email !== '' ? mb_substr($email, 0, 200) : null,
+        'phone' => $phone !== '' ? mb_substr($phone, 0, 64) : null,
         'consent' => true,
         'preferred_channel' => $channel,
         'source' => 'wordpress_wpforms',

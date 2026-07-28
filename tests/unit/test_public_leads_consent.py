@@ -14,22 +14,23 @@ def test_wpforms_payload_does_not_invent_consent() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "value": "Иван Иванов"},
-                "2": {"name": "Телефон", "value": "+7 900 000-00-00"},
+                "1": {"name": "Имя", "type": "name", "value": "Иван Иванов"},
+                "2": {"name": "Телефон", "type": "phone", "value": "+7 900 000-00-00"},
             }
         }
     )
 
     assert payload is not None
     assert payload.consent is False
+    assert payload.phone == "+7 900 000-00-00"
 
 
 def test_wpforms_payload_keeps_explicit_consent() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "value": "Иван Иванов"},
-                "2": {"name": "Телефон", "value": "+7 900 000-00-00"},
+                "1": {"name": "Имя", "type": "name", "value": "Иван Иванов"},
+                "2": {"name": "Телефон", "type": "phone", "value": "+7 900 000-00-00"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
         }
@@ -43,8 +44,8 @@ def test_wpforms_payload_reads_preferred_channel() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "value": "Иван"},
-                "2": {"name": "Телефон", "value": "+79001112233"},
+                "1": {"name": "Имя", "type": "name", "value": "Иван"},
+                "2": {"name": "Телефон", "type": "phone", "value": "+79001112233"},
                 "5": {"name": "Предпочтительный канал", "value": "MAX (мессенджер)"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
@@ -52,6 +53,33 @@ def test_wpforms_payload_reads_preferred_channel() -> None:
     )
     assert payload is not None
     assert payload.preferred_channel == "max_miniapp"
+
+
+def test_wpforms_payload_email_without_phone() -> None:
+    payload = _from_wpforms_payload(
+        {
+            "fields": {
+                "1": {"name": "Имя", "type": "name", "value": "Анна"},
+                "6": {"name": "Электронная почта", "type": "email", "value": "a@example.com"},
+                "3": {"name": "Согласие", "value": "Да"},
+            }
+        }
+    )
+    assert payload is not None
+    assert payload.email == "a@example.com"
+    assert not payload.phone
+
+
+def test_wpforms_payload_requires_email_or_phone() -> None:
+    payload = _from_wpforms_payload(
+        {
+            "fields": {
+                "1": {"name": "Имя", "type": "name", "value": "Анна"},
+                "3": {"name": "Согласие", "value": "Да"},
+            }
+        }
+    )
+    assert payload is None
 
 
 @pytest.mark.parametrize(
