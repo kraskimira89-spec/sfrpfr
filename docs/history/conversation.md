@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-07-28 (промпт AI Studio)
+
+- `prompts/system/yandex-ai-studio-agent.md` — агент LLM / YandexGPT.
+
 ## 2026-07-28 (Workspace: Диск + календарь)
 
 - Проверка `yandex-workspace-setup.md`: OAuth apps ок, Disk/CalDAV/Telemost/Mail.

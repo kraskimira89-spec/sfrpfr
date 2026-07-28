@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-28 (промпт AI Studio)
+
+- `prompts/system/yandex-ai-studio-agent.md` — LLM / Foundation Models.
+
 ## 2026-07-28 (Yandex Workspace: Диск + dual calendar)
 
 - `YANDEX_DISK_ENABLED=true`: API disk + папка `SFRFR-ops` (без ПДн).
