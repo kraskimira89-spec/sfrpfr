@@ -42,7 +42,11 @@ def load_workspace_secrets(*, path: Path | None = None) -> Path | None:
     _merge_yandex_env_file(secrets_path)
     get_settings.cache_clear()
     _loaded = True
-    return secrets_path if secrets_path.is_file() else (_DEFAULT_DOTENV if _DEFAULT_DOTENV.is_file() else None)
+    if secrets_path.is_file():
+        return secrets_path
+    if _DEFAULT_DOTENV.is_file():
+        return _DEFAULT_DOTENV
+    return None
 
 
 def _ensure_loaded() -> None:
