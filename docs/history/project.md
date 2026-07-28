@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-28 (YC billing блокер)
+
+- Облако `cloud-infoproverkastazaru`: баланс 0 → блок новых ресурсов / AI Studio key.
+- Runbook: `docs/ops/yandex-cloud-billing-unblock.md`.
+
 ## 2026-07-28 (промпт AI Studio)
 
 - `prompts/system/yandex-ai-studio-agent.md` — LLM / Foundation Models.

@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-28 (стоп: Yandex Cloud заблокирован)
+
+- Баннер «Облако заблокировано», баланс 0 ₽ → шаг AI Studio (SA/ключ) на паузе.
+- Ops: `docs/ops/yandex-cloud-billing-unblock.md`. Workspace OAuth не затронут.
+
 ## 2026-07-28 (промпт AI Studio)
 
 - `prompts/system/yandex-ai-studio-agent.md` — агент LLM / YandexGPT.
