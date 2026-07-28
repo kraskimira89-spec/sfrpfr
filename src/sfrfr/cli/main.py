@@ -574,6 +574,43 @@ def gsc_sites() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("yookassa-status")
+def yookassa_status(
+    expected_provider: str = typer.Option(
+        "evotor",
+        "--expected-provider",
+        help="Ожидаемый fiscalization.provider из /v3/me (канон: evotor → Платформа ОФД)",
+    ),
+) -> None:
+    """Статус магазина ЮKassa + сверка фискализации (без двойных чеков)."""
+    import json
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.payments import YooKassaClient, check_fiscalization_alignment
+
+    settings = get_settings()
+    me = YooKassaClient().fetch_me()
+    align = check_fiscalization_alignment(
+        fiscalization_enabled=bool(me.get("fiscalization_enabled")),
+        fiscal_provider=str(me["fiscal_provider"]) if me.get("fiscal_provider") else None,
+        send_receipt=bool(settings.yookassa_send_receipt),
+        expected_provider=(expected_provider or "").strip().lower() or "evotor",
+    )
+    out = {
+        "me": {k: me.get(k) for k in (
+            "ok", "skipped", "status_code", "account_id", "status", "test",
+            "fiscalization_enabled", "fiscal_provider", "payment_methods", "error", "reason",
+        ) if k in me},
+        "alignment": align,
+        "send_receipt_env": bool(settings.yookassa_send_receipt),
+    }
+    typer.echo(json.dumps(out, ensure_ascii=False))
+    if me.get("skipped"):
+        raise typer.Exit(code=0)
+    if not me.get("ok") or not align.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("amocrm-ensure-fields")
 def amocrm_ensure_fields() -> None:
     """Создать в amoCRM недостающие custom fields сделки (CASE_ID и др.)."""

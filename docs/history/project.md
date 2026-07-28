@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-28 (ОФД / Evotor)
+
+- Канон: ЮKassa → Evotor → Платформа ОФД; CLI yookassa-status; без двойной фискализации.
+
 ## 2026-07-28 (оплата: MAX + amoCRM)
 
 - Уже в коде: notify после succeeded → MAX/чат дела + заметка amo; чек только ЮKassa.

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
+from sfrfr.integrations.payments import (
+    YooKassaClient,
+    check_fiscalization_alignment,
+    parse_yookassa_event,
+)
 from sfrfr.integrations.payments.notify import (
     format_amocrm_payment_note,
     format_payment_succeeded_message,
@@ -68,3 +72,23 @@ def test_format_amocrm_payment_note_is_ops_not_fiscal() -> None:
     assert "оплата прошла" in note
     assert "ЮKassa" in note
     assert "не через CRM" in note
+
+
+def test_fiscalization_alignment_ok_for_evotor_with_receipt() -> None:
+    res = check_fiscalization_alignment(
+        fiscalization_enabled=True,
+        fiscal_provider="evotor",
+        send_receipt=True,
+    )
+    assert res["ok"] is True
+    assert res["warnings"] == []
+
+
+def test_fiscalization_alignment_fails_without_receipt() -> None:
+    res = check_fiscalization_alignment(
+        fiscalization_enabled=True,
+        fiscal_provider="evotor",
+        send_receipt=False,
+    )
+    assert res["ok"] is False
+    assert any("SEND_RECEIPT=false" in w for w in res["warnings"])

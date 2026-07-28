@@ -88,19 +88,46 @@ CVC: любой
    - `SF_*` → `success_fee_paid`
 7. При **первом** `succeeded`: уведомление клиенту в MAX (если привязан) + системное сообщение в деле; в amoCRM — sync сделки + заметка «оплата прошла». Фискальный чек по-прежнему только через ЮKassa/ОФД.
 
-## Шаг 5. Чеки 54-ФЗ (когда понадобится)
+## Шаг 5. Чеки 54-ФЗ и ОФД (канон SFRFR)
 
-Документация: [Чеки от ЮKassa](https://yookassa.ru/developers/payment-acceptance/receipts/54fz/yoomoney/basics).
+Обзор режимов: [54-ФЗ в ЮKassa](https://yookassa.ru/developers/payment-acceptance/receipts/54fz/basics).
 
-1. В ЛК включите отправку чеков (или свою ОФД).
-2. В `.env`: `YOOKASSA_SEND_RECEIPT=true`.
-3. У клиента должен быть **email** (из JWT/профиля или `customer_email` в теле pay).
-4. Код передаёт `receipt.customer` + `items` с `vat_code` (по умолчанию `1`).
+### Канонический контур (без конфликта)
+
+У боевого магазина SFRFR (`GET /v3/me`): `fiscalization.provider = evotor` — **своя ККТ-партнёр**, не сервис «Чеки от ЮKassa».
+
+```text
+Оплата ЮKassa
+  → SFRFR передаёт receipt (email + позиции)   YOOKASSA_SEND_RECEIPT=true
+  → касса Evotor пробивает чек
+  → ОФД «Платформа ОФД» → ФНС + клиент
+       ЛК: https://lk.platformaofd.ru/
+```
+
+| Слой | Задействовать | Не задействовать |
+|---|---|---|
+| ЮKassa ЛК | Один канал: **онлайн-касса / Evotor** | Параллельно «Чеки от ЮKassa» |
+| SFRFR | `YOOKASSA_SEND_RECEIPT=true` + email | Фискальный чек через MAX / amoCRM |
+| Платформа ОФД | Просмотр чеков, выгрузки | Второй «кассир» на тот же платёж |
+| Evotor | Одна касса, привязанная к магазину | Ручной повторный пробив того же payment |
+
+Проверка контура:
+
+```bash
+python -m sfrfr yookassa-status
+# ожидание: fiscal_provider=evotor, send_receipt=true, warnings=[]
+```
+
+### Настройка в коде
+
+1. В `.env`: `YOOKASSA_SEND_RECEIPT=true` (обязательно при `fiscalization_enabled`).
+2. У клиента — **email** (профиль или `customer_email` в `/pay`).
+3. Код передаёт `receipt.customer` + `items` с `vat_code` (по умолчанию `1`).
 
 **Не отправляйте фискальный чек через MAX или amoCRM** — это не ОФД.  
 После оплаты SFRFR шлёт в MAX/чат дела сервисное «оплата получена, чек на email», а в amo — служебную заметку.
 
-Пока `false` — платежи без блока `receipt` (удобно для теста API; при включённой фискализации в ЛК ЮKassa вернёт `Receipt is missing`).
+Пока `SEND_RECEIPT=false` при включённой фискализации ЮKassa вернёт `Receipt is missing or illegal`.
 
 ## Шаг 6. Боевой режим
 
@@ -126,14 +153,17 @@ CVC: любой
 | 503 на `/pay` | Пустые `YOOKASSA_SHOP_ID` / `SECRET_KEY` на VPS |
 | 502 yookassa create failed | Неверный ключ, сумма 0, ответ API в логах |
 | Оплатил, статус pending | Webhook URL / HTTPS / firewall; событие `payment.succeeded` |
-| Нет чека | `YOOKASSA_SEND_RECEIPT` и email клиента |
+| Нет чека | `YOOKASSA_SEND_RECEIPT` и email клиента; ЛК [Платформа ОФД](https://lk.platformaofd.ru/) |
+| `Receipt is missing` | Фискализация вкл., а `SEND_RECEIPT=false` |
+| Двойной чек | В ЮKassa два режима сразу или ручной пробив в Evotor + API |
 | Тест не проходит | Используете боевой ключ или наоборот |
 
 ## Минимальный чеклист приёмки
 
-- [ ] Test shopId + secret в `.env` на VPS
+- [ ] `python -m sfrfr yookassa-status` → `evotor`, `SEND_RECEIPT=true`, без warnings
+- [ ] В ЛК ЮKassa только один канал фискализации (ККТ, не дубль с «Чеки от ЮKassa»)
 - [ ] Webhook HTTPS настроен в ЛК
 - [ ] Создан заказ на деле
-- [ ] Оплата тестовой картой `5555…4444`
-- [ ] После webhook заказ `paid` в кабинете
+- [ ] Оплата (тест/минимальная сумма) → один чек в [Платформа ОФД](https://lk.platformaofd.ru/)
+- [ ] После webhook заказ `paid` в кабинете; MAX/amo — сервисное уведомление, не чек
 - [ ] Return URL открывает нужный канал (cabinet / mini-app)
