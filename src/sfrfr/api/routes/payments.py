@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,6 +15,7 @@ from sfrfr.security.auth import Principal, get_current_principal
 
 router = APIRouter()
 webhook_router = APIRouter()
+logger = logging.getLogger("sfrfr.payments")
 
 ReturnChannel = Literal["web_cabinet", "max_miniapp"]
 
@@ -145,6 +147,10 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
                 amount_value=str(parsed["amount_value"]) if parsed.get("amount_value") else None,
                 provider_payment_id=str(provider_id),
             )
-        except Exception:  # noqa: BLE001 — webhook всегда 200 после учёта платежа
-            pass
+        except Exception as exc:  # noqa: BLE001 — webhook всегда 200 после учёта платежа
+            logger.warning(
+                "payment notify failed case=%s: %s",
+                str(applied.get("case_id") or "")[:8],
+                exc,
+            )
     return {"ok": "processed"}

@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-28 (оплата: MAX + amoCRM)
+
+- Уже в коде: notify после succeeded → MAX/чат дела + заметка amo; чек только ЮKassa.
+- Лог ошибки notify в webhook без падения 200.
+
 ## 2026-07-28 (уведомления оплаты)
 
 - payments/notify.py: MAX, case_message, amo note; newly_paid в webhook.
