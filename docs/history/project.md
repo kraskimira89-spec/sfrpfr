@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-07-28 (уведомления оплаты)
+
+- payments/notify.py: MAX, case_message, amo note; newly_paid в webhook.
+
 ## 2026-07-28 (ЮKassa)
 
 - Фискализация: YOOKASSA_SEND_RECEIPT=true; return URL proverkastaza.

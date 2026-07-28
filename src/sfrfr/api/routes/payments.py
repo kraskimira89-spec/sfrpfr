@@ -121,7 +121,7 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
     status_value = str(parsed.get("status") or "unknown")
     paid = bool(parsed.get("paid")) or status_value == "succeeded"
     try:
-        _repo().apply_provider_payment(
+        applied = _repo().apply_provider_payment(
             provider_payment_id=str(provider_id),
             status_value=status_value,
             order_id=str(parsed["order_id"]) if parsed.get("order_id") else None,
@@ -134,4 +134,17 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
         if exc.status_code == 404:
             return {"ok": "ignored"}
         raise
+
+    if paid and applied.get("newly_paid") and applied.get("case_id"):
+        try:
+            from sfrfr.integrations.payments.notify import notify_payment_succeeded
+
+            notify_payment_succeeded(
+                case_id=str(applied["case_id"]),
+                package_code=str(applied.get("package_code") or "") or None,
+                amount_value=str(parsed["amount_value"]) if parsed.get("amount_value") else None,
+                provider_payment_id=str(provider_id),
+            )
+        except Exception:  # noqa: BLE001 — webhook всегда 200 после учёта платежа
+            pass
     return {"ok": "processed"}

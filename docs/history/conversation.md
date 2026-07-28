@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-07-28 (оплата: MAX + amo)
+
+- После payment.succeeded: MAX/чат дела + заметка amo; чек только ЮKassa.
+
 ## 2026-07-28 (ЮKassa / ЮMoney)
 
 - Магазин live nabled; в methods есть yoo_money.

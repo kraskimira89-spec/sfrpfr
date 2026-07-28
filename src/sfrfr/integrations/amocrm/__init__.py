@@ -205,6 +205,25 @@ class AmoCrmClient:
             result["ok"] = True
         return result
 
+    def add_lead_note(self, lead_id: str | int, text: str) -> dict[str, Any]:
+        """Обычная текстовая заметка к сделке (не фискальный чек)."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no AMO credentials"}
+        body = (text or "").strip()
+        if not body:
+            return {"ok": False, "skipped": True, "reason": "empty note"}
+        payload = [
+            {
+                "entity_id": int(lead_id),
+                "note_type": "common",
+                "params": {"text": body[:10000]},
+            }
+        ]
+        result = self._request("POST", "/leads/notes", json_body=payload)
+        result["lead_id"] = str(lead_id)
+        result["action"] = "note"
+        return result
+
 
 def _extract_lead_id(body: Any) -> str | None:
     if isinstance(body, list) and body:

@@ -675,10 +675,13 @@ class CaseRepository:
         if not rows:
             raise HTTPException(status_code=404, detail="payment not found")
         row = rows[0]
+        already_paid = str(row.get("status") or "") in ("succeeded", "paid")
+        marking_paid = bool(paid or status_value in ("succeeded", "paid"))
+        newly_paid = marking_paid and not already_paid
         updates: dict[str, Any] = {"status": status_value}
         if fiscal_status is not None:
             updates["fiscal_status"] = fiscal_status
-        if paid or status_value in ("succeeded", "paid"):
+        if marking_paid:
             updates["paid_at"] = datetime.now(UTC).isoformat()
             updates["status"] = "succeeded"
         response = (
@@ -688,9 +691,9 @@ class CaseRepository:
         resolved_case_id = str(case_id or order.get("case_id") or "")
         oid = str(order.get("id") or row.get("order_id") or "")
         code = str(package_code or order.get("package_code") or "")
-        if (paid or status_value in ("succeeded", "paid")) and oid:
+        if marking_paid and oid:
             self.client.table("orders").update({"status": "paid"}).eq("id", oid).execute()
-            if resolved_case_id:
+            if resolved_case_id and newly_paid:
                 self.audit(resolved_case_id, None, f"payment_succeeded:{provider_payment_id}")
                 b2c = None
                 if code == "DIAG":
@@ -703,7 +706,15 @@ class CaseRepository:
                     self.client.table("cases").update({"b2c_status": b2c}).eq(
                         "id", resolved_case_id
                     ).execute()
-        return response.data[0] if response.data else row
+        payment_out = response.data[0] if response.data else row
+        return {
+            "payment": payment_out,
+            "newly_paid": newly_paid,
+            "case_id": resolved_case_id,
+            "order_id": oid,
+            "package_code": code,
+            "provider_payment_id": provider_payment_id,
+        }
 
     def upsert_checklist_item(
         self,
