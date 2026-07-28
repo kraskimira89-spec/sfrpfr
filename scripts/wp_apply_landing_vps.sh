@@ -37,7 +37,12 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-footer.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
-echo "MU site-footer OK"
+cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-recaptcha-lead.php" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.php"
+cp -f "${APP_DIR}/scripts/assets/sfrfr-recaptcha-lead.js" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.js" 2>/dev/null || true
+echo "MU site-footer + lead OK"
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_ensure_lead_form.php" || true
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
