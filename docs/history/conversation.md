@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-07-28 (webhook ЮKassa URL)
+
+- В ЛК был URL без /webhook (404); добавлен алиас POST .../yookassa.
+
 ## 2026-07-28 (ОФД / Evotor)
 
 - Канон: ЮKassa → Evotor → Платформа ОФД; CLI yookassa-status; без двойной фискализации.

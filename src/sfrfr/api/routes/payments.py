@@ -113,8 +113,13 @@ def start_order_payment(
 
 
 @webhook_router.post("/yookassa/webhook", status_code=status.HTTP_200_OK)
+@webhook_router.post("/yookassa", status_code=status.HTTP_200_OK)
 def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
-    """Приём уведомлений ЮKassa (без ПДн в ответе)."""
+    """Приём уведомлений ЮKassa (без ПДн в ответе).
+
+    Канон в ЛК: .../payments/yookassa/webhook
+    Алиас .../payments/yookassa — если в настройках забыли /webhook.
+    """
     parsed = parse_yookassa_event(payload)
     provider_id = parsed.get("provider_payment_id")
     if not provider_id:

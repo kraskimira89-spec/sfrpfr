@@ -57,14 +57,20 @@ PUBLIC_BASE_URL=https://api.proverkastaza.ru
 По [входящим уведомлениям](https://yookassa.ru/developers/using-api/webhooks):
 
 1. ЛК ЮKassa → магазин → **Интеграция** → HTTP-уведомления.
-2. URL:
+2. URL (предпочтительно с `/webhook`; без суффикса тоже принимается):
 
 ```text
 https://api.proverkastaza.ru/api/integrations/payments/yookassa/webhook
 ```
 
-3. События минимум: `payment.succeeded`, желательно `payment.canceled`, `payment.waiting_for_capture`.
-4. URL должен быть **HTTPS** и отвечать **200** быстро (наш handler так и делает).
+или короткий алиас:
+
+```text
+https://api.proverkastaza.ru/api/integrations/payments/yookassa
+```
+
+События минимум: `payment.succeeded`; желательно `payment.canceled`, `payment.waiting_for_capture`.
+`refund.succeeded` / `payment.method.active` можно оставить включёнными — лишние события без payment id будут `ignored`/400 без падения оплаты.
 
 Без webhook статус в кабинете обновится только вручную / при повторной проверке; клиент после оплаты увидит `return_url`, но «оплачено» надёжно ставит webhook.
 
