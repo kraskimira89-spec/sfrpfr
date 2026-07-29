@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""Создать/найти счётчик Яндекс Метрики и JS-цели lead_ok / max_click.
+"""Счётчик Метрики: цели, filter_robots, exclude IP, cut_parameter.
 
-Требует env (или secrets/yandex-metrika.env):
+Env (secrets/yandex-metrika.env):
   YANDEX_METRIKA_OAUTH_ACCESS_TOKEN
   YANDEX_METRIKA_SITE_URL=https://proverkastaza.ru
   YANDEX_METRIKA_COUNTER_NAME=Проверка стажа
-
-Печатает строку YANDEX_METRIKA_COUNTER_ID=… для .env
+  YANDEX_METRIKA_EXCLUDE_IPS=1.2.3.4,5.6.7.8   # опционально
+  YANDEX_METRIKA_EXCLUDE_MY_IP=1               # добавить публичный IP запуска (по умолч. 1)
 """
 from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,6 +21,29 @@ API = "https://api-metrika.yandex.net/management/v1"
 GOALS = (
     ("lead_ok", "Заявка отправлена (без ПДн)"),
     ("max_click", "Клик Открыть в MAX"),
+    ("lead_start", "Старт заявки / фокус формы"),
+    ("cabinet_click", "Клик в кабинет"),
+    ("tariff_view", "Просмотр тарифов"),
+    ("form_error", "Ошибка отправки формы"),
+)
+# Параметры URL, которые вырезаем до сохранения хита (ПДн / секреты).
+CUT_URL_PARAMS = (
+    "email",
+    "mail",
+    "e-mail",
+    "phone",
+    "tel",
+    "telephone",
+    "mobile",
+    "fio",
+    "name",
+    "firstname",
+    "lastname",
+    "snils",
+    "password",
+    "pass",
+    "token",
+    "access_token",
 )
 
 
@@ -91,14 +113,29 @@ def find_counter(host: str) -> dict | None:
 
 def create_counter(host: str) -> dict:
     name = os.environ.get("YANDEX_METRIKA_COUNTER_NAME", "Проверка стажа").strip()
-    # Минимальное тело: лишние поля (gdpr_*) API отвергает как invalid_json.
     body = {
         "counter": {
             "name": name,
             "site2": {"site": host},
+            "filter_robots": 1,
         }
     }
     return api("POST", "/counters", body)
+
+
+def ensure_counter_settings(counter_id: int) -> None:
+    data = api("GET", f"/counter/{counter_id}")
+    counter = data.get("counter") or data
+    fr = counter.get("filter_robots")
+    if fr in (1, "1", True):
+        print("  filter_robots=1 (ok)")
+        return
+    print(f"  enabling filter_robots (was {fr!r})")
+    api(
+        "PUT",
+        f"/counter/{counter_id}",
+        {"counter": {"filter_robots": 1}},
+    )
 
 
 def list_goals(counter_id: int) -> list[dict]:
@@ -113,7 +150,7 @@ def ensure_action_goal(counter_id: int, ident: str, title: str, existing: list[d
             if (cond.get("url") or "") == ident:
                 print(f"  goal ok: {ident} (id={g.get('id')})")
                 return
-        if (g.get("name") or "") == title or (g.get("name") or "") == ident:
+        if (g.get("name") or "") in (title, ident):
             print(f"  goal ok by name: {ident} (id={g.get('id')})")
             return
     body = {
@@ -127,6 +164,91 @@ def ensure_action_goal(counter_id: int, ident: str, title: str, existing: list[d
     out = api("POST", f"/counter/{counter_id}/goals", body)
     gid = (out.get("goal") or {}).get("id")
     print(f"  goal created: {ident} (id={gid})")
+
+
+def public_ip() -> str | None:
+    for url in ("https://api.ipify.org", "https://ifconfig.me/ip"):
+        try:
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                ip = resp.read().decode("utf-8").strip()
+                if ip and all(p.isdigit() for p in ip.split(".")):
+                    return ip
+        except Exception:
+            continue
+    return None
+
+
+def ensure_ip_excludes(counter_id: int) -> None:
+    ips: list[str] = []
+    raw = os.environ.get("YANDEX_METRIKA_EXCLUDE_IPS", "").strip()
+    if raw:
+        ips.extend(p.strip() for p in raw.replace(";", ",").split(",") if p.strip())
+    if os.environ.get("YANDEX_METRIKA_EXCLUDE_MY_IP", "1").strip() not in ("0", "false", "no"):
+        mine = public_ip()
+        if mine:
+            ips.append(mine)
+            print(f"  my public IP: {mine}")
+    # unique preserve order
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for ip in ips:
+        if ip not in seen:
+            seen.add(ip)
+            uniq.append(ip)
+    if not uniq:
+        print("  IP excludes: none configured")
+        return
+
+    existing = api("GET", f"/counter/{counter_id}/filters").get("filters") or []
+    have = {
+        (f.get("attr"), f.get("type"), f.get("value"), f.get("action"))
+        for f in existing
+    }
+    for ip in uniq:
+        key = ("client_ip", "equal", ip, "exclude")
+        if key in have:
+            print(f"  IP exclude ok: {ip}")
+            continue
+        out = api(
+            "POST",
+            f"/counter/{counter_id}/filters",
+            {
+                "filter": {
+                    "attr": "client_ip",
+                    "type": "equal",
+                    "value": ip,
+                    "action": "exclude",
+                    "status": "active",
+                }
+            },
+        )
+        print(f"  IP exclude created: {ip} id={(out.get('filter') or {}).get('id')}")
+
+
+def ensure_cut_params(counter_id: int) -> None:
+    existing = api("GET", f"/counter/{counter_id}/operations").get("operations") or []
+    have = {
+        (op.get("action"), op.get("attr"), (op.get("value") or "").lower())
+        for op in existing
+    }
+    for param in CUT_URL_PARAMS:
+        key = ("cut_parameter", "url", param.lower())
+        if key in have:
+            print(f"  cut_parameter ok: {param}")
+            continue
+        out = api(
+            "POST",
+            f"/counter/{counter_id}/operations",
+            {
+                "operation": {
+                    "action": "cut_parameter",
+                    "attr": "url",
+                    "value": param,
+                    "status": "active",
+                }
+            },
+        )
+        print(f"  cut_parameter created: {param} id={(out.get('operation') or {}).get('id')}")
 
 
 def main() -> int:
@@ -143,11 +265,17 @@ def main() -> int:
         print(f"created counter id={counter.get('id')}")
 
     cid = int(counter["id"])
-    goals = list_goals(cid)
+    print("settings:")
+    ensure_counter_settings(cid)
     print("goals:")
+    goals = list_goals(cid)
     for ident, title in GOALS:
         ensure_action_goal(cid, ident, title, goals)
         goals = list_goals(cid)
+    print("filters:")
+    ensure_ip_excludes(cid)
+    print("operations:")
+    ensure_cut_params(cid)
 
     print()
     print(f"YANDEX_METRIKA_COUNTER_ID={cid}")

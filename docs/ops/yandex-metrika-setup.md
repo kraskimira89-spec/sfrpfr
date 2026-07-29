@@ -1,95 +1,89 @@
 # Яндекс Метрика для SFRFR (вариант B: API + код на WP)
 
 **Сайт:** `https://proverkastaza.ru`  
-**Правило ПДн:** в цели/URL/params — только коды (`lead_ok`, `max_click`), без телефонов/ФИО/email.
+**Счётчик:** `111134477`  
+**Правило ПДн:** в цели/URL/params — только технические коды, без телефонов/ФИО/email.
 
-Отдельно от Workspace OAuth (`secrets/yandex-workspace.env`) и Cloud AI (`YANDEX_API_KEY`).
-
----
-
-## Шаг 1 — OAuth-приложение (только вы в браузере)
-
-1. Войти на [oauth.yandex.ru](https://oauth.yandex.ru/) под аккаунтом, который будет владельцем счётчика (удобно `proverkastaza@yandex.ru`).
-2. **Создать новое приложение** → тип **«Для доступа к API или отладки»**.
-3. Название: `SFRFR Metrika`.
-4. Платформы: **Веб-сервисы**.
-5. Redirect URI: `https://oauth.yandex.ru/verification_code` (для ручного токена).
-6. **Доступы к данным** (отметить):
-   - `metrika:read`
-   - `metrika:write`
-7. Сохранить → скопировать **ClientID**.
-
-### Выпустить токен
-
-Открыть в браузере (подставьте ClientID):
-
-```text
-https://oauth.yandex.ru/authorize?response_type=token&client_id=CLIENT_ID
-```
-
-После «Разрешить» скопировать `access_token` из адресной строки.
-
-### Записать секреты
-
-Локально: `secrets/yandex-metrika.env` (gitignore):
-
-```env
-YANDEX_METRIKA_OAUTH_CLIENT_ID=
-YANDEX_METRIKA_OAUTH_ACCESS_TOKEN=
-YANDEX_METRIKA_SITE_URL=https://proverkastaza.ru
-YANDEX_METRIKA_COUNTER_NAME=Проверка стажа
-# После ensure-скрипта:
-# YANDEX_METRIKA_COUNTER_ID=
-```
-
-На VPS в `/opt/sfrfr/.env` (или тот же secrets-файл + source):
-
-```env
-YANDEX_METRIKA_COUNTER_ID=
-YANDEX_METRIKA_WEBVISOR=0
-```
-
-`WEBVISOR=0` по умолчанию — включать только после маскирования полей ПДн.
+Отдельно от Workspace OAuth и Cloud AI.
 
 ---
 
-## Шаг 2 — создать счётчик и цели (API)
+## Согласие (P0)
 
-```bash
-# локально или на VPS
-set -a && source secrets/yandex-metrika.env && set +a
+MU-plugin **не** грузит `mc.yandex.ru` до выбора «Разрешить».  
+Отказ сохраняется в `localStorage` (`sfrfr_metrika_consent:metrika-consent-2026-07-29`).  
+Вебвизор выключен (`YANDEX_METRIKA_WEBVISOR=0`).
+
+---
+
+## OAuth
+
+1. [oauth.yandex.ru](https://oauth.yandex.ru/) → приложение **SFRFR Metrika**.
+2. Redirect URI: `https://oauth.yandex.ru/verification_code`.
+3. Права: `metrika:read`, `metrika:write`.
+4. Токен: `https://oauth.yandex.ru/authorize?response_type=token&client_id=CLIENT_ID` → `access_token=y0_…`.
+
+Секреты: `secrets/yandex-metrika.env` (см. `docs/ops/yandex-metrika.env.example`).
+
+```env
+YANDEX_METRIKA_EXCLUDE_IPS=1.2.3.4,5.6.7.8
+YANDEX_METRIKA_EXCLUDE_MY_IP=1
+```
+
+---
+
+## Ensure (API)
+
+```powershell
 python scripts/yandex_metrika_ensure_counter.py
 ```
 
 Скрипт:
 
-1. Ищет счётчик с site `proverkastaza.ru` или создаёт новый.
-2. Создаёт JS-цели: `lead_ok`, `max_click` (если нет).
-3. Печатает `YANDEX_METRIKA_COUNTER_ID=…` — дописать в `.env` / secrets.
+1. Находит/создаёт счётчик `proverkastaza.ru`.
+2. `filter_robots=1`.
+3. JS-цели: `lead_ok`, `max_click`, `lead_start`, `cabinet_click`, `tariff_view`, `form_error`.
+4. Фильтры exclude по IP команды (`EXCLUDE_IPS` + опционально IP запуска).
+5. Операции `cut_parameter` для email/phone/fio/snils/token и т.п.
 
 ---
 
-## Шаг 3 — код на WordPress
+## Деплой на WP
 
 ```bash
-# на VPS (после git pull + COUNTER_ID в /opt/sfrfr/.env)
 sudo bash /opt/sfrfr/scripts/wp_deploy_metrika.sh
+# при обновлении текста cookies:
+sudo php /opt/sfrfr/scripts/wp_upsert_legal_pages.php
 ```
 
-MU-plugin: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`  
-Читает `YANDEX_METRIKA_COUNTER_ID` из `/opt/sfrfr/.env`, вставляет счётчик в `wp_head`, вешает безопасные `reachGoal` на CTA MAX и success формы.
+MU: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`
+
+---
+
+## Цели на витрине
+
+| Код | Триггер |
+|-----|---------|
+| `max_click` | клик по ссылке MAX |
+| `cabinet_click` | клик на cabinet.proverkastaza.ru |
+| `lead_start` | `#zayavka` или первый focus в форме |
+| `tariff_view` | секция `#tarify` в viewport |
+| `lead_ok` | WPForms success |
+| `form_error` | WPForms error |
 
 ---
 
 ## Проверка
 
-1. Открыть `https://proverkastaza.ru/` → DevTools → Network: запросы к `mc.yandex.ru`.
-2. Метрика → счётчик → «Проверка счётчика» / онлайн-посетители.
-3. Клик «Открыть в MAX» → цель `max_click`.
-4. Тестовая заявка (без реальных ПДн в URL) → `lead_ok`.
+1. Инкогнито без блокировщика: баннер → без «Разрешить» нет `mc.yandex.ru`.
+2. «Разрешить» → Network: `tag.js` / `watch`.
+3. MAX → `max_click`; заявка → `lead_ok`.
+4. Метрика → «Онлайн» / отчёт по целям.
 
 ---
 
-## Когда готовы ClientID + token
+## Пока не включать
 
-Пришлите в чат **только ClientID** (не secret) и подтвердите, что токен лежит в `secrets/yandex-metrika.env` — агент прогонит ensure + деплой на VPS.
+- Вебвизор — до маскирования полей формы.
+- CRM / offline-конверсии.
+- Сырые логи Метрики в BI (в DataLens — только агрегаты).
