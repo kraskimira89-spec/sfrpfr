@@ -239,6 +239,23 @@
       .replaceAll('"', "&quot;");
   }
 
+  /** Короткий понятный номер дела из UUID (стабильный). */
+  function caseNumber(caseId) {
+    const hex = String(caseId || "").replace(/-/g, "").slice(-5);
+    const n = parseInt(hex, 16);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    return String(n);
+  }
+
+  function caseTitle(caseId) {
+    return `Дело № ${caseNumber(caseId)}`;
+  }
+
+  function statusTitle(status) {
+    const key = status || "intake";
+    return statusLabels[key] || key;
+  }
+
   function resolveMaxUserId() {
     const wa = window.WebApp;
     const fromBridge = wa?.initDataUnsafe?.user?.id;
@@ -271,7 +288,7 @@
     localStorage.setItem("sfrfr_case_id", c.id);
     els.status.textContent = c.status_label;
     els.statusHint.textContent = c.status_hint || "";
-    els.caseId.textContent = c.id;
+    els.caseId.textContent = caseTitle(c.id);
     if (els.caseName) els.caseName.textContent = c.client_name;
     els.caseDocs.textContent = String(c.document_count);
     renderSteps(c.status);
@@ -511,8 +528,9 @@
       els.caseList.innerHTML = rows
         .map((row) => {
           const id = escapeHtml(row.id);
-          const st = escapeHtml(row.pipeline_status || "");
-          return `<li><button type="button" data-case="${id}" class="linkish">${id.slice(0, 8)}… · ${st}</button></li>`;
+          const title = escapeHtml(caseTitle(row.id));
+          const st = escapeHtml(statusTitle(row.pipeline_status || row.status));
+          return `<li><button type="button" data-case="${id}" class="linkish">${title} · ${st}</button></li>`;
         })
         .join("");
       els.caseList.querySelectorAll("button[data-case]").forEach((btn) => {

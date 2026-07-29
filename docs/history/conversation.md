@@ -49,6 +49,10 @@
 - Создание платежа падало: фискализация вкл., SEND_RECEIPT=false → Receipt is missing.
 - Вкл. чеки + return_url на cabinet.proverkastaza.ru; pay требует email при чеке.
 
+## 2026-07-29 (номера дел: «Дело №»)
+
+- В MAX miniapp и кабинете дела показываются как «Дело № 12345» + статус по-русски.
+
 ## 2026-07-29 (MAX miniapp: Failed to fetch)
 
 - Живой `/app/config.js` указывал на `api.taxi-doroga-dobra.ru` → «Failed to fetch».

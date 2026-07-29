@@ -125,6 +125,14 @@ function hasPasswordSet(session: Session | null): boolean {
   return meta?.password_set === true;
 }
 
+/** Короткий понятный номер дела из UUID (стабильный). */
+function caseNumberFromId(caseId: string): string {
+  const hex = String(caseId || "").replace(/-/g, "").slice(-5);
+  const n = Number.parseInt(hex, 16);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return String(n);
+}
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
@@ -1973,7 +1981,7 @@ export function ClientCabinet() {
                     className="case-card-button"
                     onClick={() => void openCase(caseItem.id)}
                   >
-                    <strong>Ваше дело</strong>
+                    <strong>Дело № {caseNumberFromId(caseItem.id)}</strong>
                     <span>
                       {humanCaseStatus(caseItem.pipeline_status, caseItem.b2c_status)}
                     </span>
@@ -1990,7 +1998,7 @@ export function ClientCabinet() {
 
       {view === "case" && detail && home && (
         <section className="stack">
-          <h1>Ваше дело</h1>
+          <h1>Дело № {caseNumberFromId(detail.id)}</h1>
           {youAreRepresentative ? (
             <p className="ok">Вы законный представитель по этому делу</p>
           ) : null}
