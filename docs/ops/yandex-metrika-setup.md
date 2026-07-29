@@ -14,7 +14,8 @@
 |--------|--------|
 | OAuth `metrika:read/write` | ✅ |
 | Счётчик Active + код на WP | ✅ |
-| Согласие до `mc.yandex.ru` | ✅ |
+| Согласие до `mc.yandex.ru` | ✅ статистические cookies, не СОПД |
+| Внутренняя агрегация для всех | ✅ `sfrfr-internal-stats.php` |
 | Цели P0 `lead_ok` / `max_click` | ✅ |
 | Цели P1 воронки | ✅ |
 | `filter_robots` + exclude IP + `cut_parameter` | ✅ |
@@ -28,9 +29,21 @@
 
 ## Согласие (P0)
 
-MU-plugin **не** грузит `mc.yandex.ru` до выбора «Разрешить».  
-Отказ: `localStorage` ключ `sfrfr_metrika_consent:metrika-consent-2026-07-29`.  
+Баннер — согласие на **статистические файлы браузера** (Яндекс Метрика), **не** на СОПД заявки.
+
+| Сценарий | Поведение |
+|----------|-----------|
+| До выбора | `mc.yandex.ru` не грузится |
+| «Разрешить» | загружается Метрика; цели/клики/прокрутка |
+| «Отказаться» | Метрика не грузится |
+
+Параллельно для **всех** (включая отказ): собственная серверная агрегация без IP/ПДн — `sfrfr-internal-stats.php` (`page_view`, `lead_ok`, `form_error`, `http_404`, `consent_*`, `tech_error`).
+
+Ключ: `sfrfr_metrika_consent:stat-cookies-2026-07-29`.  
 Вебвизор: `YANDEX_METRIKA_WEBVISOR=0`.
+
+Проверка Playwright: `python scripts/tests/metrika_consent_playwright.py`  
+Отчёт внутренней статистики: `wp eval-file scripts/wp_internal_stats_report.php`
 
 ---
 

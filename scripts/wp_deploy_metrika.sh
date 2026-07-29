@@ -9,7 +9,7 @@ ENVF="${ENVF:-/opt/sfrfr/.env}"
 SRC="${ROOT}/scripts/wp-mu-plugins"
 
 mkdir -p "$MU"
-for f in sfrfr-yandex-metrika.php sfrfr-seo-robots.php sfrfr-yandex-verification.php; do
+for f in sfrfr-yandex-metrika.php sfrfr-seo-robots.php sfrfr-yandex-verification.php sfrfr-internal-stats.php; do
   if [[ -f "$SRC/$f" ]]; then
     cp -f "$SRC/$f" "$MU/$f"
   fi
@@ -34,8 +34,8 @@ return [
 ];
 EOF
 
-chown www-data:www-data "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$cfg" 2>/dev/null || true
-chmod 644 "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$cfg" 2>/dev/null || true
+chown www-data:www-data "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$MU"/sfrfr-internal-stats.php "$cfg" 2>/dev/null || true
+chmod 644 "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$MU"/sfrfr-internal-stats.php "$cfg" 2>/dev/null || true
 
 if [[ -z "$cid" ]]; then
   echo "WARN: YANDEX_METRIKA_COUNTER_ID пуст — плагин на сайте, счётчик не рисуется."

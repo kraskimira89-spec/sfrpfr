@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SFRFR Yandex Metrika
- * Description: Счётчик Метрики только после согласия; цели без ПДн.
+ * Description: Метрика только после согласия на статистические cookies; цели без ПДн.
  */
 
 if (!defined('ABSPATH')) {
@@ -73,10 +73,10 @@ function sfrfr_metrika_counter_id(): string
     return is_string($id) ? $id : '';
 }
 
-/** Версия согласия — при смене политики сбросить выбор. */
+/** Версия согласия на статистические cookies (не СОПД). */
 function sfrfr_metrika_consent_version(): string
 {
-    return 'metrika-consent-2026-07-29';
+    return 'stat-cookies-2026-07-29';
 }
 
 add_action('wp_footer', static function (): void {
@@ -88,6 +88,7 @@ add_action('wp_footer', static function (): void {
     $cid = (int) $id;
     $ver = sfrfr_metrika_consent_version();
     $cookies_url = esc_url(home_url('/cookies/'));
+    $ajax_url = esc_url(admin_url('admin-ajax.php'));
     ?>
 <style id="sfrfr-metrika-consent-css">
 #sfrfr-metrika-consent{
@@ -111,9 +112,10 @@ add_action('wp_footer', static function (): void {
 }
 #sfrfr-metrika-consent-change[hidden]{display:none!important}
 </style>
-<div id="sfrfr-metrika-consent" hidden role="dialog" aria-live="polite" aria-label="Согласие на статистику">
-  <p>Для улучшения сайта можем включить необязательную обезличенную статистику Яндекс Метрики.
-  Подробнее: <a href="<?php echo $cookies_url; ?>">файлы браузера</a>.</p>
+<div id="sfrfr-metrika-consent" hidden role="dialog" aria-live="polite" aria-label="Согласие на статистические файлы браузера">
+  <p>Можем сохранить необязательные <strong>статистические файлы браузера</strong> (Яндекс Метрика)
+  для обезличенной аналитики кликов и целей. Это <strong>не</strong> согласие на обработку персональных данных заявки.
+  Отказ не мешает сайту и форме. Подробнее: <a href="<?php echo $cookies_url; ?>">файлы браузера</a>.</p>
   <div class="sfrfr-mc-actions">
     <button type="button" class="sfrfr-mc-allow" data-sfrfr-metrika-consent="1">Разрешить</button>
     <button type="button" class="sfrfr-mc-deny" data-sfrfr-metrika-consent="0">Отказаться</button>
@@ -126,6 +128,7 @@ add_action('wp_footer', static function (): void {
   var WEBVISOR = <?php echo $webvisor ? 'true' : 'false'; ?>;
   var CONSENT_KEY = "sfrfr_metrika_consent";
   var CONSENT_VER = <?php echo wp_json_encode($ver); ?>;
+  var AJAX = <?php echo wp_json_encode($ajax_url); ?>;
   var storageKey = CONSENT_KEY + ":" + CONSENT_VER;
   var loaded = false;
   var queue = [];
@@ -143,6 +146,23 @@ add_action('wp_footer', static function (): void {
 
   function writeConsent(ok) {
     try { localStorage.setItem(storageKey, ok ? "1" : "0"); } catch (e) {}
+  }
+
+  function pingInternal(eventCode) {
+    try {
+      var body = "action=sfrfr_stat_hit&e=" + encodeURIComponent(eventCode);
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(AJAX, new Blob([body], { type: "application/x-www-form-urlencoded" }));
+        return;
+      }
+      fetch(AJAX, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body,
+        keepalive: true,
+        credentials: "same-origin"
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   function loadMetrika() {
@@ -175,6 +195,7 @@ add_action('wp_footer', static function (): void {
     }
   }
 
+  /** Цели Метрики — только после «Разрешить». */
   window.sfrfrMetrikaGoal = function (name) {
     if (!name || readConsent() !== true) return;
     if (!loaded || typeof ym !== "function") {
@@ -193,7 +214,10 @@ add_action('wp_footer', static function (): void {
   function applyConsent(ok) {
     writeConsent(ok);
     showBanner(false);
-    if (ok) loadMetrika();
+    pingInternal(ok ? "consent_allow" : "consent_deny");
+    if (ok) {
+      loadMetrika();
+    }
   }
 
   function bindUI() {
@@ -275,6 +299,10 @@ add_action('wp_footer', static function (): void {
   document.addEventListener("wpformsAjaxSubmitFailed", function () {
     window.sfrfrMetrikaGoal("form_error");
   });
+
+  window.addEventListener("error", function () {
+    pingInternal("tech_error");
+  }, { once: true });
 
   bindUI();
   bindGoals();
