@@ -29,6 +29,8 @@
 2. `docs/ops/supabase-selfhost-yandex-cloud.md` — практический runbook self-host
 3. `docs/ops/cutover-manual-checklist.md` — ручные шаги cutover
 4. `.env.example` — имена переменных (`SUPABASE_*`, `DATABASE_URL`, captcha)
+5. Для Terraform — `docs/specs/16-yandex-cloud-terraform.md` и
+   `prompts/tasks/yandex-cloud-terraform-staging.md`
 
 **Зафиксировано на MVP:** прод-ПДн остаются на **Supabase Cloud**.  
 Self-host в YC — для **staging → cutover после MVP**, не «ломай прод ради красоты».

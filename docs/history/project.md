@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-29 (ТЗ Terraform Yandex Cloud)
+
+- ТЗ-16: staging-инфраструктура Terraform под folder `b1g0mhpm9tr4lrurk1bu`.
+- Готовое задание AI-ассистенту: `prompts/tasks/yandex-cloud-terraform-staging.md`.
+- Первая фаза: VPC + VM + backup bucket + IAM/KMS; без Managed PG/K8s/apply.
+
 ## 2026-07-28 (webhook ЮKassa URL)
 
 - В ЛК был URL без /webhook (404); добавлен алиас POST .../yookassa.

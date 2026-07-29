@@ -18,3 +18,16 @@
 |---|---|---|
 | `system/yandex-cloud-agent.md` | Яндекс.Облако | Инфра YC, self-host Supabase, Object Storage, SmartCaptcha, `yc` CLI |
 | `system/yandex-ai-studio-agent.md` | Yandex AI Studio | LLM/YandexGPT, `LLMClient`, промпты, embeddings, ПДн в модели |
+
+## Готовые задания
+
+| Файл | Результат |
+|---|---|
+| `tasks/yandex-cloud-terraform-staging.md` | Terraform-пример staging под folder SFRFR без `apply` и изменения prod |
+
+Запуск:
+
+```text
+@prompts/system/yandex-cloud-agent.md
+@prompts/tasks/yandex-cloud-terraform-staging.md
+```

@@ -67,6 +67,21 @@ pgdata/
 supabase/.branches/
 supabase/.temp/
 
+# Terraform: state/планы содержат инфраструктурные данные и могут содержать секреты
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Local CLI logs
 supabase-start.log
 *.log

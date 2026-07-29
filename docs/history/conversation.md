@@ -1,5 +1,10 @@
 # История беседы (кратко)
 
+## 2026-07-29 (задание AI-ассистенту Yandex Cloud)
+
+- Подготовлены ТЗ-16 и paste-ready задача на Terraform staging под текущий folder.
+- Зафиксировано: код/plan без apply, prod/DNS не трогать, Managed PG/K8s — позже.
+
 ## 2026-07-28 (webhook ЮKassa URL)
 
 - В ЛК был URL без /webhook (404); добавлен алиас POST .../yookassa.
