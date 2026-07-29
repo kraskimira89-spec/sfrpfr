@@ -61,6 +61,12 @@ if [[ -x "$APP_DIR/scripts/wp_deploy_blog_ui.sh" ]] || [[ -f "$APP_DIR/scripts/w
   bash "$APP_DIR/scripts/wp_deploy_blog_ui.sh" || echo "WARN: wp_deploy_blog_ui.sh failed (WP path?)"
 fi
 
+# Яндекс Метрика (счётчик из YANDEX_METRIKA_COUNTER_ID)
+if [[ -f "$APP_DIR/scripts/wp_deploy_metrika.sh" ]]; then
+  echo "Deploying Yandex Metrika MU …"
+  bash "$APP_DIR/scripts/wp_deploy_metrika.sh" || echo "WARN: wp_deploy_metrika.sh failed"
+fi
+
 # Мини-приложение MAX → https://proverkastaza.ru/app/
 if [[ -f "$APP_DIR/scripts/deploy_max_miniapp.sh" ]]; then
   echo "Deploying MAX miniapp /app/ …"
