@@ -12,11 +12,14 @@
 public
   → analytics_source (обезличенные views)
   → dbt Core / analytics marts
-  → admin SFRFR / временно Google Sheets
+  → admin SFRFR / Google Sheets + предполагаемый Looker Studio
 ```
 
 dbt IDE plugin/skill — только инструмент разработки. Не удаляй dbt Core и SQL marts,
 пока пилоты не сверены по KPI.
+
+Фактическая runtime-замена — Google Sheets/Looker Studio. dbt Labs plugin заменяется
+только как необязательный developer tool.
 
 ## Цель первой итерации
 
@@ -25,6 +28,7 @@ dbt IDE plugin/skill — только инструмент разработки.
 1. Yandex DataLens — полный управленческий dashboard.
 2. Встроенный dashboard amoCRM — sales/операционные KPI.
 3. Admin SFRFR — контрольный baseline.
+4. Yandex Metrika — только публичная веб-воронка.
 
 Независимые BI (Visiology/Luxms/Polymatica) — только shortlist без установки.
 
@@ -56,7 +60,12 @@ dbt IDE plugin/skill — только инструмент разработки.
 6. Для admin:
    - использовать как baseline;
    - предложить только минимальные недостающие визуализации.
-7. Подготовить таблицу сверки KPI и матрицу выбора на 100 баллов.
+7. Для Метрики:
+   - ограничить scope трафиком, CTA и отправкой формы;
+   - не считать её заменой оплат/product funnel.
+8. Выбрать единый SoT KPI; не сохранять навсегда дублирование dbt marts и live API.
+9. Проверить orphan-модель `stg_communications`: подключить к mart либо исключить.
+10. Подготовить таблицу сверки KPI и матрицу выбора на 100 баллов.
 
 ## Ограничения
 
