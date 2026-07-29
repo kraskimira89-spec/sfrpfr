@@ -91,22 +91,11 @@ def find_counter(host: str) -> dict | None:
 
 def create_counter(host: str) -> dict:
     name = os.environ.get("YANDEX_METRIKA_COUNTER_NAME", "Проверка стажа").strip()
+    # Минимальное тело: лишние поля (gdpr_*) API отвергает как invalid_json.
     body = {
         "counter": {
             "name": name,
-            "site": host,
             "site2": {"site": host},
-            "gdpr_agreement_accepted": True,
-            "webvisor": {"urls": "", "arch_enabled": 0, "arch_type": "html"},
-            "code_options": {
-                "async": 1,
-                "informer": {"enabled": 0},
-                "visor": 0,
-                "track_hash": 1,
-                "xml_site": 0,
-                "clickmap": 1,
-                "ecommerce": 0,
-            },
         }
     }
     return api("POST", "/counters", body)
