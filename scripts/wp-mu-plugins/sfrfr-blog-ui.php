@@ -138,6 +138,10 @@ add_action('loop_start', static function ($query): void {
         }
     }
 
+    if (is_home()) {
+        echo '<h1 class="sfrfr-blog-archive__title">Статьи о проверке стажа и ИЛС</h1>';
+    }
+
     echo '<ul class="sfrfr-blog-chips" aria-label="Рубрики блога">';
     foreach ($chips as $slug => $label) {
         $url = $slug === '' ? home_url('/blog/') : home_url('/blog/rubrika/' . rawurlencode($slug) . '/');

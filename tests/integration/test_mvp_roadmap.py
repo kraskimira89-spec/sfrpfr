@@ -120,6 +120,7 @@ def test_tz11_blog_mvp_assets() -> None:
     mu = (REPO / "scripts/wp-mu-plugins/sfrfr-blog-ui.php").read_text(encoding="utf-8")
     assert "'rodstvenniki'" in mu
     assert "dlya-rodstvennikov" not in mu
+    assert "Статьи о проверке стажа и ИЛС</h1>" in mu
     seo = (REPO / "scripts/wp-mu-plugins/sfrfr-seo-meta.php").read_text(encoding="utf-8")
     assert 'name=\\"description\\"' in seo
     assert 'rel=\\"canonical\\"' in seo
@@ -129,6 +130,7 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "preg_replace('/^\\s*<h1" in seo
     deploy = (REPO / "scripts/wp_deploy_blog_ui.sh").read_text(encoding="utf-8")
     assert "sfrfr-seo-meta.php" in deploy
+    assert "cache flush" in deploy
     miniapp = (REPO / "web/max-miniapp/index.html").read_text(encoding="utf-8")
     assert 'name="robots" content="noindex,nofollow,noarchive"' in miniapp
 
