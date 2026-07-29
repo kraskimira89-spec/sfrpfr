@@ -198,6 +198,11 @@
 - Hover кнопок с контрастным текстом; секции ~экран; padding карточек 24px.
 - `#zayavka` без двойного `--alt` после статей.
 
+## 2026-07-29 (Метрика вариант B: API + WP)
+
+- Гайд `docs/ops/yandex-metrika-setup.md`; скрипт `yandex_metrika_ensure_counter.py`; MU `sfrfr-yandex-metrika.php` + `wp_deploy_metrika.sh`.
+- Ждём OAuth ClientID + token (`metrika:read/write`) → ensure + деплой на VPS.
+
 ## 2026-07-28 (оглавление Яндекс ID / Вебмастер / Метрика)
 
 - Папки `Yandex ID/`, `Yandex Webmaster/`, `Yandex Metrika/` — по 2 файла (пользователь/разработчик).
