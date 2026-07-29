@@ -24,6 +24,7 @@
 | Файл | Результат |
 |---|---|
 | `tasks/yandex-cloud-terraform-staging.md` | Terraform-пример staging под folder SFRFR без `apply` и изменения prod |
+| `tasks/management-analytics-russian-bi-pilot.md` | Пилоты DataLens / amoCRM / admin для выбора российского BI |
 
 Запуск:
 
