@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-29 (DataLens заменяет Google Sheets)
+
+- ТЗ-17 §0: целевой контур `dbt marts → DataLens`; Sheets/Looker — dual-run до сверки KPI.
+- Ops: `docs/ops/datalens-management-bi.md`; роли: admin=резерв, amoCRM=sales, Яндекс Таблицы≠BI.
+
 ## 2026-07-29 (ТЗ российской управленческой аналитики)
 
 - ТЗ-17 разделяет dbt Core, IDE-плагин и пользовательский BI.

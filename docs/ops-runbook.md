@@ -26,7 +26,7 @@
 2. Схема БД — только через `supabase/migrations/` (+ `apply_migration` / CLI).
 3. Перед релизом кабинетов: RLS + private bucket `pension-docs`.
 4. Секреты: `.env` на VPS и GitHub Secrets. В кабинетах только publishable/anon.
-5. Google Sheets — только обезличенные агрегаты, не production-ПДн.
+5. Google Sheets — **legacy dual-run** до cutover на DataLens (ТЗ-17); целевой BI: [ops/datalens-management-bi.md](ops/datalens-management-bi.md). Обезличенные агрегаты only, не ПДн.
 6. Google Drive — шаблоны/кейсы по `case_id`; сканы ПДн — в Supabase Storage.
 7. Calendar / reCAPTCHA / Search Console — см. раздел ниже; Gmail клиентам на MVP не подключаем.
 8. dbt запускается отдельно от API и деплоя: роль `analytics_transformer` читает только `analytics_source`, пишет только `analytics`.
@@ -46,12 +46,12 @@ endpoint после включения IPv4 add-on. Не добавляйте э
 
 | Сервис | Статус | Действие |
 |---|---|---|
-| Sheets | код + SA | `sfrfr sheets-sync` |
+| Sheets | **legacy** dual-run → DataLens | Пока: `sfrfr sheets-sync`. Цель: [ops/datalens-management-bi.md](ops/datalens-management-bi.md). Отключить после сверки KPI |
 | Drive | код + SA | `sfrfr drive-init-tree`, `drive-case-mkdir CASE-…` |
 | Calendar | код | Расшарить календарь на `sfrpfr-google-calendar@…`, задать `GOOGLE_CALENDAR_ID`, затем `sfrfr calendar-create --case-id … --start …` |
 | reCAPTCHA Enterprise | код + GCP domains | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA; после смены домена — domains в GCP (`docs/ops/cutover-manual-checklist.md`, скрипт `scripts/ops_patch_recaptcha_domains.py` — нужен IAM `keys.get/update`) |
 | Search Console | ops | Добавить `https://proverkastaza.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
-| Looker Studio | ops | Новый отчёт → Google Sheets → spreadsheet Analytics (без ПДн) |
+| Looker Studio | **legacy** | Заменяется DataLens; не строить новые отчёты |
 | Gmail / Meet / Forms / Docs API / Vision | отложено | — |
 
 ### WP: reCAPTCHA Enterprise (лид)

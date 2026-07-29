@@ -1,77 +1,199 @@
 # ТЗ-17: российский контур управленческой аналитики SFRFR
 
+**Статус:** целевой BI утверждён — **dbt marts → Yandex DataLens**; Google Sheets/Looker подлежат полной замене после сверки KPI  
+**Дата уточнения:** 2026-07-29  
+**Опора:** анализ архитектуры + решение о полной замене Google Таблиц
+
+## 0. Утверждённый целевой контур
+
+### Рекомендуемый (основной)
+
+```text
+dbt marts → Yandex DataLens
+```
+
+DataLens подключается к обезличенной PostgreSQL-витрине (`analytics.*`) и показывает
+управленческие показатели **без** промежуточных Google Sheets / Looker.
+
+Преимущества:
+
+- обновление после nightly dbt (без ручного `sheets-sync`);
+- фильтры, графики, KPI-карточки;
+- доступ только руководителям (без public link);
+- российский контур;
+- единый SoT с dbt marts.
+
+### Альтернативы (роль зафиксирована)
+
+| # | Вариант | Роль |
+|---|---------|------|
+| 1 | **DataLens + PostgreSQL** (`analytics.*`) | **основной** управленческий BI |
+| 2 | **Собственный admin SFRFR** | **резервный** интерфейс / аварийный baseline |
+| 3 | **amoCRM** (штатный рабочий стол) | **только** продажи и операционная воронка |
+| 4 | **Яндекс Таблицы** | **временная** привычная табличная оболочка, **не** основной BI |
+| — | Google Sheets + Looker | **на пилоте допустимы**; после сверки KPI — отключение |
+
+### Правило отключения Google
+
+`SheetsExporter` / `sheets-sync` / SA Google Sheets **не удалять**, пока:
+
+1. DataLens workbook закрыт и доступен руководителям;
+2. все обязательные KPI §7 сверены с dbt baseline (допуск §11);
+3. подписан cutover (владелец аналитики).
+
+После этого: выключить endpoint/кнопку sync → отозвать ключи SA → удалить интеграцию
+из целевого контура (код можно оставить за feature-flag на один релиз).
+
+Google Sheets **не** является целевой российской заменой. Яндекс Таблицы — только
+если нужен табличный UX на переходный период; источник строк всё равно marts/export
+из `analytics.*`, не live API whitelist.
+
 ## 1. Цель
 
-Заменить зависимость от демонстрационного dbt-плагина и иностранных инструментов
-визуализации управленческих метрик на контролируемый российский контур.
+Импортозаместить **пользовательский runtime-контур управленческой визуализации** и
+**необязательный инструмент разработки**, сохранив воспроизводимый расчёт KPI.
 
-Не выбирать единственную платформу заранее. Реализовать несколько ограниченных
-пилотов на одинаковом наборе KPI, сравнить их и после тестирования утвердить
-оптимальный вариант.
+### 1.1 Что заменяем (уточнено анализом)
+
+| Объект | Почему в scope | Приоритет |
+|--------|----------------|-----------|
+| **Google Sheets** (`SheetsExporter`, `sheets-sync`) + **Looker Studio** (ops поверх Sheets) | иностранный runtime BI; live-экспорт **не читает** `analytics.*` | **P0** |
+| **dbt Labs / Cursor plugin** (skill analytics engineering, gap analysis `schema.yml`) | только IDE; не production; `packages.yml` отсутствует | **P1**, можно отключить без остановки продукта |
+| **dbt Core** (VPS timer → marts) | **не** цель замены на MVP; baseline трансформаций | вне scope до пилота **T2** |
+
+### 1.2 Что не заменяем этим ТЗ
+
+- операционный `GET /admin/dashboard` (live Supabase, staff);
+- amoCRM как CRM/воронка сделок (отдельный sales-пилот, не SoT product KPI);
+- FastAPI / кабинеты / MAX / платежи при сбое BI.
+
+Не выбирать единственную BI-платформу «вслепую»: сверка KPI обязательна.  
+**Целевой победитель управленческого BI уже выбран:** DataLens поверх dbt marts (§0).  
+amoCRM и admin остаются пилотами с **другими** ролями (sales / резерв), не конкурентами DataLens за SoT.
 
 ## 2. Важное разделение
 
-В текущем проекте есть три разных слоя:
-
 ```text
-Источники                 Расчёт метрик              Представление
-public / amoCRM     →     dbt Core + SQL marts  →   admin / JSON / Sheets
+Источники (SoT дел)          Расчёт KPI (SoT метрик)     Представление
+public.* + analytics_source → dbt Core → analytics marts → DataLens / admin C / …
 ```
 
-**dbt Core**:
+**dbt Core** — batch ELT: обезличенные `analytics_source` → staging views → marts tables;
+тесты `schema.yml`; nightly 05:30 МСК; **не UI**.
 
-- преобразует обезличенные данные;
-- создаёт витрины `analytics.*`;
-- проверяет качество данных;
-- запускается локально/VPS, не является пользовательским дашбордом.
+**dbt Labs plugin в Cursor** — помощь разработчику; **не** дашборд руководителя.
 
-**dbt Labs plugin/skill в Cursor**:
+**Параллельный live-контур (не SoT KPI):**
 
-- помогает разработчику анализировать и тестировать dbt-модели;
-- не работает в production;
-- не отображает метрики руководителю;
-- может быть удалён без остановки dbt Core.
+- `GET /admin/analytics` + `POST /admin/analytics/sheets-sync` → Google Sheets
+  из `CaseRepository.anonymized_analytics_rows()`;
+- семантика колонок **расходится** с dbt (`stage` vs `b2c_status`, `silent_flag` vs
+  `silent_180_days`, case-rows vs monthly rollup).
 
-**Управленческий интерфейс** сейчас:
+### 2.1 Решение: единый источник управленческих KPI
 
-- встроенный `/admin/dashboard`;
-- раздел `/admin/analytics`;
-- dbt-витрина `mart_management_dashboard`;
-- опциональная выгрузка обезличенных строк в Google Sheets;
-- предполагаемый внешний dashboard — Looker Studio поверх Sheets (ручной ops-контур).
+**Source of truth для управленческих KPI = dbt marts**, прежде всего:
 
-Поэтому платформа BI не является прямой заменой dbt. Решение о замене слоя
-трансформаций и решение о выборе дашборда принимаются отдельно.
+- `analytics.mart_management_dashboard` (агрегаты для executive);
+- детализация: `fct_case_funnel`, `fct_payments`, `fct_success_fee`, `fct_silent_cases`,
+  `dim_case_segment`.
 
-Фактический объект импортозамещения:
+Следствия:
 
-1. Google Sheets + Looker Studio как внешний runtime-контур;
-2. необязательный dbt Labs plugin/skill в Cursor;
-3. при подтверждённой выгоде — сам dbt Core, но только отдельным пилотом T2.
+1. Пилоты DataLens / независимого BI читают **только** `analytics.*` (или read-only
+   снимок с тем же grain), а не live Sheets-логику.
+2. Admin `/admin/analytics` и Sheets — **временный/ops** канал; не эталон для сверки
+   пилотов (кроме явного baseline «как было в Sheets» на этапе 0).
+3. При расхождении API ↔ dbt править **потребителя или контракт колонок**, не «подгонять»
+   marts под Sheets.
 
-## 3. Исходное состояние
+### 2.2 Яндекс Метрика — только веб-воронка
 
-### 3.1 Контур dbt
+Метрика покрывает **публичный маркетинг** (визиты, источники, CTA, лид-форма, клик в MAX).
+
+**Запрещено** считать Метрику заменой:
+
+- `fct_case_funnel` / оплаты / success fee / silent cases;
+- любых post-lead product KPI без явного обезличенного ключа сопоставления.
+
+В DataLens Метрику допускается вынести **отдельной** страницей «Веб», не смешивая с
+executive summary по делам.
+
+### 2.3 `stg_communications` (orphan)
+
+Модель `analytics/models/staging/stg_communications.sql` + тесты в `schema.yml`
+существуют; **ни один mart на неё не ссылается**. Source
+`analytics_source.communications_agg` есть.
+
+**Решение на этап 0 (зафиксировано):**
+
+- **не включать** в обязательный каталог управленческих KPI и в приёмку DataLens POC;
+- оставить в dbt как orphan **или** удалить отдельным PR после ревью (бэклог);
+- если понадобится метрика «активность коммуникаций» — сначала `ref` в mart + определение
+  KPI, затем пилот BI.
+
+Фактический объект импортозамещения runtime:
+
+1. Google Sheets + Looker Studio;
+2. необязательный dbt Labs plugin/skill;
+3. dbt Core — только отдельный пилот T2 при доказанной избыточности.
+
+## 3. Исходное состояние (карта после анализа)
+
+### 3.1 Два параллельных контура
 
 ```text
-public
-  → analytics_source (обезличенные views)
-  → analytics (staging views + marts tables)
+public.* (SoT дел, ПДн, RLS)
+        │
+        ├─ security_barrier views ──► analytics_source.*
+        │                                    │
+        │                                    ▼ nightly dbt (analytics_transformer)
+        │                              analytics.* marts  ←── SoT KPI (ТЗ-17)
+        │                                    │
+        │                                    ▼ пилоты BI (DataLens / …)
+        │
+        └─ live API ──► CaseRepository.anonymized_analytics_rows()
+                              │
+                              ├─ GET /admin/analytics
+                              └─ SheetsExporter → Google Sheets → Looker (ops)
+                                 ↑ не SoT KPI; заменяется в рамках ТЗ-17
 ```
 
-Запуск: systemd timer на VPS ежедневно в 05:30 МСК.
+Схемы `analytics` / `analytics_source` **не** в Supabase Data API
+(`schemas = ["public", "graphql_public"]`).
 
-Основные файлы:
+### 3.2 Контур dbt
 
-- `analytics/dbt_project.yml`;
-- `analytics/models/staging/`;
-- `analytics/models/marts/`;
-- `analytics/models/schema.yml`;
-- `scripts/dbt_run.sh`;
-- `docs/systemd/sfrfr-dbt.*`;
-- `docs/dbt-analytics.md`.
+```text
+public → analytics_source (views) → analytics (staging views + marts tables)
+```
 
-### 3.2 Защита данных
+| Аспект | Факт |
+|--------|------|
+| Запуск | `sfrfr-dbt.timer` 05:30 Europe/Moscow; timeout 45 мин; user `sfrfr` |
+| Build | `dbt debug` → `dbt build --threads 1 --no-populate-cache` → `dbt_apply_rls.sh` |
+| CI / `vps_deploy` | **не** включают dbt |
+| Packages | `packages.yml` нет — сторонних dbt-пакетов нет |
+| Роль | `analytics_transformer`: SELECT `analytics_source`, WRITE `analytics` |
+
+Файлы: `analytics/dbt_project.yml`, `models/staging|marts/`, `schema.yml`,
+`scripts/dbt_run.sh`, `scripts/dbt_apply_rls.sh`, `docs/systemd/sfrfr-dbt.*`,
+`docs/dbt-analytics.md`.
+
+### 3.3 Модели и KPI (контракт SoT)
+
+| Слой | Модели | Примечание |
+|------|--------|------------|
+| Sources | `cases`, `orders`, `payments`, `result_evidence`, `communications_agg` | миграция `20260724194001_…` |
+| Staging | `stg_cases`, `stg_orders`, `stg_payments`, `stg_result_evidence` | в marts |
+| Staging | `stg_communications` | **orphan** — вне KPI SoT (§2.3) |
+| Marts | `fct_case_funnel`, `mart_management_dashboard`, `fct_payments`, `fct_success_fee`, `fct_silent_cases`, `dim_case_segment` | SoT |
+
+Пакеты заказов: `DIAG`, `ACCOMP`, `SF_LUMP`, `SF_MONTH`.  
+Каналы: `max_miniapp`, `web_cabinet`, `unset`.  
+Диапазоны сумм: `0`, `1–5 тыс.`, `5–10 тыс.`, `10+ тыс.`, `unknown`.
+
+### 3.4 Защита данных
 
 В `analytics_source` и `analytics` не допускаются:
 
@@ -81,9 +203,7 @@ public
 - ID платёжного провайдера;
 - точные суммы, если достаточно диапазонов.
 
-Суммы представлены диапазонами: `0`, `1–5 тыс.`, `5–10 тыс.`, `10+ тыс.`.
-Схема `analytics` не публикуется через Data API; для `anon/authenticated`
-действуют `REVOKE` и RLS без политик.
+Схема `analytics`: `REVOKE` + RLS без политик для `anon/authenticated`.
 
 ## 4. Кандидаты для пилотов
 
@@ -185,9 +305,11 @@ analytics marts / SQL views → FastAPI admin API → Next.js admin
 стоимости или требованиям доступа. На MVP не покупать enterprise-лицензию без
 результатов POC.
 
-### Вариант E — Yandex Metrika (только маркетинг)
+### Вариант E — Yandex Metrika (только веб-воронка)
 
-Использовать как отдельный источник веб-метрик:
+**Scope зафиксирован анализом:** маркетинг публичного сайта, не product BI.
+
+Использовать:
 
 - посещения и источники трафика;
 - CTA и конверсия формы лида;
@@ -195,8 +317,9 @@ analytics marts / SQL views → FastAPI admin API → Next.js admin
 - поведение на публичном лендинге.
 
 Метрика **не заменяет** `fct_case_funnel`, оплаты, success fee и silent cases.
-Её показатели допускается выводить отдельной страницей/виджетом в DataLens либо
-сопоставлять с лидами по обезличенному campaign/source ключу.
+Отдельная страница/виджет в DataLens; сопоставление с лидами — только по
+обезличенному campaign/source ключу (если появится). Документация счётчика:
+`Yandex Metrika/`.
 
 ## 5. Варианты слоя трансформаций
 
@@ -231,24 +354,29 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 
 ## 6. Рекомендуемая стратегия
 
-Не выполнять big-bang replacement.
+Не выполнять big-bang: Sheets живёт параллельно до сверки.
 
 ```text
-Фаза 0: зафиксировать KPI и контрольные значения
-Фаза 1: DataLens + текущие dbt marts
-Фаза 2: amoCRM native dashboard для sales KPI
-Фаза 3: Yandex Metrika для веб-воронки (не product KPI)
-Фаза 4: сравнить с собственным admin dashboard
-Фаза 5: решить — оставить dbt Core или пилотировать T2
-Фаза 6: при необходимости POC независимого российского BI
+Фаза 0: KPI dictionary + SQL controls (зеркала marts)
+Фаза 1: DataLens ← analytics.*  (основной BI)          ← СЕЙЧАС
+Фаза 2: сверка KPI DataLens ↔ dbt; dual-run со Sheets
+Фаза 3: cutover — отключить SheetsExporter / ключи Google
+Фаза 4: amoCRM — sales-only; admin — резерв
+Фаза 5: Метрика — только веб-страница (опц. в DataLens)
+Фаза 6: (опц.) Яндекс Таблицы как временный tabular UX
+Фаза 7: решение T2 по dbt только при доказанной избыточности
 ```
 
-Предварительная рекомендация:
+Утверждено:
 
+- **SoT KPI:** dbt marts;
 - **управленческий BI:** DataLens;
-- **оперативная работа отдела:** amoCRM dashboard;
-- **источник истины и контроль:** PostgreSQL/dbt + admin SFRFR;
-- **dbt-плагин Cursor:** необязателен, не участвует в production.
+- **резерв:** admin SFRFR;
+- **продажи:** amoCRM;
+- **веб:** Яндекс Метрика;
+- **Google Sheets/Looker:** временный dual-run → полное отключение;
+- **Яндекс Таблицы:** не основной BI;
+- **stg_communications:** вне обязательного KPI.
 
 ## 7. Единый каталог KPI
 
@@ -424,14 +552,15 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 
 ### Этап 0 — инвентаризация
 
-- [ ] Подтвердить, какой именно dbt-плагин требуется удалить.
-- [ ] Зафиксировать Google Sheets/Looker Studio как заменяемый внешний runtime.
+- [x] Заменяемый runtime: **Google Sheets + Looker Studio**.
+- [x] Целевой BI: **dbt marts → DataLens** (§0); Sheets dual-run до cutover.
+- [x] SoT управленческих KPI: **dbt marts** (`mart_management_dashboard` + fct_*).
+- [x] Яндекс Метрика: **только веб-воронка**, не product KPI.
+- [x] `stg_communications`: **orphan** — вне обязательного KPI; удаление/включение в mart — бэклог.
 - [ ] Зафиксировать владельца каждого KPI.
-- [ ] Создать data dictionary и SQL-контрольные запросы.
-- [ ] Зафиксировать текущие SLA dbt timer.
-- [ ] Убрать Google Sheets из целевого контура либо оставить только как временный экспорт.
-- [ ] Выбрать единый SoT управленческих KPI: dbt marts (рекомендуется), не параллельная логика API.
-- [ ] Решить судьбу `stg_communications`: включить в mart или исключить как orphan-модель.
+- [ ] Создать data dictionary и SQL-контрольные запросы (зеркала marts).
+- [ ] Зафиксировать SLA dbt timer (05:30 МСК, 45 мин).
+- [x] План отключения Sheets: `docs/ops/datalens-management-bi.md` §5.
 
 ### Этап 1 — DataLens POC
 
@@ -466,41 +595,75 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 - [ ] Сравнить время разработки, тесты, восстановление и поддержку.
 - [ ] Не удалять dbt до прохождения двух полных циклов обновления новой схемы.
 
-### Этап 6 — выбор
+### Этап 6 — cutover Google → DataLens
 
-- [ ] Заполнить матрицу 100 баллов.
-- [ ] Утвердить основной BI и резервный интерфейс.
-- [ ] Составить план отключения проигравших пилотов.
-- [ ] Отозвать доступы/ключи и удалить временные копии.
+- [ ] DataLens показывает все KPI §7 с тем же grain, что marts.
+- [ ] Таблица сверки: dbt SQL ↔ DataLens — 0% на счётчиках (§11).
+- [ ] Руководители пользуются DataLens ≥ 1 полный цикл nightly dbt.
+- [ ] Отключить UI/API `sheets-sync` (feature-flag или удаление кнопки).
+- [ ] Отозвать Google Sheets SA / ключи; убрать из VPS `.env` `GOOGLE_SHEETS_*`.
+- [ ] Looker Studio отчёты архивировать/удалить.
+- [ ] (Опц.) Яндекс Таблицы только если нужен tabular UX — из `analytics.*`, не из API.
+- [ ] Обновить `docs/ops-runbook.md`: Sheets = legacy removed.
+
+### Этап 7 — выбор / закрытие пилотов
+
+- [ ] Подтвердить: основной = DataLens; резерв = admin; sales = amoCRM.
+- [ ] Матрица 100 баллов для фиксации (DataLens vs admin vs amo — разные роли).
+- [ ] При провале DataLens (доступ/биллинг YC) — эскалация на admin C + опц. независимый BI.
 
 ## 14. Приёмка
 
-- [ ] Есть единый каталог KPI с SQL-определениями.
+- [x] Уточнена цель замены: Sheets/Looker + необязательный dbt IDE-плагин (§1.1).
+- [x] SoT KPI = dbt marts; Метрика только веб; `stg_communications` вне обязательного scope.
+- [ ] Есть единый каталог KPI с SQL-определениями (зеркало §7 ↔ marts).
 - [ ] Минимум два пилота: DataLens и amoCRM/native admin.
-- [ ] Все обязательные показатели сверены с baseline.
+- [ ] Обязательные показатели сверены с **dbt baseline**, не с Sheets-логикой.
 - [ ] ПДн не выходят за разрешённый контур.
 - [ ] BI недоступность не влияет на FastAPI/кабинеты/MAX.
-- [ ] Выбранный вариант имеет владельца, SLA, backup/export и runbook.
-- [ ] Документировано, остаётся ли dbt Core.
-- [ ] Неиспользуемый dbt IDE-плагин отключён только после подтверждения его имени.
-- [ ] Google Sheets либо исключён, либо формально оставлен как временный канал без ПДн.
+- [ ] Выбранный вариант: владелец, SLA, backup/export, runbook.
+- [ ] Документировано, остаётся ли dbt Core (по умолчанию — да, T1).
+- [ ] IDE-плагин dbt отключён осознанно (после подтверждения имени в Cursor).
+- [ ] Google Sheets исключён из целевого контура или оставлен как временный канал без ПДн.
 
 ## 15. Результат ТЗ
 
-После пилотов должен быть принят один из вариантов:
+**Утверждённый целевой вариант:**
 
-1. **DataLens + dbt Core**, amoCRM для операционной воронки — базовая рекомендация;
-2. **DataLens + SQL materialized views**, если dbt объективно избыточен;
-3. **Собственный admin + amoCRM**, если DataLens не проходит по стоимости/доступу;
-4. **Независимый российский BI**, если нужны enterprise-функции.
+1. **DataLens + dbt Core** — управленческий BI (полная замена Google Sheets/Looker);
+2. **amoCRM** — операционная воронка продаж;
+3. **Собственный admin** — резерв и ops dashboard;
+4. **Яндекс Таблицы** — только временный tabular UX при необходимости;
+5. **DataLens + materialized views** — запасной путь, если позже уйдём с dbt (T2).
 
-До решения текущие dbt-модели и admin dashboard остаются контрольным baseline.
+До cutover (§ этап 6) Sheets остаются dual-run; dbt-модели и admin — контрольный baseline.
 
-## 16. Связанные материалы
+## 16. Ключевые пути (для реализации)
 
+```text
+analytics/dbt_project.yml
+analytics/models/schema.yml
+analytics/models/marts/mart_management_dashboard.sql
+analytics/models/staging/stg_communications.sql   # orphan
+supabase/migrations/20260724194001_analytics_source_and_role.sql
+scripts/dbt_run.sh
+scripts/dbt_apply_rls.sh
+docs/systemd/sfrfr-dbt.timer
+docs/dbt-analytics.md
+src/sfrfr/integrations/sheets/__init__.py         # заменяемый runtime
+src/sfrfr/db/case_repository.py                   # live analytics rows
+src/sfrfr/api/routes/admin_portal.py              # /admin/analytics, sheets-sync
+```
+
+## 17. Связанные материалы
+
+- `docs/ops/datalens-management-bi.md` — cutover Sheets → DataLens
 - `docs/dbt-analytics.md`
-- `analytics/models/schema.yml`
-- `analytics/models/marts/mart_management_dashboard.sql`
+- `docs/ops-runbook.md`
+- `docs/specs/04-admin-cabinet.md`
+- `docs/specs/06-integrations-and-security.md`
+- `docs/specs/12-amocrm.md`
 - `docs/specs/15-data-localization-ru.md`
 - `docs/specs/16-yandex-cloud-terraform.md`
+- `Yandex Metrika/` — только веб-воронка
 - `prompts/tasks/management-analytics-russian-bi-pilot.md`

@@ -1,113 +1,63 @@
 # Задание агенту: пилоты российской управленческой аналитики SFRFR
 
-Подготовь реализацию пилотов по ТЗ:
+ТЗ: `@docs/specs/17-management-analytics-russian-bi.md`  
+Ops cutover: `@docs/ops/datalens-management-bi.md`
 
-`@docs/specs/17-management-analytics-russian-bi.md`
+## Утверждённый целевой контур
+
+```text
+dbt marts → Yandex DataLens     ← основной управленческий BI
+```
+
+Полная замена **Google Sheets + Looker Studio**.  
+`SheetsExporter` отключать **только** после сверки всех KPI с dbt baseline.
+
+### Роли
+
+1. **DataLens + PostgreSQL** — основной BI.
+2. **Admin SFRFR** — резервный интерфейс.
+3. **amoCRM** — только продажи / операционная воронка.
+4. **Яндекс Таблицы** — временный tabular UX, не основной BI.
 
 ## Контекст
 
-Текущий контур:
-
 ```text
-public
-  → analytics_source (обезличенные views)
-  → dbt Core / analytics marts
-  → admin SFRFR / Google Sheets + предполагаемый Looker Studio
+public → analytics_source → dbt Core → analytics marts → DataLens
+                                                      ↘ (dual-run) Sheets — до cutover
 ```
 
-dbt IDE plugin/skill — только инструмент разработки. Не удаляй dbt Core и SQL marts,
-пока пилоты не сверены по KPI.
+dbt Core и SQL marts не удалять. dbt IDE plugin — необязателен.
 
-Фактическая runtime-замена — Google Sheets/Looker Studio. dbt Labs plugin заменяется
-только как необязательный developer tool.
+## Цель итерации
 
-## Цель первой итерации
-
-Не выбирать победителя заранее. Подготовить три сравнимых POC:
-
-1. Yandex DataLens — полный управленческий dashboard.
-2. Встроенный dashboard amoCRM — sales/операционные KPI.
-3. Admin SFRFR — контрольный baseline.
-4. Yandex Metrika — только публичная веб-воронка.
-
-Независимые BI (Visiology/Luxms/Polymatica) — только shortlist без установки.
+1. Поднять POC DataLens на `analytics.*` (read-only).
+2. Сверить KPI §7 ТЗ-17 с marts.
+3. Описать dual-run и чеклист отключения Sheets.
+4. Зафиксировать amoCRM (sales) и admin (резерв) без конкуренции за SoT.
+5. Метрика — только веб-воронка.
 
 ## Обязательные действия
 
-1. Прочитать:
-   - `docs/dbt-analytics.md`;
-   - `analytics/models/schema.yml`;
-   - все `analytics/models/marts/*.sql`;
-   - admin endpoints/UI аналитики;
-   - ТЗ-15 по локализации.
-2. Сформировать data dictionary KPI с:
-   - названием;
-   - grain;
-   - SQL-источником;
-   - фильтрами;
-   - timezone;
-   - freshness/SLA.
-3. Подготовить SQL-контрольные запросы без ПДн.
-4. Для DataLens:
-   - выбрать безопасный read-only источник;
-   - не открывать PostgreSQL `5432` в интернет без allowlist/TLS;
-   - запретить public link;
-   - описать workbook/datasets/charts/filters.
-5. Для amoCRM:
-   - сначала штатные блоки;
-   - перечислить покрытые и непокрытые KPI;
-   - не ставить marketplace-виджет без security review.
-6. Для admin:
-   - использовать как baseline;
-   - предложить только минимальные недостающие визуализации.
-7. Для Метрики:
-   - ограничить scope трафиком, CTA и отправкой формы;
-   - не считать её заменой оплат/product funnel.
-8. Выбрать единый SoT KPI; не сохранять навсегда дублирование dbt marts и live API.
-9. Проверить orphan-модель `stg_communications`: подключить к mart либо исключить.
-10. Подготовить таблицу сверки KPI и матрицу выбора на 100 баллов.
+1. Прочитать ТЗ-17, `docs/dbt-analytics.md`, marts SQL, `docs/ops/datalens-management-bi.md`.
+2. Data dictionary KPI + SQL controls от **marts** (не от Sheets columns).
+3. DataLens: безопасный PG-коннект; без public link; workbook §8.
+4. amoCRM: штатные блоки; непокрытые KPI списком.
+5. Admin: baseline / резерв.
+6. Не считать Метрику product KPI.
+7. `stg_communications` — orphan, вне обязательного scope.
+8. Таблица сверки + план cutover Google (§5 ops).
 
 ## Ограничения
 
-- Не изменять production и не удалять dbt.
-- Не подключать BI к `public.*`, `auth.*`, `storage.*`.
-- Не передавать ФИО, контакты, СНИЛС, документы, OCR, MAX ID.
+- Не отключать Sheets до зелёной сверки.
+- Не подключать BI к `public` / `auth` / `storage`.
 - Не публиковать dashboard анонимно.
-- Не переносить точные суммы в обезличенный BI без отдельного решения.
-- Не делать BI зависимостью FastAPI/кабинетов/MAX.
-- Не возвращать Google Sheets как целевую российскую замену.
+- Не делать BI зависимостью API/кабинетов/MAX.
+- Не предлагать Google Sheets как целевую РФ-замену.
 
-## Артефакты первой итерации
+## Артефакты
 
-Подготовь в репозитории:
-
-```text
-docs/analytics/
-├── kpi-catalog.md
-├── datalens-poc.md
-├── amocrm-dashboard-poc.md
-├── admin-baseline.md
-├── reconciliation.md
-└── decision-matrix.md
-```
-
-SQL-контрольные запросы — в:
-
-```text
-analytics/audit/
-```
-
-Не создавай credentials, API keys, реальные DataLens connections и amoCRM widgets
-без подтверждения пользователя.
-
-## Финальный отчёт
-
-Укажи:
-
-- что dbt делает сейчас и что именно заменяется;
-- покрытие KPI по каждому варианту;
-- риски безопасности/локализации;
-- стоимость и эксплуатационную сложность;
-- блокеры пилота;
-- следующую безопасную задачу;
-- предварительную рекомендацию, но не окончательный выбор до тестирования.
+- SQL controls + таблица сверки KPI.
+- Описание DataLens connection/workbook.
+- Чеклист cutover Sheets (ссылка на ops).
+- Shortlist: что остаётся в admin / amoCRM.

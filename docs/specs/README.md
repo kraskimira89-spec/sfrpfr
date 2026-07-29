@@ -19,6 +19,9 @@
 14. [14-yandex-workspace.md](14-yandex-workspace.md) — Яндекс ID: почта, Телемост, календарь (аккаунт `proverkastaza@…`).  
     Настройка OAuth: [../ops/yandex-workspace-setup.md](../ops/yandex-workspace-setup.md).
 15. [15-data-localization-ru.md](15-data-localization-ru.md) — локализация ПДн (152-ФЗ): MVP на Supabase Cloud, целевой self-hosted Supabase в Yandex Cloud + SmartCaptcha; план миграции.
+16. [16-yandex-cloud-terraform.md](16-yandex-cloud-terraform.md) — Terraform staging в Yandex Cloud.
+17. [17-management-analytics-russian-bi.md](17-management-analytics-russian-bi.md) — управленческая аналитика: **dbt marts → DataLens** (замена Google Sheets/Looker).  
+    Cutover: [../ops/datalens-management-bi.md](../ops/datalens-management-bi.md).
 
 ## Принцип
 
