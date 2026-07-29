@@ -1,5 +1,13 @@
 # История проекта SFRFR
 
+## 2026-07-29 (SEO: консолидация + hub-статьи своим ИИ)
+
+- Карта URL: `docs/ops/seo-url-decision-map.md` (оставить/усилить/объединить/noindex/301).
+- Hub: северный стаж, ЕДВ, льготный/пед., расхождения ФИО — без YandexGPT.
+- MU: fallback description по реальным slug, 301 `/glavnaya/`, sitemap exclude situacii/analitika.
+- Сидер без дублирующего CTA; repair descriptions; смягчены категоричные формулировки ситуаций.
+- Deploy: `scripts/wp_deploy_seo_consolidation.sh`.
+
 ## 2026-07-29 (статистика: Метрика vs внутренняя)
 
 - Баннер = согласие на статистические cookies, не СОПД.

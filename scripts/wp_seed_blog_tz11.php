@@ -14,17 +14,7 @@ $homeUrl = home_url('/');
 
 $disclaimer = '<p class="sfrfr-article-disclaimer"><em>Не являемся СФР. Решение о перерасчёте принимает СФР. Материал носит справочный характер.</em></p>';
 
-$maxUrl = getenv('MAX_CHAT_URL') ?: getenv('MAX_PUBLIC_BOT_URL') ?: 'https://max.ru/id8905998693_1_bot';
-$maxUrl = htmlspecialchars((string) $maxUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-
-$ctaBlock = <<<HTML
-<div class="sfrfr-article-cta">
-  <p><strong>Задать вопрос</strong></p>
-  <p><a class="sfrfr-btn sfrfr-btn--primary" href="{$maxUrl}" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a>
-  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#zayavka">Оставить заявку</a>
-  <a class="sfrfr-btn sfrfr-btn--ghost" href="{$homeUrl}#kak-rabotat">Начать проверку</a></p>
-</div>
-HTML;
+// CTA mid/end добавляет MU sfrfr-blog-ui (+ blog-ui.js). В контент сидера не дублируем.
 
 // Миграция старого slug рубрики до создания категорий.
 $oldRelatives = get_term_by('slug', 'dlya-rodstvennikov', 'category');
@@ -131,6 +121,8 @@ function sfrfr_blog_upsert_post(array $args): int
     update_post_meta($id, '_rank_math_description', $args['seo_description']);
     update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
     update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    update_post_meta($id, '_sfrfr_seo_description', $args['seo_description']);
+    delete_post_meta($id, '_sfrfr_noindex');
     return $id;
 }
 
@@ -359,6 +351,62 @@ $articles = [
             'chem-otlichaetsya-diagnostika-ot-soprovozhdeniya',
         ],
     ],
+    [
+        'file' => '17-severnyy-stazh.html',
+        'slug' => 'severnyy-stazh-i-rayonnyy-koefficient',
+        'title' => 'Северный стаж и районный коэффициент',
+        'category' => 'stazh',
+        'excerpt' => 'Что сверять по северным периодам и как не путать стаж с районным коэффициентом.',
+        'seo_title' => 'Северный стаж и районный коэффициент — сверка',
+        'seo_description' => 'Северный стаж и районный коэффициент: какие периоды сверять в ИЛС и трудовой, не смешивая разные основания.',
+        'related' => [
+            'kak-proverit-stazh-v-vypiske-ils',
+            'chto-delat-esli-period-raboty-ne-uchten',
+            'lgotnyy-i-pedagogicheskiy-stazh',
+        ],
+    ],
+    [
+        'file' => '18-edv-i-pensiya.html',
+        'slug' => 'edv-i-pensiya-chto-proveryat-otdelno',
+        'title' => 'ЕДВ и пенсия: что проверять отдельно',
+        'category' => 'stazh',
+        'excerpt' => 'Как отделить вопросы стажа и ИЛС от вопросов выплат и ЕДВ.',
+        'seo_title' => 'ЕДВ и пенсия: что проверять отдельно',
+        'seo_description' => 'ЕДВ и пенсия: что относится к стажу, а что проверять отдельно, чтобы не смешивать разные решения СФР.',
+        'related' => [
+            'kak-proverit-stazh-v-vypiske-ils',
+            'otkaz-sfr-chto-proverit-v-dokumentah',
+            'kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr',
+        ],
+    ],
+    [
+        'file' => '19-lgotnyy-stazh.html',
+        'slug' => 'lgotnyy-i-pedagogicheskiy-stazh',
+        'title' => 'Льготный и педагогический стаж',
+        'category' => 'stazh',
+        'excerpt' => 'Как отдельно проверить льготные и педагогические периоды в документах и ИЛС.',
+        'seo_title' => 'Льготный и педагогический стаж — сверка',
+        'seo_description' => 'Льготный и педагогический стаж: какие периоды уточнять отдельно и какие документы обычно нужны для сверки.',
+        'related' => [
+            'severnyy-stazh-i-rayonnyy-koefficient',
+            'kak-sverit-trudovuyu-knizhku-i-ils',
+            'chto-delat-esli-period-raboty-ne-uchten',
+        ],
+    ],
+    [
+        'file' => '20-fio-trudovaya.html',
+        'slug' => 'rashozhdeniya-fio-i-zapisi-trudovoy',
+        'title' => 'Расхождения ФИО и ошибки в трудовой',
+        'category' => 'dokumenty',
+        'excerpt' => 'Что делать при опечатке, смене фамилии или несовпадении записи в трудовой и ИЛС.',
+        'seo_title' => 'Расхождения ФИО и ошибки в трудовой',
+        'seo_description' => 'Расхождения ФИО и ошибки в трудовой: как сверить записи и какие подтверждения обычно нужны до обращения в СФР.',
+        'related' => [
+            'kak-sverit-trudovuyu-knizhku-i-ils',
+            'kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr',
+            'otkaz-sfr-chto-proverit-v-dokumentah',
+        ],
+    ],
 ];
 
 $bySlug = [];
@@ -392,7 +440,7 @@ HTML;
 $created = [];
 foreach ($articles as $a) {
     $body = sfrfr_blog_load_body($assets, $a['file']);
-    $content = $body . "\n" . $ctaBlock . "\n" . $relatedFooter($a) . "\n" . $disclaimer;
+    $content = $body . "\n" . $relatedFooter($a) . "\n" . $disclaimer;
     $catId = $catIds[$a['category']] ?? 0;
     if (!$catId) {
         throw new RuntimeException('Category missing: ' . $a['category']);

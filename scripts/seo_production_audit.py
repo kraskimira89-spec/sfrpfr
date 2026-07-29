@@ -117,8 +117,12 @@ def audit_html(url: str, status: int, html: str) -> PageResult:
         issues.append(f"h1:{h1_count}")
 
     robots = extract_attr_tag(html, tag="meta", attr="name", value="robots")
-    if any("noindex" in extract_attr(tag, "content").lower() for tag in robots):
-        issues.append("robots:noindex")
+    has_noindex = any("noindex" in extract_attr(tag, "content").lower() for tag in robots)
+    if has_noindex:
+        # Тонкие/служебные URL с noindex не считаем дефектом индексации.
+        # Остаются только проблемы доступности страницы.
+        hard = [i for i in issues if i.startswith("http:") or i.startswith("fetch:")]
+        return PageResult(url=url, status=status, issues=tuple(hard))
 
     return PageResult(url=url, status=status, issues=tuple(issues))
 

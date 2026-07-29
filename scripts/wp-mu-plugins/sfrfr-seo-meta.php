@@ -39,6 +39,21 @@ add_action('send_headers', static function (): void {
 });
 
 /**
+ * Единый URL главной: /glavnaya/ → /.
+ */
+add_action('template_redirect', static function (): void {
+    if (is_admin() || wp_doing_ajax() || (defined('REST_REQUEST') && REST_REQUEST)) {
+        return;
+    }
+    $path = (string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    $path = untrailingslashit($path);
+    if ($path === '/glavnaya') {
+        wp_safe_redirect(home_url('/'), 301);
+        exit;
+    }
+}, 1);
+
+/**
  * Не включать тонкие ситуации/аналитику в WordPress sitemap.
  *
  * @param array<string,mixed> $args
@@ -60,6 +75,19 @@ add_filter('wp_sitemaps_posts_query_args', static function (array $args, string 
             'compare' => '!=',
         ],
     ];
+    $excludeCats = [];
+    foreach (['situacii', 'analitika'] as $slug) {
+        $term = get_term_by('slug', $slug, 'category');
+        if ($term instanceof WP_Term) {
+            $excludeCats[] = (int) $term->term_id;
+        }
+    }
+    if ($excludeCats) {
+        $args['category__not_in'] = array_values(array_unique(array_merge(
+            array_map('intval', (array) ($args['category__not_in'] ?? [])),
+            $excludeCats
+        )));
+    }
     return $args;
 }, 10, 2);
 
@@ -113,17 +141,24 @@ function sfrfr_seo_description(): string
     }
     if (is_category()) {
         $term = get_queried_object();
-        $name = $term instanceof WP_Term ? $term->name : 'проверке стажа';
+        $name = $term instanceof WP_Term ? (string) $term->name : 'проверке стажа';
+        $name = wp_check_invalid_utf8($name, true);
+        if ($name === '') {
+            $name = 'проверке стажа';
+        }
         return sfrfr_seo_limit("Статьи по теме «{$name}»: инструкции, документы и частые ошибки при проверке пенсионного стажа и сведений ИЛС.");
     }
     if (is_singular()) {
         $postId = get_queried_object_id();
-        $saved = (string) get_post_meta($postId, '_rank_math_description', true);
-        if ($saved === '') {
-            $saved = (string) get_post_meta($postId, '_yoast_wpseo_metadesc', true);
-        }
-        if ($saved !== '') {
-            return sfrfr_seo_limit($saved);
+        foreach (['_sfrfr_seo_description', '_rank_math_description', '_yoast_wpseo_metadesc'] as $metaKey) {
+            $saved = (string) get_post_meta($postId, $metaKey, true);
+            $saved = trim(wp_check_invalid_utf8($saved, true));
+            if ($saved !== '') {
+                $limited = sfrfr_seo_limit($saved);
+                if ($limited !== '') {
+                    return $limited;
+                }
+            }
         }
 
         $slug = (string) get_post_field('post_name', $postId);
@@ -132,16 +167,43 @@ function sfrfr_seo_description(): string
             'politika-pdn' => 'Политика обработки персональных данных сервиса «Проверка стажа»: цели, основания, сроки и права пользователя.',
             'soglasie' => 'Согласие на обработку персональных данных при обращении в сервис «Проверка стажа».',
             'cookies' => 'Правила использования файлов браузера и аналитики на сайте сервиса «Проверка стажа».',
+            'kak-proverit-stazh-v-vypiske-ils' => 'Как читать выписку ИЛС, сверить периоды работы с трудовой и понять, каких подтверждений не хватает перед обращением в СФР.',
+            'kak-sverit-trudovuyu-knizhku-i-ils' => 'Пошаговая сверка трудовой книжки и выписки ИЛС: как найти расхождения и что подготовить для уточнения сведений.',
+            'chto-delat-esli-period-raboty-ne-uchten' => 'Что делать, если период работы не отражён в ИЛС: порядок подтверждения, архивные справки и обращение в СФР.',
+            'arhivnaya-spravka-dlya-sfr-zachem-i-kuda' => 'Когда нужна архивная справка для СФР, куда обращаться при ликвидации работодателя и какие сведения обычно запрашивают.',
+            'tipichnye-situacii-proverki-stazha' => 'Типичные ситуации при проверке стажа: что сверять в документах и какой следующий шаг выбрать без обещания перерасчёта.',
+            'kak-pomoch-rodstvenniku-proverit-stazh' => 'Как родственнику помочь проверить стаж: согласие, документы, каналы связи и границы участия без передачи сканов в открытый чат.',
+            'chto-vy-poluchite-posle-proverki-stazha' => 'Что входит в результат проверки стажа: разбор документов, план действий и границы услуги сервиса «Проверка стажа».',
+            'kak-rabotat-v-max-i-lichnom-kabinete' => 'Как связаны MAX и личный кабинет на сайте: что можно обсуждать в мессенджере и куда загружать документы.',
+            'chastye-voprosy-o-proverke-stazha' => 'Частые вопросы о проверке стажа и ИЛС: документы, сроки, каналы обращения и типичные ограничения услуги.',
+            'kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr' => 'Какие документы собрать до обращения в СФР при проверке стажа: минимальный комплект и порядок подготовки.',
+            'kak-podat-zayavlenie-cherez-gosuslugi-ili-mfc' => 'Как подготовиться к подаче заявления через Госуслуги или МФЦ: комплект, порядок и типичные ошибки.',
+            'otkaz-sfr-chto-proverit-v-dokumentah' => 'Что проверить после отказа СФР: текст решения, документы и безопасные следующие шаги без гарантии исхода.',
+            'pensiya-po-invalidnosti-i-stazh-na-chto-smotret' => 'Пенсия по инвалидности и стаж: что сверять отдельно и как не смешивать разные основания выплат.',
+            'chem-otlichaetsya-diagnostika-ot-soprovozhdeniya' => 'Чем диагностика стажа отличается от сопровождения обращения: состав работ, результат и ограничения.',
+            'pochemu-reshenie-prinimaet-tolko-sfr' => 'Почему решение о перерасчёте принимает только СФР: роль сервиса, границы помощи и что клиент делает самостоятельно.',
+            'chek-list-pered-zapisju-v-mfc' => 'Чек-лист перед записью в МФЦ по вопросам стажа и ИЛС: документы, копии и что уточнить заранее.',
+            'severnyy-stazh-i-rayonnyy-koefficient' => 'Северный стаж и районный коэффициент: что сверять в документах и выписке ИЛС, не путая разные основания.',
+            'edv-i-pensiya-chto-proveryat-otdelno' => 'ЕДВ и пенсия: что относится к стажу, а что проверять отдельно, чтобы не смешивать разные решения СФР.',
+            'lgotnyy-i-pedagogicheskiy-stazh' => 'Льготный и педагогический стаж: какие периоды уточнять отдельно и какие документы обычно нужны для сверки.',
+            'rashozhdeniya-fio-i-zapisi-trudovoy' => 'Расхождения ФИО и ошибки в трудовой: как сверить записи и какие подтверждения обычно нужны до обращения в СФР.',
         ];
         if (isset($pageDescriptions[$slug])) {
             return $pageDescriptions[$slug];
         }
 
-        $excerpt = (string) get_post_field('post_excerpt', $postId);
+        $excerpt = trim(wp_check_invalid_utf8((string) get_post_field('post_excerpt', $postId), true));
         if ($excerpt === '') {
-            $excerpt = (string) get_post_field('post_content', $postId);
+            $excerpt = trim(wp_check_invalid_utf8((string) get_post_field('post_content', $postId), true));
         }
-        return sfrfr_seo_limit($excerpt);
+        $limited = sfrfr_seo_limit($excerpt);
+        if ($limited !== '') {
+            return $limited;
+        }
+        $title = trim(wp_check_invalid_utf8((string) get_the_title($postId), true));
+        if ($title !== '') {
+            return sfrfr_seo_limit("{$title}: практическая инструкция сервиса «Проверка стажа» без обещания перерасчёта.");
+        }
     }
     return 'Проверка пенсионного стажа и документов: понятные инструкции и сопровождение подготовки обращения в СФР.';
 }
