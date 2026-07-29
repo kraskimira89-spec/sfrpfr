@@ -17,9 +17,83 @@ add_action('wp', static function (): void {
 }, 0);
 remove_action('wp_head', 'rel_canonical');
 
+function sfrfr_seo_is_noindex(): bool
+{
+    if (is_category(['situacii', 'analitika'])) {
+        return true;
+    }
+    if (!is_singular('post')) {
+        return false;
+    }
+    $postId = get_queried_object_id();
+    if ((string) get_post_meta($postId, '_sfrfr_noindex', true) === '1') {
+        return true;
+    }
+    return has_category(['situacii', 'analitika'], $postId);
+}
+
+add_action('send_headers', static function (): void {
+    if (sfrfr_seo_is_noindex() && !headers_sent()) {
+        header('X-Robots-Tag: noindex, follow', true);
+    }
+});
+
+/**
+ * Не включать тонкие ситуации/аналитику в WordPress sitemap.
+ *
+ * @param array<string,mixed> $args
+ * @return array<string,mixed>
+ */
+add_filter('wp_sitemaps_posts_query_args', static function (array $args, string $postType): array {
+    if ($postType !== 'post') {
+        return $args;
+    }
+    $args['meta_query'] = [
+        'relation' => 'OR',
+        [
+            'key' => '_sfrfr_noindex',
+            'compare' => 'NOT EXISTS',
+        ],
+        [
+            'key' => '_sfrfr_noindex',
+            'value' => '1',
+            'compare' => '!=',
+        ],
+    ];
+    return $args;
+}, 10, 2);
+
+/**
+ * Не включать временные архивы тонких серий в taxonomy sitemap.
+ *
+ * @param array<string,mixed> $args
+ * @return array<string,mixed>
+ */
+add_filter('wp_sitemaps_taxonomies_query_args', static function (array $args, string $taxonomy): array {
+    if ($taxonomy !== 'category') {
+        return $args;
+    }
+    $exclude = [];
+    foreach (['situacii', 'analitika'] as $slug) {
+        $term = get_term_by('slug', $slug, 'category');
+        if ($term instanceof WP_Term) {
+            $exclude[] = (int) $term->term_id;
+        }
+    }
+    if ($exclude) {
+        $args['exclude'] = array_values(array_unique(array_merge(
+            array_map('intval', (array) ($args['exclude'] ?? [])),
+            $exclude
+        )));
+    }
+    return $args;
+}, 10, 2);
+
 function sfrfr_seo_limit(string $value, int $limit = 165): string
 {
-    $value = trim((string) preg_replace('/\s+/u', ' ', wp_strip_all_tags(strip_shortcodes($value))));
+    $value = wp_check_invalid_utf8($value, true);
+    $normalized = preg_replace('/\s+/', ' ', wp_strip_all_tags(strip_shortcodes($value)));
+    $value = trim(is_string($normalized) ? $normalized : $value);
     if (function_exists('mb_strlen') && mb_strlen($value, 'UTF-8') > $limit) {
         return rtrim(mb_substr($value, 0, $limit - 1, 'UTF-8')) . '…';
     }
@@ -210,6 +284,9 @@ add_action('wp_head', static function (): void {
     $type = is_singular('post') ? 'article' : 'website';
 
     echo "\n<!-- SFRFR SEO Meta -->\n";
+    if (sfrfr_seo_is_noindex()) {
+        echo "<meta name=\"robots\" content=\"noindex, follow\" />\n";
+    }
     printf("<meta name=\"description\" content=\"%s\" />\n", esc_attr($description));
     printf("<link rel=\"canonical\" href=\"%s\" />\n", esc_url($canonical));
     printf("<meta property=\"og:locale\" content=\"ru_RU\" />\n");

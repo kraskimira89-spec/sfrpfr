@@ -99,6 +99,9 @@ function sfrfr_sit_upsert_post(array $args): int
     update_post_meta($id, '_rank_math_description', $args['seo_description']);
     update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
     update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    // ТЗ-18: массовые шаблонные ситуации не индексировать до редакционной
+    // консолидации в самостоятельные экспертные pillar-материалы.
+    update_post_meta($id, '_sfrfr_noindex', '1');
     return $id;
 }
 
