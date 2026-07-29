@@ -14,7 +14,8 @@
   <div class="bg" aria-hidden="true"></div>
 
   <header class="appbar">
-    <button type="button" id="btn-menu" class="burger" aria-label="Меню шагов" aria-expanded="false" aria-controls="drawer">
+    <button type="button" id="btn-back" class="nav-icon hidden" aria-label="Назад к делам">←</button>
+    <button type="button" id="btn-menu" class="burger" aria-label="Меню" aria-expanded="false" aria-controls="drawer">
       <span></span><span></span><span></span>
     </button>
     <div class="appbar-title">
@@ -23,6 +24,7 @@
       </a>
       <p class="tag" id="appbar-sub">Кабинет</p>
     </div>
+    <button type="button" id="btn-home-cases" class="nav-text" aria-label="Мои дела">Дела</button>
   </header>
 
   <div id="drawer-backdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
@@ -73,6 +75,15 @@
     </section>
 
     <section id="panel-case" class="panel compact hidden">
+      <nav class="case-tabs" id="case-tabs" aria-label="Разделы дела">
+        <button type="button" data-view="overview" class="case-tab active">Обзор</button>
+        <button type="button" data-view="docs" class="case-tab">Документы</button>
+        <button type="button" data-view="checklist" class="case-tab">Чек-лист</button>
+        <button type="button" data-view="draft" class="case-tab">Черновик</button>
+        <button type="button" data-view="pay" class="case-tab">Оплаты</button>
+        <button type="button" data-view="result" class="case-tab">Результат</button>
+        <button type="button" data-view="chat" class="case-tab">Сообщения</button>
+      </nav>
       <!-- Обзор: только текущий этап + главные действия -->
       <div id="view-overview" class="view">
         <div class="status-card">
@@ -171,13 +182,32 @@
     <p id="toast" class="toast hidden" role="status"></p>
   </main>
 
+  <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Навигация">
+    <button type="button" data-view="overview" class="bottom-nav__item active">
+      <span class="bottom-nav__icon" aria-hidden="true">○</span>
+      <span>Обзор</span>
+    </button>
+    <button type="button" data-view="docs" class="bottom-nav__item">
+      <span class="bottom-nav__icon" aria-hidden="true">≡</span>
+      <span>Документы</span>
+    </button>
+    <button type="button" data-view="chat" class="bottom-nav__item">
+      <span class="bottom-nav__icon" aria-hidden="true">◎</span>
+      <span>Сообщения</span>
+    </button>
+    <button type="button" data-view="list" class="bottom-nav__item">
+      <span class="bottom-nav__icon" aria-hidden="true">☰</span>
+      <span>Мои дела</span>
+    </button>
+  </nav>
+
   <!-- скрытые кнопки для совместимости со старым JS-API -->
   <a id="btn-web-cabinet" class="hidden" href="#"></a>
   <a id="btn-web-from-list" class="hidden" href="#"></a>
   <a id="btn-chat" class="hidden" href="#"></a>
   <button type="button" id="btn-back-list" class="hidden"></button>
 
-  <script src="./config.js?v=20260729b"></script>
-  <script src="./app.js?v=20260729b"></script>
+  <script src="./config.js?v=20260729c"></script>
+  <script src="./app.js?v=20260729c"></script>
 </body>
 </html>

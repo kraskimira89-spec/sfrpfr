@@ -57,6 +57,9 @@
     btnWeb: document.getElementById("btn-web-cabinet"),
     btnChat: document.getElementById("btn-chat"),
     btnBackList: document.getElementById("btn-back-list"),
+    btnBack: document.getElementById("btn-back"),
+    btnHomeCases: document.getElementById("btn-home-cases"),
+    bottomNav: document.getElementById("bottom-nav"),
     btnMenu: document.getElementById("btn-menu"),
     drawer: document.getElementById("drawer"),
     drawerBackdrop: document.getElementById("drawer-backdrop"),
@@ -93,6 +96,41 @@
   function show(el) {
     [els.boot, els.form, els.list, els.panel].forEach((p) => p && p.classList.add("hidden"));
     el.classList.remove("hidden");
+    const inApp = el === els.list || el === els.panel;
+    els.bottomNav?.classList.toggle("hidden", !inApp);
+    els.btnBack?.classList.toggle("hidden", el !== els.panel);
+    els.btnHomeCases?.classList.toggle("hidden", !inApp);
+    document.body.classList.toggle("has-bottom-nav", inApp);
+  }
+
+  function syncNavActive(view) {
+    const key = view === "pay" ? "pay" : view;
+    document.querySelectorAll("#drawer-nav .nav-item, #case-tabs .case-tab, #bottom-nav .bottom-nav__item").forEach((btn) => {
+      const v = btn.getAttribute("data-view");
+      const active =
+        v === key ||
+        (key === "list" && v === "list") ||
+        (["overview", "docs", "checklist", "draft", "pay", "result", "chat"].includes(key) &&
+          v === key);
+      btn.classList.toggle("active", active);
+    });
+    // На нижней панели «Обзор» активен и для второстепенных вкладок без своей кнопки
+    document.querySelectorAll("#bottom-nav .bottom-nav__item").forEach((btn) => {
+      const v = btn.getAttribute("data-view");
+      if (v === "overview") {
+        btn.classList.toggle(
+          "active",
+          key === "overview" ||
+            ["checklist", "draft", "pay", "result"].includes(key),
+        );
+      } else if (v === "docs") {
+        btn.classList.toggle("active", key === "docs");
+      } else if (v === "chat") {
+        btn.classList.toggle("active", key === "chat");
+      } else if (v === "list") {
+        btn.classList.toggle("active", key === "list");
+      }
+    });
   }
 
   function setMenuOpen(open) {
@@ -146,19 +184,26 @@
         try {
           const cases = await api("/api/portal/me/cases");
           renderList(cases || []);
+          syncNavActive("list");
         } catch (err) {
           toast(err.message);
         }
       })();
       return;
     }
+    if (!currentCase?.id && view !== "overview") {
+      // Нет открытого дела — сначала список
+      void setView("list");
+      return;
+    }
     currentView = view;
+    if (els.panel && els.panel.classList.contains("hidden")) {
+      show(els.panel);
+    }
     document.querySelectorAll("#panel-case .view").forEach((node) => {
       node.classList.toggle("hidden", node.id !== `view-${view}`);
     });
-    document.querySelectorAll("#drawer-nav .nav-item").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
-    });
+    syncNavActive(view);
     if (els.appbarSub) {
       const titles = {
         overview: "Обзор",
@@ -382,6 +427,7 @@
 
     show(els.panel);
     setView(currentView === "list" ? "overview" : currentView);
+    syncNavActive(currentView === "list" ? "overview" : currentView);
     void loadOrders();
     void loadResult();
     void loadMessages();
@@ -539,6 +585,7 @@
     }
     show(els.list);
     if (els.appbarSub) els.appbarSub.textContent = "Мои дела";
+    syncNavActive("list");
     setMenuOpen(false);
   }
 
@@ -788,9 +835,34 @@
     setMenuOpen(open);
   });
   els.drawerBackdrop?.addEventListener("click", () => setMenuOpen(false));
+
+  function goNav(view) {
+    setView(view || "overview");
+  }
+
   document.querySelectorAll("#drawer-nav .nav-item").forEach((btn) => {
-    btn.addEventListener("click", () => setView(btn.getAttribute("data-view") || "overview"));
+    btn.addEventListener("click", () => goNav(btn.getAttribute("data-view") || "overview"));
   });
+  document.querySelectorAll("#case-tabs .case-tab").forEach((btn) => {
+    btn.addEventListener("click", () => goNav(btn.getAttribute("data-view") || "overview"));
+  });
+  document.querySelectorAll("#bottom-nav .bottom-nav__item").forEach((btn) => {
+    btn.addEventListener("click", () => goNav(btn.getAttribute("data-view") || "overview"));
+  });
+
+  async function goToCasesList() {
+    try {
+      const cases = await api("/api/portal/me/cases");
+      renderList(cases || []);
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  els.btnBack?.addEventListener("click", () => void goToCasesList());
+  els.btnHomeCases?.addEventListener("click", () => void goToCasesList());
+  els.btnBackList?.addEventListener("click", () => void goToCasesList());
+
   if (els.drawerWeb) {
     els.drawerWeb.addEventListener("click", (event) => {
       event.preventDefault();
@@ -834,15 +906,6 @@
   ) {
     setTimeout(() => setView(initialView === "payments" ? "pay" : initialView), 800);
   }
-
-  els.btnBackList?.addEventListener("click", async () => {
-    try {
-      const cases = await api("/api/portal/me/cases");
-      renderList(cases || []);
-    } catch (err) {
-      toast(err.message);
-    }
-  });
 
   els.btnNewCase?.addEventListener("click", async () => {
     try {
