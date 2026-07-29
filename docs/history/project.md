@@ -530,4 +530,6 @@
 - Добавлено задание `prompts/tasks/seo-growth-implementation.md` для поэтапного внедрения без массового непроверенного AI-контента и накруток.
 - По итогам параллельного аудита добавлены проверки дубля `/glavnaya/`, `noindex` для `/app/`, локализация шрифтов и недостающие pillar-хабы по ИЛС, Северу, ЕДВ и льготному стажу.
 - Реализован технический SEO P0: версионируемый MU-plugin для description/canonical/Open Graph/JSON-LD, устранение второго H1 в записях и `noindex` для MAX mini-app `/app/`.
+- Production-проверка: 60/60 sitemap URL имеют `200`, по одному тегу description/canonical/JSON-LD/H1 и Open Graph; ключевые URL отправлены в переобход Яндекса.
+- Добавлены `scripts/seo_production_audit.py` и еженедельный workflow `seo-production-audit.yml`; строгая проверка содержимого выявила 12 пустых description из старых строк с некорректным UTF-8, исправление подготовлено.
 
