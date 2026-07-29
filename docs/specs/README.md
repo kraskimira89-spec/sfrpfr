@@ -22,6 +22,7 @@
 16. [16-yandex-cloud-terraform.md](16-yandex-cloud-terraform.md) — Terraform staging в Yandex Cloud.
 17. [17-management-analytics-russian-bi.md](17-management-analytics-russian-bi.md) — управленческая аналитика: **dbt marts → DataLens** (замена Google Sheets/Looker).  
     Cutover: [../ops/datalens-management-bi.md](../ops/datalens-management-bi.md).
+18. [18-seo-strategy-and-implementation.md](18-seo-strategy-and-implementation.md) — SEO-стратегия: технический аудит, семантика, экспертный контент, аналитика и план на 6 месяцев.
 
 ## Принцип
 
