@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-07-29 (промпт ассистента консоли YC)
+
+- `docs/specs/ии яндекс клоуд ВМ` переписан под AI-ассистента консоли (не Cursor): SFRFR folder/cloud, staging VM, без git.
+
 ## 2026-07-29 (утверждён DataLens вместо Sheets)
 
 - Полная замена Google Таблиц: dbt marts → DataLens; SheetsExporter только после сверки KPI.
