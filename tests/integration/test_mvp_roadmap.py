@@ -120,6 +120,17 @@ def test_tz11_blog_mvp_assets() -> None:
     mu = (REPO / "scripts/wp-mu-plugins/sfrfr-blog-ui.php").read_text(encoding="utf-8")
     assert "'rodstvenniki'" in mu
     assert "dlya-rodstvennikov" not in mu
+    seo = (REPO / "scripts/wp-mu-plugins/sfrfr-seo-meta.php").read_text(encoding="utf-8")
+    assert 'name=\\"description\\"' in seo
+    assert 'rel=\\"canonical\\"' in seo
+    assert "application/ld+json" in seo
+    assert "Organization" in seo
+    assert "GovernmentOrganization" not in seo
+    assert "preg_replace('/^\\s*<h1" in seo
+    deploy = (REPO / "scripts/wp_deploy_blog_ui.sh").read_text(encoding="utf-8")
+    assert "sfrfr-seo-meta.php" in deploy
+    miniapp = (REPO / "web/max-miniapp/index.html").read_text(encoding="utf-8")
+    assert 'name="robots" content="noindex,nofollow,noarchive"' in miniapp
 
 
 def test_blog_situations_from_deepseek() -> None:
