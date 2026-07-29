@@ -18,6 +18,23 @@ function sfrfr_metrika_env_map(): array
         return $map;
     }
     $map = [];
+    // Публичный конфиг (без OAuth) — читается www-data
+    foreach ([
+        __DIR__ . '/sfrfr-yandex-metrika.config.php',
+        '/opt/sfrfr/secrets/yandex-metrika.public.php',
+    ] as $cfg) {
+        if (is_readable($cfg)) {
+            /** @var mixed $loaded */
+            $loaded = include $cfg;
+            if (is_array($loaded)) {
+                foreach ($loaded as $k => $v) {
+                    if (is_string($k) && (is_string($v) || is_int($v))) {
+                        $map[$k] = (string) $v;
+                    }
+                }
+            }
+        }
+    }
     $path = '/opt/sfrfr/.env';
     if (!is_readable($path)) {
         return $map;
@@ -34,7 +51,7 @@ function sfrfr_metrika_env_map(): array
         [$k, $v] = explode('=', $line, 2);
         $k = trim($k);
         $v = trim($v, " \t\"'");
-        if ($k !== '') {
+        if ($k !== '' && !isset($map[$k])) {
             $map[$k] = $v;
         }
     }

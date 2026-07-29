@@ -198,6 +198,11 @@
 - Hover кнопок с контрастным текстом; секции ~экран; padding карточек 24px.
 - `#zayavka` без двойного `--alt` после статей.
 
+## 2026-07-29 (Метрика live)
+
+- Счётчик API: `111134477`; цели `lead_ok`, `max_click`.
+- MU на WP + `YANDEX_METRIKA_COUNTER_ID` на VPS; вебвизор выкл.
+
 ## 2026-07-29 (Метрика вариант B: API + WP)
 
 - Гайд `docs/ops/yandex-metrika-setup.md`; скрипт `yandex_metrika_ensure_counter.py`; MU `sfrfr-yandex-metrika.php` + `wp_deploy_metrika.sh`.
