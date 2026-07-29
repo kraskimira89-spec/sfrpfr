@@ -92,3 +92,6 @@ analytics/.user.yml
 analytics/target/
 analytics/dbt_packages/
 analytics/logs/
+
+node_modules/
+
