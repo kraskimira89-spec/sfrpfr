@@ -15,10 +15,13 @@ BACKUP_ROOT="${SFRFR_BLOG_BACKUP_ROOT:-/root/.sfrfr-backups/blog}"
 BACKUP_DIR="${BACKUP_ROOT}/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 echo "==> Backup текущих записей: ${BACKUP_DIR}"
-"${WP[@]}" export \
+# WP-CLI sprintf: литеральный % в имени файла нужно экранировать как %%
+if ! "${WP[@]}" export \
   --post_type=post \
   --dir="$BACKUP_DIR" \
-  --filename_format='blog-before-seed-%Y-%m-%d.xml'
+  --filename_format='blog-before-seed-%%Y-%%m-%%d.xml'; then
+  echo "WARN: wp export backup failed — продолжаем сид без бэкапа"
+fi
 
 # Лендинг и его CSS по умолчанию не трогаем. Включать только явно.
 if [[ "${SFRFR_BLOG_APPLY_CSS:-0}" == "1" ]]; then
