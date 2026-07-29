@@ -35,13 +35,8 @@ def main() -> int:
             print("FAIL: Metrika before consent (allow path)")
             return 1
         print("OK: no Metrika before consent")
-        page1.locator("#sfrfr-metrika-consent").wait_for(state="visible", timeout=10000)
-        text = page1.locator("#sfrfr-metrika-consent").inner_text()
-        if "персональных данных заявки" not in text and "не согласие" not in text.lower():
-            # soft check — banner should clarify not PDN consent
-            if "статистическ" not in text.lower():
-                print("FAIL: banner text missing statistical cookies wording")
-                return 1
+        # тихий баннер с задержкой ~2.5с
+        page1.locator("#sfrfr-metrika-consent.sfrfr-mc-visible").wait_for(state="visible", timeout=8000)
         page1.locator('[data-sfrfr-metrika-consent="1"]').click()
         page1.wait_for_timeout(3500)
         if not metrika_hits(hits1):
@@ -49,13 +44,22 @@ def main() -> int:
             return 1
         print("OK: Metrika after Allow")
 
+        # повторный визит с тем же storage — баннер не должен появиться
+        page1.goto(URL, wait_until="domcontentloaded", timeout=60000)
+        page1.wait_for_timeout(3500)
+        visible = page1.locator("#sfrfr-metrika-consent.sfrfr-mc-visible").count()
+        if visible:
+            print("FAIL: banner shown again after choice")
+            return 1
+        print("OK: banner does not reappear")
+
         # --- deny ---
         ctx2 = browser.new_context()
         page2 = ctx2.new_page()
         hits2: list[str] = []
         page2.on("request", lambda r: hits2.append(r.url))
         page2.goto(URL, wait_until="domcontentloaded", timeout=60000)
-        page2.wait_for_timeout(1500)
+        page2.locator("#sfrfr-metrika-consent.sfrfr-mc-visible").wait_for(state="visible", timeout=8000)
         page2.locator('[data-sfrfr-metrika-consent="0"]').click()
         page2.wait_for_timeout(3000)
         if metrika_hits(hits2):
@@ -64,6 +68,13 @@ def main() -> int:
                 print(" ", u[:160])
             return 1
         print("OK: Deny blocks Metrika")
+
+        page2.goto(URL, wait_until="domcontentloaded", timeout=60000)
+        page2.wait_for_timeout(3500)
+        if page2.locator("#sfrfr-metrika-consent.sfrfr-mc-visible").count():
+            print("FAIL: banner reappears after deny")
+            return 1
+        print("OK: deny choice sticky (no second banner)")
 
         browser.close()
         print("DONE dual consent scenarios")

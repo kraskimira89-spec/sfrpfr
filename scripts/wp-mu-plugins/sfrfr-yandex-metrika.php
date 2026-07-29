@@ -92,36 +92,36 @@ add_action('wp_footer', static function (): void {
     ?>
 <style id="sfrfr-metrika-consent-css">
 #sfrfr-metrika-consent{
-  position:fixed;z-index:99999;left:12px;right:12px;bottom:12px;max-width:560px;margin:0 auto;
-  background:#fff;color:#1a2b3c;border:1px solid #d5dde6;border-radius:12px;
-  box-shadow:0 10px 32px rgba(16,40,64,.18);padding:14px 16px;font:14px/1.45 system-ui,sans-serif;
+  position:fixed;z-index:40;left:16px;bottom:16px;right:auto;max-width:320px;margin:0;
+  background:rgba(255,255,255,.96);color:#445566;border:1px solid #e4ebf2;border-radius:10px;
+  box-shadow:0 4px 18px rgba(20,40,60,.08);padding:12px 14px;font:12.5px/1.4 system-ui,sans-serif;
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+}
+#sfrfr-metrika-consent.sfrfr-mc-visible{
+  opacity:1;transform:none;pointer-events:auto;
 }
 #sfrfr-metrika-consent[hidden]{display:none!important}
-#sfrfr-metrika-consent p{margin:0 0 10px}
-#sfrfr-metrika-consent a{color:#1e4e79}
-#sfrfr-metrika-consent .sfrfr-mc-actions{display:flex;flex-wrap:wrap;gap:8px}
+#sfrfr-metrika-consent p{margin:0 0 8px;font-weight:400}
+#sfrfr-metrika-consent a{color:#1e4e79;text-decoration:underline}
+#sfrfr-metrika-consent .sfrfr-mc-actions{display:flex;gap:6px}
 #sfrfr-metrika-consent button{
-  flex:1 1 140px;min-height:40px;border-radius:8px;border:1px solid #1e4e79;
-  cursor:pointer;font:600 14px/1 system-ui,sans-serif;padding:8px 12px;
+  flex:1 1 auto;min-height:32px;border-radius:6px;border:1px solid #c5d0dc;
+  cursor:pointer;font:500 12.5px/1 system-ui,sans-serif;padding:6px 8px;background:#fff;color:#334455;
 }
-#sfrfr-metrika-consent .sfrfr-mc-allow{background:#1e4e79;color:#fff}
-#sfrfr-metrika-consent .sfrfr-mc-deny{background:#fff;color:#1e4e79}
-#sfrfr-metrika-consent-change{
-  position:fixed;z-index:99998;right:12px;bottom:12px;font:12px/1 system-ui,sans-serif;
-  background:transparent;border:0;color:#6b7c8d;cursor:pointer;text-decoration:underline;padding:4px;
+#sfrfr-metrika-consent .sfrfr-mc-allow{background:#1e4e79;border-color:#1e4e79;color:#fff}
+@media (max-width:480px){
+  #sfrfr-metrika-consent{left:10px;right:10px;max-width:none;bottom:10px}
 }
-#sfrfr-metrika-consent-change[hidden]{display:none!important}
 </style>
-<div id="sfrfr-metrika-consent" hidden role="dialog" aria-live="polite" aria-label="Согласие на статистические файлы браузера">
-  <p>Можем сохранить необязательные <strong>статистические файлы браузера</strong> (Яндекс Метрика)
-  для обезличенной аналитики кликов и целей. Это <strong>не</strong> согласие на обработку персональных данных заявки.
-  Отказ не мешает сайту и форме. Подробнее: <a href="<?php echo $cookies_url; ?>">файлы браузера</a>.</p>
+<div id="sfrfr-metrika-consent" hidden role="dialog" aria-live="polite" aria-label="Статистические файлы браузера">
+  <p>Обезличенная статистика (Яндекс Метрика) — по желанию.
+  Не относится к персональным данным заявки.
+  <a href="<?php echo $cookies_url; ?>">Подробнее</a></p>
   <div class="sfrfr-mc-actions">
-    <button type="button" class="sfrfr-mc-allow" data-sfrfr-metrika-consent="1">Разрешить</button>
-    <button type="button" class="sfrfr-mc-deny" data-sfrfr-metrika-consent="0">Отказаться</button>
+    <button type="button" class="sfrfr-mc-allow" data-sfrfr-metrika-consent="1">OK</button>
+    <button type="button" class="sfrfr-mc-deny" data-sfrfr-metrika-consent="0">Нет</button>
   </div>
 </div>
-<button type="button" id="sfrfr-metrika-consent-change" hidden>Настройки статистики</button>
 <script>
 (function () {
   var COUNTER_ID = <?php echo $cid; ?>;
@@ -130,10 +130,22 @@ add_action('wp_footer', static function (): void {
   var CONSENT_VER = <?php echo wp_json_encode($ver); ?>;
   var AJAX = <?php echo wp_json_encode($ajax_url); ?>;
   var storageKey = CONSENT_KEY + ":" + CONSENT_VER;
+  var cookieName = "sfrfr_mc";
   var loaded = false;
   var queue = [];
   var banner = document.getElementById("sfrfr-metrika-consent");
-  var changeBtn = document.getElementById("sfrfr-metrika-consent-change");
+  var SHOW_DELAY_MS = 2500;
+
+  function readCookie(name) {
+    var m = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function writeCookie(name, value) {
+    var maxAge = 60 * 60 * 24 * 400; // ~13 мес., один раз на браузер
+    document.cookie = name + "=" + encodeURIComponent(value)
+      + "; Path=/; Max-Age=" + maxAge + "; SameSite=Lax";
+  }
 
   function readConsent() {
     try {
@@ -141,11 +153,16 @@ add_action('wp_footer', static function (): void {
       if (raw === "1") return true;
       if (raw === "0") return false;
     } catch (e) {}
+    var c = readCookie(cookieName);
+    if (c === "1") return true;
+    if (c === "0") return false;
     return null;
   }
 
   function writeConsent(ok) {
-    try { localStorage.setItem(storageKey, ok ? "1" : "0"); } catch (e) {}
+    var v = ok ? "1" : "0";
+    try { localStorage.setItem(storageKey, v); } catch (e) {}
+    try { writeCookie(cookieName, v); } catch (e) {}
   }
 
   function pingInternal(eventCode) {
@@ -195,7 +212,6 @@ add_action('wp_footer', static function (): void {
     }
   }
 
-  /** Цели Метрики — только после «Разрешить». */
   window.sfrfrMetrikaGoal = function (name) {
     if (!name || readConsent() !== true) return;
     if (!loaded || typeof ym !== "function") {
@@ -206,36 +222,36 @@ add_action('wp_footer', static function (): void {
     try { ym(COUNTER_ID, "reachGoal", String(name)); } catch (e) {}
   };
 
-  function showBanner(show) {
-    if (banner) banner.hidden = !show;
-    if (changeBtn) changeBtn.hidden = show;
+  function hideBanner() {
+    if (!banner) return;
+    banner.classList.remove("sfrfr-mc-visible");
+    banner.hidden = true;
+  }
+
+  function revealBannerOnce() {
+    if (!banner || readConsent() !== null) return;
+    banner.hidden = false;
+    requestAnimationFrame(function () {
+      banner.classList.add("sfrfr-mc-visible");
+    });
   }
 
   function applyConsent(ok) {
     writeConsent(ok);
-    showBanner(false);
+    hideBanner();
     pingInternal(ok ? "consent_allow" : "consent_deny");
-    if (ok) {
-      loadMetrika();
-    }
+    if (ok) loadMetrika();
   }
 
   function bindUI() {
-    if (banner) {
-      banner.addEventListener("click", function (ev) {
-        var t = ev.target;
-        if (!t || !t.getAttribute) return;
-        var v = t.getAttribute("data-sfrfr-metrika-consent");
-        if (v === "1") applyConsent(true);
-        if (v === "0") applyConsent(false);
-      });
-    }
-    if (changeBtn) {
-      changeBtn.addEventListener("click", function () {
-        try { localStorage.removeItem(storageKey); } catch (e) {}
-        showBanner(true);
-      });
-    }
+    if (!banner) return;
+    banner.addEventListener("click", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      var v = t.getAttribute("data-sfrfr-metrika-consent");
+      if (v === "1") applyConsent(true);
+      if (v === "0") applyConsent(false);
+    });
   }
 
   function once(el, flag, fn) {
@@ -312,13 +328,13 @@ add_action('wp_footer', static function (): void {
 
   var consent = readConsent();
   if (consent === true) {
-    showBanner(false);
+    hideBanner();
     loadMetrika();
   } else if (consent === false) {
-    showBanner(false);
-    if (changeBtn) changeBtn.hidden = false;
+    hideBanner();
   } else {
-    showBanner(true);
+    // Один показ на пользователя; после выбора больше не появляется.
+    setTimeout(revealBannerOnce, SHOW_DELAY_MS);
   }
 })();
 </script>

@@ -39,7 +39,8 @@
 
 Параллельно для **всех** (включая отказ): собственная серверная агрегация без IP/ПДн — `sfrfr-internal-stats.php` (`page_view`, `lead_ok`, `form_error`, `http_404`, `consent_*`, `tech_error`).
 
-Ключ: `sfrfr_metrika_consent:stat-cookies-2026-07-29`.  
+Ключ: `sfrfr_metrika_consent:stat-cookies-2026-07-29` + cookie `sfrfr_mc` (~13 мес.).  
+Баннер: компактный, с задержкой 2.5 с, **один раз** после выбора не показывается снова.  
 Вебвизор: `YANDEX_METRIKA_WEBVISOR=0`.
 
 Проверка Playwright: `python scripts/tests/metrika_consent_playwright.py`  
