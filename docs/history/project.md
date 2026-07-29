@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-29 (Яндекс Вебмастер API)
+
+- OAuth + `scripts/yandex_webmaster_ensure_site.py`; ops: `docs/ops/yandex-webmaster-setup.md`.
+- Хосты http/https ± www для `proverkastaza.ru` — VERIFIED (META `24f89ecf6ff4297b`).
+- Основной host_id: `https:proverkastaza.ru:443`.
+
 ## 2026-07-29 (Terraform staging в репо)
 
 - В `infra/yandex-cloud/` внесён пример по ТЗ-16 (правки к выводу ассистента консоли).
