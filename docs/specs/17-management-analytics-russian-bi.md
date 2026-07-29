@@ -552,6 +552,7 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 
 ### Этап 0 — инвентаризация
 
+- [x] dbt-плагин = **Cursor/dbt Labs skill** (не runtime); production packages нет.
 - [x] Заменяемый runtime: **Google Sheets + Looker Studio**.
 - [x] Целевой BI: **dbt marts → DataLens** (§0); Sheets dual-run до cutover.
 - [x] SoT управленческих KPI: **dbt marts** (`mart_management_dashboard` + fct_*).
