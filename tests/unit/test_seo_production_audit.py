@@ -1,8 +1,13 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from scripts.seo_production_audit import (
     audit_html,
     normalize_url,
     parse_sitemap,
-)
+)  # noqa: E402
 
 VALID_HTML = """
 <!doctype html>
