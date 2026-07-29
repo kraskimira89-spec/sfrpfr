@@ -5,3 +5,15 @@
 
 DirectoryIndex index.html
 Options -Indexes
+
+# Не кэшировать config/app в WebView MAX (иначе остаётся старый apiBase)
+<IfModule mod_headers.c>
+  <FilesMatch "^(config|app)\.(js|css|html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+  </FilesMatch>
+  <Files "index.html">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+  </Files>
+</IfModule>

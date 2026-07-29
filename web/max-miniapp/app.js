@@ -201,11 +201,22 @@
   }
 
   async function api(path, options = {}) {
+    if (!apiBase) {
+      throw new Error("API не настроен (config.js). Обновите мини-приложение.");
+    }
     const headers = authHeaders(options.headers || {});
     if (options.body && !(options.body instanceof FormData) && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json";
     }
-    const res = await fetch(`${apiBase}${path}`, { ...options, headers });
+    let res;
+    try {
+      res = await fetch(`${apiBase}${path}`, { ...options, headers });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Нет связи с API (${apiBase}). Проверьте интернет и откройте мини-приложение заново. ${reason}`,
+      );
+    }
     let body = null;
     const text = await res.text();
     try {

@@ -49,6 +49,11 @@
 - Создание платежа падало: фискализация вкл., SEND_RECEIPT=false → Receipt is missing.
 - Вкл. чеки + return_url на cabinet.proverkastaza.ru; pay требует email при чеке.
 
+## 2026-07-29 (MAX miniapp: Failed to fetch)
+
+- Живой `/app/config.js` указывал на `api.taxi-doroga-dobra.ru` → «Failed to fetch».
+- Выложен актуальный miniapp; `vps_deploy.sh` теперь всегда обновляет `/app/`.
+
 ## 2026-07-29 (безопасность: фиксированные тарифы)
 
 - На лендинге обновлён блок `#tarify`: опубликованы фиксированные суммы 3 000 / 10 000 / 25 000 ₽.

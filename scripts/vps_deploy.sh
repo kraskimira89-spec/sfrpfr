@@ -61,5 +61,11 @@ if [[ -x "$APP_DIR/scripts/wp_deploy_blog_ui.sh" ]] || [[ -f "$APP_DIR/scripts/w
   bash "$APP_DIR/scripts/wp_deploy_blog_ui.sh" || echo "WARN: wp_deploy_blog_ui.sh failed (WP path?)"
 fi
 
+# Мини-приложение MAX → https://proverkastaza.ru/app/
+if [[ -f "$APP_DIR/scripts/deploy_max_miniapp.sh" ]]; then
+  echo "Deploying MAX miniapp /app/ …"
+  bash "$APP_DIR/scripts/deploy_max_miniapp.sh" || echo "WARN: deploy_max_miniapp.sh failed"
+fi
+
 curl -fsS "http://127.0.0.1:8011/health" >/dev/null
 echo "Deploy OK: $(sudo -u "$APP_USER" git -C "$APP_DIR" rev-parse --short HEAD)"
