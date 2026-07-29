@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-07-29 (Метрика: согласие + воронка)
+
+- MU: баннер согласия до `mc.yandex.ru`; вебвизор выкл.
+- Цели: `lead_ok`, `max_click`, `lead_start`, `cabinet_click`, `tariff_view`, `form_error`.
+- API: `filter_robots`, exclude IP команды, `cut_parameter` для email/phone/fio/…
+- Cookies-страница обновлена под Метрику.
+
 ## 2026-07-29 (Вебмастер: sitemap + зеркало)
 
 - Sitemap в API: `https://proverkastaza.ru/wp-sitemap.xml`.
