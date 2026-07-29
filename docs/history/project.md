@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-29 (запрет автопересида situations)
+
+- `generate_blog_situations.py`: отказ без `SFRFR_ALLOW_SITUATIONS_GENERATE=1`; seo_title больше не режется `[:60]`.
+- `wp_seed_blog_situations.*` и деплой-скрипты: без автопересида; только ручное редактирование.
+- ИИ по блогу — рекомендации; правило `.cursor/rules/blog-manual-only.mdc`.
+
 ## 2026-07-29 (SEO: консолидация + hub-статьи своим ИИ)
 
 - Карта URL: `docs/ops/seo-url-decision-map.md` (оставить/усилить/объединить/noindex/301).

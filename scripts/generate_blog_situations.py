@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-"""Генерация HTML статей: 1 ситуация на клиента + аналитика каждые 5."""
+"""Генерация HTML из manifest.json (АВАРИЙНЫЙ / LEGACY).
+
+Политика SFRFR (с 2026-07-29):
+- серии situacii/analitika и статьи блога дальше правятся ТОЛЬКО вручную;
+- ИИ может давать рекомендации, но не перегенерирует и не пересиживает контент;
+- массовый generate/seed запрещён без явного флага.
+
+Запуск (только осознанно):
+  SFRFR_ALLOW_SITUATIONS_GENERATE=1 python scripts/generate_blog_situations.py
+"""
 from __future__ import annotations
 
 import json
+import os
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +29,17 @@ def _ul(items: list[str]) -> str:
 def _ol(items: list[str]) -> str:
     lis = "\n".join(f"  <li>{x}</li>" for x in items)
     return f"<ol>\n{lis}\n</ol>"
+
+
+def _clip(text: str, limit: int) -> str:
+    """Обрезка по символам без разрыва слова; без усечения коротких строк."""
+    value = " ".join(str(text or "").split())
+    if len(value) <= limit:
+        return value
+    cut = value[: max(1, limit - 1)].rstrip()
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0].rstrip(" ,.;:—-")
+    return cut + "…"
 
 
 def render_situation(s: dict) -> str:
@@ -69,7 +91,17 @@ def render_analytics(a: dict, sit_by_id: dict[str, dict]) -> str:
 """
 
 
-def main() -> None:
+def main() -> int:
+    if os.environ.get("SFRFR_ALLOW_SITUATIONS_GENERATE", "").strip() != "1":
+        print(
+            "REFUSED: массовая генерация situations/analitika запрещена.\n"
+            "Политика: только ручное редактирование HTML/index.json;\n"
+            "ИИ — рекомендации, без перезаписи файлов.\n"
+            "Аварийный обход: SFRFR_ALLOW_SITUATIONS_GENERATE=1",
+            file=sys.stderr,
+        )
+        return 2
+
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     sit_by_id = {s["id"]: s for s in data["situations"]}
@@ -78,43 +110,52 @@ def main() -> None:
     for s in data["situations"]:
         html = render_situation(s)
         name = f"{s['id'].lower()}-{s['slug']}.html"
-        (OUT_DIR / name).write_text(html, encoding="utf-8")
+        (OUT_DIR / name).write_text(html, encoding="utf-8", newline="\n")
+        title = str(s["title"]).strip()
+        hook = str(s["hook"]).strip()
         index.append(
             {
                 "kind": "situation",
                 "id": s["id"],
                 "file": name,
                 "slug": s["slug"],
-                "title": s["title"],
+                "title": title,
                 "category": s["category"],
-                "excerpt": s["hook"][:180],
-                "seo_title": s["title"][:60],
-                "seo_description": s["hook"][:155],
+                "excerpt": _clip(hook, 180),
+                "seo_title": title,  # не резать посередине слова
+                "seo_description": _clip(hook, 155),
             }
         )
 
     for a in data["analytics"]:
         html = render_analytics(a, sit_by_id)
         name = f"{a['id'].lower()}-{a['slug']}.html"
-        (OUT_DIR / name).write_text(html, encoding="utf-8")
+        (OUT_DIR / name).write_text(html, encoding="utf-8", newline="\n")
+        title = str(a["title"]).strip()
+        thesis = str(a["thesis"]).strip()
         index.append(
             {
                 "kind": "analytics",
                 "id": a["id"],
                 "file": name,
                 "slug": a["slug"],
-                "title": a["title"],
+                "title": title,
                 "category": a["category"],
-                "excerpt": a["thesis"][:180],
-                "seo_title": a["title"][:60],
-                "seo_description": a["thesis"][:155],
+                "excerpt": _clip(thesis, 180),
+                "seo_title": title,
+                "seo_description": _clip(thesis, 155),
             }
         )
 
     index_path = OUT_DIR / "index.json"
-    index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    index_path.write_text(
+        json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     print(f"OK situations={len(data['situations'])} analytics={len(data['analytics'])} -> {OUT_DIR}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

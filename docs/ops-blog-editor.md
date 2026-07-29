@@ -72,11 +72,15 @@ curl -sI https://proverkastaza.ru/blog/ | head -n1
 curl -sI https://taxi-doroga-dobra.ru/blog/ | head -n1
 ```
 
-## Серия «Примеры ситуаций» (из DeepSeek)
+## Серия «Примеры ситуаций» / аналитика
 
-- Манифест: `scripts/assets/blog/situations/manifest.json` (без ПДн).
-- Генерация HTML: `python scripts/generate_blog_situations.py`
-- Сид WP: `bash scripts/wp_seed_blog_situations.sh`
-- Рубрики: `/blog/rubrika/situacii/`, `/blog/rubrika/analitika/`
-- Правило: **1 клиентский кейс → 1 статья-пример**; **каждые 5 → аналитика**.
+**Политика (с 2026-07-29):** дальше **только ручное** редактирование HTML и постов.
+ИИ может давать рекомендации по правкам, но **не** перегенерирует и **не** пересиживает контент.
+
+- Файлы: `scripts/assets/blog/situations/html/*.html`, `index.json`, при необходимости `manifest.json`
+- Рубрики: `/blog/rubrika/situacii/`, `/blog/rubrika/analitika/` (noindex + вне sitemap)
+- Массовый generate/seed **запрещены** по умолчанию:
+  - `python scripts/generate_blog_situations.py` → отказ без `SFRFR_ALLOW_SITUATIONS_GENERATE=1`
+  - `bash scripts/wp_seed_blog_situations.sh` → отказ без `SFRFR_ALLOW_SITUATIONS_SEED=1`
+- Pillar/основные статьи (`01`–`20`, сид ТЗ-11): тоже предпочитать ручные правки HTML; ИИ — рекомендации, затем явная правка файлов по согласованию.
 - Не копировать `summary` из `knowledge/cases/*.json` в блог как есть (там draft и возможны остатки ПДн).

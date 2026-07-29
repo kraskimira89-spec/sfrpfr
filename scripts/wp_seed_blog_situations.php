@@ -1,12 +1,27 @@
 <?php
 /**
- * Серия обезличенных ситуаций DeepSeek + аналитика каждые 5.
- * Запуск: wp --path=SITE eval-file scripts/wp_seed_blog_situations.php
+ * LEGACY: массовый сид situations/analitika.
+ *
+ * Политика SFRFR (с 2026-07-29): запрещён без явного флага.
+ * Дальше — только ручное редактирование; ИИ даёт рекомендации.
+ *
+ * Аварийно:
+ *   SFRFR_ALLOW_SITUATIONS_SEED=1 wp --path=SITE eval-file scripts/wp_seed_blog_situations.php
  */
 
 if (!defined('ABSPATH')) {
     fwrite(STDERR, "Run via WP-CLI eval-file\n");
     exit(1);
+}
+
+if ((string) getenv('SFRFR_ALLOW_SITUATIONS_SEED') !== '1') {
+    fwrite(
+        STDERR,
+        "REFUSED: wp_seed_blog_situations.php запрещён политикой контента.\n"
+        . "Дальше: только ручное редактирование. ИИ — рекомендации.\n"
+        . "Аварийный обход: SFRFR_ALLOW_SITUATIONS_SEED=1\n"
+    );
+    exit(2);
 }
 
 $assets = getenv('SFRFR_SITUATIONS_HTML')

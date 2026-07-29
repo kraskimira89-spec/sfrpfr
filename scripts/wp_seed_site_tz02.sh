@@ -217,8 +217,12 @@ if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_bl
 fi
 
 if [ -f "${SCRIPT_DIR}/wp_seed_blog_situations.sh" ]; then
-  echo "==> Блог: ситуации DeepSeek + аналитика"
-  bash "${SCRIPT_DIR}/wp_seed_blog_situations.sh" || echo "WARN: situations seed failed"
+  if [ "${SFRFR_ALLOW_SITUATIONS_SEED:-}" = "1" ]; then
+    echo "==> Блог: ситуации/аналитика (явный аварийный флаг)"
+    bash "${SCRIPT_DIR}/wp_seed_blog_situations.sh" || echo "WARN: situations seed failed"
+  else
+    echo "==> Блог: situations/analitika пропущены (политика: только ручное редактирование)"
+  fi
 fi
 
 # P1 Вебмастер: переобход ключевых URL после сида (нужен secrets/yandex-webmaster.env)

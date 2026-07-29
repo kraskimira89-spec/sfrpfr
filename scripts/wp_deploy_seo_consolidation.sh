@@ -15,10 +15,7 @@ echo "==> Seed pillars TZ-11"
 export SFRFR_BLOG_ASSETS="${SCRIPT_DIR}/assets/blog"
 bash "${SCRIPT_DIR}/wp_seed_blog_tz11.sh"
 
-echo "==> Soft situations reseed (noindex later)"
-if [[ -f "${SCRIPT_DIR}/wp_seed_blog_situations.sh" ]]; then
-  bash "${SCRIPT_DIR}/wp_seed_blog_situations.sh" || echo "WARN: situations seed failed"
-fi
+echo "==> Situations/analitika: без автопересида (политика: только ручное редактирование)"
 
 echo "==> Mark thin noindex"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_mark_thin_blog_noindex.php"
