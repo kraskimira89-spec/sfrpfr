@@ -5,66 +5,69 @@
 
 ---
 
-## OAuth (только в браузере)
+## Статус внедрения (чеклист)
 
-1. [oauth.yandex.ru](https://oauth.yandex.ru/) → приложение **SFRFR Webmaster** (тип «Для доступа к API»).
-2. Redirect URI: `https://oauth.yandex.ru/verification_code`.
-3. Права: **`webmaster:hostinfo`**, **`webmaster:verify`** (без turbopages / suggest).
-4. Токен:
-
-```text
-https://oauth.yandex.ru/authorize?response_type=token&client_id=CLIENT_ID
-```
-
-В `access_token` должен быть **`y0_…`**, не ClientID.
-
-Секреты: `secrets/yandex-webmaster.env` (gitignore).
+| Раздел | Статус |
+|--------|--------|
+| OAuth `webmaster:hostinfo` + `verify` | ✅ |
+| Хосты http/https ± www VERIFIED | ✅ |
+| META UIN на WP | ✅ `24f89ecf6ff4297b` |
+| Sitemap `wp-sitemap.xml` в API + robots | ✅ |
+| Главное зеркало HTTPS без www (301) | ✅ Apache |
+| Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
+| Summary / host loaded | ⏳ `HOST_NOT_LOADED` до обхода робота |
+| Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
+| Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
 
 ---
 
-## API ensure
+## OAuth (только в браузере)
+
+1. [oauth.yandex.ru](https://oauth.yandex.ru/) → **SFRFR Webmaster**.
+2. Redirect URI: `https://oauth.yandex.ru/verification_code`.
+3. Права: **`webmaster:hostinfo`**, **`webmaster:verify`**.
+4. Токен `y0_…` → `secrets/yandex-webmaster.env`.
+
+---
+
+## API ensure + recrawl
 
 ```powershell
 python scripts/yandex_webmaster_ensure_site.py
+python scripts/yandex_webmaster_recrawl.py
+# или точечно:
+python scripts/yandex_webmaster_recrawl.py https://proverkastaza.ru/blog/...
 ```
 
-Скрипт: хост → META_TAG verification → sitemap (`wp-sitemap.xml`).
+Ensure: хост → META_TAG → sitemap → статус host/summary.  
+Recrawl: очередь переобхода (суточная квота Яндекса).
 
-### Текущее состояние (2026-07-29)
+После `wp_seed_site_tz02.sh` recrawl вызывается сам, если есть `secrets/yandex-webmaster.env`.
+
+### Хосты
 
 | Host ID | Статус |
 |---------|--------|
-| `http:proverkastaza.ru:80` | VERIFIED |
 | `https:proverkastaza.ru:443` | VERIFIED (основной) |
-| `http:www.proverkastaza.ru:80` | VERIFIED |
-| `https:www.proverkastaza.ru:443` | VERIFIED |
+| `http:proverkastaza.ru:80` | VERIFIED |
+| `https:www…` / `http:www…` | VERIFIED |
 
-**UIN meta:** `24f89ecf6ff4297b`  
-**Sitemap в API:** `https://proverkastaza.ru/wp-sitemap.xml`  
-(тот же URL в `robots.txt` WordPress.)
-
-User ID Webmaster API: `2412411947`.
+User ID: `2412411947`.
 
 ---
 
 ## Главное зеркало (HTTPS без www)
 
-API Вебмастера **не умеет** задать главное зеркало — только читает `main_mirror` после обхода роботом.
+API только **читает** `main_mirror`. На сервере:
 
-Сделано на сервере (Apache):
+- `http://` и `http://www.` → `https://proverkastaza.ru/…`
+- `https://www.` → `https://proverkastaza.ru/…`
 
-- `http://` и `http://www.` → `https://proverkastaza.ru/…` (один 301)
-- `https://www.` → `https://proverkastaza.ru/…` (301)
-
-Конфиги: `docs/apache-vhost-proverkastaza.ru.conf`, `docs/apache-vhost-proverkastaza.ru-le-ssl.conf`.
-
-Пока `host_data_status=NOT_LOADED` / `main_mirror=null` — нормально; после индексации Яндекс подхватит apex.
-
-В UI: [Webmaster](https://webmaster.yandex.ru/) → сайт → «Главное зеркало» (контроль).
+Конфиги: `docs/apache-vhost-proverkastaza.ru.conf`, `*-le-ssl.conf`.
 
 ---
 
 ## Не коммитить
 
 - `secrets/yandex-webmaster.env`
-- OAuth `access_token` / Client Secret
+- OAuth token / Client Secret

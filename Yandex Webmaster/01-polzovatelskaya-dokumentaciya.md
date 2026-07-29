@@ -5,6 +5,16 @@
 
 Сайт: `https://proverkastaza.ru` (+ www / алиасы с 301) · SEO из ТЗ-10.
 
+## Статус SFRFR (исполнение)
+
+| Тема | Статус | Где |
+|------|--------|-----|
+| Сайт в Вебмастере + права | ✅ VERIFIED | `docs/ops/yandex-webmaster-setup.md` |
+| Sitemap блог+лендинг | ✅ `wp-sitemap.xml` | API + robots.txt |
+| HTTPS / робот | ✅ 301 на apex | Apache |
+| Главное зеркало без www | ✅ редиректы | API `main_mirror` после обхода |
+| Индексация summary | ⏳ HOST_NOT_LOADED | ждём робота / recrawl |
+
 ---
 
 ## Как пользоваться

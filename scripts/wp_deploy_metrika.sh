@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Деплой MU-plugin Яндекс Метрики на WP.
-# Пишет публичный config (только COUNTER_ID) — www-data не читает /opt/sfrfr/.env
+# Деплой MU-плагинов Яндекс Метрики / SEO robots / verification на WP.
+# Публичный config Метрики (только COUNTER_ID) — www-data не читает /opt/sfrfr/.env
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
 MU="${SITE_DIR}/wp-content/mu-plugins"
 ENVF="${ENVF:-/opt/sfrfr/.env}"
+SRC="${ROOT}/scripts/wp-mu-plugins"
 
 mkdir -p "$MU"
-cp -f "$ROOT/scripts/wp-mu-plugins/sfrfr-yandex-metrika.php" "$MU/sfrfr-yandex-metrika.php"
+for f in sfrfr-yandex-metrika.php sfrfr-seo-robots.php sfrfr-yandex-verification.php; do
+  if [[ -f "$SRC/$f" ]]; then
+    cp -f "$SRC/$f" "$MU/$f"
+  fi
+done
 
 cid=""
 webvisor="0"
@@ -29,11 +34,11 @@ return [
 ];
 EOF
 
-chown www-data:www-data "$MU/sfrfr-yandex-metrika.php" "$cfg" 2>/dev/null || true
-chmod 644 "$MU/sfrfr-yandex-metrika.php" "$cfg" 2>/dev/null || true
+chown www-data:www-data "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$cfg" 2>/dev/null || true
+chmod 644 "$MU"/sfrfr-yandex-metrika.php "$MU"/sfrfr-seo-robots.php "$MU"/sfrfr-yandex-verification.php "$cfg" 2>/dev/null || true
 
 if [[ -z "$cid" ]]; then
   echo "WARN: YANDEX_METRIKA_COUNTER_ID пуст — плагин на сайте, счётчик не рисуется."
 else
-  echo "OK: metrika MU deployed; counter_id=$cid webvisor=$webvisor"
+  echo "OK: yandex MU deployed; counter_id=$cid webvisor=$webvisor (+robots Clean-param, verification)"
 fi

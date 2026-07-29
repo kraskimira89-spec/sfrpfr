@@ -5,6 +5,17 @@
 
 Base management: `https://api-metrika.yandex.net/` · Auth: `Authorization: OAuth <token>` (Яндекс ID).
 
+## Статус SFRFR (исполнение)
+
+| Тема | Статус | Где |
+|------|--------|-----|
+| OAuth app + scopes read/write | ✅ | `secrets/yandex-metrika.env` |
+| Management: counter/goals/filters/ops | ✅ | `scripts/yandex_metrika_ensure_counter.py` |
+| Client JS + reachGoal | ✅ | `sfrfr-yandex-metrika.php` |
+| Reports API (агрегаты) | ✅ smoke | `scripts/yandex_metrika_report_smoke.py` |
+| Logs / offline_data / user_params ПДн | ⏸ не используем | политика ops |
+| Вебвизор API | ⏸ visor=0 | |
+
 ---
 
 ## Виды API
@@ -41,7 +52,7 @@ Base management: `https://api-metrika.yandex.net/` · Auth: `Authorization: OAut
 Пример безопасной цели:
 
 ```js
-ym(COUNTER_ID, 'reachGoal', 'lead_submit_ok');
+ym(COUNTER_ID, 'reachGoal', 'lead_ok');
 // НЕ передавать phone/email/name в params или URL
 ```
 

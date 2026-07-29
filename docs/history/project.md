@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-29 (аудит Метрика+Вебмастер по оглавлениям)
+
+- Закрыты пробелы P0/P1 из ops + Yandex Metrika/Webmaster TOC.
+- Добавлены: report smoke, webmaster recrawl, Clean-param robots, draft sample-page.
+- Вебвизор/CRM/Logs — по-прежнему выкл.
+
 ## 2026-07-29 (Метрика: согласие + воронка)
 
 - MU: баннер согласия до `mc.yandex.ru`; вебвизор выкл.

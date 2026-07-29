@@ -220,3 +220,14 @@ if [ -f "${SCRIPT_DIR}/wp_seed_blog_situations.sh" ]; then
   echo "==> Блог: ситуации DeepSeek + аналитика"
   bash "${SCRIPT_DIR}/wp_seed_blog_situations.sh" || echo "WARN: situations seed failed"
 fi
+
+# P1 Вебмастер: переобход ключевых URL после сида (нужен secrets/yandex-webmaster.env)
+SECRETS_WM="${SCRIPT_DIR}/../secrets/yandex-webmaster.env"
+if [ "${SFRFR_WEBMASTER_RECRAWL:-1}" = "1" ] && [ -f "${SCRIPT_DIR}/yandex_webmaster_recrawl.py" ] && [ -f "$SECRETS_WM" ]; then
+  echo "==> Яндекс Вебмастер: recrawl"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "${SCRIPT_DIR}/yandex_webmaster_recrawl.py" || echo "WARN: webmaster recrawl failed"
+  elif command -v python >/dev/null 2>&1; then
+    python "${SCRIPT_DIR}/yandex_webmaster_recrawl.py" || echo "WARN: webmaster recrawl failed"
+  fi
+fi

@@ -8,22 +8,38 @@
 
 ---
 
+## Статус внедрения (чеклист)
+
+| Раздел | Статус |
+|--------|--------|
+| OAuth `metrika:read/write` | ✅ |
+| Счётчик Active + код на WP | ✅ |
+| Согласие до `mc.yandex.ru` | ✅ |
+| Цели P0 `lead_ok` / `max_click` | ✅ |
+| Цели P1 воронки | ✅ |
+| `filter_robots` + exclude IP + `cut_parameter` | ✅ |
+| Reports API smoke | ✅ `scripts/yandex_metrika_report_smoke.py` |
+| Вебвизор | ⏸ выкл. до маскирования полей |
+| CRM / offline / Logs → BI | ⏸ не включать |
+
+`code_status=CS_ERR_UNKNOWN` в API при отложенной загрузке после согласия — ожидаемо.
+
+---
+
 ## Согласие (P0)
 
 MU-plugin **не** грузит `mc.yandex.ru` до выбора «Разрешить».  
-Отказ сохраняется в `localStorage` (`sfrfr_metrika_consent:metrika-consent-2026-07-29`).  
-Вебвизор выключен (`YANDEX_METRIKA_WEBVISOR=0`).
+Отказ: `localStorage` ключ `sfrfr_metrika_consent:metrika-consent-2026-07-29`.  
+Вебвизор: `YANDEX_METRIKA_WEBVISOR=0`.
 
 ---
 
 ## OAuth
 
-1. [oauth.yandex.ru](https://oauth.yandex.ru/) → приложение **SFRFR Metrika**.
+1. [oauth.yandex.ru](https://oauth.yandex.ru/) → **SFRFR Metrika**.
 2. Redirect URI: `https://oauth.yandex.ru/verification_code`.
 3. Права: `metrika:read`, `metrika:write`.
-4. Токен: `https://oauth.yandex.ru/authorize?response_type=token&client_id=CLIENT_ID` → `access_token=y0_…`.
-
-Секреты: `secrets/yandex-metrika.env` (см. `docs/ops/yandex-metrika.env.example`).
+4. Токен: `access_token=y0_…` в `secrets/yandex-metrika.env`.
 
 ```env
 YANDEX_METRIKA_EXCLUDE_IPS=1.2.3.4,5.6.7.8
@@ -32,19 +48,15 @@ YANDEX_METRIKA_EXCLUDE_MY_IP=1
 
 ---
 
-## Ensure (API)
+## Ensure + smoke
 
 ```powershell
 python scripts/yandex_metrika_ensure_counter.py
+python scripts/yandex_metrika_report_smoke.py
 ```
 
-Скрипт:
-
-1. Находит/создаёт счётчик `proverkastaza.ru`.
-2. `filter_robots=1`.
-3. JS-цели: `lead_ok`, `max_click`, `lead_start`, `cabinet_click`, `tariff_view`, `form_error`.
-4. Фильтры exclude по IP команды (`EXCLUDE_IPS` + опционально IP запуска).
-5. Операции `cut_parameter` для email/phone/fio/snils/token и т.п.
+Ensure: счётчик, цели, robots-filter, IP exclude, cut_parameter.  
+Smoke: management + агрегаты Reports API (без Logs).
 
 ---
 
@@ -52,11 +64,11 @@ python scripts/yandex_metrika_ensure_counter.py
 
 ```bash
 sudo bash /opt/sfrfr/scripts/wp_deploy_metrika.sh
-# при обновлении текста cookies:
-sudo php /opt/sfrfr/scripts/wp_upsert_legal_pages.php
+sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_upsert_legal_pages.php --path=/var/www/taxi-doroga-dobra
+sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_fix_sample_page.php --path=/var/www/taxi-doroga-dobra
 ```
 
-MU: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`
+MU: `sfrfr-yandex-metrika.php`, `sfrfr-seo-robots.php` (Clean-param), verification.
 
 ---
 
@@ -64,10 +76,10 @@ MU: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`
 
 | Код | Триггер |
 |-----|---------|
-| `max_click` | клик по ссылке MAX |
-| `cabinet_click` | клик на cabinet.proverkastaza.ru |
-| `lead_start` | `#zayavka` или первый focus в форме |
-| `tariff_view` | секция `#tarify` в viewport |
+| `max_click` | клик MAX |
+| `cabinet_click` | cabinet.proverkastaza.ru |
+| `lead_start` | `#zayavka` / focus формы |
+| `tariff_view` | `#tarify` в viewport |
 | `lead_ok` | WPForms success |
 | `form_error` | WPForms error |
 
@@ -75,10 +87,10 @@ MU: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`
 
 ## Проверка
 
-1. Инкогнито без блокировщика: баннер → без «Разрешить» нет `mc.yandex.ru`.
-2. «Разрешить» → Network: `tag.js` / `watch`.
+1. Без «Разрешить» — нет сети на `mc.yandex.ru`.
+2. «Разрешить» → `tag.js` / `watch`.
 3. MAX → `max_click`; заявка → `lead_ok`.
-4. Метрика → «Онлайн» / отчёт по целям.
+4. `python scripts/yandex_metrika_report_smoke.py`.
 
 ---
 
@@ -86,4 +98,4 @@ MU: `scripts/wp-mu-plugins/sfrfr-yandex-metrika.php`
 
 - Вебвизор — до маскирования полей формы.
 - CRM / offline-конверсии.
-- Сырые логи Метрики в BI (в DataLens — только агрегаты).
+- Сырые логи Метрики в BI.

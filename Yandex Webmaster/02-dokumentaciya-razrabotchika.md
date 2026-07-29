@@ -5,6 +5,17 @@
 
 Base: `https://api.webmaster.yandex.net/` · Auth: OAuth Яндекс ID (`Authorization: OAuth …`).
 
+## Статус SFRFR (исполнение)
+
+| Тема | Статус | Где |
+|------|--------|-----|
+| Отдельный OAuth app | ✅ | `secrets/yandex-webmaster.env` |
+| user / hosts / verification | ✅ | `scripts/yandex_webmaster_ensure_site.py` |
+| sitemap user-added | ✅ | ensure |
+| summary / indexing | ⏳ до load | ensure печатает статус |
+| recrawl после сида | ✅ | `scripts/yandex_webmaster_recrawl.py` |
+| CI-проверка «сайт в Вебмастере» | ✅ | ensure exit 0 + VERIFIED |
+
 ---
 
 ## API: старт и ресурсы

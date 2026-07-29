@@ -187,6 +187,22 @@ def main() -> int:
 
     ensure_sitemap(uid, str(host_id), sitemap_url(url))
 
+    code, info = api("GET", f"/user/{uid}/hosts/{host_id_enc}")
+    if code == 200 and isinstance(info, dict):
+        print(
+            "host_info:",
+            f"verified={info.get('verified')}",
+            f"data_status={info.get('host_data_status')}",
+            f"main_mirror={(info.get('main_mirror') or {}).get('host_id') if isinstance(info.get('main_mirror'), dict) else info.get('main_mirror')}",
+        )
+    code, summary = api("GET", f"/user/{uid}/hosts/{host_id_enc}/summary")
+    if code == 200:
+        print(f"summary OK: {json.dumps(summary, ensure_ascii=False)[:400]}")
+    elif code == 404:
+        print("summary: HOST_NOT_LOADED (ожидаемо до первого обхода робота)")
+    else:
+        print(f"summary WARN {code}: {summary}")
+
     print(f"YANDEX_WEBMASTER_HOST_ID={host_id}")
     if uin:
         print(f"YANDEX_WEBMASTER_VERIFICATION_UIN={uin}")
