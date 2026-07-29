@@ -1,5 +1,11 @@
 # История беседы (кратко)
 
+## 2026-07-29 (разбор ответа ассистента консоли + Terraform в git)
+
+- Ассистент YC выдал полный черновик TF; в репо файлов не было.
+- Исправления: SA на VM, validation SSH, virtio device_name, folder IAM storage.uploader.
+- Код в `infra/yandex-cloud/`; apply не выполнялся.
+
 ## 2026-07-29 (промпт ассистента консоли YC)
 
 - `docs/specs/ии яндекс клоуд ВМ` переписан под AI-ассистента консоли (не Cursor): SFRFR folder/cloud, staging VM, без git.

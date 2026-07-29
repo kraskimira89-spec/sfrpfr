@@ -1,0 +1,32 @@
+# Скопируйте: cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars в .gitignore — не коммитить.
+
+cloud_id  = "b1gkscu5sqpjtf5d5rbi"
+folder_id = "b1g0mhpm9tr4lrurk1bu"
+zone      = "ru-central1-a"
+
+environment  = "staging"
+project_name = "sfrfr"
+
+network_cidr      = "10.10.10.0/24"
+allowed_ssh_cidrs = ["REPLACE_WITH_YOUR_IP/32"]
+
+ssh_username        = "sfrfr"
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+vm_platform_id    = "standard-v3"
+vm_cores          = 4
+vm_memory         = 8
+vm_core_fraction  = 100
+vm_boot_disk_size = 30
+vm_data_disk_size = 100
+
+# Имя бакета должно быть глобально уникальным.
+backup_bucket_name    = "sfrfr-staging-backup-REPLACE_SUFFIX"
+backup_retention_days = 90
+
+labels = {
+  project     = "sfrfr"
+  environment = "staging"
+  managed_by  = "terraform"
+}

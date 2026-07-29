@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-07-29 (Terraform staging в репо)
+
+- В `infra/yandex-cloud/` внесён пример по ТЗ-16 (правки к выводу ассистента консоли).
+- Без `apply`; SA привязан к VM; SSH CIDR с validation; device_name data-диска.
+
 ## 2026-07-29 (DataLens заменяет Google Sheets)
 
 - ТЗ-17 §0: целевой контур `dbt marts → DataLens`; Sheets/Looker — dual-run до сверки KPI.

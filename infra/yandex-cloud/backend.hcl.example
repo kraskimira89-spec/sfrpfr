@@ -1,0 +1,13 @@
+# Remote state в Object Storage (после bootstrap отдельного бакета).
+#
+#   yc storage bucket create --name sfrfr-tfstate --folder-id b1g0mhpm9tr4lrurk1bu
+#   terraform init -backend-config=backend.hcl -migrate-state
+#
+# Не коммитить реальные access keys. Предпочтительно yc / IAM.
+
+bucket                      = "sfrfr-tfstate"
+key                         = "staging/terraform.tfstate"
+region                      = "ru-central1"
+endpoint                    = "https://storage.yandexcloud.net"
+skip_region_validation      = true
+skip_credentials_validation = true

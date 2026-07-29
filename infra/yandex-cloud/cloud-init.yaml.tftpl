@@ -1,0 +1,52 @@
+#cloud-config
+# Без секретов (пароли/JWT/keys). Секреты — Lockbox после apply.
+
+users:
+  - name: ${ssh_username}
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+package_update: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - htop
+
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - usermod -aG docker ${ssh_username}
+
+  # Secondary disk с device_name=sfrfr-data → /dev/disk/by-id/virtio-sfrfr-data
+  - |
+    set -e
+    DATA_DEV="/dev/disk/by-id/virtio-${data_device_name}"
+    for i in $(seq 1 30); do
+      [ -b "$DATA_DEV" ] && break
+      sleep 2
+    done
+    if [ ! -b "$DATA_DEV" ]; then
+      echo "ERROR: data disk $DATA_DEV not found" >&2
+      ls -la /dev/disk/by-id/ || true
+      exit 1
+    fi
+    if ! blkid "$DATA_DEV" >/dev/null 2>&1; then
+      mkfs.ext4 -L sfrfr-data "$DATA_DEV"
+    fi
+    mkdir -p ${data_disk_mount}
+    DATA_UUID=$(blkid -s UUID -o value "$DATA_DEV")
+    grep -q "$DATA_UUID" /etc/fstab || echo "UUID=$DATA_UUID ${data_disk_mount} ext4 defaults,noatime,nofail 0 2" >> /etc/fstab
+    mount -a
+    mkdir -p ${supabase_dir}
+    chown ${ssh_username}:${ssh_username} ${supabase_dir} ${data_disk_mount}
+    docker --version
+    docker compose version
+    df -h ${data_disk_mount}
+
+final_message: "cloud-init done. Ready for Supabase Compose under ${supabase_dir}."
