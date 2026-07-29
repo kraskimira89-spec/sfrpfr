@@ -122,11 +122,22 @@ function sfrfr_seo_limit(string $value, int $limit = 165): string
     $value = wp_check_invalid_utf8($value, true);
     $normalized = preg_replace('/\s+/', ' ', wp_strip_all_tags(strip_shortcodes($value)));
     $value = trim(is_string($normalized) ? $normalized : $value);
-    if (function_exists('mb_strlen') && mb_strlen($value, 'UTF-8') > $limit) {
-        return rtrim(mb_substr($value, 0, $limit - 1, 'UTF-8')) . '…';
+    if ($value === '') {
+        return '';
+    }
+    // Считать лимит в символах UTF-8. Никогда не резать Cyrillic через substr() по байтам —
+    // иначе esc_attr() на фронте отдаёт пустой content.
+    if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+        if (mb_strlen($value, 'UTF-8') > $limit) {
+            $cut = rtrim(mb_substr($value, 0, max(1, $limit - 1), 'UTF-8'));
+            return wp_check_invalid_utf8($cut, true) . '…';
+        }
+        return $value;
     }
     if (strlen($value) > $limit) {
-        return rtrim(substr($value, 0, $limit - 3)) . '...';
+        $cut = substr($value, 0, max(1, $limit - 3));
+        $cut = wp_check_invalid_utf8($cut, true);
+        return rtrim($cut) . '...';
     }
     return $value;
 }
