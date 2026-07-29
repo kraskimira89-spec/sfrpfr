@@ -66,4 +66,5 @@
 - [x] Hub HTML + seed
 - [x] noindex thin + sitemap exclude (MU)
 - [x] repair descriptions
-- [ ] Deploy + live audit (в конце задачи)
+- [x] Deploy + live audit (`32/32` pass, 2026-07-29)
+- [x] Багfix: UTF-8 `sfrfr_seo_limit` (byte `substr` → пустой `esc_attr`)
