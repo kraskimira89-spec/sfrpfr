@@ -28,7 +28,7 @@ https://oauth.yandex.ru/authorize?response_type=token&client_id=CLIENT_ID
 python scripts/yandex_webmaster_ensure_site.py
 ```
 
-Скрипт: `GET /v4/user` → список/добавление хоста → META_TAG verification.
+Скрипт: хост → META_TAG verification → sitemap (`wp-sitemap.xml`).
 
 ### Текущее состояние (2026-07-29)
 
@@ -40,18 +40,27 @@ python scripts/yandex_webmaster_ensure_site.py
 | `https:www.proverkastaza.ru:443` | VERIFIED |
 
 **UIN meta:** `24f89ecf6ff4297b`  
-На WP: MU-plugin `sfrfr-yandex-verification.php` (уже совпадает).
+**Sitemap в API:** `https://proverkastaza.ru/wp-sitemap.xml`  
+(тот же URL в `robots.txt` WordPress.)
 
 User ID Webmaster API: `2412411947`.
 
 ---
 
-## Что дальше вручную в UI
+## Главное зеркало (HTTPS без www)
 
-1. В [Webmaster](https://webmaster.yandex.ru/) выбрать **https://proverkastaza.ru**.
-2. Главное зеркало: без `www`, схема HTTPS.
-3. Sitemap: `https://proverkastaza.ru/sitemap_index.xml` (или актуальный URL из Yoast/Rank Math).
-4. Алиасы `prostaz.ru` / `proverka-staza.ru` — только если нужны как отдельные хосты; сейчас они 301 на основной.
+API Вебмастера **не умеет** задать главное зеркало — только читает `main_mirror` после обхода роботом.
+
+Сделано на сервере (Apache):
+
+- `http://` и `http://www.` → `https://proverkastaza.ru/…` (один 301)
+- `https://www.` → `https://proverkastaza.ru/…` (301)
+
+Конфиги: `docs/apache-vhost-proverkastaza.ru.conf`, `docs/apache-vhost-proverkastaza.ru-le-ssl.conf`.
+
+Пока `host_data_status=NOT_LOADED` / `main_mirror=null` — нормально; после индексации Яндекс подхватит apex.
+
+В UI: [Webmaster](https://webmaster.yandex.ru/) → сайт → «Главное зеркало» (контроль).
 
 ---
 

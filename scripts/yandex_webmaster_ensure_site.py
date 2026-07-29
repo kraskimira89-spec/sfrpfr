@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Добавить proverkastaza.ru в Яндекс Вебмастер и запустить META_TAG verification.
+"""Добавить proverkastaza.ru в Яндекс Вебмастер, META_TAG verify и sitemap.
 
 Env (secrets/yandex-webmaster.env):
   YANDEX_WEBMASTER_OAUTH_ACCESS_TOKEN
   YANDEX_WEBMASTER_SITE_URL=https://proverkastaza.ru
+  YANDEX_WEBMASTER_SITEMAP_URL=https://proverkastaza.ru/wp-sitemap.xml  (опционально)
 """
 from __future__ import annotations
 
@@ -67,6 +68,34 @@ def site_url() -> str:
     if "://" not in raw:
         raw = f"https://{raw}"
     return raw.rstrip("/")
+
+
+def sitemap_url(site: str) -> str:
+    raw = os.environ.get("YANDEX_WEBMASTER_SITEMAP_URL", "").strip()
+    if raw:
+        return raw
+    return f"{site}/wp-sitemap.xml"
+
+
+def ensure_sitemap(uid: object, host_id: str, sm_url: str) -> None:
+    host_id_enc = urllib.parse.quote(str(host_id), safe="")
+    code, listing = api("GET", f"/user/{uid}/hosts/{host_id_enc}/user-added-sitemaps")
+    if code == 200 and isinstance(listing, dict):
+        for sm in listing.get("sitemaps") or []:
+            if (sm.get("sitemap_url") or "").rstrip("/") == sm_url.rstrip("/"):
+                print(f"sitemap already added id={sm.get('sitemap_id')} url={sm_url}")
+                return
+    code, added = api(
+        "POST",
+        f"/user/{uid}/hosts/{host_id_enc}/user-added-sitemaps",
+        {"url": sm_url},
+    )
+    if code in (200, 201) and isinstance(added, dict):
+        print(f"sitemap added id={added.get('sitemap_id')} url={sm_url}")
+    elif code == 409:
+        print(f"sitemap already present (409): {sm_url}")
+    else:
+        print(f"WARN: sitemap POST {code}: {added}")
 
 
 def main() -> int:
@@ -137,27 +166,26 @@ def main() -> int:
 
     if state == "VERIFIED" or verified:
         print("OK: already VERIFIED")
-        print(f"YANDEX_WEBMASTER_HOST_ID={host_id}")
-        return 0
+    else:
+        if uin:
+            print(f"verification_uin={uin} — put into meta yandex-verification")
+            hint = Path(__file__).resolve().parents[1] / "secrets" / "yandex-webmaster-uin.txt"
+            hint.write_text(str(uin) + "\n", encoding="utf-8")
 
-    if uin:
-        print(f"verification_uin={uin} — put into meta yandex-verification")
-        # Write hint file for deploy (no secrets beyond public uin)
-        hint = Path(__file__).resolve().parents[1] / "secrets" / "yandex-webmaster-uin.txt"
-        hint.write_text(str(uin) + "\n", encoding="utf-8")
+        print("start META_TAG verification…")
+        code, started = api(
+            "POST",
+            f"/user/{uid}/hosts/{host_id_enc}/verification?verification_type=META_TAG",
+            {},
+        )
+        print(f"verification POST {code}: {json.dumps(started, ensure_ascii=False)}")
+        if isinstance(started, dict) and started.get("verification_uin"):
+            uin = started["verification_uin"]
+            hint = Path(__file__).resolve().parents[1] / "secrets" / "yandex-webmaster-uin.txt"
+            hint.write_text(str(uin) + "\n", encoding="utf-8")
+            print(f"use meta content={uin}")
 
-    print("start META_TAG verification…")
-    code, started = api(
-        "POST",
-        f"/user/{uid}/hosts/{host_id_enc}/verification?verification_type=META_TAG",
-        {},
-    )
-    print(f"verification POST {code}: {json.dumps(started, ensure_ascii=False)}")
-    if isinstance(started, dict) and started.get("verification_uin"):
-        uin = started["verification_uin"]
-        hint = Path(__file__).resolve().parents[1] / "secrets" / "yandex-webmaster-uin.txt"
-        hint.write_text(str(uin) + "\n", encoding="utf-8")
-        print(f"use meta content={uin}")
+    ensure_sitemap(uid, str(host_id), sitemap_url(url))
 
     print(f"YANDEX_WEBMASTER_HOST_ID={host_id}")
     if uin:

@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-07-29 (Вебмастер: sitemap + зеркало)
+
+- Sitemap в API: `https://proverkastaza.ru/wp-sitemap.xml`.
+- Apache: www/http → `https://proverkastaza.ru` (главное зеркало; API read-only).
+- Ensure-скрипт дополнен `ensure_sitemap`.
+
 ## 2026-07-29 (Яндекс Вебмастер API)
 
 - OAuth + `scripts/yandex_webmaster_ensure_site.py`; ops: `docs/ops/yandex-webmaster-setup.md`.
