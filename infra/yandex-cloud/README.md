@@ -18,6 +18,14 @@ Internet → :443 → Static IP → VM Ubuntu
 
 ## Быстрый старт
 
+Подробно: [docs/ops/yandex-cloud-terraform-plan.md](../../docs/ops/yandex-cloud-terraform-plan.md)
+
+```powershell
+# из корня репо (Windows)
+.\scripts\yc_cloud_auth.ps1          # Cloud OAuth (не Workspace!)
+.\scripts\tofu_plan_staging.ps1      # plan без apply
+```
+
 ```bash
 cd infra/yandex-cloud
 cp terraform.tfvars.example terraform.tfvars
@@ -30,6 +38,8 @@ terraform validate
 terraform plan
 # terraform apply   # только после явного подтверждения и проверки биллинга
 ```
+
+`YANDEX_OAUTH_*` (Workspace) и `YANDEX_API_KEY` (AI Studio) **не** подходят для Terraform — нужен OAuth с scope `cloud:auth`.
 
 ### РФ / блокировка HashiCorp registry
 

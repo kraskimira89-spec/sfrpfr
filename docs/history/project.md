@@ -1,5 +1,13 @@
 # История проекта SFRFR
 
+## 2026-08-02 (YC CLI + скрипты tofu plan)
+
+- Установлен YC CLI `1.22.0` → `tools/yandex-cloud/bin/yc.exe` (gitignore).
+- Скрипты: `scripts/yc_cloud_auth.ps1`, `scripts/tofu_plan_staging.ps1`.
+- Ops: `docs/ops/yandex-cloud-terraform-plan.md`.
+- Workspace OAuth отклонён Cloud IAM (`Insufficient scope … cloud:auth`).
+- `tofu plan` ждёт Cloud OAuth / SA key; `apply` не запускали.
+
 ## 2026-08-02 (analysis_notes в кейсе / кабинете эксперта)
 
 - Колонка `case_pipeline_data.analysis_notes`; upsert `save_pipeline_snapshot`.
