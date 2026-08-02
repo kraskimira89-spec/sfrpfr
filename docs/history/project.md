@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-08-02 (dual-model AI Studio + security)
+
+- `LLMClient`: роли classify / analyze / draft; заголовок `x-data-logging-enabled: false`.
+- Модели по умолчанию: Lite → DeepSeek V4 Flash → YandexGPT Pro.
+- `reason_findings` после детерминированной сверки; сырые сканы / ИЛС↔трудовая в LLM не отдаём.
+- Env: `YANDEX_MODEL_CLASSIFY|ANALYZE|DRAFT`.
+
 ## 2026-08-02 (Yandex AI Studio: cloud sfrfr-ai)
 
 - Новое облако `sfrfr-ai`, каталог `default` (`b1g0mhpm9tr4lrurk1bu`), SA `sfrfr-ai-studio`, роль `ai.languageModels.user`.

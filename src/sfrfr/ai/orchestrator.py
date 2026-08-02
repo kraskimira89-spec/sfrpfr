@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from sfrfr.ai.agents.classifier import classify_document
 from sfrfr.ai.agents.drafter import draft_application
 from sfrfr.ai.agents.extractor import extract_periods
+from sfrfr.ai.agents.reasoner import reason_findings
 from sfrfr.ai.llm import LLMClient
 from sfrfr.ai.schemas.agents import (
     ClassifyResult,
@@ -35,6 +36,7 @@ class CaseContext:
     ils_periods: list[dict] = field(default_factory=list)
     labor_periods: list[dict] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
+    analysis_notes: str | None = None
     draft: DraftResult | None = None
     error: str | None = None
 
@@ -50,12 +52,29 @@ class CaseOrchestrator:
     """
     Продвигает кейс по статусам.
 
-    LLM-шаги: classified → extracted → draft_ready.
+    LLM-шаги: classified → extracted → (reason) → draft_ready.
     Код: ocr_done (внешне), audited (audit_ils), human_review (HITL).
+
+    Модели (по умолчанию):
+    - classify: YandexGPT Lite
+    - extract + reason: DeepSeek (analyze)
+    - draft: YandexGPT Pro
+    Сверка ИЛС↔трудовая — только детерминированный код.
     """
 
-    def __init__(self, llm: LLMClient | None = None) -> None:
-        self.llm = llm or LLMClient()
+    def __init__(
+        self,
+        llm: LLMClient | None = None,
+        *,
+        classify_llm: LLMClient | None = None,
+        analyze_llm: LLMClient | None = None,
+        draft_llm: LLMClient | None = None,
+    ) -> None:
+        # llm — legacy single-client; иначе dual-model по ролям
+        self.classify_llm = classify_llm or llm or LLMClient.for_classify()
+        self.analyze_llm = analyze_llm or llm or LLMClient.for_analyze()
+        self.draft_llm = draft_llm or llm or LLMClient.for_draft()
+        self.llm = llm or self.draft_llm
 
     def advance(self, ctx: CaseContext) -> StepResult:
         """Выполнить один следующий шаг относительно текущего status."""
@@ -146,7 +165,8 @@ class CaseOrchestrator:
 
     def _classify(self, ctx: CaseContext) -> StepResult:
         ctx.classifications = [
-            classify_document(t, client_name=ctx.client_name, llm=self.llm) for t in ctx.ocr_texts
+            classify_document(t, client_name=ctx.client_name, llm=self.classify_llm)
+            for t in ctx.ocr_texts
         ]
         return self._set(
             ctx,
@@ -159,7 +179,7 @@ class CaseOrchestrator:
         labor: list[dict] = []
         for text, clf in zip(ctx.ocr_texts, ctx.classifications, strict=False):
             extracted: ExtractResult = extract_periods(
-                text, client_name=ctx.client_name, llm=self.llm
+                text, client_name=ctx.client_name, llm=self.analyze_llm
             )
             rows = [p.model_dump() for p in extracted.periods]
             if clf.document_type is DocumentType.ILS:
@@ -178,11 +198,18 @@ class CaseOrchestrator:
         ctx.findings = [
             Finding(type=r.get("type", "unknown"), detail=r.get("detail", "")) for r in raw
         ]
+        # DeepSeek: обоснование уже найденных расхождений (не замена сверки)
+        ctx.analysis_notes = reason_findings(
+            ctx.findings, client_name=ctx.client_name, llm=self.analyze_llm
+        ) or None
         return self._set(ctx, CaseStatus.AUDITED, f"находок: {len(ctx.findings)}")
 
     def _draft(self, ctx: CaseContext) -> StepResult:
         ctx.draft = draft_application(
-            ctx.findings, client_name=ctx.client_name, llm=self.llm
+            ctx.findings,
+            client_name=ctx.client_name,
+            llm=self.draft_llm,
+            analysis_notes=ctx.analysis_notes,
         )
         return self._set(ctx, CaseStatus.DRAFT_READY, "черновик готов")
 

@@ -26,10 +26,15 @@
 
 ### Yandex AI Studio
 
-- Применять для классификации, извлечения и черновиков.
-- Маскировать ПДн до передачи в модель, где это допустимо для задачи.
+- Применять для классификации, извлечения, обоснования findings и черновиков.
+- **Dual-model (по умолчанию):**
+  - classify → `yandexgpt-lite` (быстро/дешево);
+  - extract + reason → `deepseek-v4-flash` (логика/обоснование);
+  - draft → `yandexgpt` Pro (русский официальный стиль).
+- Маскировать ПДн до передачи в модель (`redact_for_llm` / `x-data-logging-enabled: false`).
 - Не использовать LLM для детерминированной сверки ИЛС и трудовой.
 - Не использовать LLM как основной OCR: сканы — Yandex Vision / Tesseract (см. [13-document-ingest-v2.md](13-document-ingest-v2.md)).
+- DeepSeek R1 self-host на GPU — вне MVP; в AI Studio используем managed DeepSeek V4 Flash.
 
 ### Яндекс Workspace (ID)
 

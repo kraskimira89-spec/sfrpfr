@@ -39,6 +39,9 @@ def test_llm_yandex_model_uri(monkeypatch) -> None:
     monkeypatch.setenv("YANDEX_API_KEY", "key")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
     monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
+    monkeypatch.setenv("YANDEX_MODEL_CLASSIFY", "")
+    monkeypatch.setenv("YANDEX_MODEL_ANALYZE", "")
+    monkeypatch.setenv("YANDEX_MODEL_DRAFT", "")
     monkeypatch.setenv("LLM_API_KEY", "")
     monkeypatch.setenv("LLM_FOLDER_ID", "")
     monkeypatch.setenv("LLM_MODEL", "")
@@ -46,6 +49,22 @@ def test_llm_yandex_model_uri(monkeypatch) -> None:
     client = LLMClient()
     assert client.available is True
     assert client.model == "gpt://folder123/yandexgpt/latest"
+    get_settings.cache_clear()
+
+
+def test_llm_dual_model_purposes(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "yandex")
+    monkeypatch.setenv("YANDEX_API_KEY", "key")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
+    monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
+    monkeypatch.setenv("YANDEX_MODEL_CLASSIFY", "yandexgpt-lite/latest")
+    monkeypatch.setenv("YANDEX_MODEL_ANALYZE", "deepseek-v4-flash")
+    monkeypatch.setenv("YANDEX_MODEL_DRAFT", "yandexgpt/latest")
+    monkeypatch.setenv("LLM_MODEL", "gpt://folder123/yandexgpt-lite/latest")
+    get_settings.cache_clear()
+    assert LLMClient.for_classify().model == "gpt://folder123/yandexgpt-lite/latest"
+    assert LLMClient.for_analyze().model == "gpt://folder123/deepseek-v4-flash"
+    assert LLMClient.for_draft().model == "gpt://folder123/yandexgpt/latest"
     get_settings.cache_clear()
 
 

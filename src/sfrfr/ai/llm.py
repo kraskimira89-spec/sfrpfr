@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from sfrfr.core.config import get_settings
+
+LlmPurpose = Literal["default", "classify", "analyze", "draft"]
 
 
 class LLMClient:
@@ -16,10 +18,12 @@ class LLMClient:
         provider: str | None = None,
         api_key: str | None = None,
         model: str | None = None,
+        purpose: LlmPurpose = "default",
     ) -> None:
         settings = get_settings()
         self.provider = (provider or settings.ai_provider or "yandex").lower()
         self._settings = settings
+        self.purpose: LlmPurpose = purpose
 
         if self.provider == "yandex":
             self.api_key = api_key if api_key is not None else (
@@ -33,7 +37,7 @@ class LLMClient:
             self.folder_id = (
                 settings.yandex_folder_id.strip() or settings.llm_folder_id.strip()
             )
-            self.model = model or self._yandex_model_uri(settings)
+            self.model = model or self._yandex_model_uri(settings, purpose=purpose)
             if not self.folder_id:
                 self.folder_id = self._folder_from_model(self.model)
         else:
@@ -43,6 +47,18 @@ class LLMClient:
             self.model = model or settings.openai_model
 
         self._client: Any | None = None
+
+    @classmethod
+    def for_classify(cls, **kwargs: Any) -> LLMClient:
+        return cls(purpose="classify", **kwargs)
+
+    @classmethod
+    def for_analyze(cls, **kwargs: Any) -> LLMClient:
+        return cls(purpose="analyze", **kwargs)
+
+    @classmethod
+    def for_draft(cls, **kwargs: Any) -> LLMClient:
+        return cls(purpose="draft", **kwargs)
 
     @staticmethod
     def _folder_from_model(model: str) -> str:
@@ -55,8 +71,22 @@ class LLMClient:
         return folder.strip()
 
     @staticmethod
-    def _yandex_model_uri(settings: Any) -> str:
-        model = (settings.llm_model or settings.yandex_model or "").strip()
+    def _yandex_model_uri(settings: Any, *, purpose: LlmPurpose = "default") -> str:
+        purpose_model = ""
+        if purpose == "classify":
+            purpose_model = (settings.yandex_model_classify or "").strip()
+        elif purpose == "analyze":
+            purpose_model = (settings.yandex_model_analyze or "").strip()
+        elif purpose == "draft":
+            purpose_model = (settings.yandex_model_draft or "").strip()
+
+        # Для ролей classify/analyze/draft — сначала роль-модель; иначе общий fallback.
+        # LLM_MODEL (полный gpt://) не должен перекрывать роль, если роль задана.
+        if purpose_model:
+            model = purpose_model
+        else:
+            model = (settings.llm_model or settings.yandex_model or "").strip()
+
         if model.startswith("gpt://"):
             return model
         folder = (settings.yandex_folder_id or settings.llm_folder_id or "").strip()

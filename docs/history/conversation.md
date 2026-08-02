@@ -1,5 +1,11 @@
 # История беседы (кратко)
 
+## 2026-08-02 (шаг 4: связка DeepSeek + YandexGPT)
+
+- В AI Studio managed: DeepSeek V4 Flash (не self-host R1).
+- Связка в коде: анализ/извлечение → DeepSeek; черновик → YandexGPT Pro; сверка — код.
+- ПДн: redact + anti-logging header.
+
 ## 2026-08-02 (пошаговая настройка AI Studio)
 
 - Разблокировка/активация cloud `sfrfr-ai`, trial 500 ₽.

@@ -21,7 +21,7 @@ def extract_periods(
 ) -> ExtractResult:
     """Извлечение периодов: LLM (если есть ключ) или грубая эвристика по датам."""
     safe = redact_for_llm(text, client_name=client_name)
-    llm = llm or LLMClient()
+    llm = llm or LLMClient.for_analyze()
 
     if llm.available:
         raw = llm.chat(system=EXTRACT_SYSTEM, user=safe[:6000])

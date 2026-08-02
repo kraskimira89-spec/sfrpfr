@@ -16,20 +16,23 @@ def draft_application(
     llm: LLMClient | None = None,
     retriever: KnowledgeRetriever | None = None,
     use_assistant_prompt: bool = False,
+    analysis_notes: str | None = None,
 ) -> DraftResult:
     """Черновик по findings + RAG (только verified/template). Всегда needs_human_review=True."""
     findings_text = "\n".join(f"- [{f.type}] {f.detail}" for f in findings) or "- (нет findings)"
     safe_findings = redact_for_llm(findings_text, client_name=client_name)
+    safe_analysis = redact_for_llm(analysis_notes or "", client_name=client_name)
 
     retriever = retriever or KnowledgeRetriever()
     hits = retriever.search(safe_findings or "заявление перерасчёт стаж ИЛС")
     knowledge_block = "\n".join(f"[{h.source}] {h.snippet}" for h in hits)
 
     system = ASSISTANT_SYSTEM if use_assistant_prompt else DRAFT_SYSTEM
-    llm = llm or LLMClient()
+    llm = llm or LLMClient.for_draft()
     if llm.available:
         user = (
             f"Findings:\n{safe_findings}\n\n"
+            f"Обоснование аналитика (DeepSeek, обезличено):\n{safe_analysis or '(нет)'}\n\n"
             f"Проверенная база знаний (RAG):\n{knowledge_block or '(пусто)'}"
         )
         body = llm.chat(system=system, user=user, temperature=0.2)

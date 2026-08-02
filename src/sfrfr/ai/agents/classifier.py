@@ -29,7 +29,7 @@ def classify_document(
         if any(k in lowered for k in keys):
             return ClassifyResult(document_type=doc_type, confidence=0.7, notes="heuristic")
 
-    llm = llm or LLMClient()
+    llm = llm or LLMClient.for_classify()
     if llm.available:
         raw = llm.chat(system=CLASSIFY_SYSTEM, user=safe[:4000]).lower().strip()
         for doc_type in DocumentType:
