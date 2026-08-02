@@ -3,13 +3,13 @@ data "yandex_compute_image" "ubuntu" {
 }
 
 resource "yandex_compute_disk" "boot" {
-  name     = local.boot_disk_name
-  type     = "network-ssd"
-  zone     = var.zone
-  size     = var.vm_boot_disk_size
-  image_id = data.yandex_compute_image.ubuntu.id
+  name      = local.boot_disk_name
+  type      = "network-ssd"
+  zone      = var.zone
+  size      = var.vm_boot_disk_size
+  image_id  = data.yandex_compute_image.ubuntu.id
   folder_id = var.folder_id
-  labels   = local.labels
+  labels    = local.labels
 }
 
 resource "yandex_compute_disk" "data" {
