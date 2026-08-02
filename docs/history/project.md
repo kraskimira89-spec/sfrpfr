@@ -19,6 +19,11 @@
 - Workspace OAuth отклонён Cloud IAM (`Insufficient scope … cloud:auth`).
 - `tofu plan` ждёт Cloud OAuth / SA key; `apply` не запускали.
 
+## 2026-08-02 (YC staging Terraform partial apply)
+
+- SA `sfrfr-terraform` + OpenTofu apply: VPC/VM/IP/Lockbox/KMS/bucket созданы.
+- IP: `51.250.13.240`. IAM bindings + bucket versioning — PermissionDenied (нужен `admin`, не только `editor`).
+
 ## 2026-08-02 (analysis_notes в кейсе / кабинете эксперта)
 
 - Колонка `case_pipeline_data.analysis_notes`; upsert `save_pipeline_snapshot`.
