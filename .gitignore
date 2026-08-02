@@ -104,3 +104,4 @@ node_modules/
 tfplan.*
 *.tfplan
 
+apply.last.txt
