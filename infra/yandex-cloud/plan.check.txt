@@ -1,0 +1,35 @@
+[32m[1mSuccess![0m The configuration is valid.[0m
+[0m[1mdata.yandex_compute_image.ubuntu: Reading...[0m[0m
+[0m[1myandex_iam_service_account.vm: Refreshing state... [id=ajelfpk0aqmk598s8mhd][0m
+[0m[1myandex_vpc_network.staging: Refreshing state... [id=enp50jgvfa2ie4qkct97][0m
+[0m[1myandex_kms_symmetric_key.staging: Refreshing state... [id=abju1hv0scn3bp2npa2v][0m
+[0m[1myandex_vpc_address.staging: Refreshing state... [id=e9b7ip24on1jtr128g7d][0m
+[0m[1myandex_compute_disk.data: Refreshing state... [id=fhmrncjil5r3p9np65rp][0m
+[0m[1myandex_iam_service_account.backup_writer: Refreshing state... [id=ajer5445q828up98vfju][0m
+[0m[1myandex_resourcemanager_folder_iam_member.backup_storage: Refreshing state... [id=b1g0mhpm9tr4lrurk1bu/storage.uploader/serviceAccount:ajer5445q828up98vfju][0m
+[0m[1mdata.yandex_compute_image.ubuntu: Read complete after 0s [id=fd83ergat2e815oohe7o][0m
+[0m[1myandex_compute_disk.boot: Refreshing state... [id=fhm6qelb6qli12harc1e][0m
+[0m[1myandex_vpc_subnet.staging: Refreshing state... [id=e9bo0m4sh2oat64rbsi5][0m
+[0m[1myandex_kms_symmetric_key_iam_member.vm: Refreshing state... [id=abju1hv0scn3bp2npa2v/kms.keys.decrypter/serviceAccount:ajelfpk0aqmk598s8mhd][0m
+[0m[1myandex_vpc_security_group.staging: Refreshing state... [id=enp15760hnfvvho2aj68][0m
+[0m[1myandex_lockbox_secret.database: Refreshing state... [id=e6q1auj68j5u372c21ld][0m
+[0m[1myandex_kms_symmetric_key_iam_member.backup_writer: Refreshing state... [id=abju1hv0scn3bp2npa2v/kms.keys.encrypterDecrypter/serviceAccount:ajer5445q828up98vfju][0m
+[0m[1myandex_lockbox_secret.supabase: Refreshing state... [id=e6qe9oa21ib1vpkkt0mh][0m
+[0m[1myandex_storage_bucket.backup: Refreshing state... [id=sfrfr-staging-backup-b1g0mhpm][0m
+[0m[1myandex_compute_instance.supabase: Refreshing state... [id=fhm6mjtv0dipdr4ctplc][0m
+[0m[1myandex_lockbox_secret_iam_member.vm_database: Refreshing state... [id=e6q1auj68j5u372c21ld/lockbox.payloadViewer/serviceAccount:ajelfpk0aqmk598s8mhd][0m
+[0m[1myandex_lockbox_secret_iam_member.vm_supabase: Refreshing state... [id=e6qe9oa21ib1vpkkt0mh/lockbox.payloadViewer/serviceAccount:ajelfpk0aqmk598s8mhd][0m
+
+[0m[1m[32mNo changes.[0m[1m Your infrastructure matches the configuration.[0m
+
+[0mOpenTofu has compared your real infrastructure against your configuration and
+found no differences, so no changes are needed.
+[33mтХ╖[0m[0m
+[33mтФВ[0m [0m[1m[33mWarning: [0m[0m[1mCannot connect to YC tool initialization service. Network connectivity to the service is required for provider version control.
+[33mтФВ[0m [0m[0m
+[33mтФВ[0m [0m
+[33mтФВ[0m [0m[0m  with provider["registry.opentofu.org/yandex-cloud/yandex"],
+[33mтФВ[0m [0m  on providers.tf line 1, in provider "yandex":
+[33mтФВ[0m [0m   1: provider "yandex" [4m{[0m[0m
+[33mтФВ[0m [0m
+[33mтХ╡[0m[0m
