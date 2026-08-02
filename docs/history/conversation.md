@@ -1,5 +1,11 @@
 # История беседы (кратко)
 
+## 2026-08-02 (пошаговая настройка AI Studio)
+
+- Разблокировка/активация cloud `sfrfr-ai`, trial 500 ₽.
+- SA + API-ключ (тип: API-ключ, не static/authorized).
+- UI тест «работает» → запись в secrets/.env → smoke LLMClient OK.
+
 ## 2026-07-29 (запрет автопересида ситуаций)
 
 - Исправлен truncate seo_title в генераторе; generate/seed situations запрещены по умолчанию.

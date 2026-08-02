@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-08-02 (Yandex AI Studio: cloud sfrfr-ai)
+
+- Новое облако `sfrfr-ai`, каталог `default` (`b1g0mhpm9tr4lrurk1bu`), SA `sfrfr-ai-studio`, роль `ai.languageModels.user`.
+- Локально: `secrets/yandexAI_studio.env` + обновлены `YANDEX_*` / `LLM_*` в `.env` (не в git).
+- Smoke `LLMClient`: chat.completions через `yandexgpt-lite` — OK. UI AI Studio — OK.
+- Агенты в Atelier UI не обязательны: прод идёт через OpenAI-compatible `LLMClient`.
+
 ## 2026-07-29 (запрет автопересида situations)
 
 - `generate_blog_situations.py`: отказ без `SFRFR_ALLOW_SITUATIONS_GENERATE=1`; seo_title больше не режется `[:60]`.
