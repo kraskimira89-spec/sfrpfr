@@ -5,6 +5,10 @@
 Пользователь: реализовать рекомендации (yc + plan, не apply).
 Сделано: YC CLI 1.22.0, скрипты auth/plan, ops-док. Plan заблокирован — нужен Cloud OAuth (`cloud:auth`); Workspace/API key отклонены.ы (кратко)
 
+## 2026-08-02 (YC staging apply)
+
+- SA terraform + admin; tofu apply OK; IP 51.250.13.240; next Lockbox/Supabase.
+
 ## 2026-08-02 (сохранение analysis_notes)
 
 - Реализована рекомендация: notes в БД + кабинет эксперта; клиенту не показываем.
