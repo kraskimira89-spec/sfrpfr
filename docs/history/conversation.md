@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-02 — Lockbox supabase-config (не создавать)
+
+Пользователь/консольный AI: создать `supabase-config` с placeholder JWT.
+Ответ: **не создавать**; дубль удалён. SoT — Terraform Lockbox + `secrets/supabase-staging.env`.
+Compose на staging ВМ поднят (healthy); публично 8000 закрыт SG.
+
 ## 2026-08-02 — рекомендации Terraform plan
 
 Пользователь: реализовать рекомендации (yc + plan, не apply).

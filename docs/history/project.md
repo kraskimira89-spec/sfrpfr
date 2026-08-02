@@ -1,5 +1,14 @@
 # История проекта SFRFR
 
+## 2026-08-02 (Lockbox SoT + Supabase Compose staging UP)
+
+- Не создавать `supabase-config` с placeholder JWT — удалён; SoT:
+  - Lockbox `sfrfr-staging-supabase` (`e6qe9oa21ib1vpkkt0mh`)
+  - Lockbox `sfrfr-staging-database` (`e6q1auj68j5u372c21ld`)
+  - локально `secrets/supabase-staging.env` (gitignore)
+- Compose на `51.250.13.240`: все сервисы healthy; Kong локально отвечает (внешне 8000 закрыт SG — доступ через SSH tunnel).
+- Консольный AI не должен дублировать Lockbox / placeholder-ключи.
+
 ## 2026-08-02 (правило ТЗ для Яндекс-ассистента)
 
 - `.cursor/rules/yandex-assistant-tz.mdc` (`alwaysApply`): самодостаточное ТЗ + пометка в конце.
