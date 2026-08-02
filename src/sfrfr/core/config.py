@@ -91,11 +91,16 @@ class Settings(BaseSettings):
     # Google Calendar (SA; календарь расшарить на client_email, события только case_id)
     google_calendar_credentials_json: str = ""
     google_calendar_id: str = ""
-    # reCAPTCHA Enterprise (защита публичных лидов)
+    # reCAPTCHA Enterprise (защита публичных лидов; MVP)
     recaptcha_credentials_json: str = ""
     recaptcha_project_id: str = ""
     recaptcha_site_key: str = ""
     recaptcha_min_score: float = 0.5
+    # Yandex SmartCaptcha (ТЗ-15; пилот staging / целевой prod)
+    # captcha_provider: auto | google | yandex
+    captcha_provider: str = "auto"
+    smartcaptcha_server_key: str = ""
+    smartcaptcha_client_key: str = ""
     # Search Console (ops / SEO)
     google_search_console_credentials_json: str = ""
     # ЮKassa

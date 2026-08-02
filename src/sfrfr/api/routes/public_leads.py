@@ -13,6 +13,7 @@ from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.amocrm import AmoCrmClient, sync_case_to_amocrm
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id
 from sfrfr.integrations.recaptcha import RecaptchaVerifier
+from sfrfr.integrations.smartcaptcha import SmartCaptchaVerifier
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -39,7 +40,12 @@ class PublicLeadRequest(BaseModel):
     recaptcha_token: str | None = Field(
         default=None,
         max_length=4000,
-        description="Токен reCAPTCHA Enterprise с витрины",
+        description="Токен reCAPTCHA Enterprise с витрины (или SmartCaptcha)",
+    )
+    smartcaptcha_token: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Токен Yandex SmartCaptcha (ТЗ-15); альтернатива recaptcha_token",
     )
 
 
