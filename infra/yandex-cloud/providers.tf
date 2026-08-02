@@ -1,10 +1,8 @@
 provider "yandex" {
-  # Аутентификация (не коммитить токены):
-  #   A) yc CLI: yc init / yc config list — провайдер подхватит профиль
-  #   B) export YC_TOKEN=$(yc iam create-token)
-  #   C) service_account_key_file = "/path/outside/git/sa-key.json"
-  #
-  # Не задавайте token= в .tf / .tfvars.
+  # JSON authorized key SA (gitignore: secrets/).
+  # Путь от infra/yandex-cloud → ../../secrets/...
+  # Альтернатива: YC_TOKEN=$(yc iam create-token) без этого файла.
+  service_account_key_file = abspath("${path.root}/../../secrets/yc-sa-terraform.json")
 
   cloud_id  = var.cloud_id
   folder_id = var.folder_id
