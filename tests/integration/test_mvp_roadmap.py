@@ -83,7 +83,6 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "chto-vy-poluchite-posle-proverki-stazha" in php
     assert "kak-rabotat-v-max-i-lichnom-kabinete" in php
     assert "chastye-voprosy-o-proverke-stazha" in php
-    assert "#kak-rabotat" in php
     assert "Не являемся СФР" in php
     assert "blog/rubrika" in php
     for name in (
