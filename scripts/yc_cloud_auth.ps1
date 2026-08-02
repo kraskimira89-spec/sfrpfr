@@ -1,79 +1,72 @@
-# Аутентификация YC CLI для Terraform (scope cloud:auth).
-# Workspace OAuth (ТЗ-14) НЕ подходит — у него нет cloud:auth.
+# Аутентификация для Terraform / yc (после 2026-06-01).
+#
+# OAuth YandexID → IAM БОЛЬШЕ НЕ РАБОТАЕТ для новых токенов:
+#   "OAuth token ... issued after '2026-06-01' is not supported for IAM token exchange"
+#
+# Рабочие варианты:
+#   1) JSON authorized key SA  (рекомендуется для plan/apply)
+#   2) yc init --dpop          (интерактивно, если включены refresh tokens в org)
 #
 # Использование:
-#   .\scripts\yc_cloud_auth.ps1
-#   .\scripts\yc_cloud_auth.ps1 -Token "y0_...."
-#   # или положить токен в secrets/yc-cloud.env: YC_TOKEN=y0_...
+#   .\scripts\yc_cloud_auth.ps1 -KeyFile .\secrets\yc-sa-terraform.json
+#   .\scripts\tofu_plan_staging.ps1
 
 param(
-    [string]$Token = "",
+    [string]$KeyFile = "",
     [string]$CloudId = "b1gkscu5sqpjtf5d5rbi",
     [string]$FolderId = "b1g0mhpm9tr4lrurk1bu",
-    [string]$Profile = "sfrfr",
-    [switch]$OpenBrowser
+    [string]$Profile = "sfrfr"
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Yc = Join-Path $Root "tools\yandex-cloud\bin\yc.exe"
+$DefaultKey = Join-Path $Root "secrets\yc-sa-terraform.json"
 $EnvFile = Join-Path $Root "secrets\yc-cloud.env"
-$OauthUrl = "https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb"
 
 if (-not (Test-Path $Yc)) {
-    throw "YC CLI не найден: $Yc (скачайте: storage.yandexcloud.net/yandexcloud-yc/release/stable)"
+    throw "YC CLI не найден: $Yc"
 }
 
-function Read-TokenFromEnvFile {
-    param([string]$Path)
-    if (-not (Test-Path $Path)) { return $null }
-    $found = $null
-    Get-Content $Path | ForEach-Object {
-        if ($_ -match '^\s*YC_TOKEN=(.+)\s*$') {
-            $found = $Matches[1].Trim().Trim('"').Trim("'")
-        }
+if (-not $KeyFile) {
+    if (Test-Path $DefaultKey) {
+        $KeyFile = $DefaultKey
     }
-    return $found
 }
 
-if (-not $Token) {
-    $Token = Read-TokenFromEnvFile -Path $EnvFile
+if (-not $KeyFile -or -not (Test-Path $KeyFile)) {
+    Write-Host @"
+Нужен JSON-ключ сервисного аккаунта (authorized key).
+
+В консоли Yandex Cloud (облако sfrfr-ai / каталог default):
+  1. IAM → Сервисные аккаунты → создать sfrfr-terraform (или взять существующий)
+  2. Роли на каталог: editor (для staging Terraform) + storage.uploader при необходимости
+  3. Создать новый ключ → JSON → сохранить как:
+       secrets\yc-sa-terraform.json
+  4. Снова: .\scripts\yc_cloud_auth.ps1
+
+OAuth-токен (y0_...) после 2026-06-01 для Cloud IAM не принимается.
+"@
+    throw "Нет файла ключа SA"
 }
 
-if (-not $Token) {
-    if ($OpenBrowser -or -not $PSBoundParameters.ContainsKey("Token")) {
-        Write-Host "Открываю OAuth Yandex Cloud (нужен scope cloud:auth)..."
-        Start-Process $OauthUrl
-        Write-Host ""
-        Write-Host "После входа скопируйте access_token из адресной строки"
-        Write-Host "(фрагмент #access_token=...&token_type=bearer) и вставьте ниже."
-        Write-Host "Либо сохраните в secrets\yc-cloud.env строку: YC_TOKEN=..."
-        Write-Host ""
-    }
-    $Token = Read-Host "Вставьте Yandex Cloud OAuth token"
-}
+$KeyFile = (Resolve-Path $KeyFile).Path
 
-if (-not $Token -or $Token.Length -lt 20) {
-    throw "Пустой или слишком короткий токен"
-}
-
-# Не печатаем токен
-$profiles = & $Yc config profile list 2>&1 | Out-String
-if ($profiles -notmatch "(?m)^\s*$Profile\b") {
+$plist = & $Yc config profile list 2>&1 | Out-String
+if ($plist -notmatch "(?m)^\s*$Profile\b") {
     & $Yc config profile create $Profile | Out-Null
 }
 & $Yc config profile activate $Profile | Out-Null
-& $Yc config set token $Token | Out-Null
+# token и SA key взаимоисключающие — unset token
+& $Yc config unset token 2>$null | Out-Null
+& $Yc config set service-account-key $KeyFile | Out-Null
 & $Yc config set cloud-id $CloudId | Out-Null
 & $Yc config set folder-id $FolderId | Out-Null
 
-# Сохранить в secrets (gitignore), без вывода значения
-$secretsDir = Join-Path $Root "secrets"
-New-Item -ItemType Directory -Force -Path $secretsDir | Out-Null
 @(
-    "# Yandex Cloud OAuth / IAM — НЕ коммитить",
-    "# Получить: $OauthUrl",
-    "YC_TOKEN=$Token",
+    "# Yandex Cloud auth для Terraform — НЕ коммитить",
+    "# OAuth YC_TOKEN после 2026-06-01 не использовать",
+    "YC_SERVICE_ACCOUNT_KEY_FILE=$KeyFile",
     "YC_CLOUD_ID=$CloudId",
     "YC_FOLDER_ID=$FolderId"
 ) | Set-Content -Path $EnvFile -Encoding UTF8
@@ -81,8 +74,8 @@ New-Item -ItemType Directory -Force -Path $secretsDir | Out-Null
 Write-Host "Проверка: resource-manager cloud list..."
 & $Yc resource-manager cloud list --format text
 if ($LASTEXITCODE -ne 0) {
-    throw "Токен не принят Cloud IAM (нужен OAuth с cloud:auth, не Workspace)"
+    throw "Ключ SA не принят Cloud IAM (проверьте роли и JSON authorized key)"
 }
 
-Write-Host "OK: профиль '$Profile', cloud=$CloudId, folder=$FolderId"
+Write-Host "OK: профиль '$Profile', key=$KeyFile"
 Write-Host "Дальше: .\scripts\tofu_plan_staging.ps1"

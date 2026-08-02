@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-02 (YC auth: SA key вместо OAuth)
+
+- Новые OAuth `y0_…` (после 2026-06-01) не обмениваются на IAM.
+- Auth/plan скрипты переведены на `secrets/yc-sa-terraform.json`.
+- `tofu plan` ждёт JSON authorized key SA; `apply` не запускали.
+
 ## 2026-08-02 (YC CLI + скрипты tofu plan)
 
 - Установлен YC CLI `1.22.0` → `tools/yandex-cloud/bin/yc.exe` (gitignore).

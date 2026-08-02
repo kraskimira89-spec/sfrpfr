@@ -1,64 +1,57 @@
 # YC CLI + OpenTofu plan (staging)
 
-**Статус:** tooling готов; `plan` ждёт OAuth с scope `cloud:auth`.  
+**Статус:** OAuth YandexID для Cloud IAM отключён с **2026-06-01**.  
 **Apply:** только после явного «apply» и баланса > 0.
 
-## Что уже сделано в репо
+## Важно: ваш `y0_…` токен
 
-| Компонент | Путь |
-|-----------|------|
-| Terraform | `infra/yandex-cloud/` |
-| OpenTofu | `tools/opentofu/` (gitignore) |
-| YC CLI | `tools/yandex-cloud/bin/yc.exe` (gitignore) |
-| Auth script | `scripts/yc_cloud_auth.ps1` |
-| Plan script | `scripts/tofu_plan_staging.ps1` |
-| tfvars | `infra/yandex-cloud/terraform.tfvars` (gitignore) |
+Ошибка:
 
-## Почему Workspace / AI Studio ключи не работают
+```text
+OAuth token ... issued after '2026-06-01' is not supported for IAM token exchange
+```
 
-| Секрет | Почему нельзя для Terraform |
-|--------|-----------------------------|
-| `YANDEX_OAUTH_ACCESS_TOKEN` (Workspace) | Нет scope `cloud:auth` |
-| `YANDEX_API_KEY` (AI Studio) | Только Foundation Models, не Resource Manager / Compute |
+Значит токен **нельзя** использовать для `yc` / Terraform. Нужен **JSON authorized key** сервисного аккаунта.
 
-Нужен отдельный OAuth клиента Yandex Cloud CLI  
-(`client_id=1a6990aa636648e9b2ef855fa7bec2fb`) или JSON-ключ SA.
+Токен, присланный в чат, лучше **отозвать** в [Яндекс OAuth](https://oauth.yandex.ru/) (на всякий случай).
 
-## Шаги
+## Рабочий путь (SA key)
 
-### 1. Cloud OAuth (один раз)
+### 1. Консоль → ключ SA
+
+Облако `sfrfr-ai` (`b1gkscu5sqpjtf5d5rbi`), каталог `default` (`b1g0mhpm9tr4lrurk1bu`):
+
+1. **IAM** → **Сервисные аккаунты** → создать `sfrfr-terraform` (или отдельный от AI Studio).
+2. Назначить на каталог роль **`editor`** (для первого staging plan/apply).
+3. У SA: **Создать новый ключ** → тип **JSON** → скачать файл.
+4. Сохранить локально (не в git):
+
+```text
+secrets/yc-sa-terraform.json
+```
+
+`YANDEX_API_KEY` из AI Studio — **другой** тип ключа, для Terraform не подходит.
+
+### 2. Auth + plan
 
 ```powershell
 cd C:\Users\user\Documents\Cursor\SFRFR
 .\scripts\yc_cloud_auth.ps1
-```
-
-Скрипт откроет браузер → после входа скопируйте `#access_token=...` из URL → вставьте в консоль.  
-Токен сохранится в `secrets/yc-cloud.env` (не в git).
-
-### 2. Plan (без apply)
-
-```powershell
 .\scripts\tofu_plan_staging.ps1
-# опционально сохранить план:
-.\scripts\tofu_plan_staging.ps1 -SavePlan
 ```
 
 ### 3. Apply — только явно
 
-Когда баланс > 0 и нет баннера «Облако заблокировано»:
+Когда баланс > 0 и нет баннера блокировки — напишите **«apply»**.
 
-```text
-напишите агенту: apply
-```
+## Альтернатива
 
-Оценка ~3.8k ₽/мес. Прод-VPS `91.229.11.147` не трогаем.
+Интерактивно: `yc init --dpop` (если в организации включены refresh tokens / DPoP).
 
-## Ручная альтернатива
+## Что уже в репо
 
-```powershell
-$env:PATH = "C:\Users\user\Documents\Cursor\SFRFR\tools\yandex-cloud\bin;C:\Users\user\Documents\Cursor\SFRFR\tools\opentofu;$env:PATH"
-yc init   # или yc config set token <cloud-oauth>
-cd infra\yandex-cloud
-tofu plan -input=false
-```
+| Компонент | Путь |
+|-----------|------|
+| Terraform | `infra/yandex-cloud/` |
+| OpenTofu / YC CLI | `tools/` (gitignore) |
+| Auth / plan scripts | `scripts/yc_cloud_auth.ps1`, `scripts/tofu_plan_staging.ps1` |

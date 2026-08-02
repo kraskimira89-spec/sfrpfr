@@ -39,7 +39,7 @@ terraform plan
 # terraform apply   # только после явного подтверждения и проверки биллинга
 ```
 
-`YANDEX_OAUTH_*` (Workspace) и `YANDEX_API_KEY` (AI Studio) **не** подходят для Terraform — нужен OAuth с scope `cloud:auth`.
+`YANDEX_OAUTH_*` (Workspace), `YANDEX_API_KEY` (AI Studio) и новые OAuth `y0_…` **не** подходят для Terraform (с 2026-06-01 OAuth→IAM отключён). Нужен JSON **authorized key** SA → `secrets/yc-sa-terraform.json`.
 
 ### РФ / блокировка HashiCorp registry
 

@@ -1,0 +1,7 @@
+# Скопируйте JSON authorized key SA сюда как secrets/yc-sa-terraform.json
+# (этот файл — только напоминание; сам JSON в secrets/ и в git не попадает)
+#
+# Консоль: IAM → Сервисные аккаунты → sfrfr-terraform → Создать ключ → JSON
+# Роль на каталог default: editor
+#
+# НЕ путать с Api-Key AI Studio (YANDEX_API_KEY) — он для Foundation Models.

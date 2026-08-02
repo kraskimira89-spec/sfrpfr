@@ -1,5 +1,5 @@
 # tofu plan для SFRFR staging (без apply).
-# Требует: yc auth (.\scripts\yc_cloud_auth.ps1) или secrets\yc-cloud.env с YC_TOKEN.
+# Auth: secrets\yc-sa-terraform.json или YC_SERVICE_ACCOUNT_KEY_FILE / yc profile.
 
 param(
     [switch]$SavePlan
@@ -11,6 +11,7 @@ $Infra = Join-Path $Root "infra\yandex-cloud"
 $Tofu = Join-Path $Root "tools\opentofu\tofu.exe"
 $Yc = Join-Path $Root "tools\yandex-cloud\bin\yc.exe"
 $EnvFile = Join-Path $Root "secrets\yc-cloud.env"
+$DefaultKey = Join-Path $Root "secrets\yc-sa-terraform.json"
 $TofuRc = Join-Path $env:APPDATA "tofu\tofu.rc"
 
 if (-not (Test-Path $Tofu)) {
@@ -20,33 +21,33 @@ if (-not (Test-Path (Join-Path $Infra "terraform.tfvars"))) {
     throw "Нет terraform.tfvars — скопируйте из terraform.tfvars.example"
 }
 
-# PATH: yc + tofu
 $env:PATH = "$(Split-Path $Yc -Parent);$(Split-Path $Tofu -Parent);$env:PATH"
 if (Test-Path $TofuRc) {
     $env:TOFU_CLI_CONFIG_FILE = $TofuRc
 }
 
-# Подхватить YC_TOKEN из secrets, если есть
+# Подхватить путь к SA key
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
-        if ($_ -match '^\s*YC_TOKEN=(.+)\s*$') {
-            $env:YC_TOKEN = $Matches[1].Trim().Trim('"').Trim("'")
+        if ($_ -match '^\s*YC_SERVICE_ACCOUNT_KEY_FILE=(.+)\s*$') {
+            $env:YC_SERVICE_ACCOUNT_KEY_FILE = $Matches[1].Trim().Trim('"').Trim("'")
         }
     }
 }
+if (-not $env:YC_SERVICE_ACCOUNT_KEY_FILE -and (Test-Path $DefaultKey)) {
+    $env:YC_SERVICE_ACCOUNT_KEY_FILE = $DefaultKey
+}
 
-if (-not $env:YC_TOKEN) {
-    # Попробовать IAM token из yc профиля
-    if (Test-Path $Yc) {
-        $iam = & $Yc iam create-token 2>&1
-        if ($LASTEXITCODE -eq 0 -and $iam) {
-            $env:YC_TOKEN = [string]$iam.Trim()
-        }
+# IAM token из yc (если профиль с SA key уже настроен)
+if (-not $env:YC_TOKEN -and (Test-Path $Yc)) {
+    $iam = & $Yc iam create-token 2>&1
+    if ($LASTEXITCODE -eq 0 -and $iam) {
+        $env:YC_TOKEN = ([string]$iam).Trim()
     }
 }
 
-if (-not $env:YC_TOKEN) {
-    throw "Нет YC_TOKEN. Сначала: .\scripts\yc_cloud_auth.ps1"
+if (-not $env:YC_TOKEN -and -not $env:YC_SERVICE_ACCOUNT_KEY_FILE) {
+    throw "Нет auth. Сначала: .\scripts\yc_cloud_auth.ps1 (нужен secrets\yc-sa-terraform.json)"
 }
 
 Set-Location $Infra
