@@ -21,9 +21,11 @@
 | A | `api` | `91.229.11.147` | по умолчанию |
 | A | `cabinet` | `91.229.11.147` | по умолчанию |
 | A | `admin` | `91.229.11.147` | по умолчанию |
+| A | `supabase` | `51.250.13.240` | по умолчанию |
 
 Итоговые имена:  
-`proverkastaza.ru`, `www.proverkastaza.ru`, `api.proverkastaza.ru`, `cabinet.proverkastaza.ru`, `admin.proverkastaza.ru` → `91.229.11.147`.
+`proverkastaza.ru`, `www.proverkastaza.ru`, `api.proverkastaza.ru`, `cabinet.proverkastaza.ru`, `admin.proverkastaza.ru` → `91.229.11.147`;  
+`supabase.proverkastaza.ru` → `51.250.13.240` (self-hosted Supabase staging в Yandex Cloud, ТЗ-15/16).
 
 ### 2. Домен `proverka-staza.ru` (алиас → основной сайт)
 

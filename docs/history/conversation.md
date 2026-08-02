@@ -1,5 +1,12 @@
 # История бесед
 
+## 2026-08-02 — проверка/хвосты ТЗ-16
+
+- `tofu plan`: No changes (drift нет).
+- Lockbox + миграции + seed уже были ✅.
+- DNS NXDOMAIN: скрипты `regru_add_supabase_a.py`, `wait_supabase_dns_and_tls.ps1`; тикет/доки обновлены.
+- Блокер HTTPS: A `supabase` → `51.250.13.240` в reg.ru (нужны API-креды или ручной клик).
+
 ## 2026-08-02 — ТЗ-15 рекомендации фазы 1
 
 Реализованы скрипты/код: Caddy, миграции+seed, backup/restore-drill, SmartCaptcha модуль.

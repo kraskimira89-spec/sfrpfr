@@ -259,6 +259,17 @@ terraform import yandex_compute_instance.supabase <INSTANCE_ID>
 - README содержит destroy/rollback, оценку ресурсов и предупреждение о биллинге.
 - Конфигурация привязана к folder `b1g0mhpm9tr4lrurk1bu`, но переносима через variables.
 
+### Факт на 2026-08-02
+
+| Критерий / хвост | Статус |
+|---|---|
+| P0 код + apply staging | ✅ VM `51.250.13.240`, bucket, KMS, Lockbox, SG |
+| `tofu plan` без drift | ✅ No changes |
+| Lockbox payload заполнен | ✅ (не через `.tfvars`) |
+| Миграции + seed на VM | ✅ (вне Terraform, скрипты `vm_supabase_*`) |
+| DNS A `supabase` | ❌ в reg.ru ещё нет → HTTPS/ACME ждёт |
+| P1 remote state / manage_dns / snapshots | ❌ не в первом apply |
+
 ## 12. Связанные документы
 
 - `prompts/system/yandex-cloud-agent.md`

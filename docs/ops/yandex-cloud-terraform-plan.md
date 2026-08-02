@@ -55,3 +55,17 @@ cd C:\Users\user\Documents\Cursor\SFRFR
 | Terraform | `infra/yandex-cloud/` |
 | OpenTofu / YC CLI | `tools/` (gitignore) |
 | Auth / plan scripts | `scripts/yc_cloud_auth.ps1`, `scripts/tofu_plan_staging.ps1` |
+
+## Статус хвостов ТЗ-16 (проверка 2026-08-02)
+
+| Пункт | Статус |
+|-------|--------|
+| `tofu plan` drift | ✅ No changes |
+| Lockbox payload (supabase + database) | ✅ versions ACTIVE |
+| Compose + миграции + SYNTH seed | ✅ на `51.250.13.240` |
+| DNS `supabase.proverkastaza.ru` | ❌ NXDOMAIN — добавить A → `51.250.13.240` |
+| HTTPS / ACME | ⏳ после DNS (`wait_supabase_dns_and_tls.ps1`) |
+
+DNS: `docs/ops/regru.env.example` → `secrets/regru.env`, затем  
+`python scripts/regru_add_supabase_a.py` и `.\scripts\wait_supabase_dns_and_tls.ps1`  
+(или вручную в reg.ru — [dns-proverkastaza.md](dns-proverkastaza.md)).

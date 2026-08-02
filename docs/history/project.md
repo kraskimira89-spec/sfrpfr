@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-02 (ТЗ-16: verify + DNS tooling)
+
+- Plan clean; Lockbox/миграции подтверждены на VM.
+- Добавлены `scripts/regru_add_supabase_a.py`, `wait_supabase_dns_and_tls.ps1`.
+- HTTPS staging ждёт A-запись в reg.ru.
+
 ## 2026-08-02 (ТЗ-15 фаза 1: staging хвосты)
 
 - Caddy на ВМ; LE ждёт DNS `supabase.proverkastaza.ru` → `51.250.13.240`.

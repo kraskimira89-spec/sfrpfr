@@ -20,15 +20,26 @@ NS: `ns1.reg.ru` / `ns2.reg.ru` (как у старого домена).
 |-----|------------|----------|--------|
 | A | `supabase` | `51.250.13.240` | self-host staging → Caddy/Let's Encrypt на ВМ |
 
-После добавления записи в reg.ru:
+### Как добавить (выберите один способ)
+
+**A. Панель reg.ru (вручную)**  
+DNS-зона `proverkastaza.ru` → A `supabase` → `51.250.13.240`.
+
+**B. REG.API 2 (скрипт)**  
+1. В кабинете: API-пароль + allowlist IP.  
+2. `docs/ops/regru.env.example` → `secrets/regru.env`.  
+3. `python scripts/regru_add_supabase_a.py`  
+4. `.\scripts\wait_supabase_dns_and_tls.ps1` — дождаться DNS и перезапустить Caddy/ACME.
+
+Проверка:
 
 ```powershell
 nslookup supabase.proverkastaza.ru 8.8.8.8
 ```
 
-Ожидание: `Address: 51.250.13.240`. Затем на ВМ: `scripts/vm_supabase_enable_caddy.sh`.
+Ожидание: `Address: 51.250.13.240`. Caddy на ВМ уже поднят; после появления DNS он получит Let's Encrypt (или перезапуск: `wait_supabase_dns_and_tls.ps1`).
 
-Studio наружу не открываем: в Caddy Studio за basic_auth; Postgres `5432` в интернет не публиковать.
+Studio наружу не открываем: в Caddy Studio за basic_auth; Postgres `5432` в интернет не публиковать (закрыт Security Group).
 
 ## Почта Яндекс 360 (MX + DKIM)
 
