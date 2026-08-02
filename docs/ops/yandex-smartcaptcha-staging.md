@@ -1,43 +1,60 @@
-# Yandex SmartCaptcha — пилот staging (ТЗ-15)
+# Yandex SmartCaptcha — прод (ТЗ-15)
 
-Прод на MVP остаётся на **Google reCAPTCHA Enterprise**.  
-SmartCaptcha подключаем параллельно для staging / последующего cutover.
+Целевой провайдер капчи на витрине: **Yandex SmartCaptcha**.  
+Google reCAPTCHA Enterprise остаётся legacy (`CAPTCHA_PROVIDER=google`).
 
 ## 1. Создать капчу в Yandex Cloud
 
-1. Консоль → каталог `default` → **SmartCaptcha**.
-2. Создать капчу для домена staging-формы (например `proverkastaza.ru` / staging host).
+1. Консоль → каталог → **SmartCaptcha**.
+2. Создать капчу для доменов:
+   - `proverkastaza.ru`
+   - `www.proverkastaza.ru`
 3. Скопировать:
-   - **Клиентский ключ** → `SMARTCAPTCHA_CLIENT_KEY`
-   - **Серверный ключ** → `SMARTCAPTCHA_SERVER_KEY` (только сервер, не в WP/HTML публично как secret)
+   - **Клиентский ключ** (`ysc1_…`) → `SMARTCAPTCHA_CLIENT_KEY`
+   - **Серверный ключ** (`ysc2_…`) → `SMARTCAPTCHA_SERVER_KEY` (только сервер)
 
-## 2. Env (API)
+## 2. Env (API + WP)
+
+Локально `.env` и на VPS `/opt/sfrfr/.env`:
 
 ```env
 CAPTCHA_PROVIDER=yandex
-# или auto — если задан SMARTCAPTCHA_SERVER_KEY, он приоритетнее Google
-SMARTCAPTCHA_SERVER_KEY=…
-SMARTCAPTCHA_CLIENT_KEY=…
+SMARTCAPTCHA_SERVER_KEY=ysc2_…
+SMARTCAPTCHA_CLIENT_KEY=ysc1_…
 ```
 
 Проверка токена: `POST https://smartcaptcha.cloud.yandex.ru/validate`  
 (модуль `src/sfrfr/integrations/smartcaptcha/`).
 
-API лида принимает:
+API лида принимает `smartcaptcha_token` (или устаревший слот `recaptcha_token`).
 
-- `smartcaptcha_token` **или**
-- `recaptcha_token` (тот же слот, если провайдер yandex/auto→smart)
+## 3. Витрина (WP)
 
-## 3. Витрина (WP / staging-форма)
+MU-плагин `sfrfr-recaptcha-lead.php` + JS `scripts/assets/sfrfr-recaptcha-lead.js`:
 
-Подключить виджет SmartCaptcha по [quickstart](https://yandex.cloud/ru/docs/smartcaptcha/quickstart) с `SMARTCAPTCHA_CLIENT_KEY`.  
-В webhook/JSON на `/api/public/leads` передать токен как `smartcaptcha_token`.
+- виджет «Я не робот» перед кнопкой отправки;
+- клиентский ключ читается из `SMARTCAPTCHA_CLIENT_KEY` в `/opt/sfrfr/.env`;
+- токен уходит в FastAPI как `smartcaptcha_token`.
 
-**Не** выключать Google на проде, пока staging-пилот не зелёный и cutover captcha не согласован.
+Выкладка:
 
-## 4. Критерий пилота
+```bash
+bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
+systemctl restart sfrfr-api
+```
+
+## 4. Критерий готовности
 
 - [ ] Ключи созданы в YC (РФ).
-- [ ] API с `CAPTCHA_PROVIDER=yandex` отклоняет пустой токен вне debug.
-- [ ] Успешный лид со staging-формы с валидным SmartCaptcha-токеном.
-- [ ] Prod по-прежнему на Google, пока не начата фаза 3 ТЗ-15.
+- [ ] `CAPTCHA_PROVIDER=yandex` на VPS.
+- [ ] На https://proverkastaza.ru/#zayavka виден виджет SmartCaptcha.
+- [ ] Успешный лид с отмеченной капчей.
+- [ ] Без капчи API отвечает `400 captcha_token required` / `smartcaptcha_failed`.
+
+## 5. Откат на Google
+
+```env
+CAPTCHA_PROVIDER=google
+```
+
+и временно вернуть старый JS Enterprise (git history) — только как аварийный fallback.

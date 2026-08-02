@@ -300,22 +300,36 @@ def _require_captcha(
     mode = _captcha_mode()
     smart = SmartCaptchaVerifier()
     google = RecaptchaVerifier()
+    local = settings.app_env in ("local", "dev", "development") or settings.app_debug
     use_smart = mode == "yandex" or (mode == "auto" and smart.configured)
     use_google = mode == "google" or (mode == "auto" and not use_smart and google.configured)
+
+    if mode == "yandex" and not smart.configured:
+        if local:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="smartcaptcha_not_configured",
+        )
 
     if not use_smart and not use_google:
         return
 
     token = (smartcaptcha_token or recaptcha_token or "").strip()
     if not token:
-        if settings.app_env in ("local", "dev", "development") or settings.app_debug:
+        if local:
             return
         raise HTTPException(status_code=400, detail="captcha_token required")
 
     if use_smart:
         result = smart.verify(token, user_ip=client_ip)
         if result.get("skipped"):
-            return
+            if local:
+                return
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="smartcaptcha_not_configured",
+            )
         if not result.get("ok"):
             raise HTTPException(status_code=400, detail="smartcaptcha_failed")
         return

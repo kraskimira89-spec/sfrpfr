@@ -1,14 +1,12 @@
 <?php
 /**
- * Plugin Name: SFRFR reCAPTCHA Enterprise (lead)
- * Description: Enterprise JS (action=lead) + POST лида на FastAPI после WPForms.
+ * Plugin Name: SFRFR SmartCaptcha (lead)
+ * Description: Yandex SmartCaptcha на форме заявки + POST лида на FastAPI после WPForms.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
-
-const SFRFR_RECAPTCHA_SITE_KEY_DEFAULT = '6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu';
 
 /**
  * Ссылка на СОПД в description чекбокса формы заявки (HTML).
@@ -82,13 +80,14 @@ function sfrfr_env(string $key, string $default = ''): string
     return $default;
 }
 
-function sfrfr_recaptcha_site_key(): string
+function sfrfr_smartcaptcha_client_key(): string
 {
-    $key = sfrfr_env('RECAPTCHA_SITE_KEY', sfrfr_env('SFRFR_RECAPTCHA_SITE_KEY'));
-    if ($key === '' && defined('SFRFR_RECAPTCHA_SITE_KEY')) {
-        $key = (string) SFRFR_RECAPTCHA_SITE_KEY;
+    $key = sfrfr_env('SMARTCAPTCHA_CLIENT_KEY', sfrfr_env('SFRFR_SMARTCAPTCHA_CLIENT_KEY'));
+    if ($key === '' && defined('SFRFR_SMARTCAPTCHA_CLIENT_KEY')) {
+        $key = (string) SFRFR_SMARTCAPTCHA_CLIENT_KEY;
     }
-    return $key !== '' ? $key : SFRFR_RECAPTCHA_SITE_KEY_DEFAULT;
+    // fallback на старый site key только если явно не задан SmartCaptcha — лучше пусто
+    return trim($key);
 }
 
 function sfrfr_public_lead_url(): string
@@ -119,7 +118,7 @@ add_action('wp_enqueue_scripts', function () {
     if (is_admin() || !is_front_page()) {
         return;
     }
-    $site_key = sfrfr_recaptcha_site_key();
+    $client_key = sfrfr_smartcaptcha_client_key();
     $mu_js = WPMU_PLUGIN_DIR . '/sfrfr-recaptcha-lead.js';
     $src_js = '/opt/sfrfr/scripts/assets/sfrfr-recaptcha-lead.js';
     $url = '';
@@ -146,10 +145,11 @@ add_action('wp_enqueue_scripts', function () {
     if ($url === '') {
         return;
     }
-    wp_enqueue_script('sfrfr-recaptcha-lead', $url, [], $ver, true);
+    wp_enqueue_script('sfrfr-smartcaptcha-lead', $url, [], $ver, true);
     wp_add_inline_script(
-        'sfrfr-recaptcha-lead',
-        'window.SFRFR_RECAPTCHA=' . wp_json_encode(['siteKey' => $site_key, 'action' => 'lead']) . ';',
+        'sfrfr-smartcaptcha-lead',
+        'window.SFRFR_SMARTCAPTCHA=' . wp_json_encode(['clientKey' => $client_key]) . ';'
+        . 'window.SFRFR_RECAPTCHA=' . wp_json_encode(['siteKey' => $client_key, 'action' => 'lead']) . ';',
         'before'
     );
 }, 20);
@@ -158,7 +158,7 @@ add_action('wp_head', function () {
     if (!is_front_page()) {
         return;
     }
-    echo '<style id="sfrfr-recaptcha-hide">.wpforms-field.sfrfr-recaptcha-token,.wpforms-field-recaptcha_token{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important;}</style>' . "\n";
+    echo '<style id="sfrfr-captcha-hide">.wpforms-field.sfrfr-recaptcha-token,.wpforms-field-recaptcha_token,.wpforms-field-smartcaptcha_token{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important;}</style>' . "\n";
 }, 5);
 
 /**
@@ -182,7 +182,6 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
     if ($form_id <= 0 || !function_exists('wpforms')) {
         return;
     }
-    // Уже есть ошибки валидации — не дергаем API.
     if (!empty(wpforms()->process->errors[$form_id])) {
         return;
     }
@@ -192,7 +191,7 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
     $phone = '';
     $consent = false;
     $channel = 'unset';
-    $recaptcha = '';
+    $captcha = '';
 
     if (!is_array($fields)) {
         return;
@@ -204,8 +203,13 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
         $label = mb_strtolower((string) ($field['name'] ?? $field['label'] ?? ''));
         $value = trim((string) ($field['value'] ?? ''));
         $type = (string) ($field['type'] ?? '');
-        if (str_contains($label, 'recaptcha') || str_contains($label, 'g-recaptcha')) {
-            $recaptcha = $value;
+        if (
+            str_contains($label, 'smartcaptcha')
+            || str_contains($label, 'recaptcha')
+            || str_contains($label, 'g-recaptcha')
+            || str_contains($label, 'smart-token')
+        ) {
+            $captcha = $value;
             continue;
         }
         if ($type === 'checkbox' || str_contains($label, 'соглас')) {
@@ -268,7 +272,8 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
         'consent' => true,
         'preferred_channel' => $channel,
         'source' => 'wordpress_wpforms',
-        'recaptcha_token' => $recaptcha !== '' ? mb_substr($recaptcha, 0, 4000) : null,
+        'smartcaptcha_token' => $captcha !== '' ? mb_substr($captcha, 0, 4000) : null,
+        'recaptcha_token' => null,
     ];
 
     $headers = [
@@ -300,8 +305,11 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
     if ($code < 200 || $code >= 300) {
         error_log('SFRFR public lead HTTP ' . $code . ': ' . substr($body, 0, 300));
         $msg = 'Не удалось создать заявку в CRM. Попробуйте ещё раз или напишите в MAX.';
-        if ($code === 400 && str_contains($body, 'recaptcha')) {
-            $msg = 'Проверка защиты не пройдена. Обновите страницу и отправьте заявку снова.';
+        if ($code === 400 && (str_contains($body, 'captcha') || str_contains($body, 'recaptcha'))) {
+            $msg = 'Проверка защиты не пройдена. Отметьте «Я не робот» и отправьте заявку снова.';
+        }
+        if ($code === 503 && str_contains($body, 'smartcaptcha')) {
+            $msg = 'Капча временно недоступна. Напишите в MAX или попробуйте позже.';
         }
         wpforms()->process->errors[$form_id]['header'] = $msg;
     }
