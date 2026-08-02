@@ -39,3 +39,15 @@ def test_failed_status() -> None:
         client_cls.return_value.__enter__.return_value.post.return_value = mock_resp
         out = v.verify("tok")
     assert out["ok"] is False
+
+
+def test_http_error_fail_open() -> None:
+    v = SmartCaptchaVerifier(server_key="secret")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 503
+    mock_resp.text = "busy"
+    with patch("sfrfr.integrations.smartcaptcha.httpx.Client") as client_cls:
+        client_cls.return_value.__enter__.return_value.post.return_value = mock_resp
+        out = v.verify("tok")
+    assert out["ok"] is True
+    assert out.get("degraded") is True

@@ -8,6 +8,7 @@ import httpx
 
 from sfrfr.core.config import get_settings
 
+# Актуальный endpoint (документация YC). Старый alias: smartcaptcha.yandexcloud.net
 _VALIDATE_URL = "https://smartcaptcha.cloud.yandex.ru/validate"
 
 
@@ -36,7 +37,10 @@ class SmartCaptchaVerifier:
         *,
         user_ip: str | None = None,
     ) -> dict[str, Any]:
-        """Вернуть ok; не логировать token/server_key."""
+        """Вернуть ok; не логировать token/server_key.
+
+        По рекомендации YC: при HTTP != 200 не блокировать пользователя (fail-open).
+        """
         if not self.configured:
             return {
                 "ok": False,
@@ -51,11 +55,14 @@ class SmartCaptchaVerifier:
         if user_ip:
             data["ip"] = user_ip
         try:
-            with httpx.Client(timeout=20.0) as client:
+            with httpx.Client(timeout=10.0) as client:
+                # x-www-form-urlencoded POST — как в quickstart YC
                 resp = client.post(_VALIDATE_URL, data=data)
-            if resp.status_code >= 400:
+            if resp.status_code != 200:
+                # Док: HTTP-ошибки обрабатывать как ok, чтобы не резать людей при сбое сервиса
                 return {
-                    "ok": False,
+                    "ok": True,
+                    "degraded": True,
                     "status_code": resp.status_code,
                     "error": (resp.text or "")[:400],
                 }
@@ -69,4 +76,8 @@ class SmartCaptchaVerifier:
                 "message": body.get("message"),
             }
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+            return {
+                "ok": True,
+                "degraded": True,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
