@@ -46,6 +46,23 @@
 - YandexGPT / AI Studio — API-ключи моделей; не смешивать с SA ВМ и не хранить в userdata ВМ
 - DataLens — управленческий BI поверх analytics (отдельная задача); не открывать public.* / ПДн в DataLens
 
+### Lockbox / Supabase — НЕ ДУБЛИРОВАТЬ Cursor
+
+Уже создано Terraform + Cursor (SoT):
+- Lockbox `sfrfr-staging-supabase` id `e6qe9oa21ib1vpkkt0mh`
+- Lockbox `sfrfr-staging-database` id `e6q1auj68j5u372c21ld`
+- labels: project=sfrfr, environment=**staging** (не production)
+- Реальные JWT/пароли уже залиты; Compose на ВМ ведёт Cursor
+
+**Запрещено:**
+- Создавать второй секрет (`supabase-config` и т.п.)
+- Класть placeholder JWT (`anon-key-placeholder`, строки с `$(openssl …)`)
+- Менять метку на production без явной просьбы владельца
+- Печатать полные секреты в чат
+
+Если спросили «Lockbox для Supabase» — покажи существующие два секрета и скажи:
+«Секреты уже есть; дальше только Cursor / cloud-agent».
+
 ### Принципы
 
 1. Только регион РФ (ru-central1). Бэкапы и диски — тоже РФ.

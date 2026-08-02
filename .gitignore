@@ -109,3 +109,7 @@ apply.last.txt
 infra/yandex-cloud/apply.last.txt
 infra/yandex-cloud/plan.last.txt
 *.last.txt
+
+lockbox.env
+secrets/supabase-staging.env
+
