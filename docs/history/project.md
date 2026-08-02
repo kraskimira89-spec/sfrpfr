@@ -45,6 +45,12 @@
 - Хосты http/https ± www для `proverkastaza.ru` — VERIFIED (META `24f89ecf6ff4297b`).
 - Основной host_id: `https:proverkastaza.ru:443`.
 
+## 2026-08-02 (tfvars + validate без apply)
+
+- Локальный `terraform.tfvars` (gitignore): cloud/folder со скрина, SSH `109.252.100.99/32`.
+- OpenTofu + provider mirror: `tofu validate` ✅; `plan` ждёт `yc`/токен.
+- Баланс в консоли 0 ₽ — `apply` не делаем.
+
 ## 2026-07-29 (Terraform staging в репо)
 
 - В `infra/yandex-cloud/` внесён пример по ТЗ-16 (правки к выводу ассистента консоли).

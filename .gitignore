@@ -82,6 +82,11 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Локальные бинарники OpenTofu / provider mirror (скачиваются вручную в РФ)
+tools/opentofu/
+tools/terraform/
+tools/tf-providers/
+
 # Local CLI logs
 supabase-start.log
 *.log

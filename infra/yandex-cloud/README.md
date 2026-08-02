@@ -23,13 +23,26 @@ cd infra/yandex-cloud
 cp terraform.tfvars.example terraform.tfvars
 # Правки: allowed_ssh_cidrs, ssh_public_key_path, backup_bucket_name
 
-yc init   # или YC_TOKEN
-terraform init
+yc init   # или YC_TOKEN / service_account_key_file
+terraform init   # или tofu init (OpenTofu), если HashiCorp releases недоступны
 terraform fmt -check
 terraform validate
 terraform plan
 # terraform apply   # только после явного подтверждения и проверки биллинга
 ```
+
+### РФ / блокировка HashiCorp registry
+
+Если `terraform`/`tofu init` даёт 403 к registry:
+
+1. Скачать [OpenTofu](https://github.com/opentofu/opentofu/releases) windows_amd64.
+2. Скачать [terraform-provider-yandex](https://github.com/yandex-cloud/terraform-provider-yandex/releases) `*_windows_amd64.zip`.
+3. Распаковать provider в  
+   `tools/tf-providers/registry.opentofu.org/yandex-cloud/yandex/<ver>/windows_amd64/`.
+4. `tofu.rc` с `filesystem_mirror` на `tools/tf-providers` (см. `%APPDATA%\tofu\tofu.rc`).
+5. `tofu init -backend=false && tofu validate`.
+
+`plan`/`apply` без `yc` или `YC_TOKEN` не заработают.
 
 ## После apply
 
