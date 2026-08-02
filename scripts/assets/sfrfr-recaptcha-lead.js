@@ -1,14 +1,15 @@
 /**
- * Yandex SmartCaptcha для формы лида WPForms.
- * Токен уходит в поле формы и далее как smartcaptcha_token / recaptcha_token на API.
+ * Captcha для формы лида WPForms.
+ * Если clientKey начинается с ysc1_ — Yandex SmartCaptcha, иначе Google reCAPTCHA Enterprise (legacy).
  */
 (function () {
   var CLIENT_KEY =
     (window.SFRFR_SMARTCAPTCHA && window.SFRFR_SMARTCAPTCHA.clientKey) ||
     (window.SFRFR_RECAPTCHA && window.SFRFR_RECAPTCHA.siteKey) ||
     "";
-  var SCRIPT_ID = "sfrfr-smartcaptcha-js";
-  var WIDGET_CLASS = "sfrfr-smartcaptcha-widget";
+  var ACTION =
+    (window.SFRFR_RECAPTCHA && window.SFRFR_RECAPTCHA.action) || "lead";
+  var IS_YANDEX = String(CLIENT_KEY).indexOf("ysc1_") === 0;
 
   function findTokenInput(form) {
     return (
@@ -27,24 +28,27 @@
     el.type = "hidden";
     el.name = "wpforms[fields][4]";
     el.setAttribute("data-sfrfr-captcha", "1");
-    el.className = "sfrfr-captcha-token-input";
     form.appendChild(el);
     return el;
   }
 
-  function readWidgetToken(form) {
-    var fromWidget =
-      form.querySelector(".smart-captcha input[name='smart-token']") ||
-      form.querySelector("input[name='smart-token']");
-    return fromWidget && fromWidget.value ? String(fromWidget.value) : "";
+  function submitWithToken(form, submitBtn, token) {
+    var input = ensureTokenInput(form);
+    input.value = token || "";
+    form.setAttribute("data-sfrfr-captcha-ok", "1");
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit(submitBtn || undefined);
+    } else {
+      HTMLFormElement.prototype.submit.call(form);
+    }
   }
 
-  function ensureWidget(form) {
-    if (!CLIENT_KEY) return null;
-    var existing = form.querySelector("." + WIDGET_CLASS);
+  /* ---------- Yandex SmartCaptcha ---------- */
+  function ensureYandexWidget(form) {
+    var existing = form.querySelector(".sfrfr-smartcaptcha-widget");
     if (existing) return existing;
     var box = document.createElement("div");
-    box.className = WIDGET_CLASS + " smart-captcha";
+    box.className = "sfrfr-smartcaptcha-widget smart-captcha";
     box.setAttribute("data-sitekey", CLIENT_KEY);
     box.style.height = "100px";
     box.style.margin = "0.75rem 0";
@@ -57,32 +61,61 @@
     return box;
   }
 
-  function loadScript() {
-    if (document.getElementById(SCRIPT_ID)) return;
+  function loadYandex() {
+    if (document.getElementById("sfrfr-smartcaptcha-js")) return;
     var script = document.createElement("script");
-    script.id = SCRIPT_ID;
+    script.id = "sfrfr-smartcaptcha-js";
     script.src = "https://smartcaptcha.cloud.yandex.ru/captcha.js";
     script.defer = true;
     document.head.appendChild(script);
   }
 
-  function readySmartCaptcha() {
-    loadScript();
+  function readYandexToken(form) {
+    var el =
+      form.querySelector(".smart-captcha input[name='smart-token']") ||
+      form.querySelector("input[name='smart-token']");
+    return el && el.value ? String(el.value) : "";
+  }
+
+  function mountYandex() {
+    if (!CLIENT_KEY || !IS_YANDEX) return;
+    document.querySelectorAll("form.wpforms-form").forEach(function (form) {
+      ensureYandexWidget(form);
+      ensureTokenInput(form);
+    });
+    loadYandex();
+  }
+
+  /* ---------- Google reCAPTCHA Enterprise (legacy) ---------- */
+  function loadGoogle() {
+    if (document.getElementById("sfrfr-recaptcha-enterprise")) return;
+    var script = document.createElement("script");
+    script.id = "sfrfr-recaptcha-enterprise";
+    script.src =
+      "https://www.google.com/recaptcha/enterprise.js?render=" +
+      encodeURIComponent(CLIENT_KEY);
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
+  function readyGoogle() {
+    loadGoogle();
     return new Promise(function (resolve, reject) {
       var tries = 0;
       (function wait() {
-        if (window.smartCaptcha && typeof window.smartCaptcha.render === "function") {
-          resolve();
-          return;
-        }
-        // auto-mount mode: script loaded and widgets present
-        if (document.getElementById(SCRIPT_ID) && document.querySelector(".smart-captcha iframe")) {
-          resolve();
+        if (
+          window.grecaptcha &&
+          window.grecaptcha.enterprise &&
+          typeof window.grecaptcha.enterprise.execute === "function"
+        ) {
+          window.grecaptcha.enterprise.ready(function () {
+            resolve();
+          });
           return;
         }
         tries += 1;
-        if (tries > 100) {
-          reject(new Error("Yandex SmartCaptcha не загрузилась"));
+        if (tries > 80) {
+          reject(new Error("reCAPTCHA Enterprise не загрузилась"));
           return;
         }
         setTimeout(wait, 100);
@@ -90,22 +123,16 @@
     });
   }
 
-  function mountWidgets() {
-    if (!CLIENT_KEY) return;
-    document.querySelectorAll("form.wpforms-form").forEach(function (form) {
-      ensureWidget(form);
-      ensureTokenInput(form);
-    });
-    loadScript();
+  if (IS_YANDEX) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", mountYandex);
+    } else {
+      mountYandex();
+    }
+    setTimeout(mountYandex, 800);
+  } else if (CLIENT_KEY) {
+    loadGoogle();
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountWidgets);
-  } else {
-    mountWidgets();
-  }
-  // WPForms иногда перерисовывает форму
-  setTimeout(mountWidgets, 800);
 
   document.addEventListener(
     "submit",
@@ -121,22 +148,32 @@
         return;
       }
       if (!CLIENT_KEY) {
-        window.alert(
-          "Капча не настроена (нет клиентского ключа SmartCaptcha). Обратитесь к администратору."
-        );
+        window.alert("Капча не настроена. Обратитесь к администратору.");
         ev.preventDefault();
         return;
       }
 
-      ensureWidget(form);
-      var token = readWidgetToken(form);
-      if (!token) {
+      var submitBtn = form.querySelector(".wpforms-submit");
+
+      if (IS_YANDEX) {
+        ensureYandexWidget(form);
+        var yToken = readYandexToken(form);
+        if (!yToken) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (typeof ev.stopImmediatePropagation === "function") {
+            ev.stopImmediatePropagation();
+          }
+          window.alert("Отметьте «Я не робот» и при необходимости пройдите проверку.");
+          return;
+        }
         ev.preventDefault();
         ev.stopPropagation();
         if (typeof ev.stopImmediatePropagation === "function") {
           ev.stopImmediatePropagation();
         }
-        window.alert("Отметьте «Я не робот» и при необходимости пройдите проверку.");
+        if (submitBtn) submitBtn.disabled = true;
+        submitWithToken(form, submitBtn, yToken);
         return;
       }
 
@@ -145,29 +182,19 @@
       if (typeof ev.stopImmediatePropagation === "function") {
         ev.stopImmediatePropagation();
       }
+      if (submitBtn) submitBtn.disabled = true;
 
-      var submitBtn = form.querySelector(".wpforms-submit");
-      if (submitBtn) {
-        submitBtn.disabled = true;
-      }
-
-      readySmartCaptcha()
+      readyGoogle()
         .then(function () {
-          var input = ensureTokenInput(form);
-          input.value = token;
-          form.setAttribute("data-sfrfr-captcha-ok", "1");
-          if (typeof form.requestSubmit === "function") {
-            form.requestSubmit(submitBtn || undefined);
-          } else {
-            HTMLFormElement.prototype.submit.call(form);
-          }
+          return window.grecaptcha.enterprise.execute(CLIENT_KEY, { action: ACTION });
+        })
+        .then(function (token) {
+          submitWithToken(form, submitBtn, token);
         })
         .catch(function () {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-          }
+          if (submitBtn) submitBtn.disabled = false;
           window.alert(
-            "Не удалось проверить форму (SmartCaptcha). Обновите страницу и попробуйте снова."
+            "Не удалось проверить форму (капча). Обновите страницу и попробуйте снова."
           );
         });
     },

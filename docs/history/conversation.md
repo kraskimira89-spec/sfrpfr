@@ -130,6 +130,12 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Создание платежа падало: фискализация вкл., SEND_RECEIPT=false → Receipt is missing.
 - Вкл. чеки + return_url на cabinet.proverkastaza.ru; pay требует email при чеке.
 
+## 2026-08-02 (Google → Yandex SmartCaptcha)
+
+- Витрина: виджет SmartCaptcha при `SMARTCAPTCHA_CLIENT_KEY=ysc1_…`.
+- API: `CAPTCHA_PROVIDER=yandex` + `SMARTCAPTCHA_SERVER_KEY`.
+- Без ключей Yandex — fallback на Google Enterprise (legacy).
+
 ## 2026-07-29 (MAX: кнопки навигации)
 
 - Нижняя панель: Обзор / Документы / Сообщения / Мои дела.

@@ -86,8 +86,20 @@ function sfrfr_smartcaptcha_client_key(): string
     if ($key === '' && defined('SFRFR_SMARTCAPTCHA_CLIENT_KEY')) {
         $key = (string) SFRFR_SMARTCAPTCHA_CLIENT_KEY;
     }
-    // fallback на старый site key только если явно не задан SmartCaptcha — лучше пусто
     return trim($key);
+}
+
+function sfrfr_captcha_client_key(): string
+{
+    $smart = sfrfr_smartcaptcha_client_key();
+    if ($smart !== '') {
+        return $smart;
+    }
+    $google = sfrfr_env('RECAPTCHA_SITE_KEY', sfrfr_env('SFRFR_RECAPTCHA_SITE_KEY'));
+    if ($google === '' && defined('SFRFR_RECAPTCHA_SITE_KEY')) {
+        $google = (string) SFRFR_RECAPTCHA_SITE_KEY;
+    }
+    return trim($google);
 }
 
 function sfrfr_public_lead_url(): string
@@ -118,7 +130,7 @@ add_action('wp_enqueue_scripts', function () {
     if (is_admin() || !is_front_page()) {
         return;
     }
-    $client_key = sfrfr_smartcaptcha_client_key();
+    $client_key = sfrfr_captcha_client_key();
     $mu_js = WPMU_PLUGIN_DIR . '/sfrfr-recaptcha-lead.js';
     $src_js = '/opt/sfrfr/scripts/assets/sfrfr-recaptcha-lead.js';
     $url = '';
@@ -272,8 +284,14 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
         'consent' => true,
         'preferred_channel' => $channel,
         'source' => 'wordpress_wpforms',
-        'smartcaptcha_token' => $captcha !== '' ? mb_substr($captcha, 0, 4000) : null,
-        'recaptcha_token' => null,
+        'smartcaptcha_token' => (
+            $captcha !== '' && str_starts_with(sfrfr_captcha_client_key(), 'ysc1_')
+        ) ? mb_substr($captcha, 0, 4000) : null,
+        'recaptcha_token' => (
+            $captcha !== '' && !str_starts_with(sfrfr_captcha_client_key(), 'ysc1_')
+        ) ? mb_substr($captcha, 0, 4000) : (
+            $captcha !== '' ? mb_substr($captcha, 0, 4000) : null
+        ),
     ];
 
     $headers = [
