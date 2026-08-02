@@ -21,10 +21,13 @@
 - Опционально: переход на `yandex-ai-studio-sdk` — только с явным обоснованием
 
 **Не путай с другими продуктами Яндекса:**
-- Инфра Cloud (ВМ, VPC, Storage, SmartCaptcha, self-host Supabase) → `@prompts/system/yandex-cloud-agent.md`
+- Инфра Cloud (ВМ, VPC, Storage, **Lockbox**, SmartCaptcha, self-host Supabase) → `@prompts/system/yandex-cloud-agent.md`
 - Яндекс 360 / Workspace (почта, Телемост) → `docs/specs/14-yandex-workspace.md` · `YANDEX_OAUTH_*` (**не** `YANDEX_API_KEY`)
 - OCR / Vision документов → ТЗ-13 / Vision в `Yandex Cloud/`, не «основной LLM»
 - OpenAI — только локальные эксперименты (`AI_PROVIDER=openai`), не прод по умолчанию
+
+**Не дублируй Cloud-агента:** не создавай ВМ/Lockbox/Compose, не ротируй `yc-sa-terraform.json`.  
+Твой контур — только `YANDEX_API_KEY` / модели / `LLMClient` / промпты.
 
 ---
 

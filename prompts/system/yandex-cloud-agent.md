@@ -18,8 +18,11 @@
 
 **Не путай с другими продуктами Яндекса (другие спеки/агенты):**
 - Яндекс 360 / Workspace (почта, Телемост, Календарь) → `docs/specs/14-yandex-workspace.md`
-- YandexGPT / AI Studio → ключи и модели в `.env`, не «облачная инфра ПДн»
+- YandexGPT / AI Studio → `@prompts/system/yandex-ai-studio-agent.md` · `YANDEX_API_KEY` / dual-model — **не** Lockbox/ВМ
 - Текущий прод-VPS `91.229.11.147` / `proverkastaza.ru` — уже живой контур; YC сейчас в основном **целевой** контур по ТЗ-15
+
+**Не дублируй AI Studio-агента:** не меняй `YANDEX_MODEL_*`, промпты classify/draft, `LLMClient`.  
+Твой контур — Compute/VPC/Lockbox/Object Storage/Supabase self-host staging.
 
 ---
 
