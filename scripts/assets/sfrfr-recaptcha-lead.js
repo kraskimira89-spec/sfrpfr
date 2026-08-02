@@ -65,7 +65,8 @@
     if (document.getElementById("sfrfr-smartcaptcha-js")) return;
     var script = document.createElement("script");
     script.id = "sfrfr-smartcaptcha-js";
-    script.src = "https://smartcaptcha.cloud.yandex.ru/captcha.js";
+    // URL из консоли YC (alias); docs также допускают smartcaptcha.cloud.yandex.ru
+    script.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
     script.defer = true;
     document.head.appendChild(script);
   }
