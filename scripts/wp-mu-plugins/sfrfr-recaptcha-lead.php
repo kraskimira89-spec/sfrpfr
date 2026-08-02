@@ -44,6 +44,25 @@ function sfrfr_lead_env_map(): array
         return $map;
     }
     $map = [];
+    // www-data не читает /opt/sfrfr/.env — публичные ключи кладём в MU-config (как Метрика).
+    foreach ([
+        __DIR__ . '/sfrfr-lead.config.php',
+        '/opt/sfrfr/secrets/sfrfr-lead.public.php',
+    ] as $cfg) {
+        if (!is_readable($cfg)) {
+            continue;
+        }
+        /** @var mixed $loaded */
+        $loaded = include $cfg;
+        if (!is_array($loaded)) {
+            continue;
+        }
+        foreach ($loaded as $k => $v) {
+            if (is_string($k) && (is_string($v) || is_int($v))) {
+                $map[$k] = (string) $v;
+            }
+        }
+    }
     $path = '/opt/sfrfr/.env';
     if (!is_readable($path)) {
         return $map;

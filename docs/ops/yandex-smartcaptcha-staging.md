@@ -33,7 +33,8 @@ API лида принимает `smartcaptcha_token` (или устаревши�
 MU-плагин `sfrfr-recaptcha-lead.php` + JS `scripts/assets/sfrfr-recaptcha-lead.js`:
 
 - виджет «Я не робот» перед кнопкой отправки;
-- клиентский ключ читается из `SMARTCAPTCHA_CLIENT_KEY` в `/opt/sfrfr/.env`;
+- клиентский ключ из `/opt/sfrfr/.env` → `mu-plugins/sfrfr-lead.config.php`
+  (www-data не читает `.env` напрямую; server key в конфиг WP не кладётся);
 - токен уходит в FastAPI как `smartcaptcha_token`.
 
 Выкладка:
