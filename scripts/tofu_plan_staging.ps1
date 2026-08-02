@@ -1,9 +1,5 @@
-# tofu plan для SFRFR staging (без apply).
-# Auth: secrets\yc-sa-terraform.json или YC_SERVICE_ACCOUNT_KEY_FILE / yc profile.
-
-param(
-    [switch]$SavePlan
-)
+# tofu plan for SFRFR staging (no apply).
+param([switch]$SavePlan)
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
@@ -14,19 +10,14 @@ $EnvFile = Join-Path $Root "secrets\yc-cloud.env"
 $DefaultKey = Join-Path $Root "secrets\yc-sa-terraform.json"
 $TofuRc = Join-Path $env:APPDATA "tofu\tofu.rc"
 
-if (-not (Test-Path $Tofu)) {
-    throw "OpenTofu не найден: $Tofu"
-}
+if (-not (Test-Path $Tofu)) { throw "OpenTofu not found: $Tofu" }
 if (-not (Test-Path (Join-Path $Infra "terraform.tfvars"))) {
-    throw "Нет terraform.tfvars — скопируйте из terraform.tfvars.example"
+    throw "Missing terraform.tfvars"
 }
 
 $env:PATH = "$(Split-Path $Yc -Parent);$(Split-Path $Tofu -Parent);$env:PATH"
-if (Test-Path $TofuRc) {
-    $env:TOFU_CLI_CONFIG_FILE = $TofuRc
-}
+if (Test-Path $TofuRc) { $env:TOFU_CLI_CONFIG_FILE = $TofuRc }
 
-# Подхватить путь к SA key
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
         if ($_ -match '^\s*YC_SERVICE_ACCOUNT_KEY_FILE=(.+)\s*$') {
@@ -38,7 +29,6 @@ if (-not $env:YC_SERVICE_ACCOUNT_KEY_FILE -and (Test-Path $DefaultKey)) {
     $env:YC_SERVICE_ACCOUNT_KEY_FILE = $DefaultKey
 }
 
-# IAM token из yc (если профиль с SA key уже настроен)
 if (-not $env:YC_TOKEN -and (Test-Path $Yc)) {
     $iam = & $Yc iam create-token 2>&1
     if ($LASTEXITCODE -eq 0 -and $iam) {
@@ -47,7 +37,7 @@ if (-not $env:YC_TOKEN -and (Test-Path $Yc)) {
 }
 
 if (-not $env:YC_TOKEN -and -not $env:YC_SERVICE_ACCOUNT_KEY_FILE) {
-    throw "Нет auth. Сначала: .\scripts\yc_cloud_auth.ps1 (нужен secrets\yc-sa-terraform.json)"
+    throw "No auth. Run .\scripts\yc_cloud_auth.ps1 first"
 }
 
 Set-Location $Infra
@@ -55,10 +45,8 @@ Write-Host "tofu validate..."
 & $Tofu validate
 if ($LASTEXITCODE -ne 0) { throw "validate failed" }
 
-Write-Host "tofu plan (без apply)..."
+Write-Host "tofu plan (no apply)..."
 $planArgs = @("plan", "-input=false")
-if ($SavePlan) {
-    $planArgs += @("-out=tfplan.staging")
-}
+if ($SavePlan) { $planArgs += @("-out=tfplan.staging") }
 & $Tofu @planArgs
 exit $LASTEXITCODE

@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-08-02 (tofu plan staging OK)
+
+- SA key `secrets/yc-sa-terraform.json` → yc auth OK.
+- `tofu plan`: **18 to add**, 0 change, 0 destroy; `tfplan.staging` локально.
+- Apply не запускали (нужны баланс > 0 и явное «apply»).
 ## 2026-08-02 (YC auth: SA key вместо OAuth)
 
 - Новые OAuth `y0_…` (после 2026-06-01) не обмениваются на IAM.
