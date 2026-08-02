@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-08-02 (правило ТЗ для Яндекс-ассистента)
+
+- `.cursor/rules/yandex-assistant-tz.mdc` (`alwaysApply`): самодостаточное ТЗ + пометка в конце.
+- Причина: история чата Яндекс Cloud / AI Studio ~15 минут.
+
 ## 2026-08-02 (tofu plan staging OK)
 
 - SA key `secrets/yc-sa-terraform.json` → yc auth OK.
