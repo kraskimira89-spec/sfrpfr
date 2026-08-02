@@ -172,15 +172,27 @@ docker compose exec -T db pg_dump -U postgres > backup-$(date +%F).sql
 
 ---
 
+## Операционные скрипты (репо)
+
+| Скрипт | Назначение |
+|--------|------------|
+| `scripts/vm_supabase_enable_caddy.sh` | TLS: Caddy + `PROXY_DOMAIN=supabase.proverkastaza.ru` |
+| `scripts/vm_supabase_apply_migrations.sh` | `supabase/migrations` + синтетический seed |
+| `scripts/staging_seed_synthetic.sql` | SYNTH-клиенты/кейсы (не ПДн) |
+| `scripts/vm_supabase_backup.sh` | `pg_dump -Fc` → `/data/backups/…` (РФ-диск ВМ) |
+| `scripts/vm_supabase_restore_drill.sh` | restore в БД `restore_drill` |
+| `docs/ops/yandex-smartcaptcha-staging.md` | пилот SmartCaptcha |
+
 ## Чеклист приёмки staging
 
-- [ ] ВМ и бэкапы в регионе РФ
-- [ ] Все секреты не дефолтные; Studio не в публичном доступе
-- [ ] HTTPS на `API_EXTERNAL_URL`
-- [ ] Миграции SFRFR применены; RLS-тесты зелёные
+- [x] ВМ в регионе РФ (`ru-central1`), Compose healthy (2026-08-02)
+- [x] Секреты из Lockbox (не дефолтные JWT); Studio не на `:8000` с интернета (SG)
+- [ ] HTTPS на `API_EXTERNAL_URL` — Caddy поднят; **LE ждёт DNS A `supabase` → `51.250.13.240`** (reg.ru)
+- [x] Миграции SFRFR (11) + SYNTH seed применены (2026-08-02)
 - [ ] Magic link / OTP с рабочего SMTP
-- [ ] Restore dump на чистый стенд успешен
-- [ ] Cabinet/admin/API ходят в новый URL только через env
+- [x] Restore-drill: dump + `restore_drill` с `public_tables=16` (ACL warnings ок)
+- [ ] SmartCaptcha пилот — ключи YC + `CAPTCHA_PROVIDER=yandex` на staging API (код готов)
+- [ ] Cabinet/admin/API на staging URL только через env (не prod cutover)
 
 ## Чего не делать
 

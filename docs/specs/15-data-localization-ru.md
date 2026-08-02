@@ -77,14 +77,14 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 
 ### Фаза 1. Подготовка РФ-контура (после MVP / при готовности)
 
-1. Аккаунт Yandex Cloud, каталог, бюджет, VPC в регионе РФ.
-2. Развернуть self-hosted Supabase (Docker/K8s) **или** Managed PG + Storage + GoTrue/Kong по официальному self-host гайду.
-3. Object Storage: private bucket, шифрование, IAM least privilege.
-4. Сеть: TLS, firewall, доступ FastAPI только к нужным портам; Dashboard — VPN/bastion.
-5. Настроить бэкапы PG + объекты — только РФ; тест restore на чистый стенд.
-6. Поднять **staging** с копией схемы (миграции `supabase/migrations`) и синтетическими данными.
-7. Прогнать RLS/интеграционные тесты против staging URL.
-8. Пилот SmartCaptcha на staging-форме лида (параллельно или вместо reCAPTCHA).
+1. Аккаунт Yandex Cloud, каталог, бюджет, VPC в регионе РФ. ✅ staging folder + Terraform.
+2. Развернуть self-hosted Supabase (Docker) на ВМ. ✅ `51.250.13.240`, Compose healthy.
+3. Object Storage: private bucket staging. ✅ `sfrfr-staging-backup-*` (бэкапы).
+4. Сеть: TLS, firewall; Studio не публично. ⚠️ SG ок; **HTTPS ждёт DNS** `supabase.proverkastaza.ru` → IP ВМ + Caddy (`vm_supabase_enable_caddy.sh`).
+5. Бэкапы PG только РФ + restore-drill. 📦 скрипты `vm_supabase_backup.sh` / `vm_supabase_restore_drill.sh` — прогнать на ВМ.
+6. Staging-схема + синтетика. 📦 `vm_supabase_apply_migrations.sh` + `staging_seed_synthetic.sql`.
+7. RLS/интеграционные тесты против staging URL — после HTTPS/миграций.
+8. Пилот SmartCaptcha. 📦 модуль `integrations/smartcaptcha` + [yandex-smartcaptcha-staging.md](../ops/yandex-smartcaptcha-staging.md); нужны ключи в YC и виджет на staging-форме.
 
 Критерий выхода: staging в РФ зелёный; restore бэкапа подтверждён; SmartCaptcha на staging ок.
 
@@ -147,4 +147,5 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 - [x] На MVP разрешён временный Supabase Cloud.
 - [x] План миграции по фазам 0–4 описан.
 - [x] Разница Supabase vs Yandex Cloud зафиксирована в таблице.
-- [ ] Фазы 1–4 — после MVP (отдельные задачи/спринт).
+- [ ] Фаза 1 — в работе (инфра staging есть; DNS/TLS, миграции, restore-drill, SmartCaptcha-ключи — хвосты).
+- [ ] Фазы 2–4 — после MVP / после зелёной фазы 1.

@@ -12,6 +12,23 @@ NS: `ns1.reg.ru` / `ns2.reg.ru` (как у старого домена).
 | A | `api` | `91.229.11.147` |
 | A | `cabinet` | `91.229.11.147` |
 | A | `admin` | `91.229.11.147` |
+| A | `supabase` | `51.250.13.240` |
+
+## Staging Supabase (Yandex Cloud, ТЗ-15)
+
+| Тип | Имя (хост) | Значение | Зачем |
+|-----|------------|----------|--------|
+| A | `supabase` | `51.250.13.240` | self-host staging → Caddy/Let's Encrypt на ВМ |
+
+После добавления записи в reg.ru:
+
+```powershell
+nslookup supabase.proverkastaza.ru 8.8.8.8
+```
+
+Ожидание: `Address: 51.250.13.240`. Затем на ВМ: `scripts/vm_supabase_enable_caddy.sh`.
+
+Studio наружу не открываем: в Caddy Studio за basic_auth; Postgres `5432` в интернет не публиковать.
 
 ## Почта Яндекс 360 (MX + DKIM)
 

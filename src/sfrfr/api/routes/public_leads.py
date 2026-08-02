@@ -144,12 +144,17 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
     consent = False
     preferred: str | None = None
     recaptcha_token: str | None = None
+    smartcaptcha_token: str | None = None
     for item in fields.values():
         if not isinstance(item, dict):
             continue
         label = str(item.get("name") or item.get("label") or "").lower()
         ftype = str(item.get("type") or "").lower()
         value = str(item.get("value") or "").strip()
+        if "smartcaptcha" in label or "smart-captcha" in label:
+            if value:
+                smartcaptcha_token = value[:4000]
+            continue
         if "recaptcha" in label or "g-recaptcha" in label:
             if value:
                 recaptcha_token = value[:4000]
@@ -179,6 +184,10 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
             str(raw.get("recaptcha_token") or raw.get("g-recaptcha-response") or "").strip()
             or None
         )
+    if not smartcaptcha_token:
+        smartcaptcha_token = (
+            str(raw.get("smartcaptcha_token") or raw.get("smart-token") or "").strip() or None
+        )
     return PublicLeadRequest(
         full_name=full_name[:200],
         email=email,
@@ -187,6 +196,7 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         preferred_channel=_normalize_channel(preferred),
         source="wordpress_wpforms",
         recaptcha_token=recaptcha_token,
+        smartcaptcha_token=smartcaptcha_token,
     )
 
 
@@ -270,24 +280,51 @@ def _notify_max_managers_new_lead(
     return {"ok": sent > 0, "sent": sent}
 
 
-def _require_recaptcha(token: str | None, *, client_ip: str | None = None) -> None:
-    """При настроенном Enterprise — обязательная проверка; в local/debug можно пропуск."""
-    verifier = RecaptchaVerifier()
-    if not verifier.configured:
-        return
+def _captcha_mode() -> str:
+    """auto | google | yandex — см. CAPTCHA_PROVIDER."""
     settings = get_settings()
-    if not (token or "").strip():
+    mode = (settings.captcha_provider or "auto").strip().lower()
+    if mode not in ("auto", "google", "yandex"):
+        return "auto"
+    return mode
+
+
+def _require_captcha(
+    *,
+    recaptcha_token: str | None,
+    smartcaptcha_token: str | None = None,
+    client_ip: str | None = None,
+) -> None:
+    """Проверка captcha: SmartCaptcha и/или reCAPTCHA; local/debug — пропуск без токена."""
+    settings = get_settings()
+    mode = _captcha_mode()
+    smart = SmartCaptchaVerifier()
+    google = RecaptchaVerifier()
+    use_smart = mode == "yandex" or (mode == "auto" and smart.configured)
+    use_google = mode == "google" or (mode == "auto" and not use_smart and google.configured)
+
+    if not use_smart and not use_google:
+        return
+
+    token = (smartcaptcha_token or recaptcha_token or "").strip()
+    if not token:
         if settings.app_env in ("local", "dev", "development") or settings.app_debug:
             return
-        raise HTTPException(status_code=400, detail="recaptcha_token required")
-    result = verifier.verify(token or "", expected_action="lead", user_ip=client_ip)
+        raise HTTPException(status_code=400, detail="captcha_token required")
+
+    if use_smart:
+        result = smart.verify(token, user_ip=client_ip)
+        if result.get("skipped"):
+            return
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail="smartcaptcha_failed")
+        return
+
+    result = google.verify(token, expected_action="lead", user_ip=client_ip)
     if result.get("skipped"):
         return
     if not result.get("ok"):
-        raise HTTPException(
-            status_code=400,
-            detail="recaptcha_failed",
-        )
+        raise HTTPException(status_code=400, detail="recaptcha_failed")
 
 
 def _create_lead(
@@ -297,7 +334,11 @@ def _create_lead(
 ) -> PublicLeadResponse:
     if not payload.consent:
         raise HTTPException(status_code=400, detail="consent required")
-    _require_recaptcha(payload.recaptcha_token, client_ip=client_ip)
+    _require_captcha(
+        recaptcha_token=payload.recaptcha_token,
+        smartcaptcha_token=payload.smartcaptcha_token,
+        client_ip=client_ip,
+    )
 
     settings = get_settings()
     phone, email, contact_display = _resolve_lead_contacts(payload)

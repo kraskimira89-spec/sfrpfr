@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-08-02 (ТЗ-15 фаза 1: staging хвосты)
+
+- Caddy на ВМ; LE ждёт DNS `supabase.proverkastaza.ru` → `51.250.13.240`.
+- 11 миграций + SYNTH seed; backup + restore_drill OK.
+- SmartCaptcha: модуль + `CAPTCHA_PROVIDER`; ops `yandex-smartcaptcha-staging.md`.
+- Скрипты: `vm_supabase_*`, `deploy_tz15_phase1_staging.ps1`.
+
 ## 2026-08-02 (Lockbox SoT + Supabase Compose staging UP)
 
 - Не создавать `supabase-config` с placeholder JWT — удалён; SoT:

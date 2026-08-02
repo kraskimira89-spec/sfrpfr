@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-02 — ТЗ-15 рекомендации фазы 1
+
+Реализованы скрипты/код: Caddy, миграции+seed, backup/restore-drill, SmartCaptcha модуль.
+Ручной хвост пользователя: DNS A `supabase` в reg.ru; ключи SmartCaptcha в YC.
+
 ## 2026-08-02 — Lockbox supabase-config (не создавать)
 
 Пользователь/консольный AI: создать `supabase-config` с placeholder JWT.

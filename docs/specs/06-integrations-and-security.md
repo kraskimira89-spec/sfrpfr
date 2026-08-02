@@ -12,7 +12,7 @@
 | CRM | amoCRM (ТЗ-12) |
 | Сообщения | MAX Bot API |
 | AI | Yandex AI Studio |
-| Captcha | MVP: Google reCAPTCHA Enterprise; целевой: Yandex SmartCaptcha (ТЗ-15) |
+| Captcha | MVP: Google reCAPTCHA Enterprise; пилот/целевой: Yandex SmartCaptcha (`CAPTCHA_PROVIDER`, `integrations/smartcaptcha`, ТЗ-15) |
 | Аналитика | Google Sheets, обезличенные данные |
 | Оплаты | ЮKassa или иной провайдер с чеками |
 
