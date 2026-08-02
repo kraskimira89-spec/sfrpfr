@@ -444,7 +444,10 @@ class CaseRepository:
     def get_pipeline_row(self, case_id: str) -> dict[str, Any] | None:
         return self._one_or_none(
             self.client.table("case_pipeline_data")
-            .select("findings, draft, error, ocr_texts, updated_at")
+            .select(
+                "findings, draft, error, ocr_texts, analysis_notes, "
+                "ils_periods, labor_periods, classifications, updated_at"
+            )
             .eq("case_id", case_id)
             .limit(1)
             .execute()
@@ -456,6 +459,68 @@ class CaseRepository:
             return []
         findings = row.get("findings") or []
         return findings if isinstance(findings, list) else []
+
+    def get_pipeline_analysis_notes(self, case_id: str) -> str | None:
+        row = self.get_pipeline_row(case_id)
+        if not row:
+            return None
+        notes = row.get("analysis_notes")
+        return str(notes) if notes else None
+
+    def save_pipeline_snapshot(self, case_id: str, snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Upsert результатов пайплайна (в т.ч. analysis_notes) в case_pipeline_data."""
+        payload: dict[str, Any] = {
+            "case_id": case_id,
+            "ocr_texts": snapshot.get("ocr_texts") if snapshot.get("ocr_texts") is not None else [],
+            "classifications": snapshot.get("classifications")
+            if snapshot.get("classifications") is not None
+            else [],
+            "ils_periods": snapshot.get("ils_periods")
+            if snapshot.get("ils_periods") is not None
+            else [],
+            "labor_periods": snapshot.get("labor_periods")
+            if snapshot.get("labor_periods") is not None
+            else [],
+            "findings": snapshot.get("findings") if snapshot.get("findings") is not None else [],
+            "analysis_notes": snapshot.get("analysis_notes"),
+            "draft": snapshot.get("draft"),
+            "error": snapshot.get("error"),
+        }
+        response = (
+            self.client.table("case_pipeline_data")
+            .upsert(payload, on_conflict="case_id")
+            .execute()
+        )
+        data = getattr(response, "data", None)
+        if isinstance(data, list) and data:
+            return data[0]
+        if isinstance(data, dict):
+            return data
+        return payload
+
+    @staticmethod
+    def snapshot_from_case_context(ctx: Any) -> dict[str, Any]:
+        """Собрать payload из CaseContext (локальный оркестратор)."""
+        return {
+            "ocr_texts": list(getattr(ctx, "ocr_texts", None) or []),
+            "classifications": [
+                c.model_dump(mode="json") if hasattr(c, "model_dump") else c
+                for c in (getattr(ctx, "classifications", None) or [])
+            ],
+            "ils_periods": list(getattr(ctx, "ils_periods", None) or []),
+            "labor_periods": list(getattr(ctx, "labor_periods", None) or []),
+            "findings": [
+                f.model_dump(mode="json") if hasattr(f, "model_dump") else f
+                for f in (getattr(ctx, "findings", None) or [])
+            ],
+            "analysis_notes": getattr(ctx, "analysis_notes", None),
+            "draft": (
+                ctx.draft.model_dump(mode="json")
+                if getattr(ctx, "draft", None) is not None and hasattr(ctx.draft, "model_dump")
+                else getattr(ctx, "draft", None)
+            ),
+            "error": getattr(ctx, "error", None),
+        }
 
     def list_checklist(self, case_id: str) -> list[dict[str, Any]]:
         return (
@@ -502,6 +567,7 @@ class CaseRepository:
             "message": message,
             "pipeline_status": refreshed.get("pipeline_status"),
             "findings": self.get_pipeline_findings(case_id),
+            "analysis_notes": self.get_pipeline_analysis_notes(case_id),
             "draft": self.get_pipeline_draft(case_id),
         }
 

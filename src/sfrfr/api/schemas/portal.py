@@ -160,6 +160,7 @@ class PipelineRunResponse(BaseModel):
     message: str
     pipeline_status: str | None = None
     findings: list[FindingItem] = Field(default_factory=list)
+    analysis_notes: str | None = None
     draft: dict[str, Any] | None = None
     warning: str = "Решение принимает СФР. Результат не гарантирован."
 

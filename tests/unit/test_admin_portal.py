@@ -61,6 +61,7 @@ def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch)
     pipeline = {
         "ocr_texts": ["scan"],
         "findings": [{"type": "gap", "detail": "период"}],
+        "analysis_notes": "Возможный пробел стажа — проверить эксперту.",
         "ils_periods": [],
         "labor_periods": [],
         "draft": {"title": "Заявление", "body": "..."},
@@ -76,8 +77,12 @@ def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch)
     expert = Principal(user_id="ex", email="e@x", role=StaffRole.EXPERT)
     payload = admin_portal._filter_staff_case(_base_case(), expert)
     assert payload["findings"] == pipeline["findings"]
+    assert payload["analysis_notes"] == pipeline["analysis_notes"]
     assert payload["ocr_texts"] == ["scan"]
     assert payload["client"]["max_user_id"] == "max-1"
+    assert "analysis_notes" not in admin_portal._filter_staff_case(
+        _base_case(), Principal(user_id="op", email="o@x", role=StaffRole.OPERATOR)
+    )
     assert payload["role_capabilities"]["can_edit_checklist"] is True
     assert payload["role_capabilities"]["can_confirm_result"] is True
     assert payload["role_capabilities"]["can_manage_orders"] is False

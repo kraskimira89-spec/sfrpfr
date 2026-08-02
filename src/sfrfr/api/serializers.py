@@ -23,6 +23,7 @@ def case_to_read(record: CaseRecord) -> CaseRead:
         document_count=len(ctx.document_paths),
         ocr_count=len(ctx.ocr_texts),
         findings=list(ctx.findings),
+        analysis_notes=ctx.analysis_notes,
         draft=ctx.draft,
         error=ctx.error,
         max_user_id=ctx.max_user_id,

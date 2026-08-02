@@ -1,5 +1,9 @@
 # История беседы (кратко)
 
+## 2026-08-02 (сохранение analysis_notes)
+
+- Реализована рекомендация: notes в БД + кабинет эксперта; клиенту не показываем.
+
 ## 2026-08-02 (шаг 4: связка DeepSeek + YandexGPT)
 
 - В AI Studio managed: DeepSeek V4 Flash (не self-host R1).

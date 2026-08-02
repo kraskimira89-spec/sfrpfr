@@ -27,6 +27,7 @@ class CaseRead(BaseModel):
     document_count: int = 0
     ocr_count: int = 0
     findings: list[Finding] = Field(default_factory=list)
+    analysis_notes: str | None = None
     draft: DraftResult | None = None
     error: str | None = None
     max_user_id: str | None = None

@@ -28,3 +28,21 @@ def test_case_to_read_includes_parity_fields() -> None:
     assert read.submission_instruction
     assert read.warning
     assert read.next_action
+    assert read.analysis_notes is None
+
+
+def test_case_context_roundtrip_analysis_notes() -> None:
+    from sfrfr.ai.orchestrator import CaseContext
+    from sfrfr.core.case_store import _ctx_from_dict, _ctx_to_dict
+    from sfrfr.db.case_repository import CaseRepository
+
+    ctx = CaseContext(case_id="c1", analysis_notes="Обоснование DeepSeek")
+    restored = _ctx_from_dict(_ctx_to_dict(ctx))
+    assert restored.analysis_notes == "Обоснование DeepSeek"
+    snap = CaseRepository.snapshot_from_case_context(ctx)
+    assert snap["analysis_notes"] == "Обоснование DeepSeek"
+    read = case_to_read(
+        CaseStore().create(client_name="Тест", snils_masked="***-***-*** **")
+    )
+    # свежий кейс без notes
+    assert read.analysis_notes is None

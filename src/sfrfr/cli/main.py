@@ -92,7 +92,9 @@ def case_run(
     record = store.run_until(case_id, stop_at=stop_at)
     typer.echo(
         f"{record.case_id}\t{status_label_ru(record.ctx.status)}\t"
-        f"находок={len(record.ctx.findings)}\tчерновик={'да' if record.ctx.draft else 'нет'}"
+        f"находок={len(record.ctx.findings)}\t"
+        f"обоснование={'да' if record.ctx.analysis_notes else 'нет'}\t"
+        f"черновик={'да' if record.ctx.draft else 'нет'}"
     )
 
 
@@ -126,6 +128,7 @@ def case_show(case_id: str = typer.Argument(...)) -> None:
         f"документов={len(ctx.document_paths)}\n"
         f"распознано={len(ctx.ocr_texts)}\n"
         f"находок={len(ctx.findings)}\n"
+        f"обоснование={'да' if ctx.analysis_notes else 'нет'}\n"
         f"ошибка={ctx.error or '-'}"
     )
 

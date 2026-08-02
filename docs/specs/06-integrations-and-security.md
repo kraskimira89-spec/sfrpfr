@@ -31,6 +31,7 @@
   - classify → `yandexgpt-lite` (быстро/дешево);
   - extract + reason → `deepseek-v4-flash` (логика/обоснование);
   - draft → `yandexgpt` Pro (русский официальный стиль).
+- `analysis_notes` хранится в `case_pipeline_data` и виден **эксперту/админу**; клиенту не отдаём.
 - Маскировать ПДн до передачи в модель (`redact_for_llm` / `x-data-logging-enabled: false`).
 - Не использовать LLM для детерминированной сверки ИЛС и трудовой.
 - Не использовать LLM как основной OCR: сканы — Yandex Vision / Tesseract (см. [13-document-ingest-v2.md](13-document-ingest-v2.md)).

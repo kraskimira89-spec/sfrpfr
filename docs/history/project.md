@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-02 (analysis_notes в кейсе / кабинете эксперта)
+
+- Колонка `case_pipeline_data.analysis_notes`; upsert `save_pipeline_snapshot`.
+- API admin отдаёт notes эксперту/админу; клиенту — нет.
+- UI admin: блок «Обоснование аналитика (DeepSeek)» рядом с черновиком.
+
 ## 2026-08-02 (dual-model AI Studio + security)
 
 - `LLMClient`: роли classify / analyze / draft; заголовок `x-data-logging-enabled: false`.

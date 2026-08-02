@@ -50,6 +50,7 @@ def _ctx_to_dict(ctx: CaseContext) -> dict[str, Any]:
         "ils_periods": list(ctx.ils_periods),
         "labor_periods": list(ctx.labor_periods),
         "findings": [f.model_dump(mode="json") for f in ctx.findings],
+        "analysis_notes": ctx.analysis_notes,
         "draft": ctx.draft.model_dump(mode="json") if ctx.draft else None,
         "error": ctx.error,
     }
@@ -71,6 +72,7 @@ def _ctx_from_dict(data: dict[str, Any]) -> CaseContext:
         ils_periods=list(data.get("ils_periods") or []),
         labor_periods=list(data.get("labor_periods") or []),
         findings=[Finding.model_validate(f) for f in data.get("findings") or []],
+        analysis_notes=data.get("analysis_notes"),
         draft=DraftResult.model_validate(draft_raw) if draft_raw else None,
         error=data.get("error"),
     )

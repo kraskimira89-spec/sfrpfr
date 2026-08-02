@@ -917,11 +917,25 @@ def run_case_pipeline(
             for f in record.ctx.findings
         ]
         draft = record.ctx.draft.model_dump(mode="json") if record.ctx.draft else None
+        analysis_notes = record.ctx.analysis_notes
+        # Синхронизация в Supabase для кабинета эксперта (если дело уже там).
+        if principal.is_staff:
+            try:
+                repo.save_pipeline_snapshot(
+                    case_id,
+                    CaseRepository.snapshot_from_case_context(record.ctx),
+                )
+            except Exception:  # noqa: BLE001 — локальный run не должен падать из‑за sync
+                pass
+        else:
+            # Клиенту не отдаём сырое обоснование аналитика (только эксперту/админу).
+            analysis_notes = None
         return PipelineRunResponse(
             ok=True,
             message="Проверка выполнена (локальный пайплайн).",
             pipeline_status=record.ctx.status.value,
             findings=findings,
+            analysis_notes=analysis_notes,
             draft=draft,
             warning=_SFR_WARNING,
         )
@@ -938,11 +952,15 @@ def run_case_pipeline(
         for f in (result.get("findings") or [])
         if isinstance(f, dict)
     ]
+    analysis_notes = (
+        result.get("analysis_notes") if principal.is_staff else None
+    )
     return PipelineRunResponse(
         ok=bool(result.get("ok")),
         message=str(result.get("message") or ""),
         pipeline_status=result.get("pipeline_status"),
         findings=findings,
+        analysis_notes=str(analysis_notes) if analysis_notes else None,
         draft=result.get("draft") if isinstance(result.get("draft"), dict) else None,
         warning=_SFR_WARNING,
     )

@@ -74,6 +74,7 @@ type StaffCaseDetail = {
     item_type?: string;
   }[];
   findings?: { type?: string; detail?: string }[];
+  analysis_notes?: string | null;
   ocr_texts?: unknown[];
   ils_periods?: unknown[];
   labor_periods?: unknown[];
@@ -1097,7 +1098,18 @@ export function AdminCabinet() {
                 </ul>
               </div>
               <div className="panel">
-                <h2>Черновик заявления</h2>
+                <h2>Обоснование аналитика (DeepSeek)</h2>
+                <p className="hint">
+                  После детерминированной сверки ИЛС↔трудовая. Не заменяет проверку эксперта.
+                </p>
+                {detail.analysis_notes ? (
+                  <pre className="draft">{detail.analysis_notes}</pre>
+                ) : (
+                  <p>Обоснования пока нет — запустите пайплайн до этапа audited/draft.</p>
+                )}
+              </div>
+              <div className="panel">
+                <h2>Черновик заявления (YandexGPT)</h2>
                 {detail.draft ? (
                   <pre className="draft">{detail.draft.title}{"\n\n"}{detail.draft.body}</pre>
                 ) : (

@@ -199,6 +199,7 @@ def _filter_staff_case(
         base["ils_periods"] = (pipeline or {}).get("ils_periods") or []
         base["labor_periods"] = (pipeline or {}).get("labor_periods") or []
         base["findings"] = (pipeline or {}).get("findings") or []
+        base["analysis_notes"] = (pipeline or {}).get("analysis_notes")
         base["draft"] = (pipeline or {}).get("draft")
         base["classifications"] = (pipeline or {}).get("classifications") or []
     return base
