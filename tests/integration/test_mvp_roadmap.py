@@ -126,10 +126,14 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "application/ld+json" in seo
     assert "Organization" in seo
     assert "GovernmentOrganization" not in seo
-    assert "preg_replace('/^\\s*<h1" in seo
+    assert "preg_replace('/^\\s*(?:<!--.*?-->\\s*)*<h1" in seo
     deploy = (REPO / "scripts/wp_deploy_blog_ui.sh").read_text(encoding="utf-8")
     assert "sfrfr-seo-meta.php" in deploy
+    assert "sfrfr-seo-redirects.php" in deploy
     assert "cache flush" in deploy
+    assert (REPO / "scripts/wp-mu-plugins/sfrfr-seo-redirects.php").exists()
+    assert (REPO / "scripts/assets/blog/21-zakazat-vypisku-ils.html").exists()
+    assert "kak-zakazat-vypisku-ils" in php
     miniapp = (REPO / "web/max-miniapp/index.html").read_text(encoding="utf-8")
     assert 'name="robots" content="noindex,nofollow,noarchive"' in miniapp
 
