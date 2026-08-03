@@ -36,10 +36,18 @@
     var input = ensureTokenInput(form);
     input.value = token || "";
     form.setAttribute("data-sfrfr-captcha-ok", "1");
-    if (typeof form.requestSubmit === "function") {
-      form.requestSubmit(submitBtn || undefined);
-    } else {
-      HTMLFormElement.prototype.submit.call(form);
+    // Нельзя requestSubmit(disabledBtn) — InvalidStateError, кнопка «молчит».
+    if (submitBtn) submitBtn.disabled = false;
+    try {
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit(submitBtn && !submitBtn.disabled ? submitBtn : undefined);
+      } else {
+        HTMLFormElement.prototype.submit.call(form);
+      }
+    } catch (err) {
+      form.removeAttribute("data-sfrfr-captcha-ok");
+      if (submitBtn) submitBtn.disabled = false;
+      window.alert("Не удалось отправить форму. Обновите страницу и попробуйте снова.");
     }
   }
 
@@ -61,21 +69,58 @@
     return box;
   }
 
-  function loadYandex() {
-    if (document.getElementById("sfrfr-smartcaptcha-js")) return;
+  function loadYandex(onReady) {
+    if (window.smartCaptcha && typeof window.smartCaptcha.render === "function") {
+      if (typeof onReady === "function") onReady();
+      return;
+    }
+    var existing = document.getElementById("sfrfr-smartcaptcha-js");
+    if (existing) {
+      if (typeof onReady === "function") {
+        existing.addEventListener("load", onReady);
+        // на случай, если скрипт уже успел загрузиться
+        setTimeout(function () {
+          if (window.smartCaptcha && typeof onReady === "function") onReady();
+        }, 50);
+      }
+      return;
+    }
     var script = document.createElement("script");
     script.id = "sfrfr-smartcaptcha-js";
     // URL из консоли YC (alias); docs также допускают smartcaptcha.cloud.yandex.ru
     script.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
-    script.defer = true;
+    script.async = true;
+    if (typeof onReady === "function") {
+      script.addEventListener("load", onReady);
+    }
     document.head.appendChild(script);
   }
 
   function readYandexToken(form) {
     var el =
       form.querySelector(".smart-captcha input[name='smart-token']") ||
-      form.querySelector("input[name='smart-token']");
+      form.querySelector("input[name='smart-token']") ||
+      form.querySelector(".sfrfr-smartcaptcha-widget input[type='hidden']");
     return el && el.value ? String(el.value) : "";
+  }
+
+  function renderYandexWidgets() {
+    if (!window.smartCaptcha || typeof window.smartCaptcha.render !== "function") {
+      return;
+    }
+    document.querySelectorAll(".sfrfr-smartcaptcha-widget").forEach(function (box) {
+      if (box.getAttribute("data-sfrfr-rendered") === "1") return;
+      if (!box.id) {
+        box.id = "sfrfr-smartcaptcha-" + Math.random().toString(36).slice(2, 10);
+      }
+      try {
+        window.smartCaptcha.render(box.id, { sitekey: CLIENT_KEY });
+        box.setAttribute("data-sfrfr-rendered", "1");
+      } catch (err) {
+        // уже отрисовано авто-инициализацией captcha.js
+        box.setAttribute("data-sfrfr-rendered", "1");
+      }
+    });
   }
 
   function mountYandex() {
@@ -84,7 +129,7 @@
       ensureYandexWidget(form);
       ensureTokenInput(form);
     });
-    loadYandex();
+    loadYandex(renderYandexWidgets);
   }
 
   /* ---------- Google reCAPTCHA Enterprise (legacy) ---------- */
@@ -173,7 +218,6 @@
         if (typeof ev.stopImmediatePropagation === "function") {
           ev.stopImmediatePropagation();
         }
-        if (submitBtn) submitBtn.disabled = true;
         submitWithToken(form, submitBtn, yToken);
         return;
       }
@@ -194,6 +238,7 @@
         })
         .catch(function () {
           if (submitBtn) submitBtn.disabled = false;
+          form.removeAttribute("data-sfrfr-captcha-ok");
           window.alert(
             "Не удалось проверить форму (капча). Обновите страницу и попробуйте снова."
           );
