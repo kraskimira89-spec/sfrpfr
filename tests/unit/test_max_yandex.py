@@ -97,6 +97,53 @@ def test_llm_uses_llm_aliases(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_llm_deepseek_provider(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "deepseek")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
+    monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
+    get_settings.cache_clear()
+    client = LLMClient()
+    assert client.provider == "deepseek"
+    assert client.available is True
+    assert client.api_key == "sk-test"
+    assert client.model == "deepseek-chat"
+    get_settings.cache_clear()
+
+
+def test_llm_deepseek_fallback_when_primary_unavailable(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "yandex")
+    monkeypatch.setenv("YANDEX_API_KEY", "")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_FOLDER_ID", "")
+    monkeypatch.setenv("LLM_MODEL", "")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-fallback")
+    monkeypatch.setenv("DEEPSEEK_FALLBACK_ENABLED", "1")
+    get_settings.cache_clear()
+    primary = LLMClient(purpose="analyze")
+    assert primary.available is False
+    fb = primary._fallback_client()
+    assert fb is not None
+    assert fb.provider == "deepseek"
+    assert fb.available is True
+
+    called: dict[str, str] = {}
+
+    def _fake_chat(*, system: str, user: str, temperature: float = 0.0) -> str:
+        called["system"] = system
+        return "fallback-ok"
+
+    assert fb is not None
+    fb.chat = _fake_chat  # type: ignore[method-assign]
+    # подмена fallback-клиента
+    monkeypatch.setattr(primary, "_fallback_client", lambda: fb)
+    out = primary.chat(system="sys", user="user")
+    assert out == "fallback-ok"
+    assert called["system"] == "sys"
+    get_settings.cache_clear()
+
+
 def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     get_settings.cache_clear()

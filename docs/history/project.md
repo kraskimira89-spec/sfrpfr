@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-03 (DeepSeek platform как запасной LLM)
+
+- Ключ: `secrets/deepseek.env` (gitignore); шаблон `docs/ops/deepseek.env.example`.
+- `LLMClient`: при сбое/недоступности Yandex — fallback на `api.deepseek.com`.
+- Основной analyze по-прежнему Yandex AI Studio `deepseek-v4-flash`. Smoke OK.
+
 ## 2026-08-03 (Auth redirects на YC)
 
 - Self-host GoTrue: allow-list cabinet + admin; скрипт `scripts/yc_set_auth_redirects.sh`.
