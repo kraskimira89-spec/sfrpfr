@@ -5,11 +5,27 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DBT_DIR="$ROOT/analytics"
 ENV_FILE="${SFRFR_ENV_FILE:-$ROOT/.env}"
 
+load_dotenv() {
+  local file="$1" line key val
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "${line//[[:space:]]/}" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" != *=* ]] && continue
+    key="${line%%=*}"
+    val="${line#*=}"
+    # trim surrounding quotes
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+      val="${val:1:${#val}-2}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+      val="${val:1:${#val}-2}"
+    fi
+    export "$key=$val"
+  done <"$file"
+}
+
+# Не `source` .env: пути с пробелами (Google Calendar json) ломают bash.
+# systemd EnvironmentFile тоже ок; load_dotenv дополняет ручной запуск.
 if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  load_dotenv "$ENV_FILE"
 fi
 
 : "${DBT_HOST:?DBT_HOST must be set}"
@@ -28,7 +44,7 @@ if [[ ! -x "$DBT_BIN" ]]; then
 fi
 
 "$DBT_BIN" debug --profiles-dir .
-# Нужен direct PostgreSQL endpoint с IPv4 add-on; запускаем последовательно.
+# Direct Postgres (YC :5433 или Cloud direct); последовательно.
 "$DBT_BIN" build --profiles-dir . --threads 1 --no-populate-cache
 "$ROOT/scripts/dbt_apply_rls.sh"
 "$DBT_BIN" docs generate --profiles-dir . --threads 1 --no-populate-cache || true

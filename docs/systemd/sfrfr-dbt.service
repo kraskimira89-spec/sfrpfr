@@ -10,7 +10,7 @@ User=sfrfr
 Group=sfrfr
 WorkingDirectory=/opt/sfrfr
 EnvironmentFile=/opt/sfrfr/.env
-ExecStart=/opt/sfrfr/scripts/dbt_run.sh
+ExecStart=/bin/bash /opt/sfrfr/scripts/dbt_run.sh
 TimeoutStartSec=45min
 Nice=10
 

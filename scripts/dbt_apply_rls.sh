@@ -6,11 +6,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${SFRFR_ENV_FILE:-$ROOT/.env}"
 
+load_dotenv() {
+  local file="$1" line key val
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "${line//[[:space:]]/}" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" != *=* ]] && continue
+    key="${line%%=*}"
+    val="${line#*=}"
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+      val="${val:1:${#val}-2}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+      val="${val:1:${#val}-2}"
+    fi
+    export "$key=$val"
+  done <"$file"
+}
+
 if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  load_dotenv "$ENV_FILE"
 fi
 
 : "${DBT_HOST:?DBT_HOST must be set}"
@@ -19,9 +32,11 @@ fi
 DBT_PORT="${DBT_PORT:-5432}"
 DBT_USER="${DBT_USER:-analytics_transformer}"
 DBT_DBNAME="${DBT_DBNAME:-postgres}"
+# Cloud: require. Self-host YC (ssl=off): disable.
+DBT_SSLMODE="${DBT_SSLMODE:-disable}"
 
 export PGPASSWORD="$DBT_PASSWORD"
-CONN="host=${DBT_HOST} port=${DBT_PORT} user=${DBT_USER} dbname=${DBT_DBNAME} sslmode=require connect_timeout=30"
+CONN="host=${DBT_HOST} port=${DBT_PORT} user=${DBT_USER} dbname=${DBT_DBNAME} sslmode=${DBT_SSLMODE} connect_timeout=30"
 
 psql "$CONN" -v ON_ERROR_STOP=1 <<'SQL'
 do $$
