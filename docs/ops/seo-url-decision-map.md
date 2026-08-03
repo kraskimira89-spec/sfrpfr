@@ -93,4 +93,4 @@
 - [x] Усиление pillar (ИЛС, сверка, неучтённый, архив, подача, отказ)
 - [x] Hub заказ ИЛС
 - [x] noindex thin + 301 map
-- [ ] Deploy + live audit + recrawl (после выкладки)
+- [x] Deploy + live audit + recrawl (2026-08-03)
