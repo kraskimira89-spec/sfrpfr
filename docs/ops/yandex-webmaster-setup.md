@@ -15,7 +15,7 @@
 | Sitemap `wp-sitemap.xml` в API + robots | ✅ |
 | Главное зеркало HTTPS без www (301) | ✅ Apache |
 | Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
-| Summary / host loaded | ⏳ `HOST_NOT_LOADED` до обхода робота |
+| Summary / host loaded | ✅ `data_status=OK` (ранее NOT_LOADED); searchable≈8, смотреть диагностику |
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
 
