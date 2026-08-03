@@ -80,7 +80,15 @@
 | 2. Привязка к хосту | **UI** на `https://proverkastaza.ru` (не www): Настройки → Привязка к Яндекс Метрике → добавить `111134477` |
 | 3. Включить обход | **UI**: Индексирование → Обход по счётчикам → вкл. |
 
-Кабинет apex: https://webmaster.yandex.ru/site/https:proverkastaza.ru:443/
+Кабинет: [список сайтов](https://webmaster.yandex.ru/sites/) → в шапке выбрать **`https://proverkastaza.ru`** (без www).
+
+Прямые ссылки (после логина; host_id **обязательно** с `%3A`, иначе 404):
+
+- [Сводка apex](https://webmaster.yandex.ru/site/https%3Aproverkastaza.ru%3A443/dashboard/)
+- [Настройки (привязка Метрики)](https://webmaster.yandex.ru/site/https%3Aproverkastaza.ru%3A443/settings/)
+- [Метрика счётчика](https://metrika.yandex.ru/settings?id=111134477)
+
+Не открывайте `.../site/https:proverkastaza.ru:443/` без кодирования — браузер покажет 404.
 
 
 

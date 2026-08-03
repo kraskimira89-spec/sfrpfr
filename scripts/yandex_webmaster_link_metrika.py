@@ -130,8 +130,12 @@ def main() -> int:
     print(
         f"""
 === Что нажать вручную (хост БЕЗ www) ===
-1) Откройте apex, не www:
-   https://webmaster.yandex.ru/site/{HOST_ID}/
+1) Список сайтов (не вставляйте host_id в адресную строку — будет 404):
+   https://webmaster.yandex.ru/sites/
+   В шапке выберите **https://proverkastaza.ru** (без www).
+
+   Рабочая страница настроек Метрики (нужен логин):
+   https://webmaster.yandex.ru/site/https%3Aproverkastaza.ru%3A443/settings/metrika/
 
 2) Привязка счётчика {cid}:
    Настройки → Привязка к Яндекс Метрике → Добавить счётчик → {cid}
@@ -144,6 +148,7 @@ def main() -> int:
    Индексирование → Обход по счётчикам → включить рядом с {cid}
 
 Счётчик на сайте уже стоит (consent-gated). Шаг «Создать счётчик» на www не нужен.
+Не открывайте URL вида .../site/https:proverkastaza.ru:443/ без %3A — браузер даёт 404.
 """
     )
     return 0
