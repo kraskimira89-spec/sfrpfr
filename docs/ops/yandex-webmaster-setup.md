@@ -69,13 +69,19 @@
 | `https://www.proverkastaza.ru` | 0 (только 301 → apex) |
 | `http://www.proverkastaza.ru` | 0 |
 
-### Что сделать в кабинете Вебмастера
+### Привязка Метрики и «Обход по счётчикам»
 
-1. Работать только с **`https://proverkastaza.ru`**.
-2. Sitemap уже добавлен: `https://proverkastaza.ru/wp-sitemap.xml`.
-3. Привязать счётчик Метрики к этому хосту (диагностика: `NO_METRIKA_COUNTER_BINDING`).
-4. Включить обход по счётчикам Метрики для ускорения обхода новых URL.
-5. www-хост можно оставить verified «для зеркала», но **не смотреть** по нему индекс как KPI.
+**Публичного API для этих двух шагов нет** (проверено: `POST/PUT …/metrika/*` → 404).  
+Скрипт проверки: `python scripts/yandex_webmaster_link_metrika.py`.
+
+| Шаг | Как |
+|---|---|
+| 1. Счётчик на сайте | ✅ уже: `111134477`, MU `sfrfr-yandex-metrika.php` |
+| 2. Привязка к хосту | **UI** на `https://proverkastaza.ru` (не www): Настройки → Привязка к Яндекс Метрике → добавить `111134477` |
+| 3. Включить обход | **UI**: Индексирование → Обход по счётчикам → вкл. |
+
+Кабинет apex: https://webmaster.yandex.ru/site/https:proverkastaza.ru:443/
+
 
 
 1. [oauth.yandex.ru](https://oauth.yandex.ru/) → **SFRFR Webmaster**.
