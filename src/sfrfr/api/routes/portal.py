@@ -11,8 +11,6 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
-logger = logging.getLogger(__name__)
-
 from sfrfr.api.schemas.portal import (
     CaseMessageCreate,
     CaseSummary,
@@ -46,6 +44,8 @@ from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.auth import Principal, get_current_principal
 from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
