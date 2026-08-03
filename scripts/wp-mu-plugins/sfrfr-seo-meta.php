@@ -454,11 +454,16 @@ add_action('wp_head', static function (): void {
  * Добавляем byline автора/проверяющего на экспертных статьях.
  */
 add_filter('the_content', static function (string $content): string {
-    if (!is_singular('post') || !in_the_loop() || !is_main_query()) {
+    if ((!is_singular('post') && !is_page()) || !in_the_loop() || !is_main_query()) {
         return $content;
     }
-    $updated = preg_replace('/^\s*<h1\b[^>]*>.*?<\/h1>\s*/isu', '', $content, 1);
+    // Astra уже выводит title как H1 — убираем дубль из тела.
+    $updated = preg_replace('/^\s*(?:<!--.*?-->\s*)*<h1\b[^>]*>.*?<\/h1>\s*/isu', '', $content, 1);
     $content = is_string($updated) ? $updated : $content;
+
+    if (!is_singular('post')) {
+        return $content;
+    }
 
     $postId = get_the_ID();
     if (!$postId || has_category(['situacii', 'analitika'], $postId)) {

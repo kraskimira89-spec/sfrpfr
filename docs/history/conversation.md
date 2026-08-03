@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-03 — ТЗ-18 недели 2–3 доверие/коммерция
+
+- Страницы `/proverka-stazha/`, `/tarify/`, `/kak-rabotaem/`, `/kontakty/`, `/expert/lopakova-nataliya/`.
+- Byline автора/проверяющего; единые реквизиты; `tariff_view` на `/tarify/`.
+
 ## 2026-08-03 — документы и production-контур РФ
 
 - Проверен production: Supabase/API/dbt → Yandex Cloud, captcha → SmartCaptcha.
