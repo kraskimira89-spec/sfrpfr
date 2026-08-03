@@ -2,6 +2,7 @@
 
 **Профиль Sprav:** `234170727274`  
 **Кабинет прайса:** https://yandex.ru/sprav/234170727274/p/edit/price-lists/  
+**Кабинет постов:** https://yandex.ru/sprav/234170727274/p/edit/posts/  
 **Сайт:** https://proverkastaza.ru (без www)  
 **ТЗ-18:** достоверный профиль в каталогах, без ложных обещаний.
 
