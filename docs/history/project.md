@@ -2,19 +2,20 @@
 
 ## 2026-08-03 (staging HTTPS)
 
-- DNS + LE для `supabase.proverkastaza.ru` закрыты; Caddy на YC VM.
+- DNS `supabase.proverkastaza.ru` → `51.250.13.240`; Caddy LE OK (CN, до Nov 2026).
+- Smoke HTTPS: auth/health **200**, REST service_role **200** (SYNTH clients).
 
 ## 2026-08-02 (ТЗ-16: verify + DNS tooling)
 
 - Plan clean; Lockbox/миграции подтверждены на VM.
 - Добавлены `scripts/regru_add_supabase_a.py`, `wait_supabase_dns_and_tls.ps1`.
-- HTTPS staging ждёт A-запись в reg.ru.
+- HTTPS staging: закрыто 2026-08-03 после A-записи в reg.ru.
 
 ## 2026-08-02 (ТЗ-15 фаза 1: staging хвосты)
 
-- Caddy на ВМ; LE ждёт DNS `supabase.proverkastaza.ru` → `51.250.13.240`.
+- Caddy на ВМ; LE выдан после DNS.
 - 11 миграций + SYNTH seed; backup + restore_drill OK.
-- SmartCaptcha (прод): `CAPTCHA_PROVIDER=yandex`, ключи капчи `proverkastaza`; ops `yandex-smartcaptcha-staging.md`.
+- SmartCaptcha: модуль + ops; ключи — по `yandex-smartcaptcha-staging.md`.
 - Скрипты: `vm_supabase_*`, `deploy_tz15_phase1_staging.ps1`.
 
 ## 2026-08-02 (Lockbox SoT + Supabase Compose staging UP)
