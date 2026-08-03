@@ -14,6 +14,7 @@ from sfrfr.integrations.amocrm import AmoCrmClient, sync_case_to_amocrm
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id
 from sfrfr.integrations.recaptcha import RecaptchaVerifier
 from sfrfr.integrations.smartcaptcha import SmartCaptchaVerifier
+from sfrfr.utils.case_display import case_catalog_code
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -251,12 +252,13 @@ def _notify_max_managers_new_lead(
     if not manager_ids and not chat_ids:
         return {"ok": False, "skipped": True, "reason": "no managers"}
 
+    catalog = case_catalog_code(case_id, full_name=full_name)
     lines = [
         "Новая заявка с сайта",
         f"Имя: {full_name}",
         f"Контакт: {contact}",
         f"Канал: {channel}",
-        f"case_id: {case_id}",
+        f"Дело: {catalog}",
     ]
     if crm_url:
         lines.append(f"amoCRM: {crm_url}")
