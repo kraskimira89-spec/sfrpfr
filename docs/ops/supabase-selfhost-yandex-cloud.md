@@ -189,9 +189,9 @@ docker compose exec -T db pg_dump -U postgres > backup-$(date +%F).sql
 - [x] Секреты из Lockbox (не дефолтные JWT); Studio не на `:8000` с интернета (SG)
 - [x] HTTPS на `API_EXTERNAL_URL` — DNS A + Let's Encrypt OK (2026-08-03), `https://supabase.proverkastaza.ru`
 - [x] Миграции SFRFR (11) + SYNTH seed применены (2026-08-02)
-- [ ] Magic link / OTP с рабочего SMTP
+- [x] Magic link / OTP: Auth Send Email Hook на staging → `api.proverkastaza.ru` → Яндекс SMTP (см. `vm_supabase_enable_auth_email_hook.sh`)
 - [x] Restore-drill: dump + `restore_drill` с `public_tables=16` (ACL warnings ок)
-- [ ] SmartCaptcha пилот — ключи YC + `CAPTCHA_PROVIDER=yandex` на staging API (код готов)
+- [x] SmartCaptcha: ключи YC + `CAPTCHA_PROVIDER=yandex` на API/VPS; MU-плагин на витрине (`wp_apply_landing_vps.sh`)
 - [ ] Cabinet/admin/API на staging URL только через env (не prod cutover)
 
 ## Чего не делать

@@ -46,9 +46,9 @@ systemctl restart sfrfr-api
 
 ## 4. Критерий готовности
 
-- [ ] Ключи созданы в YC (РФ).
-- [ ] `CAPTCHA_PROVIDER=yandex` на VPS.
-- [ ] На https://proverkastaza.ru/#zayavka виден виджет SmartCaptcha.
+- [x] Ключи созданы в YC (РФ) — капча `proverkastaza`.
+- [x] `CAPTCHA_PROVIDER=yandex` на VPS `/opt/sfrfr/.env`.
+- [ ] На https://proverkastaza.ru/#zayavka виден виджет SmartCaptcha (после `wp_apply_landing_vps.sh`).
 - [ ] Успешный лид с отмеченной капчей.
 - [ ] Без капчи API отвечает `400 captcha_token required` / `smartcaptcha_failed`.
 

@@ -84,9 +84,9 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 5. Бэкапы PG только РФ + restore-drill. ✅ скрипты прогнаны на ВМ (2026-08-02).
 6. Staging-схема + синтетика. ✅ миграции + SYNTH seed.
 7. RLS/интеграционные тесты против staging URL — частично (HTTPS smoke 2026-08-03); расширить по мере подключения app env.
-8. Пилот SmartCaptcha. 📦 модуль готов; ключи/виджет — [yandex-smartcaptcha-staging.md](../ops/yandex-smartcaptcha-staging.md).
+8. Пилот SmartCaptcha. ✅ ключи YC `proverkastaza`, `CAPTCHA_PROVIDER=yandex`, MU на витрине ([yandex-smartcaptcha-staging.md](../ops/yandex-smartcaptcha-staging.md)).
 
-Критерий выхода: staging в РФ зелёный; restore бэкапа подтверждён; SmartCaptcha на staging ок.
+Критерий выхода: staging в РФ зелёный; restore бэкапа подтверждён; SmartCaptcha на staging/витрине ок.
 
 ### Фаза 2. Cutover данных
 

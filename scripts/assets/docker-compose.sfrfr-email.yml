@@ -1,0 +1,9 @@
+services:
+  auth:
+    environment:
+      GOTRUE_HOOK_SEND_EMAIL_ENABLED: ${GOTRUE_HOOK_SEND_EMAIL_ENABLED:-true}
+      GOTRUE_HOOK_SEND_EMAIL_URI: ${GOTRUE_HOOK_SEND_EMAIL_URI:-https://api.proverkastaza.ru/api/integrations/supabase/auth-send-email}
+      GOTRUE_HOOK_SEND_EMAIL_SECRETS: ${GOTRUE_HOOK_SEND_EMAIL_SECRETS}
+      # Брендинг / fallback SMTP (хук основной; inbucket не используем)
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-proverkastaza@yandex.ru}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-Проверка стажа. Личный кабинет}
