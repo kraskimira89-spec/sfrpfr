@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-08-03 (Auth redirects на YC)
+
+- Self-host GoTrue: allow-list cabinet + admin; скрипт `scripts/yc_set_auth_redirects.sh`.
+- Док `docs/ops/supabase-auth-redirects.md` → self-host как SoT.
+
 ## 2026-08-03 (cutover Supabase → YC)
 
 - Прод: API/cabinet/admin → `https://supabase.proverkastaza.ru` (11 clients / 9 cases / 10 users).

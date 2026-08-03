@@ -2,9 +2,12 @@
 
 ## 2026-08-03 — cutover Supabase Cloud → YC
 
-- Импорт данных в self-host (11 clients / 9 cases / 10 users).
+- Импорт данных в self-host (11 clients / 9 cases / 10 users; 0 SYNTH).
 - VPS `.env` + cabinet/admin пересобраны на `https://supabase.proverkastaza.ru`.
 - API health 200; service_role видит данные. Cloud пока не drain.
+- GoTrue `ADDITIONAL_REDIRECT_URLS` → cabinet/** + recover + admin/** (`yc_set_auth_redirects.sh`).
+- Пароли Auth пустые после импорта — вход через magic link / OTP.
+- Хвост: `DATABASE_URL`/`DBT_HOST` на VPS ещё Cloud (приложение ходит через Supabase HTTP; dbt — отдельно).
 
 ## 2026-08-03 — DNS supabase + HTTPS staging
 
