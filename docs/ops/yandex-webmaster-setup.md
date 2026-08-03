@@ -77,8 +77,8 @@
 | Шаг | Как |
 |---|---|
 | 1. Счётчик на сайте | ✅ уже: `111134477`, MU `sfrfr-yandex-metrika.php` |
-| 2. Привязка к хосту | **UI** на `https://proverkastaza.ru` (не www): Настройки → Привязка к Яндекс Метрике → добавить `111134477` |
-| 3. Включить обход | **UI**: Индексирование → Обход по счётчикам → вкл. |
+| 2. Привязка к хосту | ✅ `NO_METRIKA_COUNTER_BINDING=ABSENT` (03.08.2026, UI) |
+| 3. Включить обход | ✅ `NO_METRIKA_COUNTER_CRAWL_ENABLED=ABSENT` |
 
 Кабинет: [список сайтов](https://webmaster.yandex.ru/sites/) → в шапке выбрать **`https://proverkastaza.ru`** (без www).
 
