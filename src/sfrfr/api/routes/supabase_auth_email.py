@@ -62,7 +62,7 @@ def _verify_standard_webhook(*, body: bytes, headers: dict[str, str], secret_raw
     if abs(int(time.time()) - ts_i) > 300:
         raise HTTPException(status_code=401, detail="timestamp_out_of_range")
 
-    signed = f"{msg_id}.{ts}.".encode("utf-8") + body
+    signed = f"{msg_id}.{ts}.".encode() + body
     key = _hook_secret_bytes(secret_raw)
     digest = base64.b64encode(hmac.new(key, signed, hashlib.sha256).digest()).decode("ascii")
     expected = {part.strip().split(",", 1)[-1] for part in sig_header.split(" ") if part.strip()}
@@ -82,36 +82,41 @@ def _build_html(*, title: str, greeting: str, lead: str, token: str) -> str:
     token_block = ""
     if token:
         token_block = (
-            '<p style="margin:0 0 20px;text-align:center;font-size:32px;'
-            'letter-spacing:0.28em;font-weight:700;font-variant-numeric:tabular-nums;">'
-            f"{escape(token)}</p>"
+            "<p style=\"margin:0 0 20px;text-align:center;font-size:32px;"
+            "letter-spacing:0.28em;font-weight:700;"
+            f"font-variant-numeric:tabular-nums;\">{escape(token)}</p>"
         )
-    return f"""<!DOCTYPE html>
-<html lang="ru">
-  <body style="margin:0;padding:0;background:#f3f6fa;font-family:'Segoe UI',Arial,sans-serif;color:#122033;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fa;padding:24px 12px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #c9d6e5;border-radius:12px;padding:28px 24px;">
-            <tr>
-              <td>
-                <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1a4d7a;">Проверка стажа</p>
-                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">{escape(title)}</h1>
-                <p style="margin:0 0 12px;font-size:16px;line-height:1.5;">{greeting}</p>
-                <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#3d4f66;">{escape(lead)}</p>
-                {token_block}
-                <p style="margin:0;font-size:14px;line-height:1.5;color:#3d4f66;">
-                  Кабинет: <a href="{_CABINET}" style="color:#1a4d7a;">{_CABINET}</a>
-                </p>
-              </td>
-            </tr>
-          </table>
-          <p style="margin:16px 0 0;font-size:12px;color:#3d4f66;">proverkastaza.ru · личный кабинет</p>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>"""
+    # HTML-шаблон в списке строк — иначе ruff E501 на длинных style=
+    parts = [
+        "<!DOCTYPE html>",
+        '<html lang="ru">',
+        "<body style=\"margin:0;padding:0;background:#f3f6fa;",
+        "font-family:'Segoe UI',Arial,sans-serif;color:#122033;\">",
+        '<table role="presentation" width="100%" cellspacing="0"',
+        ' cellpadding="0" style="background:#f3f6fa;padding:24px 12px;">',
+        "<tr><td align=\"center\">",
+        '<table role="presentation" width="100%" cellspacing="0"',
+        ' cellpadding="0" style="max-width:560px;background:#ffffff;',
+        "border:1px solid #c9d6e5;border-radius:12px;padding:28px 24px;\">",
+        "<tr><td>",
+        '<p style="margin:0 0 8px;font-size:14px;font-weight:700;',
+        'color:#1a4d7a;">Проверка стажа</p>',
+        f'<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">'
+        f"{escape(title)}</h1>",
+        f'<p style="margin:0 0 12px;font-size:16px;line-height:1.5;">{greeting}</p>',
+        '<p style="margin:0 0 16px;font-size:16px;line-height:1.5;',
+        f'color:#3d4f66;">{escape(lead)}</p>',
+        token_block,
+        '<p style="margin:0;font-size:14px;line-height:1.5;color:#3d4f66;">',
+        f'Кабинет: <a href="{_CABINET}" style="color:#1a4d7a;">{_CABINET}</a>',
+        "</p>",
+        "</td></tr></table>",
+        '<p style="margin:16px 0 0;font-size:12px;color:#3d4f66;">',
+        "proverkastaza.ru · личный кабинет</p>",
+        "</td></tr></table>",
+        "</body></html>",
+    ]
+    return "".join(parts)
 
 
 def _compose(action: str, token: str, greeting: str) -> tuple[str, str, str]:
