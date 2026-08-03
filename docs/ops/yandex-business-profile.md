@@ -69,6 +69,9 @@ https://proverkastaza.ru/yandex-business-price.yml
 
 Рекомендуемый старт: посты 1–2 (услуга, тарифы), затем статьи блога.
 
+События в Яндекс Календаре (`proverkastaza@yandex.ru`, среды 10:00 МСК с 05.08.2026):  
+`python scripts/create_yandex_business_post_events.py` — в описании текст поста и ссылка на кабинет публикаций.
+
 ---
 
 ## Как загрузить прайс в кабинет
