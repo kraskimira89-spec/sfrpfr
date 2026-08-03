@@ -2191,6 +2191,7 @@ export function ClientCabinet() {
                 {detail.checklist_items.map((item) => (
                   <li key={item.id}>
                     <strong>{item.title}</strong>
+                    {" · "}
                     <span>
                       {item.owner === "client" ? "ваше действие" : "специалист"}
                       {item.due_at
