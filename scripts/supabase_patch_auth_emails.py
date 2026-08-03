@@ -97,6 +97,8 @@ def main() -> int:
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "sfrfr-ops/1.0",
         },
         method="PATCH",
     )
