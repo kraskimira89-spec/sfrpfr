@@ -137,6 +137,11 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Без ключей Yandex — fallback на Google Enterprise (legacy).
 - Прод: ключи капчи `proverkastaza` (хосты proverkastaza.ru / www) записаны в `/opt/sfrfr/.env`, виджет + validate включены.
 
+## 2026-08-03 (форма заявки «ничего не происходит»)
+
+- Баг: кнопка disabled → `requestSubmit(disabled)` → InvalidStateError, отправка молчала.
+- Фикс JS + явный `smartCaptcha.render` для динамического виджета.
+
 ## 2026-07-29 (MAX: кнопки навигации)
 
 - Нижняя панель: Обзор / Документы / Сообщения / Мои дела.
