@@ -30,3 +30,12 @@ echo "OK: ${MU}/sfrfr-seo-redirects.php"
 echo "OK: ${MU}/sfrfr-hide-astra-copyright.php"
 echo "OK: ${MU}/sfrfr-site-footer.php"
 echo "OK: ${ASSETS_DST}/"
+
+# Корневой favicon.ico (Яндекс ищет /favicon.ico; без файла WP отдаёт HTML 200)
+SITE_ROOT="${WP_ROOT}"
+FAV_SRC="${ROOT}/scripts/assets/favicon.ico"
+if [[ -f "${FAV_SRC}" && -d "${SITE_ROOT}" ]]; then
+  cp -f "${FAV_SRC}" "${SITE_ROOT}/favicon.ico"
+  chown www-data:www-data "${SITE_ROOT}/favicon.ico" 2>/dev/null || true
+  echo "OK: ${SITE_ROOT}/favicon.ico"
+fi
