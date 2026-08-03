@@ -28,13 +28,7 @@ replace_env "$APP_DIR/apps/cabinet/.env" "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" 
 replace_env "$APP_DIR/apps/admin/.env" "NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_URL"
 replace_env "$APP_DIR/apps/admin/.env" "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
 
-# DATABASE_URL: FastAPI may use direct PG — point to disabled/local unused; prefer Supabase client.
-# If old Cloud DATABASE_URL remains, API sqlAlchemy might still hit Cloud — neutralize to empty or YC.
-if grep -q '^DATABASE_URL=' "$APP_DIR/.env"; then
-  # Keep key but mark unused; service role REST is primary for many paths.
-  # Safer: set to empty comment via placeholder localhost that fails closed if used.
-  replace_env "$APP_DIR/.env" "DATABASE_URL" "postgresql+psycopg://postgres:unused@127.0.0.1:5432/postgres"
-fi
+# DATABASE_URL в коде почти не используется (SoT = Supabase client). Не трогаем здесь.
 
 echo "== rebuild cabinet/admin =="
 sudo -u sfrfr bash -lc "

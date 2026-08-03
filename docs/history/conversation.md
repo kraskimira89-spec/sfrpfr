@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-03 — cutover Supabase Cloud → YC
+
+- Импорт данных в self-host (11 clients / 9 cases / 10 users).
+- VPS `.env` + cabinet/admin пересобраны на `https://supabase.proverkastaza.ru`.
+- API health 200; service_role видит данные. Cloud пока не drain.
+
 ## 2026-08-03 — DNS supabase + HTTPS staging
 
 - В reg.ru A `supabase` → `51.250.13.240`; DNS резолвится.
