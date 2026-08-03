@@ -178,6 +178,11 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
 - Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
 
+## 2026-08-03 (единый favicon на кабинете/admin/MAX)
+
+- Было: дефолтный Next/Vercel `favicon.ico` (чёрный квадрат) на cabinet/admin.
+- Заменён на логотип «Проверка стажа» (как на WP); в miniapp добавлены icon-ссылки.
+
 ## 2026-08-03 (каталожный номер дела вместо UUID в MAX)
 
 - Формат: `ПС-{YY}-{ИИ}-{NNNNNN}` (пример: `ПС-26-НА-730545`).
