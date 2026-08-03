@@ -66,6 +66,12 @@ if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" ]]; then
   bash "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" || echo "WARN: wp_deploy_yandex_business_price.sh failed"
 fi
 
+# ТЗ-18/19: страницы доверия/контактов (в т.ч. блок отзывов)
+if [[ -f "$APP_DIR/scripts/wp_seed_trust_pages_tz18.sh" ]]; then
+  echo "Seeding trust/commerce pages …"
+  bash "$APP_DIR/scripts/wp_seed_trust_pages_tz18.sh" || echo "WARN: wp_seed_trust_pages_tz18.sh failed"
+fi
+
 # Яндекс Метрика (счётчик из YANDEX_METRIKA_COUNTER_ID)
 if [[ -f "$APP_DIR/scripts/wp_deploy_metrika.sh" ]]; then
   echo "Deploying Yandex Metrika MU …"

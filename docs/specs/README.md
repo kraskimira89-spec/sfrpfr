@@ -23,6 +23,8 @@
 17. [17-management-analytics-russian-bi.md](17-management-analytics-russian-bi.md) — управленческая аналитика: **dbt marts → DataLens** (замена Google Sheets/Looker).  
     Cutover: [../ops/datalens-management-bi.md](../ops/datalens-management-bi.md).
 18. [18-seo-strategy-and-implementation.md](18-seo-strategy-and-implementation.md) — SEO-стратегия: технический аудит, семантика, экспертный контент, аналитика и план на 6 месяцев.
+19. [19-yandex-reviews-feedback.md](19-yandex-reviews-feedback.md) — сбор отзывов в Яндекс Бизнесе/Картах по правилам Яндекса (без накруток).  
+    Ops: [../ops/yandex-business-reviews.md](../ops/yandex-business-reviews.md).
 
 ## Принцип
 

@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-03 — ТЗ-19 сбор отзывов Яндекс Бизнес
+
+- ТЗ: `docs/specs/19-yandex-reviews-feedback.md` (по статье Direct о легитимных отзывах).
+- Ops: `docs/ops/yandex-business-reviews.md`; шаблоны MAX и ответов в `scripts/assets/yandex-business/review-*.md`.
+- `/kontakty/`: блок про отзывы; прямая URL формы — после ручного копирования из Sprav.
+
 ## 2026-08-03 (ТЗ-18 недели 2–3: доверие и коммерция)
 
 - Страницы: `/proverka-stazha/`, `/tarify/`, `/kak-rabotaem/`, `/kontakty/`, `/expert/lopakova-nataliya/`.

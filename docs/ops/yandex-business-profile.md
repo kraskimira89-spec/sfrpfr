@@ -90,7 +90,23 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 ---
 
+## Отзывы (сбор обратной связи)
+
+Полная инструкция: [yandex-business-reviews.md](yandex-business-reviews.md) · ТЗ-19.
+
+Кратко:
+
+1. Ссылка на форму + QR — из кабинета **Отзывы / Промоматериалы**.
+2. Просьба только реальным клиентам после услуги — шаблоны MAX в `scripts/assets/yandex-business/review-request-templates.md`.
+3. Без оплаты/бонуса за отзыв; одно напоминание через 1–3 дня.
+4. Ответы компании: `review-reply-templates.md`.
+
+Кабинет отзывов: https://yandex.ru/sprav/234170727274/ (раздел «Отзывы»).
+
+---
+
 ## Связь с SEO
 
 - ТЗ-18: профиль в Яндекс Бизнесе как сигнал доверия.
+- ТЗ-19: легитимный сбор отзывов без накруток.
 - Вебмастер: смотреть хост **без www** (`docs/ops/yandex-webmaster-setup.md`).
