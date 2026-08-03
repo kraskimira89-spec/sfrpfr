@@ -85,7 +85,7 @@ terraform destroy
 
 ## Безопасность
 
-- Нет публичного `5432` / Studio
+- `5432` только из `allowed_postgres_cidrs` (VPS/admin `/32`), иначе закрыт; Studio наружу нет
 - SSH только `allowed_ssh_cidrs` (валидация запрещает `0.0.0.0/0`)
 - Bucket private + versioning + lifecycle + SSE-KMS
 - Секреты Supabase не в Terraform state

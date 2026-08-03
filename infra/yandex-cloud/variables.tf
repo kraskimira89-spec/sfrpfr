@@ -49,6 +49,19 @@ variable "allowed_ssh_cidrs" {
   }
 }
 
+variable "allowed_postgres_cidrs" {
+  description = "CIDR для Postgres 5432 (dbt/DATABASE_URL). Пусто = порт закрыт. Нельзя 0.0.0.0/0."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for c in var.allowed_postgres_cidrs : c != "0.0.0.0/0" && c != "::/0"
+    ])
+    error_message = "Postgres с 0.0.0.0/0 и ::/0 запрещён — только VPS/admin /32."
+  }
+}
+
 variable "ssh_username" {
   description = "Непривилегированный пользователь SSH"
   type        = string

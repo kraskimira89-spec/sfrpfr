@@ -1,0 +1,7 @@
+# Прямой Postgres наружу на 5433 (Supavisor занимает host :5432).
+# Подключать: docker compose -f docker-compose.yml -f docker-compose.sfrfr-direct-pg.yml ...
+# Или положить рядом как override / добавить в COMPOSE_FILE.
+services:
+  db:
+    ports:
+      - "5433:5432"

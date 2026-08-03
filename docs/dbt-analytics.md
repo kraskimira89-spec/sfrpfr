@@ -20,16 +20,23 @@ public → analytics_source (обезличенные views) → analytics (ви
 3. На VPS в `/opt/sfrfr/.env` укажите (значения как в локальном `.env` после настройки):
 
    ```env
-   DBT_HOST=db.<project-ref>.supabase.co
-   DBT_PORT=5432
+   # После cutover на YC (рекомендуется):
+   DBT_HOST=51.250.13.240
+   DBT_PORT=5433
    DBT_USER=analytics_transformer
    DBT_PASSWORD=...
    DBT_DBNAME=postgres
+   DBT_SSLMODE=disable
+
+   # Legacy Cloud (до drain):
+   # DBT_HOST=db.<project-ref>.supabase.co
+   # DBT_PORT=5432
+   # DBT_SSLMODE=require
    ```
 
-   Для стабильных DDL dbt используйте **direct PostgreSQL connection**. Для IPv4-only VPS
-   включите [Supabase IPv4 add-on](https://supabase.com/docs/guides/platform/ipv4-address);
-   session/transaction pooler не используются.
+   На YC host `:5432` = Supavisor; **прямой Postgres** — `:5433`
+   (`docker-compose.sfrfr-direct-pg.yml`). SG: `allowed_postgres_cidrs`.
+   Переключение: `scripts/vps_switch_db_to_yc.sh`.
 4. Скопируйте `analytics/profiles.yml.example` в `analytics/profiles.yml`. Файл игнорируется Git и читает только `DBT_*`.
 5. Установите зависимости на машине запуска:
 

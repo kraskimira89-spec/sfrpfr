@@ -10,6 +10,8 @@ project_name = "sfrfr"
 
 network_cidr      = "10.10.10.0/24"
 allowed_ssh_cidrs = ["REPLACE_WITH_YOUR_IP/32"]
+# Прод-VPS + (опционально) admin IP для dbt/psql. Не 0.0.0.0/0.
+allowed_postgres_cidrs = ["91.229.11.147/32"]
 
 ssh_username        = "sfrfr"
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"

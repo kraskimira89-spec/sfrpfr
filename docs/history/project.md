@@ -6,6 +6,11 @@
 - `LLMClient`: при сбое/недоступности Yandex — fallback на `api.deepseek.com`.
 - Основной analyze по-прежнему Yandex AI Studio `deepseek-v4-flash`. Smoke OK.
 
+## 2026-08-03 (DATABASE_URL/dbt → YC Postgres)
+
+- Terraform SG allowlist 5432/5433; direct PG compose override.
+- VPS env + `dbt debug` OK; drain Cloud — чеклист, проект не удалён.
+
 ## 2026-08-03 (Auth redirects на YC)
 
 - Self-host GoTrue: allow-list cabinet + admin; скрипт `scripts/yc_set_auth_redirects.sh`.

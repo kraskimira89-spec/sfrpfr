@@ -98,7 +98,7 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 6. Мониторинг ошибок Auth/Storage 24–72 ч.
 7. При стабильности — drain старого Cloud; запросить удаление данных у Supabase Inc. и сохранить подтверждение.
 
-**Факт 2026-08-03:** cutover выполнен — VPS API/cabinet/admin → `https://supabase.proverkastaza.ru`; импорт `clients=11`, `cases=9`, `auth.users=10`. Cloud проект ещё не удалён (шаг 7). Пароли Auth не переносились (Admin API) — вход через magic link/OTP.
+**Факт 2026-08-03:** cutover выполнен — VPS API/cabinet/admin → `https://supabase.proverkastaza.ru`; импорт `clients=11`, `cases=9`, `auth.users=10`. Cloud проект ещё не удалён (шаг 7). Пароли Auth не переносились (Admin API) — вход через magic link/OTP. Drain: [supabase-cloud-drain-checklist.md](../ops/supabase-cloud-drain-checklist.md). `DATABASE_URL`/`DBT_*` → YC Postgres через SG allowlist.
 
 Критерий выхода: прод читает/пишет только РФ; зарубежный контур пуст или уничтожен с актом.
 

@@ -5,6 +5,13 @@
 - Проверен API-ключ (`200`, `deepseek-chat`).
 - Сохранён в `secrets/deepseek.env` + локальный `.env`; в коде — запасной `LLMClient`.
 
+## 2026-08-03 — dbt/DATABASE_URL → YC + drain checklist
+
+- SG: `allowed_postgres_cidrs` (VPS + admin) на 5432/5433.
+- Прямой PG `:5433` (`docker-compose.sfrfr-direct-pg.yml`); Supavisor остаётся на `:5432`.
+- VPS `DATABASE_URL`/`DBT_*` → `51.250.13.240:5433`; `dbt debug` OK.
+- Чеклист drain Cloud: `docs/ops/supabase-cloud-drain-checklist.md` (без удаления проекта).
+
 ## 2026-08-03 — cutover Supabase Cloud → YC
 
 - Импорт данных в self-host (11 clients / 9 cases / 10 users; 0 SYNTH).

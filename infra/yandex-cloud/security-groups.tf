@@ -1,6 +1,6 @@
 resource "yandex_vpc_security_group" "staging" {
   name        = local.sg_name
-  description = "SG ${var.project_name} ${var.environment}: 443/80 public, SSH allowlist, no PG/Studio"
+  description = "SG ${var.project_name} ${var.environment}: 443/80 public, SSH/PG allowlist, no Studio"
   folder_id   = var.folder_id
   network_id  = yandex_vpc_network.staging.id
   labels      = local.labels
@@ -24,6 +24,26 @@ resource "yandex_vpc_security_group" "staging" {
     protocol       = "TCP"
     port           = 22
     v4_cidr_blocks = var.allowed_ssh_cidrs
+  }
+
+  dynamic "ingress" {
+    for_each = length(var.allowed_postgres_cidrs) > 0 ? [1] : []
+    content {
+      description    = "Postgres allowlist (dbt / DATABASE_URL) — never 0.0.0.0/0"
+      protocol       = "TCP"
+      port           = 5432
+      v4_cidr_blocks = var.allowed_postgres_cidrs
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = length(var.allowed_postgres_cidrs) > 0 ? [1] : []
+    content {
+      description    = "Direct Postgres 5433 (bypass Supavisor) — never 0.0.0.0/0"
+      protocol       = "TCP"
+      port           = 5433
+      v4_cidr_blocks = var.allowed_postgres_cidrs
+    }
   }
 
   ingress {

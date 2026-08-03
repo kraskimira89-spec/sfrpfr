@@ -10,4 +10,5 @@ sfrfr_analytics:
       dbname: "{{ env_var('DBT_DBNAME', 'postgres') }}"
       schema: analytics
       threads: 4
-      sslmode: require
+      # Cloud: require. Self-host YC (ssl=off): disable / prefer via DBT_SSLMODE.
+      sslmode: "{{ env_var('DBT_SSLMODE', 'disable') }}"
