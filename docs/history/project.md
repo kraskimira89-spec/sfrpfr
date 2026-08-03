@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-08-03 (cutover Supabase → YC)
+
+- Прод: API/cabinet/admin → `https://supabase.proverkastaza.ru` (11 clients / 9 cases / 10 users).
+- Cloud `frualvycousvvyjivybu` оставлен для отката; пароли Auth не переносились.
+
 ## 2026-08-03 (SmartCaptcha + staging Auth email)
 
 - WP: MU SmartCaptcha выкатан (`wp_apply`); на витрине `ysc1_` / `SFRFR_SMARTCAPTCHA`.
