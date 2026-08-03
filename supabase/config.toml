@@ -243,10 +243,22 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
+# Русские шаблоны (локально). Прод Cloud: scripts/supabase_patch_auth_emails.py
+[auth.email.template.confirmation]
+subject = "Код для кабинета «Проверка стажа»: {{ .Token }}"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Код для входа в «Проверка стажа»: {{ .Token }}"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.recovery]
+subject = "Восстановление пароля — «Проверка стажа»"
+content_path = "./templates/recovery.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# content_path = "./templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
