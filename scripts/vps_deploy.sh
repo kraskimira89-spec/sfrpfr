@@ -66,6 +66,11 @@ if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" ]]; then
   bash "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" || echo "WARN: wp_deploy_yandex_business_price.sh failed"
 fi
 
+if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_review_qr.sh" ]]; then
+  echo "Deploying Yandex review QR …"
+  bash "$APP_DIR/scripts/wp_deploy_yandex_review_qr.sh" || echo "WARN: wp_deploy_yandex_review_qr.sh failed"
+fi
+
 # ТЗ-18/19: страницы доверия/контактов (в т.ч. блок отзывов)
 if [[ -f "$APP_DIR/scripts/wp_seed_trust_pages_tz18.sh" ]]; then
   echo "Seeding trust/commerce pages …"

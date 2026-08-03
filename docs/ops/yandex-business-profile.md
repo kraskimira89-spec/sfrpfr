@@ -96,12 +96,12 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 Кратко:
 
-1. Ссылка на форму + QR — из кабинета **Отзывы / Промоматериалы**.
-2. Просьба только реальным клиентам после услуги — шаблоны MAX в `scripts/assets/yandex-business/review-request-templates.md`.
-3. Без оплаты/бонуса за отзыв; одно напоминание через 1–3 дня.
+1. Форма: https://yandex.ru/sprav/234170727274/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/`.
+2. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
+3. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
 4. Ответы компании: `review-reply-templates.md`.
 
-Кабинет отзывов: https://yandex.ru/sprav/234170727274/ (раздел «Отзывы»).
+Кабинет промо: https://yandex.ru/sprav/234170727274/p/edit/promo/
 
 ---
 

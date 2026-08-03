@@ -48,6 +48,8 @@ storage/cases.tmp
 *.jpeg
 *.png
 !assets/**/*.png
+!scripts/assets/yandex-business/promo/*.pdf
+!scripts/assets/yandex-business/promo/*.png
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**
 
