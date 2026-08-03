@@ -47,6 +47,11 @@ function sfrfr_site_footer_html(): string
         </a>
       </p>
       <p>Сервис не является государственным органом. Решение о перерасчёте принимает СФР.</p>
+      <p class="sfrfr-iks">
+        <a href="https://webmaster.yandex.ru/siteinfo/?site=https://proverkastaza.ru" target="_blank" rel="noopener noreferrer" title="Индекс качества сайта в Яндекс Вебмастере">
+          <img width="88" height="31" alt="Индекс качества сайта Яндекса" src="https://yandex.ru/cycounter?https://proverkastaza.ru&amp;theme=dark&amp;lang=ru" style="border:0;border-radius:8px;vertical-align:middle" loading="lazy" decoding="async">
+        </a>
+      </p>
       <p class="sfrfr-req">
         <strong>ООО «ПОД ПРИСМОТРОМ»</strong><br>
         ИНН 8905066468 · КПП 890501001 · ОГРН 1208900000572<br>
