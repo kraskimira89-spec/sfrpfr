@@ -1,12 +1,14 @@
-"""Тонкая обёртка над LLM: Yandex AI Studio (по умолчанию) или OpenAI."""
+"""Тонкая обёртка над LLM: Yandex AI Studio (основной) + DeepSeek platform (запасной)."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from sfrfr.core.config import get_settings
 
 LlmPurpose = Literal["default", "classify", "analyze", "draft"]
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -19,11 +21,13 @@ class LLMClient:
         api_key: str | None = None,
         model: str | None = None,
         purpose: LlmPurpose = "default",
+        allow_fallback: bool = True,
     ) -> None:
         settings = get_settings()
         self.provider = (provider or settings.ai_provider or "yandex").lower()
         self._settings = settings
         self.purpose: LlmPurpose = purpose
+        self.allow_fallback = allow_fallback
 
         if self.provider == "yandex":
             self.api_key = api_key if api_key is not None else (
@@ -40,6 +44,13 @@ class LLMClient:
             self.model = model or self._yandex_model_uri(settings, purpose=purpose)
             if not self.folder_id:
                 self.folder_id = self._folder_from_model(self.model)
+        elif self.provider == "deepseek":
+            self.api_key = api_key if api_key is not None else settings.deepseek_api_key.strip()
+            self.base_url = (
+                settings.deepseek_base_url.strip() or "https://api.deepseek.com"
+            ).rstrip("/")
+            self.folder_id = ""
+            self.model = model or (settings.deepseek_model.strip() or "deepseek-chat")
         else:
             self.api_key = api_key if api_key is not None else settings.openai_api_key
             self.base_url = settings.openai_base_url
@@ -59,6 +70,11 @@ class LLMClient:
     @classmethod
     def for_draft(cls, **kwargs: Any) -> LLMClient:
         return cls(purpose="draft", **kwargs)
+
+    @classmethod
+    def for_deepseek_fallback(cls, *, purpose: LlmPurpose = "analyze") -> LLMClient:
+        """Прямой клиент platform.deepseek.com без вложенного fallback."""
+        return cls(provider="deepseek", purpose=purpose, allow_fallback=False)
 
     @staticmethod
     def _folder_from_model(model: str) -> str:
@@ -101,6 +117,18 @@ class LLMClient:
             return bool(self.api_key and (self.folder_id or self.model.startswith("gpt://")))
         return bool(self.api_key)
 
+    def _fallback_client(self) -> LLMClient | None:
+        if not self.allow_fallback:
+            return None
+        if self.provider == "deepseek":
+            return None
+        settings = self._settings
+        if not settings.deepseek_fallback_enabled:
+            return None
+        if not settings.deepseek_api_key.strip():
+            return None
+        return LLMClient.for_deepseek_fallback(purpose=self.purpose)
+
     def _get_client(self) -> Any:
         if self._client is None:
             try:
@@ -123,9 +151,7 @@ class LLMClient:
             self._client = OpenAI(**kwargs)
         return self._client
 
-    def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
-        if not self.available:
-            return ""
+    def _chat_once(self, *, system: str, user: str, temperature: float) -> str:
         client = self._get_client()
         resp = client.chat.completions.create(
             model=self.model,
@@ -136,3 +162,26 @@ class LLMClient:
             ],
         )
         return (resp.choices[0].message.content or "").strip()
+
+    def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+        fallback = self._fallback_client()
+        if not self.available:
+            if fallback is not None and fallback.available:
+                logger.warning(
+                    "LLM primary unavailable (provider=%s); using DeepSeek fallback",
+                    self.provider,
+                )
+                return fallback.chat(system=system, user=user, temperature=temperature)
+            return ""
+        try:
+            return self._chat_once(system=system, user=user, temperature=temperature)
+        except Exception as exc:  # noqa: BLE001 — запасной провайдер при сбое основного
+            if fallback is None or not fallback.available:
+                raise
+            logger.warning(
+                "LLM primary failed (provider=%s purpose=%s): %s; using DeepSeek fallback",
+                self.provider,
+                self.purpose,
+                exc,
+            )
+            return fallback.chat(system=system, user=user, temperature=temperature)
