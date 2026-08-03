@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-03 — DeepSeek platform fallback
+
+- Проверен API-ключ (`200`, `deepseek-chat`).
+- Сохранён в `secrets/deepseek.env` + локальный `.env`; в коде — запасной `LLMClient`.
+
 ## 2026-08-03 — cutover Supabase Cloud → YC
 
 - Импорт данных в self-host (11 clients / 9 cases / 10 users; 0 SYNTH).
