@@ -136,8 +136,22 @@ $articles = [
         'seo_title' => 'Как проверить стаж в выписке ИЛС — справочник',
         'seo_description' => 'Пошагово: как читать выписку ИЛС, сверить периоды работы и понять, чего не хватает в учёте стажа.',
         'related' => [
+            'kak-zakazat-vypisku-ils',
             'kak-sverit-trudovuyu-knizhku-i-ils',
             'chto-delat-esli-period-raboty-ne-uchten',
+        ],
+    ],
+    [
+        'file' => '21-zakazat-vypisku-ils.html',
+        'slug' => 'kak-zakazat-vypisku-ils',
+        'title' => 'Как заказать выписку ИЛС',
+        'category' => 'ils',
+        'excerpt' => 'Где и как заказать свежую выписку ИЛС и что сохранить перед сверкой.',
+        'seo_title' => 'Как заказать выписку ИЛС через Госуслуги',
+        'seo_description' => 'Как заказать выписку из ИЛС: Госуслуги и официальные каналы СФР, дата формирования и следующий шаг сверки.',
+        'related' => [
+            'kak-proverit-stazh-v-vypiske-ils',
+            'kak-sverit-trudovuyu-knizhku-i-ils',
             'kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr',
         ],
     ],
@@ -150,9 +164,9 @@ $articles = [
         'seo_title' => 'Сверка трудовой книжки и ИЛС — по шагам',
         'seo_description' => 'Как сравнить трудовую книжку с выпиской ИЛС и что подготовить, если период не совпадает.',
         'related' => [
+            'kak-zakazat-vypisku-ils',
             'kak-proverit-stazh-v-vypiske-ils',
             'chto-delat-esli-period-raboty-ne-uchten',
-            'arhivnaya-spravka-dlya-sfr-zachem-i-kuda',
         ],
     ],
     [
@@ -304,9 +318,9 @@ $articles = [
         'seo_title' => 'Типичные ситуации проверки пенсионного стажа',
         'seo_description' => 'Когда стоит сверить ИЛС и трудовую: пробелы в стаже, архивы, отказ и помощь родственникам.',
         'related' => [
+            'kak-zakazat-vypisku-ils',
             'kak-proverit-stazh-v-vypiske-ils',
             'otkaz-sfr-chto-proverit-v-dokumentah',
-            'kak-pomoch-rodstvenniku-proverit-stazh',
         ],
     ],
     [
