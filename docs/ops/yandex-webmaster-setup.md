@@ -15,13 +15,55 @@
 | Sitemap `wp-sitemap.xml` в API + robots | ✅ |
 | Главное зеркало HTTPS без www (301) | ✅ Apache |
 | Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
-| Summary / host loaded | ✅ `data_status=OK` (ранее NOT_LOADED); searchable≈8, смотреть диагностику |
+| Summary / host loaded | ✅ `data_status=OK`; **смотрите хост без www** |
+| Страницы в поиске (apex) | ✅ `searchable_pages_count=8` на `https://proverkastaza.ru` (02.08.2026) |
+| Страницы в поиске (www) | ⚠️ всегда **0** — ожидаемо: `www` → 301 на apex |
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
+| Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
 
 ---
 
-## OAuth (только в браузере)
+## ⚠️ «0 страниц в поиске» на www — это не авария
+
+Письмо/экран Вебмастера про **`https://www.proverkastaza.ru`** показывает **0** страниц — так и должно быть:
+
+1. `www` и apex в Вебмастере — **разные хосты**.
+2. Сервер отвечает **301** `https://www…` → `https://proverkastaza.ru/…`.
+3. В поиске копятся URL **главного зеркала** (без www).
+
+**Что открыть в UI:** сайт **`https://proverkastaza.ru`** (без www) → Индексирование → Страницы в поиске.
+
+На 02.08.2026 там уже **8 SEARCHABLE**, в т.ч.:
+
+- `/`
+- `/blog/`
+- `/blog/kak-proverit-stazh-v-vypiske-ils/`
+- `/blog/severnyy-stazh-i-rayonnyy-koefficient/`
+- `/blog/edv-i-pensiya-chto-proveryat-otdelno/`
+- `/blog/lgotnyy-i-pedagogicheskiy-stazh/`
+- `/blog/rashozhdeniya-fio-i-zapisi-trudovoy/`
+- `/cookies/`
+
+Фраза «на сайте изменений нет» в письме про www означает: **у зеркала www своего контента нет** (только редиректы), а не что сайт пустой.
+
+### Диагностика хостов
+
+| Host | searchable |
+|------|------------|
+| `https://proverkastaza.ru` | **8** (рабочий) |
+| `http://proverkastaza.ru` | 0 (только 301 → https) |
+| `https://www.proverkastaza.ru` | 0 (только 301 → apex) |
+| `http://www.proverkastaza.ru` | 0 |
+
+### Что сделать в кабинете Вебмастера
+
+1. Работать только с **`https://proverkastaza.ru`**.
+2. Sitemap уже добавлен: `https://proverkastaza.ru/wp-sitemap.xml`.
+3. Привязать счётчик Метрики к этому хосту (диагностика: `NO_METRIKA_COUNTER_BINDING`).
+4. Включить обход по счётчикам Метрики для ускорения обхода новых URL.
+5. www-хост можно оставить verified «для зеркала», но **не смотреть** по нему индекс как KPI.
+
 
 1. [oauth.yandex.ru](https://oauth.yandex.ru/) → **SFRFR Webmaster**.
 2. Redirect URI: `https://oauth.yandex.ru/verification_code`.
