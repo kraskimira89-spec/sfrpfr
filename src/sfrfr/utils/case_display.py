@@ -55,8 +55,8 @@ def case_catalog_code(
 
 
 def case_title(case_id: str) -> str:
-    """Заголовок для клиента: Дело № 730545."""
+    """Заголовок для клиента: Дело ПС-730545."""
     n = case_short_number(case_id)
     if n is None:
-        return "Дело № —"
-    return f"Дело № {n}"
+        return "Дело ПС-—"
+    return f"Дело ПС-{n}"

@@ -293,7 +293,7 @@
   }
 
   function caseTitle(caseId) {
-    return `Дело № ${caseNumber(caseId)}`;
+    return `Дело ПС-${caseNumber(caseId)}`;
   }
 
   function statusTitle(status) {

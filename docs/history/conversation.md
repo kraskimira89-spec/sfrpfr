@@ -157,6 +157,12 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
 - Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
 
+## 2026-08-03 (каталожный номер дела вместо UUID в MAX)
+
+- Формат: `ПС-{YY}-{ИИ}-{NNNNNN}` (пример: `ПС-26-НА-730545`).
+- В уведомлении менеджеру: `Дело: ПС-…` вместо сырого UUID.
+- UUID остаётся PK в БД; короткий NNNNNN = как прежний «Дело №» из UUID.
+
 ## 2026-08-03 (Auth From: Яндекс РФ, не supabase.io)
 
 - Проблема: OTP с `noreply@mail.app.supabase.io` / GoTrue.

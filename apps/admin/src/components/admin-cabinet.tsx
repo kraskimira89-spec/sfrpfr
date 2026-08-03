@@ -146,6 +146,18 @@ const CHANNEL_LABELS: Record<string, string> = {
   unset: "не выбран",
 };
 
+/** Короткий номер дела (совпадает с кабинетом / MAX «Дело №»). */
+function caseShortNumber(caseId: string): string {
+  const hex = String(caseId || "").replace(/-/g, "").slice(-5);
+  const n = Number.parseInt(hex, 16);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return String(n).padStart(6, "0");
+}
+
+function caseCatalogLabel(caseId: string): string {
+  return `ПС-${caseShortNumber(caseId)}`;
+}
+
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
@@ -963,8 +975,12 @@ export function AdminCabinet() {
             {cases.map((item) => (
               <li key={item.id}>
                 <button type="button" className="case-card-button" onClick={() => void openCase(item.id)}>
-                  <strong>{item.client_name ?? `Дело ${item.id.slice(0, 8)}`}</strong>
-                  <span>{item.id} · {item.pipeline_status} · {item.b2c_status}</span>
+                  <strong>
+                    {item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}
+                  </strong>
+                  <span>
+                    {caseCatalogLabel(item.id)} · {item.pipeline_status} · {item.b2c_status}
+                  </span>
                   <span>
                     Канал: {CHANNEL_LABELS[item.preferred_channel] ?? item.preferred_channel}
                     {" · "}MAX {item.max_linked ? "✓" : "—"} · веб {item.web_linked ? "✓" : "—"}
@@ -988,10 +1004,12 @@ export function AdminCabinet() {
       {view === "case" && detail && (
         <section className="stack">
           <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
-          <h1>{detail.client.full_name ?? `Дело ${detail.id.slice(0, 8)}`}</h1>
+          <h1>
+            {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
+          </h1>
           <p className="warning inline">{detail.warning}</p>
           <p>
-            {detail.pipeline_status} · {detail.b2c_status}
+            {caseCatalogLabel(detail.id)} · {detail.pipeline_status} · {detail.b2c_status}
             {detail.client.phone ? ` · ${detail.client.phone}` : ""}
             {detail.client.email ? ` · ${detail.client.email}` : ""}
           </p>
