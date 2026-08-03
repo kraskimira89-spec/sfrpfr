@@ -110,15 +110,7 @@ function sfrfr_smartcaptcha_client_key(): string
 
 function sfrfr_captcha_client_key(): string
 {
-    $smart = sfrfr_smartcaptcha_client_key();
-    if ($smart !== '') {
-        return $smart;
-    }
-    $google = sfrfr_env('RECAPTCHA_SITE_KEY', sfrfr_env('SFRFR_RECAPTCHA_SITE_KEY'));
-    if ($google === '' && defined('SFRFR_RECAPTCHA_SITE_KEY')) {
-        $google = (string) SFRFR_RECAPTCHA_SITE_KEY;
-    }
-    return trim($google);
+    return sfrfr_smartcaptcha_client_key();
 }
 
 function sfrfr_public_lead_url(): string
@@ -179,8 +171,7 @@ add_action('wp_enqueue_scripts', function () {
     wp_enqueue_script('sfrfr-smartcaptcha-lead', $url, [], $ver, true);
     wp_add_inline_script(
         'sfrfr-smartcaptcha-lead',
-        'window.SFRFR_SMARTCAPTCHA=' . wp_json_encode(['clientKey' => $client_key]) . ';'
-        . 'window.SFRFR_RECAPTCHA=' . wp_json_encode(['siteKey' => $client_key, 'action' => 'lead']) . ';',
+        'window.SFRFR_SMARTCAPTCHA=' . wp_json_encode(['clientKey' => $client_key]) . ';',
         'before'
     );
 }, 20);

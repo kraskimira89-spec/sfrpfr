@@ -1,5 +1,12 @@
 # История бесед
 
+## 2026-08-03 — документы и production-контур РФ
+
+- Проверен production: Supabase/API/dbt → Yandex Cloud, captcha → SmartCaptcha.
+- Выявленные хвосты Google Sheets отключены в API, CLI и адаптере production.
+- Иностранные LLM запрещены в production; Yandex AI Studio остаётся основным контуром.
+- Подготовлены и опубликованы новые редакции Политики, Согласия и Правил файлов браузера.
+
 ## 2026-08-03 — DeepSeek platform fallback
 
 - Проверен API-ключ (`200`, `deepseek-chat`).

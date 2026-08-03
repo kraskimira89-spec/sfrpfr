@@ -149,6 +149,7 @@ class SheetsExporter:
         credentials_json: str | None = None,
     ) -> None:
         settings = get_settings()
+        self._production = settings.app_env.strip().lower() in {"prod", "production"}
         raw_hook = (
             webhook_url if webhook_url is not None else settings.google_sheets_webhook_url
         )
@@ -174,10 +175,17 @@ class SheetsExporter:
 
     @property
     def available(self) -> bool:
-        return self.api_configured or bool(self.webhook_url)
+        return not self._production and (self.api_configured or bool(self.webhook_url))
 
     def push(self, rows: list[dict[str, Any]]) -> dict[str, Any]:
         clean = sanitize_rows(rows)
+        if self._production:
+            return {
+                "ok": False,
+                "skipped": True,
+                "reason": "Google Sheets disabled in production",
+                "rows": len(clean),
+            }
         if self.api_configured:
             return self._push_api(clean)
         if self.webhook_url:

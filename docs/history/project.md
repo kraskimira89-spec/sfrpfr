@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-08-03 (юридические документы после переноса в РФ)
+
+- Политика, Согласие и Правила файлов браузера обновлены до редакций 2026-08-03.
+- Production: self-hosted Supabase, SmartCaptcha и ИИ — только через Yandex Cloud; Google Sheets runtime отключён.
+- Прямой иностранный LLM и DeepSeek platform fallback запрещены в production.
+- Остаточный Supabase Cloud отражён как временная копия до drain и подтверждения удаления.
+
 ## 2026-08-03 (DeepSeek platform как запасной LLM)
 
 - Ключ: `secrets/deepseek.env` (gitignore); шаблон `docs/ops/deepseek.env.example`.

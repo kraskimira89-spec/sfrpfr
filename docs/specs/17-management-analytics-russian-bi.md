@@ -1,7 +1,7 @@
 # ТЗ-17: российский контур управленческой аналитики SFRFR
 
-**Статус:** целевой BI утверждён — **dbt marts → Yandex DataLens**; Google Sheets/Looker подлежат полной замене после сверки KPI  
-**Дата уточнения:** 2026-07-29  
+**Статус:** **dbt marts → Yandex DataLens**; runtime Google Sheets отключён 2026-08-03
+**Дата уточнения:** 2026-08-03
 **Опора:** анализ архитектуры + решение о полной замене Google Таблиц
 
 ## 0. Утверждённый целевой контур
@@ -601,11 +601,11 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 - [ ] DataLens показывает все KPI §7 с тем же grain, что marts.
 - [ ] Таблица сверки: dbt SQL ↔ DataLens — 0% на счётчиках (§11).
 - [ ] Руководители пользуются DataLens ≥ 1 полный цикл nightly dbt.
-- [ ] Отключить UI/API `sheets-sync` (feature-flag или удаление кнопки).
+- [x] Отключить UI/API и CLI `sheets-sync`.
 - [ ] Отозвать Google Sheets SA / ключи; убрать из VPS `.env` `GOOGLE_SHEETS_*`.
 - [ ] Looker Studio отчёты архивировать/удалить.
 - [ ] (Опц.) Яндекс Таблицы только если нужен tabular UX — из `analytics.*`, не из API.
-- [ ] Обновить `docs/ops-runbook.md`: Sheets = legacy removed.
+- [x] Обновить `docs/ops-runbook.md`: Sheets = legacy removed.
 
 ### Этап 7 — выбор / закрытие пилотов
 
@@ -625,7 +625,7 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 - [ ] Выбранный вариант: владелец, SLA, backup/export, runbook.
 - [ ] Документировано, остаётся ли dbt Core (по умолчанию — да, T1).
 - [ ] IDE-плагин dbt отключён осознанно (после подтверждения имени в Cursor).
-- [ ] Google Sheets исключён из целевого контура или оставлен как временный канал без ПДн.
+- [x] Google Sheets исключён из рабочего контура.
 
 ## 15. Результат ТЗ
 
@@ -637,7 +637,8 @@ dbt Core запускается на собственном VPS/в Yandex Cloud 
 4. **Яндекс Таблицы** — только временный tabular UX при необходимости;
 5. **DataLens + materialized views** — запасной путь, если позже уйдём с dbt (T2).
 
-До cutover (§ этап 6) Sheets остаются dual-run; dbt-модели и admin — контрольный baseline.
+После cutover 3 августа 2026 года Google Sheets не используется в рабочем
+контуре; dbt-модели, DataLens и admin остаются российскими каналами аналитики.
 
 ## 16. Ключевые пути (для реализации)
 
@@ -651,9 +652,9 @@ scripts/dbt_run.sh
 scripts/dbt_apply_rls.sh
 docs/systemd/sfrfr-dbt.timer
 docs/dbt-analytics.md
-src/sfrfr/integrations/sheets/__init__.py         # заменяемый runtime
+src/sfrfr/integrations/sheets/__init__.py         # неиспользуемый legacy-адаптер
 src/sfrfr/db/case_repository.py                   # live analytics rows
-src/sfrfr/api/routes/admin_portal.py              # /admin/analytics, sheets-sync
+src/sfrfr/api/routes/admin_portal.py              # /admin/analytics без внешней выгрузки
 ```
 
 ## 17. Связанные материалы

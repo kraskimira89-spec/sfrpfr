@@ -1294,7 +1294,7 @@ export function AdminCabinet() {
           <h1>Аналитика (без ПДн)</h1>
           <p className="hint">{analytics.note}</p>
           <pre className="draft">{JSON.stringify(analytics.aggregates, null, 2)}</pre>
-          <p>Строк для Sheets: {analytics.rows.length}</p>
+          <p>Обезличенных строк: {analytics.rows.length}</p>
           <button
             type="button"
             onClick={() => {
@@ -1302,7 +1302,7 @@ export function AdminCabinet() {
               setNotice("Whitelist-строки скопированы в буфер.");
             }}
           >
-            Копировать JSON для Google Sheets
+            Копировать обезличенный JSON
           </button>
         </section>
       )}

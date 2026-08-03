@@ -1,4 +1,4 @@
-"""Тонкая обёртка над LLM: Yandex AI Studio (основной) + DeepSeek platform (запасной)."""
+"""Тонкая обёртка над LLM: Yandex AI Studio; иностранный fallback только вне production."""
 
 from __future__ import annotations
 
@@ -112,6 +112,11 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
+        if (
+            self._settings.app_env.strip().lower() in {"prod", "production"}
+            and self.provider != "yandex"
+        ):
+            return False
         if self.provider == "yandex":
             # folder можно взять из gpt://… в model
             return bool(self.api_key and (self.folder_id or self.model.startswith("gpt://")))
@@ -123,6 +128,8 @@ class LLMClient:
         if self.provider == "deepseek":
             return None
         settings = self._settings
+        if settings.app_env.strip().lower() in {"prod", "production"}:
+            return None
         if not settings.deepseek_fallback_enabled:
             return None
         if not settings.deepseek_api_key.strip():

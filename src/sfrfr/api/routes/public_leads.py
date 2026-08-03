@@ -297,6 +297,8 @@ def _notify_max_managers_new_lead(
 def _captcha_mode() -> str:
     """auto | google | yandex — см. CAPTCHA_PROVIDER."""
     settings = get_settings()
+    if settings.app_env.strip().lower() in {"prod", "production"}:
+        return "yandex"
     mode = (settings.captcha_provider or "auto").strip().lower()
     if mode not in ("auto", "google", "yandex"):
         return "auto"

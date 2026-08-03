@@ -390,23 +390,6 @@ def ops_check_remote(
         raise typer.Exit(code=1)
 
 
-@app.command("sheets-sync")
-def sheets_sync() -> None:
-    """Выгрузить обезличенную аналитику в Google Sheets (API или webhook, ТЗ-06)."""
-    import json
-
-    from sfrfr.db.case_repository import CaseRepository
-    from sfrfr.integrations.sheets import SheetsExporter, sanitize_rows
-
-    rows = sanitize_rows(CaseRepository().anonymized_analytics_rows())
-    result = SheetsExporter().push(rows)
-    typer.echo(json.dumps({"rows": len(rows), "export": result, "pii": False}, ensure_ascii=False))
-    if result.get("skipped"):
-        raise typer.Exit(code=0)
-    if not result.get("ok"):
-        raise typer.Exit(code=1)
-
-
 @app.command("drive-list")
 def drive_list(
     page_size: int = typer.Option(10, "--page-size", "-n", min=1, max=100),

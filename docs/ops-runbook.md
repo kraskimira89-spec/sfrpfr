@@ -26,9 +26,9 @@
 2. Схема БД — только через `supabase/migrations/` (+ `apply_migration` / CLI).
 3. Перед релизом кабинетов: RLS + private bucket `pension-docs`.
 4. Секреты: `.env` на VPS и GitHub Secrets. В кабинетах только publishable/anon.
-5. Google Sheets — **legacy dual-run** до cutover на DataLens (ТЗ-17); целевой BI: [ops/datalens-management-bi.md](ops/datalens-management-bi.md). Обезличенные агрегаты only, не ПДн.
-6. Google Drive — шаблоны/кейсы по `case_id`; сканы ПДн — в Supabase Storage.
-7. Calendar / reCAPTCHA / Search Console — см. раздел ниже; Gmail клиентам на MVP не подключаем.
+5. Управленческий контур: dbt → DataLens; runtime Google Sheets отключён 3 августа 2026 года.
+6. Документы и резервные копии — только в self-hosted Supabase/Yandex Cloud в РФ.
+7. Календарь, почта и защита формы — Yandex Workspace/SmartCaptcha.
 8. dbt запускается отдельно от API и деплоя: роль `analytics_transformer` читает только `analytics_source`, пишет только `analytics`.
 
 ## dbt-аналитика
@@ -42,39 +42,16 @@ SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 Используйте `sfrfr-dbt.timer` от `sfrfr` (ежедневно в 05:30 МСК) с direct PostgreSQL
 endpoint после включения IPv4 add-on. Не добавляйте этот запуск в `vps_deploy.sh`.
 
-## Google (MVP) — чеклист
+## Российский рабочий контур
 
 | Сервис | Статус | Действие |
 |---|---|---|
-| Sheets | **legacy** dual-run → DataLens | Пока: `sfrfr sheets-sync`. Цель: [ops/datalens-management-bi.md](ops/datalens-management-bi.md). Отключить после сверки KPI |
-| Drive | код + SA | `sfrfr drive-init-tree`, `drive-case-mkdir CASE-…` |
-| Calendar | код | Расшарить календарь на `sfrpfr-google-calendar@…`, задать `GOOGLE_CALENDAR_ID`, затем `sfrfr calendar-create --case-id … --start …` |
-| reCAPTCHA Enterprise | код + GCP domains | Site key `sfrpfr-site-key` / `RECAPTCHA_SITE_KEY`; WP: `action: 'lead'`; API verify через SA; после смены домена — domains в GCP (`docs/ops/cutover-manual-checklist.md`, скрипт `scripts/ops_patch_recaptcha_domains.py` — нужен IAM `keys.get/update`) |
-| Search Console | ops | Добавить `https://proverkastaza.ru/`, выдать доступ SA `sfrpfr-google-search-console@…`, `sfrfr gsc-sites` |
-| Looker Studio | **legacy** | Заменяется DataLens; не строить новые отчёты |
-| Gmail / Meet / Forms / Docs API / Vision | отложено | — |
-
-### WP: reCAPTCHA Enterprise (лид)
-
-```html
-<script src="https://www.google.com/recaptcha/enterprise.js?render=6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu"></script>
-```
-
-Перед отправкой формы (action **обязательно** `lead`, не `LOGIN`):
-
-```js
-const token = await grecaptcha.enterprise.execute(
-  '6Lf7UWMtAAAAANDXkb8MR9ufU8QYO9UwZsEC3NHu',
-  { action: 'lead' }
-);
-// добавить в JSON webhook: "recaptcha_token": token
-```
-
-Бэкенд: `POST /api/public/leads` → `RecaptchaVerifier` (SA), `expectedAction=lead`, `min_score` из `RECAPTCHA_MIN_SCORE`.
-
-В GCP включите **reCAPTCHA Enterprise API** для проекта `sfrfr-sheets`, если ещё не включена.
-
-WP reCAPTCHA: site key на форме + поле/`recaptcha_token` в JSON webhook на `/api/public/leads`. Не слать телефоны/ФИО в GTM/Метрику.
+| База/Auth/Storage | self-hosted Supabase в Yandex Cloud | `https://supabase.proverkastaza.ru`; резервные копии в РФ |
+| Аналитика | dbt + DataLens | Google Sheets/Looker не используются |
+| Календарь/почта | Yandex Workspace | Не отправлять сканы через почту/Диск |
+| Защита формы | Yandex SmartCaptcha | `CAPTCHA_PROVIDER=yandex`; Google fallback запрещён в production |
+| Статистика сайта | Яндекс Метрика | Только после выбора «Разрешить», вебвизор выключен |
+| Search Console | служебная поисковая статистика | Не передавать данные клиентов |
 
 ## Мониторинг и алерты
 
@@ -111,4 +88,4 @@ curl -fsS https://api.proverkastaza.ru/api/integrations/max/health
 curl -fsS -o /dev/null -w "%{http_code}\n" https://api.proverkastaza.ru/docs
 ```
 
-Ожидание: HTTP 200, JSON без ПДн, `/docs` открывается без ключа.
+Ожидание: health — HTTP 200 и JSON без ПДн; `/docs` в production — HTTP 404.

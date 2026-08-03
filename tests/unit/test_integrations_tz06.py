@@ -31,6 +31,21 @@ def test_sheets_exporter_skips_without_url(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_sheets_exporter_is_disabled_in_production(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("GOOGLE_SHEETS_SPREADSHEET_ID", "sheet123")
+    monkeypatch.setenv("GOOGLE_SHEETS_CREDENTIALS_JSON", '{"type":"service_account"}')
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    exporter = SheetsExporter()
+    result = exporter.push([{"case_id": "1", "segment": "b2c"}])
+    assert exporter.available is False
+    assert result.get("skipped") is True
+    assert result.get("reason") == "Google Sheets disabled in production"
+    get_settings.cache_clear()
+
+
 def test_rows_to_values_header_and_order() -> None:
     matrix = rows_to_values([{"case_id": "c1", "segment": "b2c", "extra_pii": "no"}])
     assert matrix[0][0] == "case_id"

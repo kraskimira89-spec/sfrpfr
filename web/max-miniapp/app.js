@@ -6,7 +6,7 @@
     "/",
   );
   const botUrl = cfg.maxBotUrl || "https://max.ru/";
-  const CONSENT_VERSION = "pdn-consent-2026-07-27-r2";
+  const CONSENT_VERSION = "pdn-consent-2026-08-03";
 
   const PIPELINE_STEPS = [
     "intake",

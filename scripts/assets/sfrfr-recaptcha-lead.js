@@ -1,15 +1,9 @@
 /**
- * Captcha для формы лида WPForms.
- * Если clientKey начинается с ysc1_ — Yandex SmartCaptcha, иначе Google reCAPTCHA Enterprise (legacy).
+ * Yandex SmartCaptcha для формы лида WPForms.
  */
 (function () {
   var CLIENT_KEY =
-    (window.SFRFR_SMARTCAPTCHA && window.SFRFR_SMARTCAPTCHA.clientKey) ||
-    (window.SFRFR_RECAPTCHA && window.SFRFR_RECAPTCHA.siteKey) ||
-    "";
-  var ACTION =
-    (window.SFRFR_RECAPTCHA && window.SFRFR_RECAPTCHA.action) || "lead";
-  var IS_YANDEX = String(CLIENT_KEY).indexOf("ysc1_") === 0;
+    (window.SFRFR_SMARTCAPTCHA && window.SFRFR_SMARTCAPTCHA.clientKey) || "";
 
   function findTokenInput(form) {
     return (
@@ -124,7 +118,7 @@
   }
 
   function mountYandex() {
-    if (!CLIENT_KEY || !IS_YANDEX) return;
+    if (!CLIENT_KEY) return;
     document.querySelectorAll("form.wpforms-form").forEach(function (form) {
       ensureYandexWidget(form);
       ensureTokenInput(form);
@@ -132,53 +126,12 @@
     loadYandex(renderYandexWidgets);
   }
 
-  /* ---------- Google reCAPTCHA Enterprise (legacy) ---------- */
-  function loadGoogle() {
-    if (document.getElementById("sfrfr-recaptcha-enterprise")) return;
-    var script = document.createElement("script");
-    script.id = "sfrfr-recaptcha-enterprise";
-    script.src =
-      "https://www.google.com/recaptcha/enterprise.js?render=" +
-      encodeURIComponent(CLIENT_KEY);
-    script.async = true;
-    document.head.appendChild(script);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountYandex);
+  } else {
+    mountYandex();
   }
-
-  function readyGoogle() {
-    loadGoogle();
-    return new Promise(function (resolve, reject) {
-      var tries = 0;
-      (function wait() {
-        if (
-          window.grecaptcha &&
-          window.grecaptcha.enterprise &&
-          typeof window.grecaptcha.enterprise.execute === "function"
-        ) {
-          window.grecaptcha.enterprise.ready(function () {
-            resolve();
-          });
-          return;
-        }
-        tries += 1;
-        if (tries > 80) {
-          reject(new Error("reCAPTCHA Enterprise не загрузилась"));
-          return;
-        }
-        setTimeout(wait, 100);
-      })();
-    });
-  }
-
-  if (IS_YANDEX) {
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", mountYandex);
-    } else {
-      mountYandex();
-    }
-    setTimeout(mountYandex, 800);
-  } else if (CLIENT_KEY) {
-    loadGoogle();
-  }
+  setTimeout(mountYandex, 800);
 
   document.addEventListener(
     "submit",
@@ -201,48 +154,23 @@
 
       var submitBtn = form.querySelector(".wpforms-submit");
 
-      if (IS_YANDEX) {
-        ensureYandexWidget(form);
-        var yToken = readYandexToken(form);
-        if (!yToken) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          if (typeof ev.stopImmediatePropagation === "function") {
-            ev.stopImmediatePropagation();
-          }
-          window.alert("Отметьте «Я не робот» и при необходимости пройдите проверку.");
-          return;
-        }
+      ensureYandexWidget(form);
+      var yToken = readYandexToken(form);
+      if (!yToken) {
         ev.preventDefault();
         ev.stopPropagation();
         if (typeof ev.stopImmediatePropagation === "function") {
           ev.stopImmediatePropagation();
         }
-        submitWithToken(form, submitBtn, yToken);
+        window.alert("Отметьте «Я не робот» и при необходимости пройдите проверку.");
         return;
       }
-
       ev.preventDefault();
       ev.stopPropagation();
       if (typeof ev.stopImmediatePropagation === "function") {
         ev.stopImmediatePropagation();
       }
-      if (submitBtn) submitBtn.disabled = true;
-
-      readyGoogle()
-        .then(function () {
-          return window.grecaptcha.enterprise.execute(CLIENT_KEY, { action: ACTION });
-        })
-        .then(function (token) {
-          submitWithToken(form, submitBtn, token);
-        })
-        .catch(function () {
-          if (submitBtn) submitBtn.disabled = false;
-          form.removeAttribute("data-sfrfr-captcha-ok");
-          window.alert(
-            "Не удалось проверить форму (капча). Обновите страницу и попробуйте снова."
-          );
-        });
+      submitWithToken(form, submitBtn, yToken);
     },
     true
   );

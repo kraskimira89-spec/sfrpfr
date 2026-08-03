@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from sfrfr.api.routes.public_leads import (
+    _captcha_mode,
     _from_wpforms_payload,
     _normalize_channel,
     _require_amocrm_lead,
@@ -129,4 +130,14 @@ def test_require_amocrm_fails_when_not_configured_in_prod(monkeypatch: pytest.Mo
     with pytest.raises(HTTPException) as exc:
         _require_amocrm_lead({"ok": False, "skipped": True})
     assert exc.value.status_code == 503
+    get_settings.cache_clear()
+
+
+def test_production_forces_yandex_captcha(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CAPTCHA_PROVIDER", "google")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    assert _captcha_mode() == "yandex"
     get_settings.cache_clear()

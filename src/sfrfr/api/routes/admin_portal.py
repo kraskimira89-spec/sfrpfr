@@ -29,7 +29,6 @@ from sfrfr.core.success_fee import (
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
-from sfrfr.integrations.sheets import SheetsExporter, sanitize_rows
 from sfrfr.security.auth import (
     Principal,
     StaffRole,
@@ -616,7 +615,7 @@ def admin_analytics(principal: Principal = Depends(require_staff)) -> dict:
         rows = [r for r in rows if r["case_id"] in allowed]
     return {
         "rows": rows,
-        "note": "Whitelist без ФИО/телефона/СНИЛС/файлов/OCR. Для выгрузки в Google Sheets.",
+        "note": "Обезличенная выборка без ФИО, контактов, СНИЛС, файлов и распознанного текста.",
         "aggregates": {
             "cases": len(rows),
             "paid_diag": sum(1 for r in rows if r["paid_diag"]),
@@ -625,14 +624,6 @@ def admin_analytics(principal: Principal = Depends(require_staff)) -> dict:
             "by_channel": dict(Counter(r["preferred_channel"] for r in rows)),
         },
     }
-
-
-@router.post("/admin/analytics/sheets-sync")
-def admin_analytics_sheets_sync(principal: Principal = Depends(require_admin)) -> dict:
-    """Пуш обезличенных строк в Google Sheets (API SA или webhook, ТЗ-06)."""
-    rows = sanitize_rows(_repo().anonymized_analytics_rows())
-    result = SheetsExporter().push(rows)
-    return {"export": result, "rows": len(rows), "pii": False}
 
 
 @router.post("/admin/cases/{case_id}/knowledge-feedback", status_code=201)

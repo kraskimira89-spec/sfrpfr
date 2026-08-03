@@ -104,10 +104,12 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 
 ### Фаза 3. Captcha и документы 152-ФЗ
 
-1. Заменить Google reCAPTCHA → Yandex SmartCaptcha в WP + `integrations/recaptcha` (или новый модуль).
-2. Убрать GCP-зависимости captcha из prod env.
-3. Обновить `docs/contracts/pdn-policy.md`, согласие, уведомление оператора.
-4. В политике: страна/получатель/цели только для оставшихся иностранных сервисов (если есть).
+1. [x] Заменить Google reCAPTCHA → Yandex SmartCaptcha в WP и API.
+2. [x] Запретить Google captcha и прямые иностранные LLM в production-коде.
+3. [x] Обновить Политику, Согласие и Правила файлов браузера (редакции 2026-08-03).
+4. [x] Отключить runtime-выгрузку Google Sheets; управленческий контур — dbt/DataLens.
+5. [ ] После подтверждения стабильности удалить Cloud-проект Supabase и получить
+   подтверждение уничтожения копий.
 
 Критерий выхода: в prod нет Google captcha; документы соответствуют фактическому контуру.
 
@@ -149,5 +151,7 @@ WordPress / кабинеты / MAX — без смены контрактов AP
 - [x] На MVP разрешён временный Supabase Cloud.
 - [x] План миграции по фазам 0–4 описан.
 - [x] Разница Supabase vs Yandex Cloud зафиксирована в таблице.
-- [ ] Фаза 1 — в работе (инфра staging есть; DNS/TLS, миграции, restore-drill, SmartCaptcha-ключи — хвосты).
-- [ ] Фазы 2–4 — после MVP / после зелёной фазы 1.
+- [x] Фаза 1 — РФ-инфраструктура, DNS/TLS, миграции, restore-drill и SmartCaptcha готовы.
+- [x] Фаза 2 — production переключён на self-hosted Supabase в Yandex Cloud.
+- [x] Фаза 3 — Google captcha/Sheets отключены в runtime, документы обновлены.
+- [ ] Фаза 4 — удалить остаточный Cloud-проект после окна наблюдения и оформить подтверждение.

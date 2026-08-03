@@ -44,11 +44,11 @@ class Settings(BaseSettings):
     yandex_model_analyze: str = "deepseek-v4-flash"
     yandex_model_draft: str = "yandexgpt/latest"
     yandex_base_url: str = "https://llm.api.cloud.yandex.net/v1"
-    # DeepSeek platform API — запасной провайдер (secrets/deepseek.env)
+    # DeepSeek platform API — только для локальных экспериментов, не для production-ПДн
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
-    deepseek_fallback_enabled: bool = True
+    deepseek_fallback_enabled: bool = False
     # Яндекс Workspace OAuth (ТЗ-14) — отдельно от Cloud AI
     yandex_oauth_client_id: str = ""
     yandex_oauth_client_secret: str = ""
