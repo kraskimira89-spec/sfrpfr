@@ -134,6 +134,18 @@ def _normalize_channel(raw: str | None) -> str:
     return "unset"
 
 
+_CHANNEL_LABELS_RU: dict[str, str] = {
+    "max_miniapp": "мини-приложение MAX",
+    "web_cabinet": "личный кабинет на сайте",
+    "unset": "не выбран",
+}
+
+
+def _channel_label_ru(channel: str) -> str:
+    key = (channel or "").strip().lower() or "unset"
+    return _CHANNEL_LABELS_RU.get(key, key)
+
+
 def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
     """Разобрать webhook WPForms (fields.id → value)."""
     fields = raw.get("fields")
@@ -257,7 +269,7 @@ def _notify_max_managers_new_lead(
         "Новая заявка с сайта",
         f"Имя: {full_name}",
         f"Контакт: {contact}",
-        f"Канал: {channel}",
+        f"Канал: {_channel_label_ru(channel)}",
         f"Дело: {catalog}",
     ]
     if crm_url:
