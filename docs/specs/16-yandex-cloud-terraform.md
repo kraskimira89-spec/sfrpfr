@@ -267,7 +267,7 @@ terraform import yandex_compute_instance.supabase <INSTANCE_ID>
 | `tofu plan` без drift | ✅ No changes |
 | Lockbox payload заполнен | ✅ (не через `.tfvars`) |
 | Миграции + seed на VM | ✅ (вне Terraform, скрипты `vm_supabase_*`) |
-| DNS A `supabase` | ❌ в reg.ru ещё нет → HTTPS/ACME ждёт |
+| DNS A `supabase` + HTTPS | ✅ `51.250.13.240`, LE на Caddy (2026-08-03) |
 | P1 remote state / manage_dns / snapshots | ❌ не в первом apply |
 
 ## 12. Связанные документы

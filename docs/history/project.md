@@ -1,5 +1,9 @@
 # История проекта SFRFR
 
+## 2026-08-03 (staging HTTPS)
+
+- DNS + LE для `supabase.proverkastaza.ru` закрыты; Caddy на YC VM.
+
 ## 2026-08-02 (ТЗ-16: verify + DNS tooling)
 
 - Plan clean; Lockbox/миграции подтверждены на VM.

@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-03 — DNS supabase + HTTPS staging
+
+- В reg.ru A `supabase` → `51.250.13.240`; DNS резолвится.
+- Caddy перезапущен; Let's Encrypt выдан; `https://supabase.proverkastaza.ru` отвечает.
+
 ## 2026-08-02 — проверка/хвосты ТЗ-16
 
 - `tofu plan`: No changes (drift нет).

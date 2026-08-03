@@ -187,8 +187,7 @@ docker compose exec -T db pg_dump -U postgres > backup-$(date +%F).sql
 
 - [x] ВМ в регионе РФ (`ru-central1`), Compose healthy (2026-08-02)
 - [x] Секреты из Lockbox (не дефолтные JWT); Studio не на `:8000` с интернета (SG)
-- [ ] HTTPS на `API_EXTERNAL_URL` — Caddy поднят; **LE ждёт DNS A `supabase` → `51.250.13.240`**  
-      (`python scripts/regru_add_supabase_a.py` или вручную → `.\scripts\wait_supabase_dns_and_tls.ps1`)
+- [x] HTTPS на `API_EXTERNAL_URL` — DNS A + Let's Encrypt OK (2026-08-03), `https://supabase.proverkastaza.ru`
 - [x] Миграции SFRFR (11) + SYNTH seed применены (2026-08-02)
 - [ ] Magic link / OTP с рабочего SMTP
 - [x] Restore-drill: dump + `restore_drill` с `public_tables=16` (ACL warnings ок)

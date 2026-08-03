@@ -63,8 +63,8 @@ cd C:\Users\user\Documents\Cursor\SFRFR
 | `tofu plan` drift | ✅ No changes |
 | Lockbox payload (supabase + database) | ✅ versions ACTIVE |
 | Compose + миграции + SYNTH seed | ✅ на `51.250.13.240` |
-| DNS `supabase.proverkastaza.ru` | ❌ NXDOMAIN — добавить A → `51.250.13.240` |
-| HTTPS / ACME | ⏳ после DNS (`wait_supabase_dns_and_tls.ps1`) |
+| DNS `supabase.proverkastaza.ru` | ✅ A → `51.250.13.240` (reg.ru, 2026-08-03) |
+| HTTPS / ACME | ✅ сертификат LE получен; API отвечает по HTTPS |
 
 DNS: `docs/ops/regru.env.example` → `secrets/regru.env`, затем  
 `python scripts/regru_add_supabase_a.py` и `.\scripts\wait_supabase_dns_and_tls.ps1`  
