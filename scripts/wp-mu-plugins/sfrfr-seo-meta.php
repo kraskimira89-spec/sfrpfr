@@ -178,6 +178,11 @@ function sfrfr_seo_description(): string
             'politika-pdn' => 'Политика обработки персональных данных сервиса «Проверка стажа»: цели, основания, сроки и права пользователя.',
             'soglasie' => 'Согласие на обработку персональных данных при обращении в сервис «Проверка стажа».',
             'cookies' => 'Правила использования файлов браузера и аналитики на сайте сервиса «Проверка стажа».',
+            'proverka-stazha' => 'Услуга проверки стажа и ИЛС: сверка документов, план обращения в СФР и границы сервиса без обещания перерасчёта.',
+            'tarify' => 'Фиксированные тарифы диагностики, сопровождения и комплекса «Под ключ» для проверки пенсионного стажа.',
+            'kontakty' => 'Телефон, почта, MAX, реквизиты ООО «ПОД ПРИСМОТРОМ» и ссылки на оферту и политику ПДн.',
+            'kak-rabotaem' => 'Порядок работы сервиса «Проверка стажа»: заявка, документы, диагностика, план и самостоятельная подача в СФР.',
+            'lopakova-nataliya' => 'Генеральный директор ООО «ПОД ПРИСМОТРОМ»: роль в сервисе, редакционная проверка материалов и контакты.',
             'kak-proverit-stazh-v-vypiske-ils' => 'Как читать выписку ИЛС, сверить периоды работы с трудовой и понять, каких подтверждений не хватает перед обращением в СФР.',
             'kak-sverit-trudovuyu-knizhku-i-ils' => 'Пошаговая сверка трудовой книжки и выписки ИЛС: как найти расхождения и что подготовить для уточнения сведений.',
             'chto-delat-esli-period-raboty-ne-uchten' => 'Что делать, если период работы не отражён в ИЛС: порядок подтверждения, архивные справки и обращение в СФР.',
@@ -284,6 +289,16 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         ];
     }
 
+    $personId = $site . 'expert/lopakova-nataliya/#person';
+    $graph[] = [
+        '@type' => 'Person',
+        '@id' => $personId,
+        'name' => 'Лопакова Наталия Федоровна',
+        'jobTitle' => 'Генеральный директор',
+        'url' => $site . 'expert/lopakova-nataliya/',
+        'worksFor' => ['@id' => $orgId],
+    ];
+
     if (is_front_page()) {
         $graph[] = [
             '@type' => 'Service',
@@ -296,8 +311,53 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         ];
     }
 
+    if (is_page('proverka-stazha') || is_page('tarify')) {
+        $graph[] = [
+            '@type' => 'Service',
+            '@id' => $canonical . '#service',
+            'name' => get_the_title(),
+            'description' => $description,
+            'url' => $canonical,
+            'provider' => ['@id' => $orgId],
+            'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
+        ];
+    }
+
+    if (is_page('kontakty')) {
+        $graph[0]['address'] = [
+            '@type' => 'PostalAddress',
+            'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
+            'addressLocality' => 'Ноябрьск',
+            'addressRegion' => 'Ямало-Ненецкий автономный округ',
+            'postalCode' => '629804',
+            'addressCountry' => 'RU',
+        ];
+        $graph[0]['telephone'] = '+79091950408';
+        $graph[0]['email'] = 'prismotr89@yandex.ru';
+        $graph[0]['contactPoint'] = [
+            '@type' => 'ContactPoint',
+            'telephone' => '+79091950408',
+            'email' => 'prismotr89@yandex.ru',
+            'contactType' => 'customer service',
+            'availableLanguage' => 'Russian',
+        ];
+    }
+
+    if (is_page('lopakova-nataliya')) {
+        $graph[] = [
+            '@type' => 'ProfilePage',
+            '@id' => $canonical . '#profile',
+            'url' => $canonical,
+            'mainEntity' => ['@id' => $personId],
+        ];
+    }
+
     if (is_singular('post')) {
         $postId = get_queried_object_id();
+        $authorName = trim((string) get_post_meta($postId, '_sfrfr_author_name', true));
+        $author = $authorName !== ''
+            ? ['@id' => $personId]
+            : ['@id' => $orgId];
         $article = [
             '@type' => 'Article',
             '@id' => $canonical . '#article',
@@ -307,7 +367,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'datePublished' => get_the_date(DATE_W3C, $postId),
             'dateModified' => get_the_modified_date(DATE_W3C, $postId),
             'inLanguage' => 'ru-RU',
-            'author' => ['@id' => $orgId],
+            'author' => $author,
             'publisher' => ['@id' => $orgId],
         ];
         if ($logo !== '') {
@@ -391,11 +451,46 @@ add_action('wp_head', static function (): void {
 /**
  * Astra уже выводит post_title как H1. Убираем только первый H1 из тела записи,
  * оставляя исходные HTML-ассеты пригодными для чтения и повторного сида.
+ * Добавляем byline автора/проверяющего на экспертных статьях.
  */
 add_filter('the_content', static function (string $content): string {
     if (!is_singular('post') || !in_the_loop() || !is_main_query()) {
         return $content;
     }
     $updated = preg_replace('/^\s*<h1\b[^>]*>.*?<\/h1>\s*/isu', '', $content, 1);
-    return is_string($updated) ? $updated : $content;
+    $content = is_string($updated) ? $updated : $content;
+
+    $postId = get_the_ID();
+    if (!$postId || has_category(['situacii', 'analitika'], $postId)) {
+        return $content;
+    }
+    if (str_contains($content, 'sfrfr-article-byline')) {
+        return $content;
+    }
+    $author = trim((string) get_post_meta($postId, '_sfrfr_author_name', true));
+    $authorUrl = trim((string) get_post_meta($postId, '_sfrfr_author_url', true));
+    $reviewer = trim((string) get_post_meta($postId, '_sfrfr_reviewer_name', true));
+    if ($author === '' && $reviewer === '') {
+        return $content;
+    }
+    $authorHtml = $author !== ''
+        ? (
+            $authorUrl !== ''
+                ? '<a href="' . esc_url($authorUrl) . '">' . esc_html($author) . '</a>'
+                : esc_html($author)
+        )
+        : '';
+    $parts = [];
+    if ($authorHtml !== '') {
+        $parts[] = 'Автор: ' . $authorHtml;
+    }
+    if ($reviewer !== '') {
+        $parts[] = 'Проверка: ' . esc_html($reviewer);
+    }
+    $modified = get_the_modified_date('j F Y', $postId);
+    if (is_string($modified) && $modified !== '') {
+        $parts[] = 'Обновлено: ' . esc_html($modified);
+    }
+    $byline = '<p class="sfrfr-article-byline"><em>' . implode(' · ', $parts) . '</em></p>';
+    return $byline . $content;
 }, 5);

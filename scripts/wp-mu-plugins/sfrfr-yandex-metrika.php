@@ -290,7 +290,7 @@ add_action('wp_footer', static function (): void {
         }, { once: true });
       });
     }
-    var tarify = document.getElementById("tarify");
+    var tarify = document.getElementById("tarify") || (location.pathname.indexOf("/tarify") === 0 ? document.body : null);
     if (tarify && "IntersectionObserver" in window) {
       once(tarify, "sfrfrMetrikaTariff", function (el) {
         var io = new IntersectionObserver(function (entries) {
@@ -303,6 +303,8 @@ add_action('wp_footer', static function (): void {
         }, { threshold: 0.35 });
         io.observe(el);
       });
+    } else if (location.pathname.indexOf("/tarify") === 0) {
+      window.sfrfrMetrikaGoal("tariff_view");
     }
   }
 

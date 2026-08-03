@@ -1,5 +1,12 @@
 # История проекта SFRFR
 
+## 2026-08-03 (ТЗ-18 недели 2–3: доверие и коммерция)
+
+- Страницы: `/proverka-stazha/`, `/tarify/`, `/kak-rabotaem/`, `/kontakty/`, `/expert/lopakova-nataliya/`.
+- Byline автора/проверяющего на экспертных статьях + Person в Schema.
+- Единые реквизиты в футере и на `/kontakty/`; `tariff_view` на `/tarify/`.
+- Ops: `docs/ops/seo-trust-commerce-pages.md`; сидер `wp_seed_trust_pages_tz18.sh`.
+
 ## 2026-08-03 (юридические документы после переноса в РФ)
 
 - Политика, Согласие и Правила файлов браузера обновлены до редакций 2026-08-03.

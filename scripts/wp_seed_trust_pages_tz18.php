@@ -1,0 +1,195 @@
+<?php
+/**
+ * ТЗ-18 этап 2: страницы доверия и коммерции + автор/проверяющий на постах.
+ *
+ * wp --path=SITE eval-file scripts/wp_seed_trust_pages_tz18.php
+ */
+
+if (!defined('ABSPATH')) {
+    fwrite(STDERR, "Run via WP-CLI eval-file\n");
+    exit(1);
+}
+
+$assets = getenv('SFRFR_TRUST_ASSETS') ?: (__DIR__ . '/assets/trust');
+$maxUrl = getenv('MAX_CHAT_URL') ?: getenv('MAX_PUBLIC_BOT_URL') ?: 'https://max.ru/id8905998693_1_bot';
+$maxUrl = htmlspecialchars((string) $maxUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+$pages = [
+    [
+        'slug' => 'proverka-stazha',
+        'title' => 'Проверка пенсионного стажа',
+        'file' => 'proverka-stazha.html',
+        'seo_title' => 'Проверка пенсионного стажа и документов',
+        'seo_description' => 'Услуга проверки стажа и ИЛС: сверка документов, план обращения в СФР и границы сервиса без обещания перерасчёта.',
+    ],
+    [
+        'slug' => 'tarify',
+        'title' => 'Тарифы',
+        'file' => 'tarify.html',
+        'seo_title' => 'Тарифы на проверку стажа',
+        'seo_description' => 'Фиксированные тарифы диагностики, сопровождения и комплекса «Под ключ» для проверки пенсионного стажа.',
+    ],
+    [
+        'slug' => 'kontakty',
+        'title' => 'Контакты',
+        'file' => 'kontakty.html',
+        'seo_title' => 'Контакты и реквизиты сервиса «Проверка стажа»',
+        'seo_description' => 'Телефон, почта, MAX, реквизиты ООО «ПОД ПРИСМОТРОМ» и ссылки на оферту и политику ПДн.',
+    ],
+    [
+        'slug' => 'kak-rabotaem',
+        'title' => 'Как мы работаем',
+        'file' => 'kak-rabotaem.html',
+        'seo_title' => 'Как мы работаем: порядок проверки стажа',
+        'seo_description' => 'Порядок работы сервиса «Проверка стажа»: заявка, документы, диагностика, план и самостоятельная подача в СФР.',
+    ],
+    [
+        'slug' => 'expert/lopakova-nataliya',
+        'title' => 'Лопакова Наталия Федоровна',
+        'file' => 'expert-lopakova.html',
+        'seo_title' => 'Лопакова Н. Ф. — сервис «Проверка стажа»',
+        'seo_description' => 'Генеральный директор ООО «ПОД ПРИСМОТРОМ»: роль в сервисе, редакционная проверка материалов и контакты.',
+    ],
+];
+
+function sfrfr_trust_load(string $assets, string $file, string $maxUrl): string
+{
+    $path = rtrim($assets, '/\\') . DIRECTORY_SEPARATOR . $file;
+    if (!is_readable($path)) {
+        throw new RuntimeException("Missing trust page: {$path}");
+    }
+    $html = (string) file_get_contents($path);
+    return str_replace('{{MAX_BTN_URL}}', $maxUrl, $html);
+}
+
+function sfrfr_trust_upsert_page(array $args): int
+{
+    $slug = $args['slug'];
+    $existing = get_page_by_path($slug);
+    $postarr = [
+        'post_title' => $args['title'],
+        'post_name' => basename(str_replace('\\', '/', $slug)),
+        'post_status' => 'publish',
+        'post_type' => 'page',
+        'post_content' => $args['content'],
+        'comment_status' => 'closed',
+        'ping_status' => 'closed',
+        'post_author' => 1,
+    ];
+    if ($existing instanceof WP_Post) {
+        $postarr['ID'] = (int) $existing->ID;
+        $id = wp_update_post($postarr, true);
+    } else {
+        // Для вложенного slug expert/lopakova-nataliya нужен parent.
+        if (str_contains($slug, '/')) {
+            $parts = explode('/', $slug);
+            $parentSlug = $parts[0];
+            $parent = get_page_by_path($parentSlug);
+            if (!$parent) {
+                $parentId = wp_insert_post([
+                    'post_title' => 'Эксперты',
+                    'post_name' => $parentSlug,
+                    'post_status' => 'publish',
+                    'post_type' => 'page',
+                    'post_content' => '<p>Профили ответственных лиц сервиса «Проверка стажа».</p>',
+                    'comment_status' => 'closed',
+                    'ping_status' => 'closed',
+                ], true);
+                if (is_wp_error($parentId)) {
+                    throw new RuntimeException($parentId->get_error_message());
+                }
+                $parentId = (int) $parentId;
+            } else {
+                $parentId = (int) $parent->ID;
+            }
+            $postarr['post_parent'] = $parentId;
+            $postarr['post_name'] = $parts[1];
+        }
+        $id = wp_insert_post($postarr, true);
+    }
+    if (is_wp_error($id)) {
+        throw new RuntimeException($id->get_error_message());
+    }
+    $id = (int) $id;
+    update_post_meta($id, '_sfrfr_seo_description', $args['seo_description']);
+    update_post_meta($id, '_rank_math_title', $args['seo_title']);
+    update_post_meta($id, '_rank_math_description', $args['seo_description']);
+    update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
+    update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    return $id;
+}
+
+$created = [];
+foreach ($pages as $page) {
+    $content = sfrfr_trust_load($assets, $page['file'], $maxUrl);
+    $id = sfrfr_trust_upsert_page([
+        'slug' => $page['slug'],
+        'title' => $page['title'],
+        'content' => $content,
+        'seo_title' => $page['seo_title'],
+        'seo_description' => $page['seo_description'],
+    ]);
+    $created[$page['slug']] = $id;
+    echo "PAGE {$page['slug']}={$id}\n";
+}
+
+// Автор / проверяющий на опубликованных экспертных постах (не situacii/analitika).
+$authorName = 'Лопакова Наталия Федоровна';
+$authorUrl = home_url('/expert/lopakova-nataliya/');
+$reviewerName = 'Редакция сервиса «Проверка стажа»';
+$posts = get_posts([
+    'post_type' => 'post',
+    'post_status' => 'publish',
+    'numberposts' => -1,
+    'fields' => 'ids',
+]);
+$marked = 0;
+foreach ($posts as $postId) {
+    $postId = (int) $postId;
+    if (has_category(['situacii', 'analitika'], $postId)) {
+        continue;
+    }
+    update_post_meta($postId, '_sfrfr_author_name', $authorName);
+    update_post_meta($postId, '_sfrfr_author_url', $authorUrl);
+    update_post_meta($postId, '_sfrfr_reviewer_name', $reviewerName);
+    $marked++;
+}
+echo "AUTHOR_META posts={$marked}\n";
+
+// Обновить пункты меню Primary на отдельные URL (если меню есть).
+$menu = wp_get_nav_menu_object('SFRFR Primary');
+if ($menu) {
+    $menuId = (int) $menu->term_id;
+    $items = wp_get_nav_menu_items($menuId) ?: [];
+    foreach ($items as $item) {
+        $title = (string) $item->title;
+        $map = [
+            'Тарифы' => home_url('/tarify/'),
+            'О сервисе' => home_url('/proverka-stazha/'),
+            'Как это работает' => home_url('/kak-rabotaem/'),
+        ];
+        if (isset($map[$title])) {
+            update_post_meta((int) $item->ID, '_menu_item_url', $map[$title]);
+            echo "MENU {$title} -> {$map[$title]}\n";
+        }
+    }
+    // Добавить Контакты, если нет.
+    $hasContacts = false;
+    foreach ($items as $item) {
+        if ((string) $item->title === 'Контакты') {
+            $hasContacts = true;
+            break;
+        }
+    }
+    if (!$hasContacts && !empty($created['kontakty'])) {
+        wp_update_nav_menu_item($menuId, 0, [
+            'menu-item-title' => 'Контакты',
+            'menu-item-url' => home_url('/kontakty/'),
+            'menu-item-status' => 'publish',
+            'menu-item-type' => 'custom',
+        ]);
+        echo "MENU Контакты added\n";
+    }
+}
+
+echo "OK trust pages seeded\n";
