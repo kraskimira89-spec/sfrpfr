@@ -147,6 +147,11 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Success WPForms: ссылка с `email/phone/name/from_lead` из ответа API.
 - Кабинет: при prefill — сводка контактов + СОПД + «Получить код», без повторного ввода.
 
+## 2026-08-03 (письма Auth по-русски)
+
+- Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
+- Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
+
 ## 2026-07-29 (MAX: кнопки навигации)
 
 - Нижняя панель: Обзор / Документы / Сообщения / Мои дела.
