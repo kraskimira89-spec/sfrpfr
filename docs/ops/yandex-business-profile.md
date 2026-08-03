@@ -59,7 +59,19 @@ https://proverkastaza.ru/yandex-business-price.yml
 
 ---
 
-## Как загрузить в кабинет
+## Публикации (посты)
+
+Готовые тексты со ссылками на сайт: `scripts/assets/yandex-business/posts.md` (8 постов).
+
+1. Открыть https://yandex.ru/sprav/234170727274/p/edit/posts/ (CAPTCHA).
+2. Создать публикацию → вставить текст из файла (ссылка только на `proverkastaza.ru`).
+3. Модерация — до нескольких дней ([правила публикаций](https://yandex.ru/support/business-priority/ru/manage/publications)).
+
+Рекомендуемый старт: посты 1–2 (услуга, тарифы), затем статьи блога.
+
+---
+
+## Как загрузить прайс в кабинет
 
 1. Войти в https://yandex.ru/sprav/234170727274/p/edit/price-lists/ (пройти CAPTCHA).
 2. **Вариант A:** О компании → Товары и услуги → Загрузить XLS/YML → файл `price-list.xlsx`.
