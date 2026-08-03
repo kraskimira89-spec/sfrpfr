@@ -1,5 +1,10 @@
 # История проекта SFRFR
 
+## 2026-08-03 (SmartCaptcha + staging Auth email)
+
+- WP: MU SmartCaptcha выкатан (`wp_apply`); на витрине `ysc1_` / `SFRFR_SMARTCAPTCHA`.
+- Staging GoTrue: Send Email Hook → `api.proverkastaza.ru` → Яндекс SMTP; OTP smoke `Hook ran successfully`.
+
 ## 2026-08-03 (staging HTTPS)
 
 - DNS `supabase.proverkastaza.ru` → `51.250.13.240`; Caddy LE OK (CN, до Nov 2026).

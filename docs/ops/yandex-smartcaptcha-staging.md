@@ -48,8 +48,8 @@ systemctl restart sfrfr-api
 
 - [x] Ключи созданы в YC (РФ) — капча `proverkastaza`.
 - [x] `CAPTCHA_PROVIDER=yandex` на VPS `/opt/sfrfr/.env`.
-- [ ] На https://proverkastaza.ru/#zayavka виден виджет SmartCaptcha (после `wp_apply_landing_vps.sh`).
-- [ ] Успешный лид с отмеченной капчей.
+- [x] На https://proverkastaza.ru витрина грузит SmartCaptcha (`ysc1_`, MU `sfrfr-recaptcha-lead`).
+- [ ] Успешный ручной лид с отмеченной капчей (проверка в браузере).
 - [ ] Без капчи API отвечает `400 captcha_token required` / `smartcaptcha_failed`.
 
 ## 5. Откат на Google
