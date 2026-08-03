@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE yml_catalog SYSTEM "shops.dtd">
+<!--
+  Прайс услуг «Проверка стажа» для Яндекс Бизнеса (Sprav 234170727274).
+  Источник тарифов: https://proverkastaza.ru/tarify/
+  Без телефонов и ПДн в текстах; без гарантий перерасчёта.
+-->
+<yml_catalog date="2026-08-03 16:00">
+  <shop>
+    <name>Проверка стажа</name>
+    <company>ООО ПОД ПРИСМОТРОМ</company>
+    <url>https://proverkastaza.ru/</url>
+    <currencies>
+      <currency id="RUR" rate="1"/>
+    </currencies>
+    <categories>
+      <category id="1">Проверка стажа</category>
+    </categories>
+    <offers>
+      <offer id="diag-3000" available="true">
+        <name>Диагностика проверки стажа</name>
+        <url>https://proverkastaza.ru/tarify/</url>
+        <price>3000</price>
+        <currencyId>RUR</currencyId>
+        <categoryId>1</categoryId>
+        <description>Проверка документов и выписки ИЛС. Первичный план действий и индивидуальный чек-лист. Сервис не является СФР: решение о перерасчёте принимает Социальный фонд России. Условия закрепляются в соглашении.</description>
+      </offer>
+      <offer id="support-10000" available="true">
+        <name>Сопровождение по документам и этапам</name>
+        <url>https://proverkastaza.ru/tarify/</url>
+        <price>10000</price>
+        <currencyId>RUR</currencyId>
+        <categoryId>1</categoryId>
+        <description>Подготовка документов, черновики заявлений и контроль этапов до обращения. Без обещания перерасчёта или конкретной суммы выплат. Решение по существу принимает СФР.</description>
+      </offer>
+      <offer id="turnkey-25000" available="true">
+        <name>Комплекс Под ключ: диагностика и сопровождение</name>
+        <url>https://proverkastaza.ru/proverka-stazha/</url>
+        <price>25000</price>
+        <currencyId>RUR</currencyId>
+        <categoryId>1</categoryId>
+        <description>Диагностика плюс сопровождение по документам и этапам до подачи в СФР. Фиксированная цена по соглашению. Сервис не заменяет СФР и не гарантирует перерасчёт.</description>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>

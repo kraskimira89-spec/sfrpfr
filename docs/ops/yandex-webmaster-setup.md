@@ -22,6 +22,7 @@
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
 | Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
 | Favicon `/favicon.ico` | ✅ файл в корне WP (`scripts/assets/favicon.ico`) |
+| Яндекс Бизнес (Sprav) | ✅ профиль `234170727274`, прайс: `docs/ops/yandex-business-profile.md` |
 
 ---
 

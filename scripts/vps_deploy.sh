@@ -61,6 +61,11 @@ if [[ -x "$APP_DIR/scripts/wp_deploy_blog_ui.sh" ]] || [[ -f "$APP_DIR/scripts/w
   bash "$APP_DIR/scripts/wp_deploy_blog_ui.sh" || echo "WARN: wp_deploy_blog_ui.sh failed (WP path?)"
 fi
 
+if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" ]]; then
+  echo "Deploying Yandex Business price YML …"
+  bash "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" || echo "WARN: wp_deploy_yandex_business_price.sh failed"
+fi
+
 # Яндекс Метрика (счётчик из YANDEX_METRIKA_COUNTER_ID)
 if [[ -f "$APP_DIR/scripts/wp_deploy_metrika.sh" ]]; then
   echo "Deploying Yandex Metrika MU …"
