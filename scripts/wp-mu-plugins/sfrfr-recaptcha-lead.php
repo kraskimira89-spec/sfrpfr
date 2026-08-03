@@ -349,5 +349,72 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             $msg = 'Капча временно недоступна. Напишите в MAX или попробуйте позже.';
         }
         wpforms()->process->errors[$form_id]['header'] = $msg;
+        return;
     }
+
+    // Prefill регистрации в кабинете — те же контакты, что в заявке.
+    $cabinet_url = sfrfr_build_cabinet_register_url($full_name, $email, $phone);
+    $decoded = json_decode($body, true);
+    if (is_array($decoded) && !empty($decoded['cabinet_url']) && is_string($decoded['cabinet_url'])) {
+        $api_url = trim($decoded['cabinet_url']);
+        if ($api_url !== '' && str_starts_with($api_url, 'https://')) {
+            $cabinet_url = $api_url;
+        }
+    }
+    if (!str_contains($cabinet_url, 'from_lead=')) {
+        $cabinet_url .= (str_contains($cabinet_url, '?') ? '&' : '?') . 'from_lead=1';
+    }
+    $GLOBALS['sfrfr_lead_cabinet_url'] = $cabinet_url;
 }, 20, 3);
+
+/**
+ * URL регистрации в кабинете с prefills из заявки.
+ */
+function sfrfr_build_cabinet_register_url(string $name, string $email, string $phone): string
+{
+    $base = rtrim(sfrfr_env('SFRFR_CABINET_PUBLIC_URL', 'https://cabinet.proverkastaza.ru'), '/');
+    $q = array_filter(
+        [
+            'mode' => 'register',
+            'from_lead' => '1',
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+        ],
+        static fn ($v) => is_string($v) && trim($v) !== ''
+    );
+    return $base . '/?' . http_build_query($q);
+}
+
+/**
+ * Подставить prefilled cabinet_url в success-сообщение WPForms.
+ *
+ * @param string               $message
+ * @param array<string,mixed>  $form_data
+ * @return string
+ */
+add_filter('wpforms_frontend_confirmation_message', static function ($message, $form_data) {
+    $url = '';
+    if (!empty($GLOBALS['sfrfr_lead_cabinet_url']) && is_string($GLOBALS['sfrfr_lead_cabinet_url'])) {
+        $url = $GLOBALS['sfrfr_lead_cabinet_url'];
+    }
+    if ($url === '') {
+        return $message;
+    }
+    $safe = esc_url($url);
+    $message = (string) $message;
+    // Якорь с классом или любой href на cabinet … mode=register
+    $message = preg_replace(
+        '#(<a[^>]*class="[^"]*sfrfr-cabinet-register[^"]*"[^>]*href=")[^"]*(")#i',
+        '$1' . $safe . '$2',
+        $message,
+        1
+    ) ?? $message;
+    $message = preg_replace(
+        '#(href=")https?://cabinet\.proverkastaza\.ru/\?mode=register[^"]*(")#i',
+        '$1' . $safe . '$2',
+        $message,
+        1
+    ) ?? $message;
+    return $message;
+}, 10, 2);

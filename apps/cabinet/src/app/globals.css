@@ -261,6 +261,25 @@ header span { color: var(--muted); font-size: 1rem; }
 /* Auth */
 .auth-card.auth-wizard { width: min(520px, 100%); }
 .auth-form { margin-top: 0.75rem; }
+.auth-prefill-summary {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand, #0b5) 6%, transparent);
+}
+.auth-prefill-summary p {
+  margin: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+.auth-prefill-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
 .auth-consent {
   display: flex;
   align-items: flex-start;

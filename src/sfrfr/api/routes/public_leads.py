@@ -453,6 +453,7 @@ def _create_lead(
             k: v
             for k, v in {
                 "mode": "register",
+                "from_lead": "1",
                 "email": email or "",
                 "phone": phone or "",
                 "name": payload.full_name.strip(),

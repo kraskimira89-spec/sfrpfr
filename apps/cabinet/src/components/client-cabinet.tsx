@@ -264,6 +264,9 @@ export function ClientCabinet() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [fullName, setFullName] = useState("");
+  /** Контакты уже из заявки с сайта — не спрашиваем повторно. */
+  const [fromLeadPrefill, setFromLeadPrefill] = useState(false);
+  const [editLeadContacts, setEditLeadContacts] = useState(false);
   const [registerConsent, setRegisterConsent] = useState(false);
   const [maxTicket, setMaxTicket] = useState("");
   const [maxVerifyTicket, setMaxVerifyTicket] = useState("");
@@ -333,7 +336,7 @@ export function ClientCabinet() {
     setNotice("");
   }
 
-  // Query: ?mode=login|register|recover; ?channel=max; ?email=&phone=&name=
+  // Query: ?mode=login|register|recover; ?channel=max; ?email=&phone=&name=&from_lead=1
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").toLowerCase();
@@ -341,6 +344,9 @@ export function ClientCabinet() {
     const qEmail = (params.get("email") || "").trim();
     const qPhone = (params.get("phone") || "").trim();
     const qName = (params.get("name") || "").trim();
+    const fromLead =
+      params.get("from_lead") === "1" ||
+      (mode === "register" && Boolean(qEmail || qPhone));
     const wantMax =
       channel === "max" ||
       params.get("register")?.toLowerCase() === "max" ||
@@ -349,6 +355,10 @@ export function ClientCabinet() {
       if (qEmail) setEmail(qEmail);
       if (qPhone) setPhone(qPhone);
       if (qName) setFullName(qName);
+      if (fromLead && (qEmail || qPhone)) {
+        setFromLeadPrefill(true);
+        setEditLeadContacts(false);
+      }
       if (mode === "recover") {
         setAuthScreen("recover");
         setAuthChannel("email");
@@ -1620,38 +1630,71 @@ export function ClientCabinet() {
           {authScreen === "register" ? (
             <>
               <p className="lead lead-compact">
-                Регистрация: укажите почту или телефон. Проверочный код придёт на почту или в
-                MAX — введите его на этой странице.
+                {fromLeadPrefill && !editLeadContacts
+                  ? "Данные из заявки уже подставлены. Отметьте согласие — проверочный код придёт на почту или в MAX."
+                  : "Регистрация: укажите почту или телефон. Проверочный код придёт на почту или в MAX — введите его на этой странице."}
               </p>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestRegister}>
-                  <label htmlFor="reg-name">Имя</label>
-                  <input
-                    id="reg-name"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    autoComplete="name"
-                  />
-                  <label htmlFor="reg-email">Электронная почта</label>
-                  <input
-                    id="reg-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    placeholder="по желанию"
-                  />
-                  <label htmlFor="reg-phone">Телефон</label>
-                  <input
-                    id="reg-phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    autoComplete="tel"
-                    placeholder="по желанию"
-                  />
-                  <p className="hint">Нужна почта или телефон — хотя бы одно поле.</p>
+                  {fromLeadPrefill && !editLeadContacts ? (
+                    <div className="auth-prefill-summary" aria-live="polite">
+                      {fullName.trim() ? (
+                        <p>
+                          <span className="auth-prefill-label">Имя</span>
+                          <strong>{fullName.trim()}</strong>
+                        </p>
+                      ) : null}
+                      {email.trim() ? (
+                        <p>
+                          <span className="auth-prefill-label">Почта</span>
+                          <strong>{email.trim()}</strong>
+                        </p>
+                      ) : null}
+                      {phone.trim() ? (
+                        <p>
+                          <span className="auth-prefill-label">Телефон</span>
+                          <strong>{phone.trim()}</strong>
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={() => setEditLeadContacts(true)}
+                      >
+                        Изменить контакты
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <label htmlFor="reg-name">Имя</label>
+                      <input
+                        id="reg-name"
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        autoComplete="name"
+                      />
+                      <label htmlFor="reg-email">Электронная почта</label>
+                      <input
+                        id="reg-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                        placeholder="по желанию"
+                      />
+                      <label htmlFor="reg-phone">Телефон</label>
+                      <input
+                        id="reg-phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        autoComplete="tel"
+                        placeholder="по желанию"
+                      />
+                      <p className="hint">Нужна почта или телефон — хотя бы одно поле.</p>
+                    </>
+                  )}
                   <label className="auth-consent" htmlFor="reg-consent">
                     <input
                       id="reg-consent"
@@ -1672,7 +1715,7 @@ export function ClientCabinet() {
                     </span>
                   </label>
                   <button type="submit" disabled={busy || !registerConsent}>
-                    Зарегистрироваться
+                    Получить код
                   </button>
                 </form>
               ) : maxVerifyTicket ? (
