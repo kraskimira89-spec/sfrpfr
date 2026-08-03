@@ -152,6 +152,10 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
 - Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
 
+## 2026-08-03 (список документов + краткое содержание)
+
+- После upload: `documents.content_preview` (лёгкий extract), UI список с именем/типом/датой/превью.
+
 ## 2026-07-29 (MAX: кнопки навигации)
 
 - Нижняя панель: Обзор / Документы / Сообщения / Мои дела.

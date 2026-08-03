@@ -536,7 +536,7 @@ class CaseRepository:
     def list_documents(self, case_id: str) -> list[dict[str, Any]]:
         return (
             self.client.table("documents")
-            .select("id, storage_path, doc_type, created_at")
+            .select("id, storage_path, doc_type, created_at, content_preview")
             .eq("case_id", case_id)
             .order("created_at", desc=True)
             .execute()

@@ -29,7 +29,10 @@ type CaseDocument = {
   id: string;
   storage_path: string;
   doc_type?: string | null;
+  doc_type_label?: string | null;
   created_at?: string;
+  filename?: string | null;
+  content_preview?: string | null;
 };
 
 type CaseDetail = {
@@ -1332,7 +1335,7 @@ export function ClientCabinet() {
         method: "POST",
         body: form,
       });
-      setNotice("Файл загружен в защищённое хранилище.");
+      setNotice("Файл загружен. Список и краткое содержание — ниже.");
       await openCase(selectedId, docType === "sfr_decision" ? "result" : "case");
       if (docType === "sfr_decision") await loadResult(selectedId);
     } catch (error) {
@@ -2140,25 +2143,57 @@ export function ClientCabinet() {
             </div>
           )}
 
-          <p className="docs-count">
-            Уже загружено: {detail.documents.length}{" "}
-            {detail.documents.length === 1
-              ? "документ"
-              : detail.documents.length > 1 && detail.documents.length < 5
-                ? "документа"
-                : "документов"}
-          </p>
-          {detail.documents.length > 0 && (
-            <ul className="plain-list">
-              {detail.documents.map((doc) => (
-                <li key={doc.id}>
-                  <button type="button" className="linkish" onClick={() => void openSignedUrl(doc.id)}>
-                    {doc.storage_path.split("/").pop() ?? doc.id}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="docs-uploaded" aria-live="polite">
+            <p className="docs-count">
+              Уже загружено: {detail.documents.length}{" "}
+              {detail.documents.length === 1
+                ? "документ"
+                : detail.documents.length > 1 && detail.documents.length < 5
+                  ? "документа"
+                  : "документов"}
+            </p>
+            {detail.documents.length > 0 ? (
+              <ul className="doc-list">
+                {detail.documents.map((doc) => {
+                  const name =
+                    (doc.filename || "").trim() ||
+                    doc.storage_path.split("/").pop() ||
+                    doc.id;
+                  const when = doc.created_at
+                    ? new Date(doc.created_at).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
+                  const typeLabel = (doc.doc_type_label || "").trim();
+                  const preview = (doc.content_preview || "").trim();
+                  return (
+                    <li key={doc.id} className="doc-list-item">
+                      <button
+                        type="button"
+                        className="linkish doc-list-name"
+                        onClick={() => void openSignedUrl(doc.id)}
+                      >
+                        {name}
+                      </button>
+                      <p className="doc-list-meta">
+                        {[typeLabel, when].filter(Boolean).join(" · ") || "файл принят"}
+                      </p>
+                      <p className="doc-list-preview">
+                        {preview ||
+                          "Краткое содержание появится после распознавания текста. Файл уже сохранён."}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="hint">Пока файлов нет — загрузите выписку ИЛС или трудовую книжку.</p>
+            )}
+          </div>
 
           <div className="home-actions">
             <a className="secondary" href="#messages">

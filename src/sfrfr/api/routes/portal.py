@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+import tempfile
 import time
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+
+logger = logging.getLogger(__name__)
 
 from sfrfr.api.schemas.portal import (
     CaseMessageCreate,
@@ -116,7 +120,7 @@ def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) ->
         consent_accepted=consent_accepted,
         checklist_items=list(case.get("checklist_items") or []),
         required_documents=CaseRepository.required_document_items(case),
-        documents=list(case.get("documents") or []),
+        documents=_client_documents(list(case.get("documents") or [])),
         findings=findings,
         draft=draft,
         next_action=CaseRepository.next_client_action(case),
@@ -134,6 +138,85 @@ def _require_consent_for_upload(repo: CaseRepository, case_id: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="consent required before document upload",
         )
+
+
+_DOC_TYPE_LABELS_RU = {
+    "sfr_decision": "Решение СФР",
+    "ils": "Выписка ИЛС",
+    "workbook": "Трудовая книжка",
+}
+
+
+def _document_filename(storage_path: str | None) -> str:
+    if not storage_path:
+        return "документ"
+    name = Path(str(storage_path)).name.strip()
+    return name or "документ"
+
+
+def _document_type_label(doc_type: str | None) -> str | None:
+    if not doc_type:
+        return None
+    key = str(doc_type).strip().lower()
+    return _DOC_TYPE_LABELS_RU.get(key, key)
+
+
+def _sanitize_content_preview(text: str, *, limit: int = 280) -> str:
+    cleaned = " ".join((text or "").split())
+    if cleaned.startswith("[ocr_"):
+        return ""
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "…"
+
+
+def _extract_upload_preview(data: bytes, filename: str) -> str:
+    """Короткий фрагмент текста сразу после загрузки (без полного пайплайна)."""
+    suffix = Path(filename or "document.bin").suffix.lower() or ".bin"
+    if suffix not in {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:
+        return ""
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+        from sfrfr.ocr import extract_text
+
+        raw = extract_text(tmp_path)
+        return _sanitize_content_preview(raw)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("document preview extract skipped: %s", exc)
+        return ""
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _client_documents(raw_docs: list[Any] | None) -> list[dict[str, Any]]:
+    """Безопасное представление документов для клиента (+ краткое содержание)."""
+    out: list[dict[str, Any]] = []
+    for item in raw_docs or []:
+        if not isinstance(item, dict):
+            continue
+        storage_path = str(item.get("storage_path") or "")
+        preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
+        out.append(
+            {
+                "id": item.get("id"),
+                "storage_path": storage_path,
+                "doc_type": item.get("doc_type"),
+                "doc_type_label": _document_type_label(
+                    str(item["doc_type"]) if item.get("doc_type") else None
+                ),
+                "created_at": item.get("created_at"),
+                "filename": _document_filename(storage_path),
+                "content_preview": preview or None,
+            }
+        )
+    return out
 
 
 def _channel_repo() -> ClientChannelRepository:
@@ -1173,25 +1256,23 @@ async def upload_case_document(
     filename = Path(file.filename or "document").name
     document_id = str(uuid4())
     storage_path = f"{case_id}/{document_id}/{filename}"
+    content_preview = _extract_upload_preview(data, filename)
     client = get_supabase_client()
     client.storage.from_(PRIVATE_STORAGE_BUCKET).upload(
         storage_path,
         data,
         {"content-type": content_type, "x-upsert": "false"},
     )
-    response = (
-        client.table("documents")
-        .insert(
-            {
-                "id": document_id,
-                "case_id": case_id,
-                "storage_path": storage_path,
-                "doc_type": doc_type,
-                "uploaded_by": principal.user_id,
-            }
-        )
-        .execute()
-    )
+    insert_row: dict[str, Any] = {
+        "id": document_id,
+        "case_id": case_id,
+        "storage_path": storage_path,
+        "doc_type": doc_type,
+        "uploaded_by": principal.user_id,
+    }
+    if content_preview:
+        insert_row["content_preview"] = content_preview
+    response = client.table("documents").insert(insert_row).execute()
     action = "result_decision_uploaded" if doc_type == "sfr_decision" else "document_uploaded"
     repo.audit(case_id, principal.user_id, action)
     if doc_type == "sfr_decision":
