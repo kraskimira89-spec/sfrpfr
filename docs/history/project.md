@@ -4,6 +4,7 @@
 
 - Политика, Согласие и Правила файлов браузера обновлены до редакций 2026-08-03.
 - Внизу всех четырёх юридических страниц добавлена сворачиваемая история редакций.
+- Синхронизированы правила управления Метрикой; MAX mini-app больше не обращается к Google Fonts.
 - Production: self-hosted Supabase, SmartCaptcha и ИИ — только через Yandex Cloud; Google Sheets runtime отключён.
 - Прямой иностранный LLM и DeepSeek platform fallback запрещены в production.
 - Остаточный Supabase Cloud отражён как временная копия до drain и подтверждения удаления.
