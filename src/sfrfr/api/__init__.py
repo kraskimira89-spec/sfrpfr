@@ -10,6 +10,7 @@ from sfrfr.api.routes import (
     payments,
     portal,
     public_leads,
+    supabase_auth_email,
 )
 from sfrfr.core.config import get_settings
 from sfrfr.ops.logging import configure_logging
@@ -52,6 +53,11 @@ def create_app() -> FastAPI:
         max_webhook.router,
         prefix="/api/integrations/max",
         tags=["max"],
+    )
+    app.include_router(
+        supabase_auth_email.router,
+        prefix="/api/integrations/supabase",
+        tags=["supabase-auth"],
     )
     app.include_router(
         payments.webhook_router,

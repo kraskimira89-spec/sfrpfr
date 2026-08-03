@@ -6,6 +6,7 @@ import base64
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import formataddr
 from typing import Any
 
 from sfrfr.core.config import get_settings
@@ -57,6 +58,8 @@ def send_mail(
     case_id: str | None = None,
     subject: str | None = None,
     body: str | None = None,
+    html: str | None = None,
+    from_name: str | None = None,
 ) -> dict[str, Any]:
     """Отправить письмо. Без СНИЛС/OCR/signed Storage URL в шаблонах."""
     settings = get_settings()
@@ -85,13 +88,18 @@ def send_mail(
         return {"ok": False, "error": "body_contains_forbidden_markers"}
 
     from_addr = workspace_email()
+    display = (from_name or "").strip() or "Проверка стажа"
+    from_header = formataddr((display, from_addr))
     token = (settings.yandex_oauth_access_token or "").strip()
 
     msg = EmailMessage()
-    msg["From"] = from_addr
+    msg["From"] = from_header
     msg["To"] = to_addr
     msg["Subject"] = final_subject
     msg.set_content(final_body)
+    html_body = (html or "").strip()
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
 
     try:
         context = ssl.create_default_context()
@@ -103,7 +111,7 @@ def send_mail(
         return {
             "ok": True,
             "to": to_addr,
-            "from": from_addr,
+            "from": from_header,
             "template": tpl_key,
             "subject": final_subject,
         }

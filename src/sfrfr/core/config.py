@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
+    # Auth Send Email Hook (Standard Webhooks): v1,whsec_...
+    supabase_send_email_hook_secret: str = ""
     database_url: str = "postgresql+psycopg://sfrfr:sfrfr@localhost:5432/sfrfr"
 
     storage_backend: str = "local"
