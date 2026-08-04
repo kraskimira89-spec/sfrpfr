@@ -59,7 +59,7 @@ storage/cases.tmp
 
 # IDE / OS
 .idea/
-.vscode/
+.vscode/*
 !.vscode/settings.json
 *.swp
 .DS_Store
