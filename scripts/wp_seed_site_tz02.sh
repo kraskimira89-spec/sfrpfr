@@ -209,7 +209,7 @@ echo "==> Тема: без сайдбара"
 "${WP[@]}" theme mod set site-sidebar-layout "no-sidebar" 2>/dev/null || true
 
 chown -R www-data:www-data "$SITE_DIR"
-echo "==> OK ТЗ-02/07: CTA → /#kak-rabotat, кабинет register=max, MAX=${MAX_BTN_URL}"
+echo "==> OK ТЗ-02/07/20: CTA → личный чат MAX (${MAX_BTN_URL}), кабинет в футере"
 
 if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ]; then
   echo "==> Блог ТЗ-11"
