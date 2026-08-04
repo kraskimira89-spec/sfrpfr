@@ -14,7 +14,7 @@ if (!is_readable($home_path)) {
 $max_url = getenv('MAX_CHAT_URL')
     ?: getenv('MAX_PUBLIC_BOT_URL')
     ?: 'https://max.ru/id8905998693_1_bot';
-// Для CTA «Написать в MAX» на лендинге — чат без startapp, если не задано иное
+// Для CTA «Начать проверку в MAX» на лендинге — чат без startapp, если не задано иное
 if (str_contains($max_url, '?startapp') && getenv('MAX_CHAT_URL')) {
     $max_url = getenv('MAX_CHAT_URL');
 }

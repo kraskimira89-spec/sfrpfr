@@ -91,20 +91,16 @@
     var cfg = window.sfrfrBlogUi || {};
     var maxUrl = cfg.maxUrl || "https://max.ru/id8905998693_1_bot";
     var formUrl = cfg.formUrl || "/#zayavka";
-    var startUrl = cfg.startUrl || "/#kak-rabotat";
     cta.className = "sfrfr-blog-cta sfrfr-blog-cta--mid";
     cta.innerHTML =
-      '<p class="sfrfr-blog-cta__title">Задать вопрос</p>' +
-      '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку — без загрузки сканов на этот сайт.</p>' +
+      '<p class="sfrfr-blog-cta__title">Начать проверку</p>' +
+      '<p class="sfrfr-blog-cta__text">Начните в личном чате MAX или оставьте заявку — без загрузки сканов на этот сайт.</p>' +
       '<a class="sfrfr-blog-cta__btn" href="' +
       maxUrl +
-      '" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a> ' +
+      '" target="_blank" rel="noopener noreferrer">Начать проверку в MAX</a> ' +
       '<a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' +
       formUrl +
-      '">Оставить заявку</a> ' +
-      '<a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' +
-      startUrl +
-      '">Начать проверку</a>';
+      '">Оставить заявку</a>';
 
     if (anchor && anchor.parentNode === article) {
       article.insertBefore(cta, anchor);

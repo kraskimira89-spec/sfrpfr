@@ -125,9 +125,11 @@ class Settings(BaseSettings):
     staff_login_approver_max_chat_ids: str = ""
     # Диалог с ботом (вход / «написать боту») — без ?startapp
     max_chat_url: str = "https://max.ru/id8905998693_1_bot"
-    # Deep-link на mini-app (?startapp) — лендинг, открытие приложения
+    # Deep-link на mini-app (?startapp) — открытие из бота после диагностики
     max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
     max_miniapp_url: str = "https://proverkastaza.ru/app/"
+    # Канал MAX (информирование) — не первичный CTA сайта
+    max_channel_url: str = ""
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

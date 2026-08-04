@@ -32,7 +32,7 @@ add_filter('comments_template', static function ($template) {
 });
 
 /**
- * Публичный URL бота MAX для CTA «Задать вопрос».
+ * Публичный URL бота MAX для CTA «Начать проверку в MAX».
  */
 function sfrfr_blog_max_chat_url(): string
 {
@@ -48,13 +48,13 @@ function sfrfr_blog_max_chat_url(): string
 }
 
 /**
- * Кнопки «Задать вопрос»: MAX + форма лида.
+ * Кнопки CTA: MAX + форма лида.
  */
 function sfrfr_blog_ask_cta_buttons_html(): string
 {
     $max = esc_url(sfrfr_blog_max_chat_url());
     $form = esc_url(home_url('/#zayavka'));
-    return '<a class="sfrfr-blog-cta__btn" href="' . $max . '" target="_blank" rel="noopener noreferrer">Задать вопрос в MAX</a>'
+    return '<a class="sfrfr-blog-cta__btn" href="' . $max . '" target="_blank" rel="noopener noreferrer">Начать проверку в MAX</a>'
         . ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . $form . '">Оставить заявку</a>';
 }
 
@@ -103,7 +103,7 @@ add_action('wp_enqueue_scripts', static function (): void {
         wp_localize_script('sfrfr-blog-ui', 'sfrfrBlogUi', [
             'maxUrl' => sfrfr_blog_max_chat_url(),
             'formUrl' => home_url('/#zayavka'),
-            'startUrl' => home_url('/#kak-rabotat'),
+            'startUrl' => sfrfr_blog_max_chat_url(),
         ]);
     }
 });
@@ -159,7 +159,6 @@ add_action('loop_start', static function ($query): void {
     echo '<p class="sfrfr-blog-cta__title">Задать вопрос</p>';
     echo '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку. Документы — только в защищённом контуре, не через сайт.</p>';
     echo sfrfr_blog_ask_cta_buttons_html();
-    echo ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . esc_url(home_url('/#kak-rabotat')) . '">Начать проверку</a>';
     echo '</aside>';
 });
 
@@ -178,7 +177,6 @@ add_filter('the_content', static function (string $content): string {
         . '<p class="sfrfr-blog-cta__title">Задать вопрос</p>'
         . '<p class="sfrfr-blog-cta__text">Ответим в MAX или по заявке. Решение о перерасчёте всегда принимает СФР.</p>'
         . sfrfr_blog_ask_cta_buttons_html()
-        . ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . esc_url(home_url('/#kak-rabotat')) . '">Начать проверку</a>'
         . '</aside>';
 
     $related = '';

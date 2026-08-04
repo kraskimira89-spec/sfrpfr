@@ -11,33 +11,23 @@ from sfrfr.integrations.max.ssl_context import max_ssl_verify
 
 
 def inline_callback_keyboard(text: str, payload: str) -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [[{"type": "callback", "text": text, "payload": payload}]]
+    )
+
+
+def inline_buttons_keyboard(rows: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Произвольная inline-клавиатура (callback / link)."""
     return [
         {
             "type": "inline_keyboard",
-            "payload": {
-                "buttons": [
-                    [
-                        {
-                            "type": "callback",
-                            "text": text,
-                            "payload": payload,
-                        }
-                    ]
-                ]
-            },
+            "payload": {"buttons": rows},
         }
     ]
 
 
 def inline_link_keyboard(text: str, url: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "type": "inline_keyboard",
-            "payload": {
-                "buttons": [[{"type": "link", "text": text, "url": url}]],
-            },
-        }
-    ]
+    return inline_buttons_keyboard([[{"type": "link", "text": text, "url": url}]])
 
 
 def inline_channel_choice_keyboard(*, app_url: str, cabinet_url: str) -> list[dict[str, Any]]:

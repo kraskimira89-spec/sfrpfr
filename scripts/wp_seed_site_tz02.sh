@@ -9,7 +9,7 @@
 set -euo pipefail
 
 SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
-MAX_BTN_URL="${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot?startapp}"
+MAX_BTN_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 
@@ -181,7 +181,7 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "О сервисе" "/#o-servise" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
-  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку" "/#kak-rabotat" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку в MAX" "$MAX_BTN_URL" --porcelain 2>/dev/null | tr -d '[:space:]')"
   if [ -n "${CTA_ITEM:-}" ]; then
     "${WP[@]}" post term set "$CTA_ITEM" nav_menu "$MENU_ID" >/dev/null 2>&1 || true
     "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true

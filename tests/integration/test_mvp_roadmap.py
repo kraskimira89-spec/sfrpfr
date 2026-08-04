@@ -186,11 +186,16 @@ def test_public_leads_route_registered() -> None:
 
 def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
+    from sfrfr.integrations.max.intake import reset_intake_store
+
+    reset_intake_store(tmp_path / "max_intake.json")
     bot = _SilentBot()
 
-    created = handle_max_update(
+    handle_max_update(
         {
             "message": {
                 "sender": {"user_id": 101},
@@ -200,8 +205,25 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
         },
         bot=bot,
     )
-    assert created.case_id
-    assert any("код" in t.lower() for _, t in bot.sent)
+    for payload in (
+        "intake:goal:check_experience",
+        "intake:ils:yes",
+        "intake:emp:partial",
+        "intake:device:web",
+    ):
+        done = handle_max_update(
+            {
+                "callback": {
+                    "user": {"user_id": 101},
+                    "chat_id": 1,
+                    "payload": payload,
+                }
+            },
+            bot=bot,
+        )
+    assert done.case_id
+    assert done.action == "max_intake_completed"
+    assert any("защищённо" in t.lower() for _, t in bot.sent)
 
     docs = handle_max_update(
         {
@@ -219,7 +241,7 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
     store = get_case_store()
     with store._lock:  # noqa: SLF001
         store._load()  # noqa: SLF001
-        record = store._cases[created.case_id]  # noqa: SLF001
+        record = store._cases[done.case_id]  # noqa: SLF001
         record.ctx.draft = DraftResult(
             title="Заявление",
             body="Прошу перерасчёт пенсии по стажу.",

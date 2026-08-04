@@ -13,21 +13,37 @@ from sfrfr.integrations.max.client import (
     inline_callback_keyboard,
     inline_channel_choice_keyboard,
     inline_confirm_login_keyboard,
-    inline_link_keyboard,
+)
+from sfrfr.integrations.max.intake import (
+    CALL_OPERATOR_LABEL,
+    DOCS_INFO_TEXT,
+    OPERATOR_CONFIRM_TEXT,
+    SUMMARY_TEXT,
+    UPLOAD_BLOCKED_TEXT,
+    WELCOME_TEXT,
+    cabinet_urls_for_case,
+    device_keyboard,
+    device_question,
+    employment_keyboard,
+    employment_question,
+    get_intake_store,
+    goal_keyboard,
+    ils_keyboard,
+    ils_question,
+    problem_type_for_goal,
+    summary_keyboard,
+    upload_blocked_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
-    GET_CODE_IN_BROWSER_LABEL,
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
-    after_start_login_hint,
     ask_code_from_login_page,
     channel_choice_after_login_message,
     confirm_web_login_message,
-    get_code_in_browser_url,
     issue_login_link,
 )
 from sfrfr.security.login_pending import (
@@ -193,16 +209,8 @@ def _reply_need_start(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult:
-    """Просьба начать диалог — всегда с кнопкой «Начать»."""
-    reply = "Нажмите кнопку."
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=reply,
-        attachments=_start_dialog_keyboard(),
-    )
-    return MaxHandleResult(ok=True, action="need_start", reply=reply)
+    """Просьба начать диалог — стартовое меню диагностики."""
+    return _handle_bot_start(bot, user_id=user_id, chat_id=chat_id, store=get_case_store())
 
 
 def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
@@ -221,16 +229,25 @@ def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
 
 def _ensure_supabase_max_client(max_user_id: str) -> None:
     """Неблокирующая регистрация клиента MAX в Supabase (единый профиль ТЗ-09)."""
-    try:
-        from sfrfr.db.client_channels import ClientChannelRepository
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        return
 
-        ClientChannelRepository().ensure_for_max_user(str(max_user_id))
-    except Exception:
-        import logging
+    import threading
 
-        logging.getLogger(__name__).exception(
-            "ensure_supabase_max_client_failed max=%s", max_user_id
-        )
+    def _work() -> None:
+        try:
+            from sfrfr.db.client_channels import ClientChannelRepository
+
+            ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "ensure_supabase_max_client_failed max=%s", max_user_id
+            )
+
+    threading.Thread(target=_work, daemon=True, name="max-ensure-client").start()
 
 
 def _resume_pending_confirm_if_any(
@@ -251,6 +268,361 @@ def _resume_pending_confirm_if_any(
     )
 
 
+def _ensure_case_for_intake(
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    intake,
+    store,
+) -> str:
+    """Создать или найти дело только при переходе в кабинет / вызове оператора."""
+    if intake.case_id:
+        return str(intake.case_id)
+
+    # Локальный store — быстрый путь (тесты / fallback).
+    existing = store.find_by_max_user(user_id)
+    if existing:
+        intake.case_id = existing.case_id
+        get_intake_store().save(intake)
+        return existing.case_id
+
+    supabase_case = _try_create_supabase_case(user_id=user_id, intake=intake)
+    if supabase_case:
+        case_id, client_id = supabase_case
+        intake.case_id = case_id
+        intake.client_id = client_id
+        get_intake_store().save(intake)
+        record = store.create(
+            client_name=f"MAX user {user_id}",
+            snils_masked="***-***-*** **",
+            consent_given=False,
+        )
+        # Сохраняем локальную привязку; id может отличаться — для бота важен bind_max.
+        store.bind_max(
+            record.case_id,
+            max_user_id=user_id,
+            max_chat_id=str(chat_id) if chat_id is not None else None,
+        )
+        # Предпочитаем supabase case_id в deep-link.
+        intake.case_id = case_id
+        get_intake_store().save(intake)
+        return case_id
+
+    record = store.create(
+        client_name=f"MAX user {user_id}",
+        snils_masked="***-***-*** **",
+        consent_given=False,
+    )
+    store.bind_max(
+        record.case_id,
+        max_user_id=user_id,
+        max_chat_id=str(chat_id) if chat_id is not None else None,
+    )
+    intake.case_id = record.case_id
+    get_intake_store().save(intake)
+    return record.case_id
+
+
+def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None:
+    """Best-effort создание дела в Postgres с коротким таймаутом."""
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        return None
+
+    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FuturesTimeout
+
+    def _work() -> tuple[str, str] | None:
+        client_row = _ensure_client_row(user_id)
+        if not client_row or not client_row.get("id"):
+            return None
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.db.session import get_supabase_client
+
+        client_id = str(client_row["id"])
+        sb = get_supabase_client()
+        open_rows = (
+            sb.table("cases")
+            .select("id")
+            .eq("client_id", client_id)
+            .neq("pipeline_status", "closed")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if open_rows:
+            return str(open_rows[0]["id"]), client_id
+        created = CaseRepository().create_case_for_client(
+            client_id=client_id,
+            actor_id=None,
+            problem_type=problem_type_for_goal(intake.goal),
+        )
+        return str(created["id"]), client_id
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(_work).result(timeout=2.5)
+    except (FuturesTimeout, Exception):
+        import logging
+
+        logging.getLogger(__name__).warning("ensure_case_supabase_timeout_or_error max=%s", user_id)
+        return None
+
+
+def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
+    try:
+        from sfrfr.integrations.amocrm import sync_case_to_amocrm
+
+        sync_case_to_amocrm(
+            case_id=case_id or f"max-intake-{intake.id}",
+            b2c_status="lead",
+            pipeline_status="intake",
+            full_name=f"MAX {user_id}",
+            channel="max_chat",
+            source="max_intake_operator",
+            consent=False,
+            task="Продолжить диалог MAX",
+        )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("max_operator_amocrm_failed max=%s", user_id)
+
+
+def _handle_operator(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake=None,
+) -> MaxHandleResult:
+    intake_store = get_intake_store()
+    if intake is None:
+        intake = intake_store.upsert_started(user_id)
+    if intake.goal is None:
+        intake.goal = "operator"
+    step = intake.step()
+    case_id = _ensure_case_for_intake(user_id=user_id, chat_id=chat_id, intake=intake, store=store)
+    from datetime import UTC, datetime
+
+    intake.status = "handed_to_operator"
+    intake.completed_at = datetime.now(UTC).isoformat()
+    intake_store.save(intake)
+    _notify_operator_amocrm(user_id=user_id, intake=intake, case_id=case_id)
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=OPERATOR_CONFIRM_TEXT)
+    return MaxHandleResult(
+        ok=True,
+        action="max_operator_requested",
+        case_id=case_id,
+        reply=OPERATOR_CONFIRM_TEXT,
+        detail=step,
+    )
+
+
+def _show_summary(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake,
+) -> MaxHandleResult:
+    from datetime import UTC, datetime
+
+    case_id = _ensure_case_for_intake(user_id=user_id, chat_id=chat_id, intake=intake, store=store)
+    intake.status = "completed"
+    intake.completed_at = datetime.now(UTC).isoformat()
+    get_intake_store().save(intake)
+    max_url, web_url = cabinet_urls_for_case(case_id)
+    attachments = summary_keyboard(
+        device=intake.device_preference,
+        cabinet_max_url=max_url,
+        cabinet_web_url=web_url,
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=SUMMARY_TEXT,
+        attachments=attachments,
+    )
+    return MaxHandleResult(
+        ok=True,
+        action="max_intake_completed",
+        case_id=case_id,
+        reply=SUMMARY_TEXT,
+    )
+
+
+def _ask_next_after_goal(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake,
+) -> MaxHandleResult:
+    if intake.goal == "operator":
+        return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=ils_question(),
+        attachments=ils_keyboard(),
+    )
+    return MaxHandleResult(
+        ok=True,
+        action="max_goal_selected",
+        case_id=intake.case_id,
+        reply=ils_question(),
+        detail=str(intake.goal),
+    )
+
+
+def _handle_intake_callback(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    payload: str,
+) -> MaxHandleResult | None:
+    if not payload.startswith("intake:"):
+        return None
+    intake_store = get_intake_store()
+    intake = intake_store.get_active(user_id) or intake_store.upsert_started(user_id)
+    parts = payload.split(":")
+    kind = parts[1] if len(parts) > 1 else ""
+    value = parts[2] if len(parts) > 2 else ""
+
+    if kind == "restart":
+        intake = intake_store.restart(user_id)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=WELCOME_TEXT,
+            attachments=goal_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="max_intake_restart", reply=WELCOME_TEXT)
+
+    if kind == "operator" or payload == "intake:goal:operator":
+        if kind == "goal":
+            intake.goal = "operator"
+            intake_store.save(intake)
+        return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
+
+    if kind == "docs_info":
+        case_id = intake.case_id
+        max_url, web_url = (
+            cabinet_urls_for_case(case_id)
+            if case_id
+            else (get_settings().max_miniapp_url, get_settings().cabinet_public_url)
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=DOCS_INFO_TEXT,
+            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+        )
+        return MaxHandleResult(ok=True, action="docs_info", case_id=case_id, reply=DOCS_INFO_TEXT)
+
+    if kind == "back":
+        step = intake.step()
+        if step == "device":
+            intake.employment_records_available = None
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=employment_question(),
+                attachments=employment_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=employment_question())
+        if step in {"employment", "summary"}:
+            intake.ils_available = None
+            intake.employment_records_available = None
+            intake.device_preference = None
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=ils_question(),
+                attachments=ils_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=WELCOME_TEXT,
+            attachments=goal_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_back", reply=WELCOME_TEXT)
+
+    if kind == "goal" and value in {
+        "check_experience",
+        "missing_period",
+        "sfr_question",
+        "operator",
+    }:
+        intake.goal = value  # type: ignore[assignment]
+        intake.ils_available = None
+        intake.employment_records_available = None
+        intake.device_preference = None
+        intake.status = "started"
+        intake_store.save(intake)
+        return _ask_next_after_goal(
+            bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
+        )
+
+    if kind == "ils" and value in {"yes", "no", "unknown"}:
+        intake.ils_available = value  # type: ignore[assignment]
+        intake_store.save(intake)
+        if intake.goal == "sfr_question":
+            intake.device_preference = intake.device_preference or "max"
+            intake_store.save(intake)
+            return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=employment_question(),
+            attachments=employment_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_ils", reply=employment_question())
+
+    if kind == "emp" and value in {"yes", "partial", "no"}:
+        intake.employment_records_available = value  # type: ignore[assignment]
+        intake_store.save(intake)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=device_question(),
+            attachments=device_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_emp", reply=device_question())
+
+    if kind == "device" and value in {"max", "web", "help"}:
+        intake.device_preference = value  # type: ignore[assignment]
+        intake_store.save(intake)
+        if value == "help":
+            return _handle_operator(
+                bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
+            )
+        return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
+
+    return MaxHandleResult(ok=False, action="intake_unknown", detail=payload)
+
+
 def _handle_bot_start(
     bot: MaxBotClient,
     *,
@@ -258,43 +630,26 @@ def _handle_bot_start(
     chat_id: int | str | None,
     store,
 ) -> MaxHandleResult:
-    """Старт диалога: синхрон с веб-шагом 2 → дальше код с компьютера."""
+    """Старт: меню диагностики без создания дела (ТЗ-20)."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None:
         return resumed
 
     _ensure_supabase_max_client(user_id)
-    existing = store.find_by_max_user(user_id)
-    if not existing:
-        record = store.create(
-            client_name=f"MAX user {user_id}",
-            snils_masked="***-***-*** **",
-            consent_given=True,
-        )
-        store.bind_max(
-            record.case_id,
-            max_user_id=user_id,
-            max_chat_id=str(chat_id) if chat_id is not None else None,
-        )
-        case_id = record.case_id
-        action = "create"
-    else:
-        case_id = existing.case_id
-        action = "resume"
-
-    reply = after_start_login_hint()
-    attachments = inline_link_keyboard(
-        GET_CODE_IN_BROWSER_LABEL,
-        get_code_in_browser_url(mode="login"),
-    )
+    get_intake_store().upsert_started(user_id)
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
-        text=reply,
-        attachments=attachments,
+        text=WELCOME_TEXT,
+        attachments=goal_keyboard(),
     )
-    return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
+    return MaxHandleResult(
+        ok=True,
+        action="max_intake_started",
+        case_id=None,
+        reply=WELCOME_TEXT,
+    )
 
 
 def _client_row_by_max(max_user_id: str) -> dict[str, Any] | None:
@@ -459,17 +814,18 @@ def _complete_pc_login(
         # ещё не ввели код — привяжем текущего пользователя и сразу завершим вход
         row = _ensure_client_row(user_id)
         if not row:
-            reply = (
-                "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
-            )
+            reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
         contact = _auth_email_for_row(row, user_id)
-        pending = bind_max_by_code(
-            pair_code=pending.pair_code,
-            max_user_id=user_id,
-            contact=contact,
-        ) or pending
+        pending = (
+            bind_max_by_code(
+                pair_code=pending.pair_code,
+                max_user_id=user_id,
+                contact=contact,
+            )
+            or pending
+        )
         if pending.status != "pending_confirm":
             reply = ask_code_from_login_page()
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -800,11 +1156,12 @@ def handle_max_update(
     bot: MaxBotClient | None = None,
 ) -> MaxHandleResult:
     """
-    Сценарий MVP:
-    /start — создать/продолжить кейс + кнопка входа в веб-кабинет
-    «Подтвердить вход в браузере» — одноразовая ссылка / callback
-    /status, /run, /draft, /docs, /help
-    вложения — только для локальной разработки; в production загрузка через кабинет
+    Сценарий ТЗ-20:
+    /start — диагностика без создания дела
+    intake:* — цели и вопросы
+    /login — вход в веб-кабинет по коду
+    /cabinet /status /documents /help — меню вернувшегося клиента
+    вложения в production — отказ + CTA кабинета
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -815,9 +1172,7 @@ def handle_max_update(
     confirm_cb = parse_confirm_callback(callback)
     manager_ticket = parse_manager_callback(callback)
     start_hit = (
-        callback == START_DIALOG_CALLBACK
-        or lower in _START_TRIGGERS
-        or lower.startswith("/start")
+        callback == START_DIALOG_CALLBACK or lower in _START_TRIGGERS or lower.startswith("/start")
     )
     login_hit = (
         confirm_cb is not None
@@ -842,6 +1197,19 @@ def handle_max_update(
     if start_hit:
         return _handle_bot_start(bot, user_id=user_id, chat_id=chat_id, store=store)
 
+    intake_result = _handle_intake_callback(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        store=store,
+        payload=callback,
+    )
+    if intake_result is not None:
+        return intake_result
+
+    if lower in {CALL_OPERATOR_LABEL.lower(), "позвать специалиста", "оператор"}:
+        return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store)
+
     if login_hit:
         return _send_confirm_web_login(
             bot,
@@ -856,17 +1224,15 @@ def handle_max_update(
     if len(digits_only) == 6 and len(compact) <= 24:
         return _handle_pair_code(bot, user_id=user_id, chat_id=chat_id, code=digits_only)
 
+    intake = get_intake_store().get_active(user_id)
     record = store.find_by_max_user(user_id)
-    if record is None:
-        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
 
     # Если уже ждём кнопку подтверждения — не теряем пользователя
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None and not lower.startswith("/"):
-        # обычный текст без команды — напомнить кнопку
         return resumed
 
-    if lower.startswith("/help") or lower in {"канал", "/cabinet", "/web"}:
+    if lower.startswith("/help") or lower in {"помощь", "канал"}:
         pending = latest_for_max(user_id)
         if pending is not None and pending.status == "pending_confirm":
             return _complete_pc_login(
@@ -875,14 +1241,70 @@ def handle_max_update(
                 chat_id=chat_id,
                 ticket_id=pending.ticket_id,
             )
-        reply = f"{ask_code_from_login_page()} Команды: /docs /run /draft /status"
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=True, action="help", case_id=record.case_id, reply=reply)
+        reply = (
+            "Команды: /start — диагностика, /cabinet — кабинет, "
+            "/documents — какие документы нужны, /status — статус дела, "
+            "/login — вход с компьютера. Всегда можно позвать специалиста. "
+            "Решение принимает СФР."
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=goal_keyboard() if intake is None or intake.goal is None else None,
+        )
+        return MaxHandleResult(
+            ok=True,
+            action="help",
+            case_id=(intake.case_id if intake else None) or (record.case_id if record else None),
+            reply=reply,
+        )
 
-    if lower.startswith("/docs") or lower in {"документы", "что прислать"}:
-        reply = _docs_request_text(has_docs=bool(record.ctx.document_paths))
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=True, action="docs_request", case_id=record.case_id, reply=reply)
+    if lower.startswith("/cabinet") or lower.startswith("/web"):
+        if intake is None:
+            intake = get_intake_store().upsert_started(user_id)
+        case_id = _ensure_case_for_intake(
+            user_id=user_id, chat_id=chat_id, intake=intake, store=store
+        )
+        max_url, web_url = cabinet_urls_for_case(case_id)
+        reply = (
+            "Откройте личный кабинет для документов. "
+            "В личном кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
+            "Решение принимает СФР."
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+        )
+        return MaxHandleResult(ok=True, action="cabinet_links", case_id=case_id, reply=reply)
+
+    if (
+        lower.startswith("/docs")
+        or lower.startswith("/documents")
+        or lower in {"документы", "что прислать"}
+    ):
+        reply = DOCS_INFO_TEXT
+        case_id = (intake.case_id if intake else None) or (record.case_id if record else None)
+        if case_id:
+            max_url, web_url = cabinet_urls_for_case(case_id)
+        else:
+            max_url = get_settings().max_miniapp_url or get_settings().max_chat_url
+            web_url = get_settings().cabinet_public_url
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+        )
+        return MaxHandleResult(ok=True, action="docs_request", case_id=case_id, reply=reply)
+
+    if record is None:
+        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
 
     if lower.startswith("/draft"):
         reply = _draft_preview(record)
@@ -898,7 +1320,7 @@ def handle_max_update(
         reply = (
             f"{status_label_ru(record.ctx.status)}. "
             f"Документов: {len(record.ctx.document_paths)}. "
-            "Дальше: /docs или /run."
+            "Дальше: /documents или /cabinet. Решение принимает СФР."
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
@@ -927,19 +1349,21 @@ def handle_max_update(
     file_bytes = update.get("file_bytes")
     downloads = extract_downloadable_files(update)
     is_production = get_settings().app_env.strip().lower() == "production"
-    if is_production and (
-        isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)
-    ):
-        reply = (
-            "Документы через сообщения MAX не принимаются. "
-            "Откройте защищённый кабинет и подтвердите согласие перед загрузкой."
+    if is_production and (isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)):
+        case_id = record.case_id
+        max_url, web_url = cabinet_urls_for_case(case_id)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=UPLOAD_BLOCKED_TEXT,
+            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
         )
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(
             ok=False,
             action="upload_blocked",
-            case_id=record.case_id,
-            reply=reply,
+            case_id=case_id,
+            reply=UPLOAD_BLOCKED_TEXT,
         )
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
@@ -964,6 +1388,15 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = ask_code_from_login_page()
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    reply = (
+        "Выберите пункт меню ниже или откройте /help. "
+        "Документы загружаются в личном кабинете. Решение принимает СФР."
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=goal_keyboard(),
+    )
     return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)

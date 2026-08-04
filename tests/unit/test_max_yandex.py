@@ -146,11 +146,16 @@ def test_llm_deepseek_fallback_when_primary_unavailable(monkeypatch) -> None:
 
 def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
+    from sfrfr.integrations.max.intake import reset_intake_store
+
+    reset_intake_store(tmp_path / "max_intake.json")
     bot = _SilentBot()
 
-    created = handle_max_update(
+    started = handle_max_update(
         {
             "update_type": "message_created",
             "message": {
@@ -161,9 +166,28 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
         },
         bot=bot,
     )
-    assert created.action == "create"
-    assert created.case_id
-    assert bot.sent and bot.sent[0][0] == "6407832"
+    assert started.action == "max_intake_started"
+    assert started.case_id is None
+    assert bot.sent and "С чего начнём" in bot.sent[0][1]
+
+    # завершаем диагностику → создаётся одно дело
+    for payload in (
+        "intake:goal:check_experience",
+        "intake:ils:yes",
+        "intake:emp:yes",
+        "intake:device:max",
+    ):
+        handle_max_update(
+            {
+                "update_type": "message_callback",
+                "callback": {
+                    "user": {"user_id": 6407832},
+                    "chat_id": 382234533,
+                    "payload": payload,
+                },
+            },
+            bot=bot,
+        )
 
     status = handle_max_update(
         {
@@ -177,17 +201,22 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
         bot=bot,
     )
     assert status.action == "status"
-    assert status.case_id == created.case_id
+    assert status.case_id
     assert any("Документов" in t for _, t in bot.sent)
     get_settings.cache_clear()
 
 
 def test_max_webhook_endpoint(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "sec")
     monkeypatch.setenv("MAX_BOT_TOKEN", "")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
+    from sfrfr.integrations.max.intake import reset_intake_store
+
+    reset_intake_store(tmp_path / "max_intake.json")
 
     client = TestClient(create_app())
     forbidden = client.post(
@@ -204,5 +233,5 @@ def test_max_webhook_endpoint(tmp_path: Path, monkeypatch) -> None:
     assert ok.status_code == 200
     body = ok.json()
     assert body["ok"] is True
-    assert "create" in body["actions"]
+    assert "max_intake_started" in body["actions"]
     get_settings.cache_clear()
