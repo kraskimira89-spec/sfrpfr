@@ -25,6 +25,7 @@
 18. [18-seo-strategy-and-implementation.md](18-seo-strategy-and-implementation.md) — SEO-стратегия: технический аудит, семантика, экспертный контент, аналитика и план на 6 месяцев.
 19. [19-yandex-reviews-feedback.md](19-yandex-reviews-feedback.md) — сбор отзывов в Яндекс Бизнесе/Картах по правилам Яндекса (без накруток).  
     Ops: [../ops/yandex-business-reviews.md](../ops/yandex-business-reviews.md).
+20. [20-max-private-chat-funnel.md](20-max-private-chat-funnel.md) — путь клиента: сайт → личный чат MAX → диагностика → защищённый кабинет документов.
 
 ## Принцип
 
