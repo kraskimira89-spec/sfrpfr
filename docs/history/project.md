@@ -1,3 +1,7 @@
+## 2026-08-04 — автоактивация .venv
+
+- Cursor: профиль терминала `PowerShell (venv)` + `python.terminal.activateEnvironment`.
+- Правило агента: `.cursor/rules/venv-activate.mdc`.
 ## 2026-08-04 — обложка сайта 1200×640
 
 - Файл: `assets/proverka-stazha-cover-1200x640.png` (OG/соцсети/герой).
@@ -692,6 +696,7 @@
 - Реализован технический SEO P0: версионируемый MU-plugin для description/canonical/Open Graph/JSON-LD, устранение второго H1 в записях и `noindex` для MAX mini-app `/app/`.
 - Production-проверка: 60/60 sitemap URL имеют `200`, по одному тегу description/canonical/JSON-LD/H1 и Open Graph; ключевые URL отправлены в переобход Яндекса.
 - Добавлены `scripts/seo_production_audit.py` и еженедельный workflow `seo-production-audit.yml`; строгая проверка содержимого выявила 12 пустых description из старых строк с некорректным UTF-8, исправление подготовлено.
+
 
 
 

@@ -1,0 +1,20 @@
+---
+description: Всегда активировать .venv при работе в проекте
+alwaysApply: true
+---
+
+# Виртуальное окружение
+
+В начале сессии и перед любыми Python-командами (`mypy`, `pytest`, `ruff`, `pip`, скрипты) в PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Либо без активации вызывать явно:
+
+```powershell
+.\.venv\Scripts\python.exe -m …
+```
+
+Не использовать системный `python` / `pip` вне `.venv`, если venv существует.
