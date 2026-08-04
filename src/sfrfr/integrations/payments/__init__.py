@@ -40,8 +40,10 @@ class YooKassaClient:
                 f"{self.api_base}/me",
                 auth=(self.shop_id, self.secret_key),
             )
-        data = response.json() if response.content else {}
-        fiscal = data.get("fiscalization") if isinstance(data.get("fiscalization"), dict) else {}
+        raw = response.json() if response.content else {}
+        data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        fiscal_raw = data.get("fiscalization")
+        fiscal: dict[str, Any] = fiscal_raw if isinstance(fiscal_raw, dict) else {}
         return {
             "ok": response.status_code < 300,
             "status_code": response.status_code,
@@ -163,8 +165,12 @@ def check_fiscalization_alignment(
 
 def parse_yookassa_event(payload: dict[str, Any]) -> dict[str, Any]:
     """Извлечь статус платежа из уведомления ЮKassa."""
-    obj = payload.get("object") if isinstance(payload.get("object"), dict) else payload
-    metadata = obj.get("metadata") if isinstance(obj.get("metadata"), dict) else {}
+    raw_obj = payload.get("object")
+    obj: dict[str, Any] = raw_obj if isinstance(raw_obj, dict) else payload
+    raw_meta = obj.get("metadata")
+    metadata: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
+    amount = obj.get("amount") if isinstance(obj.get("amount"), dict) else {}
+    receipt = obj.get("receipt") if isinstance(obj.get("receipt"), dict) else None
     return {
         "event": payload.get("event"),
         "provider_payment_id": obj.get("id"),
@@ -174,6 +180,6 @@ def parse_yookassa_event(payload: dict[str, Any]) -> dict[str, Any]:
         "case_id": metadata.get("case_id"),
         "package_code": metadata.get("package_code"),
         "channel": metadata.get("channel"),
-        "amount_value": (obj.get("amount") or {}).get("value"),
-        "fiscal": (obj.get("receipt") or {}).get("registered") if obj.get("receipt") else None,
+        "amount_value": amount.get("value") if isinstance(amount, dict) else None,
+        "fiscal": receipt.get("registered") if isinstance(receipt, dict) else None,
     }

@@ -71,7 +71,8 @@ def _verify_standard_webhook(*, body: bytes, headers: dict[str, str], secret_raw
 
 
 def _greeting(user: dict[str, Any]) -> str:
-    meta = user.get("user_metadata") if isinstance(user.get("user_metadata"), dict) else {}
+    raw_meta = user.get("user_metadata")
+    meta: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
     name = str(meta.get("full_name") or "").strip()
     if name:
         return f"Здравствуйте, {escape(name)}!"

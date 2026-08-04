@@ -486,7 +486,7 @@ def create_case_telemost(
             ).eq("id", case_id).execute()
             repo.audit(
                 case_id,
-                principal.audit_actor_id,
+                principal.audit_actor_id(),
                 f"yandex_telemost_create:{result.get('conference_id')}",
             )
         except Exception as exc:  # noqa: BLE001
@@ -520,7 +520,7 @@ def send_case_email(
         body=payload.body,
     )
     if result.get("ok"):
-        repo.audit(case_id, principal.audit_actor_id, f"yandex_mail_send:{payload.template}")
+        repo.audit(case_id, principal.audit_actor_id(), f"yandex_mail_send:{payload.template}")
     return result
 
 

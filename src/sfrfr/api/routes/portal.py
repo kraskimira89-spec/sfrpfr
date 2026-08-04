@@ -426,7 +426,7 @@ def _raise_auth(
     event: str,
     audience: str = "client",
     ticket: str | None = None,
-    **extra: object,
+    **extra: Any,
 ) -> NoReturn:
     auth_event(
         event,
@@ -898,8 +898,9 @@ def list_my_cases(
     for case in repo.list_cases(principal):
         case_id = str(case["id"])
         unread = 0
-        if not principal.is_staff and principal.audit_actor_id():
-            unread = repo.unread_staff_messages(case_id, principal.audit_actor_id())
+        actor_id = principal.audit_actor_id()
+        if not principal.is_staff and actor_id:
+            unread = repo.unread_staff_messages(case_id, actor_id)
         summaries.append(
             _summary(
                 case,
@@ -1134,6 +1135,7 @@ def accept_consent(
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client or representative only")
     forwarded = request.headers.get("x-forwarded-for")
+    ip: str | None
     if forwarded:
         ip = forwarded.split(",")[0].strip()
     else:

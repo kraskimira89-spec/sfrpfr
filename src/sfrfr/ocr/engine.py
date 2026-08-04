@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from sfrfr.core.config import get_settings
@@ -33,7 +34,7 @@ def extract_text(path: Path | str) -> str:
         return f"[ocr_error] неподдерживаемый тип: {suffix or 'unknown'}"
 
 
-def extract_texts(paths: list[Path | str]) -> list[str]:
+def extract_texts(paths: Sequence[Path | str]) -> list[str]:
     return [extract_text(p) for p in paths]
 
 

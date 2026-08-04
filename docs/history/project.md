@@ -1,5 +1,11 @@
 # История проекта SFRFR
 
+## 2026-08-04 — mypy в проекте и CI
+
+- Конфиг `[tool.mypy]` в `pyproject.toml`; локально `mypy src/sfrfr` — 0 ошибок.
+- Typecheck в `ci.yml` и `deploy-vps.yml`; workspace settings для Cursor/VS Code.
+- Точечные правки типов (payments, MAX, portal, OCR Sequence).
+
 ## 2026-08-03 — промо QR/визитка/буклет + мягкие просьбы
 
 - URL формы: `https://yandex.ru/sprav/234170727274/reviews/add/` (из QR визитки).

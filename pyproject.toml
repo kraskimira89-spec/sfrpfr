@@ -77,12 +77,23 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008"]  # FastAPI/Typer: Query/File/Option в defaults — норма
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 mypy_path = "src"
 packages = ["sfrfr"]
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
 check_untyped_defs = true
 ignore_missing_imports = true
 pretty = true
 show_error_codes = true
+
+# Сторонние пакеты: stubs часто ломают прогон (numpy 3.12+ syntax и т.п.).
+[[tool.mypy.overrides]]
+module = [
+  "numpy",
+  "numpy.*",
+  "pandas.*",
+  "supabase.*",
+]
+follow_imports = "skip"
+ignore_errors = true

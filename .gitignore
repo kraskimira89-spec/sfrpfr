@@ -60,6 +60,7 @@ storage/cases.tmp
 # IDE / OS
 .idea/
 .vscode/
+!.vscode/settings.json
 *.swp
 .DS_Store
 Thumbs.db

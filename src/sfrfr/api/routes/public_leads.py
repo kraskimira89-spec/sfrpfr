@@ -278,7 +278,7 @@ def _notify_max_managers_new_lead(
     text = "\n".join(lines)
 
     sent = 0
-    targets = manager_ids or [None] * max(1, len(chat_ids))
+    targets: list[str | None] = list(manager_ids) if manager_ids else [None] * max(1, len(chat_ids))
     for i, mid in enumerate(targets):
         cid = chat_ids[i] if i < len(chat_ids) else None
         try:

@@ -35,7 +35,8 @@ def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
     """Вернуть список (filename, url) для скачивания."""
     out: list[tuple[str, str]] = []
     for item in iter_attachment_candidates(update):
-        payload = item.get("payload") if isinstance(item.get("payload"), dict) else item
+        raw_payload = item.get("payload")
+        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else item
         url = (
             payload.get("url")
             or payload.get("fileUrl")
