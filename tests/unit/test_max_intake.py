@@ -7,7 +7,7 @@ from pathlib import Path
 from sfrfr.core.case_store import get_case_store, reset_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.handler import handle_max_update
-from sfrfr.integrations.max.intake import get_intake_store, reset_intake_store, WELCOME_TEXT
+from sfrfr.integrations.max.intake import WELCOME_TEXT, get_intake_store, reset_intake_store
 
 
 class _SilentBot:
