@@ -139,7 +139,14 @@ class MaxBotClient:
         settings = get_settings()
         body: dict[str, Any] = {
             "url": url,
-            "update_types": ["message_created", "bot_started", "message_callback"],
+            # bot_added — чтобы получить chat_id канала после добавления бота (GET /chats снят).
+            "update_types": [
+                "message_created",
+                "bot_started",
+                "bot_added",
+                "bot_removed",
+                "message_callback",
+            ],
         }
         secret_value = secret if secret is not None else settings.max_webhook_secret
         if secret_value:

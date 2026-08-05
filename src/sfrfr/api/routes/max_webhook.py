@@ -39,11 +39,17 @@ async def max_webhook(
         updates = []
 
     results = [handle_max_update(u) for u in updates]
+    channel_hints = [
+        r.detail
+        for r in results
+        if r.action in {"bot_added", "bot_removed"} and r.detail.startswith("chat_id=")
+    ]
     return {
         "ok": True,
         "processed": len(results),
         "actions": [r.action for r in results],
         "case_ids": [r.case_id for r in results if r.case_id],
+        "channel_chat_ids": channel_hints,
     }
 
 

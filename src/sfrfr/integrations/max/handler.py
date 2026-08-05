@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
+from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
     MaxBotClient,
     inline_callback_keyboard,
@@ -58,6 +60,8 @@ from sfrfr.security.login_pending import (
     parse_manager_callback,
 )
 from sfrfr.storage.local import save_upload
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -133,7 +137,28 @@ def _chat_id(update: dict[str, Any]) -> int | str | None:
     recipient = update.get("recipient") or {}
     if isinstance(recipient, dict) and recipient.get("chat_id") is not None:
         return recipient["chat_id"]
+    chat = update.get("chat")
+    if isinstance(chat, dict) and chat.get("chat_id") is not None:
+        return chat["chat_id"]
+    if isinstance(chat, dict) and chat.get("id") is not None:
+        return chat["id"]
     return None
+
+
+def _looks_like_channel_update(update: dict[str, Any]) -> bool:
+    """Эвристика: событие из канала (не личный диалог)."""
+    for key in ("chat", "recipient", "message"):
+        block = update.get(key)
+        if isinstance(block, dict):
+            chat_type = str(block.get("type") or block.get("chat_type") or "").upper()
+            if chat_type in {"CHANNEL", "CHAT"}:
+                return True
+            nested = block.get("chat") or block.get("recipient")
+            if isinstance(nested, dict):
+                nested_type = str(nested.get("type") or nested.get("chat_type") or "").upper()
+                if nested_type in {"CHANNEL", "CHAT"}:
+                    return True
+    return False
 
 
 def _text(update: dict[str, Any]) -> str:
@@ -1168,6 +1193,7 @@ def handle_max_update(
     callback = _callback_payload(update)
     user_id = _user_id(update)
     chat_id = _chat_id(update)
+    update_type = str(update.get("update_type") or update.get("type") or "").lower()
     lower = text.lower()
     confirm_cb = parse_confirm_callback(callback)
     manager_ticket = parse_manager_callback(callback)
@@ -1180,6 +1206,26 @@ def handle_max_update(
         or lower.startswith("/login")
         or CONFIRM_WEB_LOGIN_LABEL.lower() in lower
     )
+
+    # Канал/группа: chat_id из bot_added (GET /chats снят с июня 2026).
+    if "bot_added" in update_type or update_type.endswith("bot_added"):
+        entry = remember_chat_id(
+            chat_id,
+            source="webhook_bot_added",
+            update_type=update_type,
+        )
+        logger.info("max_bot_added chat_id=%s user_id=%s", chat_id, user_id)
+        return MaxHandleResult(
+            ok=True,
+            action="bot_added",
+            detail=f"chat_id={chat_id}" if entry else "no chat_id",
+        )
+    if "bot_removed" in update_type:
+        logger.info("max_bot_removed chat_id=%s user_id=%s", chat_id, user_id)
+        return MaxHandleResult(ok=True, action="bot_removed", detail=f"chat_id={chat_id}")
+
+    if chat_id is not None and _looks_like_channel_update(update):
+        remember_chat_id(chat_id, source="webhook_channel_message", update_type=update_type)
 
     if not user_id:
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")

@@ -11,6 +11,8 @@
 2. Публикация: **черновик → ручная проверка → публикация через Bot API** (`POST /messages` с `chat_id` канала). Автопубликация без редакции запрещена.
 3. Публичный URL канала: [https://max.ru/channel_proverkastaza](https://max.ru/channel_proverkastaza) (`MAX_CHANNEL_URL`).  
    `MAX_CHANNEL_CHAT_ID` — ещё не передан; нужен после добавления бота в канал.
+4. Ops-получение `chat_id`: [docs/ops/max-channel-chat-id.md](../ops/max-channel-chat-id.md)  
+   (`sfrfr max-subscribe` → бот админ канала → `sfrfr max-channel-info` → `sfrfr max-channel-post`).
 
 ## 1. Цель
 

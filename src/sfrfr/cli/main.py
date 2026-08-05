@@ -276,7 +276,7 @@ def max_subscribe(
         help="HTTPS webhook; по умолчанию PUBLIC_BASE_URL + /api/integrations/max/webhook",
     ),
 ) -> None:
-    """Зарегистрировать webhook бота MAX."""
+    """Зарегистрировать webhook бота MAX (в т.ч. bot_added для chat_id канала)."""
     from sfrfr.core.config import get_settings
     from sfrfr.integrations.max.client import MaxBotClient
 
@@ -289,6 +289,67 @@ def max_subscribe(
         raise typer.BadParameter("Задайте MAX_BOT_TOKEN в .env")
     result = client.subscribe_webhook(webhook)
     typer.echo(f"subscribed\t{webhook}\t{result}")
+    typer.echo(
+        "Далее: добавьте бота админом канала → смотрите логи webhook "
+        "на max_channel_chat_id_seen / action=bot_added → "
+        "или `sfrfr max-channel-info`."
+    )
+
+
+@app.command("max-channel-info")
+def max_channel_info() -> None:
+    """Показать URL канала, MAX_CHANNEL_CHAT_ID и обнаруженные chat_id из webhook."""
+    import json
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.channel_ids import list_known, store_path
+
+    settings = get_settings()
+    payload = {
+        "max_channel_url": settings.max_channel_url,
+        "max_channel_chat_id": settings.max_channel_chat_id or None,
+        "store_path": str(store_path()),
+        "discovered": list_known(),
+        "next": (
+            "Если discovered пуст: 1) sfrfr max-subscribe 2) добавить бота админом канала "
+            "3) при необходимости передобавить бота 4) повторить max-channel-info"
+        ),
+    }
+    typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+@app.command("max-channel-post")
+def max_channel_post(
+    text: str = typer.Option(
+        "Тест публикации SFRFR: черновик → проверка → API. Не ПДн.",
+        "--text",
+        "-t",
+        help="Текст поста (без ПДн и обещаний перерасчёта)",
+    ),
+    chat_id: str | None = typer.Option(
+        None,
+        "--chat-id",
+        help="chat_id канала; по умолчанию MAX_CHANNEL_CHAT_ID из .env",
+    ),
+) -> None:
+    """Тестовая публикация в канал MAX (POST /messages?chat_id=...)."""
+    import json
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.client import MaxBotClient
+
+    settings = get_settings()
+    target = (chat_id or settings.max_channel_chat_id or "").strip()
+    if not target:
+        raise typer.BadParameter(
+            "Задайте MAX_CHANNEL_CHAT_ID или --chat-id "
+            "(см. sfrfr max-channel-info после bot_added)"
+        )
+    client = MaxBotClient()
+    if not client.available:
+        raise typer.BadParameter("Задайте MAX_BOT_TOKEN в .env")
+    result = client.send_message(text=text, chat_id=target)
+    typer.echo(json.dumps({"chat_id": target, "result": result}, ensure_ascii=False, indent=2))
 
 
 @app.command("staff-list")

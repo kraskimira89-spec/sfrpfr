@@ -1,12 +1,18 @@
-"""Ждёт сообщение боту и печатает user_id / chat_id.
+"""Ждёт сообщение боту и печатает user_id / chat_id (long poll).
 
-Запуск (PowerShell):
+Для chat_id КАНАЛА этот скрипт обычно бесполезен: при активном webhook
+GET /updates пуст, а GET /chats снят. Используйте:
+
+  sfrfr max-subscribe
+  # добавить бота админом канала
+  sfrfr max-channel-info
+  sfrfr max-channel-post
+
+Ops: docs/ops/max-channel-chat-id.md
+
+Запуск (PowerShell) — только личный диалог / dev без webhook:
   $env:PYTHONPATH='c:\\Users\\user\\Documents\\Cursor\\SFRFR\\src'
   python scripts/max_listen_chat_id.py
-
-Перед запуском откройте бота в MAX и сразу после старта скрипта
-отправьте /start. Если webhook уже подписан, long poll может
-ничего не получить — тогда смотрите логи API на VPS.
 """
 
 from __future__ import annotations

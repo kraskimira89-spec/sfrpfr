@@ -1,3 +1,9 @@
+## 2026-08-05 — получение chat_id канала MAX
+
+- Ops: `docs/ops/max-channel-chat-id.md`.
+- Webhook: события `bot_added` / `bot_removed`; store `var/max_channel_ids.json`.
+- CLI: `sfrfr max-channel-info`, `sfrfr max-channel-post`.
+
 ## 2026-08-05 — канал MAX: URL и вторичные ссылки
 
 - Канал: https://max.ru/channel_proverkastaza (`MAX_CHANNEL_URL`).

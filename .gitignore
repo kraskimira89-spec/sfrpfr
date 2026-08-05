@@ -67,6 +67,9 @@ Thumbs.db
 
 # Docker / local DB
 pgdata/
+# ops: обнаруженные chat_id каналов MAX (не коммитить)
+var/max_channel_ids.json
+var/
 supabase/.branches/
 supabase/.temp/
 
