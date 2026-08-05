@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SFRFR Site Search
- * Description: Поле поиска по сайту в шапке (меню primary) и русская форма результатов.
+ * Description: Поиск в шапке + лента результатов с подсветкой и статистикой упоминаний.
  */
 
 if (!defined('ABSPATH')) {
@@ -68,59 +68,257 @@ add_action('pre_get_posts', static function ($query): void {
 });
 
 /**
- * Склонение «материал» для счётчика.
+ * Склонение слова.
+ *
+ * @param array{1:string,2:string,5:string} $forms формы: 1, 2-4, 5+
  */
-function sfrfr_search_materials_word(int $n): string
+function sfrfr_search_plural(int $n, array $forms): string
 {
     $n = abs($n) % 100;
     $n1 = $n % 10;
     if ($n > 10 && $n < 20) {
-        return 'материалов';
+        return $forms[5];
     }
     if ($n1 > 1 && $n1 < 5) {
-        return 'материала';
+        return $forms[2];
     }
     if ($n1 === 1) {
-        return 'материал';
+        return $forms[1];
     }
-    return 'материалов';
+    return $forms[5];
+}
+
+function sfrfr_search_materials_word(int $n): string
+{
+    return sfrfr_search_plural($n, [1 => 'статья', 2 => 'статьи', 5 => 'статей']);
+}
+
+function sfrfr_search_mentions_word(int $n): string
+{
+    return sfrfr_search_plural($n, [1 => 'упоминание', 2 => 'упоминания', 5 => 'упоминаний']);
 }
 
 /**
- * Заголовок поиска Astra: число найденных материалов + запрос.
+ * Число вхождений needle в тексте (без учёта регистра).
+ */
+function sfrfr_search_count_mentions(string $haystack, string $needle): int
+{
+    $needle = trim($needle);
+    if ($needle === '' || $haystack === '') {
+        return 0;
+    }
+    $pattern = '/' . preg_quote($needle, '/') . '/iu';
+    if (@preg_match_all($pattern, $haystack, $m) === false) {
+        return 0;
+    }
+    return count($m[0] ?? []);
+}
+
+/**
+ * Текст поста для поиска упоминаний.
+ */
+function sfrfr_search_post_plain(int $postId): string
+{
+    $title = (string) get_post_field('post_title', $postId);
+    $content = (string) get_post_field('post_content', $postId);
+    $excerpt = (string) get_post_field('post_excerpt', $postId);
+    $text = $title . "\n" . $excerpt . "\n" . wp_strip_all_tags($content);
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+    return trim($text);
+}
+
+/**
+ * Фрагмент с подсветкой первого (и остальных в окне) вхождения.
+ */
+function sfrfr_search_highlighted_snippet(string $plain, string $needle, int $radius = 100): string
+{
+    $needle = trim($needle);
+    if ($plain === '') {
+        return '';
+    }
+    if ($needle === '') {
+        $cut = function_exists('mb_substr') ? mb_substr($plain, 0, 200) : substr($plain, 0, 200);
+        return esc_html($cut);
+    }
+
+    $pos = function_exists('mb_stripos') ? mb_stripos($plain, $needle) : stripos($plain, $needle);
+    $lenPlain = function_exists('mb_strlen') ? mb_strlen($plain) : strlen($plain);
+    $lenNeedle = function_exists('mb_strlen') ? mb_strlen($needle) : strlen($needle);
+
+    if ($pos === false) {
+        $cut = function_exists('mb_substr') ? mb_substr($plain, 0, 200) : substr($plain, 0, 200);
+        $suffix = $lenPlain > 200 ? '…' : '';
+        return esc_html($cut) . $suffix;
+    }
+
+    $start = max(0, (int) $pos - $radius);
+    $length = $radius * 2 + (int) $lenNeedle;
+    $excerpt = function_exists('mb_substr')
+        ? mb_substr($plain, $start, $length)
+        : substr($plain, $start, $length);
+
+    $prefix = $start > 0 ? '…' : '';
+    $endPos = $start + (function_exists('mb_strlen') ? mb_strlen($excerpt) : strlen($excerpt));
+    $suffix = $endPos < $lenPlain ? '…' : '';
+
+    $safe = esc_html($excerpt);
+    $pattern = '/(' . preg_quote($needle, '/') . ')/iu';
+    $highlighted = preg_replace($pattern, '<mark class="sfrfr-search-hit">$1</mark>', $safe);
+    if (!is_string($highlighted)) {
+        $highlighted = $safe;
+    }
+
+    return $prefix . $highlighted . $suffix;
+}
+
+/**
+ * Заголовок с подсветкой запроса.
+ */
+function sfrfr_search_highlighted_title(string $title, string $needle): string
+{
+    $safe = esc_html($title);
+    $needle = trim($needle);
+    if ($needle === '') {
+        return $safe;
+    }
+    $pattern = '/(' . preg_quote($needle, '/') . ')/iu';
+    $out = preg_replace($pattern, '<mark class="sfrfr-search-hit">$1</mark>', $safe);
+    return is_string($out) ? $out : $safe;
+}
+
+/**
+ * @return array{articles:int,mentions:int}
+ */
+function sfrfr_search_compute_stats(string $term): array
+{
+    $term = trim($term);
+    $articles = 0;
+    $mentions = 0;
+    if ($term === '') {
+        return ['articles' => 0, 'mentions' => 0];
+    }
+
+    $ids = get_posts([
+        's' => $term,
+        'post_type' => ['post', 'page'],
+        'post_status' => 'publish',
+        'fields' => 'ids',
+        'posts_per_page' => 300,
+        'no_found_rows' => true,
+        'suppress_filters' => false,
+    ]);
+    $articles = count($ids);
+    foreach ($ids as $id) {
+        $mentions += sfrfr_search_count_mentions(sfrfr_search_post_plain((int) $id), $term);
+    }
+
+    return ['articles' => $articles, 'mentions' => $mentions];
+}
+
+/**
+ * @return array{articles:int,mentions:int}
+ */
+function sfrfr_search_stats(): array
+{
+    global $wp_query;
+    if (isset($wp_query->sfrfr_search_stats) && is_array($wp_query->sfrfr_search_stats)) {
+        return $wp_query->sfrfr_search_stats;
+    }
+    $stats = sfrfr_search_compute_stats(get_search_query(false));
+    if ($wp_query instanceof WP_Query) {
+        $wp_query->sfrfr_search_stats = $stats;
+    }
+    return $stats;
+}
+
+function sfrfr_search_stats_title_html(): string
+{
+    $stats = sfrfr_search_stats();
+    $query = get_search_query(false);
+    $mentions = (int) $stats['mentions'];
+    $articles = (int) $stats['articles'];
+    return sprintf(
+        'Найдено %d %s · %d %s по запросу «%s»',
+        $mentions,
+        sfrfr_search_mentions_word($mentions),
+        $articles,
+        sfrfr_search_materials_word($articles),
+        esc_html($query)
+    );
+}
+
+/**
+ * Заголовок поиска Astra: упоминания + статьи.
  *
  * @param string $title
  */
 add_filter('astra_the_search_page_title', static function (string $title): string {
-    global $wp_query;
-    $found = (int) ($wp_query->found_posts ?? 0);
-    $query = get_search_query(false);
-    $word = sfrfr_search_materials_word($found);
-    return sprintf(
-        'Найдено %d %s по запросу «%s»',
-        $found,
-        $word,
-        esc_html($query)
-    );
+    return sfrfr_search_stats_title_html();
 }, 20);
 
 /**
- * Fallback, если тема не использует astra_the_search_page_title.
- *
  * @param string $title
  */
 add_filter('get_the_archive_title', static function (string $title): string {
     if (!is_search()) {
         return $title;
     }
-    global $wp_query;
-    $found = (int) ($wp_query->found_posts ?? 0);
-    $query = get_search_query(false);
-    $word = sfrfr_search_materials_word($found);
-    return sprintf(
-        'Найдено %d %s по запросу «%s»',
-        $found,
-        $word,
-        esc_html($query)
-    );
+    return sfrfr_search_stats_title_html();
 }, 20);
+
+/**
+ * Подменить цикл Astra на ленту с контекстом.
+ */
+add_action('wp', static function (): void {
+    if (is_admin() || !is_search()) {
+        return;
+    }
+    remove_all_actions('astra_content_loop');
+    add_action('astra_content_loop', 'sfrfr_render_search_feed');
+}, 20);
+
+/**
+ * Лента результатов поиска.
+ */
+function sfrfr_render_search_feed(): void
+{
+    if (!have_posts()) {
+        echo '<div class="sfrfr-search-feed sfrfr-search-feed--empty">';
+        echo '<p>По вашему запросу ничего не найдено. Попробуйте другие слова или откройте <a href="' . esc_url(home_url('/blog/')) . '">раздел статей</a>.</p>';
+        echo '</div>';
+        return;
+    }
+
+    $term = get_search_query(false);
+    echo '<div class="sfrfr-search-feed" role="list">';
+
+    while (have_posts()) {
+        the_post();
+        $postId = (int) get_the_ID();
+        $plain = sfrfr_search_post_plain($postId);
+        $inPost = sfrfr_search_count_mentions($plain, $term);
+        $snippet = sfrfr_search_highlighted_snippet($plain, $term);
+        $titleHtml = sfrfr_search_highlighted_title(get_the_title(), $term);
+        $url = get_permalink();
+        $date = get_the_date('d.m.Y');
+
+        echo '<article class="sfrfr-search-item" role="listitem">';
+        echo '<h2 class="sfrfr-search-item__title"><a href="' . esc_url($url ?: '#') . '">' . $titleHtml . '</a></h2>';
+        if ($snippet !== '') {
+            echo '<p class="sfrfr-search-item__snippet">' . $snippet . '</p>';
+        }
+        echo '<p class="sfrfr-search-item__meta">';
+        echo esc_html((string) $inPost) . ' ' . esc_html(sfrfr_search_mentions_word($inPost));
+        if ($date) {
+            echo ' · ' . esc_html($date);
+        }
+        if (get_post_type() === 'page') {
+            echo ' · страница';
+        }
+        echo '</p>';
+        echo '</article>';
+    }
+
+    echo '</div>';
+}

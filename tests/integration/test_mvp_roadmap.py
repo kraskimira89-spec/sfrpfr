@@ -61,6 +61,9 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr-site-search" in search_mu
     assert 'name="s"' in search_mu
     assert "Поиск по сайту" in search_mu
+    assert "sfrfr_render_search_feed" in search_mu
+    assert "sfrfr-search-hit" in search_mu
+    assert "упоминаний" in search_mu
     assert "Пример расчёта вознаграждения" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home
