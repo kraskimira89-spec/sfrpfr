@@ -43,6 +43,22 @@
   color: var(--sfrfr-blog-chip-on-text);
 }
 
+.sfrfr-blog-disclaimer {
+  margin: 0 0 1.5rem;
+  padding: 0.95rem 1.15rem;
+  background: rgba(30, 78, 121, 0.07);
+  border-left: 4px solid #1e4e79;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.sfrfr-blog-disclaimer p {
+  margin: 0;
+  color: #111111;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 .sfrfr-blog-archive-cta,
 .sfrfr-blog-cta {
   margin: 1.5rem 0 2rem;

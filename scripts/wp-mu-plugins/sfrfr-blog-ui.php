@@ -98,7 +98,7 @@ add_action('wp_enqueue_scripts', static function (): void {
         return;
     }
     $base = sfrfr_blog_ui_asset_base();
-    $ver = '20260727c';
+    $ver = '20260805a';
     wp_enqueue_style('sfrfr-blog-ui', $base . '/blog-ui.css', [], $ver);
     if (is_singular('post')) {
         wp_enqueue_script('sfrfr-blog-ui', $base . '/blog-ui.js', [], $ver, true);
@@ -159,10 +159,23 @@ add_action('loop_start', static function ($query): void {
 
     echo '<aside class="sfrfr-blog-archive-cta sfrfr-blog-cta">';
     echo '<p class="sfrfr-blog-cta__title">Задать вопрос</p>';
-    echo '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку. Документы — только в защищённом контуре, не через сайт.</p>';
+    echo '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку. Мы готовим документы и план — а подаёте через СФР или Госуслуги вы сами.</p>';
     echo sfrfr_blog_ask_cta_buttons_html();
     echo '</aside>';
 });
+
+/**
+ * Граница услуги: готовим документы, подачу делает клиент.
+ */
+function sfrfr_blog_submission_disclaimer_html(): string
+{
+    return '<aside class="sfrfr-blog-disclaimer" role="note">'
+        . '<p><strong>Как устроена помощь.</strong> '
+        . 'Мы готовим документы, черновики и понятный план действий. '
+        . 'А подаёте обращение через СФР, МФЦ или Госуслуги вы сами. '
+        . 'Решение о пенсии и перерасчёте принимает только СФР.</p>'
+        . '</aside>';
+}
 
 /**
  * End CTA + related posts before comments / after content.
@@ -171,13 +184,19 @@ add_filter('the_content', static function (string $content): string {
     if (!is_singular('post') || !in_the_loop() || !is_main_query()) {
         return $content;
     }
+
+    $prefix = '';
+    if (strpos($content, 'sfrfr-blog-disclaimer') === false) {
+        $prefix = sfrfr_blog_submission_disclaimer_html();
+    }
+
     if (strpos($content, 'sfrfr-blog-cta--end') !== false) {
-        return $content;
+        return $prefix . $content;
     }
 
     $cta = '<aside class="sfrfr-blog-cta sfrfr-blog-cta--end">'
         . '<p class="sfrfr-blog-cta__title">Задать вопрос</p>'
-        . '<p class="sfrfr-blog-cta__text">Ответим в MAX или по заявке. Решение о перерасчёте всегда принимает СФР.</p>'
+        . '<p class="sfrfr-blog-cta__text">Ответим в MAX или по заявке. Мы готовим документы — а подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.</p>'
         . sfrfr_blog_ask_cta_buttons_html()
         . '</aside>';
 
@@ -203,5 +222,5 @@ add_filter('the_content', static function (string $content): string {
         }
     }
 
-    return $content . $cta . $related;
+    return $prefix . $content . $cta . $related;
 }, 20);
