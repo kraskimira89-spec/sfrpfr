@@ -430,7 +430,8 @@ def max_channel_publish_starter(
         raise typer.BadParameter("starter-posts.json пуст")
 
     if dry_run:
-        typer.echo(json.dumps({"chat_id": target, "count": len(posts), "posts": posts}, ensure_ascii=False, indent=2))
+        preview = {"chat_id": target, "count": len(posts), "posts": posts}
+        typer.echo(json.dumps(preview, ensure_ascii=False, indent=2))
         return
 
     client = MaxBotClient()
