@@ -11,6 +11,7 @@ from sfrfr.core.config import get_settings
 def test_channel_ids_requires_auth(monkeypatch) -> None:
     monkeypatch.setenv("OPS_MONITOR_TOKEN", "ops-secret")
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "")
+    monkeypatch.setenv("MAX_BOT_TOKEN", "bot-token")
     get_settings.cache_clear()
     client = TestClient(create_app())
     assert client.get("/api/integrations/max/channel-ids").status_code == 401
@@ -19,7 +20,10 @@ def test_channel_ids_requires_auth(monkeypatch) -> None:
         headers={"X-Ops-Token": "ops-secret"},
     )
     assert ok.status_code == 200
-    body = ok.json()
-    assert body["ok"] is True
-    assert "discovered" in body
+    assert ok.json()["ok"] is True
+    via_bot = client.get(
+        "/api/integrations/max/channel-ids",
+        headers={"Authorization": "bot-token"},
+    )
+    assert via_bot.status_code == 200
     get_settings.cache_clear()

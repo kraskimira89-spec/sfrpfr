@@ -65,6 +65,7 @@ def max_integration_health() -> dict[str, str]:
 
 @router.get("/channel-ids")
 def max_channel_ids(
+    authorization: str | None = Header(default=None),
     x_ops_token: str | None = Header(default=None, alias="X-Ops-Token"),
     x_max_bot_api_secret: str | None = Header(default=None),
 ) -> dict[str, Any]:
@@ -74,13 +75,23 @@ def max_channel_ids(
     settings = get_settings()
     ops = (settings.ops_monitor_token or "").strip()
     secret = (settings.max_webhook_secret or "").strip()
+    bot = (settings.max_bot_token or "").strip()
+    auth = (authorization or "").strip()
+    if auth.lower().startswith("bearer "):
+        auth = auth[7:].strip()
     ok = False
     if ops and x_ops_token == ops:
         ok = True
     if secret and x_max_bot_api_secret == secret:
         ok = True
+    # Практичный ops: тот же токен бота, что для MAX API (без отдельного webhook secret).
+    if bot and auth == bot:
+        ok = True
     if not ok:
-        raise HTTPException(status_code=401, detail="ops or webhook secret required")
+        raise HTTPException(
+            status_code=401,
+            detail="ops token, webhook secret, or bot token required",
+        )
     return {
         "ok": True,
         "store_path": str(store_path()),

@@ -325,17 +325,26 @@ def max_channel_info(
         ),
     }
     if remote:
+        # Legacy host may 301 -> api.proverkastaza.ru; prefer canonical if redirected.
         base = settings.public_base_url.rstrip("/")
+        if "taxi-doroga-dobra.ru" in base:
+            base = "https://api.proverkastaza.ru"
         url = f"{base}/api/integrations/max/channel-ids"
         headers: dict[str, str] = {}
         if settings.ops_monitor_token:
             headers["X-Ops-Token"] = settings.ops_monitor_token
         elif settings.max_webhook_secret:
             headers["X-Max-Bot-Api-Secret"] = settings.max_webhook_secret
+        elif settings.max_bot_token:
+            headers["Authorization"] = settings.max_bot_token
         try:
-            with httpx.Client(timeout=20.0, verify=max_ssl_verify()) as http:
+            with httpx.Client(
+                timeout=20.0,
+                verify=max_ssl_verify(),
+                follow_redirects=True,
+            ) as http:
                 resp = http.get(url, headers=headers)
-            payload["remote_url"] = url
+            payload["remote_url"] = str(resp.url)
             payload["remote_status"] = resp.status_code
             if resp.status_code < 400:
                 data = resp.json()
