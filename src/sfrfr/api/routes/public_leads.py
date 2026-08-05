@@ -504,16 +504,23 @@ def _create_lead(
     if lead_id and amocrm.get("ok"):
         persist_crm_external_id(case_id, str(lead_id))
 
-    crm_url = amocrm.get("crm_url") if isinstance(amocrm, dict) else None
-    notify_kwargs = {
-        "case_id": case_id,
-        "full_name": payload.full_name.strip(),
-        "contact": contact_display,
-        "channel": preferred,
-        "crm_url": str(crm_url) if crm_url else None,
-    }
-    max_notify = _notify_max_managers_new_lead(**notify_kwargs)
-    email_notify = _notify_email_ops_new_lead(**notify_kwargs)
+    crm_url = str(amocrm.get("crm_url") or "") if isinstance(amocrm, dict) else ""
+    crm_url_opt: str | None = crm_url or None
+    lead_name = payload.full_name.strip()
+    max_notify = _notify_max_managers_new_lead(
+        case_id=case_id,
+        full_name=lead_name,
+        contact=contact_display,
+        channel=preferred,
+        crm_url=crm_url_opt,
+    )
+    email_notify = _notify_email_ops_new_lead(
+        case_id=case_id,
+        full_name=lead_name,
+        contact=contact_display,
+        channel=preferred,
+        crm_url=crm_url_opt,
+    )
     if isinstance(amocrm, dict):
         amocrm = {**amocrm, "max_notify": max_notify, "email_notify": email_notify}
 
