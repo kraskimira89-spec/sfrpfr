@@ -131,7 +131,9 @@ class Settings(BaseSettings):
     max_public_bot_url: str = "https://max.ru/id8905998693_1_bot?startapp"
     max_miniapp_url: str = "https://proverkastaza.ru/app/"
     # Канал MAX (информирование) — не первичный CTA сайта
-    max_channel_url: str = ""
+    max_channel_url: str = "https://max.ru/channel_proverkastaza"
+    # chat_id канала для POST /messages (не публиковать на сайте)
+    max_channel_chat_id: str = ""
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

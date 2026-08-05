@@ -28,6 +28,22 @@ function sfrfr_site_footer_max_url(): string
 }
 
 /**
+ * Публичный URL канала MAX (вторичная ссылка, не CTA услуги).
+ */
+function sfrfr_site_footer_max_channel_url(): string
+{
+    $url = getenv('MAX_CHANNEL_URL') ?: '';
+    $url = is_string($url) ? trim($url) : '';
+    if ($url === '') {
+        $url = (string) get_option('sfrfr_max_channel_url', '');
+    }
+    if ($url === '') {
+        $url = 'https://max.ru/channel_proverkastaza';
+    }
+    return $url;
+}
+
+/**
  * HTML футера.
  */
 function sfrfr_site_footer_html(): string
@@ -35,6 +51,7 @@ function sfrfr_site_footer_html(): string
     $home = esc_url(home_url('/'));
     $logo = esc_url(content_url('uploads/sfrfr/sfrfr-logo-light.png'));
     $max = esc_url(sfrfr_site_footer_max_url());
+    $channel = esc_url(sfrfr_site_footer_max_channel_url());
 
     return <<<HTML
 <footer class="sfrfr-site-footer" role="contentinfo">
@@ -79,7 +96,8 @@ function sfrfr_site_footer_html(): string
       <p class="sfrfr-req">
         Телефон: <a href="tel:+79091950408">+7&nbsp;909&nbsp;195‑04‑08</a><br>
         Почта: <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a><br>
-        Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a>
+        Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
+        Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer">канал в MAX</a>
       </p>
       <p><strong>Банковские реквизиты</strong></p>
       <p class="sfrfr-req">
