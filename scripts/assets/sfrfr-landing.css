@@ -1376,10 +1376,72 @@ header .custom-logo-link img {
   font-size: 0.9rem !important;
 }
 
-.search .ast-archive-description,
-.search .page-title,
-.search .entry-title {
-  font-size: clamp(1.35rem, 3vw, 1.75rem);
+/* Страница поиска: компактная шапка, результаты сразу в зоне видимости */
+body.search .ast-archive-description,
+.search .ast-archive-description {
+  padding: 0.65rem 1rem !important;
+  margin: 0.5rem auto 0.65rem !important;
+  max-width: 1200px !important;
+  text-align: left !important;
+  box-sizing: border-box;
+}
+
+body.search .ast-archive-description h1,
+body.search .ast-archive-description .page-title,
+.search .ast-archive-description h1,
+.search .ast-archive-title {
+  margin: 0 !important;
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+
+body.search .ast-archive-description > *:not(:last-child) {
+  margin-bottom: 0.25rem !important;
+}
+
+body.search .ast-breadcrumbs-wrapper,
+.search .ast-breadcrumbs-wrapper {
+  padding: 0.25rem 0 0.5rem !important;
+  margin: 0 !important;
+}
+
+body.search .ast-breadcrumbs,
+body.search .breadcrumb-trail,
+.search .ast-breadcrumbs,
+.search .trail-items {
+  font-size: 0.8125rem !important;
+  line-height: 1.35 !important;
+}
+
+body.search.ast-separate-container .site-main,
+body.search .site-main {
+  padding-top: 0.25rem !important;
+}
+
+body.search.ast-separate-container #primary,
+body.search #primary {
+  margin-top: 0 !important;
+}
+
+/* Заголовки карточек результатов — не раздувать как H1 архива */
+body.search .ast-article-post .entry-title,
+.search .ast-article-post .entry-title {
+  font-size: clamp(1rem, 2.2vw, 1.15rem) !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 921px) {
+  body.search .ast-archive-description,
+  .search .ast-archive-description {
+    padding: 0.55rem 0.75rem !important;
+    margin: 0.35rem auto 0.5rem !important;
+  }
+
+  body.search .ast-archive-description h1,
+  .search .ast-archive-description h1 {
+    font-size: 1.05rem !important;
+  }
 }
 
 @media (max-width: 1200px) {
