@@ -1221,19 +1221,42 @@ header .custom-logo-link img {
   max-width: none !important;
 }
 
-/* Меню: жирнее и чуть крупнее */
+/* Меню: жирнее; без переносов по буквам (иначе «Главна / я») */
 .main-header-menu > .menu-item > a,
 .ast-builder-menu-1 .menu-link,
 #primary-site-navigation-desktop .menu-link {
   font-weight: 700 !important;
-  font-size: clamp(0.95rem, 2vw, 1.1rem) !important;
+  font-size: 0.95rem !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
 }
 
 /* Поиск по сайту в шапке — единый компактный control в ряду меню */
 .main-header-menu,
-.ast-builder-menu-1 .main-header-menu {
+.ast-builder-menu-1 .main-header-menu,
+.ast-builder-menu .main-header-menu {
+  display: flex !important;
   flex-wrap: nowrap !important;
   align-items: center !important;
+  width: auto !important;
+  max-width: 100%;
+}
+
+.main-header-menu > .menu-item:not(.sfrfr-menu-search),
+.ast-builder-menu-1 .main-header-menu > .menu-item:not(.sfrfr-menu-search) {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link,
+.ast-builder-menu-1 .main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link {
+  padding-left: 0.4rem !important;
+  padding-right: 0.4rem !important;
 }
 
 .sfrfr-menu-search.menu-item {
@@ -1241,7 +1264,11 @@ header .custom-logo-link img {
   display: flex !important;
   align-items: center !important;
   align-self: center !important;
-  margin: 0 0 0 0.65rem !important;
+  flex: 0 1 10.5rem !important;
+  width: auto !important;
+  min-width: 7.5rem !important;
+  max-width: 11rem !important;
+  margin: 0 0 0 0.4rem !important;
   padding: 0 !important;
   height: auto !important;
   min-height: 0 !important;
@@ -1257,8 +1284,8 @@ header .custom-logo-link img {
 
 .sfrfr-site-search {
   display: block;
-  width: 12.5rem;
-  max-width: 12.5rem;
+  width: 100%;
+  max-width: 11rem;
   margin: 0;
   font-family: var(--sfrfr-font);
 }
@@ -1513,11 +1540,49 @@ mark.sfrfr-search-hit,
   }
 }
 
-@media (max-width: 1200px) {
-  .sfrfr-site-search,
-  .sfrfr-site-search--header {
-    width: 10.5rem;
-    max-width: 10.5rem;
+/* Узкий desktop: компактнее поиск, пункты меню не ломаем */
+@media (max-width: 1280px) {
+  .main-header-menu > .menu-item > a,
+  .ast-builder-menu-1 .menu-link {
+    font-size: 0.875rem !important;
+    padding-left: 0.3rem !important;
+    padding-right: 0.3rem !important;
+  }
+
+  .sfrfr-menu-search.menu-item {
+    flex-basis: 8.5rem !important;
+    min-width: 7rem !important;
+    max-width: 9rem !important;
+  }
+
+  .site-header .sfrfr-site-search__submit,
+  .main-header-menu .sfrfr-site-search__submit {
+    padding: 0 0.45rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .sfrfr-menu-search.menu-item {
+    flex-basis: 7.25rem !important;
+    min-width: 6.5rem !important;
+    max-width: 7.5rem !important;
+  }
+
+  .site-header .sfrfr-site-search__submit,
+  .main-header-menu .sfrfr-site-search__submit {
+    width: 2.1rem !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+
+  .site-header .sfrfr-site-search__submit::before,
+  .main-header-menu .sfrfr-site-search__submit::before {
+    content: "⌕";
+    font-size: 1rem;
+    line-height: 1;
+    color: #ffffff;
   }
 }
 
@@ -1527,9 +1592,16 @@ mark.sfrfr-search-hit,
     flex-wrap: wrap !important;
   }
 
+  .main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link {
+    white-space: normal !important;
+  }
+
   .sfrfr-menu-search.menu-item {
     margin: 0.75rem 0 0.35rem !important;
     width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
   }
 
   .sfrfr-site-search,
@@ -1540,6 +1612,19 @@ mark.sfrfr-search-hit,
 
   .sfrfr-site-search__field {
     height: 44px;
+  }
+
+  .site-header .sfrfr-site-search__submit,
+  .main-header-menu .sfrfr-site-search__submit {
+    width: auto !important;
+    padding: 0 0.85rem !important;
+    font-size: 0.9rem !important;
+    line-height: 1 !important;
+  }
+
+  .site-header .sfrfr-site-search__submit::before,
+  .main-header-menu .sfrfr-site-search__submit::before {
+    content: none;
   }
 }
 
