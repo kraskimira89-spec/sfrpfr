@@ -64,6 +64,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr_render_search_feed" in search_mu
     assert "sfrfr-search-hit" in search_mu
     assert "упоминаний" in search_mu
+    assert "sfrfr_search_per_page" in search_mu
+    assert "sfrfr-search-item--right" in search_mu
     assert "Пример расчёта вознаграждения" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home

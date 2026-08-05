@@ -55,7 +55,27 @@ add_filter('wp_nav_menu_items', static function (string $items, $args): string {
 }, 20, 2);
 
 /**
- * Поиск: страницы + записи блога; без вложений.
+ * Допустимые размеры страницы результатов поиска.
+ *
+ * @return list<int>
+ */
+function sfrfr_search_per_page_choices(): array
+{
+    return [10, 20, 50];
+}
+
+/**
+ * Сколько результатов на странице (по умолчанию 20).
+ */
+function sfrfr_search_per_page(): int
+{
+    $raw = isset($_GET['n']) ? (int) $_GET['n'] : 20;
+    $allowed = sfrfr_search_per_page_choices();
+    return in_array($raw, $allowed, true) ? $raw : 20;
+}
+
+/**
+ * Поиск: страницы + записи блога; без вложений; размер страницы.
  *
  * @param WP_Query $query
  */
@@ -65,6 +85,21 @@ add_action('pre_get_posts', static function ($query): void {
     }
     $query->set('post_type', ['post', 'page']);
     $query->set('post_status', 'publish');
+    $query->set('posts_per_page', sfrfr_search_per_page());
+});
+
+/**
+ * Сохранить параметр n= в ссылках пагинации поиска.
+ */
+add_filter('get_pagenum_link', static function (string $url): string {
+    if (!is_search()) {
+        return $url;
+    }
+    $n = sfrfr_search_per_page();
+    if ($n === 20) {
+        return $url;
+    }
+    return add_query_arg('n', $n, $url);
 });
 
 /**
@@ -279,10 +314,38 @@ add_action('wp', static function (): void {
 }, 20);
 
 /**
+ * Выбор «показывать по N» над лентой.
+ */
+function sfrfr_render_search_per_page_control(): void
+{
+    $current = sfrfr_search_per_page();
+    $term = get_search_query(false);
+    $action = esc_url(home_url('/'));
+
+    echo '<form class="sfrfr-search-perpage" method="get" action="' . $action . '">';
+    echo '<input type="hidden" name="s" value="' . esc_attr($term) . '">';
+    echo '<label for="sfrfr-search-n">Показывать по</label> ';
+    echo '<select id="sfrfr-search-n" name="n" onchange="this.form.submit()">';
+    foreach (sfrfr_search_per_page_choices() as $n) {
+        printf(
+            '<option value="%d"%s>%d</option>',
+            $n,
+            selected($current, $n, false),
+            $n
+        );
+    }
+    echo '</select>';
+    echo ' <span class="sfrfr-search-perpage__hint">на странице</span>';
+    echo '</form>';
+}
+
+/**
  * Лента результатов поиска.
  */
 function sfrfr_render_search_feed(): void
 {
+    sfrfr_render_search_per_page_control();
+
     if (!have_posts()) {
         echo '<div class="sfrfr-search-feed sfrfr-search-feed--empty">';
         echo '<p>По вашему запросу ничего не найдено. Попробуйте другие слова или откройте <a href="' . esc_url(home_url('/blog/')) . '">раздел статей</a>.</p>';
@@ -293,6 +356,7 @@ function sfrfr_render_search_feed(): void
     $term = get_search_query(false);
     echo '<div class="sfrfr-search-feed" role="list">';
 
+    $i = 0;
     while (have_posts()) {
         the_post();
         $postId = (int) get_the_ID();
@@ -302,8 +366,10 @@ function sfrfr_render_search_feed(): void
         $titleHtml = sfrfr_search_highlighted_title(get_the_title(), $term);
         $url = get_permalink();
         $date = get_the_date('d.m.Y');
+        $side = ($i % 2 === 0) ? 'left' : 'right';
+        $i++;
 
-        echo '<article class="sfrfr-search-item" role="listitem">';
+        echo '<article class="sfrfr-search-item sfrfr-search-item--' . esc_attr($side) . '" role="listitem">';
         echo '<h2 class="sfrfr-search-item__title"><a href="' . esc_url($url ?: '#') . '">' . $titleHtml . '</a></h2>';
         if ($snippet !== '') {
             echo '<p class="sfrfr-search-item__snippet">' . $snippet . '</p>';
