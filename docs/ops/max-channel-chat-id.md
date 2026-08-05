@@ -18,6 +18,14 @@ sfrfr max-subscribe
 
 Webhook: `{PUBLIC_BASE_URL}/api/integrations/max/webhook`.
 
+Правильный prod URL:
+
+```text
+PUBLIC_BASE_URL=https://api.proverkastaza.ru
+```
+
+Не использовать `api.taxi-doroga-dobra.ru` для подписки: там 301 на proverkastaza, а `sfrfr max-subscribe` должен регистрировать конечный HTTPS URL.
+
 ## 2. Добавить бота админом канала
 
 1. Открыть канал.
