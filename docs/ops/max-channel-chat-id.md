@@ -40,11 +40,16 @@ max_channel_chat_id_seen chat_id=... → set MAX_CHANNEL_CHAT_ID=...
 
 ### Локально / после деплоя
 
+Важно: `sfrfr max-subscribe` указывает webhook на **VPS** (`PUBLIC_BASE_URL`).  
+События `bot_added` пишутся в `var/max_channel_ids.json` **на сервере**, не на вашем ПК.
+
 ```powershell
 sfrfr max-channel-info
+# по умолчанию --remote: читает GET /api/integrations/max/channel-ids на VPS
 ```
 
-Поле `discovered` — список увиденных `chat_id` (файл `var/max_channel_ids.json`, в git не коммитится).
+Смотрите поле `remote_discovered`.  
+`local_discovered` на ноутбуке обычно пуст — это нормально.
 
 ## 4. Записать в secrets
 

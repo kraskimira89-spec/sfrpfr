@@ -297,25 +297,60 @@ def max_subscribe(
 
 
 @app.command("max-channel-info")
-def max_channel_info() -> None:
+def max_channel_info(
+    remote: bool = typer.Option(
+        True,
+        "--remote/--local",
+        help="Читать discovered с PUBLIC_BASE_URL (webhook пишет на VPS, не в локальный var/)",
+    ),
+) -> None:
     """Показать URL канала, MAX_CHANNEL_CHAT_ID и обнаруженные chat_id из webhook."""
     import json
 
+    import httpx
+
     from sfrfr.core.config import get_settings
     from sfrfr.integrations.max.channel_ids import list_known, store_path
+    from sfrfr.integrations.max.ssl_context import max_ssl_verify
 
     settings = get_settings()
-    payload = {
+    payload: dict[str, object] = {
         "max_channel_url": settings.max_channel_url,
         "max_channel_chat_id": settings.max_channel_chat_id or None,
-        "store_path": str(store_path()),
-        "discovered": list_known(),
-        "next": (
-            "If discovered empty: 1) sfrfr max-subscribe "
-            "2) add bot as channel admin (re-add if already there) "
-            "3) sfrfr max-channel-info again"
+        "local_store_path": str(store_path()),
+        "local_discovered": list_known(),
+        "note": (
+            "Webhook events are saved on the API server (PUBLIC_BASE_URL), "
+            "not in local var/. Use --remote (default) after bot_added."
         ),
     }
+    if remote:
+        base = settings.public_base_url.rstrip("/")
+        url = f"{base}/api/integrations/max/channel-ids"
+        headers: dict[str, str] = {}
+        if settings.ops_monitor_token:
+            headers["X-Ops-Token"] = settings.ops_monitor_token
+        elif settings.max_webhook_secret:
+            headers["X-Max-Bot-Api-Secret"] = settings.max_webhook_secret
+        try:
+            with httpx.Client(timeout=20.0, verify=max_ssl_verify()) as http:
+                resp = http.get(url, headers=headers)
+            payload["remote_url"] = url
+            payload["remote_status"] = resp.status_code
+            if resp.status_code < 400:
+                data = resp.json()
+                payload["remote_discovered"] = data.get("discovered")
+                payload["remote_max_channel_chat_id"] = data.get("max_channel_chat_id")
+            else:
+                payload["remote_error"] = resp.text[:500]
+        except Exception as exc:  # noqa: BLE001
+            payload["remote_url"] = url
+            payload["remote_error"] = str(exc)
+    payload["next"] = (
+        "If remote_discovered empty: re-add bot as channel admin, "
+        "then sfrfr max-channel-info again. "
+        "Then set MAX_CHANNEL_CHAT_ID and run sfrfr max-channel-post"
+    )
     typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
