@@ -95,6 +95,28 @@ add_action('pre_get_posts', static function ($query): void {
 }, 99);
 
 /**
+ * Astra задаёт posts_per_page на parse_tax_query — перебиваем фильтром.
+ *
+ * @param int $limit
+ */
+add_filter('astra_blog_post_per_page', static function ($limit) {
+    if (is_admin()) {
+        return $limit;
+    }
+    if (is_search() || (isset($_GET['s']) && is_string($_GET['s']) && $_GET['s'] !== '')) {
+        return sfrfr_search_per_page();
+    }
+    return $limit;
+}, 20);
+
+add_action('parse_tax_query', static function ($query): void {
+    if (is_admin() || !$query instanceof WP_Query || !$query->is_main_query() || !$query->is_search()) {
+        return;
+    }
+    $query->set('posts_per_page', sfrfr_search_per_page());
+}, 20);
+
+/**
  * Сохранить параметр per_page в ссылках пагинации поиска.
  */
 add_filter('get_pagenum_link', static function (string $url): string {
