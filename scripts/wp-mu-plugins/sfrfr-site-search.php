@@ -69,7 +69,13 @@ function sfrfr_search_per_page_choices(): array
  */
 function sfrfr_search_per_page(): int
 {
-    $raw = isset($_GET['n']) ? (int) $_GET['n'] : 20;
+    $raw = 20;
+    if (isset($_GET['per_page'])) {
+        $raw = (int) $_GET['per_page'];
+    } elseif (isset($_GET['n'])) {
+        // совместимость со старым параметром
+        $raw = (int) $_GET['n'];
+    }
     $allowed = sfrfr_search_per_page_choices();
     return in_array($raw, $allowed, true) ? $raw : 20;
 }
@@ -86,10 +92,10 @@ add_action('pre_get_posts', static function ($query): void {
     $query->set('post_type', ['post', 'page']);
     $query->set('post_status', 'publish');
     $query->set('posts_per_page', sfrfr_search_per_page());
-});
+}, 99);
 
 /**
- * Сохранить параметр n= в ссылках пагинации поиска.
+ * Сохранить параметр per_page в ссылках пагинации поиска.
  */
 add_filter('get_pagenum_link', static function (string $url): string {
     if (!is_search()) {
@@ -99,7 +105,7 @@ add_filter('get_pagenum_link', static function (string $url): string {
     if ($n === 20) {
         return $url;
     }
-    return add_query_arg('n', $n, $url);
+    return add_query_arg('per_page', $n, $url);
 });
 
 /**
@@ -324,8 +330,8 @@ function sfrfr_render_search_per_page_control(): void
 
     echo '<form class="sfrfr-search-perpage" method="get" action="' . $action . '">';
     echo '<input type="hidden" name="s" value="' . esc_attr($term) . '">';
-    echo '<label for="sfrfr-search-n">Показывать по</label> ';
-    echo '<select id="sfrfr-search-n" name="n" onchange="this.form.submit()">';
+    echo '<label for="sfrfr-search-per-page">Показывать по</label> ';
+    echo '<select id="sfrfr-search-per-page" name="per_page" onchange="this.form.submit()">';
     foreach (sfrfr_search_per_page_choices() as $n) {
         printf(
             '<option value="%d"%s>%d</option>',
