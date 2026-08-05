@@ -99,12 +99,7 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "О сервисе" "/#o-servise" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
-  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку в MAX" "${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${CTA_ITEM:-}" ]; then
-    "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true
-  fi
   echo "MENU primary updated id=${MENU_ID}"
 fi
 

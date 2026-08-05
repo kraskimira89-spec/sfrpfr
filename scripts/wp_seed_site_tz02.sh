@@ -179,13 +179,7 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "О сервисе" "/#o-servise" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
-  CTA_ITEM="$("${WP[@]}" menu item add-custom "$MENU_ID" "Начать проверку в MAX" "$MAX_BTN_URL" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${CTA_ITEM:-}" ]; then
-    "${WP[@]}" post term set "$CTA_ITEM" nav_menu "$MENU_ID" >/dev/null 2>&1 || true
-    "${WP[@]}" post meta update "$CTA_ITEM" _menu_item_classes "sfrfr-menu-cta" >/dev/null 2>&1 || true
-  fi
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
