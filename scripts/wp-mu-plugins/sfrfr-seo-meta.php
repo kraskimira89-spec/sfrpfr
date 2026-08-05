@@ -19,6 +19,10 @@ remove_action('wp_head', 'rel_canonical');
 
 function sfrfr_seo_is_noindex(): bool
 {
+    // ТЗ-18: служебные результаты поиска не индексировать
+    if (is_search()) {
+        return true;
+    }
     if (is_category(['situacii', 'analitika'])) {
         return true;
     }

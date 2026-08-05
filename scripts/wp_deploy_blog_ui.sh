@@ -15,6 +15,7 @@ cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-meta.php" "${MU}/sfrfr-seo-meta.p
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-hide-astra-copyright.php" "${MU}/sfrfr-hide-astra-copyright.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-site-footer.php" "${MU}/sfrfr-site-footer.php"
+cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-site-search.php" "${MU}/sfrfr-site-search.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" "${MU}/sfrfr-yandex-verification.php"
 cp -f "${ASSETS_SRC}/blog-ui.css" "${ASSETS_DST}/blog-ui.css"
 cp -f "${ASSETS_SRC}/blog-ui.js" "${ASSETS_DST}/blog-ui.js"
