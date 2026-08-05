@@ -16,7 +16,8 @@
 | Главное зеркало HTTPS без www (301) | ✅ Apache |
 | Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
 | Summary / host loaded | ✅ `data_status=OK`; **смотрите хост без www** |
-| Страницы в поиске (apex) | ✅ `searchable_pages_count=8` на `https://proverkastaza.ru` (02.08.2026) |
+| Страницы в поиске (apex) | ⏳ `searchable_pages_count=8` (04.08.2026); в sitemap **39** URL — лаг индексации |
+| Обход по счётчикам Метрики | ⚠️ UI: ещё нужно включить (`NO_METRIKA_COUNTER_CRAWL_ENABLED=PRESENT`, 05.08.2026) |
 | Страницы в поиске (www) | ⚠️ всегда **0** — ожидаемо: `www` → 301 на apex |
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
@@ -78,8 +79,10 @@
 | Шаг | Как |
 |---|---|
 | 1. Счётчик на сайте | ✅ уже: `111134477`, MU `sfrfr-yandex-metrika.php` |
-| 2. Привязка к хосту | ✅ `NO_METRIKA_COUNTER_BINDING=ABSENT` (03.08.2026, UI) |
-| 3. Включить обход | ✅ `NO_METRIKA_COUNTER_CRAWL_ENABLED=ABSENT` |
+| 2. Привязка к хосту | ✅ `NO_METRIKA_COUNTER_BINDING=ABSENT` (счётчик привязан) |
+| 3. Включить обход | ⚠️ **сделать в UI** — диагностика `NO_METRIKA_COUNTER_CRAWL_ENABLED=PRESENT` (05.08.2026) |
+
+Письмо Вебмастера «Обновление поисковой базы… изменений нет» — это **отчёт об индексе**, не о правках HTML. Sitemap уже в robots/API; ускорение = включить обход Метрики + переобход (скрипт `yandex_webmaster_recrawl.py`).
 
 Кабинет: [список сайтов](https://webmaster.yandex.ru/sites/) → в шапке выбрать **`https://proverkastaza.ru`** (без www).
 
