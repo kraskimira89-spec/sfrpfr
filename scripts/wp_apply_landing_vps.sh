@@ -23,6 +23,8 @@ test -f scripts/assets/blog/09-faq-rasshirennyy.html
 
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_landing_css.php"
 echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_author_display.php"
+echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_home.php"
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
