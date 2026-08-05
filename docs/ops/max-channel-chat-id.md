@@ -82,4 +82,13 @@ sfrfr max-channel-post -t "Тест: публикация через API SFRFR"
 черновик → ручная проверка → sfrfr max-channel-post / API → проверка в канале
 ```
 
+Стартовый набор (закреп + 5 постов):
+
+```powershell
+sfrfr max-channel-publish-starter --dry-run
+sfrfr max-channel-publish-starter
+```
+
+Файлы: `scripts/assets/max-channel/starter-posts.json`.
+
 Long poll (`scripts/max_listen_chat_id.py`) при активном webhook обычно пуст — для канала не использовать.

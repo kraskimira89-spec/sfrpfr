@@ -132,6 +132,24 @@ class MaxBotClient:
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}
 
+    def pin_message(
+        self,
+        *,
+        chat_id: int | str,
+        message_id: str,
+        notify: bool = True,
+    ) -> dict[str, Any]:
+        """PUT /chats/{chatId}/pin — закрепить пост в канале."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        endpoint = f"{self.api_base}/chats/{chat_id}/pin"
+        body = {"message_id": message_id, "notify": notify}
+        with self._client() as client:
+            resp = client.put(endpoint, headers=self._headers(), json=body)
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            return data if isinstance(data, dict) else {"raw": data}
+
     def subscribe_webhook(self, url: str, *, secret: str | None = None) -> dict[str, Any]:
         """POST /subscriptions — зарегистрировать HTTPS webhook."""
         if not self.available:

@@ -1,8 +1,13 @@
+## 2026-08-05 — стартовые посты канала MAX опубликованы
+
+- Закреп: https://max.ru/channel_proverkastaza/AZ_TYZKEL14 (`pin.success`).
+- Ещё 5 постов (ИЛС, сверка, период, документы, сервис) через `sfrfr max-channel-publish-starter`.
+- Черновики: `scripts/assets/max-channel/starter-posts.json`; `MAX_CHANNEL_CHAT_ID` в default config.
+
 ## 2026-08-05 — chat_id канала MAX получен, тест публикации OK
 
 - `MAX_CHANNEL_CHAT_ID=-77580376877720` (`bot_added`).
 - Тест: `sfrfr max-channel-post` → пост в канале (chat_type=channel).
-- На VPS нужно вручную дописать тот же `MAX_CHANNEL_CHAT_ID` в production `.env`.
 
 ## 2026-08-05 — получение chat_id канала MAX
 

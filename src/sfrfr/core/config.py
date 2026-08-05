@@ -133,8 +133,8 @@ class Settings(BaseSettings):
     # Канал MAX (информирование) — не первичный CTA сайта
     max_channel_url: str = "https://max.ru/channel_proverkastaza"
     # chat_id канала для POST /messages (не публиковать на сайте)
-    # Пример: channel_proverkastaza — заполнять из .env после bot_added
-    max_channel_chat_id: str = ""
+    # channel_proverkastaza; переопределяется .env / VPS
+    max_channel_chat_id: str = "-77580376877720"
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

@@ -397,6 +397,105 @@ def max_channel_post(
     typer.echo(json.dumps({"chat_id": target, "result": result}, ensure_ascii=False, indent=2))
 
 
+@app.command("max-channel-publish-starter")
+def max_channel_publish_starter(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Только показать очередь, без публикации",
+    ),
+    chat_id: str | None = typer.Option(
+        None,
+        "--chat-id",
+        help="chat_id канала; по умолчанию MAX_CHANNEL_CHAT_ID",
+    ),
+) -> None:
+    """Опубликовать закреп + 5 стартовых постов из scripts/assets/max-channel/starter-posts.json."""
+    import json
+    import time
+    from pathlib import Path
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
+
+    settings = get_settings()
+    target = (chat_id or settings.max_channel_chat_id or "").strip()
+    if not target:
+        raise typer.BadParameter("Задайте MAX_CHANNEL_CHAT_ID")
+    posts_path = Path("scripts/assets/max-channel/starter-posts.json")
+    if not posts_path.is_file():
+        raise typer.BadParameter(f"Нет файла {posts_path}")
+    posts = json.loads(posts_path.read_text(encoding="utf-8"))
+    if not isinstance(posts, list) or not posts:
+        raise typer.BadParameter("starter-posts.json пуст")
+
+    if dry_run:
+        typer.echo(json.dumps({"chat_id": target, "count": len(posts), "posts": posts}, ensure_ascii=False, indent=2))
+        return
+
+    client = MaxBotClient()
+    if not client.available:
+        raise typer.BadParameter("Задайте MAX_BOT_TOKEN в .env")
+
+    chat_url = (settings.max_chat_url or "").strip()
+    published: list[dict[str, object]] = []
+    pin_mid: str | None = None
+
+    for item in posts:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        attachments = None
+        label = str(item.get("cta_label") or "").strip()
+        kind = str(item.get("cta_kind") or "")
+        if label and kind == "chat" and chat_url:
+            attachments = inline_link_keyboard(label, chat_url)
+        elif label and kind == "url":
+            url = str(item.get("cta_url") or "").strip()
+            if url:
+                attachments = inline_link_keyboard(label, url)
+
+        result = client.send_message(text=text, chat_id=target, attachments=attachments)
+        mid = None
+        msg = result.get("message") if isinstance(result, dict) else None
+        if isinstance(msg, dict):
+            body = msg.get("body")
+            if isinstance(body, dict):
+                mid = body.get("mid")
+            public_url = msg.get("url")
+        else:
+            public_url = None
+        if item.get("pin") and isinstance(mid, str):
+            pin_mid = mid
+        published.append(
+            {
+                "id": item.get("id"),
+                "mid": mid,
+                "url": public_url,
+                "pin": bool(item.get("pin")),
+            }
+        )
+        time.sleep(0.6)  # < 2 msg/sec limit
+
+    pin_result = None
+    if pin_mid:
+        pin_result = client.pin_message(chat_id=target, message_id=pin_mid, notify=True)
+
+    typer.echo(
+        json.dumps(
+            {
+                "chat_id": target,
+                "published": published,
+                "pin": pin_result,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 @app.command("staff-list")
 def staff_list() -> None:
     """Список сотрудников и ролей (service role)."""
