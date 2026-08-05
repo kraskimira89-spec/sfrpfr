@@ -623,6 +623,12 @@ body.page-template-default {
   text-align: center;
 }
 
+.sfrfr-legal-docs--mid {
+  max-width: 48rem;
+  margin-top: 1.35rem;
+  padding: 1.15rem 1.25rem 1.3rem;
+}
+
 .sfrfr-legal-docs__title {
   margin: 0 0 0.75rem;
   font-size: 0.95rem;
