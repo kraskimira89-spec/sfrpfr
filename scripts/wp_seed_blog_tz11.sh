@@ -32,5 +32,6 @@ fi
 
 echo "==> Сид блога ТЗ-11"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_blog_tz11.php"
+"${WP[@]}" eval-file "${SCRIPT_DIR}/wp_apply_author_display.php" || true
 
 echo "==> OK ТЗ-11: /blog/ + статьи (вкл. контент с главной), CTA → /#kak-rabotat"
