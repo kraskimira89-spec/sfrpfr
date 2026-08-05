@@ -290,9 +290,9 @@ def max_subscribe(
     result = client.subscribe_webhook(webhook)
     typer.echo(f"subscribed\t{webhook}\t{result}")
     typer.echo(
-        "Далее: добавьте бота админом канала → смотрите логи webhook "
-        "на max_channel_chat_id_seen / action=bot_added → "
-        "или `sfrfr max-channel-info`."
+        "Next: add bot as channel admin, then check webhook logs "
+        "for max_channel_chat_id_seen / action=bot_added "
+        "or run: sfrfr max-channel-info"
     )
 
 

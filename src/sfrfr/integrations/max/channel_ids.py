@@ -35,9 +35,14 @@ def remember_chat_id(
     path = store_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     data = _load(path)
-    items: dict[str, Any] = data.setdefault("chats", {})
+    chats_raw = data.setdefault("chats", {})
+    if not isinstance(chats_raw, dict):
+        chats_raw = {}
+        data["chats"] = chats_raw
+    items: dict[str, Any] = chats_raw
     now = datetime.now(UTC).isoformat()
-    prev = items.get(cid) if isinstance(items.get(cid), dict) else {}
+    prev_raw = items.get(cid)
+    prev: dict[str, Any] = prev_raw if isinstance(prev_raw, dict) else {}
     entry = {
         "chat_id": cid,
         "source": source,
