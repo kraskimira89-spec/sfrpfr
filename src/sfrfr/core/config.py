@@ -117,6 +117,8 @@ class Settings(BaseSettings):
     yookassa_return_url: str = ""
     yookassa_send_receipt: bool = False
     public_lead_token: str = ""
+    # Куда слать уведомления о новых заявках (email)
+    ops_notify_email: str = "info@proverkastaza.ru"
     cabinet_public_url: str = "https://cabinet.proverkastaza.ru"
     admin_public_url: str = "https://admin.proverkastaza.ru"
     # MAX user_id руководителей (через запятую) — подтверждение входа сотрудников

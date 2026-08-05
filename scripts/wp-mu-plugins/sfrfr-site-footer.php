@@ -78,7 +78,7 @@ function sfrfr_site_footer_html(): string
       <p><strong>Контакты</strong></p>
       <p class="sfrfr-req">
         Телефон: <a href="tel:+79091950408">+7&nbsp;909&nbsp;195‑04‑08</a><br>
-        Почта: <a href="mailto:prismotr89@yandex.ru">prismotr89@yandex.ru</a><br>
+        Почта: <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a><br>
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Начать проверку в MAX</a>
       </p>
       <p><strong>Банковские реквизиты</strong></p>

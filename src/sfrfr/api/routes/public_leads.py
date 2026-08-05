@@ -233,6 +233,66 @@ def _require_amocrm_lead(amocrm: dict[str, Any] | None) -> None:
         )
 
 
+def _lead_notify_text(
+    *,
+    case_id: str,
+    full_name: str,
+    contact: str,
+    channel: str,
+    crm_url: str | None,
+) -> tuple[str, str]:
+    """subject, body для MAX/email."""
+    catalog = case_catalog_code(case_id, full_name=full_name)
+    lines = [
+        "Новая заявка с сайта",
+        f"Имя: {full_name}",
+        f"Контакт: {contact}",
+        f"Канал: {_channel_label_ru(channel)}",
+        f"Дело: {catalog}",
+    ]
+    if crm_url:
+        lines.append(f"amoCRM: {crm_url}")
+    lines.append("Клиенту показаны ссылки MAX и кабинет. Напишите в выбранном канале.")
+    return f"Проверка стажа: заявка {catalog}", "\n".join(lines)
+
+
+def _notify_email_ops_new_lead(
+    *,
+    case_id: str,
+    full_name: str,
+    contact: str,
+    channel: str,
+    crm_url: str | None,
+) -> dict[str, Any]:
+    """Письмо о заявке на OPS_NOTIFY_EMAIL (по умолчанию info@proverkastaza.ru)."""
+    settings = get_settings()
+    to_addr = (settings.ops_notify_email or "").strip()
+    if not to_addr or "@" not in to_addr:
+        return {"ok": False, "skipped": True, "reason": "no OPS_NOTIFY_EMAIL"}
+    try:
+        from sfrfr.integrations.yandex_workspace.mail import send_mail
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__}
+
+    subject, body = _lead_notify_text(
+        case_id=case_id,
+        full_name=full_name,
+        contact=contact,
+        channel=channel,
+        crm_url=crm_url,
+    )
+    result = send_mail(
+        to=to_addr,
+        template="custom",
+        subject=subject,
+        body=body,
+        from_name="Проверка стажа",
+    )
+    if not result.get("ok"):
+        logger.warning("email lead notify failed: %s", result)
+    return result
+
+
 def _notify_max_managers_new_lead(
     *,
     case_id: str,
@@ -264,18 +324,13 @@ def _notify_max_managers_new_lead(
     if not manager_ids and not chat_ids:
         return {"ok": False, "skipped": True, "reason": "no managers"}
 
-    catalog = case_catalog_code(case_id, full_name=full_name)
-    lines = [
-        "Новая заявка с сайта",
-        f"Имя: {full_name}",
-        f"Контакт: {contact}",
-        f"Канал: {_channel_label_ru(channel)}",
-        f"Дело: {catalog}",
-    ]
-    if crm_url:
-        lines.append(f"amoCRM: {crm_url}")
-    lines.append("Клиенту показаны ссылки MAX и кабинет. Напишите в выбранном канале.")
-    text = "\n".join(lines)
+    _subject, text = _lead_notify_text(
+        case_id=case_id,
+        full_name=full_name,
+        contact=contact,
+        channel=channel,
+        crm_url=crm_url,
+    )
 
     sent = 0
     targets: list[str | None] = list(manager_ids) if manager_ids else [None] * max(1, len(chat_ids))
@@ -450,15 +505,17 @@ def _create_lead(
         persist_crm_external_id(case_id, str(lead_id))
 
     crm_url = amocrm.get("crm_url") if isinstance(amocrm, dict) else None
-    max_notify = _notify_max_managers_new_lead(
-        case_id=case_id,
-        full_name=payload.full_name.strip(),
-        contact=contact_display,
-        channel=preferred,
-        crm_url=str(crm_url) if crm_url else None,
-    )
+    notify_kwargs = {
+        "case_id": case_id,
+        "full_name": payload.full_name.strip(),
+        "contact": contact_display,
+        "channel": preferred,
+        "crm_url": str(crm_url) if crm_url else None,
+    }
+    max_notify = _notify_max_managers_new_lead(**notify_kwargs)
+    email_notify = _notify_email_ops_new_lead(**notify_kwargs)
     if isinstance(amocrm, dict):
-        amocrm = {**amocrm, "max_notify": max_notify}
+        amocrm = {**amocrm, "max_notify": max_notify, "email_notify": email_notify}
 
     cabinet = settings.cabinet_public_url.rstrip("/")
     max_url = settings.max_public_bot_url or settings.max_chat_url

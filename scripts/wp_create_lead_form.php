@@ -19,7 +19,7 @@ $existing = get_posts([
     'fields'         => 'ids',
 ]);
 
-$admin_email = get_option('admin_email');
+$admin_email = 'info@proverkastaza.ru';
 
 $fields = [
     '1' => [

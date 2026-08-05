@@ -333,11 +333,11 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'addressCountry' => 'RU',
         ];
         $graph[0]['telephone'] = '+79091950408';
-        $graph[0]['email'] = 'prismotr89@yandex.ru';
+        $graph[0]['email'] = 'info@proverkastaza.ru';
         $graph[0]['contactPoint'] = [
             '@type' => 'ContactPoint',
             'telephone' => '+79091950408',
-            'email' => 'prismotr89@yandex.ru',
+            'email' => 'info@proverkastaza.ru',
             'contactType' => 'customer service',
             'availableLanguage' => 'Russian',
         ];

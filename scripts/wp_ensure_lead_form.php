@@ -99,10 +99,10 @@ $settings = [
     'notification_enable' => '1',
     'notifications' => [
         '1' => [
-            'email' => '{admin_email}',
+            'email' => 'info@proverkastaza.ru',
             'subject' => 'Проверка стажа: заявка с сайта',
             'sender_name' => 'Проверка стажа',
-            'sender_address' => '{admin_email}',
+            'sender_address' => 'info@proverkastaza.ru',
             'replyto' => '',
             'message' => '{all_fields}',
         ],

@@ -203,6 +203,11 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
 - Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
 
+## 2026-08-05 (публичная почта info@proverkastaza.ru)
+
+- Заменён `prismotr89@yandex.ru` → `info@proverkastaza.ru` (футер, контакты, legal, schema).
+- WP `admin_email` + WPForms notifications; API `OPS_NOTIFY_EMAIL` на новые лиды.
+
 ## 2026-08-03 (единый favicon на кабинете/admin/MAX)
 
 - Было: дефолтный Next/Vercel `favicon.ico` (чёрный квадрат) на cabinet/admin.

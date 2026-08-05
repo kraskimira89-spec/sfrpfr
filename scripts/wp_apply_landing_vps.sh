@@ -27,6 +27,8 @@ echo
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
 echo
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_set_public_email.php"
+echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_hide_astra_copyright.php"
 echo
 # MU: скрытие копирайта Astra (на случай если CSS Customizer проигрывает)
