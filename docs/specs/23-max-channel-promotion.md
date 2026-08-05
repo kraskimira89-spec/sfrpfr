@@ -10,7 +10,7 @@
 1. Канал создан вручную на платформе MAX для бизнеса.
 2. Публикация: **черновик → ручная проверка → публикация через Bot API** (`POST /messages` с `chat_id` канала). Автопубликация без редакции запрещена.
 3. Публичный URL канала: [https://max.ru/channel_proverkastaza](https://max.ru/channel_proverkastaza) (`MAX_CHANNEL_URL`).  
-   `MAX_CHANNEL_CHAT_ID` — ещё не передан; нужен после добавления бота в канал.
+   `MAX_CHANNEL_CHAT_ID=-77580376877720` (получен из `bot_added` 2026-08-05).
 4. Ops-получение `chat_id`: [docs/ops/max-channel-chat-id.md](../ops/max-channel-chat-id.md)  
    (`sfrfr max-subscribe` → бот админ канала → `sfrfr max-channel-info` → `sfrfr max-channel-post`).
 
@@ -151,7 +151,7 @@
 
 ```text
 MAX_CHANNEL_URL=https://max.ru/channel_proverkastaza
-MAX_CHANNEL_CHAT_ID=
+MAX_CHANNEL_CHAT_ID=-77580376877720
 ```
 
 Требования:
@@ -189,7 +189,7 @@ MAX_CHANNEL_CHAT_ID=
 - [ ] все ссылки ведут на официальный сайт или личный чат;
 - [ ] нет ПДн, обещаний результата и непроверенных отзывов;
 - [x] `MAX_CHANNEL_URL` в `.env.example`, config и локальном `.env`; на VPS — при деплое / ручном sync secrets;
-- [ ] `MAX_CHANNEL_CHAT_ID` получен и записан в secrets;
+- [x] `MAX_CHANNEL_CHAT_ID=-77580376877720` получен из `bot_added` (записать в production `.env` на VPS);
 - [ ] ссылка на канал вторична относительно ссылки на личный чат;
 - [ ] проверены события `max_channel_click` и переход из канала в личный чат.
 

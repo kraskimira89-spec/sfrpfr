@@ -1,3 +1,9 @@
+## 2026-08-05 — chat_id канала MAX получен, тест публикации OK
+
+- `MAX_CHANNEL_CHAT_ID=-77580376877720` (`bot_added`).
+- Тест: `sfrfr max-channel-post` → пост в канале (chat_type=channel).
+- На VPS нужно вручную дописать тот же `MAX_CHANNEL_CHAT_ID` в production `.env`.
+
 ## 2026-08-05 — получение chat_id канала MAX
 
 - Ops: `docs/ops/max-channel-chat-id.md`.
