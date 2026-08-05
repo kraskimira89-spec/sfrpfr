@@ -311,8 +311,9 @@ def max_channel_info() -> None:
         "store_path": str(store_path()),
         "discovered": list_known(),
         "next": (
-            "Если discovered пуст: 1) sfrfr max-subscribe 2) добавить бота админом канала "
-            "3) при необходимости передобавить бота 4) повторить max-channel-info"
+            "If discovered empty: 1) sfrfr max-subscribe "
+            "2) add bot as channel admin (re-add if already there) "
+            "3) sfrfr max-channel-info again"
         ),
     }
     typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
