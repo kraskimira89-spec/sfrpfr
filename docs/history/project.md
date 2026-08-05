@@ -1,3 +1,8 @@
+## 2026-08-05 — канал MAX создан, путь публикации утверждён
+
+- Канал создан вручную; публикация: черновик → ручная проверка → Bot API `POST /messages`.
+- В ТЗ-23 и `.env.example`: `MAX_CHANNEL_URL` + `MAX_CHANNEL_CHAT_ID` (ожидают URL/`chat_id` от владельца).
+
 ## 2026-08-05 — ТЗ запуска канала MAX
 
 - ТЗ-23: `docs/specs/23-max-channel-promotion.md`.
