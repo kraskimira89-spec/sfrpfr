@@ -93,11 +93,11 @@
     var formUrl = cfg.formUrl || "/#zayavka";
     cta.className = "sfrfr-blog-cta sfrfr-blog-cta--mid";
     cta.innerHTML =
-      '<p class="sfrfr-blog-cta__title">Начать проверку</p>' +
+      '<p class="sfrfr-blog-cta__title">Уточнить ситуацию</p>' +
       '<p class="sfrfr-blog-cta__text">Начните в личном чате MAX или оставьте заявку — без загрузки сканов на этот сайт.</p>' +
       '<a class="sfrfr-blog-cta__btn" href="' +
       maxUrl +
-      '" target="_blank" rel="noopener noreferrer">Начать проверку в MAX</a> ' +
+      '" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a> ' +
       '<a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' +
       formUrl +
       '">Оставить заявку</a>';

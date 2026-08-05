@@ -33,19 +33,24 @@ class _SilentBot:
 def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     seed = (REPO / "scripts/wp_seed_site_tz02.sh").read_text(encoding="utf-8")
     assert "/#kak-prohodit" in seed
-    assert "/#o-servise" in seed
     assert "Статьи" in seed
-    assert "Начать проверку в MAX" in seed
     assert "MAX_CHAT_URL" in seed or "MAX_BTN_URL" in seed
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home
-    # ТЗ-20: первичный CTA — только личный чат MAX, не прямой кабинет/канал
-    assert "Начать проверку в MAX" in home
+    # ТЗ-20/21: первичный CTA — личный чат MAX, не кабинет/канал; нейтральный текст
+    assert "Уточнить ситуацию в MAX" in home
+    assert "Начать проверку в MAX" not in home
+    assert "Позвонить" in home
+    assert "tel:+79091950408" in home
+    assert "sfrfr-hero__identity" in home
+    assert "8905066468" in home
     assert "{{MAX_BTN_URL}}" in home
     assert "cabinet.proverkastaza.ru/?channel=max" not in home
     assert "Открыть кабинет на сайте" not in home
+    assert "Сканы — только в MAX или кабинете" not in home
     assert 'id="o-servise"' in home
+    assert home.index('id="o-servise"') < home.index('id="tarify"')
     assert "Пример расчёта вознаграждения" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home
@@ -59,6 +64,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Личный кабинет на сайте" in form
     assert "channel=max" not in form
     assert "mode=register" in form
+    assert "только в MAX или кабинете" not in form
+    assert "?startapp" not in form
 
 
 def test_tz11_blog_mvp_assets() -> None:

@@ -61,7 +61,7 @@ if [[ -x "$APP_DIR/scripts/wp_deploy_blog_ui.sh" ]] || [[ -f "$APP_DIR/scripts/w
   bash "$APP_DIR/scripts/wp_deploy_blog_ui.sh" || echo "WARN: wp_deploy_blog_ui.sh failed (WP path?)"
 fi
 
-# Главная + CSS + футер CTA (ТЗ-20: «Начать проверку в MAX»)
+# Главная + CSS + футер CTA (ТЗ-20/21: «Уточнить ситуацию в MAX»)
 if [[ -f "$APP_DIR/scripts/wp_apply_landing_vps.sh" ]]; then
   echo "Applying WP landing (home/CTA) …"
   bash "$APP_DIR/scripts/wp_apply_landing_vps.sh" || echo "WARN: wp_apply_landing_vps.sh failed"

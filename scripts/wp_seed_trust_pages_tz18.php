@@ -12,6 +12,10 @@ if (!defined('ABSPATH')) {
 
 $assets = getenv('SFRFR_TRUST_ASSETS') ?: (__DIR__ . '/assets/trust');
 $maxUrl = getenv('MAX_CHAT_URL') ?: getenv('MAX_PUBLIC_BOT_URL') ?: 'https://max.ru/id8905998693_1_bot';
+$maxUrl = preg_replace('/\?startapp.*$/i', '', $maxUrl) ?: $maxUrl;
+if ($maxUrl === '') {
+    $maxUrl = 'https://max.ru/id8905998693_1_bot';
+}
 $maxUrl = htmlspecialchars((string) $maxUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
 $pages = [

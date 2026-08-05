@@ -10,6 +10,8 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
 MAX_BTN_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
+# ТЗ-20/21: CTA — личный чат без mini-app
+MAX_BTN_URL="${MAX_BTN_URL%%\?startapp*}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

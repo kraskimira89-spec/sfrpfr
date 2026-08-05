@@ -110,7 +110,7 @@ $settings = [
     'confirmations' => [
         '1' => [
             'type' => 'message',
-            'message' => '<p>Спасибо! Заявка принята — обращение создано в CRM.</p><p>Осталось подтвердить вход в кабинете: код придёт на указанную почту или в MAX.</p><p><a class="sfrfr-cabinet-register" href="https://cabinet.proverkastaza.ru/?mode=register&amp;from_lead=1">Зарегистрироваться в кабинете</a> · <a href="https://max.ru/id8905998693_1_bot?startapp">Открыть MAX</a></p><p>Сканы загружайте только в MAX или кабинете.</p>',
+            'message' => '<p>Спасибо! Заявка принята — обращение создано в CRM.</p><p>Осталось подтвердить вход в кабинете: код придёт на указанную почту или в MAX.</p><p><a class="sfrfr-cabinet-register" href="https://cabinet.proverkastaza.ru/?mode=register&amp;from_lead=1">Зарегистрироваться в кабинете</a> · <a href="https://max.ru/id8905998693_1_bot">Уточнить ситуацию в MAX</a></p><p>Не отправляйте сканы в чат или через форму сайта. После короткого диалога документы загружаются только в защищённом личном кабинете и только после согласия.</p>',
             'message_scroll' => '1',
         ],
     ],

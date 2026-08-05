@@ -207,19 +207,29 @@ add_action('wp_footer', static function (): void {
   function flushQueue() {
     if (typeof ym !== "function") return;
     while (queue.length) {
-      var name = queue.shift();
-      try { ym(COUNTER_ID, "reachGoal", String(name)); } catch (e) {}
+      var item = queue.shift();
+      var name = typeof item === "string" ? item : (item && item.name);
+      var params = item && typeof item === "object" ? item.params : null;
+      if (!name) continue;
+      try {
+        if (params) ym(COUNTER_ID, "reachGoal", String(name), params);
+        else ym(COUNTER_ID, "reachGoal", String(name));
+      } catch (e) {}
     }
   }
 
-  window.sfrfrMetrikaGoal = function (name) {
+  window.sfrfrMetrikaGoal = function (name, params) {
     if (!name || readConsent() !== true) return;
+    var payload = { name: String(name), params: params && typeof params === "object" ? params : null };
     if (!loaded || typeof ym !== "function") {
-      queue.push(String(name));
+      queue.push(payload);
       if (readConsent() === true) loadMetrika();
       return;
     }
-    try { ym(COUNTER_ID, "reachGoal", String(name)); } catch (e) {}
+    try {
+      if (payload.params) ym(COUNTER_ID, "reachGoal", payload.name, payload.params);
+      else ym(COUNTER_ID, "reachGoal", payload.name);
+    } catch (e) {}
   };
 
   function hideBanner() {
@@ -260,11 +270,42 @@ add_action('wp_footer', static function (): void {
     fn(el);
   }
 
+  function placementOf(el) {
+    if (!el || !el.closest) return undefined;
+    if (el.closest(".sfrfr-hero")) return "hero";
+    if (el.closest("#o-servise, .sfrfr-trust")) return "trust";
+    if (el.closest("#tarify, .sfrfr-site-footer")) {
+      if (el.closest("#tarify")) return "tariffs";
+    }
+    if (el.closest(".sfrfr-site-footer, footer")) return "footer";
+    if (el.closest("#tarify")) return "tariffs";
+    return undefined;
+  }
+
+  function goalWithPlacement(name, el) {
+    var placement = placementOf(el);
+    window.sfrfrMetrikaGoal(name, placement ? { placement: placement } : undefined);
+  }
+
   function bindGoals() {
     document.querySelectorAll('a[href*="max.ru"], a[href*="startapp"]').forEach(function (a) {
       once(a, "sfrfrMetrikaMax", function (el) {
         el.addEventListener("click", function () {
-          window.sfrfrMetrikaGoal("max_click");
+          goalWithPlacement("max_click", el);
+        });
+      });
+    });
+    document.querySelectorAll('a[href^="tel:+79091950408"], a[href="tel:+79091950408"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaPhone", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("phone_click", el);
+        });
+      });
+    });
+    document.querySelectorAll('a[href="/kontakty/"], a[href*="/kontakty/"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaContacts", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("contacts_click", el);
         });
       });
     });
@@ -296,7 +337,9 @@ add_action('wp_footer', static function (): void {
         var io = new IntersectionObserver(function (entries) {
           entries.forEach(function (en) {
             if (en.isIntersecting) {
-              window.sfrfrMetrikaGoal("tariff_view");
+              // ТЗ-21: tariffs_view; tariff_view — совместимость со старыми целями
+              window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
+              window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
               io.disconnect();
             }
           });
@@ -304,7 +347,8 @@ add_action('wp_footer', static function (): void {
         io.observe(el);
       });
     } else if (location.pathname.indexOf("/tarify") === 0) {
-      window.sfrfrMetrikaGoal("tariff_view");
+      window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
+      window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
     }
   }
 

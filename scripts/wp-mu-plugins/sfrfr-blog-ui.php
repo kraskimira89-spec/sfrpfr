@@ -32,7 +32,7 @@ add_filter('comments_template', static function ($template) {
 });
 
 /**
- * Публичный URL бота MAX для CTA «Начать проверку в MAX».
+ * Публичный URL личного чата MAX для CTA «Уточнить ситуацию в MAX».
  */
 function sfrfr_blog_max_chat_url(): string
 {
@@ -44,7 +44,9 @@ function sfrfr_blog_max_chat_url(): string
     if ($url === '') {
         $url = 'https://max.ru/id8905998693_1_bot';
     }
-    return $url;
+    // ТЗ-20/21: CTA — личный чат, не mini-app
+    $url = preg_replace('/\?startapp.*$/i', '', $url) ?: $url;
+    return $url !== '' ? $url : 'https://max.ru/id8905998693_1_bot';
 }
 
 /**
@@ -54,7 +56,7 @@ function sfrfr_blog_ask_cta_buttons_html(): string
 {
     $max = esc_url(sfrfr_blog_max_chat_url());
     $form = esc_url(home_url('/#zayavka'));
-    return '<a class="sfrfr-blog-cta__btn" href="' . $max . '" target="_blank" rel="noopener noreferrer">Начать проверку в MAX</a>'
+    return '<a class="sfrfr-blog-cta__btn" href="' . $max . '" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a>'
         . ' <a class="sfrfr-blog-cta__btn sfrfr-blog-cta__btn--ghost" href="' . $form . '">Оставить заявку</a>';
 }
 
