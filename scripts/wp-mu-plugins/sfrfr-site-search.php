@@ -21,8 +21,10 @@ function sfrfr_site_search_form_html(string $variant = 'header'): string
     return <<<HTML
 <form class="sfrfr-site-search sfrfr-site-search--{$variant}" role="search" method="get" action="{$action}">
   <label class="sfrfr-site-search__label" for="{$id}">Поиск по сайту</label>
-  <input class="sfrfr-site-search__input" type="search" id="{$id}" name="s"{$value} placeholder="Поиск по сайту" autocomplete="off" enterkeyhint="search">
-  <button class="sfrfr-site-search__submit" type="submit">Найти</button>
+  <div class="sfrfr-site-search__field">
+    <input class="sfrfr-site-search__input" type="search" id="{$id}" name="s"{$value} placeholder="Поиск…" autocomplete="off" enterkeyhint="search">
+    <button class="sfrfr-site-search__submit" type="submit">Найти</button>
+  </div>
 </form>
 HTML;
 }
