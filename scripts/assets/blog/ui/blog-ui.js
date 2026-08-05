@@ -94,7 +94,7 @@
     cta.className = "sfrfr-blog-cta sfrfr-blog-cta--mid";
     cta.innerHTML =
       '<p class="sfrfr-blog-cta__title">Уточнить ситуацию</p>' +
-      '<p class="sfrfr-blog-cta__text">Мы готовим документы и план — а подаёте через СФР или Госуслуги вы сами. Начните в личном чате MAX или оставьте заявку; сканы на сайт не загружайте.</p>' +
+      '<p class="sfrfr-blog-cta__text">Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР. Начните в личном чате MAX или оставьте заявку; сканы на сайт не загружайте.</p>' +
       '<a class="sfrfr-blog-cta__btn" href="' +
       maxUrl +
       '" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a> ' +

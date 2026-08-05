@@ -10,7 +10,8 @@ from sfrfr.models.case_status import STATUS_LABELS_RU, CaseStatus
 
 def test_pipeline_run_response_defaults() -> None:
     resp = PipelineRunResponse(ok=True, message="ok")
-    assert resp.warning.startswith("Решение принимает СФР")
+    assert resp.warning.startswith("Мы готовим документы и план")
+    assert "Решение принимает СФР" in resp.warning
     assert resp.findings == []
 
 

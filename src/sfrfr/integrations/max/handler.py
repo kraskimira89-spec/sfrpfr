@@ -8,6 +8,7 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
+from sfrfr.core.copy import POSITION_SHORT
 from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
 from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
@@ -1290,8 +1291,7 @@ def handle_max_update(
         reply = (
             "Команды: /start — диагностика, /cabinet — кабинет, "
             "/documents — какие документы нужны, /status — статус дела, "
-            "/login — вход с компьютера. Всегда можно позвать специалиста. "
-            "Решение принимает СФР."
+            f"/login — вход с компьютера. Всегда можно позвать специалиста. {POSITION_SHORT}"
         )
         _reply(
             bot,
@@ -1317,7 +1317,7 @@ def handle_max_update(
         reply = (
             "Откройте личный кабинет для документов. "
             "В личном кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
-            "Решение принимает СФР."
+            f"{POSITION_SHORT}"
         )
         _reply(
             bot,
@@ -1372,7 +1372,7 @@ def handle_max_update(
         reply = (
             f"{status_label_ru(record.ctx.status)}. "
             f"Документов: {len(record.ctx.document_paths)}. "
-            "Дальше: /documents или /cabinet. Решение принимает СФР."
+            f"Дальше: /documents или /cabinet. {POSITION_SHORT}"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
@@ -1442,7 +1442,7 @@ def handle_max_update(
 
     reply = (
         "Выберите пункт меню ниже или откройте /help. "
-        "Документы загружаются в личном кабинете. Решение принимает СФР."
+        f"Документы загружаются в личном кабинете. {POSITION_SHORT}"
     )
     _reply(
         bot,

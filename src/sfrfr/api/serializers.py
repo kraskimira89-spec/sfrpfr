@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from sfrfr.api.schemas.case import CaseRead
 from sfrfr.core.case_store import CaseRecord
+from sfrfr.core.copy import SUBMISSION_INSTRUCTION, WARNING
 from sfrfr.models.case_status import STATUS_HINTS_RU, STATUS_LABELS_RU
 
-_SUBMISSION = (
-    "Подайте заявление самостоятельно в СФР, через МФЦ или портал Госуслуги. "
-    "Сервис SFRFR не подаёт документы от вашего имени."
-)
-_WARNING = "Решение принимает СФР. Результат не гарантирован."
+_SUBMISSION = SUBMISSION_INSTRUCTION
+_WARNING = WARNING
 
 
 def case_to_read(record: CaseRecord) -> CaseRead:

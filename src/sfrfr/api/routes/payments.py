@@ -108,7 +108,10 @@ def start_order_payment(
         "provider_payment_id": result.get("payment_id"),
         "status": result.get("status"),
         "return_channel": channel,
-        "warning": "Решение принимает СФР. Результат не гарантирован.",
+        "warning": (
+            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+            "Решение принимает СФР. Результат не гарантирован."
+        ),
     }
 
 

@@ -172,7 +172,10 @@ def _filter_staff_case(
             "max_miniapp_url": settings.max_miniapp_url,
         },
         "representatives": representatives if representatives is not None else [],
-        "warning": "Решение принимает СФР. Результат не гарантирован.",
+        "warning": (
+            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+            "Решение принимает СФР. Результат не гарантирован."
+        ),
         "role_capabilities": {
             "can_edit_pipeline": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_edit_checklist": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),

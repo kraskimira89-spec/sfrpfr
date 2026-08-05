@@ -1,3 +1,10 @@
+## 2026-08-05 — позиция «готовим мы — подаёте вы» везде
+
+- Эталон: `scripts/assets/copy/submission-position.md`, код: `src/sfrfr/core/copy.py`.
+- Сайт (главная, trust, футер, оферта), блог, MAX бот, API warning/submission, черновики канала.
+- Правило Cursor alwaysApply: `.cursor/rules/blog-submission-disclaimer.mdc`.
+- История: `docs/history/2026-08-05-submission-position-everywhere.md`.
+
 ## 2026-08-05 — в статьях: готовим документы, подаёте сами
 
 - Единый дисклеймер в блоге: мы готовим документы/план — подача через СФР или Госуслуги самим клиентом.

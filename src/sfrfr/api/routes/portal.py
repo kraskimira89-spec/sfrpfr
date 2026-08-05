@@ -35,6 +35,7 @@ from sfrfr.api.schemas.portal import (
     SignedDocumentResponse,
 )
 from sfrfr.core.config import get_settings
+from sfrfr.core.copy import SUBMISSION_INSTRUCTION, WARNING
 from sfrfr.core.success_fee import calc_success_fee
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.client_channels import ClientChannelRepository
@@ -59,12 +60,11 @@ _ALLOWED_CONTENT_TYPES = {
 _MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 _SUBMISSION_INSTRUCTION = (
-    "Подайте заявление самостоятельно в СФР, через МФЦ или портал Госуслуги. "
-    "Сервис SFRFR не подаёт документы от вашего имени. "
-    "Используйте черновик заявления и чек-лист как подсказку — решение принимает СФР."
+    f"{SUBMISSION_INSTRUCTION} "
+    "Используйте черновик заявления и чек-лист как подсказку."
 )
 
-_SFR_WARNING = "Решение принимает СФР. Результат не гарантирован."
+_SFR_WARNING = WARNING
 
 
 def _repo() -> CaseRepository:

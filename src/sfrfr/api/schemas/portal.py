@@ -162,7 +162,10 @@ class PipelineRunResponse(BaseModel):
     findings: list[FindingItem] = Field(default_factory=list)
     analysis_notes: str | None = None
     draft: dict[str, Any] | None = None
-    warning: str = "Решение принимает СФР. Результат не гарантирован."
+    warning: str = (
+        "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+        "Решение принимает СФР. Результат не гарантирован."
+    )
 
 
 class ClientCaseDetail(BaseModel):
@@ -185,5 +188,6 @@ class ClientCaseDetail(BaseModel):
     pipeline_error: str | None = None
     submission_instruction: str | None = None
     warning: str = (
+        "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
         "Решение принимает СФР. Результат не гарантирован."
     )

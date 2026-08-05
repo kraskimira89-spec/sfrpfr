@@ -36,7 +36,10 @@ class CaseRead(BaseModel):
     status_label: str | None = None
     status_hint: str | None = None
     submission_instruction: str | None = None
-    warning: str = "Решение принимает СФР. Результат не гарантирован."
+    warning: str = (
+        "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+        "Решение принимает СФР. Результат не гарантирован."
+    )
 
 
 class AdvanceResponse(BaseModel):

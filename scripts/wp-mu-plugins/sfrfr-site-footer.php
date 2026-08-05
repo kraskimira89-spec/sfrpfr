@@ -63,7 +63,7 @@ function sfrfr_site_footer_html(): string
           <span>Проверка стажа</span>
         </a>
       </p>
-      <p>Сервис не является государственным органом. Решение о перерасчёте принимает СФР.</p>
+      <p>Сервис не является государственным органом. Мы готовим документы, черновики и понятный план. А подаёте обращение через СФР, МФЦ или Госуслуги вы сами. Решение о пенсии и перерасчёте принимает только СФР.</p>
       <p class="sfrfr-iks">
         <a href="https://webmaster.yandex.ru/siteinfo/?site=https://proverkastaza.ru" target="_blank" rel="noopener noreferrer" title="Индекс качества сайта в Яндекс Вебмастере">
           <img width="88" height="31" alt="Индекс качества сайта Яндекса" src="https://yandex.ru/cycounter?https://proverkastaza.ru&amp;theme=dark&amp;lang=ru" style="border:0;border-radius:8px;vertical-align:middle" loading="lazy" decoding="async">
