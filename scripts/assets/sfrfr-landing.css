@@ -157,6 +157,18 @@ body.page-template-default {
   color: #111111;
 }
 
+.sfrfr-hero__identity {
+  margin: 0.9rem 0 0;
+  max-width: 40rem;
+  color: #111111;
+  font-size: clamp(0.9rem, 2.3vw, 0.98rem);
+}
+
+.sfrfr-hero__identity a {
+  color: var(--sfrfr-primary);
+  font-weight: 600;
+}
+
 .sfrfr-section__lead {
   margin: 0.35rem 0 0;
   max-width: 46rem;

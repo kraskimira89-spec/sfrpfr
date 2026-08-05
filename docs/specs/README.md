@@ -26,6 +26,7 @@
 19. [19-yandex-reviews-feedback.md](19-yandex-reviews-feedback.md) — сбор отзывов в Яндекс Бизнесе/Картах по правилам Яндекса (без накруток).  
     Ops: [../ops/yandex-business-reviews.md](../ops/yandex-business-reviews.md).
 20. [20-max-private-chat-funnel.md](20-max-private-chat-funnel.md) — путь клиента: сайт → личный чат MAX → диагностика → защищённый кабинет документов.
+21. [21-trust-first-contact.md](21-trust-first-contact.md) — доверие на первом контакте: идентификация исполнителя, понятная цена и безопасная загрузка документов.
 
 ## Принцип
 
