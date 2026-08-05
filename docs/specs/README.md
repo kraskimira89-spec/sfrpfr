@@ -27,6 +27,7 @@
     Ops: [../ops/yandex-business-reviews.md](../ops/yandex-business-reviews.md).
 20. [20-max-private-chat-funnel.md](20-max-private-chat-funnel.md) — путь клиента: сайт → личный чат MAX → диагностика → защищённый кабинет документов.
 21. [21-trust-first-contact.md](21-trust-first-contact.md) — доверие на первом контакте: идентификация исполнителя, понятная цена и безопасная загрузка документов.
+22. [22-trust-experience-awards.md](22-trust-experience-awards.md) — опыт и награды в блоке «Кто оказывает услугу» (слайдер с заглушкой до публикации фото).
 
 ## Принцип
 

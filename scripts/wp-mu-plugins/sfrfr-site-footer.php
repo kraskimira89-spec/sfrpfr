@@ -95,6 +95,27 @@ HTML;
 }
 
 /**
+ * Слайдер наград на главной (ТЗ-22).
+ */
+add_action('wp_enqueue_scripts', static function (): void {
+    if (is_admin() || !is_front_page()) {
+        return;
+    }
+    $js = WP_CONTENT_DIR . '/mu-plugins/sfrfr-awards.js';
+    if (!is_readable($js)) {
+        return;
+    }
+    $ver = (string) filemtime($js);
+    wp_enqueue_script(
+        'sfrfr-awards',
+        content_url('mu-plugins/sfrfr-awards.js'),
+        [],
+        $ver,
+        true
+    );
+});
+
+/**
  * Вывод перед закрытием body (на всех публичных страницах).
  */
 add_action('wp_footer', static function (): void {

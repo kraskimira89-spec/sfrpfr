@@ -51,6 +51,12 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Сканы — только в MAX или кабинете" not in home
     assert 'id="o-servise"' in home
     assert home.index('id="o-servise"') < home.index('id="tarify"')
+    # ТЗ-22: опыт + заглушка наград (фото — после подготовки)
+    assert "Опыт работы в социальной сфере — 8 лет." in home
+    assert "Награды и профессиональные материалы" in home
+    assert "будут добавлены после проверки и подготовки к публикации" in home
+    assert 'id="sfrfr-awards-data"' in home
+    assert (REPO / "scripts/assets/sfrfr-awards.js").exists()
     assert "Пример расчёта вознаграждения" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home

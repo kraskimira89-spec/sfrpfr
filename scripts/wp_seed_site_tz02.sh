@@ -51,6 +51,8 @@ mkdir -p "${SITE_DIR}/wp-content/mu-plugins"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-recaptcha-lead.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.php"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-recaptcha-lead.js"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-verification.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
+cp -f "${SCRIPT_DIR}/assets/sfrfr-awards.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-recaptcha-lead.js"
 chown -R www-data:www-data "${SITE_DIR}/wp-content/mu-plugins" "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true

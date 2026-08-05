@@ -748,6 +748,12 @@ body.page-template-default {
 }
 
 .sfrfr-trust__role {
+  margin: 0 0 0.45rem;
+  color: #111111;
+  font-weight: 600;
+}
+
+.sfrfr-trust__experience {
   margin: 0 0 0.85rem;
   color: #111111;
   font-weight: 600;
@@ -763,8 +769,173 @@ body.page-template-default {
   margin: 0.35rem 0;
 }
 
+.sfrfr-awards {
+  margin-top: 1.25rem;
+  padding: var(--sfrfr-card-pad-y) clamp(1rem, 2.5vw, 1.4rem);
+  border-radius: var(--sfrfr-radius);
+  background: var(--sfrfr-bg);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+  border-left: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-awards__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+  color: var(--sfrfr-primary);
+}
+
+.sfrfr-awards__empty {
+  margin: 0;
+  color: #333333;
+  line-height: 1.5;
+}
+
+.sfrfr-awards__slider[hidden],
+.sfrfr-awards__empty[hidden] {
+  display: none !important;
+}
+
+.sfrfr-awards__viewport {
+  overflow: hidden;
+  border-radius: calc(var(--sfrfr-radius) - 2px);
+  touch-action: pan-y;
+  background: rgba(30, 78, 121, 0.04);
+}
+
+.sfrfr-awards__track {
+  display: flex;
+  transition: transform 0.28s ease;
+  will-change: transform;
+}
+
+.sfrfr-awards__slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.sfrfr-awards__media {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.sfrfr-awards__media img {
+  display: block;
+  width: 100%;
+  max-height: min(52vh, 420px);
+  object-fit: contain;
+  background: #f7f9fb;
+}
+
+.sfrfr-awards__meta {
+  padding: 0.85rem 0.15rem 0;
+}
+
+.sfrfr-awards__name {
+  margin: 0;
+  font-weight: 700;
+  color: #111111;
+}
+
+.sfrfr-awards__note {
+  margin: 0.35rem 0 0;
+  color: #333333;
+  line-height: 1.45;
+}
+
+.sfrfr-awards__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.sfrfr-awards__btn {
+  appearance: none;
+  border: 1px solid rgba(30, 78, 121, 0.28);
+  background: #ffffff;
+  color: var(--sfrfr-primary);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.sfrfr-awards__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sfrfr-awards__btn:focus-visible {
+  outline: 2px solid var(--sfrfr-accent, #2e7d5b);
+  outline-offset: 2px;
+}
+
+.sfrfr-awards__indicator {
+  margin: 0;
+  font-weight: 600;
+  color: #111111;
+  white-space: nowrap;
+}
+
+.sfrfr-awards-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: rgba(10, 24, 40, 0.88);
+}
+
+.sfrfr-awards-lightbox img {
+  max-width: min(96vw, 960px);
+  max-height: min(78vh, 820px);
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.sfrfr-awards-lightbox__caption {
+  margin: 0;
+  color: #ffffff;
+  text-align: center;
+  max-width: 36rem;
+}
+
+.sfrfr-awards-lightbox__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border: 0;
+  background: #ffffff;
+  color: #111111;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+html.sfrfr-awards-lightbox-open {
+  overflow: hidden;
+}
+
 .sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__main,
 .sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__rules,
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-awards,
 .sfrfr-landing > section:nth-of-type(even) .sfrfr-calc {
   border-left: 1px solid rgba(30, 78, 121, 0.1);
   border-right: 4px solid var(--sfrfr-primary);

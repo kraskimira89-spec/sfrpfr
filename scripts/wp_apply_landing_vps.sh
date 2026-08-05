@@ -37,6 +37,8 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-hide-astra-copyright.php" \
 echo "MU hide-copyright OK"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-footer.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
+cp -f "${APP_DIR}/scripts/assets/sfrfr-awards.js" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-recaptcha-lead.php" \
