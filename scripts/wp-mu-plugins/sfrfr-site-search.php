@@ -66,3 +66,61 @@ add_action('pre_get_posts', static function ($query): void {
     $query->set('post_type', ['post', 'page']);
     $query->set('post_status', 'publish');
 });
+
+/**
+ * Склонение «материал» для счётчика.
+ */
+function sfrfr_search_materials_word(int $n): string
+{
+    $n = abs($n) % 100;
+    $n1 = $n % 10;
+    if ($n > 10 && $n < 20) {
+        return 'материалов';
+    }
+    if ($n1 > 1 && $n1 < 5) {
+        return 'материала';
+    }
+    if ($n1 === 1) {
+        return 'материал';
+    }
+    return 'материалов';
+}
+
+/**
+ * Заголовок поиска Astra: число найденных материалов + запрос.
+ *
+ * @param string $title
+ */
+add_filter('astra_the_search_page_title', static function (string $title): string {
+    global $wp_query;
+    $found = (int) ($wp_query->found_posts ?? 0);
+    $query = get_search_query(false);
+    $word = sfrfr_search_materials_word($found);
+    return sprintf(
+        'Найдено %d %s по запросу «%s»',
+        $found,
+        $word,
+        esc_html($query)
+    );
+}, 20);
+
+/**
+ * Fallback, если тема не использует astra_the_search_page_title.
+ *
+ * @param string $title
+ */
+add_filter('get_the_archive_title', static function (string $title): string {
+    if (!is_search()) {
+        return $title;
+    }
+    global $wp_query;
+    $found = (int) ($wp_query->found_posts ?? 0);
+    $query = get_search_query(false);
+    $word = sfrfr_search_materials_word($found);
+    return sprintf(
+        'Найдено %d %s по запросу «%s»',
+        $found,
+        $word,
+        esc_html($query)
+    );
+}, 20);
