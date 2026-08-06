@@ -67,6 +67,12 @@ if [[ -f "$APP_DIR/scripts/wp_apply_landing_vps.sh" ]]; then
   bash "$APP_DIR/scripts/wp_apply_landing_vps.sh" || echo "WARN: wp_apply_landing_vps.sh failed"
 fi
 
+# BVI: версия для слабовидящих
+if [[ -f "$APP_DIR/scripts/wp_ensure_bvi.sh" ]]; then
+  echo "Ensuring BVI accessibility plugin …"
+  bash "$APP_DIR/scripts/wp_ensure_bvi.sh" || echo "WARN: wp_ensure_bvi.sh failed"
+fi
+
 if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" ]]; then
   echo "Deploying Yandex Business price YML …"
   bash "$APP_DIR/scripts/wp_deploy_yandex_business_price.sh" || echo "WARN: wp_deploy_yandex_business_price.sh failed"

@@ -1025,6 +1025,56 @@ html.sfrfr-awards-lightbox-open {
   margin: 0.65rem 0;
 }
 
+/* BVI — версия для слабовидящих */
+.sfrfr-bvi-bar {
+  background: rgba(30, 78, 121, 0.06);
+  border-bottom: 1px solid rgba(30, 78, 121, 0.12);
+  padding: 0.4rem 0;
+}
+
+.sfrfr-bvi-bar .sfrfr-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sfrfr-bvi {
+  margin: 0.65rem 0 0.85rem;
+}
+
+.sfrfr-bvi-bar .sfrfr-bvi {
+  margin: 0;
+}
+
+.sfrfr-bvi .bvi-shortcode,
+.sfrfr-bvi .bvi-shortcode a,
+.sfrfr-bvi a.bvi-open,
+.sfrfr-site-footer .bvi-shortcode a {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 8px !important;
+  background: var(--sfrfr-primary, #1e4e79) !important;
+  color: #ffffff !important;
+  font-family: var(--sfrfr-font, Manrope, sans-serif) !important;
+  font-size: 0.875rem !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  line-height: 1.2 !important;
+}
+
+.sfrfr-bvi .bvi-svg-eye {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.sfrfr-bvi .bvi-shortcode a:hover,
+.sfrfr-bvi a.bvi-open:hover {
+  background: #163a5a !important;
+  color: #ffffff !important;
+}
+
 .sfrfr-site-footer strong {
   color: #fff;
   font-weight: 600;

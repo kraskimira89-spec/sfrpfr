@@ -44,6 +44,26 @@ function sfrfr_site_footer_max_channel_url(): string
 }
 
 /**
+ * Кнопка BVI (версия для слабовидящих), если плагин активен.
+ */
+function sfrfr_site_footer_bvi_html(): string
+{
+    if (shortcode_exists('bvi')) {
+        return '<div class="sfrfr-bvi">' . do_shortcode('[bvi text="Версия для слабовидящих"]') . '</div>';
+    }
+    // Плагин установлен, но shortcode ещё не зарегистрирован — ссылка с классом bvi-open
+    if (!function_exists('is_plugin_active')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    $active = is_plugin_active('button-visually-impaired/Button-visually-impaired.php')
+        || is_plugin_active('button-visually-impaired/button-visually-impaired.php');
+    if (!$active) {
+        return '';
+    }
+    return '<div class="sfrfr-bvi"><a href="#" class="bvi-open">Версия для слабовидящих</a></div>';
+}
+
+/**
  * HTML футера.
  */
 function sfrfr_site_footer_html(): string
@@ -52,6 +72,7 @@ function sfrfr_site_footer_html(): string
     $logo = esc_url(content_url('uploads/sfrfr/sfrfr-logo-light.png'));
     $max = esc_url(sfrfr_site_footer_max_url());
     $channel = esc_url(sfrfr_site_footer_max_channel_url());
+    $bvi = sfrfr_site_footer_bvi_html();
 
     return <<<HTML
 <footer class="sfrfr-site-footer" role="contentinfo">
@@ -99,6 +120,7 @@ function sfrfr_site_footer_html(): string
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
         Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer">канал в MAX</a>
       </p>
+      {$bvi}
       <p><strong>Банковские реквизиты</strong></p>
       <p class="sfrfr-req">
         р/с 40702810467400005864<br>
@@ -111,6 +133,20 @@ function sfrfr_site_footer_html(): string
 </footer>
 HTML;
 }
+
+/**
+ * Ссылка BVI под шапкой (не в меню — чтобы не ломать ряд навигации).
+ */
+add_action('astra_header_after', static function (): void {
+    if (is_admin()) {
+        return;
+    }
+    $html = sfrfr_site_footer_bvi_html();
+    if ($html === '') {
+        return;
+    }
+    echo '<div class="sfrfr-bvi-bar"><div class="sfrfr-wrap">' . $html . '</div></div>';
+}, 5);
 
 /**
  * Слайдер наград на главной (ТЗ-22).

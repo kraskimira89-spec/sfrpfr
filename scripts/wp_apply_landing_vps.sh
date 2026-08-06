@@ -25,6 +25,9 @@ test -f scripts/assets/blog/09-faq-rasshirennyy.html
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_author_display.php"
 echo
+if [[ -f "${APP_DIR}/scripts/wp_ensure_bvi.sh" ]]; then
+  bash "${APP_DIR}/scripts/wp_ensure_bvi.sh" || echo "WARN: wp_ensure_bvi.sh failed"
+fi
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_home.php"
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
