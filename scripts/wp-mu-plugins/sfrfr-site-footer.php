@@ -135,9 +135,10 @@ HTML;
 }
 
 /**
- * Ссылка BVI под шапкой (не в меню — чтобы не ломать ряд навигации).
+ * Компактная кнопка BVI поверх страницы (fixed), без полосы под шапкой —
+ * не сдвигает hero и заголовок.
  */
-add_action('astra_header_after', static function (): void {
+add_action('wp_footer', static function (): void {
     if (is_admin()) {
         return;
     }
@@ -145,8 +146,8 @@ add_action('astra_header_after', static function (): void {
     if ($html === '') {
         return;
     }
-    echo '<div class="sfrfr-bvi-bar"><div class="sfrfr-wrap">' . $html . '</div></div>';
-}, 5);
+    echo '<div class="sfrfr-bvi-float" role="navigation" aria-label="Версия для слабовидящих">' . $html . '</div>';
+}, 4);
 
 /**
  * Слайдер наград на главной (ТЗ-22).

@@ -5,8 +5,9 @@
 - Установлен плагин WordPress **Button visually impaired** (`button-visually-impaired`).
 - Опция `bviActive=true`, цвета кнопки под бренд (`#1e4e79`).
 - Кнопка «Версия для слабовидящих»:
-  - полоса под шапкой (`astra_header_after`);
+  - плавающая fixed-кнопка (`sfrfr-bvi-float`) справа на уровне hero/H1 — без полосы под шапкой;
   - блок в футере (контакты).
+- Панель BVI принудительно `position: fixed` поверх контента (`z-index` выше шапки), чтобы не сдвигать заголовок.
 - Скрипты: `scripts/wp_ensure_bvi.sh`, `scripts/wp_ensure_bvi.php` (вызываются из apply/deploy).
 
 ## Замечание
