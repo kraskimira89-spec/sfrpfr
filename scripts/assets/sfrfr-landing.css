@@ -1841,6 +1841,11 @@ mark.sfrfr-search-hit,
   font-size: 1.08rem;
   line-height: 1.65;
   max-width: 42rem;
+  color: #000000;
+}
+.single-post .entry-content :where(p, li, td, th, figcaption, blockquote),
+.single-post .entry-content :where(h1, h2, h3, h4, h5, h6) {
+  color: #000000;
 }
 .single-post .entry-content h2 {
   margin-top: 1.6rem;
