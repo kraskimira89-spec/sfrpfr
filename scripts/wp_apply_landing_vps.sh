@@ -13,7 +13,8 @@ export SFRFR_BLOG_ASSETS="${APP_DIR}/scripts/assets/blog"
 if [ -f "${APP_DIR}/.env" ]; then
   MAX_CHAT_URL="$(grep -m1 '^MAX_CHAT_URL=' "${APP_DIR}/.env" | cut -d= -f2- | tr -d '"\r' || true)"
   MAX_PUBLIC_BOT_URL="$(grep -m1 '^MAX_PUBLIC_BOT_URL=' "${APP_DIR}/.env" | cut -d= -f2- | tr -d '"\r' || true)"
-  export MAX_CHAT_URL MAX_PUBLIC_BOT_URL
+  MAX_CHANNEL_URL="$(grep -m1 '^MAX_CHANNEL_URL=' "${APP_DIR}/.env" | cut -d= -f2- | tr -d '"\r' || true)"
+  export MAX_CHAT_URL MAX_PUBLIC_BOT_URL MAX_CHANNEL_URL
 fi
 
 cd "$APP_DIR"

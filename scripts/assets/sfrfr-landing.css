@@ -438,6 +438,32 @@ body.page-template-default {
   color: #111111;
 }
 
+.sfrfr-max-guide .sfrfr-max-guide__action {
+  align-self: flex-start;
+  margin: 0 0 0.75rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(46, 125, 91, 0.1);
+  color: #1a5c3a;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.sfrfr-max-guide__note {
+  margin: 1.25rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--sfrfr-accent);
+  border-radius: 10px;
+  background: rgba(46, 125, 91, 0.07);
+  color: #111111;
+}
+
+.sfrfr-max-guide__more {
+  align-self: center;
+  color: var(--sfrfr-primary);
+  font-weight: 600;
+}
+
 .sfrfr-steps {
   display: grid;
   gap: clamp(0.75rem, 2vw, 1rem);

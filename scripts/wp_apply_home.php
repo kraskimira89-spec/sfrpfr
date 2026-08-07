@@ -2,7 +2,7 @@
 /**
  * Обновить контент главной из scripts/assets/sfrfr-home.html (с формой WPForms).
  * wp eval-file scripts/wp_apply_home.php
- * Env: SFRFR_HOME_PATH, MAX_PUBLIC_BOT_URL / MAX_CHAT_URL
+ * Env: SFRFR_HOME_PATH, MAX_PUBLIC_BOT_URL / MAX_CHAT_URL, MAX_CHANNEL_URL
  */
 $home_path = getenv('SFRFR_HOME_PATH') ?: dirname(__FILE__) . '/assets/sfrfr-home.html';
 if (!is_readable($home_path)) {
@@ -20,8 +20,17 @@ if ($max_url === '') {
     $max_url = 'https://max.ru/id8905998693_1_bot';
 }
 
+$max_channel_url = trim((string) (getenv('MAX_CHANNEL_URL') ?: ''));
+if ($max_channel_url === '') {
+    $max_channel_url = (string) get_option('sfrfr_max_channel_url', '');
+}
+if ($max_channel_url === '') {
+    $max_channel_url = 'https://max.ru/channel_proverkastaza';
+}
+
 $text = file_get_contents($home_path);
 $text = str_replace('{{MAX_BTN_URL}}', $max_url, $text);
+$text = str_replace('{{MAX_CHANNEL_URL}}', $max_channel_url, $text);
 
 $form_block = '<!-- wp:paragraph --><p><em>Форма заявки временно недоступна.</em></p><!-- /wp:paragraph -->';
 if (function_exists('wpforms')) {
