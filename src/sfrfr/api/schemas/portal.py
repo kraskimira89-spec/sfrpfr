@@ -123,10 +123,14 @@ class MaxOtpPollResponse(BaseModel):
     email: str = ""
     type: str = "email"
     message: str = ""
+    verify_ticket: str = Field(
+        default="",
+        description="Ticket для ввода кода на сайте после code_sent",
+    )
 
 
 class MaxOtpVerifyRequest(BaseModel):
-    ticket: str = Field(min_length=8, max_length=500)
+    ticket: str = Field(default="", max_length=500)
     code: str = Field(min_length=4, max_length=12)
 
 

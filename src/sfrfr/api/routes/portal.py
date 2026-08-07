@@ -620,18 +620,18 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         outcome="ok",
         ticket=pending.ticket_id,
         status="pending_pair",
-        mode="pair_code",
+        mode="max_chat_code",
     )
     return MaxOtpRequestResponse(
         ok=True,
         ticket=pending.ticket_id,
-        pair_code=pending.pair_code,
+        pair_code="",
         expires_in=max(60, int(pending.expires_at - time.time())),
         max_bot_url=settings.max_chat_url,
         status="pending_pair",
         message=(
-            f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
-            "После кода вход на этой странице подтвердится сам."
+            "Откройте личный чат MAX и нажмите «Получить код для входа». "
+            "Введите полученный код на этой странице."
         ),
     )
 
@@ -691,18 +691,39 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             status="pending_manager",
             message="Ожидаем подтверждение руководителя в чате MAX…",
         )
+    if pending.status == "code_sent":
+        return MaxOtpPollResponse(
+            ok=True,
+            status="code_sent",
+            verify_ticket=pending.otp_verify_ticket or "",
+            message="Код отправлен в чат MAX — введите его на этой странице.",
+        )
     if pending.status == "pending_confirm":
         return MaxOtpPollResponse(
             ok=True,
             status="pending_confirm",
-            message="Код принят в чате MAX. Завершаем вход…",
+            verify_ticket=pending.otp_verify_ticket or "",
+            message=(
+                "Код отправлен в чат MAX — введите его здесь."
+                if pending.audience == "client"
+                else "Код принят в чате MAX. Завершаем вход…"
+            ),
+        )
+    if pending.audience == "staff":
+        return MaxOtpPollResponse(
+            ok=True,
+            status="pending_pair",
+            message=(
+                f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
+                "после этого вход откроется сам."
+            ),
         )
     return MaxOtpPollResponse(
         ok=True,
         status="pending_pair",
         message=(
-            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
-            "после этого вход откроется сам."
+            "Откройте личный чат MAX и нажмите «Получить код для входа». "
+            "Затем введите код на этой странице."
         ),
     )
 
@@ -764,22 +785,37 @@ def _session_from_max_identity(*, contact: str, max_user_id: str) -> MaxOtpVerif
 def verify_max_otp(payload: MaxOtpVerifyRequest) -> MaxOtpVerifyResponse:
     """Проверить код из MAX и выдать token_hash для Supabase verifyOtp."""
     from sfrfr.security.login_otp import verify_login_otp
+    from sfrfr.security.login_pending import (
+        consume_otp_code,
+        lookup_otp_verify_ticket_by_code,
+    )
 
-    verified = verify_login_otp(ticket=payload.ticket, code=payload.code)
+    ticket = (payload.ticket or "").strip()
+    if not ticket:
+        ticket = lookup_otp_verify_ticket_by_code(payload.code) or ""
+    if not ticket:
+        _raise_auth(
+            400,
+            "invalid or expired code",
+            event="otp_verify",
+            reason="missing_ticket",
+        )
+    verified = verify_login_otp(ticket=ticket, code=payload.code)
     if not verified:
         _raise_auth(
             400,
             "invalid or expired code",
             event="otp_verify",
-            ticket=payload.ticket,
+            ticket=ticket[:32],
             reason="bad_code",
         )
     contact, max_user_id = verified
+    consume_otp_code(payload.code)
     response = _session_from_max_identity(contact=contact, max_user_id=max_user_id)
     auth_event(
         "otp_verify",
         outcome="ok",
-        ticket=payload.ticket,
+        ticket=ticket[:32],
         max_user_id=max_user_id,
     )
     return response
