@@ -12,6 +12,7 @@ SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
 MAX_BTN_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
 # ТЗ-20/21: CTA — личный чат без mini-app
 MAX_BTN_URL="${MAX_BTN_URL%%\?startapp*}"
+MAX_CHANNEL_URL="${MAX_CHANNEL_URL:-https://max.ru/channel_proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 
@@ -86,10 +87,12 @@ echo "LOGO_ID=${LOGO_ID:-?}"
 echo "==> Контент главной (концепция SFRFR)"
 HOME_FILE="$(mktemp)"
 HOME_SRC="${SCRIPT_DIR}/assets/sfrfr-home.html"
-python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$FORM_FILE" <<'PY'
+python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$MAX_CHANNEL_URL" "$FORM_FILE" <<'PY'
 import sys
-src, dst, max_url, form_path = sys.argv[1:5]
-text = open(src, encoding="utf-8").read().replace("{{MAX_BTN_URL}}", max_url)
+src, dst, max_url, max_channel_url, form_path = sys.argv[1:6]
+text = open(src, encoding="utf-8").read()
+text = text.replace("{{MAX_BTN_URL}}", max_url)
+text = text.replace("{{MAX_CHANNEL_URL}}", max_channel_url)
 form_block = open(form_path, encoding="utf-8").read().strip()
 marker = "<!-- SFRFR_FORM -->"
 if marker not in text:

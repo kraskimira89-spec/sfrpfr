@@ -438,6 +438,10 @@ body.page-template-default {
   color: #111111;
 }
 
+.sfrfr-max-guide {
+  margin-top: 1.25rem;
+}
+
 .sfrfr-max-guide .sfrfr-max-guide__action {
   align-self: flex-start;
   margin: 0 0 0.75rem;
