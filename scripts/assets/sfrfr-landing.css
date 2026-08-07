@@ -79,7 +79,7 @@ body.page-template-default {
 }
 
 .sfrfr-hero {
-  padding: clamp(2rem, 6vw, 4rem) 0 clamp(1.75rem, 4vw, 3rem);
+  padding: clamp(0.65rem, 2vw, 1.25rem) 0 clamp(1.75rem, 4vw, 3rem);
   background:
     radial-gradient(ellipse at 85% 20%, rgba(46, 125, 91, 0.08), transparent 50%),
     linear-gradient(180deg, #ffffff 0%, var(--sfrfr-bg) 100%);
@@ -1870,7 +1870,7 @@ mark.sfrfr-search-hit,
   }
 }
 
-/* Полноширинный контент без боковых отступов Astra */
+/* Полноширинный контент без боковых/верхних отступов Astra (щель под меню) */
 .home .site-content > .ast-container,
 .home .entry-content > .ast-container,
 .home #primary,
@@ -1883,9 +1883,32 @@ mark.sfrfr-search-hit,
 }
 
 .home .site-content,
+.home #content,
+.home .site-main,
+.home #primary,
+.home .ast-article-single,
+.home .ast-article-post,
+.home article.page,
+.home article.post {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+.home .site-content,
 .home #content {
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* Остальные страницы: меньше зазор под меню (Astra по умолчанию ~4em) */
+body:not(.home).ast-separate-container #primary {
+  padding-top: 1.25rem !important;
+  margin-top: 0 !important;
+}
+
+body:not(.home).ast-separate-container .ast-article-single,
+body:not(.home).ast-separate-container .ast-article-post {
+  padding-top: 1.5rem !important;
 }
 
 /* ТЗ-11: блог */
