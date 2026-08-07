@@ -1073,13 +1073,16 @@ html.sfrfr-awards-lightbox-open {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.45rem !important;
+  gap: 0.3rem !important;
   min-height: 0 !important;
   min-width: 0 !important;
-  max-width: none !important;
-  padding: 0.85rem 0.4rem !important;
-  border-radius: 8px 0 0 8px !important;
-  letter-spacing: 0.04em;
+  max-width: 1.65rem !important;
+  width: 1.65rem !important;
+  padding: 0.7rem 0.18rem !important;
+  border-radius: 6px 0 0 6px !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.03em;
+  line-height: 1.1 !important;
   box-shadow: -2px 2px 10px rgba(16, 42, 67, 0.16);
 }
 
@@ -1090,8 +1093,8 @@ html.sfrfr-awards-lightbox-open {
 }
 
 .sfrfr-bvi-float .bvi-svg-eye {
-  width: 1em;
-  height: 1em;
+  width: 0.85em;
+  height: 0.85em;
   transform: rotate(90deg);
 }
 
@@ -1120,8 +1123,10 @@ body.bvi-active .sfrfr-bvi-float {
 @media (max-width: 640px) {
   .sfrfr-bvi-float .bvi-shortcode a,
   .sfrfr-bvi-float a.bvi-open {
-    font-size: 0.72rem !important;
-    padding: 0.7rem 0.32rem !important;
+    max-width: 1.45rem !important;
+    width: 1.45rem !important;
+    font-size: 0.65rem !important;
+    padding: 0.55rem 0.12rem !important;
   }
 }
 
