@@ -135,6 +135,10 @@ class Settings(BaseSettings):
     # chat_id канала для POST /messages (не публиковать на сайте)
     # channel_proverkastaza; переопределяется .env / VPS
     max_channel_chat_id: str = "-77580376877720"
+    # Форма отзыва Яндекс Бизнес (ТЗ-19): одно мягкое сообщение после completed
+    yandex_business_review_url: str = (
+        "https://yandex.ru/sprav/234170727274/reviews/add/"
+    )
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

@@ -49,6 +49,51 @@ def test_shared_status_labels_payload() -> None:
     assert human_case_status("intake", "lead") == "Нужны документы"
 
 
+def test_soft_review_ask_message_is_optional_and_once() -> None:
+    from sfrfr.integrations.client_channels.notifications import (
+        format_soft_review_ask_message,
+        maybe_send_soft_review_ask,
+    )
+
+    text = format_soft_review_ask_message(
+        review_url="https://yandex.ru/sprav/234170727274/reviews/add/"
+    )
+    assert "необязательно" in text.lower() or "не хотите" in text.lower()
+    assert "больше не будем напоминать" in text.lower()
+    assert "5 звёзд" not in text.lower()
+    assert "скидк" not in text.lower()
+    assert "https://yandex.ru/sprav/234170727274/reviews/add/" in text
+
+    skipped = maybe_send_soft_review_ask(
+        case_id="11111111-2222-3333-4444-555555555555",
+        status_value="draft_ready",
+        client={"max_user_id": "1"},
+    )
+    assert skipped["skipped"] is True
+    assert skipped["reason"] == "not_completed"
+
+    no_max = maybe_send_soft_review_ask(
+        case_id="11111111-2222-3333-4444-555555555555",
+        status_value="completed",
+        client={},
+    )
+    assert no_max["skipped"] is True
+    assert no_max["reason"] == "no_max_user"
+
+
+def test_soft_review_ask_idempotent(monkeypatch) -> None:
+    from sfrfr.integrations.client_channels import notifications as n
+
+    monkeypatch.setattr(n, "_review_ask_already_sent", lambda _cid: True)
+    again = n.maybe_send_soft_review_ask(
+        case_id="11111111-2222-3333-4444-555555555555",
+        status_value="completed",
+        client={"max_user_id": "99"},
+    )
+    assert again["skipped"] is True
+    assert again["reason"] == "already_sent"
+
+
 def test_openapi_has_representatives_routes() -> None:
     from sfrfr.api import create_app
 

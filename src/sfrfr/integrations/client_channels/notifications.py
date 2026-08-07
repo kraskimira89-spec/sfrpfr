@@ -107,6 +107,123 @@ def format_status_change_message(
     return "\n".join(lines)
 
 
+REVIEW_ASK_AUDIT_ACTION = "max_review_ask_sent"
+
+
+def format_soft_review_ask_message(*, review_url: str | None = None) -> str:
+    """
+    Мягкая просьба об отзыве после завершённой услуги (ТЗ-19).
+    Без давления, без «поставьте 5», без серии напоминаний.
+    """
+    settings = get_settings()
+    url = (review_url or settings.yandex_business_review_url or "").strip()
+    if not url:
+        url = "https://yandex.ru/sprav/234170727274/reviews/add/"
+    return (
+        "Спасибо, что обратились в «Проверку стажа».\n\n"
+        "Если захотите и будет удобно — можно оставить короткий отзыв "
+        "о нашей работе (необязательно):\n"
+        f"{url}\n\n"
+        "Если не хотите — ничего писать не нужно. Больше не будем напоминать."
+    )
+
+
+def _review_ask_already_sent(case_id: str) -> bool:
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("access_audit")
+            .select("id")
+            .eq("case_id", case_id)
+            .eq("action", REVIEW_ASK_AUDIT_ACTION)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return bool(rows)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("review_ask audit lookup failed case=%s: %s", case_id[:8], exc)
+        return False
+
+
+def _mark_review_ask_sent(case_id: str) -> None:
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        get_supabase_client().table("access_audit").insert(
+            {
+                "case_id": case_id,
+                "actor_id": None,
+                "action": REVIEW_ASK_AUDIT_ACTION,
+            }
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("review_ask audit write failed case=%s: %s", case_id[:8], exc)
+
+
+def maybe_send_soft_review_ask(
+    *,
+    case_id: str,
+    status_value: str,
+    client: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Один раз после `completed`: мягкая просьба в MAX.
+    Без авто-серии напоминаний (повтор только вручную оператором по ТЗ-19).
+    """
+    if status_value != "completed":
+        return {"ok": True, "skipped": True, "reason": "not_completed"}
+
+    client = client or {}
+    max_user_id = client.get("max_user_id")
+    if not max_user_id:
+        return {"ok": True, "skipped": True, "reason": "no_max_user"}
+
+    if _review_ask_already_sent(case_id):
+        return {"ok": True, "skipped": True, "reason": "already_sent"}
+
+    text = format_soft_review_ask_message()
+    result: dict[str, Any] = {
+        "ok": True,
+        "skipped": False,
+        "max_sent": False,
+        "text": text,
+    }
+    try:
+        from sfrfr.integrations.max.client import MaxBotClient
+
+        bot = MaxBotClient()
+        send = bot.send_message(text=text, user_id=str(max_user_id))
+        result["max_sent"] = not send.get("skipped")
+        result["max_response"] = send
+        if result["max_sent"]:
+            _mark_review_ask_sent(case_id)
+            # Системная копия в чат дела (без ПДн).
+            try:
+                from sfrfr.db.session import get_supabase_client
+
+                get_supabase_client().table("case_messages").insert(
+                    {
+                        "case_id": case_id,
+                        "author_kind": "system",
+                        "author_user_id": None,
+                        "body": text,
+                    }
+                ).execute()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "review_ask case_message failed case=%s: %s", case_id[:8], exc
+                )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("review_ask MAX failed case=%s: %s", case_id[:8], exc)
+        result["ok"] = False
+        result["error"] = str(exc)
+    return result
+
+
 def notify_case_status_change(
     *,
     case_id: str,
@@ -118,6 +235,7 @@ def notify_case_status_change(
     """
     Уведомить клиента о смене статуса: MAX (если linked) + системное сообщение в деле.
     Email SMTP пока нет — фиксируем intent в результате (и в audit вызывающей стороны).
+    После `completed` — одно мягкое приглашение к отзыву (без серии напоминаний).
     """
     if not force and status_value not in CLIENT_NOTIFY_STATUSES:
         return {"ok": True, "skipped": True, "reason": "status_not_client_facing"}
@@ -142,6 +260,7 @@ def notify_case_status_change(
         "case_message": False,
         "email_queued": False,
         "text": text,
+        "review_ask": None,
     }
 
     # Системное сообщение в чате дела (видно в кабинете и mini-app).
@@ -181,6 +300,13 @@ def notify_case_status_change(
             case_id[:8],
             email,
             preferred,
+        )
+
+    if status_value == "completed":
+        result["review_ask"] = maybe_send_soft_review_ask(
+            case_id=case_id,
+            status_value=status_value,
+            client=client,
         )
 
     return result
