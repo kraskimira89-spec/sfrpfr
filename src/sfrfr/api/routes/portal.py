@@ -442,12 +442,12 @@ def _raise_auth(
 
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)
 def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
-    """Старт входа через MAX: страница входа создаёт сессию, чат MAX подтверждает.
+    """Старт входа через MAX: код в чате MAX, ввод на странице кабинета.
 
-    1) На странице входа открывают чат MAX; в чате — «Получить код в браузере».
-    2) В чате MAX вводят код — вход на ПК подтверждается сразу.
+    1) На странице входа открывают чат MAX и нажимают «Получить код для входа».
+    2) Код из MAX вводят на странице входа — сессия открывается.
     3) В чате MAX предлагаются кнопки: приложение или интерфейс.
-    Для staff после шага 2 — ещё подтверждение руководителем.
+    Для staff — отдельный сценарий с кодом со страницы входа.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
     from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
@@ -523,8 +523,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             _raise_auth(
                 404,
                 (
-                    "Номер не найден. На странице входа выберите вход через чат MAX без номера "
-                    "и отправьте код со страницы входа в чат MAX — или войдите по почте."
+                    "Номер не найден. Войдите через чат MAX без номера "
+                    "(кнопка «Получить код для входа») или по почте."
                 ),
                 event="otp_request",
                 ticket=pending.ticket_id,
@@ -535,7 +535,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 404,
                 (
                     "Для номера нет привязки к чату MAX. Откройте чат MAX, нажмите «Начать», "
-                    "отправьте код со страницы входа и подтвердите вход в браузере."
+                    "затем «Получить код для входа» и введите код на странице входа."
                 ),
                 event="otp_request",
                 ticket=pending.ticket_id,
@@ -559,6 +559,15 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         issued = issue_login_link(
             contact=contact,
             max_user_id=str(row["max_user_id"]),
+        )
+        from sfrfr.security.login_pending import attach_otp_verify_ticket
+
+        attach_otp_verify_ticket(
+            ticket_id=pending.ticket_id,
+            otp_verify_ticket=issued.ticket,
+            otp_code=issued.code,
+            max_user_id=str(row["max_user_id"]),
+            contact=contact,
         )
         text = f"{confirm_web_login_message(code=issued.code)}\n{issued.login_url}"
         attachments = inline_confirm_login_keyboard(

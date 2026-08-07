@@ -171,7 +171,7 @@ const AUTH_COPY = {
   loginPage: "страница входа",
   email: "почта",
   showCodeBtn: "Показать код здесь",
-  getCodeInBrowser: "Получить код в браузере",
+  getCodeInBrowser: "Получить код для входа",
   openChatBtn: "Открыть чат MAX",
   confirmBtn: "Подтвердить вход в браузере",
 } as const;
@@ -273,7 +273,6 @@ export function ClientCabinet() {
   const [registerConsent, setRegisterConsent] = useState(false);
   const [maxTicket, setMaxTicket] = useState("");
   const [maxVerifyTicket, setMaxVerifyTicket] = useState("");
-  const [maxPairCode, setMaxPairCode] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
   const [maxLinkBusy, setMaxLinkBusy] = useState(false);
@@ -339,7 +338,7 @@ export function ClientCabinet() {
     setNotice("");
   }
 
-  // Query: ?mode=login|register|recover; ?channel=max; ?email=&phone=&name=&from_lead=1
+  // Query: ?mode=login|register|recover; ?channel=max; ?verify_ticket=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").toLowerCase();
@@ -353,7 +352,7 @@ export function ClientCabinet() {
     const wantMax =
       channel === "max" ||
       params.get("register")?.toLowerCase() === "max" ||
-      params.get("get_code") === "1";
+      Boolean(params.get("verify_ticket"));
     const t = window.setTimeout(() => {
       if (qEmail) setEmail(qEmail);
       if (qPhone) setPhone(qPhone);
@@ -384,20 +383,24 @@ export function ClientCabinet() {
     return () => window.clearTimeout(t);
   }, []);
 
-  // Из MAX: «Получить код в браузере» → ?get_code=1 — сразу показать код
+  // Ссылка из MAX с verify_ticket — сразу форма ввода кода
   useEffect(() => {
     if (!apiBase || session || getCodeOnceRef.current) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("get_code") !== "1") return;
+    const vt = (params.get("verify_ticket") || "").trim();
+    if (!vt) return;
     getCodeOnceRef.current = true;
     const t = window.setTimeout(() => {
-      params.delete("get_code");
+      setMaxVerifyTicket(vt);
+      setOtpSent(true);
+      setAuthScreen("max");
+      setAuthChannel("max");
+      setNotice("Введите код из чата MAX.");
+      params.delete("verify_ticket");
       const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
       window.history.replaceState({}, "", next);
-      void requestMaxOtp(false);
     }, 50);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once on mount from MAX link
   }, [apiBase, session]);
 
   useEffect(() => {
@@ -1004,7 +1007,6 @@ export function ClientCabinet() {
         detail?: string;
         ticket?: string;
         verify_ticket?: string;
-        pair_code?: string;
         max_bot_url?: string;
         message?: string;
         status?: string;
@@ -1018,7 +1020,6 @@ export function ClientCabinet() {
       }
       setMaxTicket(body.ticket || "");
       setMaxVerifyTicket(body.verify_ticket || "");
-      setMaxPairCode(body.pair_code || "");
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
       setOtpSent(true);
@@ -1076,7 +1077,7 @@ export function ClientCabinet() {
       }
       return;
     }
-    // Только телефон → код в MAX (если номер уже связан) или pair-код для первого раза
+    // Только телефон → код в MAX (если номер связан) иначе — вход через чат MAX
     setAuthChannel("max");
     setEmailCreateUser(false);
     setBusy(true);
@@ -1095,7 +1096,6 @@ export function ClientCabinet() {
         detail?: string;
         ticket?: string;
         verify_ticket?: string;
-        pair_code?: string;
         max_bot_url?: string;
         message?: string;
         status?: string;
@@ -1103,7 +1103,6 @@ export function ClientCabinet() {
       if (response.ok) {
         setMaxTicket(body.ticket || "");
         setMaxVerifyTicket(body.verify_ticket || "");
-        setMaxPairCode(body.pair_code || "");
         setMaxWaitStatus(body.status || "pending_confirm");
         if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
         setOtpSent(true);
@@ -1113,7 +1112,7 @@ export function ClientCabinet() {
         );
         return;
       }
-      // Первый раз без привязки MAX: код на странице → отправить в чат
+      // Первый раз без привязки MAX: открыть чат и получить код там
       const fallback = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1122,7 +1121,6 @@ export function ClientCabinet() {
       const fb = (await fallback.json().catch(() => ({}))) as {
         detail?: string;
         ticket?: string;
-        pair_code?: string;
         max_bot_url?: string;
         message?: string;
         status?: string;
@@ -1138,15 +1136,14 @@ export function ClientCabinet() {
       }
       setMaxTicket(fb.ticket || "");
       setMaxVerifyTicket("");
-      setMaxPairCode(fb.pair_code || "");
       setMaxWaitStatus(fb.status || "pending_pair");
       const bot = chatUrlOnly(fb.max_bot_url || maxBotUrl);
       if (fb.max_bot_url) setMaxBotUrl(bot);
       setOtpSent(true);
       window.open(bot, "_blank", "noopener,noreferrer");
       setNotice(
-        "Для первого входа через MAX откройте чат, нажмите «Начать» и отправьте код с этой страницы. " +
-          "После привязки код будет приходить в MAX.",
+        fb.message ||
+          "Откройте чат MAX, нажмите «Получить код для входа» и введите код на этой странице.",
       );
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать регистрацию.");
@@ -1158,7 +1155,7 @@ export function ClientCabinet() {
   async function verifyMaxSiteOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !apiBase) return;
-    if (!maxVerifyTicket || !otpCode.trim()) {
+    if (!otpCode.trim()) {
       setNotice("Введите код из чата MAX.");
       return;
     }
@@ -1169,7 +1166,7 @@ export function ClientCabinet() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ticket: maxVerifyTicket,
+          ticket: maxVerifyTicket || "",
           code: otpCode.trim(),
         }),
       });
@@ -1193,7 +1190,6 @@ export function ClientCabinet() {
       setOtpSent(false);
       setMaxTicket("");
       setMaxVerifyTicket("");
-      setMaxPairCode("");
       setNotice("");
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось войти по коду.");
@@ -1216,7 +1212,6 @@ export function ClientCabinet() {
     setOtpSent(false);
     setMaxTicket("");
     setMaxVerifyTicket("");
-    setMaxPairCode("");
     setMaxWaitStatus("");
     setOtpCode("");
     setNotice("");
@@ -1247,10 +1242,12 @@ export function ClientCabinet() {
             token_hash?: string;
             type?: "email" | "sms";
             message?: string;
+            verify_ticket?: string;
           };
           if (cancelled) return;
           if (body.status) setMaxWaitStatus(body.status);
           if (body.message) setNotice(body.message);
+          if (body.verify_ticket) setMaxVerifyTicket(body.verify_ticket);
           if (body.status === "approved" && body.token_hash) {
             const { error } = await supabase.auth.verifyOtp({
               token_hash: body.token_hash,
@@ -1259,7 +1256,7 @@ export function ClientCabinet() {
             if (error) throw error;
             setOtpSent(false);
             setMaxTicket("");
-            setMaxPairCode("");
+            setMaxVerifyTicket("");
             setNotice("");
           }
           if (body.status === "expired") {
@@ -1436,7 +1433,7 @@ export function ClientCabinet() {
     return (
       <>
         <p className="lead lead-compact">
-          Войдите через чат MAX — и в первый раз, и потом.
+          Войдите через чат MAX — код придёт в чат, введите его здесь.
         </p>
         <div className="max-wizard max-wizard--actions">
           {!otpSent ? (
@@ -1450,15 +1447,17 @@ export function ClientCabinet() {
                 Войти через MAX
               </button>
               <ol className="max-login-steps">
-                <li>Откроется чат</li>
-                <li>Нажмите «Начать»</li>
-                <li>Пришлите код с этой страницы</li>
+                <li>Откроется чат MAX</li>
+                <li>Нажмите «Получить код для входа»</li>
+                <li>Введите код на этой странице</li>
               </ol>
             </>
-          ) : maxVerifyTicket ? (
+          ) : (
             <>
               <p className="max-wizard-status" role="status">
-                Код отправлен в чат MAX — введите его здесь
+                {maxWaitStatus === "code_sent" || maxVerifyTicket
+                  ? "Код отправлен в чат MAX — введите его здесь"
+                  : "Откройте чат MAX и нажмите «Получить код для входа»"}
               </p>
               <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
                 <label htmlFor="max-site-otp">Код из MAX</label>
@@ -1474,27 +1473,14 @@ export function ClientCabinet() {
                   Войти по коду
                 </button>
               </form>
-              <button type="button" className="ghost" onClick={resetMaxWizard}>
-                Начать заново
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={() => openMaxChat()}
+              >
+                Открыть чат MAX снова
               </button>
-            </>
-          ) : (
-            <>
-              <p className="max-wizard-status" role="status">
-                {maxWaitStatus === "pending_confirm"
-                  ? "Код принят. Открываем кабинет…"
-                  : "Пришлите этот код в чат MAX"}
-              </p>
-              {maxPairCode ? (
-                <p className="max-code-block">
-                  Код: <strong className="max-pair-code">{maxPairCode}</strong>
-                </p>
-              ) : null}
-              <ol className="max-login-steps">
-                <li>Откройте чат MAX</li>
-                <li>Нажмите «Начать», если ещё не нажимали</li>
-                <li>Отправьте код сообщением</li>
-              </ol>
               <button type="button" className="ghost" onClick={resetMaxWizard}>
                 Начать заново
               </button>
@@ -1721,8 +1707,11 @@ export function ClientCabinet() {
                     Получить код
                   </button>
                 </form>
-              ) : maxVerifyTicket ? (
+              ) : maxVerifyTicket || authChannel === "max" ? (
                 <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
+                  <p className="max-wizard-status" role="status">
+                    Код придёт в чат MAX — введите его здесь
+                  </p>
                   <label htmlFor="reg-max-otp">Код из MAX</label>
                   <input
                     id="reg-max-otp"
@@ -1739,9 +1728,12 @@ export function ClientCabinet() {
                     type="button"
                     className="ghost"
                     disabled={busy}
-                    onClick={() => void requestRegister()}
+                    onClick={() => {
+                      openMaxChat();
+                      void requestRegister();
+                    }}
                   >
-                    Отправить ещё раз
+                    Открыть MAX / отправить ещё раз
                   </button>
                 </form>
               ) : authChannel === "email" ? (
@@ -1768,19 +1760,9 @@ export function ClientCabinet() {
                   </button>
                 </form>
               ) : (
-                <>
-                  <p className="max-wizard-status" role="status">
-                    Пришлите этот код в чат MAX
-                  </p>
-                  {maxPairCode ? (
-                    <p className="max-code-block">
-                      Код: <strong className="max-pair-code">{maxPairCode}</strong>
-                    </p>
-                  ) : null}
-                  <button type="button" className="ghost" onClick={resetMaxWizard}>
-                    Начать заново
-                  </button>
-                </>
+                <button type="button" className="ghost" onClick={resetMaxWizard}>
+                  Начать заново
+                </button>
               )}
               <p className="auth-links">
                 <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>

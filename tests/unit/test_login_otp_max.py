@@ -22,7 +22,7 @@ def test_issue_and_verify_login_otp() -> None:
     issued = issue_login_otp(contact="max_1@clients.sfrfr.local", max_user_id="12345")
     assert len(issued.code) == 6
     assert "|" in issued.ticket
-    assert issued.ticket.count(".") >= 2
+    assert issued.ticket.count("|") >= 4
     ok = verify_login_otp(ticket=issued.ticket, code=issued.code)
     assert ok == ("max_1@clients.sfrfr.local", "12345")
 
@@ -49,12 +49,16 @@ def test_unified_login_terms() -> None:
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
         GET_CODE_IN_BROWSER_LABEL,
+        OPEN_CABINET_BUTTON_LABEL,
         SHOW_CODE_BUTTON_LABEL,
         after_start_login_hint,
+        cabinet_login_with_verify_url,
         get_code_in_browser_url,
+        login_code_message,
     )
 
-    assert GET_CODE_IN_BROWSER_LABEL == "Получить код в браузере"
+    assert GET_CODE_IN_BROWSER_LABEL == "Получить код для входа"
+    assert OPEN_CABINET_BUTTON_LABEL == "Открыть страницу входа"
     assert SHOW_CODE_BUTTON_LABEL == "Показать код здесь"
     assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в браузере"
     hint = after_start_login_hint()
@@ -65,7 +69,13 @@ def test_unified_login_terms() -> None:
     url = get_code_in_browser_url(mode="login")
     assert "mode=login" in url
     assert "channel=max" in url
-    assert "get_code=1" in url
+    assert "get_code=1" not in url
+    verify_url = cabinet_login_with_verify_url(verify_ticket="ticket|x")
+    assert "verify_ticket=" in verify_url
+    assert "mode=login" in verify_url
+    msg = login_code_message(code="123456", login_url=verify_url)
+    assert "123456" in msg
+    assert "10 минут" in msg
 
 
 def test_channel_choice_after_login() -> None:

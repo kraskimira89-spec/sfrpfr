@@ -1,4 +1,4 @@
-"""Тесты pending-входа через MAX (ПК ждёт подтверждение)."""
+"""Тесты pending-входа через MAX (код в MAX → ввод на сайте)."""
 
 from sfrfr.security.login_otp import CONFIRM_WEB_LOGIN_LABEL, confirm_web_login_message
 from sfrfr.security.login_pending import (
@@ -94,5 +94,44 @@ def test_callback_payload_roundtrip() -> None:
 def test_confirm_message_is_pc_oriented() -> None:
     text = confirm_web_login_message()
     assert "Нажмите кнопку" in text
-    assert "браузер" in text.lower()
+    assert "кабинет" in text.lower()
     assert CONFIRM_WEB_LOGIN_LABEL == "Подтвердить вход в браузере"
+
+
+def test_attach_otp_verify_and_lookup_by_code() -> None:
+    from sfrfr.security.login_otp import issue_login_otp
+    from sfrfr.security.login_pending import (
+        _BY_OTP_CODE,
+        attach_otp_verify_ticket,
+        consume_otp_code,
+        ensure_pending_for_max,
+        lookup_otp_verify_ticket_by_code,
+    )
+
+    _BY_OTP_CODE.clear()
+    site = create_pending()
+    pending = ensure_pending_for_max(
+        max_user_id="6407999",
+        contact="max_6407999@clients.sfrfr.local",
+    )
+    assert pending.ticket_id == site.ticket_id
+    issued = issue_login_otp(
+        contact="max_6407999@clients.sfrfr.local",
+        max_user_id="6407999",
+    )
+    attached = attach_otp_verify_ticket(
+        ticket_id=pending.ticket_id,
+        otp_verify_ticket=issued.ticket,
+        otp_code=issued.code,
+        max_user_id="6407999",
+        contact="max_6407999@clients.sfrfr.local",
+    )
+    assert attached is not None
+    assert attached.status == "code_sent"
+    assert attached.otp_verify_ticket == issued.ticket
+    assert lookup_otp_verify_ticket_by_code(issued.code) == issued.ticket
+    polled = get_pending(pending.ticket_id)
+    assert polled is not None
+    assert polled.status == "code_sent"
+    consume_otp_code(issued.code)
+    assert lookup_otp_verify_ticket_by_code(issued.code) is None

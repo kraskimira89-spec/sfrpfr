@@ -27,35 +27,55 @@ APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 START_DIALOG_LABEL = "Начать"
 START_DIALOG_CALLBACK = "start_dialog"
 SHOW_CODE_BUTTON_LABEL = "Показать код здесь"
-GET_CODE_IN_BROWSER_LABEL = "Получить код в браузере"
-OPEN_CABINET_BUTTON_LABEL = "Открыть кабинет в браузере"
+GET_CODE_IN_BROWSER_LABEL = "Получить код для входа"
+GET_CODE_CALLBACK = "get_login_code"
+OPEN_CABINET_BUTTON_LABEL = "Открыть страницу входа"
 WORK_IN_APP_LABEL = "Работать в приложении"
 WORK_IN_INTERFACE_LABEL = "Работать в интерфейсе"
 
 
 def get_code_in_browser_url(*, mode: str = "login") -> str:
-    """Ссылка из MAX: страница входа с автопоказом кода (вход = регистрация через MAX)."""
+    """Ссылка из MAX: страница входа кабинета."""
     cabinet = get_settings().cabinet_public_url.rstrip("/")
-    return f"{cabinet}/?mode=login&channel=max&get_code=1"
+    return f"{cabinet}/?mode=login&channel=max"
+
+
+def cabinet_login_with_verify_url(*, verify_ticket: str) -> str:
+    """Ссылка на ввод кода: ticket уже известен."""
+    cabinet = get_settings().cabinet_public_url.rstrip("/")
+    return (
+        f"{cabinet}/?mode=login&channel=max&verify_ticket={quote(verify_ticket, safe='')}"
+    )
 
 
 def after_start_login_hint() -> str:
-    """Ответ бота после «Начать»: кнопка ведёт на страницу с кодом."""
+    """Подсказка: код приходит в MAX, ввод на сайте."""
     return (
-        f"Нажмите «{GET_CODE_IN_BROWSER_LABEL}» — откроется страница входа "
-        f"с кодом. Пришлите этот 6-значный код сюда."
+        f"Нажмите «{GET_CODE_IN_BROWSER_LABEL}» — пришлём код сюда. "
+        "Введите его на странице входа в кабинете."
     )
 
 
 def ask_code_from_login_page() -> str:
-    return "Пришлите код со страницы входа."
+    return "Введите код из этого чата на странице входа в кабинете."
+
+
+def login_code_message(*, code: str, login_url: str) -> str:
+    return (
+        f"Код для входа: {code}\n\n"
+        "Введите его на странице входа в кабинете. "
+        f"Код действует 10 минут.\n{login_url}"
+    )
 
 
 def confirm_web_login_message(*, code: str | None = None) -> str:
-    """Один шаг: нажать кнопку — откроется кабинет в браузере."""
+    """Сообщение с кодом для ввода на сайте."""
     if code:
-        return f"Код: {code}\nНажмите кнопку — откроется кабинет в браузере."
-    return "Нажмите кнопку — откроется кабинет в браузере."
+        return (
+            f"Код для входа: {code}\n"
+            "Введите его на странице входа в кабинете или нажмите кнопку ниже."
+        )
+    return "Нажмите кнопку — откроется страница входа в кабинете."
 
 
 def channel_choice_after_login_message() -> str:

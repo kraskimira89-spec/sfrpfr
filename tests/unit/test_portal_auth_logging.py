@@ -67,14 +67,14 @@ def test_redact_does_not_strip_portal_paths() -> None:
     assert "/api/portal/auth/otp/request" in redact_log_text(raw)
 
 
-def test_otp_request_client_pair_smoke(monkeypatch) -> None:
+def test_otp_request_client_opens_max_for_code(monkeypatch) -> None:
     from sfrfr.security import login_pending
 
     monkeypatch.setenv("APP_SECRET_KEY", "test-secret-key-for-otp")
-    # fresh in-memory pending store
     login_pending._BY_TICKET.clear()  # noqa: SLF001
     login_pending._BY_CODE.clear()  # noqa: SLF001
     login_pending._BY_MAX.clear()  # noqa: SLF001
+    login_pending._BY_OTP_CODE.clear()  # noqa: SLF001
 
     client = TestClient(create_app())
     response = client.post("/api/portal/auth/otp/request", json={"audience": "client"})
@@ -83,8 +83,9 @@ def test_otp_request_client_pair_smoke(monkeypatch) -> None:
     assert body["ok"] is True
     assert body["status"] == "pending_pair"
     assert body["ticket"]
-    assert body["pair_code"]
-    assert len(body["pair_code"]) == 6
+    assert body["pair_code"] == ""
+    assert "Получить код" in body["message"]
+    assert "отправьте код" not in body["message"].lower()
 
     poll = client.get(f"/api/portal/auth/otp/poll?ticket={body['ticket']}")
     assert poll.status_code == 200
@@ -98,6 +99,7 @@ def test_otp_verify_bad_code_is_400(monkeypatch) -> None:
     login_pending._BY_TICKET.clear()  # noqa: SLF001
     login_pending._BY_CODE.clear()  # noqa: SLF001
     login_pending._BY_MAX.clear()  # noqa: SLF001
+    login_pending._BY_OTP_CODE.clear()  # noqa: SLF001
     client = TestClient(create_app())
     started = client.post("/api/portal/auth/otp/request", json={}).json()
     response = client.post(
@@ -108,27 +110,89 @@ def test_otp_verify_bad_code_is_400(monkeypatch) -> None:
     assert "invalid" in response.json()["detail"].lower()
 
 
+def test_otp_poll_code_sent_and_verify_by_code(monkeypatch) -> None:
+    """Бот выдал код → poll code_sent → verify по коду без pair-code."""
+    from sfrfr.api.routes import portal as portal_routes
+    from sfrfr.api.schemas.portal import MaxOtpVerifyResponse
+    from sfrfr.security import login_pending
+    from sfrfr.security.login_otp import issue_login_otp
+    from sfrfr.security.login_pending import attach_otp_verify_ticket, ensure_pending_for_max
+
+    monkeypatch.setenv("APP_SECRET_KEY", "test-secret-key-for-otp")
+    login_pending._BY_TICKET.clear()  # noqa: SLF001
+    login_pending._BY_CODE.clear()  # noqa: SLF001
+    login_pending._BY_MAX.clear()  # noqa: SLF001
+    login_pending._BY_OTP_CODE.clear()  # noqa: SLF001
+
+    client = TestClient(create_app())
+    started = client.post("/api/portal/auth/otp/request", json={}).json()
+    ticket = started["ticket"]
+    assert not started.get("pair_code")
+
+    pending = ensure_pending_for_max(
+        max_user_id="777001",
+        contact="max_777001@clients.sfrfr.local",
+    )
+    assert pending.ticket_id == ticket
+    issued = issue_login_otp(
+        contact="max_777001@clients.sfrfr.local",
+        max_user_id="777001",
+    )
+    attach_otp_verify_ticket(
+        ticket_id=ticket,
+        otp_verify_ticket=issued.ticket,
+        otp_code=issued.code,
+        max_user_id="777001",
+        contact="max_777001@clients.sfrfr.local",
+    )
+
+    poll = client.get(f"/api/portal/auth/otp/poll?ticket={ticket}")
+    assert poll.status_code == 200
+    poll_body = poll.json()
+    assert poll_body["status"] == "code_sent"
+    assert poll_body["verify_ticket"] == issued.ticket
+
+    monkeypatch.setattr(
+        portal_routes,
+        "_session_from_max_identity",
+        lambda *, contact, max_user_id: MaxOtpVerifyResponse(
+            ok=True,
+            token_hash="hash-from-code",
+            email=contact,
+            type="email",
+            message="ok",
+        ),
+    )
+    verified = client.post(
+        "/api/portal/auth/otp/verify",
+        json={"code": issued.code},
+    )
+    assert verified.status_code == 200
+    assert verified.json()["token_hash"] == "hash-from-code"
+
+
 def test_otp_poll_approved_after_bind(monkeypatch) -> None:
-    """Симуляция: запрос кода → bind MAX → approve → poll отдаёт token_hash."""
+    """Legacy bind по pair_code → approve → poll отдаёт token_hash."""
     from sfrfr.security import login_pending
 
     monkeypatch.setenv("APP_SECRET_KEY", "test-secret-key-for-otp")
     login_pending._BY_TICKET.clear()  # noqa: SLF001
     login_pending._BY_CODE.clear()  # noqa: SLF001
     login_pending._BY_MAX.clear()  # noqa: SLF001
+    login_pending._BY_OTP_CODE.clear()  # noqa: SLF001
 
     client = TestClient(create_app())
-    started = client.post("/api/portal/auth/otp/request", json={}).json()
-    ticket = started["ticket"]
-    code = started["pair_code"]
+    pending = login_pending.create_pending()
+    ticket = pending.ticket_id
+    code = pending.pair_code
 
-    pending = login_pending.bind_max_by_code(
+    bound = login_pending.bind_max_by_code(
         pair_code=code,
         max_user_id="999001",
         contact="max_999001@clients.sfrfr.local",
     )
-    assert pending is not None
-    assert pending.status == "pending_confirm"
+    assert bound is not None
+    assert bound.status == "pending_confirm"
 
     approved = login_pending.approve(
         ticket_id=ticket,

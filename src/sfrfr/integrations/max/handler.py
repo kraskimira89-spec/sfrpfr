@@ -42,16 +42,23 @@ from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.login_otp import (
     CONFIRM_WEB_LOGIN_CALLBACK,
     CONFIRM_WEB_LOGIN_LABEL,
+    GET_CODE_CALLBACK,
+    GET_CODE_IN_BROWSER_LABEL,
+    OPEN_CABINET_BUTTON_LABEL,
     START_DIALOG_CALLBACK,
     START_DIALOG_LABEL,
     ask_code_from_login_page,
+    cabinet_login_with_verify_url,
     channel_choice_after_login_message,
     confirm_web_login_message,
     issue_login_link,
+    login_code_message,
 )
 from sfrfr.security.login_pending import (
     approve,
+    attach_otp_verify_ticket,
     bind_max_by_code,
+    ensure_pending_for_max,
     get_pending,
     latest_for_max,
     manager_callback_payload_for,
@@ -80,9 +87,14 @@ _LOGIN_TRIGGERS = frozenset(
         "войти",
         "вход",
         CONFIRM_WEB_LOGIN_LABEL.lower(),
+        GET_CODE_IN_BROWSER_LABEL.lower(),
+        "получить код",
+        "получить код для входа",
         "подтвердить вход",
         CONFIRM_WEB_LOGIN_CALLBACK,
+        GET_CODE_CALLBACK,
         "confirm_web_login",
+        "get_login_code",
     }
 )
 
@@ -1083,6 +1095,62 @@ def _send_open_cabinet_link(
     )
 
 
+def _issue_login_code_to_max(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+) -> MaxHandleResult:
+    """Выдать код в MAX для ввода на странице входа кабинета."""
+    from sfrfr.integrations.max.client import inline_link_keyboard
+
+    row = _ensure_client_row(user_id)
+    if not row:
+        reply = "Не удалось подготовить вход. Попробуйте ещё раз через минуту."
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
+
+    contact = _auth_email_for_row(row, user_id)
+    pending = ensure_pending_for_max(max_user_id=user_id, contact=contact)
+    try:
+        issued = issue_login_link(contact=contact, max_user_id=user_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("issue_login_link failed max=%s: %s", user_id, exc)
+        reply = "Не удалось создать код. Попробуйте позже."
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=False, action="login_code_failed", reply=reply)
+
+    attach_otp_verify_ticket(
+        ticket_id=pending.ticket_id,
+        otp_verify_ticket=issued.ticket,
+        otp_code=issued.code,
+        max_user_id=user_id,
+        contact=contact,
+    )
+    login_url = cabinet_login_with_verify_url(verify_ticket=issued.ticket)
+    reply = login_code_message(code=issued.code, login_url=login_url)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=inline_link_keyboard(OPEN_CABINET_BUTTON_LABEL, login_url),
+    )
+    auth_event(
+        "max_login_code",
+        outcome="ok",
+        max_user_id=user_id,
+        ticket=pending.ticket_id,
+        status="code_sent",
+    )
+    return MaxHandleResult(
+        ok=True,
+        action="login_code_sent",
+        reply=reply,
+        detail=pending.ticket_id,
+    )
+
+
 def _handle_pair_code(
     bot: MaxBotClient,
     *,
@@ -1090,46 +1158,31 @@ def _handle_pair_code(
     chat_id: int | str | None,
     code: str,
 ) -> MaxHandleResult:
+    """Legacy/staff: код с экрана ПК. Клиенту — выдать код для ввода на сайте."""
     row = _ensure_client_row(user_id)
-    if not row:
+    contact = (
+        _auth_email_for_row(row, user_id)
+        if row
+        else f"max_{user_id}@clients.sfrfr.local"
+    )
+    pending = bind_max_by_code(
+        pair_code=code, max_user_id=user_id, contact=contact
+    )
+    if pending and pending.audience == "staff":
         auth_event(
             "max_pair",
-            outcome="error",
+            outcome="ok",
             max_user_id=user_id,
-            reason="pair_no_client",
+            ticket=pending.ticket_id,
+            status=pending.status,
         )
-        reply = (
-            "Не удалось связать аккаунт. В чате MAX нажмите "
-            "«Получить код в браузере» и пришлите новый код."
+        return _complete_pc_login(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=pending.ticket_id,
         )
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=False, action="pair_no_client", reply=reply)
-    contact = _auth_email_for_row(row, user_id)
-    pending = bind_max_by_code(pair_code=code, max_user_id=user_id, contact=contact)
-    if not pending:
-        auth_event(
-            "max_pair",
-            outcome="denied",
-            max_user_id=user_id,
-            reason="pair_invalid",
-        )
-        reply = "Код не найден. Начните вход снова на странице входа в браузере."
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=False, action="pair_invalid", reply=reply)
-    auth_event(
-        "max_pair",
-        outcome="ok",
-        max_user_id=user_id,
-        ticket=pending.ticket_id,
-        status=pending.status,
-    )
-    # Код принят → сразу авторизация на ПК, без «Начать» и без лишней кнопки подтверждения
-    return _complete_pc_login(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        ticket_id=pending.ticket_id,
-    )
+    return _issue_login_code_to_max(bot, user_id=user_id, chat_id=chat_id)
 
 
 def _send_confirm_web_login(
@@ -1139,15 +1192,18 @@ def _send_confirm_web_login(
     chat_id: int | str | None,
     callback_payload: str = "",
 ) -> MaxHandleResult:
-    """Кнопка/команда подтверждения: завершает вход на ПК, не открывает ссылку на телефоне."""
+    """Клиент: выдать код. Staff/confirm: завершить вход на ПК."""
     ticket_from_cb = parse_confirm_callback(callback_payload)
-    if ticket_from_cb is None and callback_payload:
-        # не наш callback
-        ticket_from_cb = None
-    ticket_id = ticket_from_cb if ticket_from_cb else None
-    if ticket_from_cb == "":
-        ticket_id = None
-    return _complete_pc_login(bot, user_id=user_id, chat_id=chat_id, ticket_id=ticket_id)
+    if ticket_from_cb:
+        return _complete_pc_login(
+            bot, user_id=user_id, chat_id=chat_id, ticket_id=ticket_from_cb
+        )
+    pending = latest_for_max(user_id)
+    if pending and pending.audience == "staff":
+        return _complete_pc_login(
+            bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id
+        )
+    return _issue_login_code_to_max(bot, user_id=user_id, chat_id=chat_id)
 
 
 def _docs_request_text(*, has_docs: bool) -> str:
