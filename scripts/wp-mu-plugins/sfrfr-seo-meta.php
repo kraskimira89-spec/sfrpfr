@@ -556,32 +556,29 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     $logo = sfrfr_seo_social_image();
     $graph = [
         [
-            '@type' => 'Organization',
+            // ProfessionalService ⊂ LocalBusiness: address/telephone/priceRange валидны для Яндекс.Справочника.
+            '@type' => 'ProfessionalService',
             '@id' => $orgId,
             'name' => 'ООО «ПОД ПРИСМОТРОМ»',
             'alternateName' => 'Проверка стажа',
             'url' => $site,
-            'brand' => [
-                '@type' => 'Brand',
-                'name' => 'Проверка стажа',
-            ],
             'priceRange' => '₽3000–₽25000',
-            'telephone' => '+79091950408',
+            'telephone' => '+7-909-195-04-08',
             'email' => 'info@proverkastaza.ru',
             'address' => [
                 '@type' => 'PostalAddress',
                 'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
                 'addressLocality' => 'Ноябрьск',
-                'addressRegion' => 'Ямало-Ненецкий автономный округ',
+                'addressRegion' => 'ЯНАО',
                 'postalCode' => '629804',
-                'addressCountry' => 'RU',
+                'addressCountry' => 'Россия',
             ],
             'contactPoint' => [
                 '@type' => 'ContactPoint',
-                'telephone' => '+79091950408',
+                'telephone' => '+7-909-195-04-08',
                 'email' => 'info@proverkastaza.ru',
                 'contactType' => 'customer service',
-                'availableLanguage' => 'Russian',
+                'availableLanguage' => ['Russian'],
             ],
         ],
         [
@@ -589,6 +586,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             '@id' => $websiteId,
             'url' => $site,
             'name' => 'Проверка стажа',
+            'description' => 'Сервис проверки пенсионного стажа и документов: сверка ИЛС, план обращения в СФР.',
             'inLanguage' => 'ru-RU',
             'publisher' => ['@id' => $orgId],
         ],
@@ -598,6 +596,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             '@type' => 'ImageObject',
             'url' => $logo,
         ];
+        $graph[0]['image'] = $logo;
     }
 
     $personId = $site . 'expert/lopakova-nataliya/#person';
@@ -683,17 +682,24 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     $crumbs = sfrfr_seo_breadcrumb_schema(sfrfr_seo_breadcrumb_trail(), $canonical);
     if ($crumbs !== null) {
         $graph[] = $crumbs;
+        $pageName = html_entity_decode(wp_get_document_title(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $graph[] = [
             '@type' => 'WebPage',
             '@id' => $canonical . '#webpage',
             'url' => $canonical,
-            'name' => wp_get_document_title(),
-            'description' => $description,
+            'name' => $pageName,
+            'description' => $description !== '' ? $description : $pageName,
             'isPartOf' => ['@id' => $websiteId],
             'about' => ['@id' => $orgId],
             'breadcrumb' => ['@id' => $canonical . '#breadcrumbs'],
             'inLanguage' => 'ru-RU',
+            'primaryImageOfPage' => $logo !== '' ? ['@type' => 'ImageObject', 'url' => $logo] : null,
         ];
+        // Убрать null-поля из WebPage.
+        $graph[array_key_last($graph)] = array_filter(
+            $graph[array_key_last($graph)],
+            static fn ($v) => $v !== null
+        );
     }
 
     return $graph;
