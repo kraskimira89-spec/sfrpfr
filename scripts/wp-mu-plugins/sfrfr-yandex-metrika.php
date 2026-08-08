@@ -73,15 +73,55 @@ function sfrfr_metrika_counter_id(): string
     return is_string($id) ? $id : '';
 }
 
+/**
+ * Роботы Яндекса должны видеть счётчик без cookie-баннера (рекомендация Вебмастера).
+ */
+function sfrfr_metrika_is_yandex_robot(): bool
+{
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    return $ua !== '' && (bool) preg_match('/Yandex(Bot|Metrika|Webmaster|Direct|Images|MobileBot|Favicons)/i', $ua);
+}
+
 /** Версия согласия на статистические cookies (не СОПД). */
 function sfrfr_metrika_consent_version(): string
 {
     return 'stat-cookies-2026-07-29';
 }
 
+/**
+ * Для роботов Яндекса — классический счётчик в head (без баннера согласия).
+ */
+add_action('wp_head', static function (): void {
+    if (is_admin() || !sfrfr_metrika_is_yandex_robot()) {
+        return;
+    }
+    $id = sfrfr_metrika_counter_id();
+    if ($id === '') {
+        return;
+    }
+    $cid = (int) $id;
+    ?>
+<!-- Yandex.Metrika counter (robots) -->
+<script type="text/javascript">
+(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+m[i].l=1*new Date();
+for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+ym(<?php echo $cid; ?>, "init", {clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:false});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/<?php echo $cid; ?>" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+    <?php
+}, 2);
+
 add_action('wp_footer', static function (): void {
     $id = sfrfr_metrika_counter_id();
     if ($id === '') {
+        return;
+    }
+    // Роботам уже отдали счётчик в head.
+    if (sfrfr_metrika_is_yandex_robot()) {
         return;
     }
     $webvisor = sfrfr_metrika_env('YANDEX_METRIKA_WEBVISOR', '0') === '1';

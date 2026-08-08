@@ -17,6 +17,23 @@ add_action('wp', static function (): void {
 }, 0);
 remove_action('wp_head', 'rel_canonical');
 
+/**
+ * Favicon для Яндекса: SVG + PNG 120×120 (рекомендация Вебмастера).
+ */
+add_action('wp_head', static function (): void {
+    if (is_admin()) {
+        return;
+    }
+    printf(
+        "<link rel=\"icon\" href=\"%s\" type=\"image/svg+xml\" />\n",
+        esc_url(home_url('/favicon.svg'))
+    );
+    printf(
+        "<link rel=\"icon\" href=\"%s\" type=\"image/png\" sizes=\"120x120\" />\n",
+        esc_url(home_url('/favicon-120.png'))
+    );
+}, 1);
+
 function sfrfr_seo_is_noindex(): bool
 {
     // ТЗ-18: служебные результаты поиска не индексировать

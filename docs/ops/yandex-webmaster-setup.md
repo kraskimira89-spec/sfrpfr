@@ -25,8 +25,9 @@
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
 | Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
-| Favicon `/favicon.ico` | ✅ файл в корне WP (`scripts/assets/favicon.ico`) |
-| Яндекс Бизнес (Sprav) | ✅ профиль `234170727274`, прайс: `docs/ops/yandex-business-profile.md` |
+| Favicon `/favicon.ico` | ✅ + `/favicon.svg`, `/favicon-120.png` |
+| Яндекс Бизнес (Sprav) | ✅ профиль `82469923047`, прайс: `docs/ops/yandex-business-profile.md` |
+| Регион сайта | ⚠️ задать в UI Вебмастера (Ноябрьск / Россия) |
 
 ---
 
@@ -36,9 +37,12 @@
 
 | Рекомендация | Действие |
 |---|---|
-| Favicon не найден | Было: `/favicon.ico` отдавал HTML. Сейчас — реальный ICO. Переобход главной. |
+| Favicon / SVG / 120×120 | ✅ `/favicon.svg`, `/favicon-120.png` + link в `wp_head` |
+| Укажите регион сайта | **Только UI:** Информация о сайте → Регион → **Ноябрьск** (юр. адрес) или **Россия** (онлайн по всей РФ) → [Задать регион](https://webmaster.yandex.ru/site/https%3Aproverkastaza.ru%3A443/indexing/region/) |
+| Добавьте в Яндекс Бизнес | Профиль уже есть (`82469923047`). В Sprav: сайт = `https://proverkastaza.ru`. Затем в Вебмастере подождать перепроверки или привязать организацию. |
+| Счётчик Метрики не на всех страницах | ✅ код на всех страницах; для роботов Яндекса — без cookie-баннера |
+| Sitemap | ✅ `https://proverkastaza.ru/wp-sitemap.xml` в robots + API (`yandex_webmaster_ensure_site.py`) |
 | Счётчик Метрики не привязан | **В UI:** Настройки → Яндекс Метрика → привязать счётчик к хосту без www + включить обход. |
-| Добавить в Яндекс Бизнес | Опционально (карты/сниппеты). Не блокирует индекс. |
 | NO_SITEMAPS (иногда) | Sitemap уже в API; при флаге — перепроверить раздел «Файлы Sitemap» на apex. |
 
 «Самостоятельные проверки» (уведомления, целевые запросы) — чеклист UI, не ошибки сайта.
