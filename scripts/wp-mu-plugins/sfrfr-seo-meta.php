@@ -58,17 +58,19 @@ add_filter('document_title_parts', static function (array $parts): array {
     ];
     if (is_front_page()) {
         $parts['title'] = 'Проверка стажа';
+        unset($parts['tagline'], $parts['site']);
         return $parts;
     }
     if (is_home() && !is_front_page()) {
         $parts['title'] = 'Статьи';
-        return $parts;
-    }
-    if (is_page()) {
+    } elseif (is_page()) {
         $slug = (string) get_post_field('post_name', get_queried_object_id());
         if (isset($map[$slug])) {
             $parts['title'] = $map[$slug];
         }
+    }
+    if (!empty($parts['title']) && !empty($parts['site']) && $parts['title'] === $parts['site']) {
+        unset($parts['site']);
     }
     return $parts;
 }, 20);
