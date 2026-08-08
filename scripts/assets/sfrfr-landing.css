@@ -750,14 +750,23 @@ body.page-template-default {
 }
 
 .sfrfr-trust {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 1.25rem;
 }
 
 @media (min-width: 720px) {
   .sfrfr-trust {
-    grid-template-columns: 1.2fr 1fr;
-    align-items: stretch;
+    flex-direction: row;
+  }
+
+  .sfrfr-trust__main {
+    flex: 1.2 1 0;
+  }
+
+  .sfrfr-trust__rules {
+    flex: 1 1 0;
   }
 }
 
@@ -769,8 +778,9 @@ body.page-template-default {
   background: var(--sfrfr-bg);
   border: 1px solid rgba(30, 78, 121, 0.1);
   border-left: 4px solid var(--sfrfr-primary);
-  height: 100%;
   box-sizing: border-box;
+  align-self: stretch;
+  min-height: 100%;
 }
 
 .sfrfr-trust__name {
@@ -794,12 +804,16 @@ body.page-template-default {
 
 .sfrfr-trust__rules {
   list-style: disc;
-  padding-left: 1.6rem;
+  padding-left: 1.75rem;
   color: #111111;
 }
 
 .sfrfr-trust__rules li {
   margin: 0.35rem 0;
+}
+
+.sfrfr-trust__rules li:last-child {
+  margin-bottom: 0;
 }
 
 .sfrfr-awards {
