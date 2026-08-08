@@ -168,19 +168,6 @@ add_action('wp_enqueue_scripts', static function (): void {
         $ver,
         true
     );
-
-    // #region agent log
-    $dbg = WP_CONTENT_DIR . '/mu-plugins/sfrfr-debug-trust-cards.js';
-    if (is_readable($dbg)) {
-        wp_enqueue_script(
-            'sfrfr-debug-trust-cards',
-            content_url('mu-plugins/sfrfr-debug-trust-cards.js'),
-            [],
-            (string) filemtime($dbg),
-            true
-        );
-    }
-    // #endregion
 });
 
 /**
