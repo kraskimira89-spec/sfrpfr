@@ -1,5 +1,29 @@
 {
   "dependencies": {
     "@cursor/sdk": "^1.0.26"
-  }
+  },
+  "name": "sfrfr",
+  "version": "1.0.0",
+  "description": "Автоматизация аудита пенсионных дел: сверка ИЛС и трудового стажа, OCR документов, AI-черновики заявлений в СФР, CRM-карточки кейсов.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kraskimira89-spec/sfrpfr.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kraskimira89-spec/sfrpfr/issues"
+  },
+  "homepage": "https://github.com/kraskimira89-spec/sfrpfr#readme"
 }

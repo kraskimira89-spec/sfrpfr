@@ -76,6 +76,8 @@
     send('D', 'padding box model', {
       mainPad: csMain.paddingTop + '/' + csMain.paddingRight + '/' + csMain.paddingBottom + '/' + csMain.paddingLeft,
       rulesPad: csRules.paddingTop + '/' + csRules.paddingRight + '/' + csRules.paddingBottom + '/' + csRules.paddingLeft,
+      mainMargin: csMain.marginTop + '/' + csMain.marginBottom,
+      rulesMargin: csRules.marginTop + '/' + csRules.marginBottom,
       mainDisplay: csMain.display,
       rulesDisplay: csRules.display,
       mainBox: csMain.boxSizing,
