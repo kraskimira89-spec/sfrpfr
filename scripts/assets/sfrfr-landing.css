@@ -772,15 +772,16 @@ body.page-template-default {
 
 .sfrfr-trust__main,
 .sfrfr-trust__rules {
-  margin: 0;
-  padding: var(--sfrfr-card-pad-y) clamp(1rem, 2.5vw, 1.4rem);
+  margin: 0 !important;
+  padding: var(--sfrfr-card-pad-y) clamp(1rem, 2.5vw, 1.4rem) !important;
   border-radius: var(--sfrfr-radius);
   background: var(--sfrfr-bg);
   border: 1px solid rgba(30, 78, 121, 0.1);
   border-left: 4px solid var(--sfrfr-primary);
   box-sizing: border-box;
   align-self: stretch;
-  min-height: 100%;
+  min-height: 0;
+  height: auto;
 }
 
 .sfrfr-trust__name {
@@ -802,9 +803,10 @@ body.page-template-default {
   font-weight: 600;
 }
 
-.sfrfr-trust__rules {
+/* Astra/тема сбрасывает padding у ul — возвращаем карточный padding + место под маркеры */
+.sfrfr-trust > .sfrfr-trust__rules {
   list-style: disc;
-  padding-left: 1.75rem;
+  padding: var(--sfrfr-card-pad-y) clamp(1rem, 2.5vw, 1.4rem) var(--sfrfr-card-pad-y) 1.85rem !important;
   color: #111111;
 }
 
