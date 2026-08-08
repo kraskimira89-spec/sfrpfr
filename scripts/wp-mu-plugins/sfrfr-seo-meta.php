@@ -451,22 +451,63 @@ function sfrfr_seo_breadcrumb_schema(array $trail, string $canonical): ?array
         return null;
     }
     $elements = [];
+    $last = count($trail) - 1;
     foreach ($trail as $i => $crumb) {
         $url = $crumb['url'] !== '' ? $crumb['url'] : $canonical;
-        $pos = $i + 1;
-        $elements[] = [
+        // Schema.org ListItem: только position + name + item (URL).
+        // Дубль поля url даёт ложные ошибки в валидаторах.
+        $el = [
             '@type' => 'ListItem',
-            'position' => $pos,
+            'position' => $i + 1,
             'name' => $crumb['name'],
-            // Yandex: url; Google/Schema: item
             'item' => $url,
-            'url' => $url,
         ];
+        // Текущая страница тоже с URL — так требует Яндекс для навигационной цепочки.
+        if ($i === $last && $url === '') {
+            $el['item'] = $canonical;
+        }
+        $elements[] = $el;
     }
     return [
         '@type' => 'BreadcrumbList',
         '@id' => $canonical . '#breadcrumbs',
         'itemListElement' => $elements,
+    ];
+}
+
+/**
+ * Реальные офферы тарифов (без фейковых рейтингов).
+ *
+ * @return list<array<string, mixed>>
+ */
+function sfrfr_seo_tariff_offers(): array
+{
+    $tarify = home_url('/tarify/');
+    return [
+        [
+            '@type' => 'Offer',
+            'name' => 'Диагностика проверки стажа',
+            'price' => '3000',
+            'priceCurrency' => 'RUB',
+            'url' => $tarify,
+            'availability' => 'https://schema.org/InStock',
+        ],
+        [
+            '@type' => 'Offer',
+            'name' => 'Сопровождение по документам и этапам',
+            'price' => '10000',
+            'priceCurrency' => 'RUB',
+            'url' => $tarify,
+            'availability' => 'https://schema.org/InStock',
+        ],
+        [
+            '@type' => 'Offer',
+            'name' => 'Комплекс Под ключ',
+            'price' => '25000',
+            'priceCurrency' => 'RUB',
+            'url' => home_url('/proverka-stazha/'),
+            'availability' => 'https://schema.org/InStock',
+        ],
     ];
 }
 
@@ -518,7 +559,30 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             '@type' => 'Organization',
             '@id' => $orgId,
             'name' => 'ООО «ПОД ПРИСМОТРОМ»',
+            'alternateName' => 'Проверка стажа',
             'url' => $site,
+            'brand' => [
+                '@type' => 'Brand',
+                'name' => 'Проверка стажа',
+            ],
+            'priceRange' => '₽3000–₽25000',
+            'telephone' => '+79091950408',
+            'email' => 'info@proverkastaza.ru',
+            'address' => [
+                '@type' => 'PostalAddress',
+                'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
+                'addressLocality' => 'Ноябрьск',
+                'addressRegion' => 'Ямало-Ненецкий автономный округ',
+                'postalCode' => '629804',
+                'addressCountry' => 'RU',
+            ],
+            'contactPoint' => [
+                '@type' => 'ContactPoint',
+                'telephone' => '+79091950408',
+                'email' => 'info@proverkastaza.ru',
+                'contactType' => 'customer service',
+                'availableLanguage' => 'Russian',
+            ],
         ],
         [
             '@type' => 'WebSite',
@@ -546,16 +610,20 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         'worksFor' => ['@id' => $orgId],
     ];
 
+    $serviceBase = [
+        '@type' => 'Service',
+        'provider' => ['@id' => $orgId],
+        'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
+        'offers' => sfrfr_seo_tariff_offers(),
+    ];
+
     if (is_front_page()) {
-        $graph[] = [
-            '@type' => 'Service',
+        $graph[] = array_merge($serviceBase, [
             '@id' => $site . '#service',
             'name' => 'Проверка пенсионного стажа и документов',
             'description' => $description,
             'url' => $canonical,
-            'provider' => ['@id' => $orgId],
-            'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
-        ];
+        ]);
         $faq = sfrfr_seo_home_faq_entities();
         if ($faq !== []) {
             $graph[] = [
@@ -568,35 +636,15 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     }
 
     if (is_page('proverka-stazha') || is_page('tarify')) {
-        $graph[] = [
-            '@type' => 'Service',
+        $serviceName = is_page('tarify')
+            ? 'Тарифы на проверку пенсионного стажа'
+            : 'Проверка пенсионного стажа и документов';
+        $graph[] = array_merge($serviceBase, [
             '@id' => $canonical . '#service',
-            'name' => get_the_title(),
+            'name' => $serviceName,
             'description' => $description,
             'url' => $canonical,
-            'provider' => ['@id' => $orgId],
-            'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
-        ];
-    }
-
-    if (is_page('kontakty')) {
-        $graph[0]['address'] = [
-            '@type' => 'PostalAddress',
-            'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
-            'addressLocality' => 'Ноябрьск',
-            'addressRegion' => 'Ямало-Ненецкий автономный округ',
-            'postalCode' => '629804',
-            'addressCountry' => 'RU',
-        ];
-        $graph[0]['telephone'] = '+79091950408';
-        $graph[0]['email'] = 'info@proverkastaza.ru';
-        $graph[0]['contactPoint'] = [
-            '@type' => 'ContactPoint',
-            'telephone' => '+79091950408',
-            'email' => 'info@proverkastaza.ru',
-            'contactType' => 'customer service',
-            'availableLanguage' => 'Russian',
-        ];
+        ]);
     }
 
     if (is_page('lopakova-nataliya')) {
@@ -635,6 +683,17 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     $crumbs = sfrfr_seo_breadcrumb_schema(sfrfr_seo_breadcrumb_trail(), $canonical);
     if ($crumbs !== null) {
         $graph[] = $crumbs;
+        $graph[] = [
+            '@type' => 'WebPage',
+            '@id' => $canonical . '#webpage',
+            'url' => $canonical,
+            'name' => wp_get_document_title(),
+            'description' => $description,
+            'isPartOf' => ['@id' => $websiteId],
+            'about' => ['@id' => $orgId],
+            'breadcrumb' => ['@id' => $canonical . '#breadcrumbs'],
+            'inLanguage' => 'ru-RU',
+        ];
     }
 
     return $graph;
