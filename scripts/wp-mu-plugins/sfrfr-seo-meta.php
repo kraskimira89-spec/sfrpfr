@@ -451,22 +451,17 @@ function sfrfr_seo_breadcrumb_schema(array $trail, string $canonical): ?array
         return null;
     }
     $elements = [];
-    $last = count($trail) - 1;
     foreach ($trail as $i => $crumb) {
         $url = $crumb['url'] !== '' ? $crumb['url'] : $canonical;
-        // Schema.org ListItem: только position + name + item (URL).
-        // Дубль поля url даёт ложные ошибки в валидаторах.
-        $el = [
+        // Формат Google/Яндекс без предупреждений: item = {@id, name}.
+        $elements[] = [
             '@type' => 'ListItem',
             'position' => $i + 1,
-            'name' => $crumb['name'],
-            'item' => $url,
+            'item' => [
+                '@id' => $url,
+                'name' => $crumb['name'],
+            ],
         ];
-        // Текущая страница тоже с URL — так требует Яндекс для навигационной цепочки.
-        if ($i === $last && $url === '') {
-            $el['item'] = $canonical;
-        }
-        $elements[] = $el;
     }
     return [
         '@type' => 'BreadcrumbList',
@@ -556,11 +551,12 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     $logo = sfrfr_seo_social_image();
     $graph = [
         [
-            // ProfessionalService ⊂ LocalBusiness: address/telephone/priceRange валидны для Яндекс.Справочника.
-            '@type' => 'ProfessionalService',
+            // LocalBusiness: address/telephone/priceRange — поддерживается Яндекс.Справочником.
+            '@type' => 'LocalBusiness',
             '@id' => $orgId,
             'name' => 'ООО «ПОД ПРИСМОТРОМ»',
             'alternateName' => 'Проверка стажа',
+            'description' => 'Сервис проверки пенсионного стажа и документов. Подготовка плана обращения в СФР.',
             'url' => $site,
             'priceRange' => '₽3000–₽25000',
             'telephone' => '+7-909-195-04-08',
@@ -571,7 +567,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
                 'addressLocality' => 'Ноябрьск',
                 'addressRegion' => 'ЯНАО',
                 'postalCode' => '629804',
-                'addressCountry' => 'Россия',
+                'addressCountry' => 'RU',
             ],
             'contactPoint' => [
                 '@type' => 'ContactPoint',
@@ -629,6 +625,8 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
                 '@type' => 'FAQPage',
                 '@id' => $site . '#faq',
                 'url' => $canonical,
+                'name' => 'Вопросы о проверке стажа',
+                'description' => 'Ответы на частые вопросы о сервисе проверки пенсионного стажа и границах ответственности СФР.',
                 'mainEntity' => $faq,
             ];
         }
