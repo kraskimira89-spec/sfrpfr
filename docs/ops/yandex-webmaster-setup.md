@@ -15,6 +15,7 @@
 | Sitemap `wp-sitemap.xml` в API + robots | ✅ |
 | Быстрые ссылки (навигация в выдаче) | ⏳ формирует робот; UI: Представление в поиске → Быстрые ссылки (API не управляет) |
 | FAQPage JSON-LD на главной | ✅ MU `sfrfr-seo-meta.php` |
+| Навигационная цепочка (BreadcrumbList) | ✅ JSON-LD + видимые крошки на страницах/статьях |
 | Главное зеркало HTTPS без www (301) | ✅ Apache |
 | Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
 | Summary / host loaded | ✅ `data_status=OK`; **смотрите хост без www** |

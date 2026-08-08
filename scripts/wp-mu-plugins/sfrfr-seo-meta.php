@@ -352,6 +352,159 @@ function sfrfr_seo_home_faq_entities(): array
 }
 
 /**
+ * Хлебные крошки: [['name'=>…,'url'=>…], …]. Минимум 2 пункта для схемы.
+ *
+ * @return list<array{name:string,url:string}>
+ */
+function sfrfr_seo_breadcrumb_trail(): array
+{
+    $home = home_url('/');
+    $trail = [
+        ['name' => 'Главная', 'url' => $home],
+    ];
+
+    if (is_front_page()) {
+        return $trail;
+    }
+
+    if (is_home()) {
+        $trail[] = ['name' => 'Статьи', 'url' => home_url('/blog/')];
+        return $trail;
+    }
+
+    if (is_category()) {
+        $trail[] = ['name' => 'Статьи', 'url' => home_url('/blog/')];
+        $term = get_queried_object();
+        if ($term instanceof WP_Term) {
+            $trail[] = [
+                'name' => (string) $term->name,
+                'url' => (string) get_term_link($term),
+            ];
+        }
+        return $trail;
+    }
+
+    if (is_singular('post')) {
+        $trail[] = ['name' => 'Статьи', 'url' => home_url('/blog/')];
+        $postId = get_queried_object_id();
+        $cats = get_the_category($postId);
+        if (is_array($cats) && $cats !== []) {
+            $cat = $cats[0];
+            if ($cat instanceof WP_Term && !in_array($cat->slug, ['situacii', 'analitika'], true)) {
+                $link = get_term_link($cat);
+                if (!is_wp_error($link)) {
+                    $trail[] = [
+                        'name' => (string) $cat->name,
+                        'url' => (string) $link,
+                    ];
+                }
+            }
+        }
+        $trail[] = [
+            'name' => get_the_title($postId),
+            'url' => get_permalink($postId) ?: sfrfr_seo_canonical_url(),
+        ];
+        return $trail;
+    }
+
+    if (is_page()) {
+        $pageId = get_queried_object_id();
+        $ancestors = array_reverse(get_post_ancestors($pageId));
+        foreach ($ancestors as $ancestorId) {
+            $trail[] = [
+                'name' => get_the_title((int) $ancestorId),
+                'url' => get_permalink((int) $ancestorId) ?: '',
+            ];
+        }
+        $short = [
+            'tarify' => 'Тарифы',
+            'kak-rabotaem' => 'Как это работает',
+            'kontakty' => 'Контакты',
+            'proverka-stazha' => 'Проверка стажа',
+            'blog' => 'Статьи',
+            'oferta' => 'Оферта',
+            'politika-pdn' => 'Политика ПДн',
+            'soglasie' => 'Согласие',
+            'cookies' => 'Файлы браузера',
+            'expert' => 'Эксперты',
+            'lopakova-nataliya' => 'Лопакова Н. Ф.',
+        ];
+        $slug = (string) get_post_field('post_name', $pageId);
+        $name = $short[$slug] ?? get_the_title($pageId);
+        $trail[] = [
+            'name' => $name,
+            'url' => get_permalink($pageId) ?: sfrfr_seo_canonical_url(),
+        ];
+        return $trail;
+    }
+
+    return $trail;
+}
+
+/**
+ * @param list<array{name:string,url:string}> $trail
+ * @return array<string, mixed>|null
+ */
+function sfrfr_seo_breadcrumb_schema(array $trail, string $canonical): ?array
+{
+    if (count($trail) < 2) {
+        return null;
+    }
+    $elements = [];
+    foreach ($trail as $i => $crumb) {
+        $url = $crumb['url'] !== '' ? $crumb['url'] : $canonical;
+        $pos = $i + 1;
+        $elements[] = [
+            '@type' => 'ListItem',
+            'position' => $pos,
+            'name' => $crumb['name'],
+            // Yandex: url; Google/Schema: item
+            'item' => $url,
+            'url' => $url,
+        ];
+    }
+    return [
+        '@type' => 'BreadcrumbList',
+        '@id' => $canonical . '#breadcrumbs',
+        'itemListElement' => $elements,
+    ];
+}
+
+/**
+ * Видимая навигационная цепочка (дублирует JSON-LD для робота и людей).
+ */
+function sfrfr_seo_render_breadcrumbs_html(): void
+{
+    if (is_admin() || is_front_page() || is_search()) {
+        return;
+    }
+    if (!is_singular() && !is_home() && !is_category()) {
+        return;
+    }
+    $trail = sfrfr_seo_breadcrumb_trail();
+    if (count($trail) < 2) {
+        return;
+    }
+    echo '<nav class="sfrfr-breadcrumbs" aria-label="Навигационная цепочка"><div class="sfrfr-wrap"><ol class="sfrfr-breadcrumbs__list">';
+    $last = count($trail) - 1;
+    foreach ($trail as $i => $crumb) {
+        $name = esc_html($crumb['name']);
+        echo '<li class="sfrfr-breadcrumbs__item">';
+        if ($i < $last && $crumb['url'] !== '') {
+            printf(
+                '<a class="sfrfr-breadcrumbs__link" href="%s">%s</a>',
+                esc_url($crumb['url']),
+                $name
+            );
+        } else {
+            echo '<span class="sfrfr-breadcrumbs__current" aria-current="page">' . $name . '</span>';
+        }
+        echo '</li>';
+    }
+    echo '</ol></div></nav>';
+}
+
+/**
  * @return array<int, array<string, mixed>>
  */
 function sfrfr_seo_schema_graph(string $description, string $canonical): array
@@ -477,31 +630,13 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             $article['image'] = $logo;
         }
         $graph[] = $article;
-        $graph[] = [
-            '@type' => 'BreadcrumbList',
-            '@id' => $canonical . '#breadcrumbs',
-            'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'Главная',
-                    'item' => $site,
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'Статьи',
-                    'item' => home_url('/blog/'),
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 3,
-                    'name' => get_the_title($postId),
-                    'item' => $canonical,
-                ],
-            ],
-        ];
     }
+
+    $crumbs = sfrfr_seo_breadcrumb_schema(sfrfr_seo_breadcrumb_trail(), $canonical);
+    if ($crumbs !== null) {
+        $graph[] = $crumbs;
+    }
+
     return $graph;
 }
 
@@ -550,6 +685,20 @@ add_action('wp_head', static function (): void {
         . wp_json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         . "</script>\n";
 }, 2);
+
+/**
+ * Видимые хлебные крошки под шапкой (навигационная цепочка для Яндекса).
+ */
+$sfrfrPrintCrumbs = static function (): void {
+    if (!empty($GLOBALS['sfrfr_breadcrumbs_printed'])) {
+        return;
+    }
+    $GLOBALS['sfrfr_breadcrumbs_printed'] = true;
+    sfrfr_seo_render_breadcrumbs_html();
+};
+add_action('astra_content_before', $sfrfrPrintCrumbs, 5);
+add_action('astra_content_top', $sfrfrPrintCrumbs, 5);
+add_action('astra_header_after', $sfrfrPrintCrumbs, 20);
 
 /**
  * Astra уже выводит post_title как H1. Убираем только первый H1 из тела записи,

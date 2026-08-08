@@ -308,6 +308,59 @@ body.page-template-default {
   border-bottom-color: var(--sfrfr-accent);
 }
 
+/* Навигационная цепочка (хлебные крошки) */
+.sfrfr-breadcrumbs {
+  padding: 0.65rem 0 0.15rem;
+  background: transparent;
+}
+
+.sfrfr-breadcrumbs__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--sfrfr-muted, #5a6a7a);
+}
+
+.sfrfr-breadcrumbs__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+}
+
+.sfrfr-breadcrumbs__item:not(:last-child)::after {
+  content: "›";
+  color: rgba(30, 78, 121, 0.45);
+  font-weight: 600;
+}
+
+.sfrfr-breadcrumbs__link {
+  color: var(--sfrfr-primary, #1e4e79);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.sfrfr-breadcrumbs__link:hover,
+.sfrfr-breadcrumbs__link:focus-visible {
+  border-bottom-color: rgba(30, 78, 121, 0.35);
+}
+
+.sfrfr-breadcrumbs__current {
+  color: #111111;
+  font-weight: 600;
+}
+
+.home .sfrfr-breadcrumbs {
+  display: none;
+}
+
 .sfrfr-cards {
   display: grid;
   gap: clamp(0.85rem, 2.5vw, 1.25rem);
