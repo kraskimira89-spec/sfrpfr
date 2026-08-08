@@ -1,8 +1,8 @@
 # Яндекс Бизнес — карточка ООО «ПОД ПРИСМОТРОМ»
 
-**Профиль Sprav:** `234170727274`  
-**Кабинет прайса:** https://yandex.ru/sprav/234170727274/p/edit/price-lists/  
-**Кабинет постов:** https://yandex.ru/sprav/234170727274/p/edit/posts/  
+**Профиль Sprav:** `82469923047` (ранее встречался `234170727274` — сверять в UI)  
+**Кабинет прайса:** https://yandex.ru/sprav/82469923047/p/edit/price-lists/  
+**Кабинет постов:** https://yandex.ru/sprav/82469923047/p/edit/posts/  
 **Сайт:** https://proverkastaza.ru (без www)  
 **ТЗ-18:** достоверный профиль в каталогах, без ложных обещаний.
 
@@ -63,7 +63,7 @@ https://proverkastaza.ru/yandex-business-price.yml
 
 Готовые тексты со ссылками на сайт: `scripts/assets/yandex-business/posts.md` (8 постов).
 
-1. Открыть https://yandex.ru/sprav/234170727274/p/edit/posts/ (CAPTCHA).
+1. Открыть https://yandex.ru/sprav/82469923047/p/edit/posts/ (CAPTCHA).
 2. Создать публикацию → вставить текст из файла (ссылка только на `proverkastaza.ru`).
 3. Модерация — до нескольких дней ([правила публикаций](https://yandex.ru/support/business-priority/ru/manage/publications)).
 
@@ -76,9 +76,9 @@ https://proverkastaza.ru/yandex-business-price.yml
 
 ## Как загрузить прайс в кабинет
 
-1. Войти в https://yandex.ru/sprav/234170727274/p/edit/price-lists/ (пройти CAPTCHA).
-2. **Вариант A:** О компании → Товары и услуги → Загрузить XLS/YML → файл `price-list.xlsx`.
-3. **Вариант B:** источник «YML-фид» → URL `https://proverkastaza.ru/yandex-business-price.yml`.
+1. Войти в https://yandex.ru/sprav/82469923047/p/edit/price-lists/ (пройти CAPTCHA).
+2. **Вариант A (рекомендуем):** О компании → Товары и услуги → **Загрузить XLS/YML** → вкладка **XLS** → файл `scripts/assets/yandex-business/price-list.xlsx`.
+3. **Вариант B:** вкладка **YML** → файл `scripts/assets/yandex-business/price-list.yml` **или** источник «YML-фид» → URL `https://proverkastaza.ru/yandex-business-price.yml`.
 4. Дождаться модерации (в Картах до суток). Новый файл **заменяет** старый прайс целиком.
 
 Перевыкладка фида на VPS после правок:
@@ -96,12 +96,12 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 Кратко:
 
-1. Форма: https://yandex.ru/sprav/234170727274/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/`.
+1. Форма: https://yandex.ru/sprav/82469923047/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/`.
 2. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
 3. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
 4. Ответы компании: `review-reply-templates.md`.
 
-Кабинет промо: https://yandex.ru/sprav/234170727274/p/edit/promo/
+Кабинет промо: https://yandex.ru/sprav/82469923047/p/edit/promo/
 
 ---
 

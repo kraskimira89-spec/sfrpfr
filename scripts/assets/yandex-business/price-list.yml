@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE yml_catalog SYSTEM "shops.dtd">
 <!--
-  Прайс услуг «Проверка стажа» для Яндекс Бизнеса (Sprav 234170727274).
+  Прайс услуг «Проверка стажа» для Яндекс Бизнеса (Sprav 82469923047).
   Источник тарифов: https://proverkastaza.ru/tarify/
   Без телефонов и ПДн в текстах; без гарантий перерасчёта.
 -->
-<yml_catalog date="2026-08-03 16:00">
+<yml_catalog date="2026-08-08 21:15">
   <shop>
     <name>Проверка стажа</name>
     <company>ООО ПОД ПРИСМОТРОМ</company>
     <url>https://proverkastaza.ru/</url>
     <currencies>
-      <currency id="RUR" rate="1"/>
+      <currency id="RUB" rate="1"/>
     </currencies>
     <categories>
       <category id="1">Проверка стажа</category>
@@ -19,27 +19,33 @@
     <offers>
       <offer id="diag-3000" available="true">
         <name>Диагностика проверки стажа</name>
+        <vendor>Проверка стажа</vendor>
         <url>https://proverkastaza.ru/tarify/</url>
         <price>3000</price>
-        <currencyId>RUR</currencyId>
+        <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Проверка документов и выписки ИЛС. Первичный план действий и индивидуальный чек-лист. Сервис не является СФР: решение о перерасчёте принимает Социальный фонд России. Условия закрепляются в соглашении.</description>
+        <shortDescription>Проверка документов и план действий. Без гарантии перерасчёта.</shortDescription>
       </offer>
       <offer id="support-10000" available="true">
         <name>Сопровождение по документам и этапам</name>
+        <vendor>Проверка стажа</vendor>
         <url>https://proverkastaza.ru/tarify/</url>
         <price>10000</price>
-        <currencyId>RUR</currencyId>
+        <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Подготовка документов, черновики заявлений и контроль этапов до обращения. Без обещания перерасчёта или конкретной суммы выплат. Решение по существу принимает СФР.</description>
+        <shortDescription>Подготовка документов и контроль этапов до обращения в СФР.</shortDescription>
       </offer>
       <offer id="turnkey-25000" available="true">
         <name>Комплекс Под ключ: диагностика и сопровождение</name>
+        <vendor>Проверка стажа</vendor>
         <url>https://proverkastaza.ru/proverka-stazha/</url>
         <price>25000</price>
-        <currencyId>RUR</currencyId>
+        <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Диагностика плюс сопровождение по документам и этапам до подачи в СФР. Фиксированная цена по соглашению. Сервис не заменяет СФР и не гарантирует перерасчёт.</description>
+        <shortDescription>Диагностика и сопровождение до подачи. Фиксированная цена.</shortDescription>
       </offer>
     </offers>
   </shop>
