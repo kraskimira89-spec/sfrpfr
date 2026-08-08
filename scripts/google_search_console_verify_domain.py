@@ -282,9 +282,12 @@ def main() -> None:
         print("META token HTML:", meta)
         write_meta_config(meta)
         print(
-            "Задеплойте MU на VPS (cp sfrfr-google-verification*), затем Enter…"
+            "Задеплойте на VPS:\n"
+            "  scp scripts/wp-mu-plugins/sfrfr-google-verification* "
+            "root@VPS:/var/www/.../mu-plugins/\n"
+            "Затем: wp cache flush && перезапустите скрипт "
+            "(verify уже вызывается ниже — meta должен быть на сайте)."
         )
-        # non-interactive: assume deploy separately
         verify_site(token, method="meta")
         add_gsc_property(token, SITE_URL)
     else:

@@ -7,10 +7,25 @@
 
 | Шаг | Статус |
 |-----|--------|
-| Ключ SA / `gsc-sites` | ✅ работает, property пока **0** |
-| Site Verification API | ❌ выключен в GCP `sfrfr-sheets` — нужен клик владельца |
-| DNS TXT через reg.ru | ❌ нет `secrets/regru.env` |
-| META в WP | ✅ MU `sfrfr-google-verification.php` (токен из config) |
+| Ключ SA / `gsc-sites` | ✅ |
+| Site Verification API | ✅ включён |
+| URL-prefix `https://proverkastaza.ru/` | ✅ verified + siteOwner |
+| Sitemap в GSC | ✅ `wp-sitemap.xml` |
+| Domain `sc-domain:proverkastaza.ru` (DNS TXT) | ⏳ нужен TXT в reg.ru + `regru.env` или вручную |
+| META в WP | ✅ `sfrfr-google-verification.config.php` |
+
+DNS TXT для полного домена (опционально):
+
+```text
+google-site-verification=pWkA869oMihblNrvbveY6dpeHFIv1CRLxhueevxWi4U
+```
+
+Host `@`, тип TXT → затем:
+
+```powershell
+$env:PYTHONPATH="src"
+python scripts/google_search_console_verify_domain.py --method dns
+```
 
 ## Разово включить API (владелец Google Cloud)
 
