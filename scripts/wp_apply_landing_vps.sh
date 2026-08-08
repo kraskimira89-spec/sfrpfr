@@ -31,6 +31,10 @@ if [[ -f "${APP_DIR}/scripts/wp_ensure_bvi.sh" ]]; then
 fi
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_apply_home.php"
 echo
+if [[ -f "${APP_DIR}/scripts/wp_ensure_sitelink_titles.php" ]]; then
+  "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_ensure_sitelink_titles.php" || echo "WARN: sitelink titles failed"
+  echo
+fi
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_upsert_legal_pages.php"
 echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_set_public_email.php"

@@ -43,6 +43,37 @@ add_action('send_headers', static function (): void {
 });
 
 /**
+ * Короткие document title для ключевых страниц (подготовка к быстрым ссылкам Яндекса).
+ *
+ * @param array<string, string> $parts
+ * @return array<string, string>
+ */
+add_filter('document_title_parts', static function (array $parts): array {
+    $map = [
+        'tarify' => 'Тарифы',
+        'kak-rabotaem' => 'Как это работает',
+        'kontakty' => 'Контакты',
+        'proverka-stazha' => 'Проверка стажа',
+        'blog' => 'Статьи',
+    ];
+    if (is_front_page()) {
+        $parts['title'] = 'Проверка стажа';
+        return $parts;
+    }
+    if (is_home() && !is_front_page()) {
+        $parts['title'] = 'Статьи';
+        return $parts;
+    }
+    if (is_page()) {
+        $slug = (string) get_post_field('post_name', get_queried_object_id());
+        if (isset($map[$slug])) {
+            $parts['title'] = $map[$slug];
+        }
+    }
+    return $parts;
+}, 20);
+
+/**
  * Единый URL главной: /glavnaya/ → /.
  */
 add_action('template_redirect', static function (): void {
@@ -300,7 +331,7 @@ function sfrfr_seo_home_faq_entities(): array
         ],
         [
             'q' => 'Где подробнее?',
-            'a' => 'Расширенный FAQ и статьи блога: раздел «Полезные статьи» и страница частых вопросов о проверке стажа.',
+            'a' => 'Расширенный FAQ, статьи блога, страница «Как это работает» и контакты сервиса.',
         ],
     ];
 
