@@ -50,6 +50,8 @@ storage/cases.tmp
 !assets/**/*.png
 !scripts/assets/yandex-business/promo/*.pdf
 !scripts/assets/yandex-business/promo/*.png
+!scripts/assets/favicon-120.png
+!scripts/assets/sfrfr-logo-light.png
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**
 
