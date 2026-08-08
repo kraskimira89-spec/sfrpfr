@@ -53,8 +53,8 @@ UPLOAD_BLOCKED_TEXT = (
     f"{POSITION_SHORT}"
 )
 
-OPEN_CABINET_MAX_LABEL = "Открыть личный кабинет для документов"
-OPEN_CABINET_WEB_LABEL = "Открыть личный кабинет в браузере"
+OPEN_CABINET_MAX_LABEL = "В MAX — кабинет"
+OPEN_CABINET_WEB_LABEL = "В браузере — кабинет"
 CALL_OPERATOR_LABEL = "Позвать специалиста"
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 RESTART_LABEL = "Начать заново"
