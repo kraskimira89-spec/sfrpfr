@@ -3,6 +3,7 @@
 
 :root {
   --sfrfr-bg: #f7f8fa;
+  --sfrfr-band: #e8eef5;
   --sfrfr-surface: #ffffff;
   --sfrfr-ink: #1a2330;
   --sfrfr-muted: #5a6a7a;
@@ -72,6 +73,8 @@ body.page-template-default {
   padding: var(--sfrfr-section-y) 0;
   min-height: 0;
   display: block;
+  /* тонированный фон — чередуется с --alt (белый) */
+  background: var(--sfrfr-band);
 }
 
 .sfrfr-section--alt {
