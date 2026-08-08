@@ -75,13 +75,14 @@ function sfrfr_site_footer_html(): string
     $bvi = sfrfr_site_footer_bvi_html();
 
     return <<<HTML
-<footer class="sfrfr-site-footer" role="contentinfo">
+<footer class="sfrfr-site-footer" role="contentinfo" itemscope itemtype="https://schema.org/Organization">
+  <meta itemprop="url" content="{$home}">
   <div class="sfrfr-wrap sfrfr-site-footer__grid">
     <div>
       <p class="sfrfr-brand sfrfr-brand--footer">
         <a class="sfrfr-brand__link" href="{$home}" title="На главную" aria-label="На главную">
-          <img class="sfrfr-brand__logo" src="{$logo}" width="40" height="40" alt="Проверка стажа">
-          <span>Проверка стажа</span>
+          <img class="sfrfr-brand__logo" src="{$logo}" width="40" height="40" alt="Проверка стажа" itemprop="logo">
+          <span itemprop="name">Проверка стажа</span>
         </a>
       </p>
       <p>Сервис не является государственным органом. Мы готовим документы, черновики и понятный план. А подаёте обращение через СФР, МФЦ или Госуслуги вы сами. Решение о пенсии и перерасчёте принимает только СФР.</p>
@@ -90,11 +91,12 @@ function sfrfr_site_footer_html(): string
           <img width="88" height="31" alt="Индекс качества сайта Яндекса" src="https://yandex.ru/cycounter?https://proverkastaza.ru&amp;theme=dark&amp;lang=ru" style="border:0;border-radius:8px;vertical-align:middle" loading="lazy" decoding="async">
         </a>
       </p>
-      <p class="sfrfr-req">
+      <p class="sfrfr-req" itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
         <strong>ООО «ПОД ПРИСМОТРОМ»</strong><br>
         ИНН 8905066468 · КПП 890501001 · ОГРН 1208900000572<br>
         Ген. директор: Лопакова Наталия Федоровна<br>
-        629804, ЯНАО, г.&nbsp;Ноябрьск, ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4
+        <span itemprop="postalCode">629804</span>, ЯНАО, г.&nbsp;<span itemprop="addressLocality">Ноябрьск</span>, <span itemprop="streetAddress">ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4</span>
+        <meta itemprop="addressCountry" content="RU">
       </p>
     </div>
     <div>
@@ -115,8 +117,8 @@ function sfrfr_site_footer_html(): string
     <div>
       <p><strong>Контакты</strong></p>
       <p class="sfrfr-req">
-        Телефон: <a href="tel:+79091950408">+7&nbsp;909&nbsp;195‑04‑08</a><br>
-        Почта: <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a><br>
+        Телефон: <a href="tel:+79091950408" itemprop="telephone">+7&nbsp;909&nbsp;195‑04‑08</a><br>
+        Почта: <a href="mailto:info@proverkastaza.ru" itemprop="email">info@proverkastaza.ru</a><br>
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
         Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer">канал в MAX</a>
       </p>
