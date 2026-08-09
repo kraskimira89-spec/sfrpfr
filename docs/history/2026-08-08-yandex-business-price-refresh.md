@@ -5,7 +5,7 @@
 
 ## Что сделано
 - Обновлены `price-list.yml` и `price-list.xlsx`: 3 тарифа с сайта (3000 / 10000 / 25000).
-- YML: `vendor`, `currencyId=RUB`, `shortDescription`, актуальная дата.
+- YML: `vendor`, `currencyId=RUB`, `description` (без `shortDescription` — схема Маркета), актуальная дата.
 - XLSX: «Популярный товар» = «Да», «В наличии» пусто (публиковать).
 - Публичный фид: `https://proverkastaza.ru/yandex-business-price.yml`.
 - В ops обновлён ID кабинета на `82469923047`.

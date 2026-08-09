@@ -15,9 +15,6 @@
                 <description>
                     Описание первого товара
                 </description>
-                <shortDescription>
-                    Короткое описание первого товара
-                </shortDescription>
                 <url>http://example.com/product01/</url>
             </offer>
             <offer id="12346" type="vendor.model">
@@ -28,9 +25,9 @@
                 <categoryId>101</categoryId>
                 <picture>http://example.com/image02.jpg</picture>
                 <url>http://example.com/product02/</url>
-                <shortDescription>
+                <description>
                     Короткое описание второго товара
-                </shortDescription>
+                </description>
             </offer>
             <offer id="789" available="unknown">
                 <name>Товар Brand ABC-03 (нет в наличии)</name>

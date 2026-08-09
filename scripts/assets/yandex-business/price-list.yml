@@ -5,7 +5,7 @@
   Источник тарифов: https://proverkastaza.ru/tarify/
   Без телефонов и ПДн в текстах; без гарантий перерасчёта.
 -->
-<yml_catalog date="2026-08-08 21:15">
+<yml_catalog date="2026-08-09 16:40">
   <shop>
     <name>Проверка стажа</name>
     <company>ООО ПОД ПРИСМОТРОМ</company>
@@ -25,7 +25,6 @@
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Проверка документов и выписки ИЛС. Первичный план действий и индивидуальный чек-лист. Сервис не является СФР: решение о перерасчёте принимает Социальный фонд России. Условия закрепляются в соглашении.</description>
-        <shortDescription>Проверка документов и план действий. Без гарантии перерасчёта.</shortDescription>
       </offer>
       <offer id="support-10000" available="true">
         <name>Сопровождение по документам и этапам</name>
@@ -35,7 +34,6 @@
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Подготовка документов, черновики заявлений и контроль этапов до обращения. Без обещания перерасчёта или конкретной суммы выплат. Решение по существу принимает СФР.</description>
-        <shortDescription>Подготовка документов и контроль этапов до обращения в СФР.</shortDescription>
       </offer>
       <offer id="turnkey-25000" available="true">
         <name>Комплекс Под ключ: диагностика и сопровождение</name>
@@ -45,7 +43,6 @@
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
         <description>Диагностика плюс сопровождение по документам и этапам до подачи в СФР. Фиксированная цена по соглашению. Сервис не заменяет СФР и не гарантирует перерасчёт.</description>
-        <shortDescription>Диагностика и сопровождение до подачи. Фиксированная цена.</shortDescription>
       </offer>
     </offers>
   </shop>
