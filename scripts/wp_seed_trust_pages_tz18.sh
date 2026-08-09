@@ -10,12 +10,17 @@ WP=(wp --path="$SITE_DIR" --allow-root)
 export SFRFR_TRUST_ASSETS="${SCRIPT_DIR}/assets/trust"
 export MAX_CHAT_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
 
-echo "==> Deploy expert photos"
+echo "==> Deploy expert photos + awards gallery"
 UPLOADS="${SITE_DIR}/wp-content/uploads/sfrfr"
-mkdir -p "${UPLOADS}"
+mkdir -p "${UPLOADS}/awards"
 cp -f "${SCRIPT_DIR}/assets/trust/expert-lopakova.jpg" "${UPLOADS}/expert-lopakova.jpg"
 cp -f "${SCRIPT_DIR}/assets/trust/expert-bogdanovskiy.jpg" "${UPLOADS}/expert-bogdanovskiy.jpg"
+if compgen -G "${SCRIPT_DIR}/assets/awards/award-*.jpg" > /dev/null; then
+  cp -f "${SCRIPT_DIR}/assets/awards/award-"*.jpg "${UPLOADS}/awards/"
+fi
+cp -f "${SCRIPT_DIR}/assets/sfrfr-awards.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 chown -R www-data:www-data "${UPLOADS}" 2>/dev/null || true
+chown www-data:www-data "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js" 2>/dev/null || true
 
 echo "==> Seed trust/commerce pages"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_trust_pages_tz18.php"

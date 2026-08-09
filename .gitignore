@@ -54,6 +54,8 @@ storage/cases.tmp
 !scripts/assets/sfrfr-logo-light.png
 !scripts/assets/trust/expert-lopakova.jpg
 !scripts/assets/trust/expert-bogdanovskiy.jpg
+!scripts/assets/awards/*.jpg
+!scripts/assets/awards/*.json
 !assets/**/*.webp
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**

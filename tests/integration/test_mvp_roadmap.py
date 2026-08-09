@@ -55,10 +55,13 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Поставщик социальных услуг ЯНАО" in home
     assert "/expert/lopakova-nataliya/" in home
     assert "/expert/bogdanovskiy-sergey/" in home
-    assert "Награды и профессиональные материалы" in home
-    assert "Фотографии наград можно добавить позже" in home
+    assert "Награды и сертификаты" in home
+    assert "sfrfr-awards__grid" in home
+    assert "/wp-content/uploads/sfrfr/awards/" in home
     assert 'id="sfrfr-awards-data"' in home
     assert (REPO / "scripts/assets/sfrfr-awards.js").exists()
+    assert (REPO / "scripts/assets/awards").is_dir()
+    assert any((REPO / "scripts/assets/awards").glob("award-*.jpg"))
     search_mu = (REPO / "scripts/wp-mu-plugins/sfrfr-site-search.php").read_text(encoding="utf-8")
     assert "sfrfr-site-search" in search_mu
     assert 'name="s"' in search_mu

@@ -49,6 +49,14 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-footer.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-search.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-search.php"
+# Copy awards gallery into WP uploads on landing apply too
+AWARDS_SRC="${APP_DIR}/scripts/assets/awards"
+AWARDS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/awards"
+mkdir -p "${AWARDS_DST}"
+if compgen -G "${AWARDS_SRC}/award-*.jpg" > /dev/null; then
+  cp -f "${AWARDS_SRC}/award-"*.jpg "${AWARDS_DST}/"
+  chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
+fi
 cp -f "${APP_DIR}/scripts/assets/sfrfr-awards.js" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \
