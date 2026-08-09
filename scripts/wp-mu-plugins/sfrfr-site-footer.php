@@ -106,7 +106,7 @@ function sfrfr_site_footer_html(): string
         <a href="{$home}tarify/">Тарифы</a><br>
         <a href="{$home}kak-rabotaem/">Как мы работаем</a><br>
         <a href="{$home}kontakty/">Контакты и реквизиты</a><br>
-        <a href="{$home}expert/lopakova-nataliya/">Кто оказывает</a><br>
+        <a href="{$home}expert/">Кто оказывает</a><br>
         <a href="{$home}oferta/">Оферта</a><br>
         <a href="{$home}politika-pdn/">Политика обработки персональных данных</a><br>
         <a href="{$home}soglasie/">Согласие на обработку ПДн</a><br>

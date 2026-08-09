@@ -237,6 +237,8 @@ function sfrfr_seo_description(): string
             'kontakty' => 'Телефон, почта, MAX, реквизиты ООО «ПОД ПРИСМОТРОМ» и ссылки на оферту и политику ПДн.',
             'kak-rabotaem' => 'Порядок работы сервиса «Проверка стажа»: заявка, документы, диагностика, план и самостоятельная подача в СФР.',
             'lopakova-nataliya' => 'Лопакова Наталия Федоровна: социальный предприниматель из Ноябрьска, руководитель сервиса «Проверка стажа», проекты «Под присмотром» и публикации в СМИ.',
+            'bogdanovskiy-sergey' => 'Богдановский Сергей Викторович: эксперт по доступной среде и социальной мобильности из Ноябрьска, председатель «Таганая», проектный менеджер «Под присмотром».',
+            'expert' => 'Профили экспертов сервиса «Проверка стажа»: руководитель и эксперт по доступной среде.',
             'kak-proverit-stazh-v-vypiske-ils' => 'Как читать выписку ИЛС, сверить периоды работы с трудовой и понять, каких подтверждений не хватает перед обращением в СФР.',
             'kak-sverit-trudovuyu-knizhku-i-ils' => 'Пошаговая сверка трудовой книжки и выписки ИЛС: как найти расхождения и что подготовить для уточнения сведений.',
             'chto-delat-esli-period-raboty-ne-uchten' => 'Что делать, если период работы не отражён в ИЛС: порядок подтверждения, архивные справки и обращение в СФР.',
@@ -445,6 +447,7 @@ function sfrfr_seo_breadcrumb_trail(): array
             'cookies' => 'Файлы браузера',
             'expert' => 'Эксперты',
             'lopakova-nataliya' => 'Лопакова Н. Ф.',
+            'bogdanovskiy-sergey' => 'Богдановский С. В.',
         ];
         $slug = (string) get_post_field('post_name', $pageId);
         $name = $short[$slug] ?? get_the_title($pageId);
@@ -622,6 +625,18 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         'worksFor' => ['@id' => $orgId],
     ];
 
+    $expertBogdanId = $site . 'expert/bogdanovskiy-sergey/#person';
+    if (is_page('bogdanovskiy-sergey') || is_page('expert')) {
+        $graph[] = [
+            '@type' => 'Person',
+            '@id' => $expertBogdanId,
+            'name' => 'Богдановский Сергей Викторович',
+            'jobTitle' => 'Эксперт по доступной среде',
+            'url' => $site . 'expert/bogdanovskiy-sergey/',
+            'worksFor' => ['@id' => $orgId],
+        ];
+    }
+
     $serviceBase = [
         '@type' => 'Service',
         'provider' => ['@id' => $orgId],
@@ -667,6 +682,15 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             '@id' => $canonical . '#profile',
             'url' => $canonical,
             'mainEntity' => ['@id' => $personId],
+        ];
+    }
+
+    if (is_page('bogdanovskiy-sergey')) {
+        $graph[] = [
+            '@type' => 'ProfilePage',
+            '@id' => $canonical . '#profile',
+            'url' => $canonical,
+            'mainEntity' => ['@id' => $expertBogdanId],
         ];
     }
 
@@ -807,6 +831,7 @@ add_filter('the_content', static function (string $content): string {
     $author = trim((string) get_post_meta($postId, '_sfrfr_author_name', true));
     $authorUrl = trim((string) get_post_meta($postId, '_sfrfr_author_url', true));
     $reviewer = trim((string) get_post_meta($postId, '_sfrfr_reviewer_name', true));
+    $reviewerUrl = trim((string) get_post_meta($postId, '_sfrfr_reviewer_url', true));
     if ($author === '' && $reviewer === '') {
         return $content;
     }
@@ -820,9 +845,16 @@ add_filter('the_content', static function (string $content): string {
     $parts = [];
     if ($authorHtml !== '') {
         $parts[] = 'Автор: ' . $authorHtml;
+        if ($authorUrl !== '') {
+            $parts[] = '<a class="sfrfr-article-byline__about" href="' . esc_url($authorUrl) . '">Об авторе</a>';
+        }
     }
     if ($reviewer !== '') {
-        $parts[] = 'Проверка: ' . esc_html($reviewer);
+        $parts[] = 'Проверка: ' . (
+            $reviewerUrl !== ''
+                ? '<a href="' . esc_url($reviewerUrl) . '">' . esc_html($reviewer) . '</a>'
+                : esc_html($reviewer)
+        );
     }
     $modified = get_the_modified_date('j F Y', $postId);
     if (is_string($modified) && $modified !== '') {

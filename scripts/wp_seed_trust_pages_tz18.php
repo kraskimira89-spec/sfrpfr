@@ -54,6 +54,13 @@ $pages = [
         'seo_title' => 'Лопакова Н. Ф. — сервис «Проверка стажа»',
         'seo_description' => 'Лопакова Наталия Федоровна: социальный предприниматель из Ноябрьска, руководитель сервиса «Проверка стажа», проекты «Под присмотром» и публикации в СМИ.',
     ],
+    [
+        'slug' => 'expert/bogdanovskiy-sergey',
+        'title' => 'Богдановский Сергей Викторович',
+        'file' => 'expert-bogdanovskiy.html',
+        'seo_title' => 'Богдановский С. В. — доступная среда',
+        'seo_description' => 'Богдановский Сергей Викторович: эксперт по доступной среде и социальной мобильности из Ноябрьска, председатель «Таганая», проектный менеджер «Под присмотром».',
+    ],
 ];
 
 function sfrfr_trust_load(string $assets, string $file, string $maxUrl): string
@@ -137,10 +144,30 @@ foreach ($pages as $page) {
     echo "PAGE {$page['slug']}={$id}\n";
 }
 
+// Хаб /expert/ — список профилей (без отдельной категории блога).
+$expertParent = get_page_by_path('expert');
+if ($expertParent instanceof WP_Post) {
+    $indexHtml = sfrfr_trust_load($assets, 'expert-index.html', $maxUrl);
+    $parentId = wp_update_post([
+        'ID' => (int) $expertParent->ID,
+        'post_title' => 'Эксперты',
+        'post_content' => $indexHtml,
+        'post_status' => 'publish',
+    ], true);
+    if (is_wp_error($parentId)) {
+        throw new RuntimeException($parentId->get_error_message());
+    }
+    update_post_meta((int) $expertParent->ID, '_sfrfr_seo_description', 'Профили экспертов сервиса «Проверка стажа»: руководитель и эксперт по доступной среде.');
+    update_post_meta((int) $expertParent->ID, '_rank_math_title', 'Эксперты — Проверка стажа');
+    update_post_meta((int) $expertParent->ID, '_rank_math_description', 'Профили экспертов сервиса «Проверка стажа»: руководитель и эксперт по доступной среде.');
+    echo "PAGE expert={$expertParent->ID}\n";
+}
+
 // Автор / проверяющий на опубликованных экспертных постах (не situacii/analitika).
 $authorName = 'Лопакова Наталия Федоровна';
 $authorUrl = home_url('/expert/lopakova-nataliya/');
 $reviewerName = 'Редакция сервиса «Проверка стажа»';
+$reviewerUrl = home_url('/expert/');
 $posts = get_posts([
     'post_type' => 'post',
     'post_status' => 'publish',
@@ -156,6 +183,7 @@ foreach ($posts as $postId) {
     update_post_meta($postId, '_sfrfr_author_name', $authorName);
     update_post_meta($postId, '_sfrfr_author_url', $authorUrl);
     update_post_meta($postId, '_sfrfr_reviewer_name', $reviewerName);
+    update_post_meta($postId, '_sfrfr_reviewer_url', $reviewerUrl);
     $marked++;
 }
 echo "AUTHOR_META posts={$marked}\n";
