@@ -9,11 +9,15 @@
 
 - Без модалки на WordPress: один клик «Личный кабинет» → `cabinet.proverkastaza.ru`.
 - В кабинете вкладки **Вход** / **Регистрация**; способы «По паролю» и «Код на почту» на виду.
-- В primary-меню: **Главная** с выпадающими разделами главной (`/#…`); сверху отдельно
-  **Статьи**, **Эксперты**, **Личный кабинет**, **Контакты**.
+- В primary-меню добавлены **Эксперты** (`/expert/`) и **Личный кабинет**.
 
 ## Файлы
 
 - `scripts/wp_seed_site_tz02.sh`, `scripts/wp_apply_landing_vps.sh`, `scripts/wp_seed_trust_pages_tz18.php`
 - `scripts/assets/sfrfr-home.html`, `scripts/wp_apply_home.php`, `scripts/assets/sfrfr-landing.css`
 - `apps/cabinet/src/components/client-cabinet.tsx`, `apps/cabinet/src/app/globals.css`
+
+## Позже: выпадающее меню «Главная»
+
+Пункты блоков главной («Как это работает», «Тарифы», «Вопросы») перенесены
+в submenu под «Главная»; на верхнем уровне остаются Статьи, Эксперты, Личный кабинет, Контакты.

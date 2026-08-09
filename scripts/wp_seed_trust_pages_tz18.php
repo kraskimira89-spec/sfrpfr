@@ -209,12 +209,29 @@ foreach ($posts as $postId) {
 }
 echo "AUTHOR_META posts={$marked}\n";
 
-// Меню Primary: не переписывать якоря разделов главной в выпадающем «Главная».
-// Добавить недостающие пункты верхнего уровня.
+// Обновить пункты меню Primary на отдельные URL (если меню есть).
 $menu = wp_get_nav_menu_object('SFRFR Primary');
 if ($menu) {
     $menuId = (int) $menu->term_id;
     $items = wp_get_nav_menu_items($menuId) ?: [];
+    // Якорные пункты под «Главная» (/#tarify и т.п.) не переписываем на отдельные URL.
+    foreach ($items as $item) {
+        $title = (string) $item->title;
+        $parentId = (int) ($item->menu_item_parent ?? 0);
+        $url = (string) ($item->url ?? '');
+        $isHomeAnchor = $parentId > 0 && str_contains($url, '/#');
+        $map = [
+            'О сервисе' => home_url('/proverka-stazha/'),
+        ];
+        if ($isHomeAnchor) {
+            continue;
+        }
+        if (isset($map[$title])) {
+            update_post_meta((int) $item->ID, '_menu_item_url', $map[$title]);
+            echo "MENU {$title} -> {$map[$title]}\n";
+        }
+    }
+    // Добавить пункты, если нет (идемпотентно).
     $titles = [];
     foreach ($items as $item) {
         $titles[(string) $item->title] = true;

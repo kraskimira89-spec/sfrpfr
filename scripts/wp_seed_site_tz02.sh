@@ -184,13 +184,14 @@ MENU_ID="$(find_or_create_menu "SFRFR Primary")"
 echo "MENU_ID=${MENU_ID}"
 if [ -n "${MENU_ID}" ]; then
   clear_menu_items "$MENU_ID"
-  # Разделы главной — в выпадающем «Главная»; отдельные страницы — на верхнем уровне
-  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain | tr -d '[:space:]')"
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как пользоваться MAX" "/#kak-rabotat" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
+  # Короткая воронка: оферта/ПДн — только в footer.
+  # Блоки главной — в выпадающем меню под «Главная».
+  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${HOME_MENU_ID}" ]; then
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
+  fi
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null

@@ -118,13 +118,13 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" menu item delete "$iid" >/dev/null 2>&1 || true
   done
   HOME_ID="$("${WP[@]}" option get page_on_front)"
-  # Разделы главной — в выпадающем «Главная»; отдельные страницы — на верхнем уровне
-  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain | tr -d '[:space:]')"
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как пользоваться MAX" "/#kak-rabotat" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
+  # Блоки главной — в выпадающем меню под «Главная».
+  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${HOME_MENU_ID}" ]; then
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
+  fi
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
   CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
