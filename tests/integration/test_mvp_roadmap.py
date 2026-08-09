@@ -148,7 +148,7 @@ def test_tz11_blog_mvp_assets() -> None:
     assert 'name=\\"description\\"' in seo
     assert 'rel=\\"canonical\\"' in seo
     assert "application/ld+json" in seo
-    assert "Organization" in seo
+    assert "LocalBusiness" in seo
     assert "GovernmentOrganization" not in seo
     assert "preg_replace('/^\\s*(?:<!--.*?-->\\s*)*<h1" in seo
     deploy = (REPO / "scripts/wp_deploy_blog_ui.sh").read_text(encoding="utf-8")
