@@ -164,6 +164,17 @@ function BrandHomeLink({
   );
 }
 
+function SiteNavButton({ className }: { className?: string }) {
+  return (
+    <a
+      className={className ? `cabinet-nav-btn ${className}` : "cabinet-nav-btn"}
+      href={SITE_URL}
+    >
+      На сайт
+    </a>
+  );
+}
+
 /** Единые термины: чат MAX / браузер / страница входа / почта (как в боте). */
 const AUTH_COPY = {
   chatMax: "чат MAX",
@@ -1500,6 +1511,9 @@ export function ClientCabinet() {
   if (needsPasswordGate) {
     return (
       <main className="auth-layout">
+        <nav className="cabinet-top-nav" aria-label="Навигация">
+          <SiteNavButton />
+        </nav>
         <section className="card auth-card">
           <p className="eyebrow">
             <BrandHomeLink>
@@ -1570,6 +1584,9 @@ export function ClientCabinet() {
 
     return (
       <main className="auth-layout">
+        <nav className="cabinet-top-nav" aria-label="Навигация">
+          <SiteNavButton />
+        </nav>
         <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
           <p className="eyebrow">
             <BrandHomeLink>
@@ -1988,6 +2005,7 @@ export function ClientCabinet() {
           </BrandHomeLink>
         </div>
         <div className="header-actions">
+          <SiteNavButton />
           <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
             Выйти
           </button>

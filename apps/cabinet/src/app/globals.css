@@ -203,6 +203,37 @@ header span { color: var(--muted); font-size: 1rem; }
   gap: 8px;
   align-items: center;
 }
+.cabinet-top-nav {
+  width: min(520px, 100%);
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.75rem;
+}
+.cabinet-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.cabinet-nav-btn:hover,
+.cabinet-nav-btn:focus-visible {
+  border-color: var(--brand, #1e4e79);
+  color: var(--brand, #1e4e79);
+  background: #fff;
+  outline: none;
+}
+.header-actions .cabinet-nav-btn {
+  background: transparent;
+  color: var(--brand);
+}
 .warning {
   background: var(--warn-bg);
   border: 1px solid var(--warn-line);
