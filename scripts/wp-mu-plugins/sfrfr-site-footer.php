@@ -86,6 +86,7 @@ function sfrfr_site_footer_html(): string
         </a>
       </p>
       <p>Сервис не является государственным органом. Мы готовим документы, черновики и понятный план. А подаёте обращение через СФР, МФЦ или Госуслуги вы сами. Решение о пенсии и перерасчёте принимает только СФР.</p>
+      {$bvi}
       <p class="sfrfr-iks">
         <a href="https://webmaster.yandex.ru/siteinfo/?site=https://proverkastaza.ru" target="_blank" rel="noopener noreferrer" title="Индекс качества сайта в Яндекс Вебмастере">
           <img width="88" height="31" alt="Индекс качества сайта Яндекса" src="https://yandex.ru/cycounter?https://proverkastaza.ru&amp;theme=light&amp;lang=ru" style="border:0;border-radius:8px;vertical-align:middle" loading="lazy" decoding="async">
@@ -122,7 +123,6 @@ function sfrfr_site_footer_html(): string
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
         Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer">канал в MAX</a>
       </p>
-      {$bvi}
       <p><strong>Банковские реквизиты</strong></p>
       <p class="sfrfr-req">
         р/с 40702810467400005864<br>

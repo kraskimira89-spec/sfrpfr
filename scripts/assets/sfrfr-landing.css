@@ -1427,6 +1427,39 @@ html.sfrfr-awards-lightbox-open {
   box-shadow: 0 2px 10px rgba(16, 42, 67, 0.18);
 }
 
+/* В футере — высокий контраст на тёмном фоне */
+.sfrfr-site-footer .sfrfr-bvi {
+  margin: 0.85rem 0 1rem;
+}
+
+.sfrfr-site-footer .sfrfr-bvi .bvi-shortcode,
+.sfrfr-site-footer .sfrfr-bvi .bvi-shortcode a,
+.sfrfr-site-footer .sfrfr-bvi a.bvi-open,
+.sfrfr-site-footer .bvi-shortcode a {
+  background: #ffffff !important;
+  color: #0b1f33 !important;
+  border: 2px solid #f8fafc !important;
+  box-shadow: 0 0 0 2px #0b1f33, 0 4px 14px rgba(0, 0, 0, 0.28) !important;
+  font-weight: 800 !important;
+  font-size: 0.875rem !important;
+  min-height: 44px;
+  padding: 0.45rem 0.9rem !important;
+}
+
+.sfrfr-site-footer .sfrfr-bvi .bvi-shortcode a:hover,
+.sfrfr-site-footer .sfrfr-bvi a.bvi-open:hover,
+.sfrfr-site-footer .bvi-shortcode a:hover {
+  background: #fde68a !important;
+  color: #0b1f33 !important;
+  border-color: #fde68a !important;
+}
+
+.sfrfr-site-footer .sfrfr-bvi .bvi-svg-eye,
+.sfrfr-site-footer .sfrfr-bvi svg {
+  color: #0b1f33 !important;
+  fill: currentColor !important;
+}
+
 .sfrfr-bvi-float .bvi-shortcode,
 .sfrfr-bvi-float .bvi-shortcode a,
 .sfrfr-bvi-float a.bvi-open {
