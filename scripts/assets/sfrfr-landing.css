@@ -604,6 +604,10 @@ body.page-template-default {
   .sfrfr-steps--row.sfrfr-steps--3 {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  .sfrfr-steps--row.sfrfr-steps--4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* fallback без --row/--stack: как ряд */

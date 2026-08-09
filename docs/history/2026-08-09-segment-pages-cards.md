@@ -1,0 +1,12 @@
+# 2026-08-09 — секции услуговых страниц как на главной
+
+## Figma
+- Файл: https://www.figma.com/design/PgQcoSe72l568LiGF6BRE2
+- Эталон: Segment / Pre-retirement (desktop) — чередование band/white, 3 карточки, 4 шага, FAQ.
+- Компакт: Segment / Compact (no process).
+
+## Сайт
+- `proverka-stazha-pered-pensiey.html` — cards + steps--4 + faq.
+- `proverka-severnogo-stazha.html`, `pomoch-rodstvenniku-proverit-stazh.html` — cards + faq + note.
+- CSS: `.sfrfr-steps--row.sfrfr-steps--4` на широком экране.
+- Копирайт пунктов сохранён; одиночных карточек в разделе нет.
