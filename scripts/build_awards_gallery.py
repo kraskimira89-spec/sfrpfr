@@ -52,6 +52,34 @@ def should_skip(path: Path) -> bool:
     return False
 
 
+def frame_digest(frame: Image.Image) -> str:
+    import hashlib
+    import io
+
+    buf = io.BytesIO()
+    frame.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    return hashlib.md5(buf.getvalue()).hexdigest()
+
+
+def collect_stepik_digests() -> set[str]:
+    """Хэши превью файлов Stepik — чтобы отсечь те же сертификаты под другими именами."""
+    digests: set[str] = set()
+    for path in SRC.iterdir():
+        if not path.is_file() or "stepik" not in path.name.lower():
+            continue
+        if path.stat().st_size < 1024:
+            continue
+        try:
+            raw = load_image(path)
+            if raw is None:
+                continue
+            digests.add(frame_digest(fit_frame(raw)))
+            print("BLACKLIST stepik", path.name)
+        except Exception as exc:  # noqa: BLE001
+            print("FAIL stepik", path.name, exc)
+    return digests
+
+
 def slugify(name: str) -> str:
     base = Path(name).stem
     base = unicodedata.normalize("NFKC", base)
@@ -170,8 +198,6 @@ def person_note(name: str) -> str:
 
 
 def main() -> None:
-    import hashlib
-
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("award-*.jpg"):
         old.unlink()
@@ -180,6 +206,7 @@ def main() -> None:
     used_slugs: set[str] = set()
     seen_hashes: set[str] = set()
     seen_titles: set[str] = set()
+    stepik_hashes = collect_stepik_digests()
     files = sorted(
         [p for p in SRC.iterdir() if is_candidate(p)],
         key=lambda p: (
@@ -206,6 +233,14 @@ def main() -> None:
             print("SKIP title-dup", path.name)
             continue
 
+        digest = frame_digest(frame)
+        if digest in stepik_hashes:
+            print("SKIP stepik-content", path.name)
+            continue
+        if digest in seen_hashes:
+            print("SKIP content-dup", path.name)
+            continue
+
         slug = slugify(path.name)
         base = slug
         n = 2
@@ -217,13 +252,6 @@ def main() -> None:
         out_name = f"award-{slug}.jpg"
         out_path = OUT / out_name
         frame.save(out_path, "JPEG", quality=JPEG_QUALITY, optimize=True)
-
-        digest = hashlib.md5(out_path.read_bytes()).hexdigest()
-        if digest in seen_hashes:
-            out_path.unlink(missing_ok=True)
-            used_slugs.discard(slug)
-            print("SKIP content-dup", path.name)
-            continue
 
         seen_hashes.add(digest)
         if title_key:
