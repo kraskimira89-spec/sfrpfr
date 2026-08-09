@@ -10,6 +10,13 @@ WP=(wp --path="$SITE_DIR" --allow-root)
 export SFRFR_TRUST_ASSETS="${SCRIPT_DIR}/assets/trust"
 export MAX_CHAT_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
 
+echo "==> Deploy expert photos"
+UPLOADS="${SITE_DIR}/wp-content/uploads/sfrfr"
+mkdir -p "${UPLOADS}"
+cp -f "${SCRIPT_DIR}/assets/trust/expert-lopakova.jpg" "${UPLOADS}/expert-lopakova.jpg"
+cp -f "${SCRIPT_DIR}/assets/trust/expert-bogdanovskiy.jpg" "${UPLOADS}/expert-bogdanovskiy.jpg"
+chown -R www-data:www-data "${UPLOADS}" 2>/dev/null || true
+
 echo "==> Seed trust/commerce pages"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_trust_pages_tz18.php"
 

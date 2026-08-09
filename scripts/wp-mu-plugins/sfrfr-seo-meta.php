@@ -616,12 +616,15 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
     }
 
     $personId = $site . 'expert/lopakova-nataliya/#person';
+    $lopakovaPhoto = $site . 'wp-content/uploads/sfrfr/expert-lopakova.jpg';
+    $bogdanPhoto = $site . 'wp-content/uploads/sfrfr/expert-bogdanovskiy.jpg';
     $graph[] = [
         '@type' => 'Person',
         '@id' => $personId,
         'name' => 'Лопакова Наталия Федоровна',
         'jobTitle' => 'Генеральный директор',
         'url' => $site . 'expert/lopakova-nataliya/',
+        'image' => $lopakovaPhoto,
         'worksFor' => ['@id' => $orgId],
     ];
 
@@ -633,6 +636,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'name' => 'Богдановский Сергей Викторович',
             'jobTitle' => 'Эксперт по доступной среде',
             'url' => $site . 'expert/bogdanovskiy-sergey/',
+            'image' => $bogdanPhoto,
             'worksFor' => ['@id' => $orgId],
         ];
     }

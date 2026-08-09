@@ -878,6 +878,72 @@ body.page-template-default {
   font-weight: 600;
 }
 
+.sfrfr-trust__person {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin: 0 0 0.85rem;
+}
+
+.sfrfr-trust__photo {
+  width: 96px;
+  height: 128px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: var(--sfrfr-radius, 10px);
+  flex-shrink: 0;
+  background: #e8eef4;
+}
+
+.sfrfr-trust__person-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.sfrfr-trust__person-text .sfrfr-trust__experience {
+  margin-bottom: 0;
+}
+
+.sfrfr-expert-photo {
+  margin: 0 0 1.25rem;
+  max-width: min(100%, 360px);
+}
+
+.sfrfr-expert-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: var(--sfrfr-radius, 10px);
+  background: #e8eef4;
+}
+
+.sfrfr-expert-photo figcaption {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.sfrfr-expert-card__media {
+  display: block;
+  margin: 0 0 0.85rem;
+  border-radius: var(--sfrfr-radius, 10px);
+  overflow: hidden;
+  background: #e8eef4;
+  aspect-ratio: 4 / 5;
+}
+
+.sfrfr-expert-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
 .sfrfr-trust-signals-block {
   margin-top: 1.25rem;
 }

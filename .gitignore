@@ -52,6 +52,9 @@ storage/cases.tmp
 !scripts/assets/yandex-business/promo/*.png
 !scripts/assets/favicon-120.png
 !scripts/assets/sfrfr-logo-light.png
+!scripts/assets/trust/expert-lopakova.jpg
+!scripts/assets/trust/expert-bogdanovskiy.jpg
+!assets/**/*.webp
 !tests/fixtures/sample_docs/.gitkeep
 !docs/**
 
