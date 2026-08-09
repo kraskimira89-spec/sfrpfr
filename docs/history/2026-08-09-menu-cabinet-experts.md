@@ -1,0 +1,18 @@
+# 2026-08-09 — меню: Эксперты и Личный кабинет
+
+## Запрос
+
+На главной не было явного входа в кабинет. Нужны ссылки в главном меню
+на страницы вроде «Эксперты» и понятный для пенсионеров вход с минимумом кликов.
+
+## Решение
+
+- Без модалки на WordPress: один клик «Личный кабинет» → `cabinet.proverkastaza.ru`.
+- В кабинете вкладки **Вход** / **Регистрация**; способы «По паролю» и «Код на почту» на виду.
+- В primary-меню добавлены **Эксперты** (`/expert/`) и **Личный кабинет**.
+
+## Файлы
+
+- `scripts/wp_seed_site_tz02.sh`, `scripts/wp_apply_landing_vps.sh`, `scripts/wp_seed_trust_pages_tz18.php`
+- `scripts/assets/sfrfr-home.html`, `scripts/wp_apply_home.php`, `scripts/assets/sfrfr-landing.css`
+- `apps/cabinet/src/components/client-cabinet.tsx`, `apps/cabinet/src/app/globals.css`

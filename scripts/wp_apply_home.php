@@ -31,6 +31,13 @@ if ($max_channel_url === '') {
 $text = file_get_contents($home_path);
 $text = str_replace('{{MAX_BTN_URL}}', $max_url, $text);
 $text = str_replace('{{MAX_CHANNEL_URL}}', $max_channel_url, $text);
+$cabinet_url = rtrim(
+    (string) (getenv('SFRFR_CABINET_PUBLIC_URL')
+        ?: getenv('CABINET_URL')
+        ?: 'https://cabinet.proverkastaza.ru'),
+    '/',
+) . '/';
+$text = str_replace('{{CABINET_URL}}', $cabinet_url, $text);
 
 $form_block = '<!-- wp:paragraph --><p><em>Форма заявки временно недоступна.</em></p><!-- /wp:paragraph -->';
 if (function_exists('wpforms')) {

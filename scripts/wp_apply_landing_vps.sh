@@ -123,6 +123,9 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
+  CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL%/}/" >/dev/null
   echo "MENU primary updated id=${MENU_ID}"
 fi
 

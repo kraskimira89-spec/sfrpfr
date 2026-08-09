@@ -87,12 +87,14 @@ echo "LOGO_ID=${LOGO_ID:-?}"
 echo "==> Контент главной (концепция SFRFR)"
 HOME_FILE="$(mktemp)"
 HOME_SRC="${SCRIPT_DIR}/assets/sfrfr-home.html"
-python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$MAX_CHANNEL_URL" "$FORM_FILE" <<'PY'
+python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$MAX_CHANNEL_URL" "${CABINET_URL:-https://cabinet.proverkastaza.ru/}" "$FORM_FILE" <<'PY'
 import sys
-src, dst, max_url, max_channel_url, form_path = sys.argv[1:6]
+src, dst, max_url, max_channel_url, cabinet_url, form_path = sys.argv[1:7]
 text = open(src, encoding="utf-8").read()
 text = text.replace("{{MAX_BTN_URL}}", max_url)
 text = text.replace("{{MAX_CHANNEL_URL}}", max_channel_url)
+cab = cabinet_url.rstrip("/") + "/"
+text = text.replace("{{CABINET_URL}}", cab)
 form_block = open(form_path, encoding="utf-8").read().strip()
 marker = "<!-- SFRFR_FORM -->"
 if marker not in text:
@@ -188,6 +190,8 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
@@ -211,7 +215,7 @@ echo "==> Тема: без сайдбара"
 "${WP[@]}" theme mod set site-sidebar-layout "no-sidebar" 2>/dev/null || true
 
 chown -R www-data:www-data "$SITE_DIR"
-echo "==> OK ТЗ-02/07/20: CTA → личный чат MAX (${MAX_BTN_URL}), кабинет в футере"
+echo "==> OK ТЗ-02/07/20: CTA → личный чат MAX (${MAX_BTN_URL}), кабинет в primary и footer"
 
 if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ]; then
   echo "==> Блог ТЗ-11"

@@ -226,22 +226,32 @@ if ($menu) {
             echo "MENU {$title} -> {$map[$title]}\n";
         }
     }
-    // Добавить Контакты, если нет.
-    $hasContacts = false;
+    // Добавить пункты, если нет (идемпотентно).
+    $titles = [];
     foreach ($items as $item) {
-        if ((string) $item->title === 'Контакты') {
-            $hasContacts = true;
-            break;
-        }
+        $titles[(string) $item->title] = true;
     }
-    if (!$hasContacts && !empty($created['kontakty'])) {
+    $ensure = [
+        'Контакты' => !empty($created['kontakty']) ? home_url('/kontakty/') : null,
+        'Эксперты' => home_url('/expert/'),
+        'Личный кабинет' => rtrim(
+            (string) (getenv('SFRFR_CABINET_PUBLIC_URL')
+                ?: getenv('CABINET_URL')
+                ?: 'https://cabinet.proverkastaza.ru'),
+            '/',
+        ) . '/',
+    ];
+    foreach ($ensure as $title => $url) {
+        if ($url === null || isset($titles[$title])) {
+            continue;
+        }
         wp_update_nav_menu_item($menuId, 0, [
-            'menu-item-title' => 'Контакты',
-            'menu-item-url' => home_url('/kontakty/'),
+            'menu-item-title' => $title,
+            'menu-item-url' => $url,
             'menu-item-status' => 'publish',
             'menu-item-type' => 'custom',
         ]);
-        echo "MENU Контакты added\n";
+        echo "MENU {$title} added\n";
     }
 }
 

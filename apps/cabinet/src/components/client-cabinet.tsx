@@ -377,6 +377,11 @@ export function ClientCabinet() {
         setAuthChannel("email");
         return;
       }
+      if (mode === "login") {
+        setAuthScreen("max");
+        setAuthChannel("max");
+        return;
+      }
       setAuthScreen("max");
       setAuthChannel("max");
     }, 0);
@@ -1561,6 +1566,7 @@ export function ClientCabinet() {
 
   if (!session) {
     const showMax = authScreen === "max";
+    const loginTabActive = authScreen !== "register";
 
     return (
       <main className="auth-layout">
@@ -1579,39 +1585,53 @@ export function ClientCabinet() {
           </p>
           <h1>Личный кабинет</h1>
 
+          <div className="auth-tabs" role="tablist" aria-label="Вход или регистрация">
+            <button
+              type="button"
+              role="tab"
+              id="auth-tab-login"
+              aria-selected={loginTabActive}
+              className={loginTabActive ? "auth-tab active" : "auth-tab"}
+              onClick={() => goAuthScreen("max")}
+            >
+              Вход
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="auth-tab-register"
+              aria-selected={!loginTabActive}
+              className={!loginTabActive ? "auth-tab active" : "auth-tab"}
+              onClick={() => goAuthScreen("register")}
+            >
+              Регистрация
+            </button>
+          </div>
+
           {authScreen === "max" ? (
             <>
               {renderMaxWizard()}
               <div className="auth-alt-hint">
-                <details>
-                  <summary>Другие способы</summary>
-                  <div className="auth-alt-list">
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => goAuthScreen("register")}
-                    >
-                      Зарегистрироваться
-                    </button>
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => goAuthScreen("password")}
-                    >
-                      По паролю
-                    </button>
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => {
-                        setEmailCreateUser(false);
-                        goAuthScreen("email_otp");
-                      }}
-                    >
-                      Код на почту
-                    </button>
-                  </div>
-                </details>
+                <p className="auth-alt-label">Другие способы входа</p>
+                <div className="auth-alt-list" role="group" aria-label="Другие способы входа">
+                  <button
+                    type="button"
+                    className="auth-alt-btn"
+                    onClick={() => goAuthScreen("password")}
+                  >
+                    По паролю
+                  </button>
+                  <button
+                    type="button"
+                    className="auth-alt-btn"
+                    onClick={() => {
+                      setEmailCreateUser(false);
+                      goAuthScreen("email_otp");
+                    }}
+                  >
+                    Код на почту
+                  </button>
+                </div>
               </div>
             </>
           ) : null}

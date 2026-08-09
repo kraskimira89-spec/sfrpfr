@@ -540,6 +540,12 @@ body.page-template-default {
   color: #111111;
 }
 
+.sfrfr-max-guide__cabinet {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
 .sfrfr-max-guide__more {
   align-self: center;
   color: var(--sfrfr-primary);

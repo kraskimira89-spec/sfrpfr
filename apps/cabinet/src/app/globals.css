@@ -352,29 +352,62 @@ header span { color: var(--muted); font-size: 1rem; }
 .auth-method.active:focus-visible span {
   color: #fff;
 }
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+.auth-tab {
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: var(--brand, #1e4e79);
+  border-color: var(--brand, #1e4e79);
+  color: #fff;
+}
+.auth-tab:focus-visible {
+  outline: 3px solid rgba(30, 78, 121, 0.35);
+  outline-offset: 2px;
+}
 .auth-alt-hint {
   margin-top: 1.25rem;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.5rem;
 }
-.auth-alt-hint details {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.65rem 0.85rem;
-  background: #f8fafc;
-}
-.auth-alt-hint summary {
-  cursor: pointer;
+.auth-alt-label {
+  margin: 0;
+  font-size: 0.95rem;
   font-weight: 600;
-  min-height: var(--tap);
-  display: flex;
-  align-items: center;
+  color: var(--muted, #475569);
 }
 .auth-alt-list {
   display: grid;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  gap: 0.5rem;
+  margin: 0;
   padding: 0;
+}
+.auth-alt-btn {
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.auth-alt-btn:hover,
+.auth-alt-btn:focus-visible {
+  border-color: var(--brand, #1e4e79);
 }
 .auth-site-hint {
   margin-top: 1.25rem;
