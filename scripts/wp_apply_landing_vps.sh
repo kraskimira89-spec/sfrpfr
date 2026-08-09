@@ -118,15 +118,18 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" menu item delete "$iid" >/dev/null 2>&1 || true
   done
   HOME_ID="$("${WP[@]}" option get page_on_front)"
-  "${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
+  # Разделы главной — в выпадающем «Главная»; отдельные страницы — на верхнем уровне
+  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain | tr -d '[:space:]')"
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Как пользоваться MAX" "/#kak-rabotat" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
   CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL%/}/" >/dev/null
-  echo "MENU primary updated id=${MENU_ID}"
+  echo "MENU primary updated id=${MENU_ID} home_parent=${HOME_MENU_ID}"
 fi
 
 echo DONE

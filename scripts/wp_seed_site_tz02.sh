@@ -184,11 +184,13 @@ MENU_ID="$(find_or_create_menu "SFRFR Primary")"
 echo "MENU_ID=${MENU_ID}"
 if [ -n "${MENU_ID}" ]; then
   clear_menu_items "$MENU_ID"
-  # Короткая воронка: оферта/ПДн — только в footer
-  "${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" >/dev/null
+  # Разделы главной — в выпадающем «Главная»; отдельные страницы — на верхнем уровне
+  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain | tr -d '[:space:]')"
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Как пользоваться MAX" "/#kak-rabotat" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null
