@@ -10,3 +10,4 @@
 - `proverka-severnogo-stazha.html`, `pomoch-rodstvenniku-proverit-stazh.html` — cards + faq + note.
 - CSS: `.sfrfr-steps--row.sfrfr-steps--4` на широком экране.
 - Копирайт пунктов сохранён; одиночных карточек в разделе нет.
+- Контуры: нечётный section — акцент слева, чётный — справа (карточки, шаги, note, FAQ); в Figma то же.

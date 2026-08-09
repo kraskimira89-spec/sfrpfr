@@ -472,40 +472,6 @@ body.page-template-default {
   border-right: 1px solid rgba(30, 78, 121, 0.1);
 }
 
-/*
-  Чередование контура по разделам (section), не по рядам внутри:
-  нечётный раздел — слева, чётный — справа.
-*/
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-card {
-  border-left: none;
-  border-right: 4px solid var(--sfrfr-primary);
-}
-
-.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(even) .sfrfr-card {
-  border-left: 1px solid rgba(30, 78, 121, 0.1);
-  border-right: 4px solid var(--sfrfr-primary);
-}
-
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-illustration {
-  border-left: none;
-  border-right: 4px solid var(--sfrfr-primary);
-}
-
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-step {
-  border-left: none;
-  border-right: 4px solid var(--sfrfr-accent);
-}
-
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-note {
-  border-left: none;
-  border-right: 4px solid var(--sfrfr-warn);
-}
-
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-faq details {
-  border-left: none;
-  border-right: 4px solid var(--sfrfr-primary);
-}
-
 .sfrfr-card h3 {
   margin: 0 0 0.5rem;
   font-size: clamp(1.05rem, 2.5vw, 1.15rem);
@@ -1482,14 +1448,6 @@ html.sfrfr-awards-lightbox-open {
   overflow: hidden;
 }
 
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__main,
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__rules,
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-awards,
-.sfrfr-landing > section:nth-of-type(even) .sfrfr-calc {
-  border-left: 1px solid rgba(30, 78, 121, 0.1);
-  border-right: 4px solid var(--sfrfr-primary);
-}
-
 .sfrfr-faq details {
   background: var(--sfrfr-surface);
   border-radius: 12px;
@@ -1508,6 +1466,83 @@ html.sfrfr-awards-lightbox-open {
 
 .sfrfr-faq p {
   margin: 0.65rem 0 0;
+}
+
+/*
+  Чередование контура по разделам (section), не по рядам внутри.
+  После базовых стилей card/step/note/faq — нечётный слева, чётный справа.
+*/
+.sfrfr-landing > section:nth-of-type(odd) .sfrfr-card {
+  border-left: 4px solid var(--sfrfr-primary);
+  border-right: none;
+}
+
+.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(odd) .sfrfr-card {
+  border-left: 4px solid var(--sfrfr-primary);
+  border-right: 1px solid rgba(30, 78, 121, 0.1);
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-card {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(even) .sfrfr-card {
+  border-left: 1px solid rgba(30, 78, 121, 0.1);
+  border-right: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-illustration {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-landing > section:nth-of-type(odd) .sfrfr-step {
+  border-left: 4px solid var(--sfrfr-accent);
+  border-right: none;
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-step {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-accent);
+}
+
+.sfrfr-landing > section:nth-of-type(odd) .sfrfr-note {
+  border-left: 4px solid var(--sfrfr-warn);
+  border-right: none;
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-note {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-warn);
+}
+
+.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(even) .sfrfr-note {
+  border-left: 1px solid rgba(201, 135, 23, 0.25);
+  border-right: 4px solid var(--sfrfr-warn);
+}
+
+.sfrfr-landing > section:nth-of-type(odd) .sfrfr-faq details {
+  border-left: 4px solid var(--sfrfr-primary);
+  border-right: none;
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-faq details {
+  border-left: none;
+  border-right: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-landing > section.sfrfr-section--alt:nth-of-type(even) .sfrfr-faq details {
+  border-left: 1px solid rgba(30, 78, 121, 0.1);
+  border-right: 4px solid var(--sfrfr-primary);
+}
+
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__main,
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-trust__rules,
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-awards,
+.sfrfr-landing > section:nth-of-type(even) .sfrfr-calc {
+  border-left: 1px solid rgba(30, 78, 121, 0.1);
+  border-right: 4px solid var(--sfrfr-primary);
 }
 
 .sfrfr-final {
