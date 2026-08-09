@@ -23,7 +23,7 @@
 | Обход по счётчикам Метрики | ⚠️ UI: ещё нужно включить (`NO_METRIKA_COUNTER_CRAWL_ENABLED=PRESENT`, 05.08.2026) |
 | Страницы в поиске (www) | ⚠️ всегда **0** — ожидаемо: `www` → 301 на apex |
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
-| Clean-param в robots | ✅ MU `sfrfr-seo-robots.php` |
+| Clean-param в robots | ✅ MU `sfrfr-seo-robots.php`: ПДн и рекламные метки |
 | Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
 | Favicon `/favicon.ico` | ✅ + `/favicon.svg`, `/favicon-120.png` |
 | Яндекс Бизнес (Sprav) | ✅ профиль `82469923047`, прайс: `docs/ops/yandex-business-profile.md` |
@@ -46,6 +46,11 @@
 | NO_SITEMAPS (иногда) | Sitemap уже в API; при флаге — перепроверить раздел «Файлы Sitemap» на apex. |
 
 «Самостоятельные проверки» (уведомления, целевые запросы) — чеклист UI, не ошибки сайта.
+
+`Clean-param` исключает из уникальности страниц параметры с ПДн и рекламные метки:
+`utm_*`, `yclid`, `ysclid`, `gclid`, `gad_*`, `gbraid`, `wbraid`, `fbclid`,
+`vkclid`, `mt_click_id`, `_erid`, `erid`, `_openstat`, `referral_code`,
+`campaign_code`. Канонический URL и сами переходы с метками остаются доступными.
 
 
 Письмо/экран Вебмастера про **`https://www.proverkastaza.ru`** показывает **0** страниц — так и должно быть:
