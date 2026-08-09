@@ -2,9 +2,15 @@
 
 **Версия:** 1.0  
 **Дата:** 2026-07-23  
-**Статус:** для реализации WordPress-разработчиком  
+**Статус:** ЧАСТИЧНО УСТАРЕЛ — см. баннер ниже  
 **Сайт:** `https://proverkastaza.ru/`  
 **Связанные ТЗ:** [01-architecture.md](01-architecture.md), [02-public-site-wordpress.md](02-public-site-wordpress.md), [06-integrations-and-security.md](06-integrations-and-security.md)
+
+> **Superseded (2026-08-09).** Положения о передаче файлов в мессенджере MAX и о статусе исполнителя «самозанятый/ИП» заменены:
+> - [ТЗ-20](20-max-private-chat-funnel.md), [ТЗ-21](21-trust-first-contact.md), [ТЗ-24](24-max-client-boundaries-home.md) — документы только в кабинете;
+> - публичный исполнитель — ООО «ПОД ПРИСМОТРОМ»;
+> - маркетинг и атрибуция — [docs/marketing-sales/](../marketing-sales/).
+> Исторические пункты ниже сохраняются для аудита; не использовать как инструкцию для продакшена.
 
 ## 1. Цель
 

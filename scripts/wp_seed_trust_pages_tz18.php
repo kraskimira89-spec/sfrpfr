@@ -27,6 +27,27 @@ $pages = [
         'seo_description' => 'Услуга проверки стажа и ИЛС: сверка документов, план обращения в СФР и границы сервиса без обещания перерасчёта.',
     ],
     [
+        'slug' => 'proverka-stazha-pered-pensiey',
+        'title' => 'Проверка стажа перед пенсией',
+        'file' => 'proverka-stazha-pered-pensiey.html',
+        'seo_title' => 'Проверка стажа перед пенсией',
+        'seo_description' => 'Сверка ИЛС и трудовой за 1–5 лет до пенсии: чек-лист документов и план без обещания перерасчёта.',
+    ],
+    [
+        'slug' => 'proverka-severnogo-stazha',
+        'title' => 'Проверка северного стажа',
+        'file' => 'proverka-severnogo-stazha.html',
+        'seo_title' => 'Проверка северного и льготного стажа',
+        'seo_description' => 'Сверка периодов северного и льготного стажа по документам: что отражено в ИЛС и чего не хватает для обращения.',
+    ],
+    [
+        'slug' => 'pomoch-rodstvenniku-proverit-stazh',
+        'title' => 'Помочь родственнику проверить стаж',
+        'file' => 'pomoch-rodstvenniku-proverit-stazh.html',
+        'seo_title' => 'Помочь родственнику проверить стаж',
+        'seo_description' => 'Как помочь родителю с проверкой стажа и ИЛС: порядок действий, согласие и безопасная загрузка документов в кабинет.',
+    ],
+    [
         'slug' => 'tarify',
         'title' => 'Тарифы',
         'file' => 'tarify.html',

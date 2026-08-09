@@ -171,6 +171,11 @@ curl -sS -H "Authorization: Bearer ВАШ_ТОКЕН" \
 | `PIPELINE_STATUS` | Текст | Pipeline status |
 | `CHANNEL` | Текст | Канал клиента |
 | `SOURCE` | Текст | Источник лида |
+| `FIRST_SOURCE` / `LAST_SOURCE` | Текст | First / last touch |
+| `UTM_MEDIUM` … `UTM_TERM` | Текст | UTM |
+| `LANDING_VARIANT`, `AUDIENCE_SEGMENT`, `REGION_BUCKET`, `REFERRAL_CODE` | Текст | Маркетинг |
+| `PROBLEM_TYPE`, `LOSS_REASON` | Текст | Квалификация / потеря |
+| `DIAGNOSTIC_PAID_AT` … `SUCCESS_FEE_*` | Текст | Черновик; success fee не в LTV до юр. решения |
 | `CONSENT` | Флаг (checkbox) | Согласие на связь |
 
 Телефон и email — **стандартные** поля контакта (`PHONE` / `EMAIL`); создавать не нужно.

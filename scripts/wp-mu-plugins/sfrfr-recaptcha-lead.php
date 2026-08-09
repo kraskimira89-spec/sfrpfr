@@ -138,7 +138,34 @@ function sfrfr_public_lead_token(): string
 }
 
 add_action('wp_enqueue_scripts', function () {
-    if (is_admin() || !is_front_page()) {
+    if (is_admin()) {
+        return;
+    }
+    // UTM first-party cookie на всех публичных страницах (сегментные лендинги + главная).
+    $utm_src = '/opt/sfrfr/scripts/assets/sfrfr-utm-attr.js';
+    $utm_mu = WPMU_PLUGIN_DIR . '/sfrfr-utm-attr.js';
+    $utm_url = '';
+    $utm_ver = '1';
+    if (is_readable($utm_mu)) {
+        $utm_url = content_url('mu-plugins/sfrfr-utm-attr.js');
+        $utm_ver = (string) filemtime($utm_mu);
+    } elseif (is_readable($utm_src)) {
+        $upload = wp_upload_dir();
+        $dest = trailingslashit($upload['basedir']) . 'sfrfr/sfrfr-utm-attr.js';
+        if (!is_dir(dirname($dest))) {
+            wp_mkdir_p(dirname($dest));
+        }
+        if (!is_readable($dest) || filemtime($utm_src) > (int) @filemtime($dest)) {
+            @copy($utm_src, $dest);
+        }
+        $utm_url = trailingslashit($upload['baseurl']) . 'sfrfr/sfrfr-utm-attr.js';
+        $utm_ver = (string) @filemtime($dest);
+    }
+    if ($utm_url !== '') {
+        wp_enqueue_script('sfrfr-utm-attr', $utm_url, [], $utm_ver, true);
+    }
+
+    if (!is_front_page()) {
         return;
     }
     $client_key = sfrfr_captcha_client_key();
@@ -303,6 +330,55 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             $captcha !== '' ? mb_substr($captcha, 0, 4000) : null
         ),
     ];
+
+    // UTM / first-touch из cookie sfrfr_attr (90 дней) и query — без ПДн.
+    $attr = [];
+    if (!empty($_COOKIE['sfrfr_attr'])) {
+        $decoded = json_decode(wp_unslash((string) $_COOKIE['sfrfr_attr']), true);
+        if (is_array($decoded)) {
+            $attr = $decoded;
+        }
+    }
+    $utm_keys = [
+        'utm_source' => 'source',
+        'utm_medium' => 'medium',
+        'utm_campaign' => 'campaign',
+        'utm_content' => 'content',
+        'utm_term' => 'term',
+        'landing_variant' => 'landing_variant',
+        'audience_segment' => 'audience_segment',
+        'region_bucket' => 'region_bucket',
+        'referral_code' => 'referral_code',
+        'first_source' => 'first_source',
+        'last_source' => 'last_source',
+        'first_touch_at' => 'first_touch_at',
+        'last_touch_at' => 'last_touch_at',
+    ];
+    foreach ($utm_keys as $from => $to) {
+        $val = '';
+        if (isset($_GET[$from]) && is_string($_GET[$from])) {
+            $val = sanitize_text_field(wp_unslash($_GET[$from]));
+        } elseif (isset($attr[$from]) && is_string($attr[$from])) {
+            $val = sanitize_text_field($attr[$from]);
+        } elseif (isset($attr[$to]) && is_string($attr[$to])) {
+            $val = sanitize_text_field($attr[$to]);
+        }
+        if ($val !== '') {
+            // source формы оставляем wordpress_wpforms; utm_source → last_source / medium…
+            if ($to === 'source') {
+                $payload['last_source'] = mb_substr($val, 0, 64);
+                if (empty($payload['first_source'])) {
+                    $payload['first_source'] = mb_substr(
+                        is_string($attr['first_source'] ?? null) ? $attr['first_source'] : $val,
+                        0,
+                        64
+                    );
+                }
+            } else {
+                $payload[$to] = mb_substr($val, 0, ($to === 'campaign' || $to === 'content' || $to === 'term') ? 120 : 64);
+            }
+        }
+    }
 
     $headers = [
         'Content-Type' => 'application/json',

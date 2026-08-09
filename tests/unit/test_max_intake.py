@@ -70,16 +70,16 @@ def test_repeat_start_keeps_started_intake(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
 
     handle_max_update(_msg(8, "/start"), bot=bot)
-    handle_max_update(_cb(8, "intake:goal:missing_period"), bot=bot)
+    handle_max_update(_cb(8, "intake:whom:relative"), bot=bot)
     first = get_intake_store().get_active("8")
-    assert first is not None and first.goal == "missing_period"
+    assert first is not None and first.for_whom == "relative"
     intake_id = first.id
 
     handle_max_update(_msg(8, "/start"), bot=bot)
     again = get_intake_store().get_active("8")
     assert again is not None
     assert again.id == intake_id
-    assert again.goal == "missing_period"
+    assert again.for_whom == "relative"
     get_settings.cache_clear()
 
 
@@ -90,9 +90,10 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
 
     handle_max_update(_msg(9, "/start"), bot=bot)
     for payload in (
-        "intake:goal:check_experience",
-        "intake:ils:no",
-        "intake:emp:no",
+        "intake:whom:self",
+        "intake:pension:before",
+        "intake:problem:ils_stazh",
+        "intake:ils:need",
         "intake:device:max",
     ):
         result = handle_max_update(_cb(9, payload), bot=bot)
@@ -109,6 +110,20 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
     assert last_att
     blob = str(last_att)
     assert case_id in blob
+    get_settings.cache_clear()
+
+
+def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(19, "/start"), bot=bot)
+    for payload in (
+        "intake:goal:check_experience",
+        "intake:ils:no",
+        "intake:emp:no",
+        "intake:device:max",
+    ):
+        result = handle_max_update(_cb(19, payload), bot=bot)
+    assert result.action == "max_intake_completed"
     get_settings.cache_clear()
 
 

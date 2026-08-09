@@ -14,11 +14,20 @@ def test_build_lead_custom_fields_codes() -> None:
         channel="max_miniapp",
         source="wordpress",
         consent=True,
+        first_source="yandex",
+        last_source="wordpress",
+        utm_medium="cpc",
+        utm_campaign="north",
+        audience_segment="north_or_preferential",
+        problem_type="lead:yandex:north_or_preferential",
     )
     codes = {item["field_code"] for item in fields}
     assert CASE_ID in codes
     assert CONSENT in codes
     assert "SFRFR_CASE_URL" in codes
+    assert "FIRST_SOURCE" in codes
+    assert "UTM_CAMPAIGN" in codes
+    assert "AUDIENCE_SEGMENT" in codes
     consent = next(item for item in fields if item["field_code"] == CONSENT)
     assert consent["values"][0]["value"] is True
 

@@ -1,11 +1,11 @@
-"""Диагностика в личном чате MAX (ТЗ-20): модель, store, тексты и клавиатуры."""
+"""Диагностика в личном чате MAX (ТЗ-20 + marketing §10.1): модель, store, тексты и клавиатуры."""
 
 from __future__ import annotations
 
 import json
 import threading
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -15,11 +15,22 @@ from sfrfr.core.config import get_settings
 from sfrfr.core.copy import POSITION_SHORT
 from sfrfr.integrations.max.client import inline_buttons_keyboard
 
+# Legacy goal (для совместимости store / метрик)
 Goal = Literal["check_experience", "missing_period", "sfr_question", "operator"]
-IlsAvail = Literal["yes", "no", "unknown"]
+ForWhom = Literal["self", "relative"]
+PensionStatus = Literal["before", "assigned"]
+ProblemType = Literal["ils_stazh", "north", "documents", "sfr_refusal"]
+IlsAvail = Literal["yes", "no", "unknown", "need"]
 EmpAvail = Literal["yes", "partial", "no"]
 DevicePref = Literal["max", "web", "help"]
 IntakeStatus = Literal["started", "completed", "handed_to_operator", "abandoned"]
+
+PROBLEM_TO_GOAL: dict[str, Goal] = {
+    "ils_stazh": "check_experience",
+    "north": "check_experience",
+    "documents": "missing_period",
+    "sfr_refusal": "sfr_question",
+}
 
 GOAL_LABELS: dict[str, str] = {
     "check_experience": "Проверить стаж",
@@ -30,7 +41,7 @@ GOAL_LABELS: dict[str, str] = {
 
 WELCOME_TEXT = (
     "Здравствуйте! Поможем разобраться со стажем и документами. "
-    f"{POSITION_SHORT} С чего начнём?"
+    f"{POSITION_SHORT} Для кого проверка?"
 )
 
 SUMMARY_TEXT = (
@@ -68,6 +79,9 @@ class MaxIntakeRecord:
     id: str
     max_user_id: str
     goal: Goal | None = None
+    for_whom: ForWhom | None = None
+    pension_status: PensionStatus | None = None
+    problem_type: ProblemType | None = None
     ils_available: IlsAvail | None = None
     employment_records_available: EmpAvail | None = None
     device_preference: DevicePref | None = None
@@ -79,19 +93,33 @@ class MaxIntakeRecord:
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def step(self) -> str:
-        """Текущий шаг FSM для метрик."""
-        if self.goal is None:
-            return "goal"
-        if self.ils_available is None and self.goal != "operator":
+        """Текущий шаг FSM для метрик (marketing §10.1)."""
+        if self.goal == "operator":
+            return "summary"
+        if self.for_whom is None and self.goal is None:
+            return "whom"
+        # Legacy: goal set without for_whom — continue old path
+        if self.goal is not None and self.for_whom is None:
+            if self.ils_available is None:
+                return "ils"
+            if self.employment_records_available is None and self.goal != "sfr_question":
+                return "employment"
+            if self.device_preference is None:
+                return "device"
+            return "summary"
+        if self.pension_status is None:
+            return "pension"
+        if self.problem_type is None:
+            return "problem"
+        if self.ils_available is None:
             return "ils"
-        if self.employment_records_available is None and self.goal not in {
-            "operator",
-            "sfr_question",
-        }:
-            return "employment"
-        if self.device_preference is None and self.goal != "operator":
+        if self.device_preference is None:
             return "device"
         return "summary"
+
+    def sync_goal_from_problem(self) -> None:
+        if self.problem_type and self.problem_type in PROBLEM_TO_GOAL:
+            self.goal = PROBLEM_TO_GOAL[self.problem_type]
 
 
 def default_intake_path() -> Path:
@@ -114,9 +142,18 @@ class MaxIntakeStore:
             return
         raw = json.loads(self.path.read_text(encoding="utf-8") or "{}")
         rows = raw.get("rows") or {}
-        self._rows = {
-            mid: MaxIntakeRecord(**data) for mid, data in rows.items() if isinstance(data, dict)
-        }
+        loaded: dict[str, MaxIntakeRecord] = {}
+        for mid, data in rows.items():
+            if not isinstance(data, dict):
+                continue
+            # Игнор неизвестных ключей при эволюции схемы
+            known = {f.name for f in fields(MaxIntakeRecord)}
+            filtered = {k: v for k, v in data.items() if k in known}
+            try:
+                loaded[mid] = MaxIntakeRecord(**filtered)
+            except TypeError:
+                continue
+        self._rows = loaded
 
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -191,45 +228,62 @@ def reset_intake_store(path: Path | None = None) -> MaxIntakeStore:
         return _store
 
 
-def goal_keyboard() -> list[dict[str, Any]]:
+def whom_keyboard() -> list[dict[str, Any]]:
     return inline_buttons_keyboard(
         [
-            [
-                {
-                    "type": "callback",
-                    "text": GOAL_LABELS["check_experience"],
-                    "payload": "intake:goal:check_experience",
-                }
-            ],
-            [
-                {
-                    "type": "callback",
-                    "text": GOAL_LABELS["missing_period"],
-                    "payload": "intake:goal:missing_period",
-                }
-            ],
-            [
-                {
-                    "type": "callback",
-                    "text": GOAL_LABELS["sfr_question"],
-                    "payload": "intake:goal:sfr_question",
-                }
-            ],
-            [
-                {
-                    "type": "callback",
-                    "text": GOAL_LABELS["operator"],
-                    "payload": "intake:goal:operator",
-                }
-            ],
+            [{"type": "callback", "text": "За себя", "payload": "intake:whom:self"}],
+            [{"type": "callback", "text": "Помогаю близкому", "payload": "intake:whom:relative"}],
+            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
         ]
     )
+
+
+def pension_keyboard() -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [
+            [{"type": "callback", "text": "До пенсии", "payload": "intake:pension:before"}],
+            [
+                {
+                    "type": "callback",
+                    "text": "Пенсия назначена",
+                    "payload": "intake:pension:assigned",
+                }
+            ],
+            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
+        ]
+    )
+
+
+def problem_keyboard() -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [
+            [{"type": "callback", "text": "ИЛС и стаж", "payload": "intake:problem:ils_stazh"}],
+            [
+                {
+                    "type": "callback",
+                    "text": "Северный или льготный",
+                    "payload": "intake:problem:north",
+                }
+            ],
+            [{"type": "callback", "text": "Документы", "payload": "intake:problem:documents"}],
+            [{"type": "callback", "text": "Отказ СФР", "payload": "intake:problem:sfr_refusal"}],
+            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
+        ]
+    )
+
+
+def goal_keyboard() -> list[dict[str, Any]]:
+    """Стартовое меню = шаг «для кого» (§10.1)."""
+    return whom_keyboard()
 
 
 def ils_keyboard() -> list[dict[str, Any]]:
     return inline_buttons_keyboard(
         [
-            [{"type": "callback", "text": "Да", "payload": "intake:ils:yes"}],
+            [{"type": "callback", "text": "Есть выписка ИЛС", "payload": "intake:ils:yes"}],
+            [{"type": "callback", "text": "Нужно получить", "payload": "intake:ils:need"}],
             [{"type": "callback", "text": "Нет", "payload": "intake:ils:no"}],
             [
                 {
@@ -239,6 +293,7 @@ def ils_keyboard() -> list[dict[str, Any]]:
                 }
             ],
             [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
 
@@ -309,6 +364,18 @@ def upload_blocked_keyboard(*, cabinet_max_url: str, cabinet_web_url: str) -> li
     )
 
 
+def whom_question() -> str:
+    return WELCOME_TEXT
+
+
+def pension_question() -> str:
+    return "Пенсия уже назначена или ещё до пенсии?"
+
+
+def problem_question() -> str:
+    return "Что сейчас важнее всего?"
+
+
 def ils_question() -> str:
     return "Есть выписка из индивидуального лицевого счёта (ИЛС)?"
 
@@ -321,23 +388,23 @@ def device_question() -> str:
     return "Как вам удобнее загрузить документы?"
 
 
-def cabinet_urls_for_case(case_id: str) -> tuple[str, str]:
+def cabinet_urls_for_case(case_id: str | None) -> tuple[str, str]:
     settings = get_settings()
-    mini = (settings.max_miniapp_url or settings.max_public_bot_url or "").rstrip("/")
-    if mini and "case=" not in mini:
-        sep = "&" if "?" in mini else "?"
-        mini_url = f"{mini}{sep}{urlencode({'case': case_id})}"
-    else:
-        mini_url = mini or settings.max_chat_url
-    web = f"{settings.cabinet_public_url.rstrip('/')}/cases/{case_id}"
-    return mini_url, web
+    web = settings.cabinet_public_url.rstrip("/")
+    max_app = (settings.max_miniapp_url or web).rstrip("/")
+    if case_id:
+        q = urlencode({"case": case_id})
+        return f"{max_app}?{q}", f"{web}/?{q}"
+    return max_app, web
 
 
 def problem_type_for_goal(goal: Goal | None) -> str:
+    if not goal:
+        return "intake"
     mapping = {
         "check_experience": "check_experience",
         "missing_period": "missing_period",
         "sfr_question": "sfr_question",
-        "operator": "operator_request",
+        "operator": "operator",
     }
-    return mapping.get(goal or "", "client_open")
+    return mapping.get(goal, "intake")

@@ -133,6 +133,18 @@ class AmoCrmClient:
         crm_external_id: str | None = None,
         case_url: str | None = None,
         task: str | None = None,
+        first_source: str | None = None,
+        last_source: str | None = None,
+        utm_medium: str | None = None,
+        utm_campaign: str | None = None,
+        utm_content: str | None = None,
+        utm_term: str | None = None,
+        landing_variant: str | None = None,
+        audience_segment: str | None = None,
+        region_bucket: str | None = None,
+        referral_code: str | None = None,
+        problem_type: str | None = None,
+        loss_reason: str | None = None,
     ) -> dict[str, Any]:
         """Создать или обновить сделку. Возвращает lead_id при успехе."""
         if not self.available:
@@ -145,6 +157,18 @@ class AmoCrmClient:
             channel=channel,
             source=source,
             consent=consent,
+            first_source=first_source,
+            last_source=last_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            utm_content=utm_content,
+            utm_term=utm_term,
+            landing_variant=landing_variant,
+            audience_segment=audience_segment,
+            region_bucket=region_bucket,
+            referral_code=referral_code,
+            problem_type=problem_type,
+            loss_reason=loss_reason,
         )
         name = (full_name or "Клиент SFRFR").strip()[:250]
         lead_name = f"Проверка стажа — {name}"[:250]
@@ -255,6 +279,18 @@ def sync_case_to_amocrm(
     crm_external_id: str | None = None,
     case_url: str | None = None,
     task: str | None = None,
+    first_source: str | None = None,
+    last_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
+    utm_content: str | None = None,
+    utm_term: str | None = None,
+    landing_variant: str | None = None,
+    audience_segment: str | None = None,
+    region_bucket: str | None = None,
+    referral_code: str | None = None,
+    problem_type: str | None = None,
+    loss_reason: str | None = None,
 ) -> dict[str, Any]:
     return AmoCrmClient().sync_case(
         case_id=case_id,
@@ -269,6 +305,18 @@ def sync_case_to_amocrm(
         crm_external_id=crm_external_id,
         case_url=case_url,
         task=task,
+        first_source=first_source,
+        last_source=last_source,
+        utm_medium=utm_medium,
+        utm_campaign=utm_campaign,
+        utm_content=utm_content,
+        utm_term=utm_term,
+        landing_variant=landing_variant,
+        audience_segment=audience_segment,
+        region_bucket=region_bucket,
+        referral_code=referral_code,
+        problem_type=problem_type,
+        loss_reason=loss_reason,
     )
 
 

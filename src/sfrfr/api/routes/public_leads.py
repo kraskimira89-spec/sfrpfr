@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 class PublicLeadRequest(BaseModel):
-    """Минимальный лид с сайта: без СНИЛС и файлов (ТЗ-02 / ТЗ-07 этап 1)."""
+    """Минимальный лид с сайта: без СНИЛС и файлов (ТЗ-02 / marketing attribution)."""
 
     full_name: str = Field(min_length=1, max_length=200)
     email: str | None = Field(default=None, max_length=200, description="Почта (по желанию)")
@@ -38,6 +38,18 @@ class PublicLeadRequest(BaseModel):
         description="max_miniapp | web_cabinet | unset",
     )
     source: str = Field(default="wordpress", max_length=64)
+    medium: str | None = Field(default=None, max_length=64)
+    campaign: str | None = Field(default=None, max_length=120)
+    content: str | None = Field(default=None, max_length=120)
+    term: str | None = Field(default=None, max_length=120)
+    landing_variant: str | None = Field(default=None, max_length=64)
+    audience_segment: str | None = Field(default=None, max_length=64)
+    region_bucket: str | None = Field(default=None, max_length=64)
+    referral_code: str | None = Field(default=None, max_length=64)
+    first_source: str | None = Field(default=None, max_length=64)
+    last_source: str | None = Field(default=None, max_length=64)
+    first_touch_at: str | None = Field(default=None, max_length=40)
+    last_touch_at: str | None = Field(default=None, max_length=40)
     recaptcha_token: str | None = Field(
         default=None,
         max_length=4000,
@@ -207,7 +219,19 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         phone=phone,
         consent=consent,
         preferred_channel=_normalize_channel(preferred),
-        source="wordpress_wpforms",
+        source=str(raw.get("source") or "wordpress_wpforms")[:64],
+        medium=str(raw.get("medium") or raw.get("utm_medium") or "")[:64] or None,
+        campaign=str(raw.get("campaign") or raw.get("utm_campaign") or "")[:120] or None,
+        content=str(raw.get("content") or raw.get("utm_content") or "")[:120] or None,
+        term=str(raw.get("term") or raw.get("utm_term") or "")[:120] or None,
+        landing_variant=str(raw.get("landing_variant") or "")[:64] or None,
+        audience_segment=str(raw.get("audience_segment") or "")[:64] or None,
+        region_bucket=str(raw.get("region_bucket") or "")[:64] or None,
+        referral_code=str(raw.get("referral_code") or "")[:64] or None,
+        first_source=str(raw.get("first_source") or "")[:64] or None,
+        last_source=str(raw.get("last_source") or "")[:64] or None,
+        first_touch_at=str(raw.get("first_touch_at") or "")[:40] or None,
+        last_touch_at=str(raw.get("last_touch_at") or "")[:40] or None,
         recaptcha_token=recaptcha_token,
         smartcaptcha_token=smartcaptcha_token,
     )
@@ -425,6 +449,24 @@ def _create_lead(
         client_ip=client_ip,
     )
 
+    from sfrfr.marketing.attribution import normalize_attribution
+
+    attr = normalize_attribution(
+        source=payload.source,
+        medium=payload.medium,
+        campaign=payload.campaign,
+        content=payload.content,
+        term=payload.term,
+        landing_variant=payload.landing_variant,
+        audience_segment=payload.audience_segment,
+        region_bucket=payload.region_bucket,
+        referral_code=payload.referral_code,
+        first_source=payload.first_source,
+        last_source=payload.last_source,
+        first_touch_at=payload.first_touch_at,
+        last_touch_at=payload.last_touch_at,
+    )
+
     settings = get_settings()
     phone, email, contact_display = _resolve_lead_contacts(payload)
     preferred = _normalize_channel(payload.preferred_channel)
@@ -446,6 +488,10 @@ def _create_lead(
         raise HTTPException(status_code=502, detail="failed to create client")
     client_id = str(client_row.data[0]["id"])
 
+    problem = f"lead:{attr.source}"
+    if attr.audience_segment and attr.audience_segment != "unknown":
+        problem = f"lead:{attr.source}:{attr.audience_segment}"
+
     case_row = (
         client.table("cases")
         .insert(
@@ -454,7 +500,7 @@ def _create_lead(
                 "pipeline_status": "intake",
                 "b2c_status": "lead",
                 "segment": "b2c",
-                "problem_type": f"lead:{payload.source}",
+                "problem_type": problem[:200],
             }
         )
         .execute()
@@ -467,7 +513,7 @@ def _create_lead(
         {
             "case_id": case_id,
             "actor_id": None,
-            "action": f"public_lead:{payload.source}",
+            "action": f"public_lead:{attr.source}",
         }
     ).execute()
 
@@ -494,10 +540,21 @@ def _create_lead(
         phone=phone,
         email=email,
         channel=preferred,
-        source=payload.source,
+        source=attr.source,
         consent=bool(payload.consent),
         case_url=f"{admin_base}/?case={case_id}" if admin_base else None,
-        task=f"lead:{payload.source}",
+        task=f"lead:{attr.source}",
+        first_source=attr.first_source,
+        last_source=attr.last_source,
+        utm_medium=attr.medium,
+        utm_campaign=attr.campaign or None,
+        utm_content=attr.content or None,
+        utm_term=attr.term or None,
+        landing_variant=attr.landing_variant or None,
+        audience_segment=attr.audience_segment,
+        region_bucket=attr.region_bucket,
+        referral_code=attr.referral_code or None,
+        problem_type=problem,
     )
     _require_amocrm_lead(amocrm if isinstance(amocrm, dict) else None)
     lead_id = amocrm.get("lead_id") if isinstance(amocrm, dict) else None

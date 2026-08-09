@@ -91,11 +91,21 @@ MU: `sfrfr-yandex-metrika.php`, `sfrfr-seo-robots.php` (Clean-param), verificati
 | Код | Триггер |
 |-----|---------|
 | `max_click` | клик MAX |
+| `max_chat_click` | CTA личного чата (`data-sfrfr-goal`) |
+| `max_channel_click` | клик канала MAX |
+| `callback_click` | клик «Позвонить» на сегментных страницах |
+| `segment_page_view` | просмотр сегментного лендинга |
+| `checklist_download` | клик чек-листа |
 | `cabinet_click` | cabinet.proverkastaza.ru |
 | `lead_start` | `#zayavka` / focus формы |
-| `tariff_view` | `#tarify` в viewport |
+| `tariffs_view` | `#tarify` в viewport (основная) |
+| `tariff_view` | совместимость со старыми отчётами |
 | `lead_ok` | WPForms success |
 | `form_error` | WPForms error |
+
+Серверные `diagnostic_paid` / `service_paid` / `qualification_*` — без ПДн; до подключения offline-конверсий учитывать в weekly-отчёте вручную из CRM/оплат.
+
+Параметры события (allowlist): `placement`, `page_type`, `audience_segment`, `campaign_code`, `region_bucket`.
 
 ---
 

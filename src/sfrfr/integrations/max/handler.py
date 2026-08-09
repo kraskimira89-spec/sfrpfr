@@ -33,9 +33,14 @@ from sfrfr.integrations.max.intake import (
     goal_keyboard,
     ils_keyboard,
     ils_question,
+    pension_keyboard,
+    pension_question,
+    problem_keyboard,
+    problem_question,
     problem_type_for_goal,
     summary_keyboard,
     upload_blocked_keyboard,
+    whom_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
 from sfrfr.ops.auth_log import auth_event
@@ -544,7 +549,7 @@ def _handle_intake_callback(
             user_id=user_id,
             chat_id=chat_id,
             text=WELCOME_TEXT,
-            attachments=goal_keyboard(),
+            attachments=whom_keyboard(),
         )
         return MaxHandleResult(ok=True, action="max_intake_restart", reply=WELCOME_TEXT)
 
@@ -573,16 +578,64 @@ def _handle_intake_callback(
     if kind == "back":
         step = intake.step()
         if step == "device":
-            intake.employment_records_available = None
+            intake.ils_available = None
+            intake.device_preference = None
             intake_store.save(intake)
             _reply(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
-                text=employment_question(),
-                attachments=employment_keyboard(),
+                text=ils_question(),
+                attachments=ils_keyboard(),
             )
-            return MaxHandleResult(ok=True, action="intake_back", reply=employment_question())
+            return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
+        if step == "ils":
+            if intake.for_whom is not None:
+                intake.problem_type = None
+                intake.goal = None
+                intake_store.save(intake)
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=problem_question(),
+                    attachments=problem_keyboard(),
+                )
+                return MaxHandleResult(ok=True, action="intake_back", reply=problem_question())
+            intake.ils_available = None
+            intake.employment_records_available = None
+            intake.device_preference = None
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=ils_question(),
+                attachments=ils_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
+        if step == "problem":
+            intake.pension_status = None
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=pension_question(),
+                attachments=pension_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=pension_question())
+        if step == "pension":
+            intake.for_whom = None
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=WELCOME_TEXT,
+                attachments=whom_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=WELCOME_TEXT)
         if step in {"employment", "summary"}:
             intake.ils_available = None
             intake.employment_records_available = None
@@ -601,10 +654,65 @@ def _handle_intake_callback(
             user_id=user_id,
             chat_id=chat_id,
             text=WELCOME_TEXT,
-            attachments=goal_keyboard(),
+            attachments=whom_keyboard(),
         )
         return MaxHandleResult(ok=True, action="intake_back", reply=WELCOME_TEXT)
 
+    if kind == "whom" and value in {"self", "relative"}:
+        intake.for_whom = value  # type: ignore[assignment]
+        intake.pension_status = None
+        intake.problem_type = None
+        intake.goal = None
+        intake.ils_available = None
+        intake.device_preference = None
+        intake.status = "started"
+        intake_store.save(intake)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=pension_question(),
+            attachments=pension_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_whom", reply=pension_question())
+
+    if kind == "pension" and value in {"before", "assigned"}:
+        intake.pension_status = value  # type: ignore[assignment]
+        intake.problem_type = None
+        intake.goal = None
+        intake.ils_available = None
+        intake.device_preference = None
+        intake_store.save(intake)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=problem_question(),
+            attachments=problem_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_pension", reply=problem_question())
+
+    if kind == "problem" and value in {"ils_stazh", "north", "documents", "sfr_refusal"}:
+        intake.problem_type = value  # type: ignore[assignment]
+        intake.sync_goal_from_problem()
+        intake.ils_available = None
+        intake.device_preference = None
+        intake_store.save(intake)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=ils_question(),
+            attachments=ils_keyboard(),
+        )
+        return MaxHandleResult(
+            ok=True,
+            action="intake_problem",
+            reply=ils_question(),
+            detail=str(intake.problem_type),
+        )
+
+    # Legacy goal payloads (старые кнопки / тесты)
     if kind == "goal" and value in {
         "check_experience",
         "missing_period",
@@ -621,9 +729,19 @@ def _handle_intake_callback(
             bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
         )
 
-    if kind == "ils" and value in {"yes", "no", "unknown"}:
+    if kind == "ils" and value in {"yes", "no", "unknown", "need"}:
         intake.ils_available = value  # type: ignore[assignment]
         intake_store.save(intake)
+        # Новый поток §10.1: после ИЛС сразу устройство (без employment)
+        if intake.for_whom is not None or intake.problem_type is not None:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=device_question(),
+                attachments=device_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_ils", reply=device_question())
         if intake.goal == "sfr_question":
             intake.device_preference = intake.device_preference or "max"
             intake_store.save(intake)

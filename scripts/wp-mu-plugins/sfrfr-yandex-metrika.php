@@ -324,21 +324,49 @@ add_action('wp_footer', static function (): void {
 
   function goalWithPlacement(name, el) {
     var placement = placementOf(el);
-    window.sfrfrMetrikaGoal(name, placement ? { placement: placement } : undefined);
+    var params = {};
+    if (placement) params.placement = placement;
+    var segmentRoot = el && el.closest ? el.closest("[data-audience-segment]") : null;
+    if (segmentRoot && segmentRoot.getAttribute) {
+      var seg = segmentRoot.getAttribute("data-audience-segment");
+      if (seg) params.audience_segment = seg;
+      var pageType = segmentRoot.getAttribute("data-page-type");
+      if (pageType) params.page_type = pageType;
+    }
+    window.sfrfrMetrikaGoal(name, Object.keys(params).length ? params : undefined);
   }
 
   function bindGoals() {
     document.querySelectorAll('a[href*="max.ru"], a[href*="startapp"]').forEach(function (a) {
       once(a, "sfrfrMetrikaMax", function (el) {
         el.addEventListener("click", function () {
-          goalWithPlacement("max_click", el);
+          var custom = el.getAttribute && el.getAttribute("data-sfrfr-goal");
+          if (custom === "max_chat_click") {
+            goalWithPlacement("max_chat_click", el);
+          } else if (custom === "max_channel_click") {
+            goalWithPlacement("max_channel_click", el);
+          } else {
+            goalWithPlacement("max_click", el);
+          }
         });
       });
     });
-    document.querySelectorAll('a[href^="tel:+79091950408"], a[href="tel:+79091950408"]').forEach(function (a) {
+    document.querySelectorAll('a[href*="max.ru/"][href*="joinchat"], a[data-sfrfr-goal="max_channel_click"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaMaxCh", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("max_channel_click", el);
+        });
+      });
+    });
+    document.querySelectorAll('a[href^="tel:+79091950408"], a[href="tel:+79091950408"], a[data-sfrfr-goal="callback_click"]').forEach(function (a) {
       once(a, "sfrfrMetrikaPhone", function (el) {
         el.addEventListener("click", function () {
-          goalWithPlacement("phone_click", el);
+          var custom = el.getAttribute && el.getAttribute("data-sfrfr-goal");
+          if (custom === "callback_click") {
+            goalWithPlacement("callback_click", el);
+          } else {
+            goalWithPlacement("phone_click", el);
+          }
         });
       });
     });
@@ -363,6 +391,13 @@ add_action('wp_footer', static function (): void {
         });
       });
     });
+    document.querySelectorAll('a[href*="checklist"], a[data-sfrfr-goal="checklist_download"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaChecklist", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("checklist_download", el);
+        });
+      });
+    });
     var form = document.querySelector("#zayavka form, .wpforms-form, form.wpforms-form");
     if (form) {
       once(form, "sfrfrMetrikaLeadStartF", function (el) {
@@ -377,7 +412,6 @@ add_action('wp_footer', static function (): void {
         var io = new IntersectionObserver(function (entries) {
           entries.forEach(function (en) {
             if (en.isIntersecting) {
-              // ТЗ-21: tariffs_view; tariff_view — совместимость со старыми целями
               window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
               window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
               io.disconnect();
@@ -389,6 +423,18 @@ add_action('wp_footer', static function (): void {
     } else if (location.pathname.indexOf("/tarify") === 0) {
       window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
       window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
+    }
+    var segment = document.querySelector(".sfrfr-landing[data-audience-segment]");
+    if (segment) {
+      once(segment, "sfrfrMetrikaSegment", function (el) {
+        var seg = el.getAttribute("data-audience-segment") || "unknown";
+        var pageType = el.getAttribute("data-page-type") || "segment";
+        window.sfrfrMetrikaGoal("segment_page_view", {
+          audience_segment: seg,
+          page_type: pageType,
+          placement: "segment_landing",
+        });
+      });
     }
   }
 
