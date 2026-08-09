@@ -175,6 +175,15 @@ function SiteNavButton({ className }: { className?: string }) {
   );
 }
 
+function SiteReturnPanel() {
+  return (
+    <a className="auth-return-panel" href={SITE_URL}>
+      <span className="auth-return-panel__title">Вернуться на сайт</span>
+      <span className="auth-return-panel__hint">proverkastaza.ru</span>
+    </a>
+  );
+}
+
 /** Единые термины: чат MAX / браузер / страница входа / почта (как в боте). */
 const AUTH_COPY = {
   chatMax: "чат MAX",
@@ -1510,70 +1519,70 @@ export function ClientCabinet() {
   // После входа — пароль по желанию (кроме восстановления)
   if (needsPasswordGate) {
     return (
-      <main className="auth-layout">
-        <nav className="cabinet-top-nav" aria-label="Навигация">
-          <SiteNavButton />
-        </nav>
-        <section className="card auth-card">
-          <p className="eyebrow">
-            <BrandHomeLink>
-              <img
-                className="brand-logo"
-                src="/logo-light.png"
-                width={40}
-                height={40}
-                alt="Проверка стажа"
+      <main className="auth-layout auth-layout--split">
+        <div className="auth-split">
+          <section className="card auth-card">
+            <p className="eyebrow">
+              <BrandHomeLink>
+                <img
+                  className="brand-logo"
+                  src="/logo-light.png"
+                  width={40}
+                  height={40}
+                  alt="Проверка стажа"
+                />
+                Проверка стажа
+              </BrandHomeLink>
+            </p>
+            <h1>{recoveryMode ? "Новый пароль" : "Пароль — по желанию"}</h1>
+            <p className="lead lead-compact">
+              {recoveryMode
+                ? "Задайте новый пароль для входа по почте."
+                : "Можно сразу перейти к делу. Пароль пригодится позже для входа без чата MAX."}
+            </p>
+            {!recoveryMode ? (
+              <button type="button" className="max-action-btn" onClick={deferPassword}>
+                Перейти к делу без пароля
+              </button>
+            ) : null}
+            <form className="auth-form" onSubmit={saveCabinetPassword}>
+              <label htmlFor="new-password">Пароль</label>
+              <input
+                id="new-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={MIN_PASSWORD_LEN}
+                autoComplete="new-password"
               />
-              Проверка стажа
-            </BrandHomeLink>
-          </p>
-          <h1>{recoveryMode ? "Новый пароль" : "Пароль — по желанию"}</h1>
-          <p className="lead lead-compact">
-            {recoveryMode
-              ? "Задайте новый пароль для входа по почте."
-              : "Можно сразу перейти к делу. Пароль пригодится позже для входа без чата MAX."}
-          </p>
-          {!recoveryMode ? (
-            <button type="button" className="max-action-btn" onClick={deferPassword}>
-              Перейти к делу без пароля
-            </button>
-          ) : null}
-          <form className="auth-form" onSubmit={saveCabinetPassword}>
-            <label htmlFor="new-password">Пароль</label>
-            <input
-              id="new-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={MIN_PASSWORD_LEN}
-              autoComplete="new-password"
-            />
-            <label htmlFor="new-password-confirm">Повторите пароль</label>
-            <input
-              id="new-password-confirm"
-              type="password"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              required
-              minLength={MIN_PASSWORD_LEN}
-              autoComplete="new-password"
-            />
-            <button type="submit" disabled={savingPassword}>
-              {savingPassword ? "Сохраняем…" : "Сохранить пароль"}
-            </button>
-          </form>
-          {notice && <p className="notice">{notice}</p>}
-          <p className="hint">
-            <button
-              type="button"
-              className="linkish"
-              onClick={() => void supabase?.auth.signOut()}
-            >
-              Выйти
-            </button>
-          </p>
-        </section>
+              <label htmlFor="new-password-confirm">Повторите пароль</label>
+              <input
+                id="new-password-confirm"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                required
+                minLength={MIN_PASSWORD_LEN}
+                autoComplete="new-password"
+              />
+              <button type="submit" disabled={savingPassword}>
+                {savingPassword ? "Сохраняем…" : "Сохранить пароль"}
+              </button>
+            </form>
+            {notice && <p className="notice">{notice}</p>}
+            <p className="hint">
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => void supabase?.auth.signOut()}
+              >
+                Выйти
+              </button>
+            </p>
+          </section>
+          <SiteReturnPanel />
+        </div>
       </main>
     );
   }
@@ -1583,10 +1592,8 @@ export function ClientCabinet() {
     const loginTabActive = authScreen !== "register";
 
     return (
-      <main className="auth-layout">
-        <nav className="cabinet-top-nav" aria-label="Навигация">
-          <SiteNavButton />
-        </nav>
+      <main className="auth-layout auth-layout--split">
+        <div className="auth-split">
         <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
           <p className="eyebrow">
             <BrandHomeLink>
@@ -1963,6 +1970,8 @@ export function ClientCabinet() {
             </a>
           </p>
         </section>
+          <SiteReturnPanel />
+        </div>
       </main>
     );
   }

@@ -49,6 +49,55 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: center;
   gap: 0.75rem;
 }
+.auth-layout--split {
+  width: min(980px, calc(100% - 32px));
+}
+.auth-split {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+.auth-split .auth-card {
+  width: 100%;
+  margin: 0;
+}
+.auth-return-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  min-height: 100%;
+  padding: 2rem 1.5rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--brand, #1e4e79);
+  background: linear-gradient(160deg, #1e4e79 0%, #2e7d5b 100%);
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(30, 78, 121, 0.22);
+}
+.auth-return-panel:hover,
+.auth-return-panel:focus-visible {
+  filter: brightness(1.05);
+  outline: 3px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 3px;
+  color: #fff;
+}
+.auth-return-panel__title {
+  font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.auth-return-panel__hint {
+  font-size: 1.1rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
 
 .card,
 .panel,
@@ -205,12 +254,6 @@ header span { color: var(--muted); font-size: 1rem; }
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-}
-.cabinet-top-nav {
-  width: min(520px, 100%);
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 0 0.75rem;
 }
 .cabinet-nav-btn {
   display: inline-flex;
@@ -656,10 +699,29 @@ header span { color: var(--muted); font-size: 1rem; }
   color: var(--muted);
 }
 
+@media (max-width: 860px) {
+  .auth-layout--split {
+    width: min(520px, calc(100% - 24px));
+  }
+  .auth-split {
+    grid-template-columns: 1fr;
+  }
+  .auth-return-panel {
+    min-height: 180px;
+    order: -1;
+  }
+}
+
 @media (max-width: 640px) {
   .auth-layout,
   .app-layout {
     width: calc(100% - 20px);
   }
+  .auth-layout--split {
+    width: calc(100% - 20px);
+  }
   .card { padding: 22px 16px; }
+  .auth-return-panel__title {
+    font-size: 1.55rem;
+  }
 }
