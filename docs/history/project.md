@@ -1,3 +1,8 @@
+## 2026-08-09 — wipe test data
+
+- Self-host БД очищена под новый QA; сохранён admin `staff_roles`.
+- Телефон для прогона: `+79091950408`. ВМ была STOPPED — поднята.
+
 ## 2026-08-05 — позиция «готовим мы — подаёте вы» везде
 
 - Эталон: `scripts/assets/copy/submission-position.md`, код: `src/sfrfr/core/copy.py`.
