@@ -168,7 +168,7 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     )
     assert started.action == "max_intake_started"
     assert started.case_id is None
-    assert bot.sent and "С чего начнём" in bot.sent[0][1]
+    assert bot.sent and "Для кого проверка" in bot.sent[0][1]
 
     # завершаем диагностику → создаётся одно дело
     for payload in (
