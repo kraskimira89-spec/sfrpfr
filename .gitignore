@@ -124,3 +124,6 @@ secrets/supabase-staging.env
 # SmartCaptcha secrets (do not commit)
 secrets/smartcaptcha-create-response.json
 secrets/smartcaptcha.env
+
+.tmp-pytest/
+
