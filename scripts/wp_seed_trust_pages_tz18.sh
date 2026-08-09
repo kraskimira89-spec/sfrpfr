@@ -16,6 +16,7 @@ mkdir -p "${UPLOADS}/awards"
 cp -f "${SCRIPT_DIR}/assets/trust/expert-lopakova.jpg" "${UPLOADS}/expert-lopakova.jpg"
 cp -f "${SCRIPT_DIR}/assets/trust/expert-bogdanovskiy.jpg" "${UPLOADS}/expert-bogdanovskiy.jpg"
 if compgen -G "${SCRIPT_DIR}/assets/awards/award-*.jpg" > /dev/null; then
+  rm -f "${UPLOADS}/awards/"award-*.jpg 2>/dev/null || true
   cp -f "${SCRIPT_DIR}/assets/awards/award-"*.jpg "${UPLOADS}/awards/"
 fi
 cp -f "${SCRIPT_DIR}/assets/sfrfr-awards.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"

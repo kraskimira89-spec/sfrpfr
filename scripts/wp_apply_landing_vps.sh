@@ -54,6 +54,7 @@ AWARDS_SRC="${APP_DIR}/scripts/assets/awards"
 AWARDS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/awards"
 mkdir -p "${AWARDS_DST}"
 if compgen -G "${AWARDS_SRC}/award-*.jpg" > /dev/null; then
+  rm -f "${AWARDS_DST}/"award-*.jpg 2>/dev/null || true
   cp -f "${AWARDS_SRC}/award-"*.jpg "${AWARDS_DST}/"
   chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
 fi

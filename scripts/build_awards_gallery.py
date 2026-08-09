@@ -33,7 +33,6 @@ KEYWORDS = (
     "наград",
     "certificate",
     "coursera",
-    "stepik",
     "участник",
     "победитель",
     "почёт",
@@ -43,6 +42,14 @@ KEYWORDS = (
 SKIP_EXACT = {
     "перечень-база добровольцев.xlsx",
 }
+
+
+def should_skip(path: Path) -> bool:
+    low = path.name.lower()
+    # Stepik у Богдановского и любые stepik-сертификаты не показываем в галерее.
+    if "stepik" in low:
+        return True
+    return False
 
 
 def slugify(name: str) -> str:
@@ -101,7 +108,7 @@ def title_from_name(name: str) -> str:
 def is_candidate(path: Path) -> bool:
     if not path.is_file() or path.stat().st_size < 1024:
         return False
-    if path.name in SKIP_EXACT:
+    if path.name in SKIP_EXACT or should_skip(path):
         return False
     ext = path.suffix.lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
@@ -110,6 +117,13 @@ def is_candidate(path: Path) -> bool:
     if ext in {".jpg", ".jpeg", ".png", ".webp"}:
         return True
     return any(k in low for k in KEYWORDS)
+
+
+def normalize_title_key(title: str) -> str:
+    t = title.lower().replace("ё", "е")
+    t = re.sub(r"\s*\(\d+\)\s*", " ", t)
+    t = re.sub(r"[^a-zа-я0-9]+", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
 
 
 def fit_frame(im: Image.Image) -> Image.Image:
@@ -156,13 +170,23 @@ def person_note(name: str) -> str:
 
 
 def main() -> None:
+    import hashlib
+
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("award-*.jpg"):
         old.unlink()
 
     items: list[dict] = []
     used_slugs: set[str] = set()
-    files = sorted([p for p in SRC.iterdir() if is_candidate(p)], key=lambda p: p.name.lower())
+    seen_hashes: set[str] = set()
+    seen_titles: set[str] = set()
+    files = sorted(
+        [p for p in SRC.iterdir() if is_candidate(p)],
+        key=lambda p: (
+            0 if "лопаков" in p.name.lower() else (1 if "богданов" in p.name.lower() else 2),
+            p.name.lower(),
+        ),
+    )
 
     for path in files:
         try:
@@ -173,6 +197,13 @@ def main() -> None:
             frame = fit_frame(raw)
         except Exception as exc:  # noqa: BLE001
             print("FAIL", path.name, exc)
+            continue
+
+        title = title_from_name(path.name)
+        title_key = normalize_title_key(title)
+        # Дубликаты по имени (например «(1)» / «(2)»).
+        if title_key and title_key in seen_titles:
+            print("SKIP title-dup", path.name)
             continue
 
         slug = slugify(path.name)
@@ -187,7 +218,17 @@ def main() -> None:
         out_path = OUT / out_name
         frame.save(out_path, "JPEG", quality=JPEG_QUALITY, optimize=True)
 
-        title = title_from_name(path.name)
+        digest = hashlib.md5(out_path.read_bytes()).hexdigest()
+        if digest in seen_hashes:
+            out_path.unlink(missing_ok=True)
+            used_slugs.discard(slug)
+            print("SKIP content-dup", path.name)
+            continue
+
+        seen_hashes.add(digest)
+        if title_key:
+            seen_titles.add(title_key)
+
         note = person_note(path.name)
         items.append(
             {
@@ -209,6 +250,13 @@ def main() -> None:
 
     items.sort(key=sort_key)
     MANIFEST.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    compact = [{k: v for k, v in it.items() if k in ("src", "title", "alt", "note") and v} for it in items]
+    for it in compact:
+        it.setdefault("alt", it.get("title", ""))
+    (OUT / "home-data.json").write_text(
+        json.dumps(compact, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
     print(f"DONE {len(items)} -> {MANIFEST}")
 
 
