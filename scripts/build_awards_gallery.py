@@ -41,6 +41,7 @@ KEYWORDS = (
 
 SKIP_EXACT = {
     "перечень-база добровольцев.xlsx",
+    "Белозерцева 2.jpeg",
 }
 
 
@@ -48,6 +49,8 @@ def should_skip(path: Path) -> bool:
     low = path.name.lower()
     # Stepik у Богдановского и любые stepik-сертификаты не показываем в галерее.
     if "stepik" in low:
+        return True
+    if "белозерцева 2" in low:
         return True
     return False
 
