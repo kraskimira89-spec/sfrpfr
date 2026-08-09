@@ -38,6 +38,7 @@
 4. **Данные дела и оплаты:** приложение SFRFR — источник истины; amoCRM ведёт продажи и задачи, но не хранит файлы дела.
 5. **Управленческая аналитика:** модели dbt и Яндекс DataLens. Таблицы допустимы только как временная обезличенная выгрузка.
 6. **Вознаграждение за подтверждённый результат:** ранняя модель и договоры считаются черновиками до единого решения владельца и юридической проверки.
+7. **Яндекс Бизнес:** карточка прайса указана как `82469923047`, а часть ссылок на отзывы использует `234170727274`. До изменения ссылок обе карточки и отзывы сверяются вручную; механическая замена запрещена. Прайс синхронизируется через `scripts/assets/yandex-business/price-list.yml` и публичный адрес `https://proverkastaza.ru/yandex-business-price.yml`.
 
 Если цена, роль канала или юридическая формулировка расходятся, рекламу и публикацию останавливают до устранения расхождения.
 
@@ -60,6 +61,7 @@
 ## Связанный продуктовый контекст
 
 - `docs/specs/18-seo-strategy-and-implementation.md`
+- `docs/specs/17-management-analytics-russian-bi.md`
 - `docs/specs/20-max-private-chat-funnel.md`
 - `docs/specs/21-trust-first-contact.md`
 - `docs/specs/23-max-channel-promotion.md`
@@ -67,3 +69,6 @@
 - `docs/strategy/client-journey-max.md`
 - `docs/b2c-customer-journey.md`
 - `docs/b2c-monetization-tz.md`
+- `docs/b2c-monetization-model.md`
+- `docs/ops/yandex-business-profile.md`
+- `.cursor/rules/blog-manual-only.mdc`
