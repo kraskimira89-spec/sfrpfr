@@ -43,6 +43,38 @@ add_filter('gettext_with_context', static function (string $translation, string 
 }, 20, 4);
 
 /**
+ * Запасной перевод, если тема выводит Previous/Next без gettext.
+ */
+add_action('wp_footer', static function (): void {
+    if (is_admin()) {
+        return;
+    }
+    if (!is_singular('post') && !is_home() && !is_category() && !is_search() && !is_archive()) {
+        return;
+    }
+    echo <<<'HTML'
+<script>
+(function () {
+  function ruNav(root) {
+    if (!root) return;
+    root.querySelectorAll(".ast-post-nav, a.prev.page-numbers, a.next.page-numbers, .nav-previous a, .nav-next a").forEach(function (el) {
+      el.innerHTML = el.innerHTML
+        .replace(/\bPrevious\b/g, "Предыдущая")
+        .replace(/\bNext\b/g, "Следующая");
+    });
+    root.querySelectorAll('.navigation[aria-label="Posts"], .navigation[aria-label="Post pagination"]').forEach(function (el) {
+      var a = el.getAttribute("aria-label");
+      if (a === "Posts") el.setAttribute("aria-label", "Статьи");
+      if (a === "Post pagination") el.setAttribute("aria-label", "Страницы");
+    });
+  }
+  ruNav(document);
+})();
+</script>
+HTML;
+}, 99);
+
+/**
  * HTML формы поиска.
  */
 function sfrfr_site_search_form_html(string $variant = 'header'): string
