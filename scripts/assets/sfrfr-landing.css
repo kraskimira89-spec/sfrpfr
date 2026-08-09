@@ -482,6 +482,35 @@ body.page-template-default {
   color: #111111;
 }
 
+.sfrfr-card ul {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  list-style: disc;
+  color: #111111;
+}
+
+.sfrfr-card ul li {
+  margin: 0.35rem 0;
+  padding: 0;
+  color: #111111;
+  font-size: inherit;
+  line-height: 1.45;
+}
+
+.sfrfr-card ul li:first-child {
+  margin-top: 0;
+}
+
+.sfrfr-card ul li:last-child {
+  margin-bottom: 0;
+}
+
+/* Astra/тема часто сбрасывает list-style у ul внутри контента */
+.sfrfr-landing .sfrfr-card ul {
+  list-style: disc !important;
+  padding-left: 1.2rem !important;
+}
+
 .sfrfr-card--lg,
 .sfrfr-cards--lg .sfrfr-card {
   padding: clamp(1.5rem, 3.5vw, 2rem) clamp(1.25rem, 3vw, 1.75rem);
@@ -496,7 +525,9 @@ body.page-template-default {
 }
 
 .sfrfr-card--lg p,
-.sfrfr-cards--lg .sfrfr-card p {
+.sfrfr-cards--lg .sfrfr-card p,
+.sfrfr-card--lg ul li,
+.sfrfr-cards--lg .sfrfr-card ul li {
   font-size: clamp(1.02rem, 2.5vw, 1.12rem);
   line-height: 1.45;
 }
