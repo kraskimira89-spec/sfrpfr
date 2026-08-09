@@ -56,7 +56,9 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "/expert/lopakova-nataliya/" in home
     assert "/expert/bogdanovskiy-sergey/" in home
     assert "Награды и сертификаты" in home
-    assert "sfrfr-awards__grid" in home
+    assert "sfrfr-awards__row" in home
+    assert "sfrfr-awards__nav" in home
+    assert "sfrfr-awards__scroller" in home
     assert "/wp-content/uploads/sfrfr/awards/" in home
     assert 'id="sfrfr-awards-data"' in home
     assert (REPO / "scripts/assets/sfrfr-awards.js").exists()

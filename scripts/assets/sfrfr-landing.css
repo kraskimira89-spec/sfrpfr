@@ -1091,28 +1091,88 @@ body.page-template-default {
 }
 
 .sfrfr-awards__grid[hidden],
+.sfrfr-awards__row[hidden],
 .sfrfr-awards__slider[hidden],
 .sfrfr-awards__empty[hidden] {
   display: none !important;
 }
 
-.sfrfr-awards__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem 0.65rem;
+.sfrfr-awards__row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.55rem;
   margin: 0;
 }
 
-@media (min-width: 640px) {
-  .sfrfr-awards__grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.85rem 0.75rem;
-  }
+.sfrfr-awards__scroller,
+.sfrfr-awards__grid {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  margin: 0;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.15rem 0.1rem 0.35rem;
+  scrollbar-width: thin;
+}
+
+.sfrfr-awards__scroller::-webkit-scrollbar,
+.sfrfr-awards__grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.sfrfr-awards__scroller::-webkit-scrollbar-thumb,
+.sfrfr-awards__grid::-webkit-scrollbar-thumb {
+  background: rgba(30, 78, 121, 0.35);
+  border-radius: 999px;
 }
 
 .sfrfr-awards__card {
   margin: 0;
-  min-width: 0;
+  flex: 0 0 clamp(148px, 28vw, 180px);
+  width: clamp(148px, 28vw, 180px);
+  min-width: clamp(148px, 28vw, 180px);
+  scroll-snap-align: start;
+}
+
+.sfrfr-awards__nav {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #0b1f33;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b1f33;
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #ffffff, 0 3px 12px rgba(11, 31, 51, 0.28);
+}
+
+.sfrfr-awards__nav:hover:not(:disabled) {
+  background: #fde68a;
+  border-color: #0b1f33;
+  color: #0b1f33;
+}
+
+.sfrfr-awards__nav:focus-visible {
+  outline: 3px solid #1e4e79;
+  outline-offset: 2px;
+}
+
+.sfrfr-awards__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
 }
 
 .sfrfr-awards__thumb {

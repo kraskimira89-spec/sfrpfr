@@ -25,19 +25,26 @@
       return item && item.src && (item.alt || item.title);
     });
     var emptyEl = root.querySelector("[data-sfrfr-awards-empty]");
+    var rowEl = root.querySelector("[data-sfrfr-awards-row]");
+    var scroller = root.querySelector("[data-sfrfr-awards-scroller]");
+    var prevBtn = root.querySelector("[data-sfrfr-awards-prev]");
+    var nextBtn = root.querySelector("[data-sfrfr-awards-next]");
+    // совместимость со старой разметкой
     var gridEl = root.querySelector("[data-sfrfr-awards-grid]");
-    var sliderEl = root.querySelector("[data-sfrfr-awards-slider]");
     if (!emptyEl) return;
+    if (!scroller && gridEl) scroller = gridEl;
+    if (!rowEl && scroller) rowEl = scroller.parentElement;
 
     if (!slides.length) {
       emptyEl.hidden = false;
-      if (gridEl) gridEl.hidden = true;
-      if (sliderEl) sliderEl.hidden = true;
+      if (rowEl) rowEl.hidden = true;
+      if (scroller) scroller.hidden = true;
       return;
     }
 
     emptyEl.hidden = true;
-    if (sliderEl) sliderEl.hidden = true;
+    if (rowEl) rowEl.hidden = false;
+    if (scroller) scroller.hidden = false;
 
     var lightbox = null;
     function closeLightbox() {
@@ -87,9 +94,9 @@
       );
     }
 
-    if (gridEl) {
-      gridEl.hidden = false;
-      gridEl.innerHTML = slides
+    if (scroller) {
+      scroller.classList.add("sfrfr-awards__scroller");
+      scroller.innerHTML = slides
         .map(function (item, i) {
           var title = escapeHtml(item.title || "Награда");
           var alt = escapeHtml(item.alt || item.title || "Награда");
@@ -109,7 +116,7 @@
             '" width="480" height="360" loading="lazy" decoding="async">' +
             "</button>" +
             '<figcaption class="sfrfr-awards__cap">' +
-            "<span class=\"sfrfr-awards__name\">" +
+            '<span class="sfrfr-awards__name">' +
             title +
             "</span>" +
             (note ? '<span class="sfrfr-awards__note">' + note + "</span>" : "") +
@@ -117,6 +124,39 @@
           );
         })
         .join("");
+    }
+
+    function scrollStep() {
+      if (!scroller) return 240;
+      var card = scroller.querySelector(".sfrfr-awards__card");
+      if (!card) return Math.max(200, Math.floor(scroller.clientWidth * 0.8));
+      var styles = window.getComputedStyle(scroller);
+      var gap = parseFloat(styles.columnGap || styles.gap || "12") || 12;
+      return Math.round(card.getBoundingClientRect().width + gap);
+    }
+
+    function updateNav() {
+      if (!scroller) return;
+      var max = scroller.scrollWidth - scroller.clientWidth - 2;
+      var left = scroller.scrollLeft;
+      if (prevBtn) prevBtn.disabled = left <= 2;
+      if (nextBtn) nextBtn.disabled = left >= max;
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        scroller.scrollBy({ left: -scrollStep(), behavior: "smooth" });
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        scroller.scrollBy({ left: scrollStep(), behavior: "smooth" });
+      });
+    }
+    if (scroller) {
+      scroller.addEventListener("scroll", updateNav, { passive: true });
+      window.addEventListener("resize", updateNav);
+      updateNav();
     }
 
     root.addEventListener("click", function (ev) {
