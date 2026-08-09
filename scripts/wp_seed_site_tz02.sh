@@ -200,8 +200,35 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" menu item add-custom "$MENU_ID" "Частые вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Заявка" "/#zayavka" --parent-id="$HOME_MENU_ID" >/dev/null
   fi
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" >/dev/null
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" >/dev/null
+
+  USLUGI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Услуги" "/proverka-stazha/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${USLUGI_ID}" ]; then
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Проверка стажа" "/proverka-stazha/" --parent-id="$USLUGI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Перед пенсией" "/proverka-stazha-pered-pensiey/" --parent-id="$USLUGI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж" "/proverka-severnogo-stazha/" --parent-id="$USLUGI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Помочь родственнику" "/pomoch-rodstvenniku-proverit-stazh/" --parent-id="$USLUGI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/kak-rabotaem/" --parent-id="$USLUGI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/tarify/" --parent-id="$USLUGI_ID" >/dev/null
+  fi
+
+  STATI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${STATI_ID}" ]; then
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Все статьи" "/blog/" --parent-id="$STATI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Как проверить стаж в ИЛС" "/blog/kak-proverit-stazh-v-vypiske-ils/" --parent-id="$STATI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Как сверить трудовую и ИЛС" "/blog/kak-sverit-trudovuyu-knizhku-i-ils/" --parent-id="$STATI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Архивная справка" "/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/" --parent-id="$STATI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж и коэффициент" "/blog/severnyy-stazh-i-rayonnyy-koefficient/" --parent-id="$STATI_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "MAX и личный кабинет" "/blog/kak-rabotat-v-max-i-lichnom-kabinete/" --parent-id="$STATI_ID" >/dev/null
+  fi
+
+  EXPERT_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "${EXPERT_ID}" ]; then
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Все эксперты" "/expert/" --parent-id="$EXPERT_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Лопакова Н. Ф." "/expert/lopakova-nataliya/" --parent-id="$EXPERT_ID" >/dev/null
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Богдановский С. В." "/expert/bogdanovskiy-sergey/" --parent-id="$EXPERT_ID" >/dev/null
+  fi
+
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true

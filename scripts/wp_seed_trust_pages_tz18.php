@@ -231,10 +231,15 @@ if ($menu) {
             echo "MENU {$title} -> {$map[$title]}\n";
         }
     }
-    // Добавить пункты, если нет (идемпотентно).
+    // Добавить верхнеуровневые пункты, если нет (идемпотентно).
+    // Подменю «Эксперты» / «Услуги» / «Статьи» собирает wp_apply_landing_vps.sh.
     $titles = [];
+    $expertParentId = 0;
     foreach ($items as $item) {
         $titles[(string) $item->title] = true;
+        if ((string) $item->title === 'Эксперты' && (int) ($item->menu_item_parent ?? 0) === 0) {
+            $expertParentId = (int) $item->ID;
+        }
     }
     $ensure = [
         'Контакты' => !empty($created['kontakty']) ? home_url('/kontakty/') : null,
@@ -250,13 +255,36 @@ if ($menu) {
         if ($url === null || isset($titles[$title])) {
             continue;
         }
-        wp_update_nav_menu_item($menuId, 0, [
+        $newId = wp_update_nav_menu_item($menuId, 0, [
             'menu-item-title' => $title,
             'menu-item-url' => $url,
             'menu-item-status' => 'publish',
             'menu-item-type' => 'custom',
         ]);
         echo "MENU {$title} added\n";
+        if ($title === 'Эксперты' && is_int($newId) && $newId > 0) {
+            $expertParentId = $newId;
+        }
+    }
+    if ($expertParentId > 0) {
+        $expertChildren = [
+            'Все эксперты' => home_url('/expert/'),
+            'Лопакова Н. Ф.' => home_url('/expert/lopakova-nataliya/'),
+            'Богдановский С. В.' => home_url('/expert/bogdanovskiy-sergey/'),
+        ];
+        foreach ($expertChildren as $title => $url) {
+            if (isset($titles[$title])) {
+                continue;
+            }
+            wp_update_nav_menu_item($menuId, 0, [
+                'menu-item-title' => $title,
+                'menu-item-url' => $url,
+                'menu-item-status' => 'publish',
+                'menu-item-type' => 'custom',
+                'menu-item-parent-id' => $expertParentId,
+            ]);
+            echo "MENU {$title} under Эксперты\n";
+        }
     }
 }
 
