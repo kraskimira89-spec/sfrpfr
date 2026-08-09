@@ -9,6 +9,40 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Русские подписи пагинации и навигации «предыдущая / следующая» (Astra/core часто на EN).
+ *
+ * @param string $translation
+ * @param string $text
+ * @param string $domain
+ */
+add_filter('gettext', static function (string $translation, string $text, string $domain): string {
+    $map = [
+        'Previous' => 'Предыдущая',
+        'Next' => 'Следующая',
+        'Posts' => 'Статьи',
+        'Post pagination' => 'Страницы',
+        'Posts navigation' => 'Навигация по статьям',
+        'Older posts' => 'Более ранние записи',
+        'Newer posts' => 'Более новые записи',
+        'Previous Post' => 'Предыдущая статья',
+        'Next Post' => 'Следующая статья',
+        'Previous post' => 'Предыдущая статья',
+        'Next post' => 'Следующая статья',
+    ];
+    return $map[$text] ?? $translation;
+}, 20, 3);
+
+add_filter('gettext_with_context', static function (string $translation, string $text, string $context, string $domain): string {
+    $map = [
+        'Previous' => 'Предыдущая',
+        'Next' => 'Следующая',
+        'Posts' => 'Статьи',
+        'Post pagination' => 'Страницы',
+    ];
+    return $map[$text] ?? $translation;
+}, 20, 4);
+
+/**
  * HTML формы поиска.
  */
 function sfrfr_site_search_form_html(string $variant = 'header'): string

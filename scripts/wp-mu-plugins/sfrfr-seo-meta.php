@@ -860,9 +860,17 @@ add_filter('the_content', static function (string $content): string {
                 : esc_html($reviewer)
         );
     }
-    $modified = get_the_modified_date('j F Y', $postId);
-    if (is_string($modified) && $modified !== '') {
-        $parts[] = 'Обновлено: ' . esc_html($modified);
+    $modifiedTs = (int) get_post_modified_time('U', true, $postId);
+    if ($modifiedTs > 0) {
+        $months = [
+            1 => 'января', 2 => 'февраля', 3 => 'марта', 4 => 'апреля',
+            5 => 'мая', 6 => 'июня', 7 => 'июля', 8 => 'августа',
+            9 => 'сентября', 10 => 'октября', 11 => 'ноября', 12 => 'декабря',
+        ];
+        $d = (int) wp_date('j', $modifiedTs);
+        $m = (int) wp_date('n', $modifiedTs);
+        $y = (int) wp_date('Y', $modifiedTs);
+        $parts[] = 'Обновлено: ' . $d . ' ' . ($months[$m] ?? '') . ' ' . $y;
     }
     $byline = '<p class="sfrfr-article-byline"><em>' . implode(' · ', $parts) . '</em></p>';
     return $byline . $content;

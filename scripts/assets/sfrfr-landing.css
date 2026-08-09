@@ -904,9 +904,47 @@ body.page-template-default {
   margin-bottom: 0;
 }
 
+.sfrfr-expert-hero {
+  display: grid;
+  gap: 1.15rem 1.75rem;
+  margin: 0 0 1.75rem;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .sfrfr-expert-hero {
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  }
+}
+
+.sfrfr-expert-hero__body {
+  min-width: 0;
+}
+
+.sfrfr-expert-hero__body > .sfrfr-section__lead {
+  margin-top: 0;
+}
+
+.sfrfr-expert-hero__body > h2 {
+  margin: 1rem 0 0.55rem;
+  font-size: clamp(1.05rem, 2.4vw, 1.2rem);
+}
+
+.sfrfr-expert-hero__body .sfrfr-trust-signals {
+  margin-bottom: 0;
+}
+
 .sfrfr-expert-photo {
-  margin: 0 0 1.25rem;
+  margin: 0;
   max-width: min(100%, 360px);
+}
+
+@media (min-width: 768px) {
+  .sfrfr-expert-photo {
+    max-width: none;
+    position: sticky;
+    top: 1rem;
+  }
 }
 
 .sfrfr-expert-photo img {

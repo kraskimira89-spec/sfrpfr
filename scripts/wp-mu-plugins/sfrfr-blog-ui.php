@@ -93,6 +93,91 @@ function sfrfr_blog_ui_should_load(): bool
     return is_home() || is_category() || is_singular('post');
 }
 
+/**
+ * @return list<int>
+ */
+function sfrfr_blog_per_page_choices(): array
+{
+    return [9, 12, 18, 30];
+}
+
+/**
+ * Сколько статей на странице архива блога (по умолчанию 9).
+ */
+function sfrfr_blog_per_page(): int
+{
+    $raw = (int) get_option('posts_per_page', 9);
+    if (isset($_GET['per_page'])) {
+        $raw = (int) $_GET['per_page'];
+    }
+    $allowed = sfrfr_blog_per_page_choices();
+    return in_array($raw, $allowed, true) ? $raw : 9;
+}
+
+/**
+ * Выбор «показывать по N» на ленте статей.
+ */
+function sfrfr_render_blog_per_page_control(): void
+{
+    $current = sfrfr_blog_per_page();
+    $action = '';
+    if (is_category()) {
+        $obj = get_queried_object();
+        if ($obj instanceof WP_Term) {
+            $action = get_category_link($obj);
+        }
+    }
+    if ($action === '' || is_wp_error($action)) {
+        $action = home_url('/blog/');
+    }
+
+    echo '<form class="sfrfr-search-perpage sfrfr-blog-perpage" method="get" action="' . esc_url((string) $action) . '">';
+    echo '<label for="sfrfr-blog-per-page">Показывать по</label> ';
+    echo '<select id="sfrfr-blog-per-page" name="per_page" onchange="this.form.submit()">';
+    foreach (sfrfr_blog_per_page_choices() as $n) {
+        printf(
+            '<option value="%d"%s>%d</option>',
+            $n,
+            selected($current, $n, false),
+            $n
+        );
+    }
+    echo '</select>';
+    echo ' <span class="sfrfr-search-perpage__hint">статей на странице</span>';
+    echo '</form>';
+}
+
+add_action('pre_get_posts', static function ($query): void {
+    if (is_admin() || !$query instanceof WP_Query || !$query->is_main_query()) {
+        return;
+    }
+    if (!$query->is_home() && !$query->is_category()) {
+        return;
+    }
+    $query->set('posts_per_page', sfrfr_blog_per_page());
+}, 99);
+
+add_filter('astra_blog_post_per_page', static function ($limit) {
+    if (is_admin()) {
+        return $limit;
+    }
+    if (is_home() || is_category()) {
+        return sfrfr_blog_per_page();
+    }
+    return $limit;
+}, 25);
+
+add_filter('get_pagenum_link', static function (string $url): string {
+    if (!is_home() && !is_category()) {
+        return $url;
+    }
+    $n = sfrfr_blog_per_page();
+    if ($n === 9) {
+        return $url;
+    }
+    return add_query_arg('per_page', $n, $url);
+});
+
 add_action('wp_enqueue_scripts', static function (): void {
     if (!sfrfr_blog_ui_should_load()) {
         return;
@@ -162,6 +247,8 @@ add_action('loop_start', static function ($query): void {
     echo '<p class="sfrfr-blog-cta__text">Напишите в MAX или оставьте заявку. Мы готовим документы и план — а подаёте через СФР или Госуслуги вы сами.</p>';
     echo sfrfr_blog_ask_cta_buttons_html();
     echo '</aside>';
+
+    sfrfr_render_blog_per_page_control();
 });
 
 /**
