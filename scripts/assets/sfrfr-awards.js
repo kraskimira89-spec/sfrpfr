@@ -47,51 +47,110 @@
     if (scroller) scroller.hidden = false;
 
     var lightbox = null;
+    var lightboxIndex = 0;
+    var onLightboxKey = null;
+
     function closeLightbox() {
       if (!lightbox) return;
+      if (onLightboxKey) {
+        document.removeEventListener("keydown", onLightboxKey);
+        onLightboxKey = null;
+      }
       lightbox.remove();
       lightbox = null;
       document.documentElement.classList.remove("sfrfr-awards-lightbox-open");
+    }
+
+    function renderLightboxContent() {
+      if (!lightbox) return;
+      var item = slides[lightboxIndex];
+      if (!item) return;
+      var label = item.alt || item.title || "Просмотр";
+      var caption = escapeHtml(item.title || "");
+      if (item.note) caption += (caption ? " · " : "") + escapeHtml(item.note);
+      lightbox.setAttribute("aria-label", label);
+      var img = lightbox.querySelector(".sfrfr-awards-lightbox__img");
+      var cap = lightbox.querySelector(".sfrfr-awards-lightbox__caption");
+      var counter = lightbox.querySelector(".sfrfr-awards-lightbox__counter");
+      var lbPrev = lightbox.querySelector(".sfrfr-awards-lightbox__nav--prev");
+      var lbNext = lightbox.querySelector(".sfrfr-awards-lightbox__nav--next");
+      if (img) {
+        img.src = item.src;
+        img.alt = label;
+      }
+      if (cap) cap.innerHTML = caption;
+      if (counter) {
+        counter.textContent = lightboxIndex + 1 + " / " + slides.length;
+      }
+      if (lbPrev) lbPrev.disabled = lightboxIndex <= 0;
+      if (lbNext) lbNext.disabled = lightboxIndex >= slides.length - 1;
+    }
+
+    function stepLightbox(delta) {
+      var next = lightboxIndex + delta;
+      if (next < 0 || next >= slides.length) return;
+      lightboxIndex = next;
+      renderLightboxContent();
     }
 
     function openLightbox(i) {
       var item = slides[i];
       if (!item) return;
       closeLightbox();
+      lightboxIndex = i;
       lightbox = document.createElement("div");
       lightbox.className = "sfrfr-awards-lightbox";
       lightbox.setAttribute("role", "dialog");
       lightbox.setAttribute("aria-modal", "true");
-      var label = item.alt || item.title || "Просмотр";
-      lightbox.setAttribute("aria-label", label);
-      var caption = escapeHtml(item.title || "");
-      if (item.note) caption += (caption ? " · " : "") + escapeHtml(item.note);
       lightbox.innerHTML =
-        '<button type="button" class="sfrfr-awards-lightbox__close" aria-label="Закрыть">×</button>' +
-        '<img src="' +
-        escapeHtml(item.src) +
-        '" alt="' +
-        escapeHtml(label) +
-        '" width="480" height="360">' +
-        '<p class="sfrfr-awards-lightbox__caption">' +
-        caption +
-        "</p>";
+        '<button type="button" class="sfrfr-awards-lightbox__close" aria-label="Закрыть">' +
+        '<span class="sfrfr-awards-lightbox__close-x" aria-hidden="true">×</span>' +
+        '<span class="sfrfr-awards-lightbox__close-text">Закрыть</span>' +
+        "</button>" +
+        '<div class="sfrfr-awards-lightbox__stage">' +
+        '<button type="button" class="sfrfr-awards-lightbox__nav sfrfr-awards-lightbox__nav--prev" aria-label="Предыдущий">‹</button>' +
+        '<img class="sfrfr-awards-lightbox__img" src="" alt="" width="480" height="360">' +
+        '<button type="button" class="sfrfr-awards-lightbox__nav sfrfr-awards-lightbox__nav--next" aria-label="Следующий">›</button>' +
+        "</div>" +
+        '<p class="sfrfr-awards-lightbox__caption"></p>' +
+        '<p class="sfrfr-awards-lightbox__counter" aria-live="polite"></p>';
       document.body.appendChild(lightbox);
       document.documentElement.classList.add("sfrfr-awards-lightbox-open");
+      renderLightboxContent();
+
       lightbox.addEventListener("click", function (ev) {
-        if (ev.target === lightbox || ev.target.classList.contains("sfrfr-awards-lightbox__close")) {
+        if (ev.target === lightbox) {
           closeLightbox();
+          return;
+        }
+        var closeBtn = ev.target.closest(".sfrfr-awards-lightbox__close");
+        if (closeBtn) {
+          closeLightbox();
+          return;
+        }
+        var navPrev = ev.target.closest(".sfrfr-awards-lightbox__nav--prev");
+        if (navPrev && !navPrev.disabled) {
+          stepLightbox(-1);
+          return;
+        }
+        var navNext = ev.target.closest(".sfrfr-awards-lightbox__nav--next");
+        if (navNext && !navNext.disabled) {
+          stepLightbox(1);
         }
       });
-      document.addEventListener(
-        "keydown",
-        function onKey(ev) {
-          if (ev.key === "Escape") {
-            document.removeEventListener("keydown", onKey);
-            closeLightbox();
-          }
+
+      onLightboxKey = function (ev) {
+        if (ev.key === "Escape") {
+          closeLightbox();
+        } else if (ev.key === "ArrowLeft") {
+          stepLightbox(-1);
+        } else if (ev.key === "ArrowRight") {
+          stepLightbox(1);
         }
-      );
+      };
+      document.addEventListener("keydown", onLightboxKey);
+      var focusClose = lightbox.querySelector(".sfrfr-awards-lightbox__close");
+      if (focusClose) focusClose.focus();
     }
 
     if (scroller) {

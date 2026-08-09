@@ -1311,20 +1311,66 @@ body.page-template-default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  background: rgba(15, 23, 42, 0.82);
+  gap: 0.65rem;
+  padding: 4.5rem 1rem 1.5rem;
+  background: rgba(15, 23, 42, 0.88);
   box-sizing: border-box;
 }
 
-.sfrfr-awards-lightbox img {
-  max-width: min(96vw, 720px);
-  max-height: min(72vh, 540px);
+.sfrfr-awards-lightbox__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: min(96vw, 880px);
+}
+
+.sfrfr-awards-lightbox__img {
+  display: block;
+  max-width: min(78vw, 720px);
+  max-height: min(68vh, 540px);
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 8px;
   background: #f7f9fb;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.sfrfr-awards-lightbox__nav {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #0b1f33;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b1f33;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #ffffff, 0 4px 16px rgba(11, 31, 51, 0.35);
+}
+
+.sfrfr-awards-lightbox__nav:hover:not(:disabled) {
+  background: #fde68a;
+}
+
+.sfrfr-awards-lightbox__nav:focus-visible {
+  outline: 3px solid #fde68a;
+  outline-offset: 2px;
+}
+
+.sfrfr-awards-lightbox__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
 }
 
 .sfrfr-awards-lightbox__caption {
@@ -1332,23 +1378,94 @@ body.page-template-default {
   max-width: min(96vw, 720px);
   color: #f8fafc;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1.4;
+}
+
+.sfrfr-awards-lightbox__counter {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
 }
 
 .sfrfr-awards-lightbox__close {
   position: absolute;
-  top: 0.75rem;
-  right: 0.85rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 0;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 7.5rem;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0.55rem 1.1rem;
+  border: 2px solid #0b1f33;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #0f172a;
-  font-size: 1.5rem;
-  line-height: 1;
+  background: #ffffff;
+  color: #0b1f33;
+  font: 700 1rem/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  box-shadow: 0 0 0 2px #ffffff, 0 4px 16px rgba(11, 31, 51, 0.35);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sfrfr-awards-lightbox__close-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.sfrfr-awards-lightbox__close-text {
+  line-height: 1;
+}
+
+.sfrfr-awards-lightbox__close:hover {
+  background: #fde68a;
+}
+
+.sfrfr-awards-lightbox__close:focus-visible {
+  outline: 3px solid #fde68a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .sfrfr-awards-lightbox {
+    padding: 4.25rem 0.5rem 1.25rem;
+  }
+
+  .sfrfr-awards-lightbox__stage {
+    gap: 0.4rem;
+  }
+
+  .sfrfr-awards-lightbox__nav {
+    width: 44px;
+    height: 44px;
+    font-size: 1.7rem;
+  }
+
+  .sfrfr-awards-lightbox__img {
+    max-width: min(68vw, 720px);
+  }
+
+  .sfrfr-awards-lightbox__close {
+    top: 0.75rem;
+    right: 0.75rem;
+    min-width: 6.5rem;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.95rem;
+  }
 }
 
 html.sfrfr-awards-lightbox-open {

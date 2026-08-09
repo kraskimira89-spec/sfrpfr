@@ -61,7 +61,12 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr-awards__scroller" in home
     assert "/wp-content/uploads/sfrfr/awards/" in home
     assert 'id="sfrfr-awards-data"' in home
-    assert (REPO / "scripts/assets/sfrfr-awards.js").exists()
+    awards_js = (REPO / "scripts/assets/sfrfr-awards.js").read_text(encoding="utf-8")
+    assert "sfrfr-awards-lightbox__nav" in awards_js
+    assert "sfrfr-awards-lightbox__close" in awards_js
+    awards_css = (REPO / "scripts/assets/sfrfr-landing.css").read_text(encoding="utf-8")
+    assert ".sfrfr-awards-lightbox__nav" in awards_css
+    assert "min-width: 7.5rem" in awards_css
     assert (REPO / "scripts/assets/awards").is_dir()
     assert any((REPO / "scripts/assets/awards").glob("award-*.jpg"))
     search_mu = (REPO / "scripts/wp-mu-plugins/sfrfr-site-search.php").read_text(encoding="utf-8")

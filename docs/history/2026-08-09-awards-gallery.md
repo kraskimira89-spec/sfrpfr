@@ -2,5 +2,6 @@
 
 - Источник: `assets/prize/` → превью `scripts/assets/awards/award-*.jpg` (кадр 480×360).
 - Сборка: `python scripts/build_awards_gallery.py`
-- На главной: блок «Награды и сертификаты», компактная сетка + lightbox.
+- На главной: блок «Награды и сертификаты», один горизонтальный ряд + lightbox.
+- Lightbox: кнопки ‹ ›, счётчик, крупная кнопка «Закрыть»; стрелки клавиатуры / Esc.
 - Деплой копирует в `/wp-content/uploads/sfrfr/awards/`.
