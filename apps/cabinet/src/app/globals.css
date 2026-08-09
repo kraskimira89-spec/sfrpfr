@@ -708,7 +708,6 @@ header span { color: var(--muted); font-size: 1rem; }
   }
   .auth-return-panel {
     min-height: 180px;
-    order: -1;
   }
 }
 
