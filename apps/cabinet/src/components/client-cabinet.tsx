@@ -1963,12 +1963,17 @@ export function ClientCabinet() {
           ) : null}
 
           {notice && <p className="notice">{notice}</p>}
-          <p className="hint auth-site-hint">
-            Нужна проверка стажа без кабинета?{" "}
-            <a href={`${SITE_URL}/#zayavka`} target="_blank" rel="noreferrer">
+          <div className="auth-site-hint">
+            <p className="hint">Нужна проверка стажа без кабинета?</p>
+            <a
+              className="button-link auth-site-hint__btn"
+              href={`${SITE_URL}/#zayavka`}
+              target="_blank"
+              rel="noreferrer"
+            >
               Оставить заявку на сайте
             </a>
-          </p>
+          </div>
         </section>
           <SiteReturnPanel />
         </div>

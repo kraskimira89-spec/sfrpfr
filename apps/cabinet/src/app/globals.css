@@ -487,9 +487,19 @@ header span { color: var(--muted); font-size: 1rem; }
   border-color: var(--brand, #1e4e79);
 }
 .auth-site-hint {
+  display: grid;
+  gap: 0.75rem;
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
+}
+.auth-site-hint .hint {
+  margin: 0;
+}
+.auth-site-hint__btn {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 .lead-compact {
   margin: 0 0 1.25rem;
