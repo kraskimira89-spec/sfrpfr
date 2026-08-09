@@ -1875,6 +1875,12 @@ body.search .ast-row {
   color: var(--sfrfr-ink, #1a2330);
 }
 
+.sfrfr-blog-archive .sfrfr-blog-perpage {
+  max-width: none;
+  margin: 0.75rem 0 1.15rem;
+  padding: 0;
+}
+
 .sfrfr-search-perpage label {
   margin: 0;
   font-weight: 600;
