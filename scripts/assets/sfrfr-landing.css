@@ -878,6 +878,78 @@ body.page-template-default {
   font-weight: 600;
 }
 
+.sfrfr-trust-signals-block {
+  margin-top: 1.25rem;
+}
+
+.sfrfr-trust-signals-block__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.sfrfr-trust-signals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sfrfr-trust-signals li {
+  margin: 0;
+  padding: 0.7rem 0.85rem 0.7rem 2.1rem;
+  position: relative;
+  background: rgba(30, 78, 121, 0.04);
+  border-left: 3px solid rgba(30, 78, 121, 0.45);
+  line-height: 1.4;
+  font-size: 0.95rem;
+}
+
+.sfrfr-trust-signals li::before {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  top: 1rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--sfrfr-primary, #1e4e79);
+}
+
+.sfrfr-trust-signals-block__more {
+  margin: 0.85rem 0 0;
+  font-size: 0.95rem;
+}
+
+.sfrfr-timeline {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sfrfr-timeline li {
+  margin: 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(30, 78, 121, 0.12);
+  line-height: 1.45;
+}
+
+.sfrfr-timeline li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.sfrfr-timeline__year {
+  display: block;
+  font-weight: 650;
+  color: var(--sfrfr-primary, #1e4e79);
+  margin-bottom: 0.2rem;
+  font-size: 0.9rem;
+}
+
 /* Astra/тема сбрасывает padding у ul — возвращаем карточный padding + место под маркеры */
 .sfrfr-trust > .sfrfr-trust__rules {
   list-style: disc;
