@@ -1,31 +1,28 @@
 # Утверждённые визуальные активы бренда
 
-Сюда помещать только согласованные файлы (SVG, PNG, PDF-макеты без ПДн).
-
 Именование: `viz-<slug>-<variant>.ext`. Ссылка из брифа в `../visualizations/`.
 
-Перед публикацией сверять с [brand-platform-v2.md](../brand-platform-v2.md) §9–10:
-партнёрство за столом, без опеки и без обещания результата.
-Текст на картинках не ставим (кириллица в генерации нестабильна) — подписи
-в вёрстке рядом с изображением.
+Перед публикацией сверять с [brand-platform-v2.md](../brand-platform-v2.md) §9–10.
+Текст на картинках не ставим — подписи в вёрстке.
 
-Референсы стиля/элементов: `assets/proverka-stazha-cover-1200x640*.png`,
-`assets/sfrfr-logo-transparent.png` (щит/документ/галочка).
+Референсы: `assets/proverka-stazha-cover-1200x640*.png`, `assets/sfrfr-logo-transparent.png`.
 
-## Каталог (2026-08-10)
+## Каталог
 
-| Файл | Бриф | Назначение | Статус |
-|------|------|------------|--------|
-| `viz-family-digital-support-16x9.png` | [viz-perehod-pokoleniy](../visualizations/viz-perehod-pokoleniy.md) | Hero главной | утверждено |
-| `viz-family-digital-support-1x1.png` | то же | Пост / квадрат | на согласовании |
-| `viz-diagnostika-16x9.png` / `1x1` | [viz-diagnostika](../visualizations/viz-diagnostika.md) | Тариф «Диагностика» | на согласовании |
-| `viz-soprovozhdenie-16x9.png` / `1x1` | [viz-soprovozhdenie](../visualizations/viz-soprovozhdenie.md) | Тариф «Сопровождение» | на согласовании |
-| `viz-pod-kluch-16x9.png` / `1x1` | [viz-pod-kluch](../visualizations/viz-pod-kluch.md) | Тариф «Под ключ» | на согласовании |
-| `viz-severnyy-stazh-16x9.png` | [viz-severnyy-stazh](../visualizations/viz-severnyy-stazh.md) | Северный стаж | утверждено |
-| `viz-severnyy-stazh-1x1.png` | то же | Квадрат | на согласовании |
-| `viz-kabinet-16x9.png` / `1x1` | [viz-kabinet](../visualizations/viz-kabinet.md) | Личный кабинет | на согласовании |
+| Файл | Страница | Статус |
+|------|----------|--------|
+| `viz-family-digital-support-16x9.png` | `/`, `/pomoch-rodstvenniku-proverit-stazh/` | на сайте |
+| `viz-family-digital-support-1x1.png` | посты | архив |
+| `viz-diagnostika-16x9.png` / `1x1` | `/proverka-stazha/` | на сайте (16:9) |
+| `viz-soprovozhdenie-16x9.png` / `1x1` | `/kak-rabotaem/` | на сайте (16:9) |
+| `viz-pod-kluch-16x9.png` / `1x1` | запас | на согласовании |
+| `viz-severnyy-stazh-16x9.png` / `1x1` | `/proverka-severnogo-stazha/` | на сайте |
+| `viz-pered-pensiey-16x9.png` | `/proverka-stazha-pered-pensiey/` | на сайте |
+| `viz-tarify-16x9.png` | `/tarify/` | на сайте |
+| `viz-kabinet-16x9.png` / `1x1` | кабинет / инструкция | запас |
 
-**На сайте:**
-- главная: `viz-family-digital-support-16x9.png`
-- `/proverka-severnogo-stazha/`: `viz-severnyy-stazh-16x9.png`  
 Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.
+
+## Раскладка на страницах услуг
+
+Как на главной: `.sfrfr-wrap.sfrfr-hero__grid` — текст/CTA слева, `.sfrfr-illustration` справа.

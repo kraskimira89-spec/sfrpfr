@@ -17,6 +17,8 @@
 | [viz-soprovozhdenie.md](viz-soprovozhdenie.md) | soprovozhdenie | 16:9, 1:1 |
 | [viz-pod-kluch.md](viz-pod-kluch.md) | pod-kluch | 16:9, 1:1 |
 | [viz-severnyy-stazh.md](viz-severnyy-stazh.md) | severnyy-stazh | 16:9, 1:1 |
+| [viz-pered-pensiey.md](viz-pered-pensiey.md) | перед пенсией | 16:9 |
+| [viz-tarify.md](viz-tarify.md) | тарифы | 16:9 |
 | [viz-kabinet.md](viz-kabinet.md) | kabinet | 16:9, 1:1 |
 
 ---

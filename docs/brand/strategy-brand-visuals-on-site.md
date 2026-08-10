@@ -20,13 +20,15 @@
 
 | Поверхность | Ассет | Как вшить |
 |-------------|-------|-----------|
-| Главная `/` hero справа | `viz-family-digital-support-16x9.png` (или кроп под слот) | P2: заменить SVG внутри `.sfrfr-illustration` на `<img>`; подпись «Рядом с родителями…» |
-| `/pomoch-rodstvenniku-proverit-stazh/` | family `1x1` или `16x9` | одна иллюстрация вверху секции (если появится слот) — не обязательно на первом шаге |
-| `/proverka-stazha/` | `viz-diagnostika-1x1` | опционально рядом с «Что входит» — одна картинка, не ряд из трёх |
-| `/tarify/` карточки | diagnostika / soprovozhdenie / pod-kluch `1x1` | маленькие иллюстрации в шапке карточек **или** только в Яндекс Бизнес / MAX — на сайте не обязательно сразу |
-| `/proverka-severnogo-stazha/` | `viz-severnyy-stazh-16x9` + `1x1` | hero/верх страницы: 16:9; квадрат — OG/пост |
-| Кабинет / инструкция MAX | `viz-kabinet-1x1` | экран входа или статья «как работать в кабинете» |
-| OG / соцшаринг | соответствующие 1:1 или 16:9 | через SEO meta / uploads, не в hero grid |
+| Главная `/` | `viz-family-digital-support-16x9.png` | `.sfrfr-hero__grid` + `.sfrfr-illustration` |
+| `/proverka-stazha/` | `viz-diagnostika-16x9.png` | то же |
+| `/proverka-stazha-pered-pensiey/` | `viz-pered-pensiey-16x9.png` | то же |
+| `/proverka-severnogo-stazha/` | `viz-severnyy-stazh-16x9.png` | то же |
+| `/pomoch-rodstvenniku-proverit-stazh/` | `viz-family-digital-support-16x9.png` | то же |
+| `/tarify/` | `viz-tarify-16x9.png` | то же; карточки тарифов ниже |
+| `/kak-rabotaem/` | `viz-soprovozhdenie-16x9.png` | то же; шаги ниже |
+| Кабинет | `viz-kabinet-16x9.png` | запас |
+| OG / посты | 1:1 | SEO / соцсети |
 
 ---
 
