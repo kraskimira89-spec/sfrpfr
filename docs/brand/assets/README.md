@@ -22,6 +22,7 @@
 | `viz-severnyy-stazh-1x1.png` | то же | Квадрат |
 | `viz-kabinet-1x1.png` | [viz-kabinet.md](../visualizations/viz-kabinet.md) | Личный кабинет |
 
-**Статус пакета:** на согласовании (готовы к P2 на главной после OK по семейному 16:9).
+**Статус пакета:** family 16:9 **утверждён** и вшит в hero главной (P2). Остальные viz — на согласовании.
 
-**Не вшито на сайт автоматически** — замена SVG hero только после явного утверждения (этап P2 ТЗ).
+**P2 на главной:** `viz-family-digital-support-16x9.png` → `.sfrfr-illustration` + подпись.  
+Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.

@@ -58,6 +58,15 @@ if compgen -G "${AWARDS_SRC}/award-*.jpg" > /dev/null; then
   cp -f "${AWARDS_SRC}/award-"*.jpg "${AWARDS_DST}/"
   chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
 fi
+# Утверждённые бренд-визуалы (docs/brand/assets → uploads/sfrfr/brand)
+BRAND_SRC="${APP_DIR}/docs/brand/assets"
+BRAND_DST="${SITE_DIR}/wp-content/uploads/sfrfr/brand"
+mkdir -p "${BRAND_DST}"
+if compgen -G "${BRAND_SRC}/viz-*.png" > /dev/null; then
+  cp -f "${BRAND_SRC}/viz-"*.png "${BRAND_DST}/"
+  chown -R www-data:www-data "${BRAND_DST}" 2>/dev/null || true
+  echo "Brand visuals OK → ${BRAND_DST}"
+fi
 cp -f "${APP_DIR}/scripts/assets/sfrfr-awards.js" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \
