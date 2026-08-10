@@ -9,6 +9,7 @@
 - [Исследование аудитории и каналов](research-audience-channels-2026-08.md) — исходные данные, ограничения и источники.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md).
+- **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы.
 
 ## Правила хранения
 
