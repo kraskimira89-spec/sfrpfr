@@ -188,3 +188,109 @@ add_action('wp_footer', static function (): void {
     // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- собран через esc_* выше
     echo sfrfr_site_footer_html();
 }, 5);
+
+/**
+ * Debug 016b5f: зонд стилей выпадающего меню «Главная» (временно).
+ */
+add_action('wp_footer', static function (): void {
+    if (is_admin()) {
+        return;
+    }
+    ?>
+    <!-- #region agent log -->
+    <script>
+    (function () {
+      var ENDPOINT = 'http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3';
+      var sent = false;
+      function send(hypothesisId, message, data) {
+        fetch(ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': '016b5f'
+          },
+          body: JSON.stringify({
+            sessionId: '016b5f',
+            runId: 'user-browser',
+            hypothesisId: hypothesisId,
+            location: 'sfrfr-site-footer.php:nav-debug',
+            message: message,
+            data: data || {},
+            timestamp: Date.now()
+          })
+        }).catch(function () {});
+      }
+      function probe(reason) {
+        var cssEl = document.getElementById('wp-custom-css');
+        var cssText = cssEl ? (cssEl.textContent || '') : '';
+        var home = Array.prototype.find.call(
+          document.querySelectorAll('#ast-hf-menu-1 > .menu-item'),
+          function (li) {
+            var t = ((li.querySelector(':scope > .menu-link') || {}).textContent || '');
+            return t.indexOf('Главная') !== -1;
+          }
+        );
+        var sub = home ? home.querySelector(':scope > .sub-menu') : null;
+        var link = sub ? sub.querySelector(':scope > .menu-item > .menu-link') : null;
+        var cs = sub ? getComputedStyle(sub) : null;
+        var cl = link ? getComputedStyle(link) : null;
+        send('H1', 'browser menu structure', {
+          reason: reason,
+          homeFound: !!home,
+          subFound: !!sub,
+          tops: Array.prototype.map.call(
+            document.querySelectorAll('#ast-hf-menu-1 > .menu-item'),
+            function (li) {
+              var a = li.querySelector(':scope > .menu-link');
+              return {
+                text: ((a && a.textContent) || '').replace(/\s+/g, ' ').trim(),
+                hasSub: !!li.querySelector(':scope > .sub-menu')
+              };
+            }
+          )
+        });
+        send('H2', 'browser css markers', {
+          reason: reason,
+          hasCustomCss: !!cssEl,
+          hasInsetRight: cssText.indexOf('inset -3px 0 0') !== -1,
+          hasWhiteSub: cssText.indexOf('background: #ffffff !important') !== -1,
+          hasNavV2: cssText.indexOf('sfrfr-nav-dropdown-v2') !== -1
+        });
+        send('H3', 'browser computed submenu', {
+          reason: reason,
+          subBg: cs && cs.backgroundColor,
+          subBorderLeft: cs && cs.borderLeft,
+          subBorderRight: cs && cs.borderRight,
+          subShadow: cs && cs.boxShadow,
+          linkBg: cl && cl.backgroundColor,
+          linkColor: cl && cl.color,
+          linkShadow: cl && cl.boxShadow
+        });
+      }
+      function onReady() {
+        send('H4', 'debug probe loaded', { href: location.href, ua: navigator.userAgent.slice(0, 80) });
+        probe('load');
+        var home = Array.prototype.find.call(
+          document.querySelectorAll('#ast-hf-menu-1 > .menu-item'),
+          function (li) {
+            var t = ((li.querySelector(':scope > .menu-link') || {}).textContent || '');
+            return t.indexOf('Главная') !== -1;
+          }
+        );
+        if (!home) return;
+        home.addEventListener('mouseenter', function () {
+          if (sent) return;
+          sent = true;
+          setTimeout(function () { probe('glavnaya-hover'); }, 120);
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onReady);
+      } else {
+        onReady();
+      }
+    })();
+    </script>
+    <!-- #endregion -->
+    <?php
+}, 99);
