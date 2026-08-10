@@ -28,6 +28,8 @@
 | [methodology-meaning-visualization.md](methodology-meaning-visualization.md) | Пошаговая технология |
 | [brand-platform-v2.md](brand-platform-v2.md) | **Актуальная дружественная платформа** «Цифровая рука помощи» |
 | [platform-proverka-stazha.md](platform-proverka-stazha.md) | Расширенный черновик смыслов и запретов (детали) |
+| [spec-brand-rollout.md](spec-brand-rollout.md) | ТЗ: внедрение бренда на сайт без поломки стилей |
+| [prompt-agent-brand-rollout.md](prompt-agent-brand-rollout.md) | Промпт для агента (отдельный чат, P0) |
 | `associations/` | Ассоциативные ряды по этапам и услугам |
 | `visualizations/` | Брифы на символьные изображения |
 | `assets/` | Утверждённые визуалы (без секретов и ПДн) |
