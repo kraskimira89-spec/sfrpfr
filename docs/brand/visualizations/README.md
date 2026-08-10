@@ -13,11 +13,11 @@
 | Бриф | Ассоциация | Ассеты |
 |------|------------|--------|
 | [viz-perehod-pokoleniy.md](viz-perehod-pokoleniy.md) | family-digital-support | 16:9, 1:1 |
-| [viz-diagnostika.md](viz-diagnostika.md) | diagnostika | 1:1 |
-| [viz-soprovozhdenie.md](viz-soprovozhdenie.md) | soprovozhdenie | 1:1 |
-| [viz-pod-kluch.md](viz-pod-kluch.md) | pod-kluch | 1:1 |
+| [viz-diagnostika.md](viz-diagnostika.md) | diagnostika | 16:9, 1:1 |
+| [viz-soprovozhdenie.md](viz-soprovozhdenie.md) | soprovozhdenie | 16:9, 1:1 |
+| [viz-pod-kluch.md](viz-pod-kluch.md) | pod-kluch | 16:9, 1:1 |
 | [viz-severnyy-stazh.md](viz-severnyy-stazh.md) | severnyy-stazh | 16:9, 1:1 |
-| [viz-kabinet.md](viz-kabinet.md) | kabinet | 1:1 |
+| [viz-kabinet.md](viz-kabinet.md) | kabinet | 16:9, 1:1 |
 
 ---
 

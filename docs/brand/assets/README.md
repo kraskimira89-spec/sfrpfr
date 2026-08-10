@@ -9,22 +9,23 @@
 Текст на картинках не ставим (кириллица в генерации нестабильна) — подписи
 в вёрстке рядом с изображением.
 
+Референсы стиля/элементов: `assets/proverka-stazha-cover-1200x640*.png`,
+`assets/sfrfr-logo-transparent.png` (щит/документ/галочка).
+
 ## Каталог (2026-08-10)
 
-| Файл | Бриф | Назначение |
-|------|------|------------|
-| `viz-family-digital-support-16x9.png` | [viz-perehod-pokoleniy.md](../visualizations/viz-perehod-pokoleniy.md) | Hero / обложка «Цифровая рука помощи» |
-| `viz-family-digital-support-1x1.png` | то же | Пост / квадрат |
-| `viz-diagnostika-1x1.png` | [viz-diagnostika.md](../visualizations/viz-diagnostika.md) | Тариф «Диагностика» |
-| `viz-soprovozhdenie-1x1.png` | [viz-soprovozhdenie.md](../visualizations/viz-soprovozhdenie.md) | Тариф «Сопровождение» |
-| `viz-pod-kluch-1x1.png` | [viz-pod-kluch.md](../visualizations/viz-pod-kluch.md) | Тариф «Под ключ» |
-| `viz-severnyy-stazh-16x9.png` | [viz-severnyy-stazh.md](../visualizations/viz-severnyy-stazh.md) | Сегмент северного стажа |
-| `viz-severnyy-stazh-1x1.png` | то же | Квадрат |
-| `viz-kabinet-1x1.png` | [viz-kabinet.md](../visualizations/viz-kabinet.md) | Личный кабинет |
-
-**Статус пакета:** family 16:9 и severnyy 16:9 **утверждены** и на сайте. Остальные viz — на согласовании.
+| Файл | Бриф | Назначение | Статус |
+|------|------|------------|--------|
+| `viz-family-digital-support-16x9.png` | [viz-perehod-pokoleniy](../visualizations/viz-perehod-pokoleniy.md) | Hero главной | утверждено |
+| `viz-family-digital-support-1x1.png` | то же | Пост / квадрат | на согласовании |
+| `viz-diagnostika-16x9.png` / `1x1` | [viz-diagnostika](../visualizations/viz-diagnostika.md) | Тариф «Диагностика» | на согласовании |
+| `viz-soprovozhdenie-16x9.png` / `1x1` | [viz-soprovozhdenie](../visualizations/viz-soprovozhdenie.md) | Тариф «Сопровождение» | на согласовании |
+| `viz-pod-kluch-16x9.png` / `1x1` | [viz-pod-kluch](../visualizations/viz-pod-kluch.md) | Тариф «Под ключ» | на согласовании |
+| `viz-severnyy-stazh-16x9.png` | [viz-severnyy-stazh](../visualizations/viz-severnyy-stazh.md) | Северный стаж | утверждено |
+| `viz-severnyy-stazh-1x1.png` | то же | Квадрат | на согласовании |
+| `viz-kabinet-16x9.png` / `1x1` | [viz-kabinet](../visualizations/viz-kabinet.md) | Личный кабинет | на согласовании |
 
 **На сайте:**
-- главная: `viz-family-digital-support-16x9.png` → `.sfrfr-illustration`
+- главная: `viz-family-digital-support-16x9.png`
 - `/proverka-severnogo-stazha/`: `viz-severnyy-stazh-16x9.png`  
 Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.
