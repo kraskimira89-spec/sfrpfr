@@ -34,6 +34,7 @@
 
 ### Сейчас
 - Family 16:9 **утверждён** и в hero главной (P2).
+- Severnyy 16:9 **утверждён** на `/proverka-severnogo-stazha/`.
 - Остальные ассеты в `docs/brand/assets/` — на согласовании.
 - Deploy копирует `viz-*.png` в `wp-content/uploads/sfrfr/brand/`.
 
@@ -44,7 +45,7 @@
 4. Сид home через существующий `wp_apply_home.php` / deploy.
 
 ### Шаг B — сегментные страницы
-- Север: один кадр на `/proverka-severnogo-stazha/` (вышка слева / факел справа в 1:1).
+- Север ✅: один кадр на `/proverka-severnogo-stazha/` (вышка слева / факел справа).
 - Родственники: family, если нужен визуальный якорь.
 - Не вешать все три тарифа картинками на главную — шум.
 
