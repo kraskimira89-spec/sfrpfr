@@ -256,7 +256,17 @@ add_action('wp_footer', static function (): void {
           hasWhiteSub: cssText.indexOf('background: #ffffff !important') !== -1,
           hasNavV2: cssText.indexOf('sfrfr-nav-dropdown-v2') !== -1,
           hasNavV3: cssText.indexOf('sfrfr-nav-dropdown-v3') !== -1,
+          hasHeaderLayoutV1: cssText.indexOf('sfrfr-header-layout-v1') !== -1,
           hasGreenHoverBg: cssText.indexOf('background: #f3f7f4 !important') !== -1
+        });
+        var title = document.querySelector('.site-title');
+        var tr = title ? title.getBoundingClientRect() : null;
+        send('L6', 'browser header brand geometry', {
+          reason: reason,
+          titleW: tr && Math.round(tr.width),
+          titleH: tr && Math.round(tr.height),
+          crushed: !!(tr && tr.width < 80 && tr.height > 60),
+          titleWhiteSpace: title ? getComputedStyle(title).whiteSpace : null
         });
         send('H3', 'browser computed submenu', {
           reason: reason,

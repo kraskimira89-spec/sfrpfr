@@ -2081,6 +2081,31 @@ header .custom-logo-link img {
   max-width: none !important;
 }
 
+/*
+  sfrfr-header-layout-v1
+  Бренд не сжимать: иначе «Проверка стажа» складывается в столбик букв
+  (особенно при zoom 110–125% / узком окне), а меню «разъезжается».
+*/
+.site-header .ast-site-identity,
+.site-header .site-branding,
+.ast-primary-header-bar .ast-builder-layout-element[data-section="title_tagline"],
+.ast-primary-header-bar .site-header-primary-section-left {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  min-width: max-content !important;
+  max-width: none !important;
+}
+
+.site-header .site-title,
+.site-header .site-title a,
+.ast-site-identity .site-title,
+.ast-site-identity .site-title a {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
 /* Меню: жирнее; без переносов по буквам (иначе «Главна / я») */
 .main-header-menu > .menu-item > a,
 .ast-builder-menu-1 .menu-link,
@@ -2107,6 +2132,9 @@ header .custom-logo-link img {
 .ast-header-break-point .main-header-menu .sub-menu,
 .ast-builder-menu .main-header-menu .sub-menu,
 nav .main-header-menu .sub-menu {
+  position: absolute !important;
+  left: 0 !important;
+  top: 100% !important;
   min-width: 17.5rem !important;
   margin-top: 0.35rem !important;
   padding: 0.45rem 0 !important;
@@ -2188,10 +2216,20 @@ nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
 .ast-builder-menu-1 .main-header-menu,
 .ast-builder-menu .main-header-menu {
   display: flex !important;
-  flex-wrap: nowrap !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
+  justify-content: flex-end !important;
   width: auto !important;
-  max-width: 100%;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.ast-builder-menu-1,
+.ast-header-menu-layout,
+.site-header .ast-builder-menu {
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 .main-header-menu > .menu-item:not(.sfrfr-menu-search),
@@ -2200,12 +2238,13 @@ nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
   width: auto !important;
   max-width: none !important;
   min-width: 0 !important;
+  position: relative !important;
 }
 
 .main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link,
 .ast-builder-menu-1 .main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link {
-  padding-left: 0.4rem !important;
-  padding-right: 0.4rem !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
 }
 
 .sfrfr-menu-search.menu-item {
@@ -2213,11 +2252,11 @@ nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
   display: flex !important;
   align-items: center !important;
   align-self: center !important;
-  flex: 0 1 10.5rem !important;
+  flex: 0 1 8.5rem !important;
   width: auto !important;
-  min-width: 7.5rem !important;
-  max-width: 11rem !important;
-  margin: 0 0 0 0.4rem !important;
+  min-width: 5.75rem !important;
+  max-width: 10rem !important;
+  margin: 0 0 0 0.35rem !important;
   padding: 0 !important;
   height: auto !important;
   min-height: 0 !important;

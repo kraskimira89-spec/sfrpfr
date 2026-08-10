@@ -116,63 +116,68 @@ echo
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 
-# Меню под короткую воронку (оферта/ПДн — в footer)
-MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
-$j=json_decode(stream_get_contents(STDIN), true);
-foreach ((array)$j as $m) { if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; } }
-' || true)"
-if [ -n "${MENU_ID}" ]; then
-  ITEMS="$("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true)"
-  for iid in $ITEMS; do
-    "${WP[@]}" menu item delete "$iid" >/dev/null 2>&1 || true
-  done
-  HOME_ID="$("${WP[@]}" option get page_on_front)"
-  # Блоки главной — в выпадающем меню под «Главная».
-  HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${HOME_MENU_ID}" ]; then
-    # Якоря разделов главной (без отдельного пункта «Как пользоваться MAX»).
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна проверка" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Как проходит работа" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Что проверяем" "/#proveryaem" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Кто оказывает услугу" "/#o-servise" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Документы" "/#dokumenty" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Полезные статьи" "/#stati" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Частые вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Заявка" "/#zayavka" --parent-id="$HOME_MENU_ID" >/dev/null
-  fi
+# Меню: полная пересборка только по флагу (каждый деплой ломал шапку mid-apply).
+# SFRFR_REBUILD_MENU=1 bash scripts/wp_apply_landing_vps.sh
+if [ "${SFRFR_REBUILD_MENU:-0}" = "1" ]; then
+  MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+  $j=json_decode(stream_get_contents(STDIN), true);
+  foreach ((array)$j as $m) { if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; } }
+  ' || true)"
+  if [ -n "${MENU_ID}" ]; then
+    ITEMS="$("${WP[@]}" menu item list "$MENU_ID" --format=ids 2>/dev/null || true)"
+    for iid in $ITEMS; do
+      "${WP[@]}" menu item delete "$iid" >/dev/null 2>&1 || true
+    done
+    HOME_ID="$("${WP[@]}" option get page_on_front)"
+    # Блоки главной — в выпадающем меню под «Главная».
+    HOME_MENU_ID="$("${WP[@]}" menu item add-post "$MENU_ID" "$HOME_ID" --title="Главная" --porcelain 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "${HOME_MENU_ID}" ]; then
+      # Якоря разделов главной (без отдельного пункта «Как пользоваться MAX»).
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Кому полезна проверка" "/#komu" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Как проходит работа" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Что проверяем" "/#proveryaem" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Кто оказывает услугу" "/#o-servise" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Документы" "/#dokumenty" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Полезные статьи" "/#stati" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Частые вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Заявка" "/#zayavka" --parent-id="$HOME_MENU_ID" >/dev/null
+    fi
 
-  USLUGI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Услуги" "/proverka-stazha/" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${USLUGI_ID}" ]; then
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Проверка стажа" "/proverka-stazha/" --parent-id="$USLUGI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Перед пенсией" "/proverka-stazha-pered-pensiey/" --parent-id="$USLUGI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж" "/proverka-severnogo-stazha/" --parent-id="$USLUGI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Помочь родственнику" "/pomoch-rodstvenniku-proverit-stazh/" --parent-id="$USLUGI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/kak-rabotaem/" --parent-id="$USLUGI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/tarify/" --parent-id="$USLUGI_ID" >/dev/null
-  fi
+    USLUGI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Услуги" "/proverka-stazha/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "${USLUGI_ID}" ]; then
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Проверка стажа" "/proverka-stazha/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Перед пенсией" "/proverka-stazha-pered-pensiey/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж" "/proverka-severnogo-stazha/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Помочь родственнику" "/pomoch-rodstvenniku-proverit-stazh/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/kak-rabotaem/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/tarify/" --parent-id="$USLUGI_ID" >/dev/null
+    fi
 
-  STATI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${STATI_ID}" ]; then
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Все статьи" "/blog/" --parent-id="$STATI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Как проверить стаж в ИЛС" "/blog/kak-proverit-stazh-v-vypiske-ils/" --parent-id="$STATI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Как сверить трудовую и ИЛС" "/blog/kak-sverit-trudovuyu-knizhku-i-ils/" --parent-id="$STATI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Архивная справка" "/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/" --parent-id="$STATI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж и коэффициент" "/blog/severnyy-stazh-i-rayonnyy-koefficient/" --parent-id="$STATI_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "MAX и личный кабинет" "/blog/kak-rabotat-v-max-i-lichnom-kabinete/" --parent-id="$STATI_ID" >/dev/null
-  fi
+    STATI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "${STATI_ID}" ]; then
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Все статьи" "/blog/" --parent-id="$STATI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Как проверить стаж в ИЛС" "/blog/kak-proverit-stazh-v-vypiske-ils/" --parent-id="$STATI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Как сверить трудовую и ИЛС" "/blog/kak-sverit-trudovuyu-knizhku-i-ils/" --parent-id="$STATI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Архивная справка" "/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/" --parent-id="$STATI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж и коэффициент" "/blog/severnyy-stazh-i-rayonnyy-koefficient/" --parent-id="$STATI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "MAX и личный кабинет" "/blog/kak-rabotat-v-max-i-lichnom-kabinete/" --parent-id="$STATI_ID" >/dev/null
+    fi
 
-  EXPERT_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" --porcelain 2>/dev/null | tr -d '[:space:]')"
-  if [ -n "${EXPERT_ID}" ]; then
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Все эксперты" "/expert/" --parent-id="$EXPERT_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Лопакова Н. Ф." "/expert/lopakova-nataliya/" --parent-id="$EXPERT_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Богдановский С. В." "/expert/bogdanovskiy-sergey/" --parent-id="$EXPERT_ID" >/dev/null
-  fi
+    EXPERT_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Эксперты" "/expert/" --porcelain 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "${EXPERT_ID}" ]; then
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Все эксперты" "/expert/" --parent-id="$EXPERT_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Лопакова Н. Ф." "/expert/lopakova-nataliya/" --parent-id="$EXPERT_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Богдановский С. В." "/expert/bogdanovskiy-sergey/" --parent-id="$EXPERT_ID" >/dev/null
+    fi
 
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
-  CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
-  "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL%/}/" >/dev/null
-  echo "MENU primary updated id=${MENU_ID} home=${HOME_MENU_ID} uslugi=${USLUGI_ID} stati=${STATI_ID} expert=${EXPERT_ID}"
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
+    CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL%/}/" >/dev/null
+    echo "MENU primary rebuilt id=${MENU_ID} home=${HOME_MENU_ID} uslugi=${USLUGI_ID} stati=${STATI_ID} expert=${EXPERT_ID}"
+  fi
+else
+  echo "MENU skip rebuild (set SFRFR_REBUILD_MENU=1 to force)"
 fi
 
 echo DONE
