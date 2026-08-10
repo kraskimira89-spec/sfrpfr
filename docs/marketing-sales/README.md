@@ -6,11 +6,13 @@
 
 - [Стратегия маркетинга и продаж 2026–2028](strategy-2026-2028.md) — аудитории, позиционирование, каналы, розничная воронка (B2C) и переход к корпоративным продажам (B2B).
 - [ТЗ на реализацию стратегии](spec-marketing-sales-foundation.md) — аналитика, посадочные страницы, реклама, система продаж (CRM), MAX и исследование корпоративных потребностей (B2B discovery).
+- [ТЗ чата «Маркетинг» (агент)](spec-marketing-agent-chat.md) — режимы работы, границы, P0 без бюджета, без поломки сайта.
+- [Промпт агента «Маркетинг»](prompt-agent-marketing.md) — скопировать в новый чат Cursor.
 - [Исследование аудитории и каналов](research-audience-channels-2026-08.md) — исходные данные, ограничения и источники.
 - [План 1 000 подписчиков в MAX (Launchi)](research-launchi-max-1000-subscribers.md) — конспект статьи с раскрытыми блоками + адаптация под SFRFR.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md).
-- **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы.
+- **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 
 ## Правила хранения
 
