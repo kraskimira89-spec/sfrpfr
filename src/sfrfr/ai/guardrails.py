@@ -1,4 +1,4 @@
-"""Guardrails: маскирование ПДн и пометки черновиков перед LLM / выдачей."""
+"""Guardrails: маскирование ПДн и пометки проектов обращений перед LLM / выдачей."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def redact_for_llm(text: str, *, client_name: str | None = None) -> str:
 
 
 def ensure_needs_human_review(draft: DraftResult) -> DraftResult:
-    """Критерий ТЗ-08: черновик заявления всегда с needs_human_review=True."""
+    """Критерий ТЗ-08: проект обращения всегда с needs_human_review=True."""
     if draft.needs_human_review:
         return draft
     return draft.model_copy(update={"needs_human_review": True})
