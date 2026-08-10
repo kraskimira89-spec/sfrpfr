@@ -254,10 +254,13 @@ add_action('wp_footer', static function (): void {
           hasCustomCss: !!cssEl,
           hasInsetRight: cssText.indexOf('inset -3px 0 0') !== -1,
           hasWhiteSub: cssText.indexOf('background: #ffffff !important') !== -1,
-          hasNavV2: cssText.indexOf('sfrfr-nav-dropdown-v2') !== -1
+          hasNavV2: cssText.indexOf('sfrfr-nav-dropdown-v2') !== -1,
+          hasNavV3: cssText.indexOf('sfrfr-nav-dropdown-v3') !== -1,
+          hasGreenHoverBg: cssText.indexOf('background: #f3f7f4 !important') !== -1
         });
         send('H3', 'browser computed submenu', {
           reason: reason,
+          runIdHint: 'post-fix',
           subBg: cs && cs.backgroundColor,
           subBorderLeft: cs && cs.borderLeft,
           subBorderRight: cs && cs.borderRight,

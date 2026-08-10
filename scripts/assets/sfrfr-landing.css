@@ -2095,11 +2095,11 @@ header .custom-logo-link img {
 }
 
 /*
-  sfrfr-nav-dropdown-v2
+  sfrfr-nav-dropdown-v3
   Выпадающие меню (Главная / Услуги / Статьи / Эксперты — единый стиль):
   — белая панель + только левый контур (правый убран — не «силуэт»);
   — текст тёмный на белом (не синий на синем);
-  — при hover: лёгкий фон и зелёная чёрточка справа у пункта.
+  — при hover: без зеленоватого фона, только зелёная чёрточка справа.
 */
 .main-header-menu .sub-menu,
 .ast-builder-menu-1 .main-header-menu .sub-menu,
@@ -2160,9 +2160,9 @@ nav .main-header-menu .sub-menu .menu-link {
 .ast-builder-menu .main-header-menu .sub-menu .current-menu-item > .menu-link,
 nav .main-header-menu .sub-menu .menu-item:hover > .menu-link,
 nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
-  background: #f3f7f4 !important;
+  background: transparent !important;
   color: var(--sfrfr-ink, #1a2330) !important;
-  /* зелёная чёрточка справа — не рядом с левым контуром панели */
+  /* зелёная чёрточка справа — без зеленоватой подложки пункта */
   box-shadow: inset -3px 0 0 var(--sfrfr-accent, #2e7d5b) !important;
 }
 
@@ -2179,7 +2179,7 @@ nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
 
 .main-header-menu .sub-menu .menu-item:hover > a[href*="#kak-rabotat"],
 .main-header-menu .sub-menu .menu-item.focus > a[href*="#kak-rabotat"] {
-  background: #f3f7f4 !important;
+  background: transparent !important;
   box-shadow: inset -3px 0 0 var(--sfrfr-accent, #2e7d5b) !important;
 }
 
