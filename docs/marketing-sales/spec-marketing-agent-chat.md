@@ -1,7 +1,8 @@
 # ТЗ: чат «Маркетинг» — работа агента без поломки сайта и без загромождения
 
 **Назначение:** рамки для отдельного чата Cursor про маркетинг и продажи.  
-**Промпт для агента:** [prompt-agent-marketing.md](prompt-agent-marketing.md)  
+**Промпт для агента:** [Marketing/prompt-agent-marketer.md](Marketing/prompt-agent-marketer.md)  
+**Пакет роли:** [Marketing/README.md](Marketing/README.md)  
 **Стратегия:** [strategy-2026-2028.md](strategy-2026-2028.md)  
 **Фундамент (крупные этапы):** [spec-marketing-sales-foundation.md](spec-marketing-sales-foundation.md)  
 **Статус:** [reports/2026-08-09-implementation-status.md](reports/2026-08-09-implementation-status.md)  
