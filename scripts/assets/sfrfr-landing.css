@@ -2120,10 +2120,10 @@ header .custom-logo-link img {
 }
 
 /*
-  sfrfr-nav-dropdown-v5
+  sfrfr-nav-dropdown-v6
   Выпадающие меню (Главная / Услуги / Статьи / Эксперты — один стиль):
   — белая панель + левый контур;
-  — пункты одинаковые; синеватая подложка только на :hover (не на current).
+  — hover: синеватая подложка + зелёная полоска слева с отступом от края.
 */
 .main-header-menu .sub-menu,
 .ast-builder-menu-1 .main-header-menu .sub-menu,
@@ -2164,10 +2164,11 @@ nav .main-header-menu .sub-menu .menu-link,
 .main-header-menu .sub-menu .current-menu-item > .menu-link,
 .ast-builder-menu-1 .main-header-menu .sub-menu .current-menu-item > .menu-link,
 nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
+  position: relative !important;
   display: block !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  padding: 0.72rem 1.15rem !important;
+  padding: 0.72rem 1.15rem 0.72rem 1.35rem !important;
   margin: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -2181,7 +2182,23 @@ nav .main-header-menu .sub-menu .current-menu-item > .menu-link {
   text-align: left !important;
 }
 
-/* Подложка только у пункта под курсором мыши */
+.main-header-menu .sub-menu .menu-link::before,
+.ast-builder-menu-1 .main-header-menu .sub-menu .menu-link::before,
+nav .main-header-menu .sub-menu .menu-link::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0.55rem !important;
+  top: 0.45rem !important;
+  bottom: 0.45rem !important;
+  width: 3px !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+  pointer-events: none !important;
+}
+
+/* Подложка + зелёная полоска слева (с отступом от края) — только hover */
 .main-header-menu .sub-menu .menu-item:hover > .menu-link,
 .ast-builder-menu-1 .main-header-menu .sub-menu .menu-item:hover > .menu-link,
 .ast-builder-menu .main-header-menu .sub-menu .menu-item:hover > .menu-link,
@@ -2189,6 +2206,14 @@ nav .main-header-menu .sub-menu .menu-item:hover > .menu-link {
   background: #e8eef5 !important;
   color: var(--sfrfr-primary, #1e4e79) !important;
   box-shadow: none !important;
+}
+
+.main-header-menu .sub-menu .menu-item:hover > .menu-link::before,
+.ast-builder-menu-1 .main-header-menu .sub-menu .menu-item:hover > .menu-link::before,
+.ast-builder-menu .main-header-menu .sub-menu .menu-item:hover > .menu-link::before,
+nav .main-header-menu .sub-menu .menu-item:hover > .menu-link::before {
+  background: var(--sfrfr-accent, #2e7d5b) !important;
+  opacity: 1 !important;
 }
 
 /* Скрыть стрелки Astra внутри пунктов submenu — единый вид */
@@ -2214,6 +2239,11 @@ nav .main-header-menu .sub-menu .menu-item:hover > .menu-link {
   background: #e8eef5 !important;
   color: var(--sfrfr-primary, #1e4e79) !important;
   box-shadow: none !important;
+}
+
+.main-header-menu .sub-menu .menu-item:hover > a[href*="#kak-rabotat"]::before {
+  background: var(--sfrfr-accent, #2e7d5b) !important;
+  opacity: 1 !important;
 }
 
 /* Верхнее меню: синеватая полоска снизу при hover / текущем пункте */
