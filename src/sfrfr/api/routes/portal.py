@@ -61,7 +61,7 @@ _MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 _SUBMISSION_INSTRUCTION = (
     f"{SUBMISSION_INSTRUCTION} "
-    "Используйте черновик заявления и чек-лист как подсказку."
+    "Используйте проект обращения и чек-лист как подсказку."
 )
 
 _SFR_WARNING = WARNING
