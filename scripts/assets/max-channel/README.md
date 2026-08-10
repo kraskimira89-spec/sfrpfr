@@ -2,7 +2,15 @@
 
 Канал: https://max.ru/channel_proverkastaza  
 ТЗ: `docs/specs/23-max-channel-promotion.md`  
-Ops: `docs/ops/max-channel-chat-id.md`
+Ops: `docs/ops/max-channel-chat-id.md`  
+Сегмент (Launchi): `docs/marketing-sales/research-launchi-max-1000-subscribers.md`
+
+## Файлы
+
+| Файл | Назначение |
+|------|------------|
+| `starter-posts.json` | Закреп + 5 постов (коллеги → чек-лист → снижение → границы → MAX) |
+| `channel-description.md` | Текст описания канала для ручной вставки в UI MAX |
 
 ## Путь публикации
 
@@ -12,6 +20,8 @@ Ops: `docs/ops/max-channel-chat-id.md`
   → sfrfr max-channel-publish-starter
   → проверка в канале
 ```
+
+Описание канала (`channel-description.md`) публикуется **только вручную** в настройках MAX.
 
 ## Команды
 
