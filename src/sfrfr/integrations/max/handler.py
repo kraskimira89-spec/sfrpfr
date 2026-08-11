@@ -19,7 +19,12 @@ from sfrfr.integrations.max.client import (
 )
 from sfrfr.integrations.max.intake import (
     CALL_OPERATOR_LABEL,
+    DOCS_BASE_TEXT,
+    DOCS_GOSUSLUGI_TEXT,
     DOCS_INFO_TEXT,
+    DOCS_MISSING_TEXT,
+    DOCS_SPECIAL_TEXT,
+    DOCS_STAZH_TEXT,
     EMP_HOWTO_TEXT,
     FALLBACK_MENU_TEXT,
     ILS_HOWTO_MFC_TEXT,
@@ -31,6 +36,8 @@ from sfrfr.integrations.max.intake import (
     cabinet_urls_for_case,
     device_keyboard,
     device_question,
+    docs_info_keyboard,
+    docs_section_keyboard,
     emp_howto_keyboard,
     employment_keyboard,
     employment_question,
@@ -690,21 +697,54 @@ def _handle_intake_callback(
             intake_store.save(intake)
         return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
 
-    if kind == "docs_info":
+    if kind == "docs_info" or (kind == "docs" and value == "menu"):
         case_id = intake.case_id
-        max_url, web_url = (
-            cabinet_urls_for_case(case_id)
-            if case_id
-            else (get_settings().max_miniapp_url, get_settings().cabinet_public_url)
-        )
+        if case_id:
+            max_url, web_url = cabinet_urls_for_case(case_id)
+        else:
+            max_url = get_settings().max_miniapp_url or get_settings().cabinet_public_url
+            web_url = get_settings().cabinet_public_url
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=DOCS_INFO_TEXT,
-            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+            attachments=docs_info_keyboard(
+                cabinet_max_url=max_url, cabinet_web_url=web_url
+            ),
         )
         return MaxHandleResult(ok=True, action="docs_info", case_id=case_id, reply=DOCS_INFO_TEXT)
+
+    if kind == "docs" and value in {
+        "base",
+        "stazh",
+        "special",
+        "gosuslugi",
+        "missing",
+        "ils_howto",
+    }:
+        texts = {
+            "base": DOCS_BASE_TEXT,
+            "stazh": DOCS_STAZH_TEXT,
+            "special": DOCS_SPECIAL_TEXT,
+            "gosuslugi": DOCS_GOSUSLUGI_TEXT,
+            "missing": DOCS_MISSING_TEXT,
+            "ils_howto": ILS_HOWTO_TEXT,
+        }
+        reply = texts[value]
+        attachments = (
+            ils_howto_keyboard() if value == "ils_howto" else docs_section_keyboard()
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=attachments,
+        )
+        return MaxHandleResult(
+            ok=True, action=f"docs_{value}", case_id=intake.case_id, reply=reply
+        )
 
     if kind == "back":
         step = intake.step()
@@ -1739,6 +1779,8 @@ def handle_max_update(
         or lower.startswith("/documents")
         or lower in {"документы", "что прислать"}
     ):
+        if intake is None:
+            intake = get_intake_store().upsert_started(user_id)
         reply = DOCS_INFO_TEXT
         docs_case_id: str | None = (intake.case_id if intake else None) or (
             record.case_id if record else None
@@ -1746,14 +1788,14 @@ def handle_max_update(
         if docs_case_id:
             max_url, web_url = cabinet_urls_for_case(docs_case_id)
         else:
-            max_url = get_settings().max_miniapp_url or get_settings().max_chat_url
+            max_url = get_settings().max_miniapp_url or get_settings().cabinet_public_url
             web_url = get_settings().cabinet_public_url
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=reply,
-            attachments=upload_blocked_keyboard(
+            attachments=docs_info_keyboard(
                 cabinet_max_url=max_url, cabinet_web_url=web_url
             ),
         )

@@ -245,6 +245,27 @@ def test_format_welcome_text_skips_max_placeholder() -> None:
     assert format_welcome_text(display_name="Анна") != WELCOME_TEXT
 
 
+def test_docs_info_menu_and_special_section(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(31, "/start"), bot=bot)
+    menu = handle_max_update(_cb(31, "intake:docs_info"), bot=bot)
+    assert menu.action == "docs_info"
+    assert "по кнопкам" in (menu.reply or "").lower() or "Документы для проверки" in (
+        menu.reply or ""
+    )
+
+    special = handle_max_update(_cb(31, "intake:docs:special"), bot=bot)
+    assert special.action == "docs_special"
+    assert "свидетельства о рождении" in (special.reply or "").lower()
+    assert "Справка о выплатах СФР" in (special.reply or "")
+    assert "ИПК" in (special.reply or "")
+
+    gos = handle_max_update(_cb(31, "intake:docs:gosuslugi"), bot=bot)
+    assert gos.action == "docs_gosuslugi"
+    assert "Выписка из лицевого счета в СФР" in (gos.reply or "")
+    get_settings.cache_clear()
+
+
 def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     handle_max_update(_msg(30, "/start"), bot=bot)
@@ -257,8 +278,8 @@ def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
 
     howto = handle_max_update(_cb(30, "intake:ils:need"), bot=bot)
     assert howto.action == "ils_howto"
-    assert "Госуслуг" in (howto.reply or "")
-    assert "1." in (howto.reply or "")
+    assert "Госуслуг" in (howto.reply or "") or "Госуслугах" in (howto.reply or "")
+    assert "Выписка из лицевого счета в СФР" in (howto.reply or "")
     assert bot.attachments[-1]
 
     mfc = handle_max_update(_cb(30, "intake:ils_guide:mfc"), bot=bot)
