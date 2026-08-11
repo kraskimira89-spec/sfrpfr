@@ -193,7 +193,6 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" menu item add-custom "$MENU_ID" "Как проходит работа" "/#kak-prohodit" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Что проверяем" "/#proveryaem" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Кто оказывает услугу" "/#o-servise" --parent-id="$HOME_MENU_ID" >/dev/null
-    "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/#tarify" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Документы" "/#dokumenty" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Полезные статьи" "/#stati" --parent-id="$HOME_MENU_ID" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Частые вопросы" "/#faq" --parent-id="$HOME_MENU_ID" >/dev/null
