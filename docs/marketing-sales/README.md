@@ -13,6 +13,8 @@
 - [Исследование аудитории и каналов](research-audience-channels-2026-08.md) — исходные данные, ограничения и источники.
 - [План 1 000 подписчиков в MAX (Launchi)](research-launchi-max-1000-subscribers.md) — конспект статьи с раскрытыми блоками + адаптация под SFRFR.
 - [Сегмент «Северный стаж»](research-segment-north-2026-08.md) — формула, сообщения v2, 5 постов MAX, 5 гипотез с UTM.
+- [Тест Ноябрьск × север × Директ](research-test-noyabrsk-north-direct-2026-08.md) — одностраничный план (бюджет TBD).
+- [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md).
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
