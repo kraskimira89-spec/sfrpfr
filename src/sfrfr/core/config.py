@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     max_bot_token: str = ""
     max_api_base: str = "https://platform-api2.max.ru"
     max_webhook_secret: str = ""
+    # ТЗ-25: служебный бот (лиды, approve staff); пусто = fallback на MAX_BOT_TOKEN
+    max_ops_bot_token: str = ""
+    max_ops_webhook_secret: str = ""
+    max_ops_chat_url: str = ""
 
     pii_encryption_key: str = ""
     data_retention_days: int = 90
