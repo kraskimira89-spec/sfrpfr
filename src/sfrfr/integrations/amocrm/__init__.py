@@ -8,6 +8,16 @@ import httpx
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.amocrm.fields import LEAD_FIELD_SPECS, build_lead_custom_fields
+from sfrfr.integrations.amocrm.pipeline_stages import (
+    AMO_STAGE_NAMES,
+    TASK_DOCS_AFTER_DIAG,
+    TASK_FIRST_CONTACT,
+    TASK_REVIEW_REMINDER,
+    key_for_status_id,
+    resolve_status_id_by_name,
+    should_move_forward,
+    suggest_amo_stage_key,
+)
 
 
 class AmoCrmClient:
