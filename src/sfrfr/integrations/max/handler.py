@@ -20,6 +20,7 @@ from sfrfr.integrations.max.client import (
 from sfrfr.integrations.max.intake import (
     CALL_OPERATOR_LABEL,
     DOCS_INFO_TEXT,
+    FALLBACK_MENU_TEXT,
     OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
     UPLOAD_BLOCKED_TEXT,
@@ -29,6 +30,7 @@ from sfrfr.integrations.max.intake import (
     device_question,
     employment_keyboard,
     employment_question,
+    format_welcome_text,
     get_intake_store,
     goal_keyboard,
     ils_keyboard,
@@ -132,8 +134,53 @@ def _user_id(update: dict[str, Any]) -> str | None:
             return str(sender["user_id"])
         if message.get("user_id") is not None:
             return str(message["user_id"])
+    user = update.get("user") or {}
+    if isinstance(user, dict) and user.get("user_id") is not None:
+        return str(user["user_id"])
     return None
 
+
+def _user_dict(update: dict[str, Any]) -> dict[str, Any]:
+    for key in ("user", "sender", "from"):
+        raw = update.get(key)
+        if isinstance(raw, dict) and raw:
+            return raw
+    callback = update.get("callback") or {}
+    if isinstance(callback, dict):
+        for key in ("user", "from"):
+            raw = callback.get(key)
+            if isinstance(raw, dict) and raw:
+                return raw
+    message = update.get("message") or update.get("message_created") or {}
+    if isinstance(message, dict):
+        for key in ("sender", "from", "user"):
+            raw = message.get(key)
+            if isinstance(raw, dict) and raw:
+                return raw
+    return {}
+
+
+def _display_name_from_update(update: dict[str, Any], user_id: str | None = None) -> str | None:
+    user = _user_dict(update)
+    for key in ("first_name", "firstName", "name", "username"):
+        val = user.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    last = user.get("last_name") or user.get("lastName")
+    first = user.get("first_name") or user.get("firstName")
+    if isinstance(first, str) and isinstance(last, str) and first.strip():
+        return f"{first.strip()} {last.strip()}".strip()
+    if user_id:
+        row = _client_row_by_max(user_id)
+        if row:
+            full = (row.get("full_name") or "").strip()
+            if full and not full.lower().startswith("max "):
+                return full
+    return None
+
+
+def _welcome_for_update(update: dict[str, Any], user_id: str | None) -> str:
+    return format_welcome_text(display_name=_display_name_from_update(update, user_id))
 
 def _chat_id(update: dict[str, Any]) -> int | str | None:
     if update.get("chat_id") is not None:
@@ -251,9 +298,16 @@ def _reply_need_start(
     *,
     user_id: str,
     chat_id: int | str | None,
+    welcome_text: str | None = None,
 ) -> MaxHandleResult:
     """Просьба начать диалог — стартовое меню диагностики."""
-    return _handle_bot_start(bot, user_id=user_id, chat_id=chat_id, store=get_case_store())
+    return _handle_bot_start(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        store=get_case_store(),
+        welcome_text=welcome_text,
+    )
 
 
 def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
@@ -544,14 +598,15 @@ def _handle_intake_callback(
 
     if kind == "restart":
         intake = intake_store.restart(user_id)
+        text = format_welcome_text()
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
-            text=WELCOME_TEXT,
+            text=text,
             attachments=whom_keyboard(),
         )
-        return MaxHandleResult(ok=True, action="max_intake_restart", reply=WELCOME_TEXT)
+        return MaxHandleResult(ok=True, action="max_intake_restart", reply=text)
 
     if kind == "operator" or payload == "intake:goal:operator":
         if kind == "goal":
@@ -785,6 +840,7 @@ def _handle_bot_start(
     user_id: str,
     chat_id: int | str | None,
     store,
+    welcome_text: str | None = None,
 ) -> MaxHandleResult:
     """Старт: меню диагностики без создания дела (ТЗ-20)."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
@@ -793,18 +849,19 @@ def _handle_bot_start(
 
     _ensure_supabase_max_client(user_id)
     get_intake_store().upsert_started(user_id)
+    text = welcome_text or WELCOME_TEXT
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
-        text=WELCOME_TEXT,
+        text=text,
         attachments=goal_keyboard(),
     )
     return MaxHandleResult(
         ok=True,
         action="max_intake_started",
         case_id=None,
-        reply=WELCOME_TEXT,
+        reply=text,
     )
 
 
@@ -1412,6 +1469,17 @@ def handle_max_update(
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")
 
     store = get_case_store()
+    welcome_text = _welcome_for_update(update, user_id)
+
+    # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
+    if "bot_started" in update_type:
+        return _handle_bot_start(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            welcome_text=welcome_text,
+        )
 
     if manager_ticket:
         return _approve_staff_by_manager(
@@ -1422,7 +1490,13 @@ def handle_max_update(
         )
 
     if start_hit:
-        return _handle_bot_start(bot, user_id=user_id, chat_id=chat_id, store=store)
+        return _handle_bot_start(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            welcome_text=welcome_text,
+        )
 
     intake_result = _handle_intake_callback(
         bot,
@@ -1536,7 +1610,9 @@ def handle_max_update(
         )
 
     if record is None:
-        return _reply_need_start(bot, user_id=user_id, chat_id=chat_id)
+        return _reply_need_start(
+            bot, user_id=user_id, chat_id=chat_id, welcome_text=welcome_text
+        )
 
     if lower.startswith("/draft"):
         reply = _draft_preview(record)
@@ -1620,10 +1696,17 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    reply = (
-        "Выберите пункт меню ниже или откройте /help. "
-        f"Документы загружаются в личном кабинете. {POSITION_SHORT}"
-    )
+    # Свободный текст до выбора «для кого» — снова тёплое приветствие, не сухой ack.
+    if text and (intake is None or intake.for_whom is None):
+        return _handle_bot_start(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            welcome_text=welcome_text,
+        )
+
+    reply = FALLBACK_MENU_TEXT
     _reply(
         bot,
         user_id=user_id,

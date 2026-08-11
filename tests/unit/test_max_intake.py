@@ -7,7 +7,13 @@ from pathlib import Path
 from sfrfr.core.case_store import get_case_store, reset_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.handler import handle_max_update
-from sfrfr.integrations.max.intake import WELCOME_TEXT, get_intake_store, reset_intake_store
+from sfrfr.integrations.max.intake import (
+    FALLBACK_MENU_TEXT,
+    WELCOME_TEXT,
+    format_welcome_text,
+    get_intake_store,
+    reset_intake_store,
+)
 
 
 class _SilentBot:
@@ -179,3 +185,44 @@ def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
     assert blocked.ok is False
     assert bot.attachments[-1]
     get_settings.cache_clear()
+
+
+def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    result = handle_max_update(
+        {
+            "update_type": "bot_started",
+            "chat_id": 42,
+            "user": {"user_id": 21, "first_name": "Ирина"},
+        },
+        bot=bot,
+    )
+    assert result.action == "max_intake_started"
+    assert result.case_id is None
+    assert result.reply == format_welcome_text(display_name="Ирина")
+    assert "Здравствуйте, Ирина!" in (result.reply or "")
+    assert "Я бот сервиса" in (result.reply or "")
+    assert "Выберите пункт меню ниже" not in (result.reply or "")
+    get_settings.cache_clear()
+
+
+def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    # Есть дело (как после лида с сайта), но диагностика ещё не начата.
+    case = get_case_store().create(client_name="Тест", snils_masked="***")
+    get_case_store().bind_max(case.case_id, max_user_id="22")
+    result = handle_max_update(
+        _msg(22, "Здравствуйте. Тестовая заявка с сайта, проверяю связь."),
+        bot=bot,
+    )
+    assert result.action == "max_intake_started"
+    assert "Здравствуйте!" in (result.reply or "")
+    assert "Я бот сервиса" in (result.reply or "")
+    assert result.reply != FALLBACK_MENU_TEXT
+    assert "Выберите пункт меню ниже" not in (result.reply or "")
+    get_settings.cache_clear()
+
+
+def test_format_welcome_text_skips_max_placeholder() -> None:
+    assert format_welcome_text(display_name="Max 12345") == WELCOME_TEXT
+    assert format_welcome_text(display_name="Анна") != WELCOME_TEXT

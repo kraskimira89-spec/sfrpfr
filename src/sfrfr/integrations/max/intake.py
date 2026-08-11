@@ -40,8 +40,35 @@ GOAL_LABELS: dict[str, str] = {
 }
 
 WELCOME_TEXT = (
-    "Здравствуйте! Поможем разобраться со стажем и документами. "
-    f"{POSITION_SHORT} Для кого проверка?"
+    "Здравствуйте!\n\n"
+    "Я бот сервиса «Проверка стажа». Здесь можно:\n"
+    "• коротко уточнить ситуацию — за себя или помогаете близкому;\n"
+    "• понять, какие документы нужны для сверки стажа и ИЛС;\n"
+    "• перейти в личный кабинет и безопасно загрузить файлы;\n"
+    "• позвать специалиста в этот же чат.\n\n"
+    "Сканы и трудовую в сообщения не присылайте — только через кабинет.\n\n"
+    f"{POSITION_SHORT}\n\n"
+    "Для кого проверка? Выберите кнопку ниже."
+)
+
+
+def format_welcome_text(*, display_name: str | None = None) -> str:
+    """Приветствие с именем, если оно известно и выглядит как имя человека."""
+    name = (display_name or "").strip()
+    if not name or name.lower().startswith("max ") or "@" in name:
+        return WELCOME_TEXT
+    # Только первое слово / короткое обращение — без длинных ФИО из формы
+    first = name.split()[0]
+    if len(first) < 2 or len(first) > 40 or not first[0].isalpha():
+        return WELCOME_TEXT
+    return WELCOME_TEXT.replace("Здравствуйте!", f"Здравствуйте, {first}!", 1)
+
+
+FALLBACK_MENU_TEXT = (
+    "Спасибо за сообщение.\n\n"
+    "Чтобы продолжить, выберите кнопку ниже или нажмите «Позвать специалиста». "
+    "Документы загружаются только в личном кабинете — не в этом чате.\n\n"
+    f"{POSITION_SHORT}"
 )
 
 SUMMARY_TEXT = (
@@ -364,8 +391,8 @@ def upload_blocked_keyboard(*, cabinet_max_url: str, cabinet_web_url: str) -> li
     )
 
 
-def whom_question() -> str:
-    return WELCOME_TEXT
+def whom_question(*, display_name: str | None = None) -> str:
+    return format_welcome_text(display_name=display_name)
 
 
 def pension_question() -> str:
