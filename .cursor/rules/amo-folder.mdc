@@ -12,6 +12,7 @@ alwaysApply: true
 - `README.md` — индекс;
 - `prompt-agent-amocrm.md` — промпт нового чата;
 - `how-we-work-amocrm.md` — роли систем и поток лида;
+- `playbook-operator-amo-card.md` — поля карточки + перечень документов без содержимого;
 - `tz-12-amocrm.md`, `ops-amocrm-setup.md`, `qa-lead-amocrm-e2e.md` — рабочие копии ТЗ;
 - канон в репо: `docs/specs/12-amocrm.md`, `docs/ops/amocrm-setup.md`, `docs/qa/lead-amocrm-e2e.md` — при правках синхронизировать.
 
