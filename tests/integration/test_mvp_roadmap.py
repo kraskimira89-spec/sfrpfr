@@ -79,7 +79,9 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr_search_per_page" in search_mu
     assert "sfrfr-search-item--" in search_mu
     assert "Показывать по" in search_mu
-    assert "Пример расчёта вознаграждения" in home
+    # На главной — тизер тарифов; полный расчёт в оферте / на /tarify/
+    assert 'id="tarify"' in home
+    assert "Открыть страницу тарифов" in home
     assert 'id="komu"' in home
     assert "sfrfr-sticky-cta" in home
     assert 'id="stati"' in home  # 3 карточки блога (§13.3)
