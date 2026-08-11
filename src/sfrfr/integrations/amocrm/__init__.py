@@ -96,27 +96,104 @@ class AmoCrmClient:
         return self._request("GET", "/leads/custom_fields", params={"limit": 250})
 
     def ensure_lead_fields(self) -> dict[str, Any]:
-        """Создать недостающие custom fields сделки по code из ТЗ-12."""
+        """Создать недостающие поля и синхронизировать русские названия / is_api_only."""
         listed = self.list_lead_custom_fields()
         if listed.get("skipped") or not listed.get("ok"):
             return listed
-        existing = {
-            str(item.get("code") or "").upper()
-            for item in (listed.get("response") or {})
-            .get("_embedded", {})
-            .get("custom_fields", [])
+        existing_items = (
+            (listed.get("response") or {}).get("_embedded", {}).get("custom_fields", [])
+        )
+        by_code: dict[str, dict[str, Any]] = {
+            str(item.get("code") or "").upper(): item
+            for item in existing_items
             if item.get("code")
         }
-        to_create = [
-            {"name": spec["name"], "type": spec["type"], "code": spec["code"]}
-            for spec in LEAD_FIELD_SPECS
-            if spec["code"].upper() not in existing
-        ]
-        if not to_create:
-            return {"ok": True, "created": [], "existing": sorted(existing)}
-        created = self._request("POST", "/leads/custom_fields", json_body=to_create)
-        created["requested"] = [f["code"] for f in to_create]
-        return created
+        existing = set(by_code)
+        to_create: list[dict[str, Any]] = []
+        for spec in LEAD_FIELD_SPECS:
+            if spec["code"].upper() in existing:
+                continue
+            body: dict[str, Any] = {
+                "name": spec["name"],
+                "type": spec["type"],
+                "code": spec["code"],
+            }
+            if spec.get("is_api_only"):
+                body["is_api_only"] = True
+            to_create.append(body)
+
+        created: dict[str, Any] = {"ok": True, "created": [], "existing": sorted(existing)}
+        if to_create:
+            created = self._request("POST", "/leads/custom_fields", json_body=to_create)
+            created["requested"] = [f["code"] for f in to_create]
+            if not created.get("ok"):
+                return created
+            # перечитать после создания
+            listed = self.list_lead_custom_fields()
+            if listed.get("ok"):
+                existing_items = (
+                    (listed.get("response") or {})
+                    .get("_embedded", {})
+                    .get("custom_fields", [])
+                )
+                by_code = {
+                    str(item.get("code") or "").upper(): item
+                    for item in existing_items
+                    if item.get("code")
+                }
+
+        to_patch: list[dict[str, Any]] = []
+        skipped_locked: list[str] = []
+        for spec in LEAD_FIELD_SPECS:
+            item = by_code.get(spec["code"].upper())
+            if not item or not item.get("id"):
+                continue
+            # Системные tracking_data / predefined — имя менять нельзя
+            if (
+                spec.get("skip_label_sync")
+                or item.get("is_predefined")
+                or item.get("type") == "tracking_data"
+            ):
+                skipped_locked.append(spec["code"])
+                continue
+            want_api_only = bool(spec.get("is_api_only"))
+            cur_name = str(item.get("name") or "")
+            cur_api_only = bool(item.get("is_api_only"))
+            if cur_name == spec["name"] and cur_api_only == want_api_only:
+                continue
+            to_patch.append(
+                {
+                    "id": int(item["id"]),
+                    "name": spec["name"],
+                    "is_api_only": want_api_only,
+                }
+            )
+
+        patched_codes: list[str] = []
+        if to_patch:
+            id_to_code = {
+                int(item["id"]): code
+                for code, item in by_code.items()
+                if item.get("id") is not None
+            }
+            patched_codes = [id_to_code.get(p["id"], str(p["id"])) for p in to_patch]
+            patched = self._request("PATCH", "/leads/custom_fields", json_body=to_patch)
+            if not patched.get("ok"):
+                return {
+                    "ok": False,
+                    "status_code": patched.get("status_code"),
+                    "response": patched.get("response"),
+                    "created": created.get("requested") or [],
+                    "patch_failed": patched_codes,
+                }
+
+        return {
+            "ok": True,
+            "created": created.get("requested") or [],
+            "patched": patched_codes,
+            "skipped_locked": skipped_locked,
+            "existing": sorted(by_code),
+        }
 
     def sync_case(
         self,

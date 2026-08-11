@@ -805,7 +805,7 @@ def yookassa_status(
 
 @app.command("amocrm-ensure-fields")
 def amocrm_ensure_fields() -> None:
-    """Создать в amoCRM недостающие custom fields сделки (CASE_ID и др.)."""
+    """Создать/обновить custom fields сделки: русские названия, скрыть черновики."""
     import json
 
     from sfrfr.integrations.amocrm import ensure_amocrm_lead_fields

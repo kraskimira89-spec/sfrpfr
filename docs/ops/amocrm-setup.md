@@ -165,19 +165,25 @@ curl -sS -H "Authorization: Bearer ВАШ_ТОКЕН" \
 
 Нужны поля с **символьным кодом** (`code`) — по ним код SFRFR пишет значения через `field_code` ([дока custom fields](https://www.amocrm.ru/developers/content/crm_platform/custom-fields)).
 
-| Код | Тип в amo | Название в карточке |
-|-----|-----------|---------------------|
-| `CASE_ID` | Текст | Case ID (SFRFR) |
-| `SFRFR_CASE_URL` | Ссылка (url) | Ссылка на дело SFRFR |
-| `PIPELINE_STATUS` | Текст | Pipeline status |
-| `CHANNEL` | Текст | Канал клиента |
-| `SOURCE` | Текст | Источник лида |
-| `FIRST_SOURCE` / `LAST_SOURCE` | Текст | First / last touch |
-| `UTM_MEDIUM` … `UTM_TERM` | Текст | UTM |
-| `LANDING_VARIANT`, `AUDIENCE_SEGMENT`, `REGION_BUCKET`, `REFERRAL_CODE` | Текст | Маркетинг |
-| `PROBLEM_TYPE`, `LOSS_REASON` | Текст | Квалификация / потеря |
-| `DIAGNOSTIC_PAID_AT` … `SUCCESS_FEE_*` | Текст | Черновик; success fee не в LTV до юр. решения |
-| `CONSENT` | Флаг (checkbox) | Согласие на связь |
+| Код | Тип в amo | Название в карточке | UI |
+|-----|-----------|---------------------|----|
+| `CASE_ID` | Текст | ID дела (SFRFR) | видно |
+| `SFRFR_CASE_URL` | Ссылка (url) | Ссылка на дело SFRFR | видно |
+| `PIPELINE_STATUS` | Текст | Статус пайплайна SFRFR | видно |
+| `CHANNEL` | Текст | Канал клиента | видно |
+| `SOURCE` | Текст | Источник лида | видно |
+| `CONSENT` | Флаг | Согласие на связь | видно |
+| `FIRST_SOURCE` / `LAST_SOURCE` | Текст | Первый / последний источник | видно |
+| `UTM_MEDIUM` … `UTM_TERM` | tracking_data | системные `utm_*` (имя не меняется) | скрыто (amo) |
+| `LANDING_VARIANT` | Текст | Вариант лендинга | видно |
+| `AUDIENCE_SEGMENT` | Текст | Сегмент аудитории | видно |
+| `REGION_BUCKET` | Текст | Регион (корзина) | видно |
+| `REFERRAL_CODE` | Текст | Реферальный код | видно |
+| `PROBLEM_TYPE` | Текст | Тип проблемы | видно |
+| `LOSS_REASON` | Текст | Причина потери | видно |
+| `DIAGNOSTIC_PAID_AT` … `SUCCESS_FEE_*` | Текст | Черновик (оплаты / success fee) | **скрыто** (`is_api_only`) |
+
+`sfrfr amocrm-ensure-fields` создаёт недостающие поля и **синхронизирует** русские названия + скрытие черновиков. UTM-поля amo (`tracking_data`) переименовать нельзя — уже скрыты системой.
 
 Телефон и email — **стандартные** поля контакта (`PHONE` / `EMAIL`); создавать не нужно.
 
@@ -190,7 +196,7 @@ cd /opt/sfrfr && . .venv/bin/activate
 sfrfr amocrm-ensure-fields
 ```
 
-Команда создаст недостающие поля через `POST /api/v4/leads/custom_fields`.
+Команда создаст недостающие поля (`POST`) и обновит названия / `is_api_only` (`PATCH`).
 
 ### Вариант B — вручную в UI
 

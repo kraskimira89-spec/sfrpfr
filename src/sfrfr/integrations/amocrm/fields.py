@@ -23,7 +23,7 @@ REGION_BUCKET = "REGION_BUCKET"
 REFERRAL_CODE = "REFERRAL_CODE"
 PROBLEM_TYPE = "PROBLEM_TYPE"
 LOSS_REASON = "LOSS_REASON"
-# После юр. утверждения success fee — не использовать в LTV/CAC до решения владельца
+# Черновик: код не пишет значения до юр. модели / оплаты в sync — скрыты в UI (is_api_only)
 DIAGNOSTIC_PAID_AT = "DIAGNOSTIC_PAID_AT"
 SERVICE_PAID_AT = "SERVICE_PAID_AT"
 RESULT_CONFIRMED_AT = "RESULT_CONFIRMED_AT"
@@ -43,30 +43,81 @@ LOSS_REASON_VALUES = (
     "другое",
 )
 
+# is_api_only=True — поле не показывается оператору в карточке (только API).
 LEAD_FIELD_SPECS: tuple[dict[str, Any], ...] = (
-    {"code": CASE_ID, "name": "Case ID (SFRFR)", "type": "text"},
+    {"code": CASE_ID, "name": "ID дела (SFRFR)", "type": "text"},
     {"code": SFRFR_CASE_URL, "name": "Ссылка на дело SFRFR", "type": "url"},
-    {"code": PIPELINE_STATUS, "name": "Pipeline status", "type": "text"},
+    {"code": PIPELINE_STATUS, "name": "Статус пайплайна SFRFR", "type": "text"},
     {"code": CHANNEL, "name": "Канал клиента", "type": "text"},
     {"code": SOURCE, "name": "Источник лида", "type": "text"},
     {"code": CONSENT, "name": "Согласие на связь", "type": "checkbox"},
-    {"code": FIRST_SOURCE, "name": "First source", "type": "text"},
-    {"code": LAST_SOURCE, "name": "Last source", "type": "text"},
-    {"code": UTM_MEDIUM, "name": "UTM medium", "type": "text"},
-    {"code": UTM_CAMPAIGN, "name": "UTM campaign", "type": "text"},
-    {"code": UTM_CONTENT, "name": "UTM content", "type": "text"},
-    {"code": UTM_TERM, "name": "UTM term", "type": "text"},
-    {"code": LANDING_VARIANT, "name": "Landing variant", "type": "text"},
-    {"code": AUDIENCE_SEGMENT, "name": "Audience segment", "type": "text"},
-    {"code": REGION_BUCKET, "name": "Region bucket", "type": "text"},
-    {"code": REFERRAL_CODE, "name": "Referral code", "type": "text"},
-    {"code": PROBLEM_TYPE, "name": "Problem type", "type": "text"},
+    {"code": FIRST_SOURCE, "name": "Первый источник", "type": "text"},
+    {"code": LAST_SOURCE, "name": "Последний источник", "type": "text"},
+    # Системные tracking_data amo: имя зафиксировано (utm_*), в UI уже is_api_only
+    {
+        "code": UTM_MEDIUM,
+        "name": "utm_medium",
+        "type": "text",
+        "skip_label_sync": True,
+        "is_api_only": True,
+    },
+    {
+        "code": UTM_CAMPAIGN,
+        "name": "utm_campaign",
+        "type": "text",
+        "skip_label_sync": True,
+        "is_api_only": True,
+    },
+    {
+        "code": UTM_CONTENT,
+        "name": "utm_content",
+        "type": "text",
+        "skip_label_sync": True,
+        "is_api_only": True,
+    },
+    {
+        "code": UTM_TERM,
+        "name": "utm_term",
+        "type": "text",
+        "skip_label_sync": True,
+        "is_api_only": True,
+    },
+    {"code": LANDING_VARIANT, "name": "Вариант лендинга", "type": "text"},
+    {"code": AUDIENCE_SEGMENT, "name": "Сегмент аудитории", "type": "text"},
+    {"code": REGION_BUCKET, "name": "Регион (корзина)", "type": "text"},
+    {"code": REFERRAL_CODE, "name": "Реферальный код", "type": "text"},
+    {"code": PROBLEM_TYPE, "name": "Тип проблемы", "type": "text"},
     {"code": LOSS_REASON, "name": "Причина потери", "type": "text"},
-    {"code": DIAGNOSTIC_PAID_AT, "name": "Diagnostic paid at", "type": "text"},
-    {"code": SERVICE_PAID_AT, "name": "Service paid at", "type": "text"},
-    {"code": RESULT_CONFIRMED_AT, "name": "Result confirmed at", "type": "text"},
-    {"code": SUCCESS_FEE_DUE_AT, "name": "Success fee due at (draft)", "type": "text"},
-    {"code": SUCCESS_FEE_PAID_AT, "name": "Success fee paid at (draft)", "type": "text"},
+    {
+        "code": DIAGNOSTIC_PAID_AT,
+        "name": "Дата оплаты диагностики (черновик)",
+        "type": "text",
+        "is_api_only": True,
+    },
+    {
+        "code": SERVICE_PAID_AT,
+        "name": "Дата оплаты услуги (черновик)",
+        "type": "text",
+        "is_api_only": True,
+    },
+    {
+        "code": RESULT_CONFIRMED_AT,
+        "name": "Дата подтверждения результата (черновик)",
+        "type": "text",
+        "is_api_only": True,
+    },
+    {
+        "code": SUCCESS_FEE_DUE_AT,
+        "name": "Вознаграждение за результат: к оплате (черновик)",
+        "type": "text",
+        "is_api_only": True,
+    },
+    {
+        "code": SUCCESS_FEE_PAID_AT,
+        "name": "Вознаграждение за результат: оплачено (черновик)",
+        "type": "text",
+        "is_api_only": True,
+    },
 )
 
 

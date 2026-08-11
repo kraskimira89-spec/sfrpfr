@@ -32,6 +32,26 @@ def test_build_lead_custom_fields_codes() -> None:
     assert consent["values"][0]["value"] is True
 
 
+def test_lead_field_specs_russian_and_hidden_drafts() -> None:
+    from sfrfr.integrations.amocrm.fields import LEAD_FIELD_SPECS
+
+    by_code = {s["code"]: s for s in LEAD_FIELD_SPECS}
+    assert by_code["CASE_ID"]["name"] == "ID дела (SFRFR)"
+    assert by_code["FIRST_SOURCE"]["name"] == "Первый источник"
+    assert by_code["LOSS_REASON"]["name"] == "Причина потери"
+    for code in (
+        "DIAGNOSTIC_PAID_AT",
+        "SERVICE_PAID_AT",
+        "RESULT_CONFIRMED_AT",
+        "SUCCESS_FEE_DUE_AT",
+        "SUCCESS_FEE_PAID_AT",
+    ):
+        assert by_code[code].get("is_api_only") is True
+        assert "черновик" in by_code[code]["name"].lower()
+    assert by_code["UTM_MEDIUM"].get("skip_label_sync") is True
+    assert by_code["UTM_MEDIUM"]["name"] == "utm_medium"
+
+
 def test_sync_skipped_without_credentials(monkeypatch) -> None:
     monkeypatch.setenv("AMO_SUBDOMAIN", "")
     monkeypatch.setenv("AMO_ACCESS_TOKEN", "")
