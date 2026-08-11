@@ -91,9 +91,24 @@ class MaxBotClient:
         self.token = token if token is not None else settings.max_bot_token
         self.api_base = (api_base or settings.max_api_base).rstrip("/")
 
+    @classmethod
+    def for_ops(cls) -> MaxBotClient:
+        """Клиент ops-бота (ТЗ-25); без MAX_OPS_BOT_TOKEN — клиентский токен."""
+        settings = get_settings()
+        ops = (settings.max_ops_bot_token or "").strip()
+        if ops:
+            return cls(token=ops)
+        return cls()
+
     @property
     def available(self) -> bool:
         return bool(self.token)
+
+    @property
+    def uses_ops_token(self) -> bool:
+        settings = get_settings()
+        ops = (settings.max_ops_bot_token or "").strip()
+        return bool(ops) and self.token == ops
 
     def _headers(self) -> dict[str, str]:
         return {

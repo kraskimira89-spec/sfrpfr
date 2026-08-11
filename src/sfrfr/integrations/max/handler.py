@@ -900,10 +900,14 @@ def _notify_managers_staff_login(
     *,
     pending,
 ) -> int:
-    """Отправить руководителям кнопку одобрения. Вернуть число успешных отправок."""
+    """Отправить руководителям кнопку одобрения через ops-бот (ТЗ-25)."""
     from sfrfr.db.staff_roles import list_manager_max_user_ids
+    from sfrfr.integrations.max.ops_bot import get_ops_bot
     from sfrfr.security.login_otp import APPROVE_STAFF_LOGIN_LABEL
 
+    # Служебные кнопки — всегда ops (fallback на клиентский токен, если ops не задан).
+    _ = bot
+    notify_bot = get_ops_bot()
     settings = get_settings()
     manager_ids = list_manager_max_user_ids(
         extra_ids=settings.staff_login_approver_max_user_ids,
@@ -926,7 +930,7 @@ def _notify_managers_staff_login(
     for i, mid in enumerate(targets):
         cid = chat_ids[i] if i < len(chat_ids) else None
         try:
-            bot.send_message(
+            notify_bot.send_message(
                 text=text,
                 user_id=str(mid) if mid else None,
                 chat_id=cid,
@@ -937,7 +941,9 @@ def _notify_managers_staff_login(
             # fallback: только chat_id
             if cid and mid:
                 try:
-                    bot.send_message(text=text, chat_id=cid, attachments=attachments)
+                    notify_bot.send_message(
+                        text=text, chat_id=cid, attachments=attachments
+                    )
                     sent += 1
                 except Exception:
                     continue

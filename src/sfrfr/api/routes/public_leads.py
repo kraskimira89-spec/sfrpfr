@@ -325,17 +325,17 @@ def _notify_max_managers_new_lead(
     channel: str,
     crm_url: str | None,
 ) -> dict[str, Any]:
-    """Уведомить операторов в MAX о новом лиде (клиенту без max_user_id писать нельзя)."""
+    """Уведомить операторов в MAX о новом лиде (через ops-бот, ТЗ-25)."""
     try:
         from sfrfr.db.staff_roles import list_manager_max_user_ids
-        from sfrfr.integrations.max.client import MaxBotClient
+        from sfrfr.integrations.max.ops_bot import get_ops_bot
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": type(exc).__name__}
 
     settings = get_settings()
-    bot = MaxBotClient()
+    bot = get_ops_bot()
     if not bot.available:
-        return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        return {"ok": False, "skipped": True, "reason": "no MAX bot token"}
 
     manager_ids = list_manager_max_user_ids(
         extra_ids=settings.staff_login_approver_max_user_ids,

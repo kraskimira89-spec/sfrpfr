@@ -296,6 +296,31 @@ def max_subscribe(
     )
 
 
+@app.command("max-ops-webhook-set")
+def max_ops_webhook_set(
+    url: str | None = typer.Option(
+        None,
+        "--url",
+        help="HTTPS webhook; по умолчанию …/api/integrations/max/ops/webhook",
+    ),
+) -> None:
+    """Зарегистрировать webhook ops-бота MAX (ТЗ-25)."""
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.ops_bot import get_ops_bot, ops_bot_configured
+
+    settings = get_settings()
+    webhook = url or f"{settings.public_base_url.rstrip('/')}/api/integrations/max/ops/webhook"
+    if not webhook.startswith("https://"):
+        raise typer.BadParameter("MAX требует HTTPS webhook")
+    if not ops_bot_configured():
+        raise typer.BadParameter("Задайте MAX_OPS_BOT_TOKEN в .env")
+    client = get_ops_bot()
+    secret = (settings.max_ops_webhook_secret or settings.max_webhook_secret or "").strip() or None
+    result = client.subscribe_webhook(webhook, secret=secret)
+    typer.echo(f"ops_subscribed\t{webhook}\t{result}")
+    typer.echo("Next: staff open ops bot → Start; check STAFF_LOGIN_APPROVER_MAX_USER_IDS")
+
+
 @app.command("max-channel-info")
 def max_channel_info(
     remote: bool = typer.Option(

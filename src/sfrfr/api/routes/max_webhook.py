@@ -8,8 +8,19 @@ from fastapi import APIRouter, Header, HTTPException, Request
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.handler import handle_max_update
+from sfrfr.integrations.max.ops_bot import handle_ops_update
 
 router = APIRouter()
+
+
+def _extract_updates(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [u for u in payload if isinstance(u, dict)]
+    if isinstance(payload, dict):
+        if isinstance(payload.get("updates"), list):
+            return [u for u in payload["updates"] if isinstance(u, dict)]
+        return [payload]
+    return []
 
 
 @router.post("/webhook")
@@ -18,7 +29,7 @@ async def max_webhook(
     x_max_bot_api_secret: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """
-    Приём апдейтов от MAX.
+    Приём апдейтов от MAX (клиентский бот).
     Секрет сверяем с MAX_WEBHOOK_SECRET, если он задан.
     """
     settings = get_settings()
@@ -26,18 +37,7 @@ async def max_webhook(
         if not x_max_bot_api_secret or x_max_bot_api_secret != settings.max_webhook_secret:
             raise HTTPException(status_code=403, detail="invalid webhook secret")
 
-    payload = await request.json()
-    updates: list[dict[str, Any]]
-    if isinstance(payload, list):
-        updates = [u for u in payload if isinstance(u, dict)]
-    elif isinstance(payload, dict):
-        if isinstance(payload.get("updates"), list):
-            updates = [u for u in payload["updates"] if isinstance(u, dict)]
-        else:
-            updates = [payload]
-    else:
-        updates = []
-
+    updates = _extract_updates(await request.json())
     results = [handle_max_update(u) for u in updates]
     channel_hints = [
         r.detail
@@ -53,13 +53,41 @@ async def max_webhook(
     }
 
 
+@router.post("/ops/webhook")
+async def max_ops_webhook(
+    request: Request,
+    x_max_bot_api_secret: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """
+    Приём апдейтов ops-бота (ТЗ-25).
+    Секрет: MAX_OPS_WEBHOOK_SECRET, иначе MAX_WEBHOOK_SECRET.
+    """
+    settings = get_settings()
+    expected = (settings.max_ops_webhook_secret or settings.max_webhook_secret or "").strip()
+    if expected:
+        if not x_max_bot_api_secret or x_max_bot_api_secret != expected:
+            raise HTTPException(status_code=403, detail="invalid webhook secret")
+
+    updates = _extract_updates(await request.json())
+    results = [handle_ops_update(u) for u in updates]
+    return {
+        "ok": True,
+        "processed": len(results),
+        "actions": [r.action for r in results],
+        "contour": "ops",
+    }
+
+
 @router.get("/health")
 def max_integration_health() -> dict[str, str]:
     settings = get_settings()
+    base = settings.public_base_url.rstrip("/")
     return {
         "status": "ok",
-        "webhook": f"{settings.public_base_url.rstrip('/')}/api/integrations/max/webhook",
+        "webhook": f"{base}/api/integrations/max/webhook",
+        "ops_webhook": f"{base}/api/integrations/max/ops/webhook",
         "bot_configured": "yes" if settings.max_bot_token else "no",
+        "ops_bot_configured": "yes" if settings.max_ops_bot_token else "no",
     }
 
 

@@ -30,6 +30,8 @@
 22. [22-trust-experience-awards.md](22-trust-experience-awards.md) — опыт и награды в блоке «Кто оказывает услугу» (слайдер с заглушкой до публикации фото).
 23. [23-max-channel-promotion.md](23-max-channel-promotion.md) — оформление, запуск и продвижение канала MAX без смешения с личным чатом и кабинетом.
 24. [24-max-client-boundaries-home.md](24-max-client-boundaries-home.md) — понятный блок на главной: канал MAX, личный чат и защищённый кабинет.
+25. [25-max-ops-bot.md](25-max-ops-bot.md) — отдельный Ops-бот MAX для лидов и approve staff (без смешения с клиентским диалогом).  
+    Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
 
 ## Принцип
 
