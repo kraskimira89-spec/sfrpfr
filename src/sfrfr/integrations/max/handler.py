@@ -31,6 +31,7 @@ from sfrfr.integrations.max.intake import (
     employment_keyboard,
     employment_question,
     format_welcome_text,
+    free_text_nudge,
     get_intake_store,
     goal_keyboard,
     ils_keyboard,
@@ -1610,6 +1611,22 @@ def handle_max_update(
         )
 
     if record is None:
+        # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
+        if text and intake is not None:
+            reply, attachments = free_text_nudge(intake=intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=attachments,
+            )
+            return MaxHandleResult(
+                ok=True,
+                action="free_text_nudge",
+                case_id=None,
+                reply=reply,
+            )
         return _reply_need_start(
             bot, user_id=user_id, chat_id=chat_id, welcome_text=welcome_text
         )
@@ -1696,14 +1713,24 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    # Свободный текст до выбора «для кого» — снова тёплое приветствие, не сухой ack.
-    if text and (intake is None or intake.for_whom is None):
-        return _handle_bot_start(
+    # Свободный текст без LLM: короткая подсказка + кнопки текущего шага (ТЗ-20).
+    if text:
+        if intake is None:
+            get_intake_store().upsert_started(user_id)
+            intake = get_intake_store().get_active(user_id)
+        reply, attachments = free_text_nudge(intake=intake)
+        _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
-            store=store,
-            welcome_text=welcome_text,
+            text=reply,
+            attachments=attachments,
+        )
+        return MaxHandleResult(
+            ok=True,
+            action="free_text_nudge",
+            case_id=record.case_id,
+            reply=reply,
         )
 
     reply = FALLBACK_MENU_TEXT

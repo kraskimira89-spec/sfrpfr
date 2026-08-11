@@ -68,9 +68,9 @@ def format_welcome_text(*, display_name: str | None = None) -> str:
 
 FALLBACK_MENU_TEXT = (
     "Спасибо за сообщение.\n\n"
-    "Чтобы продолжить, выберите кнопку ниже или нажмите «Позвать специалиста». "
-    "Документы загружаются только в личном кабинете — не в этом чате.\n\n"
-    f"{POSITION_SHORT}"
+    "Сейчас удобнее отвечать кнопками ниже — так мы быстрее поймём ситуацию. "
+    "Если хотите поговорить с человеком, нажмите «Позвать специалиста».\n\n"
+    "Сканы и трудовую книжку присылайте только через личный кабинет."
 )
 
 SUMMARY_TEXT = (
@@ -415,6 +415,39 @@ def employment_question() -> str:
 
 def device_question() -> str:
     return "Как вам удобнее загрузить документы?"
+
+
+def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list[dict[str, Any]]]:
+    """Ответ на произвольный текст без LLM: короткая подсказка + кнопки текущего шага."""
+    step = intake.step() if intake is not None else "whom"
+    if step == "pension":
+        hint = pension_question()
+        keyboard = pension_keyboard()
+    elif step == "problem":
+        hint = problem_question()
+        keyboard = problem_keyboard()
+    elif step == "ils":
+        hint = ils_question()
+        keyboard = ils_keyboard()
+    elif step == "employment":
+        hint = employment_question()
+        keyboard = employment_keyboard()
+    elif step == "device":
+        hint = device_question()
+        keyboard = device_keyboard()
+    elif step == "summary":
+        hint = "Можно открыть кабинет или позвать специалиста."
+        case_id = intake.case_id if intake else None
+        max_url, web_url = cabinet_urls_for_case(case_id)
+        device = intake.device_preference if intake else None
+        keyboard = summary_keyboard(
+            device=device, cabinet_max_url=max_url, cabinet_web_url=web_url
+        )
+    else:
+        hint = "Для кого проверка — за себя или хотите помочь близкому?"
+        keyboard = whom_keyboard()
+    text = f"{FALLBACK_MENU_TEXT}\n\n{hint}"
+    return text, keyboard
 
 
 def cabinet_urls_for_case(case_id: str | None) -> tuple[str, str]:

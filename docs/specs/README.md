@@ -32,6 +32,7 @@
 24. [24-max-client-boundaries-home.md](24-max-client-boundaries-home.md) — понятный блок на главной: канал MAX, личный чат и защищённый кабинет.
 25. [25-max-ops-bot.md](25-max-ops-bot.md) — отдельный Ops-бот MAX для лидов и approve staff (без смешения с клиентским диалогом).  
     Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
+26. [26-max-llm-chat.md](26-max-llm-chat.md) — черновик: ограниченный LLM-ответ на свободный текст в личном чате MAX (пока не к реализации).
 
 ## Принцип
 

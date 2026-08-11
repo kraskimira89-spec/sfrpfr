@@ -215,11 +215,25 @@ def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) 
         _msg(22, "Здравствуйте. Тестовая заявка с сайта, проверяю связь."),
         bot=bot,
     )
-    assert result.action == "max_intake_started"
-    assert "Здравствуйте!" in (result.reply or "")
-    assert "Я бот сервиса" in (result.reply or "")
-    assert result.reply != FALLBACK_MENU_TEXT
+    assert result.action == "free_text_nudge"
+    assert "кнопками" in (result.reply or "").lower()
+    assert "Позвать специалиста" in (result.reply or "")
+    assert "Я бот сервиса" not in (result.reply or "")
+    assert result.reply != FALLBACK_MENU_TEXT  # nudge = fallback + подсказка шага
     assert "Выберите пункт меню ниже" not in (result.reply or "")
+    get_settings.cache_clear()
+
+
+def test_free_text_after_start_nudges_without_full_welcome(
+    tmp_path: Path, monkeypatch
+) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(23, "/start"), bot=bot)
+    result = handle_max_update(_msg(23, "А можно просто спросить про стаж?"), bot=bot)
+    assert result.action == "free_text_nudge"
+    assert "кнопками" in (result.reply or "").lower()
+    assert "Для кого проверка" in (result.reply or "")
+    assert result.reply != WELCOME_TEXT
     get_settings.cache_clear()
 
 
