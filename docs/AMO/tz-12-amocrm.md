@@ -1,10 +1,12 @@
 # ТЗ-12: интеграция amoCRM
 
+> **Пакет агента:** [docs/AMO/README.md](../AMO/README.md) · как работаем: [how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)  
+> Эта копия для чата AMO. Канон также: `docs/specs/12-amocrm.md` — при правках синхронизировать оба.
+
 **Статус:** MVP в коде (`src/sfrfr/integrations/amocrm/`)  
-**Пакет агента (чат AMO):** [../AMO/README.md](../AMO/README.md) · промпт: [../AMO/prompt-agent-amocrm.md](../AMO/prompt-agent-amocrm.md)  
-**Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md)  
+**Связано:** [01-architecture.md](../specs/01-architecture.md), [06-integrations-and-security.md](../specs/06-integrations-and-security.md)  
 **Пошаговая настройка в UI amoCRM (исполнять по порядку):**  
-➜ **[../ops/amocrm-setup.md](../ops/amocrm-setup.md)** (копия в пакете: [../AMO/ops-amocrm-setup.md](../AMO/ops-amocrm-setup.md))
+➜ **[ops-amocrm-setup.md](ops-amocrm-setup.md)** (канон: [../ops/amocrm-setup.md](../ops/amocrm-setup.md))
 
 Официальные доки: [OAuth по шагам](https://www.amocrm.ru/developers/content/oauth/step-by-step) · [custom fields](https://www.amocrm.ru/developers/content/crm_platform/custom-fields) · [leads API](https://www.amocrm.ru/developers/content/crm_platform/leads-api)
 

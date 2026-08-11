@@ -15,6 +15,7 @@
 - [Сегмент «Северный стаж»](research-segment-north-2026-08.md) — формула, сообщения v2, 5 постов MAX, 5 гипотез с UTM.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md).
+- **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
 - **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 
 ## Правила хранения

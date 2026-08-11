@@ -1,9 +1,12 @@
 # ТЗ / инструкция: настройка amoCRM для SFRFR (по шагам)
 
+> **Пакет агента:** [README.md](README.md) · промпт: [prompt-agent-amocrm.md](prompt-agent-amocrm.md)  
+> Канон ops: `docs/ops/amocrm-setup.md` — при правках синхронизировать оба файла.  
+> Продуктовое ТЗ: [tz-12-amocrm.md](tz-12-amocrm.md) / `docs/specs/12-amocrm.md`
+
 **Версия:** 1.3 · **Дата:** 2026-07-26  
-**Пакет агента (чат AMO):** [../AMO/README.md](../AMO/README.md) · [../AMO/prompt-agent-amocrm.md](../AMO/prompt-agent-amocrm.md) · как работаем: [../AMO/how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)  
 **Для кого:** администратор аккаунта amoCRM + тот, кто правит `/opt/sfrfr/.env` на VPS.  
-**Продуктовое ТЗ (код):** [../specs/12-amocrm.md](../specs/12-amocrm.md)  
+**Продуктовое ТЗ (код):** [tz-12-amocrm.md](tz-12-amocrm.md)  
 **Официальные доки amo:**
 
 - [OAuth: пример по шагам](https://www.amocrm.ru/developers/content/oauth/step-by-step) (регистрация интеграции, долгосрочные токены)

@@ -1,0 +1,19 @@
+---
+description: Материалы и чат агента по amoCRM хранить в docs/AMO
+alwaysApply: true
+---
+
+# Папка AMO (amoCRM)
+
+Пакет агента, ТЗ-копии и промпт для чата Cursor про amoCRM:
+
+`docs/AMO/`
+
+- `README.md` — индекс;
+- `prompt-agent-amocrm.md` — промпт нового чата;
+- `how-we-work-amocrm.md` — роли систем и поток лида;
+- `tz-12-amocrm.md`, `ops-amocrm-setup.md`, `qa-lead-amocrm-e2e.md` — рабочие копии ТЗ;
+- канон в репо: `docs/specs/12-amocrm.md`, `docs/ops/amocrm-setup.md`, `docs/qa/lead-amocrm-e2e.md` — при правках синхронизировать.
+
+Не хранить токены amo, ПДн клиентов и сканы документов в этой папке.
+В amo не проектировать передачу СНИЛС / ИЛС / сканов.
