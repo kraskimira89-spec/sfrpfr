@@ -65,7 +65,7 @@
 5. **Потеря** — причина LOSS в amo (для разбора воронки).
 6. **Маркетинг** — UTM/сегмент должны доезжать до полей сделки.
 
-См. также: [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md), `docs/marketing-sales/playbook-sales-qualification.md`.
+См. также: [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md), [playbook-operator-amo-card.md](playbook-operator-amo-card.md), `docs/marketing-sales/playbook-sales-qualification.md`.
 
 ---
 

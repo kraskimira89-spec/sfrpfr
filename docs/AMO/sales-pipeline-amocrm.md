@@ -69,5 +69,6 @@ SUCCESS_FEE_PAID_AT
 
 ## Операционный playbook
 
+- Карточка amo (поля + перечень документов без содержимого): [playbook-operator-amo-card.md](playbook-operator-amo-card.md)
 - Квалификация: `docs/marketing-sales/playbook-sales-qualification.md`
 - Трудовая → Word: `docs/marketing-sales/playbook-trudovaya-word-table.md`
