@@ -85,6 +85,41 @@ DOCS_INFO_TEXT = (
     f"Документы принимаются только в личном кабинете, не в этом чате. {POSITION_SHORT}"
 )
 
+ILS_HOWTO_TEXT = (
+    "Выписку ИЛС можно получить на Госуслугах — сами, за несколько минут.\n\n"
+    "1. Войдите в подтверждённую учётную запись на Госуслугах "
+    "(для близкого — только его логин или по правилам портала, не чужой).\n"
+    "2. Найдите услугу сведений о состоянии индивидуального лицевого счёта (ИЛС).\n"
+    "3. Запросите документ и дождитесь файла в личном кабинете Госуслуг.\n"
+    "4. Сохраните PDF/файл и запомните дату формирования.\n\n"
+    "Если онлайн недоступен — через МФЦ или по способам на сайте СФР.\n"
+    "Готовый файл загрузите потом в наш кабинет — не присылайте в этот чат.\n\n"
+    f"{POSITION_SHORT}"
+)
+
+ILS_HOWTO_MFC_TEXT = (
+    "Если Госуслуги недоступны:\n\n"
+    "• уточните актуальный способ на сайте СФР (sfr.gov.ru);\n"
+    "• или обратитесь в МФЦ через официальный каталог мфц.рф.\n\n"
+    "Когда выписка будет на руках — нажмите «Уже получил(а) — дальше». "
+    "Файл загрузите только в личном кабинете сервиса."
+)
+
+EMP_HOWTO_TEXT = (
+    "Если бумажной трудовой нет под рукой:\n\n"
+    "1. На Госуслугах можно запросить сведения о трудовой деятельности "
+    "(электронная трудовая / СТД) — для своей учётной записи.\n"
+    "2. Либо подготовьте сканы/фото трудовой книжки, когда она будет.\n"
+    "3. Справки с мест работы — по спорным периодам, если они есть.\n\n"
+    "Даже без полного комплекта можно продолжить: загрузите то, что есть, "
+    "в кабинет. Остальное подскажем по шагам.\n\n"
+    f"{POSITION_SHORT}"
+)
+
+GOSUSLUGI_URL = "https://www.gosuslugi.ru/"
+ILS_BLOG_URL = "https://proverkastaza.ru/blog/kak-zakazat-vypisku-ils/"
+SFR_URL = "https://sfr.gov.ru/"
+
 OPERATOR_CONFIRM_TEXT = f"Передали запрос специалисту. Ответим в этом чате. {POSITION_SHORT}"
 
 UPLOAD_BLOCKED_TEXT = (
@@ -99,6 +134,11 @@ CALL_OPERATOR_LABEL = "Позвать специалиста"
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 RESTART_LABEL = "Начать заново"
 BACK_LABEL = "Назад"
+ILS_GOT_LABEL = "Уже получил(а) — дальше"
+ILS_MFC_LABEL = "Нет доступа к Госуслугам"
+ILS_ARTICLE_LABEL = "Подробная инструкция"
+OPEN_GOSUSLUGI_LABEL = "Открыть Госуслуги"
+EMP_CONTINUE_LABEL = "Продолжить без полного комплекта"
 
 CALLBACK_PREFIX = "intake:"
 
@@ -114,6 +154,8 @@ class MaxIntakeRecord:
     ils_available: IlsAvail | None = None
     employment_records_available: EmpAvail | None = None
     device_preference: DevicePref | None = None
+    ils_howto_done: bool = False
+    emp_howto_done: bool = False
     status: IntakeStatus = "started"
     client_id: str | None = None
     case_id: str | None = None
@@ -131,8 +173,16 @@ class MaxIntakeRecord:
         if self.goal is not None and self.for_whom is None:
             if self.ils_available is None:
                 return "ils"
+            if self.ils_available in {"need", "no", "unknown"} and not self.ils_howto_done:
+                return "ils_howto"
             if self.employment_records_available is None and self.goal != "sfr_question":
                 return "employment"
+            if (
+                self.employment_records_available == "no"
+                and not self.emp_howto_done
+                and self.goal != "sfr_question"
+            ):
+                return "emp_howto"
             if self.device_preference is None:
                 return "device"
             return "summary"
@@ -142,6 +192,8 @@ class MaxIntakeRecord:
             return "problem"
         if self.ils_available is None:
             return "ils"
+        if self.ils_available in {"need", "no", "unknown"} and not self.ils_howto_done:
+            return "ils_howto"
         if self.device_preference is None:
             return "device"
         return "summary"
@@ -327,6 +379,36 @@ def ils_keyboard() -> list[dict[str, Any]]:
     )
 
 
+def ils_howto_keyboard() -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [
+            [{"type": "link", "text": OPEN_GOSUSLUGI_LABEL, "url": GOSUSLUGI_URL}],
+            [{"type": "link", "text": ILS_ARTICLE_LABEL, "url": ILS_BLOG_URL}],
+            [{"type": "callback", "text": ILS_GOT_LABEL, "payload": "intake:ils_guide:done"}],
+            [{"type": "callback", "text": ILS_MFC_LABEL, "payload": "intake:ils_guide:mfc"}],
+            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
+        ]
+    )
+
+
+def emp_howto_keyboard() -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [
+            [{"type": "link", "text": OPEN_GOSUSLUGI_LABEL, "url": GOSUSLUGI_URL}],
+            [
+                {
+                    "type": "callback",
+                    "text": EMP_CONTINUE_LABEL,
+                    "payload": "intake:emp_guide:done",
+                }
+            ],
+            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
+        ]
+    )
+
+
 def employment_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
     rows: list[list[dict[str, Any]]] = [
         [{"type": "callback", "text": "Да", "payload": "intake:emp:yes"}],
@@ -429,9 +511,15 @@ def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list
     elif step == "ils":
         hint = ils_question()
         keyboard = ils_keyboard()
+    elif step == "ils_howto":
+        hint = "Откройте инструкцию кнопками ниже или нажмите «Уже получил(а) — дальше»."
+        keyboard = ils_howto_keyboard()
     elif step == "employment":
         hint = employment_question()
         keyboard = employment_keyboard()
+    elif step == "emp_howto":
+        hint = "Можно открыть Госуслуги или продолжить без полного комплекта."
+        keyboard = emp_howto_keyboard()
     elif step == "device":
         hint = device_question()
         keyboard = device_keyboard()

@@ -20,7 +20,10 @@ from sfrfr.integrations.max.client import (
 from sfrfr.integrations.max.intake import (
     CALL_OPERATOR_LABEL,
     DOCS_INFO_TEXT,
+    EMP_HOWTO_TEXT,
     FALLBACK_MENU_TEXT,
+    ILS_HOWTO_MFC_TEXT,
+    ILS_HOWTO_TEXT,
     OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
     UPLOAD_BLOCKED_TEXT,
@@ -28,12 +31,14 @@ from sfrfr.integrations.max.intake import (
     cabinet_urls_for_case,
     device_keyboard,
     device_question,
+    emp_howto_keyboard,
     employment_keyboard,
     employment_question,
     format_welcome_text,
     free_text_nudge,
     get_intake_store,
     goal_keyboard,
+    ils_howto_keyboard,
     ils_keyboard,
     ils_question,
     pension_keyboard,
@@ -581,6 +586,76 @@ def _ask_next_after_goal(
     )
 
 
+def _show_ils_howto(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    text: str | None = None,
+) -> MaxHandleResult:
+    reply = text or ILS_HOWTO_TEXT
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=ils_howto_keyboard(),
+    )
+    return MaxHandleResult(ok=True, action="ils_howto", reply=reply)
+
+
+def _continue_after_ils(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake,
+) -> MaxHandleResult:
+    """Следующий шаг после ответа про ИЛС (или после инструкции Госуслуг)."""
+    intake_store = get_intake_store()
+    # Новый поток §10.1: после ИЛС сразу устройство (без employment)
+    if intake.for_whom is not None or intake.problem_type is not None:
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=device_question(),
+            attachments=device_keyboard(),
+        )
+        return MaxHandleResult(ok=True, action="intake_ils", reply=device_question())
+    if intake.goal == "sfr_question":
+        intake.device_preference = intake.device_preference or "max"
+        intake_store.save(intake)
+        return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=employment_question(),
+        attachments=employment_keyboard(),
+    )
+    return MaxHandleResult(ok=True, action="intake_ils", reply=employment_question())
+
+
+def _continue_after_emp(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake,
+) -> MaxHandleResult:
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=device_question(),
+        attachments=device_keyboard(),
+    )
+    return MaxHandleResult(ok=True, action="intake_emp", reply=device_question())
+
+
 def _handle_intake_callback(
     bot: MaxBotClient,
     *,
@@ -633,9 +708,9 @@ def _handle_intake_callback(
 
     if kind == "back":
         step = intake.step()
-        if step == "device":
+        if step == "ils_howto":
             intake.ils_available = None
-            intake.device_preference = None
+            intake.ils_howto_done = False
             intake_store.save(intake)
             _reply(
                 bot,
@@ -645,6 +720,60 @@ def _handle_intake_callback(
                 attachments=ils_keyboard(),
             )
             return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
+        if step == "emp_howto":
+            intake.employment_records_available = None
+            intake.emp_howto_done = False
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=employment_question(),
+                attachments=employment_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=employment_question())
+        if step == "device":
+            intake.device_preference = None
+            # Новый поток: назад к инструкции ИЛС или к вопросу про ИЛС
+            if intake.for_whom is not None or intake.problem_type is not None:
+                if intake.ils_available in {"need", "no", "unknown"}:
+                    intake.ils_howto_done = False
+                    intake_store.save(intake)
+                    return _show_ils_howto(bot, user_id=user_id, chat_id=chat_id)
+                intake.ils_available = None
+                intake.ils_howto_done = False
+                intake_store.save(intake)
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=ils_question(),
+                    attachments=ils_keyboard(),
+                )
+                return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
+            # Legacy: назад к трудовым документам / howto
+            if intake.employment_records_available == "no":
+                intake.emp_howto_done = False
+                intake_store.save(intake)
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=EMP_HOWTO_TEXT,
+                    attachments=emp_howto_keyboard(),
+                )
+                return MaxHandleResult(ok=True, action="intake_back", reply=EMP_HOWTO_TEXT)
+            intake.employment_records_available = None
+            intake.emp_howto_done = False
+            intake_store.save(intake)
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=employment_question(),
+                attachments=employment_keyboard(),
+            )
+            return MaxHandleResult(ok=True, action="intake_back", reply=employment_question())
         if step == "ils":
             if intake.for_whom is not None:
                 intake.problem_type = None
@@ -659,7 +788,9 @@ def _handle_intake_callback(
                 )
                 return MaxHandleResult(ok=True, action="intake_back", reply=problem_question())
             intake.ils_available = None
+            intake.ils_howto_done = False
             intake.employment_records_available = None
+            intake.emp_howto_done = False
             intake.device_preference = None
             intake_store.save(intake)
             _reply(
@@ -694,7 +825,9 @@ def _handle_intake_callback(
             return MaxHandleResult(ok=True, action="intake_back", reply=WELCOME_TEXT)
         if step in {"employment", "summary"}:
             intake.ils_available = None
+            intake.ils_howto_done = False
             intake.employment_records_available = None
+            intake.emp_howto_done = False
             intake.device_preference = None
             intake_store.save(intake)
             _reply(
@@ -720,6 +853,7 @@ def _handle_intake_callback(
         intake.problem_type = None
         intake.goal = None
         intake.ils_available = None
+        intake.ils_howto_done = False
         intake.device_preference = None
         intake.status = "started"
         intake_store.save(intake)
@@ -737,6 +871,7 @@ def _handle_intake_callback(
         intake.problem_type = None
         intake.goal = None
         intake.ils_available = None
+        intake.ils_howto_done = False
         intake.device_preference = None
         intake_store.save(intake)
         _reply(
@@ -752,6 +887,7 @@ def _handle_intake_callback(
         intake.problem_type = value  # type: ignore[assignment]
         intake.sync_goal_from_problem()
         intake.ils_available = None
+        intake.ils_howto_done = False
         intake.device_preference = None
         intake_store.save(intake)
         _reply(
@@ -787,41 +923,56 @@ def _handle_intake_callback(
 
     if kind == "ils" and value in {"yes", "no", "unknown", "need"}:
         intake.ils_available = value  # type: ignore[assignment]
+        if value == "yes":
+            intake.ils_howto_done = True
+            intake_store.save(intake)
+            return _continue_after_ils(
+                bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
+            )
+        intake.ils_howto_done = False
         intake_store.save(intake)
-        # Новый поток §10.1: после ИЛС сразу устройство (без employment)
-        if intake.for_whom is not None or intake.problem_type is not None:
+        return _show_ils_howto(bot, user_id=user_id, chat_id=chat_id)
+
+    if kind == "ils_guide" and value in {"done", "mfc"}:
+        if value == "mfc":
+            return _show_ils_howto(
+                bot, user_id=user_id, chat_id=chat_id, text=ILS_HOWTO_MFC_TEXT
+            )
+        intake.ils_howto_done = True
+        if intake.ils_available is None:
+            intake.ils_available = "need"
+        intake_store.save(intake)
+        return _continue_after_ils(
+            bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
+        )
+
+    if kind == "emp" and value in {"yes", "partial", "no"}:
+        intake.employment_records_available = value  # type: ignore[assignment]
+        if value == "no":
+            intake.emp_howto_done = False
+            intake_store.save(intake)
             _reply(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
-                text=device_question(),
-                attachments=device_keyboard(),
+                text=EMP_HOWTO_TEXT,
+                attachments=emp_howto_keyboard(),
             )
-            return MaxHandleResult(ok=True, action="intake_ils", reply=device_question())
-        if intake.goal == "sfr_question":
-            intake.device_preference = intake.device_preference or "max"
-            intake_store.save(intake)
-            return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=employment_question(),
-            attachments=employment_keyboard(),
-        )
-        return MaxHandleResult(ok=True, action="intake_ils", reply=employment_question())
-
-    if kind == "emp" and value in {"yes", "partial", "no"}:
-        intake.employment_records_available = value  # type: ignore[assignment]
+            return MaxHandleResult(ok=True, action="emp_howto", reply=EMP_HOWTO_TEXT)
+        intake.emp_howto_done = True
         intake_store.save(intake)
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=device_question(),
-            attachments=device_keyboard(),
+        return _continue_after_emp(
+            bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
         )
-        return MaxHandleResult(ok=True, action="intake_emp", reply=device_question())
+
+    if kind == "emp_guide" and value == "done":
+        intake.emp_howto_done = True
+        if intake.employment_records_available is None:
+            intake.employment_records_available = "no"
+        intake_store.save(intake)
+        return _continue_after_emp(
+            bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake
+        )
 
     if kind == "device" and value in {"max", "web", "help"}:
         intake.device_preference = value  # type: ignore[assignment]

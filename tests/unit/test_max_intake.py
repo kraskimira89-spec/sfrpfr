@@ -100,6 +100,7 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
         "intake:pension:before",
         "intake:problem:ils_stazh",
         "intake:ils:need",
+        "intake:ils_guide:done",
         "intake:device:max",
     ):
         result = handle_max_update(_cb(9, payload), bot=bot)
@@ -125,7 +126,9 @@ def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
     for payload in (
         "intake:goal:check_experience",
         "intake:ils:no",
+        "intake:ils_guide:done",
         "intake:emp:no",
+        "intake:emp_guide:done",
         "intake:device:max",
     ):
         result = handle_max_update(_cb(19, payload), bot=bot)
@@ -240,3 +243,29 @@ def test_free_text_after_start_nudges_without_full_welcome(
 def test_format_welcome_text_skips_max_placeholder() -> None:
     assert format_welcome_text(display_name="Max 12345") == WELCOME_TEXT
     assert format_welcome_text(display_name="Анна") != WELCOME_TEXT
+
+
+def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(30, "/start"), bot=bot)
+    for payload in (
+        "intake:whom:self",
+        "intake:pension:before",
+        "intake:problem:ils_stazh",
+    ):
+        handle_max_update(_cb(30, payload), bot=bot)
+
+    howto = handle_max_update(_cb(30, "intake:ils:need"), bot=bot)
+    assert howto.action == "ils_howto"
+    assert "Госуслуг" in (howto.reply or "")
+    assert "1." in (howto.reply or "")
+    assert bot.attachments[-1]
+
+    mfc = handle_max_update(_cb(30, "intake:ils_guide:mfc"), bot=bot)
+    assert mfc.action == "ils_howto"
+    assert "МФЦ" in (mfc.reply or "")
+
+    done = handle_max_update(_cb(30, "intake:ils_guide:done"), bot=bot)
+    assert done.action == "intake_ils"
+    assert done.reply == "Как вам удобнее загрузить документы?"
+    get_settings.cache_clear()
