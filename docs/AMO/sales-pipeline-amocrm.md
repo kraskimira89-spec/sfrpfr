@@ -1,7 +1,8 @@
 # Воронка продаж и поля amoCRM (выдержка)
 
 Источник: `docs/marketing-sales/spec-marketing-sales-foundation.md` §9  
-Связь: [how-we-work-amocrm.md](how-we-work-amocrm.md), [tz-12-amocrm.md](tz-12-amocrm.md)
+Связь: [how-we-work-amocrm.md](how-we-work-amocrm.md), [tz-12-amocrm.md](tz-12-amocrm.md)  
+**Операционный канон этапов/чеклистов/авто:** [playbook-funnel-checklists-automation.md](playbook-funnel-checklists-automation.md)
 
 Поля **не** содержат тексты документов и сканы.
 
@@ -31,24 +32,30 @@ SUCCESS_FEE_PAID_AT
 
 Базовые поля ТЗ-12: `CASE_ID`, `SFRFR_CASE_URL`, `PIPELINE_STATUS`, `CHANNEL`, `SOURCE`, `CONSENT`.
 
-## Целевые стадии (бизнес-воронка)
+## Целевые стадии (операционная воронка amo)
 
 ```text
-Новое обращение
+Новый лид
 → Связались
 → Квалифицирован
 → Диагностика предложена
 → Диагностика оплачена
-→ Документы получены
+→ Документы в кабинете
 → Диагностика выдана
+→ Сопровождение предложено
 → Сопровождение оплачено
 → Пакет выдан
-→ Результат подтверждён            # если применимо
-→ Вознаграждение за результат оплачено  # только для утверждённой модели
+→ Клиент подал в СФР
+→ Результат подтверждён
+→ Отзыв запрошен
+→ Отзыв получен
 → Закрыто успешно
+
+(+ системный Отказ / LOSS с обязательным LOSS_REASON)
 ```
 
-На аккаунте MVP этап входа с сайта: **«Новый лид»** (см. ops). Полное совпадение имён с `pipeline_status` SFRFR в MVP не обязательно — статус дублируется в поле `PIPELINE_STATUS`.
+Вход с сайта: **«Новый лид»**. Маппинг `pipeline_status` / `b2c_status` → колонка amo — в playbook funnel.  
+Этап «Вознаграждение за результат» в колонку не выводим до юр. решения.
 
 ## Причины потери (LOSS_REASON)
 
@@ -69,6 +76,7 @@ SUCCESS_FEE_PAID_AT
 
 ## Операционный playbook
 
+- Воронка, чеклисты, авто: [playbook-funnel-checklists-automation.md](playbook-funnel-checklists-automation.md)
 - Карточка amo (поля + перечень документов без содержимого): [playbook-operator-amo-card.md](playbook-operator-amo-card.md)
 - Квалификация: `docs/marketing-sales/playbook-sales-qualification.md`
 - Трудовая → Word: `docs/marketing-sales/playbook-trudovaya-word-table.md`

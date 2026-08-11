@@ -19,6 +19,7 @@
 | [ops-amocrm-setup.md](ops-amocrm-setup.md) | Пошаговая настройка UI + env |
 | [qa-lead-amocrm-e2e.md](qa-lead-amocrm-e2e.md) | QA: лид WP → API → amo |
 | [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md) | Воронка продаж, LOSS, поля атрибуции (из foundation) |
+| [playbook-funnel-checklists-automation.md](playbook-funnel-checklists-automation.md) | Этапы, чеклисты, SLA, авто, маппинг SFRFR→amo |
 | [playbook-operator-amo-card.md](playbook-operator-amo-card.md) | Что видит оператор в карточке: поля + перечень документов без содержимого |
 | [vendor-user-docs.md](vendor-user-docs.md) | Оглавление пользовательской доки amo |
 | [vendor-dev-docs.md](vendor-dev-docs.md) | Оглавление доки разработчика amo |

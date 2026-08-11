@@ -102,11 +102,11 @@ def suggest_amo_stage_key(
 
     if task_l.startswith("review_ask") or task_l in {"review_asked", "review"}:
         key = "review_asked"
-    elif task_l.startswith("paid:diagnostic") or task_l in {"paid:diag", "paid:diagnostics"}:
+    elif task_l.startswith("paid:diag"):
         key = "diag_paid"
     elif task_l.startswith("paid:accomp") or task_l.startswith("paid:service"):
         key = "svc_paid"
-    elif task_l.startswith("paid:") and "diagnostic" not in task_l:
+    elif task_l.startswith("paid:"):
         key = "svc_paid"
     elif b2c == "diagnostic_paid":
         key = "diag_paid"

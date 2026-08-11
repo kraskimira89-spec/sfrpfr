@@ -68,6 +68,20 @@ def test_sync_skipped_without_credentials(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_suggest_amo_stage_key_signals() -> None:
+    from sfrfr.integrations.amocrm.pipeline_stages import suggest_amo_stage_key
+
+    assert suggest_amo_stage_key(for_create=True) == "new_lead"
+    assert suggest_amo_stage_key(pipeline_status="intake", for_create=False) is None
+    assert suggest_amo_stage_key(b2c_status="diagnostic_paid") == "diag_paid"
+    assert suggest_amo_stage_key(task="paid:DIAG") == "diag_paid"
+    assert suggest_amo_stage_key(task="paid:ACCOMP") == "svc_paid"
+    assert suggest_amo_stage_key(pipeline_status="documents_received") == "docs_in"
+    assert suggest_amo_stage_key(pipeline_status="completed") == "review_asked"
+    assert suggest_amo_stage_key(task="review_ask") == "review_asked"
+    assert suggest_amo_stage_key(b2c_status="result_confirmed") == "result_ok"
+
+
 def test_lead_url_template(monkeypatch) -> None:
     monkeypatch.setenv("AMO_SUBDOMAIN", "demo")
     monkeypatch.setenv("AMO_ACCESS_TOKEN", "token")

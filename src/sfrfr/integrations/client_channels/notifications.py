@@ -308,5 +308,38 @@ def notify_case_status_change(
             status_value=status_value,
             client=client,
         )
+        # Сдвиг сделки amo на «Отзыв запрошен» (и задача-напоминание).
+        try:
+            from sfrfr.db.session import get_supabase_client
+            from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
+
+            row = (
+                get_supabase_client()
+                .table("cases")
+                .select(
+                    "id, b2c_status, pipeline_status, crm_external_id, "
+                    "clients(full_name, phone, email, preferred_channel)"
+                )
+                .eq("id", case_id)
+                .limit(1)
+                .execute()
+            )
+            case_row = (row.data or [None])[0]
+            if case_row:
+                amo = push_case_to_amocrm(case_row, task="review_ask")
+                result["amocrm_review_stage"] = {
+                    "ok": amo.get("ok"),
+                    "lead_id": amo.get("lead_id"),
+                    "amo_stage_key": amo.get("amo_stage_key"),
+                    "task_ok": (amo.get("task") or {}).get("ok"),
+                }
+                lead_id = amo.get("lead_id")
+                if lead_id and amo.get("ok") and not case_row.get("crm_external_id"):
+                    persist_crm_external_id(case_id, str(lead_id))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "review_ask amo stage failed case=%s: %s", case_id[:8], exc
+            )
+            result["amocrm_review_stage"] = {"ok": False, "error": str(exc)[:200]}
 
     return result

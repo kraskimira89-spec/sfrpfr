@@ -43,6 +43,7 @@ class AmoCrmClient:
         sid = status_id if status_id is not None else settings.amo_status_id
         self.pipeline_id = int(pid) if pid not in (None, "", 0, "0") else None
         self.status_id = int(sid) if sid not in (None, "", 0, "0") else None
+        self._pipeline_statuses_cache: list[dict[str, Any]] | None = None
 
     @property
     def available(self) -> bool:
@@ -104,6 +105,56 @@ class AmoCrmClient:
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "no AMO credentials"}
         return self._request("GET", "/leads/custom_fields", params={"limit": 250})
+
+    def list_pipeline_statuses(self, *, force: bool = False) -> list[dict[str, Any]]:
+        if not self.available or self.pipeline_id is None:
+            return []
+        if self._pipeline_statuses_cache is not None and not force:
+            return self._pipeline_statuses_cache
+        result = self._request("GET", f"/leads/pipelines/{self.pipeline_id}")
+        if not result.get("ok"):
+            return []
+        body = result.get("response") or {}
+        statuses = (body.get("_embedded") or {}).get("statuses") or []
+        self._pipeline_statuses_cache = statuses if isinstance(statuses, list) else []
+        return self._pipeline_statuses_cache
+
+    def resolve_stage_status_id(self, stage_key: str | None) -> int | None:
+        if not stage_key:
+            return None
+        name = AMO_STAGE_NAMES.get(stage_key) or stage_key
+        return resolve_status_id_by_name(self.list_pipeline_statuses(), name)
+
+    def create_lead_task(
+        self,
+        lead_id: str | int,
+        text: str,
+        *,
+        complete_till_hours: int = 24,
+        task_type_id: int = 1,
+    ) -> dict[str, Any]:
+        """Создать задачу по сделке (тип 1 = звонок/контакт)."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no AMO credentials"}
+        body = (text or "").strip()
+        if not body:
+            return {"ok": False, "skipped": True, "reason": "empty task"}
+        import time
+
+        complete_till = int(time.time()) + max(1, complete_till_hours) * 3600
+        payload = [
+            {
+                "task_type_id": int(task_type_id),
+                "text": body[:5000],
+                "complete_till": complete_till,
+                "entity_id": int(lead_id),
+                "entity_type": "leads",
+            }
+        ]
+        result = self._request("POST", "/tasks", json_body=payload)
+        result["lead_id"] = str(lead_id)
+        result["action"] = "task"
+        return result
 
     def ensure_lead_fields(self) -> dict[str, Any]:
         """Создать недостающие поля и синхронизировать русские названия / is_api_only."""
@@ -262,19 +313,43 @@ class AmoCrmClient:
         if task:
             lead_name = f"{lead_name} [{task}]"[:250]
 
+        stage_key = suggest_amo_stage_key(
+            pipeline_status=pipeline_status,
+            b2c_status=b2c_status,
+            task=task,
+            for_create=not (crm_external_id and str(crm_external_id).isdigit()),
+        )
+
         if crm_external_id and str(crm_external_id).isdigit():
-            patch_body: list[dict[str, Any]] = [
-                {
-                    "id": int(crm_external_id),
-                    "name": lead_name,
-                    "custom_fields_values": custom_fields,
-                }
-            ]
-            result = self._request("PATCH", "/leads", json_body=patch_body)
+            patch_item: dict[str, Any] = {
+                "id": int(crm_external_id),
+                "name": lead_name,
+                "custom_fields_values": custom_fields,
+            }
+            target_status_id = self.resolve_stage_status_id(stage_key)
+            if target_status_id is not None:
+                # Не откатывать колонку назад: сверяем с текущим статусом сделки.
+                current = self._request("GET", f"/leads/{int(crm_external_id)}")
+                cur_id = None
+                if current.get("ok") and isinstance(current.get("response"), dict):
+                    cur_id = current["response"].get("status_id")
+                cur_key = key_for_status_id(self.list_pipeline_statuses(), cur_id)
+                if should_move_forward(cur_key, stage_key):
+                    patch_item["status_id"] = target_status_id
+            result = self._request("PATCH", "/leads", json_body=[patch_item])
             result["case_id"] = case_id
             result["lead_id"] = str(crm_external_id)
             result["crm_url"] = self.lead_url(crm_external_id)
             result["action"] = "update"
+            result["amo_stage_key"] = stage_key
+            if stage_key == "diag_paid" and result.get("ok"):
+                result["task"] = self.create_lead_task(
+                    crm_external_id, TASK_DOCS_AFTER_DIAG, complete_till_hours=48
+                )
+            if stage_key == "review_asked" and result.get("ok"):
+                result["task"] = self.create_lead_task(
+                    crm_external_id, TASK_REVIEW_REMINDER, complete_till_hours=72
+                )
             return result
 
         contact: dict[str, Any] = {"name": name}
@@ -309,11 +384,15 @@ class AmoCrmClient:
         result = self._request("POST", "/leads/complex", json_body=[lead])
         result["case_id"] = case_id
         result["action"] = "create"
+        result["amo_stage_key"] = "new_lead"
         lead_id = _extract_lead_id(result.get("response"))
         if lead_id:
             result["lead_id"] = lead_id
             result["crm_url"] = self.lead_url(lead_id)
             result["ok"] = True
+            result["task"] = self.create_lead_task(
+                lead_id, TASK_FIRST_CONTACT, complete_till_hours=24
+            )
         return result
 
     def add_lead_note(self, lead_id: str | int, text: str) -> dict[str, Any]:
