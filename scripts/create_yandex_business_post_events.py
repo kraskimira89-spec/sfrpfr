@@ -20,7 +20,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 POSTS_MD = ROOT / "scripts" / "assets" / "yandex-business" / "posts.md"
-SPRAV_POSTS = "https://yandex.ru/sprav/234170727274/p/edit/posts/"
+SPRAV_POSTS = "https://yandex.ru/sprav/82469923047/p/edit/posts/"
 CALDAV = "https://caldav.yandex.ru/calendars/{email}/events-default/"
 MSK = timezone(timedelta(hours=3))
 

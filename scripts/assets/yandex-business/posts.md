@@ -1,6 +1,6 @@
 # Посты Яндекс Бизнеса (копировать в UI)
 
-Кабинет: https://yandex.ru/sprav/234170727274/p/edit/posts/  
+Кабинет: https://yandex.ru/sprav/82469923047/p/edit/posts/  
 Правила: прямые ссылки только на `proverkastaza.ru`, без сокращателей и сторонних доменов; до 3000 знаков; без гарантий перерасчёта и «мы — СФР».  
 Справка: https://yandex.ru/support/business-priority/ru/manage/publications
 
@@ -129,4 +129,4 @@ https://proverkastaza.ru/kontakty/
 | 2026-09-30 | 9 — Обратная связь / отзывы |
 
 В описании каждого события: полный текст поста + ссылка на кабинет  
-https://yandex.ru/sprav/234170727274/p/edit/posts/
+https://yandex.ru/sprav/82469923047/p/edit/posts/

@@ -1,13 +1,12 @@
 # Яндекс Бизнес — сбор и ответы на отзывы
 
-**Профиль в ссылках (пока не сменили):** `234170727274`  
-**Форма отзыва:** https://yandex.ru/sprav/234170727274/reviews/add/  
-**Канон прайса / целевой после слияния:** `82469923047` — см. [yandex-business-profile.md](yandex-business-profile.md)  
+**Профиль:** `82469923047`  
+**Форма отзыва:** https://yandex.ru/sprav/82469923047/reviews/add/  
 **ТЗ:** [19-yandex-reviews-feedback.md](../specs/19-yandex-reviews-feedback.md)  
 **Статья Яндекса:** https://direct.yandex.ru/base/articles/kak-pravilno-motivirovat-klientov-ostavlyat-otzyvy  
-**Промоматериалы в кабинете:** https://yandex.ru/sprav/234170727274/p/edit/promo/
+**Промоматериалы в кабинете:** https://yandex.ru/sprav/82469923047/p/edit/promo/
 
-⚠️ На 2026-08-12 в публичных Картах у **обеих** карточек отзывов нет. Ссылки в репо/уведомлениях **не менять**, пока в Sprav UI не подтверждены владение дубликата и решение о слиянии.
+Профиль и прайс: [yandex-business-profile.md](yandex-business-profile.md).
 
 ---
 
@@ -16,9 +15,9 @@
 | Файл | Назначение |
 |------|------------|
 | `scripts/assets/yandex-business/promo/qr-review.png` | QR на форму |
-| `scripts/assets/yandex-business/promo/card.pdf` | Визитка |
-| `scripts/assets/yandex-business/promo/booklet.pdf` | Буклет |
-| `assets/qr.png` | тот же QR (исправлен) |
+| `scripts/assets/yandex-business/promo/card.pdf` | Визитка (пересобрать в кабинете после смены ID) |
+| `scripts/assets/yandex-business/promo/booklet.pdf` | Буклет (то же) |
+| `assets/qr.png` | тот же QR |
 | `assets/card.pdf` / `assets/booklet.pdf` | исходники из кабинета |
 
 Публичный QR на сайте (после деплоя):  

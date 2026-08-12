@@ -71,7 +71,7 @@
 
 ## 2026-08-03 — промо QR/визитка/буклет + мягкие просьбы
 
-- URL формы: `https://yandex.ru/sprav/234170727274/reviews/add/` (из QR визитки).
+- URL формы: `https://yandex.ru/sprav/82469923047/reviews/add/` (из QR визитки).
 - Файлы: `scripts/assets/yandex-business/promo/` + исправлен битый `assets/qr.png`.
 - Шаблоны MAX укорочены; напоминание не раньше 3 дней; QR на `/kontakty/`.
 

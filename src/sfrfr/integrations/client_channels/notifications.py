@@ -118,7 +118,7 @@ def format_soft_review_ask_message(*, review_url: str | None = None) -> str:
     settings = get_settings()
     url = (review_url or settings.yandex_business_review_url or "").strip()
     if not url:
-        url = "https://yandex.ru/sprav/234170727274/reviews/add/"
+        url = "https://yandex.ru/sprav/82469923047/reviews/add/"
     return (
         "Спасибо, что обратились в «Проверку стажа».\n\n"
         "Если захотите и будет удобно — можно оставить короткий отзыв "

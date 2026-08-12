@@ -1,6 +1,6 @@
 # Ответы компании на отзывы (Яндекс Бизнес / Карты)
 
-Кабинет: https://yandex.ru/sprav/234170727274/  
+Кабинет: https://yandex.ru/sprav/82469923047/  
 Справка: https://yandex.ru/support/business-priority/ru/manage/reviews  
 Цель: отвечать на **все** опубликованные отзывы за 1–2 рабочих дня.
 

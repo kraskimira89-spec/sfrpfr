@@ -4,7 +4,7 @@
 **Дата:** 2026-08-03  
 **Статус:** к исполнению оператором + артефакты в репо  
 **Сайт / бренд:** `https://proverkastaza.ru/` · ООО «ПОД ПРИСМОТРОМ»  
-**Профиль Sprav:** `234170727274`  
+**Профиль Sprav:** `82469923047`  
 **Основание:** [как мотивировать клиентов оставлять отзывы](https://direct.yandex.ru/base/articles/kak-pravilno-motivirovat-klientov-ostavlyat-otzyvy) · [отзывы в Яндекс Бизнесе](https://yandex.ru/support/business-priority/ru/manage/reviews) · [промоматериалы](https://yandex.ru/support/business-priority/ru/manage/promo)
 
 Связано: [ТЗ-18 SEO](18-seo-strategy-and-implementation.md), [ops профиль](../ops/yandex-business-profile.md), [ops отзывы](../ops/yandex-business-reviews.md).
@@ -67,7 +67,7 @@
 
 ### 7.1. Разовая настройка (P0)
 
-1. Войти в https://yandex.ru/sprav/234170727274/
+1. Войти в https://yandex.ru/sprav/82469923047/
 2. **О компании → Отзывы** — скопировать ссылку на форму («Получить ссылку» / открыть «Написать отзыв» на Картах и скопировать URL).
 3. **О компании → Промоматериалы** — скачать QR (PNG) и при необходимости макет визитки; положить **вне git** или в `secrets/` (не коммитить персональные экспорты).
 4. Записать URL в `secrets/yandex-business-review.env` как `YANDEX_BUSINESS_REVIEW_URL=…`

@@ -149,7 +149,7 @@ class Settings(BaseSettings):
     max_channel_chat_id: str = "-77580376877720"
     # Форма отзыва Яндекс Бизнес (ТЗ-19): одно мягкое сообщение после completed
     yandex_business_review_url: str = (
-        "https://yandex.ru/sprav/234170727274/reviews/add/"
+        "https://yandex.ru/sprav/82469923047/reviews/add/"
     )
 
     # Эксплуатация / мониторинг (ТЗ-05)
