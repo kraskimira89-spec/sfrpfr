@@ -68,5 +68,6 @@ def test_ops_redirects_client_commands(monkeypatch) -> None:
     bot = _SilentBot()
     result = handle_ops_update(_msg(42, "/login"), bot=bot)
     assert result.action == "ops_redirect_client"
-    assert "клиентск" in bot.sent[0]["text"].lower()
+    assert "Стаж и пенсия" in bot.sent[0]["text"]
+    assert "служебный" in bot.sent[0]["text"].lower()
     get_settings.cache_clear()
