@@ -67,6 +67,16 @@ if compgen -G "${BRAND_SRC}/viz-*.png" > /dev/null; then
   chown -R www-data:www-data "${BRAND_DST}" 2>/dev/null || true
   echo "Brand visuals OK → ${BRAND_DST}"
 fi
+# Локальный Manrope (без Google Fonts)
+FONTS_SRC="${APP_DIR}/scripts/assets/fonts/manrope"
+FONTS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/fonts/manrope"
+mkdir -p "${FONTS_DST}"
+if compgen -G "${FONTS_SRC}/manrope-*-normal.woff2" > /dev/null; then
+  cp -f "${FONTS_SRC}/manrope-"*-normal.woff2 "${FONTS_DST}/"
+  cp -f "${FONTS_SRC}/OFL.txt" "${FONTS_DST}/" 2>/dev/null || true
+  chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr/fonts" 2>/dev/null || true
+  echo "Manrope fonts OK → ${FONTS_DST}"
+fi
 cp -f "${APP_DIR}/scripts/assets/sfrfr-awards.js" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-yandex-verification.php" \

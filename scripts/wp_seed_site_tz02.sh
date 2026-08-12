@@ -79,6 +79,14 @@ echo "CUSTOM_CSS_POST=${CSS_ID:-?}"
 echo "==> Логотип и favicon (светлый фон)"
 mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-logo-light.png" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-logo-light.png"
+# Локальный Manrope (без Google Fonts)
+FONTS_SRC="${SCRIPT_DIR}/assets/fonts/manrope"
+FONTS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/fonts/manrope"
+mkdir -p "${FONTS_DST}"
+if compgen -G "${FONTS_SRC}/manrope-*-normal.woff2" > /dev/null; then
+  cp -f "${FONTS_SRC}/manrope-"*-normal.woff2 "${FONTS_DST}/"
+  cp -f "${FONTS_SRC}/OFL.txt" "${FONTS_DST}/" 2>/dev/null || true
+fi
 chown -R www-data:www-data "${SITE_DIR}/wp-content/uploads/sfrfr" 2>/dev/null || true
 export SFRFR_LOGO_LIGHT="${SCRIPT_DIR}/assets/sfrfr-logo-light.png"
 LOGO_ID="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_apply_branding.php" 2>/dev/null | tr -d '[:space:]' || true)"
