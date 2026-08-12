@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.client import MaxBotClient
 from sfrfr.integrations.max.ops_bot import get_ops_bot, handle_ops_update
@@ -58,6 +60,7 @@ def test_ops_start_welcome(monkeypatch) -> None:
     assert result.action == "ops_start"
     assert bot.sent
     assert "Служебный бот" in bot.sent[0]["text"]
+    assert "Проверка стажа-Ops" in bot.sent[0]["text"]
     assert "admin.example" in bot.sent[0]["text"]
     get_settings.cache_clear()
 
@@ -70,4 +73,29 @@ def test_ops_redirects_client_commands(monkeypatch) -> None:
     assert result.action == "ops_redirect_client"
     assert "Стаж и пенсия" in bot.sent[0]["text"]
     assert "служебный" in bot.sent[0]["text"].lower()
+    get_settings.cache_clear()
+
+
+def test_ops_bot_added_remembers(monkeypatch) -> None:
+    store = Path("var") / "test_max_ops_channel_ids.json"
+    store.parent.mkdir(parents=True, exist_ok=True)
+    if store.exists():
+        store.unlink()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.channel_ids.store_path",
+        lambda: store,
+    )
+    get_settings.cache_clear()
+    bot = _SilentBot()
+    update = {
+        "update_type": "bot_added",
+        "chat_id": -77768587291288,
+        "user": {"user_id": 1},
+    }
+    result = handle_ops_update(update, bot=bot)
+    assert result.ok
+    assert result.action == "bot_added"
+    assert "77768587291288" in (result.detail or "")
+    assert not bot.sent
+    store.unlink(missing_ok=True)
     get_settings.cache_clear()

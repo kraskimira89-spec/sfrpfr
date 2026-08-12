@@ -30,7 +30,7 @@
 22. [22-trust-experience-awards.md](22-trust-experience-awards.md) — опыт и награды в блоке «Кто оказывает услугу» (слайдер с заглушкой до публикации фото).
 23. [23-max-channel-promotion.md](23-max-channel-promotion.md) — оформление, запуск и продвижение канала MAX без смешения с личным чатом и кабинетом.
 24. [24-max-client-boundaries-home.md](24-max-client-boundaries-home.md) — понятный блок на главной: канал MAX, личный чат и защищённый кабинет.
-25. [25-max-ops-bot.md](25-max-ops-bot.md) — Ops-бот MAX «Проверка стажа спец» (`id8905998693_3_bot`, `MAX_OPS_BOT_TOKEN`) для лидов и approve staff.  
+25. [25-max-ops-bot.md](25-max-ops-bot.md) — Ops-бот MAX «Проверка стажа-Ops» (`id8905998693_3_bot`, `MAX_OPS_BOT_TOKEN`) для лидов и approve staff.  
     Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
 26. [26-max-llm-chat.md](26-max-llm-chat.md) — черновик: ограниченный LLM-ответ на свободный текст в личном чате MAX (пока не к реализации).
 

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from sfrfr.core.config import get_settings
+from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import MaxBotClient
 from sfrfr.integrations.max.handler import MaxHandleResult
+
+logger = logging.getLogger(__name__)
+
+OPS_BOT_DISPLAY_NAME = "Проверка стажа-Ops"
 
 
 def get_ops_bot() -> MaxBotClient:
@@ -23,7 +29,7 @@ def _ops_welcome_text() -> str:
     admin = (settings.admin_public_url or "").rstrip("/")
     client_bot = (settings.max_chat_url or "").strip()
     lines = [
-        "Служебный бот «Проверка стажа спец».",
+        f"Служебный бот «{OPS_BOT_DISPLAY_NAME}».",
         "",
         "Сюда приходят:",
         "• новые заявки с сайта;",
@@ -62,12 +68,29 @@ def handle_ops_update(
     callback = _callback_payload(update)
     user_id = _user_id(update)
     chat_id = _chat_id(update)
+    update_type = str(update.get("update_type") or "")
     lower = text.lower()
     manager_ticket = parse_manager_callback(callback)
 
+    # Канал команды: chat_id из bot_added (также доступен через GET /chats у ops-бота).
+    if "bot_added" in update_type or update_type.endswith("bot_added"):
+        entry = remember_chat_id(
+            chat_id,
+            source="ops_webhook_bot_added",
+            update_type=update_type,
+        )
+        logger.info("ops_bot_added chat_id=%s user_id=%s", chat_id, user_id)
+        return MaxHandleResult(
+            ok=True,
+            action="bot_added",
+            detail=f"chat_id={chat_id}" if entry else "no chat_id",
+        )
+    if "bot_removed" in update_type:
+        logger.info("ops_bot_removed chat_id=%s user_id=%s", chat_id, user_id)
+        return MaxHandleResult(ok=True, action="bot_removed", detail=f"chat_id={chat_id}")
+
     if not user_id and not manager_ticket:
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")
-
     if manager_ticket:
         return _approve_staff_by_manager(
             bot,
