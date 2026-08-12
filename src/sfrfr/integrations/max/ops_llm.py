@@ -118,12 +118,12 @@ def answer_specialist_question(
     if not safe_q:
         return "Уточните вопрос одной фразой (без персональных данных клиента)."
 
-    llm = llm or LLMClient.for_analyze()
+    llm = llm or LLMClient.for_ops_dialog()
     if not llm.available:
-        logger.warning("ops_llm: LLM unavailable")
+        logger.warning("ops_llm: Yandex DeepSeek unavailable model=%s", llm.model)
         return (
-            "ИИ сейчас недоступен (не настроен провайдер). "
-            "Проверьте Yandex/DeepSeek ключи на сервере или спросите коллегу."
+            "ИИ сейчас недоступен (нужен ключ Yandex AI Studio). "
+            "Проверьте YANDEX_API_KEY / YANDEX_FOLDER_ID на сервере."
         )
 
     rag = _rag_block(safe_q)
@@ -135,6 +135,7 @@ def answer_specialist_question(
     )
     try:
         reply = llm.chat(system=OPS_SPECIALIST_SYSTEM, user=user, temperature=0.2)
+        logger.info("ops_llm ok provider=%s model=%s", llm.provider, llm.model)
     except Exception as exc:  # noqa: BLE001
         logger.exception("ops_llm chat failed: %s", exc)
         return "Не удалось получить ответ ИИ. Попробуйте позже или спросите коллегу."

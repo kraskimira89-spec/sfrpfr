@@ -31,7 +31,8 @@ MAX_OPS_LLM_ENABLED=1          # 0 — выключить AI-ответы
 MAX_OPS_LLM_MAX_CHARS=3500     # обрезка ответа
 ```
 
-LLM: тот же `LLMClient` (Yandex / fallback DeepSeek), что кабинет.
+LLM: **Yandex AI Studio → DeepSeek V4 Flash** (`MAX_OPS_LLM_MODEL=deepseek-v4-flash`).  
+Не использовать `platform.deepseek.com` в production.
 
 ## 5. Правила ответа
 

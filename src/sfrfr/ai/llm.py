@@ -72,6 +72,26 @@ class LLMClient:
         return cls(purpose="draft", **kwargs)
 
     @classmethod
+    def for_ops_dialog(cls, **kwargs: Any) -> LLMClient:
+        """Диалог специалистов в MAX Ops: Yandex AI Studio DeepSeek (не platform.deepseek.com)."""
+        settings = get_settings()
+        short = (kwargs.pop("model", None) or settings.max_ops_llm_model or "").strip()
+        if not short:
+            short = (settings.yandex_model_analyze or "").strip() or "deepseek-v4-flash"
+        if short.startswith("gpt://"):
+            model = short
+        else:
+            folder = (settings.yandex_folder_id or settings.llm_folder_id or "").strip()
+            model = f"gpt://{folder}/{short.lstrip('/')}" if folder else short
+        return cls(
+            provider="yandex",
+            model=model,
+            purpose="analyze",
+            allow_fallback=False,
+            **kwargs,
+        )
+
+    @classmethod
     def for_deepseek_fallback(cls, *, purpose: LlmPurpose = "analyze") -> LLMClient:
         """Прямой клиент platform.deepseek.com без вложенного fallback."""
         return cls(provider="deepseek", purpose=purpose, allow_fallback=False)

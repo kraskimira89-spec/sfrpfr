@@ -61,9 +61,10 @@ cd /opt/sfrfr && .venv/bin/sfrfr max-ops-webhook-set
 ```bash
 MAX_OPS_LLM_ENABLED=1
 MAX_OPS_LLM_MAX_CHARS=3500
+MAX_OPS_LLM_MODEL=deepseek-v4-flash   # Yandex AI Studio DeepSeek
 ```
 
-Нужен рабочий LLM кабинета (Yandex / DeepSeek). Health: `ops_llm_enabled: yes`.
+Нужны `YANDEX_API_KEY` + `YANDEX_FOLDER_ID`. Health: `ops_llm_enabled: yes`, `ops_llm_model: deepseek-v4-flash`.
 
 ## Проверка
 

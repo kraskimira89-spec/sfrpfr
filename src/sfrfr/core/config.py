@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     # ТЗ-27: AI-ответы специалистам в ops / канале команды
     max_ops_llm_enabled: bool = True
     max_ops_llm_max_chars: int = 3500
+    # Модель в Yandex AI Studio (канон: DeepSeek V4 Flash), не platform.deepseek.com
+    max_ops_llm_model: str = "deepseek-v4-flash"
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

@@ -92,6 +92,7 @@ def max_integration_health() -> dict[str, str]:
             "yes" if settings.max_specialists_channel_chat_id else "no"
         ),
         "ops_llm_enabled": "yes" if settings.max_ops_llm_enabled else "no",
+        "ops_llm_model": (settings.max_ops_llm_model or "deepseek-v4-flash").strip(),
     }
 
 
