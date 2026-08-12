@@ -10,7 +10,7 @@ alwaysApply: true
 1. **Не спрашивать** «нужен коммит / деплой?» — делать сразу.
 2. Закоммитить изменения (message на русском, кратко «почему»).
 3. `git push origin HEAD` в `main` → срабатывает `deploy-vps.yml`.
-4. Дождаться успешного deploy (или починить lint/CI и запушить снова).
+4. Дождаться успешного deploy (или починить lint/CI и запушить снова). Несколько push подряд **встают в очередь** (`concurrency` + `cancel-in-progress: false`) — не отменять чужой/предыдущий run и не дублировать деплой вручную по SSH, пока очередь не пуста. Канон: `.cursor/rules/deploy-queue.mdc`.
 5. Если менялся лендинг WP (`scripts/assets/sfrfr-home.html`, `wp_seed_*.sh`) — после деплоя кода обновить сайт на VPS (`wp_seed_site_tz02.sh` / `wp_apply_home.php`), когда есть SSH-доступ.
 
 ## Keep / Keep all

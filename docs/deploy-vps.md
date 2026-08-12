@@ -22,6 +22,8 @@ DNS: [ops/dns-proverkastaza.md](ops/dns-proverkastaza.md). Cutover на VPS: `sc
 
 Автодеплой: `push` в `main` → GitHub Actions (`deploy-vps.yml`) → SSH → `scripts/vps_deploy.sh` в `/opt/sfrfr`.
 
+Очередь: в `deploy-vps.yml` задано `concurrency.group: deploy-vps` и **`cancel-in-progress: false`** — параллельные push не отменяют друг друга, а ждут. Ручной деплой по SSH не запускать, пока в Actions уже идёт/ждёт `deploy-vps`.
+
 На VPS ~2 GiB RAM нужен **swap ≥2 GiB** (`/swapfile`), иначе `npm ci` / `next build` часто падают с **exit 137**. Скрипт деплоя ограничивает Node (`NODE_OPTIONS=--max-old-space-size=768`) и не гоняет `npm ci`, если `package-lock.json` не менялся.
 
 ## 1. Один раз на VPS (bootstrap)

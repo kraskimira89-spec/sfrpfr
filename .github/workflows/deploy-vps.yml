@@ -5,9 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Очередь: параллельные push в main не отменяют друг друга (нужен cancel-in-progress: false).
 concurrency:
   group: deploy-vps
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   api:
