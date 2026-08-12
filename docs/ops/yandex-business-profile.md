@@ -104,10 +104,11 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 Полная инструкция: [yandex-business-reviews.md](yandex-business-reviews.md) · ТЗ-19.
 
-1. Форма: https://yandex.ru/sprav/82469923047/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/`.
-2. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
-3. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
-4. Ответы компании: `review-reply-templates.md`.
+1. Форма: https://yandex.ru/sprav/82469923047/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/` (исходники также в `docs/brand/`).
+2. Бейдж рейтинга на сайте: iframe `https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating` — `/kontakty/` и футер.
+3. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
+4. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
+5. Ответы компании: `review-reply-templates.md`.
 
 Кабинет промо: https://yandex.ru/sprav/82469923047/p/edit/promo/
 

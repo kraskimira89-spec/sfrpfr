@@ -23,6 +23,15 @@
 Публичный QR на сайте (после деплоя):  
 `https://proverkastaza.ru/yandex-review-qr.png`
 
+Бейдж рейтинга (официальный виджет Sprav): на `/kontakty/` и в футере сайта.
+
+```html
+<iframe src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0"></iframe>
+```
+
+Печатные материалы: `docs/brand/card.pdf`, `docs/brand/booklet.pdf` → копии в `scripts/assets/yandex-business/promo/`.
+
+
 ---
 
 ## Как просить (не навязчиво)

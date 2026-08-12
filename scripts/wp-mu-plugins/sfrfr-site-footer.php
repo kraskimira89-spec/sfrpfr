@@ -92,6 +92,9 @@ function sfrfr_site_footer_html(): string
           <img width="88" height="31" alt="Индекс качества сайта Яндекса" src="https://yandex.ru/cycounter?https://proverkastaza.ru&amp;theme=light&amp;lang=ru" style="border:0;border-radius:8px;vertical-align:middle" loading="lazy" decoding="async">
         </a>
       </p>
+      <p class="sfrfr-yandex-badge sfrfr-yandex-badge--footer">
+        <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </p>
       <p class="sfrfr-req" itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
         <strong>ООО «ПОД ПРИСМОТРОМ»</strong><br>
         ИНН 8905066468 · КПП 890501001 · ОГРН 1208900000572<br>
