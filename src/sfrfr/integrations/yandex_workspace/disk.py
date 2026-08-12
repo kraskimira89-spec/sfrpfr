@@ -13,6 +13,8 @@ from sfrfr.integrations.yandex_workspace.oauth import oauth_headers, token_avail
 _DISK_API = "https://cloud-api.yandex.net/v1/disk"
 # Только обезличенные ops-файлы / шаблоны заявлений.
 OPS_FOLDER = "disk:/SFRFR-ops"
+# Еженедельный контроль воронки MAX (без ПДн) — см. docs/marketing-sales/reports/
+OPS_MARKETING_MAX_FUNNEL = f"{OPS_FOLDER}/marketing-max-funnel"
 _FORBIDDEN_MARKERS = (
     "снилс",
     "snils",
@@ -80,48 +82,60 @@ def disk_status() -> dict[str, Any]:
 
 def ensure_ops_folder() -> dict[str, Any]:
     """Создать disk:/SFRFR-ops при отсутствии."""
+    return ensure_ops_path(OPS_FOLDER)
+
+
+def ensure_ops_path(path: str) -> dict[str, Any]:
+    """Создать папку на Диске внутри SFRFR-ops (без ПДн в пути)."""
     ok, skipped = _enabled()
     if not ok and skipped:
         return skipped
+    target = (path or "").strip()
+    if not _path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_pdn_policy", "path": target}
     try:
         with httpx.Client(timeout=20.0) as client:
             existing = client.get(
                 f"{_DISK_API}/resources",
-                params={"path": OPS_FOLDER},
+                params={"path": target},
                 headers=oauth_headers(),
             )
             if existing.status_code == 200:
-                return {"ok": True, "exists": True, "path": OPS_FOLDER}
+                return {"ok": True, "exists": True, "path": target}
             created = client.put(
                 f"{_DISK_API}/resources",
-                params={"path": OPS_FOLDER},
+                params={"path": target},
                 headers=oauth_headers(),
             )
         if created.status_code in (200, 201):
-            return {"ok": True, "created": True, "path": OPS_FOLDER}
+            return {"ok": True, "created": True, "path": target}
         if created.status_code == 409:
-            return {"ok": True, "exists": True, "path": OPS_FOLDER}
+            return {"ok": True, "exists": True, "path": target}
         return {
             "ok": False,
             "status_code": created.status_code,
             "detail": (created.text or "")[:300],
+            "path": target,
         }
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
 
 
-def list_ops(*, limit: int = 50) -> dict[str, Any]:
+def list_ops(*, path: str | None = None, limit: int = 50) -> dict[str, Any]:
     ok, skipped = _enabled()
     if not ok and skipped:
         return skipped
-    ensure = ensure_ops_folder()
+    target = (path or OPS_FOLDER).strip()
+    if not _path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_pdn_policy", "path": target}
+    ensure = ensure_ops_path(target)
     if not ensure.get("ok"):
         return ensure
     try:
         with httpx.Client(timeout=20.0) as client:
             response = client.get(
                 f"{_DISK_API}/resources",
-                params={"path": OPS_FOLDER, "limit": max(1, min(limit, 100))},
+                params={"path": target, "limit": max(1, min(limit, 100))},
                 headers=oauth_headers(),
             )
         if response.status_code >= 400:
@@ -134,7 +148,7 @@ def list_ops(*, limit: int = 50) -> dict[str, Any]:
         items = ((body.get("_embedded") or {}).get("items") or [])
         return {
             "ok": True,
-            "path": OPS_FOLDER,
+            "path": target,
             "count": len(items),
             "items": [
                 {
@@ -150,18 +164,30 @@ def list_ops(*, limit: int = 50) -> dict[str, Any]:
         return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
 
 
-def upload_ops_file(*, remote_name: str, content: bytes, overwrite: bool = False) -> dict[str, Any]:
-    """Загрузить файл только в SFRFR-ops (без ПДн в имени/пути)."""
+def upload_ops_file(
+    *,
+    remote_name: str,
+    content: bytes,
+    overwrite: bool = False,
+    folder: str | None = None,
+) -> dict[str, Any]:
+    """Загрузить файл только в SFRFR-ops или подпапку (без ПДн в имени/пути)."""
     ok, skipped = _enabled()
     if not ok and skipped:
         return skipped
     name = (remote_name or "").strip().lstrip("/")
     if not name or "/" in name or "\\" in name or ".." in name:
         return {"ok": False, "error": "invalid_remote_name"}
-    path = f"{OPS_FOLDER}/{name}"
+    base = (folder or OPS_FOLDER).strip().rstrip("/")
+    if not _path_allowed(base):
+        return {"ok": False, "error": "path_forbidden_by_pdn_policy", "path": base}
+    path = f"{base}/{name}"
     if not _path_allowed(path):
         return {"ok": False, "error": "path_forbidden_by_pdn_policy", "path": path}
-    ensure = ensure_ops_folder()
+    ensure_root = ensure_ops_folder()
+    if not ensure_root.get("ok"):
+        return ensure_root
+    ensure = ensure_ops_path(base)
     if not ensure.get("ok"):
         return ensure
     try:

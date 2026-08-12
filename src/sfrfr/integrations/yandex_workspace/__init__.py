@@ -6,8 +6,10 @@ from sfrfr.integrations.yandex_workspace.calendar_mirror import (
 )
 from sfrfr.integrations.yandex_workspace.calendar_yandex import create_event
 from sfrfr.integrations.yandex_workspace.disk import (
+    OPS_MARKETING_MAX_FUNNEL,
     disk_status,
     ensure_ops_folder,
+    ensure_ops_path,
     list_ops,
     upload_ops_file,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "mirror_google_to_yandex",
     "disk_status",
     "ensure_ops_folder",
+    "ensure_ops_path",
+    "OPS_MARKETING_MAX_FUNNEL",
     "list_ops",
     "upload_ops_file",
 ]
