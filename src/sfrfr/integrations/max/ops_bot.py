@@ -113,7 +113,16 @@ def handle_ops_update(
         return MaxHandleResult(ok=True, action="ops_help", reply=reply)
 
     # Приветствия — то же служебное меню, без англицизмов.
-    if lower in {"привет", "здравствуйте", "добрый день", "доброе утро", "добрый вечер", "hi", "hello"}:
+    greetings = {
+        "привет",
+        "здравствуйте",
+        "добрый день",
+        "доброе утро",
+        "добрый вечер",
+        "hi",
+        "hello",
+    }
+    if lower in greetings:
         reply = _ops_welcome_text()
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
