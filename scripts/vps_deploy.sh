@@ -39,12 +39,28 @@ rebuild_next_app() {
     return 0
   fi
   echo "Building $name in $dir …"
+  # На VPS ~2 GiB RAM: без swap npm ci/next часто получают SIGKILL (137).
+  # Повторно не гоняем npm ci, если package-lock не менялся.
   sudo -u "$APP_USER" bash -lc "
     set -euo pipefail
     cd '$dir'
     export PATH=\"/usr/local/bin:/usr/bin:\$PATH\"
+    export NODE_OPTIONS=\"\${NODE_OPTIONS:---max-old-space-size=768}\"
+    export npm_config_jobs=\"\${npm_config_jobs:-1}\"
     command -v npm >/dev/null
-    if [[ -f package-lock.json ]]; then npm ci; else npm install; fi
+    lock_stamp=.deploy-package-lock.sha256
+    need_ci=1
+    if [[ -f package-lock.json ]]; then
+      lock_hash=\$(sha256sum package-lock.json | awk '{print \$1}')
+      if [[ -d node_modules ]] && [[ -f \"\$lock_stamp\" ]] && [[ \"\$(cat \"\$lock_stamp\")\" == \"\$lock_hash\" ]]; then
+        need_ci=0
+        echo \"Reuse node_modules for $name (lock unchanged)\"
+      fi
+    fi
+    if [[ \"\$need_ci\" -eq 1 ]]; then
+      if [[ -f package-lock.json ]]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      if [[ -n \"\${lock_hash:-}\" ]]; then echo \"\$lock_hash\" > \"\$lock_stamp\"; fi
+    fi
     npm run build
   "
   systemctl restart "$unit"
