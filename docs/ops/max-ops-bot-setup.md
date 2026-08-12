@@ -56,9 +56,35 @@ cd /opt/sfrfr && .venv/bin/sfrfr max-ops-webhook-set
 
 ## Проверка
 
-1. Тестовая заявка с сайта → сообщение в **ops**-диалоге / группе, не в клиентском боте.  
+1. Тестовая заявка с сайта → сообщение в **канале команды** (если задан `MAX_SPECIALISTS_CHANNEL_CHAT_ID`) и/или в DM руководителей.  
 2. Клиентский бот: `/start` — диагностика как раньше.  
-3. `GET /api/integrations/max/health` → `ops_bot_configured: yes`.
+3. `GET /api/integrations/max/health` → `ops_bot_configured: yes`, `specialists_channel_configured: yes`.
+
+## Чеклист VPS
+
+На сервере `/opt/sfrfr/.env` (значения токена не коммитить):
+
+```bash
+MAX_OPS_BOT_TOKEN=...
+MAX_OPS_WEBHOOK_SECRET=...          # опционально
+MAX_OPS_CHAT_URL=https://max.ru/id8905998693_3_bot
+MAX_SPECIALISTS_CHANNEL_URL=https://max.ru/id8905998693_biz
+MAX_SPECIALISTS_CHANNEL_CHAT_ID=-77768587291288
+# плюс уже существующие STAFF_LOGIN_APPROVER_MAX_USER_IDS / _CHAT_IDS
+```
+
+Команды:
+
+```bash
+cd /opt/sfrfr
+# после правок .env
+systemctl restart sfrfr-api   # или ваш unit / compose restart
+.venv/bin/sfrfr max-ops-webhook-set
+curl -sS https://api.proverkastaza.ru/api/integrations/max/health
+# ожидаем: ops_bot_configured=yes, specialists_channel_configured=yes
+```
+
+Проверка: отправить тестовую заявку с сайта → пост в канале **«Проверка стажа — команда»**.
 
 ## Пока токена нет
 

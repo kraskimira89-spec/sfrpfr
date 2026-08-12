@@ -328,7 +328,7 @@ def _notify_max_managers_new_lead(
     channel: str,
     crm_url: str | None,
 ) -> dict[str, Any]:
-    """Уведомить операторов в MAX о новом лиде (через ops-бот, ТЗ-25)."""
+    """Уведомить операторов в MAX о новом лиде (ops-бот → DM/группа + канал команды)."""
     try:
         from sfrfr.db.staff_roles import list_manager_max_user_ids
         from sfrfr.integrations.max.ops_bot import get_ops_bot
@@ -348,7 +348,8 @@ def _notify_max_managers_new_lead(
         for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
         if p.strip()
     ]
-    if not manager_ids and not chat_ids:
+    team_channel = (settings.max_specialists_channel_chat_id or "").strip()
+    if not manager_ids and not chat_ids and not team_channel:
         return {"ok": False, "skipped": True, "reason": "no managers"}
 
     _subject, text = _lead_notify_text(
@@ -360,20 +361,37 @@ def _notify_max_managers_new_lead(
     )
 
     sent = 0
-    targets: list[str | None] = list(manager_ids) if manager_ids else [None] * max(1, len(chat_ids))
-    for i, mid in enumerate(targets):
-        cid = chat_ids[i] if i < len(chat_ids) else None
+    channel_sent = False
+    if manager_ids or chat_ids:
+        targets: list[str | None] = (
+            list(manager_ids) if manager_ids else [None] * len(chat_ids)
+        )
+        for i, mid in enumerate(targets):
+            cid = chat_ids[i] if i < len(chat_ids) else None
+            try:
+                bot.send_message(
+                    text=text,
+                    user_id=str(mid) if mid else None,
+                    chat_id=cid,
+                )
+                sent += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("max lead notify failed: %s", exc)
+                continue
+
+    if team_channel:
         try:
-            bot.send_message(
-                text=text,
-                user_id=str(mid) if mid else None,
-                chat_id=cid,
-            )
+            bot.send_message(text=text, chat_id=team_channel)
             sent += 1
+            channel_sent = True
         except Exception as exc:  # noqa: BLE001
-            logger.warning("max lead notify failed: %s", exc)
-            continue
-    return {"ok": sent > 0, "sent": sent}
+            logger.warning("max lead notify team channel failed: %s", exc)
+
+    return {
+        "ok": sent > 0,
+        "sent": sent,
+        "team_channel_sent": channel_sent,
+    }
 
 
 def _captcha_mode() -> str:

@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     max_ops_bot_token: str = ""
     max_ops_webhook_secret: str = ""
     max_ops_chat_url: str = ""
+    # Внутренний канал команды («Проверка стажа — команда»); не на сайт
+    max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
+    max_specialists_channel_chat_id: str = ""
 
     pii_encryption_key: str = ""
     data_retention_days: int = 90

@@ -53,14 +53,15 @@ STAFF_LOGIN_APPROVER_MAX_CHAT_IDS=   # предпочтительно chat_id г
 |-------|------|------------|
 | POST | `/api/integrations/max/webhook` | клиентский бот (как сейчас) |
 | POST | `/api/integrations/max/ops/webhook` | ops-бот «Проверка стажа-Ops» |
-| GET | `/api/integrations/max/health` | оба контура: `bot_configured`, `ops_bot_configured` |
+| GET | `/api/integrations/max/health` | `bot_configured`, `ops_bot_configured`, `specialists_channel_configured` |
 
 ## 5. Поведение кода
 
 1. `get_ops_bot()` → `MaxBotClient(token=MAX_OPS_BOT_TOKEN)` если задан, иначе клиентский токен.  
 2. Уведомления о лиде и approve staff **всегда** через `get_ops_bot()`.  
-3. Сообщения клиенту (OTP, intake, кабинет) — только клиентский `MaxBotClient()`.  
-4. `handle_ops_update`:  
+3. Новый лид: дополнительно пост в `MAX_SPECIALISTS_CHANNEL_CHAT_ID` (канал команды), если задан.  
+4. Сообщения клиенту (OTP, intake, кабинет) — только клиентский `MaxBotClient()`.  
+5. `handle_ops_update`:  
    - `bot_added` / `bot_removed` — `remember_chat_id` для канала команды;  
    - `/start` — краткое меню ops (ссылки admin, «уведомления здесь»);  
    - callback approve staff — как сейчас `_approve_staff_by_manager`;  

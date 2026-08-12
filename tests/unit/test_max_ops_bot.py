@@ -99,3 +99,41 @@ def test_ops_bot_added_remembers(monkeypatch) -> None:
     assert not bot.sent
     store.unlink(missing_ok=True)
     get_settings.cache_clear()
+
+
+def test_lead_notify_sends_to_specialists_channel(monkeypatch) -> None:
+    from sfrfr.api.routes.public_leads import _notify_max_managers_new_lead
+
+    sent: list[dict] = []
+
+    class _Bot:
+        available = True
+
+        def send_message(self, **kwargs):  # noqa: ANN003
+            sent.append(kwargs)
+            return {"ok": True}
+
+    monkeypatch.setenv("MAX_OPS_BOT_TOKEN", "ops-token")
+    monkeypatch.setenv("STAFF_LOGIN_APPROVER_MAX_USER_IDS", "")
+    monkeypatch.setenv("STAFF_LOGIN_APPROVER_MAX_CHAT_IDS", "")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.ops_bot.get_ops_bot",
+        lambda: _Bot(),
+    )
+    monkeypatch.setattr(
+        "sfrfr.db.staff_roles.list_manager_max_user_ids",
+        lambda extra_ids="": [],
+    )
+    result = _notify_max_managers_new_lead(
+        case_id="case-1",
+        full_name="Тест",
+        contact="+7900",
+        channel="site",
+        crm_url=None,
+    )
+    assert result["ok"] is True
+    assert result["team_channel_sent"] is True
+    assert sent and str(sent[0]["chat_id"]) == "-77768587291288"
+    get_settings.cache_clear()

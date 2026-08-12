@@ -88,6 +88,9 @@ def max_integration_health() -> dict[str, str]:
         "ops_webhook": f"{base}/api/integrations/max/ops/webhook",
         "bot_configured": "yes" if settings.max_bot_token else "no",
         "ops_bot_configured": "yes" if settings.max_ops_bot_token else "no",
+        "specialists_channel_configured": (
+            "yes" if settings.max_specialists_channel_chat_id else "no"
+        ),
     }
 
 
