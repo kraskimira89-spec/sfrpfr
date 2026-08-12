@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     max_ops_bot_token: str = ""
     max_ops_webhook_secret: str = ""
     max_ops_chat_url: str = ""
+    # ТЗ-27: AI-ответы специалистам в ops / канале команды
+    max_ops_llm_enabled: bool = True
+    max_ops_llm_max_chars: int = 3500
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

@@ -54,6 +54,17 @@ cd /opt/sfrfr && .venv/bin/sfrfr max-ops-webhook-set
 4. Прописать `MAX_SPECIALISTS_CHANNEL_CHAT_ID` на VPS и локально.
 5. Публиковать и **закреплять** инструкцию через API (`pin_message` в канале работает; в личном диалоге — нет).
 
+## AI-помощник (ТЗ-27)
+
+В личке ops-бота можно задать вопрос текстом. В канале команды: `@id8905998693_3_bot …` или `/ask …`.
+
+```bash
+MAX_OPS_LLM_ENABLED=1
+MAX_OPS_LLM_MAX_CHARS=3500
+```
+
+Нужен рабочий LLM кабинета (Yandex / DeepSeek). Health: `ops_llm_enabled: yes`.
+
 ## Проверка
 
 1. Тестовая заявка с сайта → сообщение в **канале команды** (если задан `MAX_SPECIALISTS_CHANNEL_CHAT_ID`) и/или в DM руководителей.  

@@ -63,9 +63,12 @@ STAFF_LOGIN_APPROVER_MAX_CHAT_IDS=   # предпочтительно chat_id г
 4. Сообщения клиенту (OTP, intake, кабинет) — только клиентский `MaxBotClient()`.  
 5. `handle_ops_update`:  
    - `bot_added` / `bot_removed` — `remember_chat_id` для канала команды;  
-   - `/start` — краткое меню ops (ссылки admin, «уведомления здесь»);  
+   - `/start` — краткое меню ops (ссылки admin, подсказка про ИИ);  
    - callback approve staff — как сейчас `_approve_staff_by_manager`;  
-   - клиентский intake /login — не обрабатывать (подсказка открыть клиентский бот).  
+   - **ТЗ-27:** свободный текст в DM / `/ask` или mention в канале → AI с RAG;  
+   - без триггера в канале — молчание; иначе подсказка открыть клиентский бот.  
+
+См. [ТЗ-27](27-max-ops-llm-assist.md).
 
 ## 6. Ручная настройка в MAX
 

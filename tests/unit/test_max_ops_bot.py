@@ -67,12 +67,69 @@ def test_ops_start_welcome(monkeypatch) -> None:
 
 def test_ops_redirects_client_commands(monkeypatch) -> None:
     monkeypatch.setenv("MAX_CHAT_URL", "https://max.ru/client_bot")
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
     get_settings.cache_clear()
     bot = _SilentBot()
     result = handle_ops_update(_msg(42, "/login"), bot=bot)
     assert result.action == "ops_redirect_client"
     assert "Стаж и пенсия" in bot.sent[0]["text"]
     assert "служебный" in bot.sent[0]["text"].lower()
+    get_settings.cache_clear()
+
+
+def test_ops_llm_answers_dm_question(monkeypatch) -> None:
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "1")
+    get_settings.cache_clear()
+    bot = _SilentBot()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.ops_llm.answer_specialist_question",
+        lambda q, **_: f"AI:{q}",
+    )
+    result = handle_ops_update(_msg(42, "Как отвечать клиенту про подачу?"), bot=bot)
+    assert result.action == "ops_llm_answer"
+    assert bot.sent[0]["text"].startswith("AI:")
+    get_settings.cache_clear()
+
+
+def test_ops_channel_ignores_without_mention(monkeypatch) -> None:
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "1")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
+    get_settings.cache_clear()
+    bot = _SilentBot()
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 7},
+            "body": {"text": "просто обсуждение без бота"},
+            "recipient": {"chat_id": -77768587291288},
+        },
+    }
+    result = handle_ops_update(update, bot=bot)
+    assert result.action == "ops_channel_ignore"
+    assert not bot.sent
+    get_settings.cache_clear()
+
+
+def test_ops_channel_ask_triggers_llm(monkeypatch) -> None:
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "1")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
+    get_settings.cache_clear()
+    bot = _SilentBot()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.ops_llm.answer_specialist_question",
+        lambda q, **_: f"ASK:{q}",
+    )
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 7},
+            "body": {"text": "/ask Какие документы нужны без ИЛС?"},
+            "recipient": {"chat_id": -77768587291288},
+        },
+    }
+    result = handle_ops_update(update, bot=bot)
+    assert result.action == "ops_llm_answer"
+    assert "ASK:" in bot.sent[0]["text"]
     get_settings.cache_clear()
 
 

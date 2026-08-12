@@ -35,6 +35,9 @@ def _ops_welcome_text() -> str:
         "• новые заявки с сайта;",
         "• запросы на вход сотрудников в кабинет.",
         "",
+        "Можете задать вопрос по процессу или стажу — ответит ИИ с опорой на базу знаний.",
+        "В канале команды: упомяните бота или напишите /ask …",
+        "",
         "Диагностику клиента и вход в кабинет ведите в боте «Стаж и пенсия».",
     ]
     if admin:
@@ -126,6 +129,27 @@ def handle_ops_update(
         reply = _ops_welcome_text()
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
+
+    from sfrfr.integrations.max.ops_llm import (
+        answer_specialist_question,
+        extract_ops_question,
+        is_specialists_channel,
+        ops_llm_enabled,
+    )
+
+    in_channel = is_specialists_channel(chat_id)
+    if ops_llm_enabled():
+        question = extract_ops_question(text, in_channel=in_channel)
+        if in_channel and question is None:
+            # Обычные сообщения канала не трогаем.
+            return MaxHandleResult(ok=True, action="ops_channel_ignore")
+        if question:
+            reply = answer_specialist_question(question)
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(ok=True, action="ops_llm_answer", reply=reply)
+
+    if in_channel:
+        return MaxHandleResult(ok=True, action="ops_channel_ignore")
 
     settings = get_settings()
     client_bot = (settings.max_chat_url or "").strip()
