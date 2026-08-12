@@ -1169,7 +1169,11 @@ def _notify_managers_staff_login(
     if not manager_ids and not chat_ids:
         return 0
     email = pending.staff_email or pending.contact or "сотрудник"
-    text = f"Вход: {email}\nНажмите кнопку."
+    text = (
+        f"Запрос на вход сотрудника в кабинет.\n"
+        f"Почта: {email}\n\n"
+        f"Нажмите кнопку, чтобы разрешить вход."
+    )
     attachments = inline_callback_keyboard(
         APPROVE_STAFF_LOGIN_LABEL,
         manager_callback_payload_for(pending.ticket_id),
@@ -1385,13 +1389,13 @@ def _approve_staff_by_manager(
         except Exception:
             pass
 
-    reply = "Готово."
+    reply = "Вход разрешён."
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     # уведомить сотрудника в MAX, если известен
     if pending.max_user_id and str(pending.max_user_id) != str(user_id):
         try:
             bot.send_message(
-                text="Готово. Смотрите компьютер.",
+                text="Вход разрешён. Смотрите экран компьютера.",
                 user_id=str(pending.max_user_id),
             )
         except Exception:

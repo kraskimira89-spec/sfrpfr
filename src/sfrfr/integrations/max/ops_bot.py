@@ -25,13 +25,16 @@ def _ops_welcome_text() -> str:
     lines = [
         "Служебный бот «Проверка стажа спец».",
         "",
-        "Сюда приходят: новые заявки, запросы на вход сотрудников.",
-        "Клиентскую диагностику и /login ведите в клиентском боте «Стаж и пенсия».",
+        "Сюда приходят:",
+        "• новые заявки с сайта;",
+        "• запросы на вход сотрудников в кабинет.",
+        "",
+        "Диагностику клиента и вход в кабинет ведите в боте «Стаж и пенсия».",
     ]
     if admin:
         lines.extend(["", f"Кабинет сотрудников: {admin}"])
     if client_bot:
-        lines.extend(["", f"Клиентский бот: {client_bot}"])
+        lines.extend(["", f"Бот для клиентов: {client_bot}"])
     return "\n".join(lines)
 
 
@@ -86,10 +89,17 @@ def handle_ops_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="ops_help", reply=reply)
 
+    # Приветствия — то же служебное меню, без англицизмов.
+    if lower in {"привет", "здравствуйте", "добрый день", "доброе утро", "добрый вечер", "hi", "hello"}:
+        reply = _ops_welcome_text()
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
+
     settings = get_settings()
     client_bot = (settings.max_chat_url or "").strip()
     reply = (
-        "Это служебный бот. Для диагностики и входа клиента откройте клиентский бот"
+        "Это служебный бот для сотрудников.\n"
+        "Для диагностики и входа клиента откройте бот «Стаж и пенсия»"
         + (f":\n{client_bot}" if client_bot else ".")
     )
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)

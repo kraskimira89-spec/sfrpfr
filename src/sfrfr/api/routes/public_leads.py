@@ -275,8 +275,11 @@ def _lead_notify_text(
         f"Дело: {catalog}",
     ]
     if crm_url:
-        lines.append(f"amoCRM: {crm_url}")
-    lines.append("Клиенту показаны ссылки MAX и кабинет. Напишите в выбранном канале.")
+        lines.append(f"Сделка: {crm_url}")
+    lines.append(
+        "Клиенту показаны ссылки на мессенджер MAX и личный кабинет. "
+        "Напишите ему в выбранном канале."
+    )
     return f"Проверка стажа: заявка {catalog}", "\n".join(lines)
 
 
