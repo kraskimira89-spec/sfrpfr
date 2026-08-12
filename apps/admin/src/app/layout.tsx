@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+// Self-host Manrope (без next/font/google) — CI/VPS не зависят от fonts.gstatic.com
+import "@fontsource/manrope/400.css";
+import "@fontsource/manrope/500.css";
+import "@fontsource/manrope/600.css";
+import "@fontsource/manrope/700.css";
 import "./globals.css";
-
-const manrope = Manrope({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "Проверка стажа — кабинет сотрудников",
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className={manrope.className}>{children}</body>
+      <body style={{ fontFamily: '"Manrope", "Segoe UI", sans-serif' }}>{children}</body>
     </html>
   );
 }

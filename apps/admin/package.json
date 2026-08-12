@@ -2,13 +2,15 @@
   "name": "sfrfr-admin",
   "version": "0.1.0",
   "private": true,
-    "scripts": {
-      "dev": "next dev",
-      "build": "next build --webpack",
-      "start": "next start",
-      "lint": "eslint"
-    },
+  "scripts": {
+    "prebuild": "node ../../scripts/debug_cabinet_fonts.cjs admin",
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint"
+  },
   "dependencies": {
+    "@fontsource/manrope": "^5.3.0",
     "@supabase/supabase-js": "2.110.8",
     "next": "16.2.11",
     "react": "19.2.4",
