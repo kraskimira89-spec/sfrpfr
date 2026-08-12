@@ -83,6 +83,13 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'id="tarify"' in home
     assert "Открыть страницу тарифов" in home
     assert 'id="komu"' in home
+    # Manrope локально, без Google Fonts (152-ФЗ / скорость)
+    css = (REPO / "scripts/assets/sfrfr-landing.css").read_text(encoding="utf-8")
+    assert "fonts.googleapis.com" not in css
+    assert "fonts.gstatic.com" not in css
+    assert '@font-face' in css
+    assert "/wp-content/uploads/sfrfr/fonts/manrope/" in css
+    assert any((REPO / "scripts/assets/fonts/manrope").glob("manrope-*-400-normal.woff2"))
     assert "sfrfr-sticky-cta" in home
     assert 'id="stati"' in home  # 3 карточки блога (§13.3)
     assert "Полезные статьи" in home

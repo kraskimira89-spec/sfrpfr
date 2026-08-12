@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-12 — локальный Manrope без Google Fonts
+
+- Пользователь: скачать шрифты, без онлайн Google Fonts.
+- Сделано: woff2 в `scripts/assets/fonts/manrope/`, CSS `@font-face`, копирование в WP uploads при apply/seed.
+
 ## 2026-08-12 — лиды в канал команды + чеклист VPS
 
 - Wiring: `MAX_SPECIALISTS_CHANNEL_*` в config; новый лид → пост в канал через ops-бот.
