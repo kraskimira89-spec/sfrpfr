@@ -8,7 +8,8 @@
 ## Проверка токена бота для специалистов
 - Рабочий токен бота специалистов должен жить только в `MAX_OPS_BOT_TOKEN` (не в `MAX_BOT_SPECIALISTS_*`).
 - `MAX_OPS_CHAT_URL=https://max.ru/id8905998693_3_bot`.
-- Канал `channel_proverkastaza_specialists` — отдельно, не путать с ops-ботом.
+- Канал команды: **«Проверка стажа — команда»** `@id8905998693_biz` → https://max.ru/id8905998693_biz  
+  Env: `MAX_SPECIALISTS_CHANNEL_URL` / `MAX_SPECIALISTS_CHANNEL_CHAT_ID` (chat_id — после `bot_added`).
 
 ## Следующий шаг на VPS
 - Прописать `MAX_OPS_BOT_TOKEN` + `MAX_OPS_CHAT_URL`, `sfrfr max-ops-webhook-set`, перезапуск API.

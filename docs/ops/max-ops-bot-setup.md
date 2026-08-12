@@ -34,10 +34,24 @@ cd /opt/sfrfr && .venv/bin/sfrfr max-ops-webhook-set
 5. Откройте ops-бота с аккаунта руководителя → «Начать».
 6. Убедитесь, что `STAFF_LOGIN_APPROVER_MAX_USER_IDS` содержит ваш MAX user_id (или используйте группу + `STAFF_LOGIN_APPROVER_MAX_CHAT_IDS` — это **chat_id**, не username бота).
 
-## Канал специалистов
+## Канал команды
 
-`https://max.ru/channel_proverkastaza_specialists` — внутренний **канал**, не замена ops-бота.  
-Токен канала / chat_id канала не подставлять в `MAX_OPS_BOT_TOKEN`.
+| | |
+|---|---|
+| Название | **Проверка стажа — команда** |
+| Ник | `@id8905998693_biz` |
+| URL | https://max.ru/id8905998693_biz |
+| Env | `MAX_SPECIALISTS_CHANNEL_URL`, `MAX_SPECIALISTS_CHANNEL_CHAT_ID` |
+
+Это внутренний **канал**, не замена ops-бота. На сайт и в рекламу не публиковать.
+
+### Получить `chat_id`
+
+1. Добавить бота **«Проверка стажа спец»** админом канала (право публиковать).
+2. Если бот уже был в канале до подписки webhook — удалить и добавить снова, чтобы пришло `bot_added`.
+3. Ops-webhook: `sfrfr max-ops-webhook-set` (событие `bot_added` должно быть в подписке).
+4. Взять `chat_id` из логов / store и прописать `MAX_SPECIALISTS_CHANNEL_CHAT_ID` на VPS и локально.
+5. После этого можно публиковать и **закреплять** инструкцию через API.
 
 ## Проверка
 
