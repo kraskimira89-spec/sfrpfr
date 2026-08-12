@@ -134,9 +134,11 @@ def test_amocrm_payload_excludes_files(monkeypatch) -> None:
     captured: dict = {}
 
     def _request(self, method, path, *, json_body=None, params=None):
-        captured["method"] = method
-        captured["path"] = path
-        captured["json"] = json_body
+        # create_lead_task тоже ходит в _request — берём только тело создания сделки
+        if path == "/leads/complex" and json_body is not None:
+            captured["method"] = method
+            captured["path"] = path
+            captured["json"] = json_body
         return {
             "ok": True,
             "status_code": 200,
