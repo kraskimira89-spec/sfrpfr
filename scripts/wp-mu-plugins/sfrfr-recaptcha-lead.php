@@ -305,7 +305,12 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             $consent = $value !== '' && !in_array(mb_strtolower($value), ['0', 'false', 'no', 'нет'], true);
             continue;
         }
-        if (str_contains($label, 'предпочтительн') || (str_contains($label, 'канал') && $type === 'radio')) {
+        if (
+            str_contains($label, 'предпочтительн')
+            || str_contains($label, 'куда ответить')
+            || str_contains($label, 'ответить по заявке')
+            || ($type === 'radio' && (str_contains($label, 'канал') || str_contains($label, 'ответить')))
+        ) {
             $low = mb_strtolower($value);
             if (str_contains($low, 'max') || str_contains($low, 'мессенджер')) {
                 $channel = 'max_miniapp';
@@ -314,7 +319,7 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
             }
             continue;
         }
-        if ($type === 'name' || $label === 'имя' || str_contains($label, 'имя')) {
+        if ($type === 'name' || $label === 'имя' || str_contains($label, 'имя') || str_contains($label, 'фио')) {
             if ($full_name === '' && $value !== '') {
                 $full_name = $value;
             }
@@ -343,9 +348,9 @@ add_action('wpforms_process', function ($fields, $entry, $form_data) {
         wpforms()->process->errors[$form_id]['header'] = 'Укажите имя.';
         return;
     }
-    if ($email === '' && $phone === '') {
+    if ($email === '' || $phone === '') {
         wpforms()->process->errors[$form_id]['header'] =
-            'Укажите электронную почту или телефон — по ним придёт код входа в кабинет.';
+            'Укажите электронную почту и телефон.';
         return;
     }
     if (!$consent) {

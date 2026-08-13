@@ -15,7 +15,8 @@ def test_wpforms_payload_does_not_invent_consent() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "type": "name", "value": "Иван Иванов"},
+                "1": {"name": "ФИО", "type": "name", "value": "Иван Иванов"},
+                "6": {"name": "Электронная почта", "type": "email", "value": "a@example.com"},
                 "2": {"name": "Телефон", "type": "phone", "value": "+7 900 000-00-00"},
             }
         }
@@ -24,13 +25,15 @@ def test_wpforms_payload_does_not_invent_consent() -> None:
     assert payload is not None
     assert payload.consent is False
     assert payload.phone == "+7 900 000-00-00"
+    assert payload.email == "a@example.com"
 
 
 def test_wpforms_payload_keeps_explicit_consent() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "type": "name", "value": "Иван Иванов"},
+                "1": {"name": "ФИО", "type": "name", "value": "Иван Иванов"},
+                "6": {"name": "Электронная почта", "type": "email", "value": "a@example.com"},
                 "2": {"name": "Телефон", "type": "phone", "value": "+7 900 000-00-00"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
@@ -45,9 +48,10 @@ def test_wpforms_payload_reads_preferred_channel() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "type": "name", "value": "Иван"},
+                "1": {"name": "ФИО", "type": "name", "value": "Иван"},
+                "6": {"name": "Электронная почта", "type": "email", "value": "a@example.com"},
                 "2": {"name": "Телефон", "type": "phone", "value": "+79001112233"},
-                "5": {"name": "Предпочтительный канал", "value": "MAX (мессенджер)"},
+                "5": {"name": "Куда ответить по заявке", "value": "MAX: переписка и код в чате"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
         }
@@ -60,22 +64,20 @@ def test_wpforms_payload_email_without_phone() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "type": "name", "value": "Анна"},
+                "1": {"name": "ФИО", "type": "name", "value": "Анна"},
                 "6": {"name": "Электронная почта", "type": "email", "value": "a@example.com"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
         }
     )
-    assert payload is not None
-    assert payload.email == "a@example.com"
-    assert not payload.phone
+    assert payload is None
 
 
-def test_wpforms_payload_requires_email_or_phone() -> None:
+def test_wpforms_payload_requires_email_and_phone() -> None:
     payload = _from_wpforms_payload(
         {
             "fields": {
-                "1": {"name": "Имя", "type": "name", "value": "Анна"},
+                "1": {"name": "ФИО", "type": "name", "value": "Анна"},
                 "3": {"name": "Согласие", "value": "Да"},
             }
         }
@@ -88,7 +90,9 @@ def test_wpforms_payload_requires_email_or_phone() -> None:
     [
         ("max_miniapp", "max_miniapp"),
         ("MAX (мессенджер)", "max_miniapp"),
+        ("MAX: переписка и код в чате", "max_miniapp"),
         ("Личный кабинет на сайте", "web_cabinet"),
+        ("Кабинет на сайте: статус и документы", "web_cabinet"),
         ("", "unset"),
         (None, "unset"),
     ],

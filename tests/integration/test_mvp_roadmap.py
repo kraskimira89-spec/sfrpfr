@@ -118,13 +118,16 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "Электронная почта" in form
     assert "Телефон" in form
-    assert "хотя бы" in form.lower() or "почту или телефон" in form.lower()
+    assert "'required' => '1'" in form
+    assert "Код входа в кабинет" in form
+    assert "Куда ответить по заявке" in form
+    assert "MAX: переписка и код в чате" in form
+    assert "Кабинет на сайте: статус и документы" in form
     assert "'type' => 'file'" not in form
     assert "'label' => 'ФИО'" in form
     assert "sfrfr-lead-channel" in form
     assert "Даю согласие на обработку персональных данных*" in form
     assert "Документ:" not in form
-    assert "Личный кабинет на сайте" in form
     assert "channel=max" not in form
     assert "mode=register" in form
     assert "только в MAX или кабинете" not in form

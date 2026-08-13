@@ -187,10 +187,10 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
         if "соглас" in label:
             consent = bool(value) and value.lower() not in {"0", "false", "no", "нет"}
             continue
-        if "канал" in label or "channel" in label:
+        if "канал" in label or "channel" in label or "ответить" in label or "куда" in label:
             preferred = value
             continue
-        if ftype == "name" or label == "имя" or label.startswith("имя"):
+        if ftype == "name" or "имя" in label or "фио" in label:
             if value and not full_name:
                 full_name = value
             continue
@@ -202,7 +202,7 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
             if value:
                 phone = value
             continue
-    if not full_name or (not email and not phone):
+    if not full_name or not email or not phone:
         return None
     if not recaptcha_token:
         recaptcha_token = (
