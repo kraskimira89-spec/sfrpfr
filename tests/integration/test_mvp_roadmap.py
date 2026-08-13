@@ -79,9 +79,12 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr_search_per_page" in search_mu
     assert "sfrfr-search-item--" in search_mu
     assert "Показывать по" in search_mu
-    # На главной — тизер тарифов; полный расчёт в оферте / на /tarify/
+    # На главной — тизер тарифов; primary CTA = MAX, страница тарифов — secondary
     assert 'id="tarify"' in home
-    assert "Открыть страницу тарифов" in home
+    assert "Страница тарифов" in home
+    assert "Открыть страницу тарифов" not in home
+    assert "Написать в личный чат MAX" not in home
+    assert "sfrfr-max-guide__links" in home
     assert 'id="komu"' in home
     # Manrope локально, без Google Fonts (152-ФЗ / скорость)
     css = (REPO / "scripts/assets/sfrfr-landing.css").read_text(encoding="utf-8")
