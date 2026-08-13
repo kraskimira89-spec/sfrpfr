@@ -23,40 +23,42 @@
         </div>
       </div>
 
+      <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
+        <h2>Оставить отзыв на сайте</h2>
+        <p class="sfrfr-otzyvy-hint">Два–три предложения о сервисе. Текст появится после проверки, без фамилии. Не пишите СНИЛС и суммы пенсии.</p>
+        <form id="sfrfr-otzyvy-msg-form" class="sfrfr-site-review-form sfrfr-otzyvy-form-grid">
+          <div class="sfrfr-otzyvy-form-main">
+            <label for="sfrfr-otzyvy-msg-text">Текст отзыва</label>
+            <textarea id="sfrfr-otzyvy-msg-text" name="text" rows="3" maxlength="600" required placeholder="Например: объяснили по шагам, куда подавать документы."></textarea>
+          </div>
+          <div class="sfrfr-otzyvy-form-side">
+            <p class="sfrfr-otzyvy-captcha-label" id="sfrfr-otzyvy-msg-captcha-label">Я не робот</p>
+            <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box" aria-labelledby="sfrfr-otzyvy-msg-captcha-label" aria-live="polite"></div>
+            <p id="sfrfr-otzyvy-msg-captcha-hint" class="sfrfr-otzyvy-hint" hidden>
+              Если проверка не загрузилась — напишите на
+              <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>
+              или в MAX.
+            </p>
+            <label class="sfrfr-review-consent sfrfr-otzyvy-consent">
+              <input type="checkbox" id="sfrfr-otzyvy-msg-consent" required>
+              <a class="sfrfr-consent-link" href="/soglasie/" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных*</a>
+            </label>
+            <p class="sfrfr-cta-row sfrfr-otzyvy-submit-row">
+              <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-otzyvy-msg-submit">Отправить отзыв</button>
+            </p>
+          </div>
+          <p id="sfrfr-otzyvy-msg-error" class="sfrfr-note sfrfr-otzyvy-form-status" hidden></p>
+          <p id="sfrfr-otzyvy-msg-ok" class="sfrfr-note sfrfr-otzyvy-form-status" hidden>Спасибо. Отзыв принят и ждёт проверки.</p>
+        </form>
+      </div>
+
       <div class="sfrfr-otzyvy-published" id="sfrfr-page-reviews">
         <h2>Отзывы на сайте</h2>
         <div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes>
           <p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>
-            Пока нет опубликованных цитат. Основной отзыв — на Яндекс Картах.
+            Пока нет опубликованных цитат. Можно оставить отзыв формой выше или на Яндекс Картах.
           </p>
         </div>
-      </div>
-
-      <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
-        <h2>Оставить отзыв</h2>
-        <p class="sfrfr-note">
-          Текст на сайте появится после проверки. Без СНИЛС, паспорта и сумм пенсии.
-        </p>
-        <form id="sfrfr-otzyvy-msg-form" class="sfrfr-site-review-form">
-          <label for="sfrfr-otzyvy-msg-text">Текст отзыва</label>
-          <textarea id="sfrfr-otzyvy-msg-text" name="text" rows="4" maxlength="600" required placeholder="Два–три предложения"></textarea>
-          <label id="sfrfr-otzyvy-msg-captcha-label">Проверка</label>
-          <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box" aria-labelledby="sfrfr-otzyvy-msg-captcha-label" aria-live="polite"></div>
-          <p id="sfrfr-otzyvy-msg-captcha-hint" class="sfrfr-note" hidden>
-            Если проверка не загрузилась — напишите в MAX или на
-            <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.
-          </p>
-          <label class="sfrfr-review-consent">
-            <input type="checkbox" id="sfrfr-otzyvy-msg-consent" required>
-            Согласен на обработку данных и показ текста на сайте без ФИО
-            (<a href="/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a>).
-          </label>
-          <p class="sfrfr-cta-row">
-            <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-otzyvy-msg-submit">Отправить</button>
-          </p>
-          <p id="sfrfr-otzyvy-msg-error" class="sfrfr-note" hidden></p>
-          <p id="sfrfr-otzyvy-msg-ok" class="sfrfr-note" hidden>Спасибо. Отзыв принят и ждёт проверки.</p>
-        </form>
       </div>
 
       <p class="sfrfr-note sfrfr-otzyvy-legal">
@@ -97,6 +99,12 @@
   var form = document.getElementById("sfrfr-otzyvy-msg-form");
   var err = document.getElementById("sfrfr-otzyvy-msg-error");
   var ok = document.getElementById("sfrfr-otzyvy-msg-ok");
+  var consentLink = form && form.querySelector(".sfrfr-consent-link");
+  if (consentLink) {
+    consentLink.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+    });
+  }
   var captchaHint = document.getElementById("sfrfr-otzyvy-msg-captcha-hint");
   var sitekey = (
     window.SFRFR_SMARTCAPTCHA_SITEKEY ||
