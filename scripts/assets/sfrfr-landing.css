@@ -1982,7 +1982,7 @@ html.sfrfr-awards-lightbox-open {
 }
 
 .sfrfr-form-block {
-  max-width: 36rem;
+  max-width: 48rem;
   width: 100%;
   margin: 1.25rem auto 0;
   text-align: left;
@@ -2271,13 +2271,13 @@ body.bvi-active .sfrfr-bvi-float {
   display: none !important;
 }
 
-/* WPForms: компактная форма, комментарии справа от полей */
+/* WPForms: две карточки + согласие на всю ширину */
 .sfrfr-form-block .wpforms-container {
   margin: 0 !important;
 }
 
 .sfrfr-form-block .wpforms-head-container {
-  margin: 0 0 0.75rem !important;
+  margin: 0 0 1rem !important;
   padding: 0 !important;
 }
 
@@ -2292,9 +2292,101 @@ body.bvi-active .sfrfr-bvi-float {
   border-left: 3px solid var(--sfrfr-warn);
 }
 
+.sfrfr-form-block .wpforms-field-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .sfrfr-form-block .wpforms-field-container {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 1.15rem;
+    row-gap: 0;
+    align-items: stretch;
+  }
+
+  .sfrfr-form-block .wpforms-field-container::before {
+    content: "";
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    background: var(--sfrfr-surface);
+    border-radius: var(--sfrfr-radius);
+    box-shadow: var(--sfrfr-shadow);
+    border-left: 4px solid var(--sfrfr-primary);
+  }
+
+  .sfrfr-form-block .wpforms-field-name,
+  .sfrfr-form-block .sfrfr-lead-name {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .sfrfr-form-block .wpforms-field-email,
+  .sfrfr-form-block .sfrfr-lead-email {
+    grid-column: 2;
+    grid-row: 1;
+    padding-bottom: 0.35rem !important;
+  }
+
+  .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
+  .sfrfr-form-block .sfrfr-lead-phone {
+    grid-column: 2;
+    grid-row: 2;
+    padding-top: 0.35rem !important;
+  }
+}
+
+.sfrfr-form-block .wpforms-field-name,
+.sfrfr-form-block .sfrfr-lead-name,
+.sfrfr-form-block .wpforms-field-email,
+.sfrfr-form-block .sfrfr-lead-email,
+.sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
+.sfrfr-form-block .sfrfr-lead-phone {
+  position: relative;
+  z-index: 1;
+  padding: 1.05rem 1.15rem !important;
+  margin: 0 !important;
+}
+
+.sfrfr-form-block .wpforms-field-name,
+.sfrfr-form-block .sfrfr-lead-name {
+  background: var(--sfrfr-surface);
+  border-radius: var(--sfrfr-radius);
+  box-shadow: var(--sfrfr-shadow);
+  border-left: 4px solid var(--sfrfr-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+
+@media (max-width: 719px) {
+  .sfrfr-form-block .wpforms-field-email,
+  .sfrfr-form-block .sfrfr-lead-email,
+  .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
+  .sfrfr-form-block .sfrfr-lead-phone {
+    background: var(--sfrfr-surface);
+    box-shadow: var(--sfrfr-shadow);
+    border-left: 4px solid var(--sfrfr-primary);
+  }
+
+  .sfrfr-form-block .wpforms-field-email,
+  .sfrfr-form-block .sfrfr-lead-email {
+    border-radius: var(--sfrfr-radius) var(--sfrfr-radius) 0 0;
+    padding-bottom: 0.45rem !important;
+  }
+
+  .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
+  .sfrfr-form-block .sfrfr-lead-phone {
+    border-radius: 0 0 var(--sfrfr-radius) var(--sfrfr-radius);
+    margin-top: -0.85rem !important;
+    padding-top: 0.45rem !important;
+  }
+}
+
 .sfrfr-form-block .wpforms-field {
-  padding: 0 !important;
-  margin: 0 0 0.65rem !important;
+  margin: 0 !important;
 }
 
 .sfrfr-form-block .wpforms-field-label {
@@ -2304,7 +2396,6 @@ body.bvi-active .sfrfr-bvi-float {
   padding: 0 !important;
 }
 
-/* Скрыть дублирующий заголовок «Согласие» — текст уже в чекбоксе */
 .sfrfr-form-block .wpforms-field-checkbox .wpforms-field-label,
 .sfrfr-form-block .wpforms-field-checkbox legend.wpforms-field-label {
   position: absolute !important;
@@ -2328,9 +2419,9 @@ body.bvi-active .sfrfr-bvi-float {
 }
 
 .sfrfr-form-block .wpforms-field-label-inline {
-  font-size: 0.88rem !important;
-  line-height: 1.35 !important;
-  font-weight: 500 !important;
+  font-size: 0.92rem !important;
+  line-height: 1.4 !important;
+  font-weight: 600 !important;
 }
 
 .sfrfr-landing .wpforms-container input[type="text"],
@@ -2360,56 +2451,36 @@ body.bvi-active .sfrfr-bvi-float {
   text-decoration: underline;
 }
 
-.sfrfr-form-block .wpforms-field-checkbox {
-  margin-top: 0.75rem;
-  margin-bottom: 0.35rem;
+.sfrfr-form-block .sfrfr-lead-channel,
+.sfrfr-form-block .wpforms-field-radio,
+.sfrfr-form-block .sfrfr-lead-consent,
+.sfrfr-form-block .wpforms-field-checkbox,
+.sfrfr-form-block .sfrfr-recaptcha-token {
+  grid-column: 1 / -1;
 }
 
-/* Планшет+: поле слева, комментарий справа */
-@media (min-width: 640px) {
-  .sfrfr-form-block .wpforms-field-name,
-  .sfrfr-form-block .wpforms-field-text {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 12.5rem);
-    grid-template-areas:
-      "label label"
-      "input hint";
-    column-gap: 0.85rem;
-    row-gap: 0.2rem;
-    align-items: center;
-  }
+.sfrfr-form-block .wpforms-field-checkbox,
+.sfrfr-form-block .sfrfr-lead-consent {
+  margin: 0.35rem 0 0 !important;
+  padding: 0.85rem 1.05rem !important;
+  background: var(--sfrfr-surface);
+  border-radius: var(--sfrfr-radius);
+  box-shadow: var(--sfrfr-shadow);
+  border-left: 4px solid var(--sfrfr-primary);
+}
 
-  .sfrfr-form-block .wpforms-field-name .wpforms-field-label,
-  .sfrfr-form-block .wpforms-field-text .wpforms-field-label {
-    grid-area: label;
-    margin: 0 !important;
-  }
-
-  .sfrfr-form-block .wpforms-field-name input,
-  .sfrfr-form-block .wpforms-field-text input {
-    grid-area: input;
-  }
-
-  .sfrfr-form-block .wpforms-field-description {
-    grid-area: hint;
-    margin: 0 !important;
-    align-self: center;
-  }
-
-  /* У поля без description — подпись справа от инпута */
-  .sfrfr-form-block .wpforms-field-name {
-    grid-template-areas: "input label";
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .sfrfr-form-block .wpforms-field-name .wpforms-field-label {
-    margin: 0 !important;
-    white-space: nowrap;
-  }
+.sfrfr-form-block .wpforms-field-checkbox::after,
+.sfrfr-form-block .sfrfr-lead-consent::after {
+  content: "* Обязательное заполнение";
+  display: block;
+  margin-top: 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #5a6a7a;
 }
 
 .sfrfr-form-block .wpforms-submit-container {
-  margin: 0.35rem 0 0 !important;
+  margin: 0.75rem 0 0 !important;
   padding: 0 !important;
 }
 

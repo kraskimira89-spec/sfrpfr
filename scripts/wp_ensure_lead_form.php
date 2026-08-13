@@ -29,6 +29,7 @@ $fields = [
         'format' => 'simple',
         'required' => '1',
         'size' => 'medium',
+        'css' => 'sfrfr-lead-name',
     ],
     '6' => [
         'id' => '6',
@@ -37,6 +38,7 @@ $fields = [
         'description' => 'По желанию. Нужна для кода входа в кабинет, если без телефона.',
         'required' => '0',
         'size' => 'medium',
+        'css' => 'sfrfr-lead-email',
     ],
     '2' => [
         'id' => '2',
@@ -45,6 +47,7 @@ $fields = [
         'description' => 'По желанию. Нужен для связи / MAX, если без почты. Заполните почту или телефон.',
         'required' => '0',
         'size' => 'medium',
+        'css' => 'sfrfr-lead-phone',
     ],
     '5' => [
         'id' => '5',
@@ -64,21 +67,23 @@ $fields = [
         ],
         'required' => '1',
         'choices_images' => '0',
+        'css' => 'sfrfr-lead-channel',
     ],
     '3' => [
         'id' => '3',
         'type' => 'checkbox',
-        'label' => 'Согласие',
-        'description' => 'Документ: <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a> (согласие на обработку персональных данных).',
+        'label' => 'Согласие на обработку персональных данных',
+        'description' => 'Документ: <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a>.',
         'choices' => [
             '1' => [
-                'label' => 'Согласен с СОПД',
+                'label' => 'Согласие на обработку персональных данных',
                 'value' => '1',
                 'image' => '',
             ],
         ],
         'required' => '1',
         'choices_images' => '0',
+        'css' => 'sfrfr-lead-consent',
     ],
     '4' => [
         'id' => '4',
@@ -96,6 +101,7 @@ $settings = [
     'form_desc' => 'Укажите имя и хотя бы один контакт: почту или телефон — по ним придёт код входа в кабинет. Сканы через форму не принимаются.',
     'submit_text' => 'Отправить заявку',
     'submit_text_processing' => 'Отправка…',
+    'required_indicator' => '*',
     'notification_enable' => '1',
     'notifications' => [
         '1' => [
