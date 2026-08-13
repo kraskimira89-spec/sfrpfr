@@ -100,7 +100,11 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Сформулировать текст" not in home
     otzyvy = (REPO / "scripts/assets/trust/otzyvy.html").read_text(encoding="utf-8")
     assert 'id="sfrfr-otzyvy-page"' in otzyvy
-    assert 'id="sfrfr-site-review-form"' in otzyvy
+    assert 'id="sfrfr-otzyvy-anketa"' in otzyvy
+    assert 'id="sfrfr-otzyvy-draft"' in otzyvy
+    assert "Собрать черновик" in otzyvy
+    assert "Отправить на сайт" in otzyvy
+    assert "forms.yandex.ru/cloud/6a7db97670ad3712589c7456" in otzyvy
     assert "sfrfr-visually-hidden" in otzyvy
     assert "sfrfr-otzyvy-quotes" in otzyvy
     assert "Обязательное заполнение" not in css
