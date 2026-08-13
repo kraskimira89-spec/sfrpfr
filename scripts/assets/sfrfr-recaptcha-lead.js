@@ -95,7 +95,7 @@
     var script = document.createElement("script");
     script.id = "sfrfr-smartcaptcha-js";
     // URL из консоли YC (alias); docs также допускают smartcaptcha.cloud.yandex.ru
-    script.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
+    script.src = "https://smartcaptcha.cloud.yandex.ru/captcha.js";
     script.async = true;
     if (typeof onReady === "function") {
       script.addEventListener("load", onReady);

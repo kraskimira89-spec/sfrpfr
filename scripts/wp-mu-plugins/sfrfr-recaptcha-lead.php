@@ -174,7 +174,7 @@ add_action('wp_enqueue_scripts', function () {
     if (is_page('anketa-otzyv') || is_page('otzyvy')) {
         wp_enqueue_script(
             'yandex-smartcaptcha',
-            'https://smartcaptcha.yandexcloud.net/captcha.js',
+            'https://smartcaptcha.cloud.yandex.ru/captcha.js',
             [],
             null,
             true

@@ -40,8 +40,8 @@
         <form id="sfrfr-otzyvy-msg-form" class="sfrfr-site-review-form">
           <label for="sfrfr-otzyvy-msg-text">Текст отзыва</label>
           <textarea id="sfrfr-otzyvy-msg-text" name="text" rows="4" maxlength="600" required placeholder="Два–три предложения"></textarea>
-          <label for="sfrfr-otzyvy-msg-captcha">Проверка</label>
-          <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box smart-captcha" aria-live="polite"></div>
+          <label id="sfrfr-otzyvy-msg-captcha-label">Проверка</label>
+          <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box" aria-labelledby="sfrfr-otzyvy-msg-captcha-label" aria-live="polite"></div>
           <p id="sfrfr-otzyvy-msg-captcha-hint" class="sfrfr-note" hidden>
             Если проверка не загрузилась — напишите в MAX или на
             <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.
@@ -117,6 +117,8 @@
       if (captchaWidgetId !== null && captchaWidgetId !== undefined) {
         return window.smartCaptcha.getResponse(captchaWidgetId) || "";
       }
+      var hidden = document.querySelector("#sfrfr-otzyvy-msg-captcha input[name='smart-token']");
+      if (hidden && hidden.value) return String(hidden.value);
       return window.smartCaptcha.getResponse() || "";
     } catch (e) {
       return "";
@@ -129,17 +131,23 @@
       if (captchaHint) captchaHint.hidden = false;
       return;
     }
-    if (!window.smartCaptcha) {
-      if (captchaHint) captchaHint.hidden = false;
+    if (!window.smartCaptcha || typeof window.smartCaptcha.render !== "function") {
       return;
     }
-    if (captchaRendered && cap.childNodes.length) return;
+    if (captchaRendered) return;
     try {
-      cap.setAttribute("data-sitekey", sitekey);
-      captchaWidgetId = window.smartCaptcha.render(cap, { sitekey: sitekey, hl: "ru" });
+      // Без класса smart-captcha: иначе captcha.js авто-инит без data-sitekey → «некорректный ключ».
+      cap.classList.remove("smart-captcha");
+      cap.removeAttribute("data-sitekey");
+      while (cap.firstChild) cap.removeChild(cap.firstChild);
+      captchaWidgetId = window.smartCaptcha.render("sfrfr-otzyvy-msg-captcha", {
+        sitekey: sitekey,
+        hl: "ru"
+      });
       captchaRendered = true;
       if (captchaHint) captchaHint.hidden = true;
     } catch (e) {
+      captchaRendered = false;
       if (captchaHint) captchaHint.hidden = false;
     }
   }
@@ -149,21 +157,27 @@
       if (captchaHint) captchaHint.hidden = false;
       return;
     }
+    function tryRender() {
+      if (window.smartCaptcha) renderCaptcha();
+    }
     if (window.smartCaptcha) {
-      renderCaptcha();
+      tryRender();
       return;
     }
     var existing = document.querySelector('script[src*="smartcaptcha"]');
     if (existing) {
-      existing.addEventListener("load", renderCaptcha);
-      setTimeout(function () { if (window.smartCaptcha) renderCaptcha(); }, 800);
-      setTimeout(function () { if (window.smartCaptcha) renderCaptcha(); }, 2000);
+      existing.addEventListener("load", tryRender);
+      setTimeout(tryRender, 400);
+      setTimeout(tryRender, 1200);
+      setTimeout(function () {
+        if (!captchaRendered && captchaHint) captchaHint.hidden = false;
+      }, 2500);
       return;
     }
     var s = document.createElement("script");
-    s.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
-    s.async = true;
-    s.onload = renderCaptcha;
+    s.src = "https://smartcaptcha.cloud.yandex.ru/captcha.js";
+    s.defer = true;
+    s.onload = tryRender;
     s.onerror = function () { if (captchaHint) captchaHint.hidden = false; };
     document.head.appendChild(s);
   }
