@@ -43,7 +43,15 @@ done
 "${WP[@]}" plugin activate wp-super-cache 2>/dev/null || true
 "${WP[@]}" super-cache enable 2>/dev/null || true
 
+# Системный мусор wordpress.org (не нужен при закрытых комментариях)
+for p in hello akismet; do
+  if "${WP[@]}" plugin is-installed "$p" 2>/dev/null; then
+    "${WP[@]}" plugin deactivate "$p" 2>/dev/null || true
+    "${WP[@]}" plugin delete "$p" 2>/dev/null || true
+  fi
+done
+
 chown -R www-data:www-data "$SITE_DIR"
-echo "==> OK: стек установлен (Astra + Spectra + WPForms Lite + Rank Math + UpdraftPlus + Wordfence + WP Super Cache)"
+echo "==> OK: стек установлен (Astra + Spectra + WPForms Lite + Rank Math + UpdraftPlus + Wordfence + WP Super Cache + BVI отдельно)"
 "${WP[@]}" theme list --status=active
 "${WP[@]}" plugin list --status=active --fields=name,status,version
