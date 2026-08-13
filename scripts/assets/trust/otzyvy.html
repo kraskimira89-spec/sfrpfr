@@ -1,0 +1,70 @@
+<!-- wp:html -->
+<div class="sfrfr-landing" id="sfrfr-otzyvy-page">
+  <section class="sfrfr-section">
+    <div class="sfrfr-wrap">
+      <h1>Отзывы</h1>
+      <p class="sfrfr-section__lead">
+        Рейтинг и число отзывов — только из карточки Яндекс Карт.
+        Цитаты на сайте публикуем после модерации, без персональных данных и без обещания перерасчёта.
+      </p>
+
+      <div class="sfrfr-home-reviews" id="sfrfr-page-reviews" data-api-base="https://api.proverkastaza.ru">
+        <div class="sfrfr-home-reviews__badge-row">
+          <p class="sfrfr-yandex-badge">
+            <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          </p>
+          <p class="sfrfr-cta-row" style="margin:0">
+            <a class="sfrfr-btn sfrfr-btn--primary" href="/otzyv/" target="_blank" rel="noopener noreferrer">Оставить отзыв</a>
+            <a class="sfrfr-btn sfrfr-btn--ghost" href="/anketa-otzyv/">Сформулировать текст</a>
+          </p>
+        </div>
+
+        <h2 style="margin-top:1.5rem;font-size:1.25rem">Цитаты клиентов</h2>
+        <div class="sfrfr-home-reviews__quotes" data-sfrfr-quotes>
+          <p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>
+            Цитаты появятся здесь после модерации. Пока можно открыть отзывы на Яндекс Картах по кнопке выше.
+          </p>
+        </div>
+      </div>
+
+      <p class="sfrfr-note" style="margin-top:1.5rem">
+        Отзыв — о работе сервиса (ясность, сроки, удобство связи), а не о решении СФР.
+        Мы готовим документы, проект обращения и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.
+      </p>
+      <p class="sfrfr-cta-row">
+        <a class="sfrfr-btn sfrfr-btn--ghost" href="/kontakty/">Контакты</a>
+        <a class="sfrfr-btn sfrfr-btn--ghost" href="/tarify/">Тарифы</a>
+        <a class="sfrfr-btn sfrfr-btn--ghost" href="/#zayavka">Оставить заявку</a>
+      </p>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  var root = document.getElementById("sfrfr-page-reviews");
+  if (!root) return;
+  var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
+  var box = root.querySelector("[data-sfrfr-quotes]");
+  var empty = root.querySelector("[data-sfrfr-quotes-empty]");
+  fetch(apiBase + "/api/public/site-reviews?limit=8")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var items = (data && data.items) || [];
+      if (!items.length || !box) return;
+      if (empty) empty.hidden = true;
+      items.forEach(function (item) {
+        var fig = document.createElement("figure");
+        fig.className = "sfrfr-home-reviews__quote";
+        var p = document.createElement("p");
+        p.textContent = "«" + (item.text || "") + "»";
+        var foot = document.createElement("footer");
+        foot.textContent = "Клиент сервиса";
+        fig.appendChild(p);
+        fig.appendChild(foot);
+        box.appendChild(fig);
+      });
+    })
+    .catch(function () {});
+})();
+</script>
+<!-- /wp:html -->

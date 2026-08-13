@@ -163,6 +163,9 @@ if [ "${SFRFR_REBUILD_MENU:-0}" = "1" ]; then
       "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/tarify/" --parent-id="$USLUGI_ID" >/dev/null
     fi
 
+    # После услуг/тарифов — доверие, затем статьи.
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Отзывы" "/otzyvy/" >/dev/null
+
     STATI_ID="$("${WP[@]}" menu item add-custom "$MENU_ID" "Статьи" "/blog/" --porcelain 2>/dev/null | tr -d '[:space:]')"
     if [ -n "${STATI_ID}" ]; then
       "${WP[@]}" menu item add-custom "$MENU_ID" "Все статьи" "/blog/" --parent-id="$STATI_ID" >/dev/null

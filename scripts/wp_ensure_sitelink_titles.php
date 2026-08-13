@@ -12,6 +12,7 @@ if (!defined('ABSPATH')) {
 $pages = [
     'tarify' => 'Тарифы',
     'kak-rabotaem' => 'Как это работает',
+    'otzyvy' => 'Отзывы',
     'kontakty' => 'Контакты',
     'proverka-stazha' => 'Проверка стажа',
     'blog' => 'Статьи',

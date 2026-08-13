@@ -69,6 +69,13 @@ $pages = [
         'seo_description' => 'Порядок работы сервиса «Проверка стажа»: заявка, документы, диагностика, план и самостоятельная подача в СФР.',
     ],
     [
+        'slug' => 'otzyvy',
+        'title' => 'Отзывы',
+        'file' => 'otzyvy.html',
+        'seo_title' => 'Отзывы',
+        'seo_description' => 'Отзывы о сервисе «Проверка стажа» на Яндекс Картах и цитаты клиентов после модерации. Без обещания перерасчёта.',
+    ],
+    [
         'slug' => 'anketa-otzyv',
         'title' => 'Сформулировать отзыв',
         'file' => 'anketa-otzyv.html',
@@ -255,6 +262,7 @@ if ($menu) {
         }
     }
     $ensure = [
+        'Отзывы' => !empty($created['otzyvy']) ? home_url('/otzyvy/') : home_url('/otzyvy/'),
         'Контакты' => !empty($created['kontakty']) ? home_url('/kontakty/') : null,
         'Эксперты' => home_url('/expert/'),
         'Личный кабинет' => rtrim(
@@ -266,6 +274,19 @@ if ($menu) {
     ];
     foreach ($ensure as $title => $url) {
         if ($url === null || isset($titles[$title])) {
+            // Обновить URL существующего пункта «Отзывы», если ведёт не туда.
+            if ($title === 'Отзывы' && isset($titles[$title])) {
+                foreach ($items as $item) {
+                    if ((string) $item->title !== 'Отзывы') {
+                        continue;
+                    }
+                    $cur = (string) ($item->url ?? '');
+                    if (!str_contains($cur, '/otzyvy')) {
+                        update_post_meta((int) $item->ID, '_menu_item_url', home_url('/otzyvy/'));
+                        echo "MENU Отзывы URL -> /otzyvy/\n";
+                    }
+                }
+            }
             continue;
         }
         $newId = wp_update_nav_menu_item($menuId, 0, [
@@ -298,6 +319,29 @@ if ($menu) {
             ]);
             echo "MENU {$title} under Эксперты\n";
         }
+    }
+
+    // Порядок верхнего уровня: … Услуги → Отзывы → Статьи → …
+    $items = wp_get_nav_menu_items($menuId) ?: [];
+    $otzyvyId = 0;
+    $statiOrder = null;
+    foreach ($items as $item) {
+        if ((int) ($item->menu_item_parent ?? 0) !== 0) {
+            continue;
+        }
+        if ((string) $item->title === 'Отзывы') {
+            $otzyvyId = (int) $item->ID;
+        }
+        if ((string) $item->title === 'Статьи') {
+            $statiOrder = (int) $item->menu_order;
+        }
+    }
+    if ($otzyvyId > 0 && $statiOrder !== null) {
+        wp_update_post([
+            'ID' => $otzyvyId,
+            'menu_order' => max(0, $statiOrder - 1),
+        ]);
+        echo "MENU Отзывы order before Статьи\n";
     }
 }
 
