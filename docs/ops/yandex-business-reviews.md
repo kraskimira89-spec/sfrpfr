@@ -49,7 +49,8 @@
 ## Ответы на отзывы
 
 Шаблоны: `scripts/assets/yandex-business/review-reply-templates.md`.  
-Проверять кабинет Пн/Чт, отвечать за 1–2 рабочих дня.
+Проверять кабинет **ежедневно** (чек-лист Яндекса); отвечать за 1–2 рабочих дня.  
+Структура негатива и границы SFRFR: [playbook-yandex-business-card.md](../marketing-sales/playbook-yandex-business-card.md).
 
 ---
 

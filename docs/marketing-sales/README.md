@@ -19,7 +19,7 @@
 - [Тест Ноябрьск × север × Директ](research-test-noyabrsk-north-direct-2026-08.md) — одностраничный план (бюджет TBD).
 - [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
-- Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md).
+- Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md), [карточка Яндекс Бизнес](playbook-yandex-business-card.md).
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
 - **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 

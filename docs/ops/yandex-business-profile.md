@@ -9,6 +9,10 @@
 **Сайт:** https://proverkastaza.ru (без www)  
 **ТЗ-18:** достоверный профиль в каталогах, без ложных обещаний.
 
+Чек-лист оформления карточки (Яндекс PDF → адаптация SFRFR):  
+[`docs/marketing-sales/playbook-yandex-business-card.md`](../marketing-sales/playbook-yandex-business-card.md)  
+исходник: [`Инструкция_по_заполнению_карточки.pdf`](../marketing-sales/Инструкция_по_заполнению_карточки.pdf).
+
 Дубликат `234170727274` удалён владельцем (2026-08-12). Все ссылки в репо ведут на `82469923047`. История сверки: `docs/history/2026-08-12-yandex-business-dual-cards.md`.
 
 ---
