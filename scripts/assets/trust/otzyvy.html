@@ -4,45 +4,111 @@
     <div class="sfrfr-wrap">
       <h1 class="sfrfr-visually-hidden">Отзывы о сервисе «Проверка стажа»</h1>
       <p class="sfrfr-section__lead">
-        Можно оставить короткий отзыв здесь — он появится на странице после модерации, без фамилии и персональных данных.
-        Рейтинг на Яндекс Картах считаем отдельно: туда отзыв публикуете вы сами.
+        Три коротких вопроса — соберём черновик отзыва. Вы правите текст и решаете:
+        показать на сайте (после модерации) и/или опубликовать на Яндекс Картах.
+        Без СНИЛС, паспорта и сумм пенсии.
       </p>
 
       <div class="sfrfr-otzyvy-layout">
         <div class="sfrfr-otzyvy-form-card">
-          <h2>Написать отзыв на сайте</h2>
-          <p class="sfrfr-note">О сервисе: ясность, сроки, удобство связи. Не пишите СНИЛС, паспорт и суммы пенсии.</p>
-          <form id="sfrfr-site-review-form" class="sfrfr-site-review-form">
-            <label for="sfrfr-site-review-text">Текст отзыва</label>
-            <textarea id="sfrfr-site-review-text" name="text" rows="5" maxlength="600" required placeholder="Несколько предложений о работе сервиса"></textarea>
-            <div id="sfrfr-site-review-captcha" class="sfrfr-review-captcha-box"></div>
-            <p id="sfrfr-site-review-captcha-hint" class="sfrfr-note" hidden>
-              Если проверка не загрузилась — можно оставить отзыв на
-              <a href="/otzyv/" target="_blank" rel="noopener noreferrer">Яндекс Картах</a>.
+          <h2>Помочь сформулировать отзыв</h2>
+          <p class="sfrfr-note">Можно выбрать несколько вариантов в вопросах с пометкой.</p>
+
+          <form id="sfrfr-otzyvy-anketa" class="sfrfr-review-form">
+            <fieldset class="sfrfr-review-card sfrfr-review-card--helped" data-qid="helped" data-multi="1">
+              <legend>Чем мы помогли? <span class="sfrfr-muted">(можно несколько)</span></legend>
+              <div class="sfrfr-review-options">
+                <label class="sfrfr-review-option"><input type="checkbox" name="helped" value="ils_labor"> Сверили трудовую с выпиской ИЛС</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="helped" value="plan"> Подготовили план / проект обращения</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="helped" value="word"> Перенесли трудовую в таблицу</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="helped" value="docs"> Помогли разобраться с документами</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="helped" value="other"> Другое</label>
+              </div>
+            </fieldset>
+
+            <fieldset class="sfrfr-review-card sfrfr-review-card--clarity" data-qid="clarity" data-multi="0">
+              <legend>Было ли понятно и спокойно общаться?</legend>
+              <div class="sfrfr-review-options">
+                <label class="sfrfr-review-option"><input type="radio" name="clarity" value="yes" required> Да</label>
+                <label class="sfrfr-review-option"><input type="radio" name="clarity" value="mostly"> В целом да</label>
+                <label class="sfrfr-review-option"><input type="radio" name="clarity" value="hard"> Местами сложно</label>
+              </div>
+            </fieldset>
+
+            <fieldset class="sfrfr-review-card sfrfr-review-card--convenient" data-qid="convenient" data-multi="1">
+              <legend>Что было удобнее всего? <span class="sfrfr-muted">(можно несколько)</span></legend>
+              <div class="sfrfr-review-options">
+                <label class="sfrfr-review-option"><input type="checkbox" name="convenient" value="max"> Личный чат MAX</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="convenient" value="cabinet"> Личный кабинет</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="convenient" value="speed"> Сроки ответа</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="convenient" value="steps"> Понятные шаги</label>
+                <label class="sfrfr-review-option"><input type="checkbox" name="convenient" value="none"> Пока ничего из этого</label>
+              </div>
+            </fieldset>
+
+            <fieldset class="sfrfr-review-card sfrfr-review-card--improve">
+              <legend>Что улучшить? <span class="sfrfr-muted">(необязательно)</span></legend>
+              <textarea id="sfrfr-otzyvy-improve" name="improve" rows="2" maxlength="400" placeholder="Одно предложение"></textarea>
+            </fieldset>
+
+            <div id="sfrfr-otzyvy-captcha" class="sfrfr-review-captcha-box" style="margin:1rem 0"></div>
+            <p id="sfrfr-otzyvy-captcha-hint" class="sfrfr-note" hidden>
+              Если проверка не загрузилась — откройте
+              <a href="/otzyv/" target="_blank" rel="noopener noreferrer">форму на Яндексе</a>
+              или
+              <a href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/" target="_blank" rel="noopener noreferrer">шпаргалку с вопросами</a>.
             </p>
-            <p class="sfrfr-cta-row sfrfr-review-submit-row">
-              <label class="sfrfr-review-consent">
-                <input type="checkbox" id="sfrfr-site-review-consent" name="consent" value="1" required>
-                Согласен на обработку персональных данных и показ текста на сайте без ФИО.
-                <a href="/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a>
-              </label>
-              <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-site-review-submit">Отправить отзыв</button>
+
+            <p class="sfrfr-cta-row">
+              <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-otzyvy-draft-btn">Собрать черновик</button>
             </p>
-            <p id="sfrfr-site-review-error" class="sfrfr-note" hidden></p>
-            <p id="sfrfr-site-review-ok" class="sfrfr-note" hidden>
-              Спасибо. Текст в очереди на модерацию и появится здесь после проверки. На рейтинг Яндекса это не влияет.
-            </p>
+            <p id="sfrfr-otzyvy-error" class="sfrfr-note" hidden></p>
           </form>
+
+          <div id="sfrfr-otzyvy-result" hidden>
+            <h2>Черновик — проверьте и согласуйте</h2>
+            <p class="sfrfr-note">Текст по вашим ответам. Можно править. На рейтинг Яндекса черновик сам не уходит.</p>
+            <textarea id="sfrfr-otzyvy-draft" rows="6" maxlength="1200"></textarea>
+
+            <fieldset class="sfrfr-review-card sfrfr-review-card--consent" style="margin-top:1rem">
+              <label class="sfrfr-review-consent">
+                <input type="checkbox" id="sfrfr-otzyvy-site-consent" value="1">
+                Можно показать этот текст на сайте без ФИО и персональных данных
+                (<a href="/soglasie/" target="_blank" rel="noopener noreferrer">СОПД</a>).
+                Появится после модерации. На рейтинг Яндекса не влияет.
+              </label>
+            </fieldset>
+
+            <p class="sfrfr-cta-row" style="margin-top:1rem">
+              <button type="button" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-otzyvy-site-btn">Отправить на сайт</button>
+              <button type="button" class="sfrfr-btn sfrfr-btn--ghost" id="sfrfr-otzyvy-copy">Скопировать</button>
+              <a class="sfrfr-btn sfrfr-btn--ghost" id="sfrfr-otzyvy-yandex" href="/otzyv/" target="_blank" rel="noopener noreferrer">Публиковать на Яндексе</a>
+            </p>
+            <p id="sfrfr-otzyvy-site-ok" class="sfrfr-note" hidden>
+              Спасибо. Текст в очереди на модерацию и появится ниже после проверки.
+            </p>
+            <p id="sfrfr-otzyvy-site-err" class="sfrfr-note" hidden></p>
+            <p class="sfrfr-note">
+              Для Яндекса: скопируйте текст → «Публиковать на Яндексе» → вставьте (Ctrl+V) и отправьте. Оценку звёздами выбираете вы.
+            </p>
+          </div>
+
+          <p class="sfrfr-note" style="margin-top:1.25rem">
+            Запасной вариант без сборки текста:
+            <a href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/" target="_blank" rel="noopener noreferrer">шпаргалка в Яндекс Форме</a>
+            — ответьте на вопросы, затем перенесите своими словами в
+            <a href="/otzyv/" target="_blank" rel="noopener noreferrer">форму отзыва</a>.
+          </p>
         </div>
 
         <aside class="sfrfr-otzyvy-yandex-card">
-          <h2>Отзыв на Яндекс Картах</h2>
-          <p>Там же рейтинг организации. Без скидок и бонусов за текст.</p>
+          <h2>Рейтинг на Яндекс Картах</h2>
+          <p>Число отзывов и оценка — только там. Без скидок и бонусов за текст.</p>
           <p class="sfrfr-yandex-badge">
             <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </p>
           <p class="sfrfr-cta-row">
-            <a class="sfrfr-btn sfrfr-btn--ghost" href="/otzyv/" target="_blank" rel="noopener noreferrer">Перейти в Яндекс</a>
+            <a class="sfrfr-btn sfrfr-btn--ghost" href="/otzyv/" target="_blank" rel="noopener noreferrer">Сразу форма Яндекса</a>
           </p>
         </aside>
       </div>
@@ -51,7 +117,7 @@
         <h2>Опубликованные отзывы</h2>
         <div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes>
           <p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>
-            Пока нет опубликованных отзывов. Первый может быть вашим — формой выше.
+            Пока нет опубликованных отзывов. Первый может быть вашим — анкетой выше.
           </p>
         </div>
       </div>
@@ -67,6 +133,8 @@
   var root = document.getElementById("sfrfr-otzyvy-page");
   if (!root) return;
   var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
+
+  // --- published quotes ---
   var box = root.querySelector("[data-sfrfr-quotes]");
   var empty = root.querySelector("[data-sfrfr-quotes-empty]");
   fetch(apiBase + "/api/public/site-reviews?limit=12")
@@ -90,10 +158,14 @@
     })
     .catch(function () {});
 
-  var form = document.getElementById("sfrfr-site-review-form");
-  var err = document.getElementById("sfrfr-site-review-error");
-  var ok = document.getElementById("sfrfr-site-review-ok");
-  var captchaHint = document.getElementById("sfrfr-site-review-captcha-hint");
+  // --- draft flow ---
+  var form = document.getElementById("sfrfr-otzyvy-anketa");
+  var err = document.getElementById("sfrfr-otzyvy-error");
+  var result = document.getElementById("sfrfr-otzyvy-result");
+  var draftEl = document.getElementById("sfrfr-otzyvy-draft");
+  var siteOk = document.getElementById("sfrfr-otzyvy-site-ok");
+  var siteErr = document.getElementById("sfrfr-otzyvy-site-err");
+  var captchaHint = document.getElementById("sfrfr-otzyvy-captcha-hint");
   var sitekey = (
     window.SFRFR_SMARTCAPTCHA_SITEKEY ||
     (window.SFRFR_SMARTCAPTCHA && window.SFRFR_SMARTCAPTCHA.clientKey) ||
@@ -104,6 +176,26 @@
   function showError(msg) {
     err.hidden = !msg;
     err.textContent = msg || "";
+  }
+  function showSiteErr(msg) {
+    siteErr.hidden = !msg;
+    siteErr.textContent = msg || "";
+  }
+
+  function collectAnswers() {
+    var answers = {};
+    form.querySelectorAll("fieldset[data-qid]").forEach(function (fs) {
+      var qid = fs.getAttribute("data-qid");
+      var multi = fs.getAttribute("data-multi") === "1";
+      var checked = fs.querySelectorAll('input[name="' + qid + '"]:checked');
+      if (!checked.length) return;
+      if (multi) {
+        answers[qid] = Array.prototype.map.call(checked, function (el) { return el.value; });
+      } else {
+        answers[qid] = checked[0].value;
+      }
+    });
+    return answers;
   }
 
   function captchaToken() {
@@ -119,7 +211,7 @@
   }
 
   function renderCaptcha() {
-    var cap = document.getElementById("sfrfr-site-review-captcha");
+    var cap = document.getElementById("sfrfr-otzyvy-captcha");
     if (!sitekey || !cap || !window.smartCaptcha) {
       if (captchaHint) captchaHint.hidden = false;
       return;
@@ -152,26 +244,91 @@
     captchaHint.hidden = false;
   }
 
+  function copyDraft() {
+    var text = draftEl.value || "";
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      draftEl.select();
+      document.execCommand("copy");
+    }
+  }
+
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     showError("");
-    ok.hidden = true;
-    var text = (document.getElementById("sfrfr-site-review-text").value || "").trim();
-    var consent = !!document.getElementById("sfrfr-site-review-consent").checked;
-    if (text.length < 40) {
-      showError("Напишите чуть подробнее — хотя бы два-три предложения о сервисе.");
-      return;
-    }
-    if (!consent) {
-      showError("Нужно согласие на обработку данных и показ текста на сайте.");
+    siteOk.hidden = true;
+    showSiteErr("");
+    var answers = collectAnswers();
+    if (!answers.helped || !answers.clarity || !answers.convenient) {
+      showError("Ответьте на все обязательные вопросы (можно выбрать несколько).");
       return;
     }
     var token = captchaToken();
     if (sitekey && !token) {
-      showError("Отметьте «Я не робот».");
+      showError("Отметьте «Я не робот» или откройте форму на Яндексе / шпаргалку.");
+      if (captchaHint) captchaHint.hidden = false;
       return;
     }
-    var btn = document.getElementById("sfrfr-site-review-submit");
+    var btn = document.getElementById("sfrfr-otzyvy-draft-btn");
+    btn.disabled = true;
+    fetch(apiBase + "/api/public/review-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        answers: answers,
+        improve: (document.getElementById("sfrfr-otzyvy-improve").value || "").trim(),
+        site_quote_consent: false,
+        smartcaptcha_token: token || null
+      })
+    })
+      .then(function (r) {
+        return r.json().then(function (body) {
+          return { ok: r.ok, body: body };
+        });
+      })
+      .then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) {
+          showError("Не удалось собрать черновик. Попробуйте ещё раз или откройте шпаргалку / Яндекс.");
+          return;
+        }
+        draftEl.value = (res.body && res.body.draft) || "";
+        result.hidden = false;
+        result.scrollIntoView({ behavior: "smooth", block: "start" });
+      })
+      .catch(function () {
+        btn.disabled = false;
+        showError("Сеть недоступна. Откройте форму на Яндексе или шпаргалку.");
+      });
+  });
+
+  document.getElementById("sfrfr-otzyvy-copy").addEventListener("click", copyDraft);
+
+  document.getElementById("sfrfr-otzyvy-yandex").addEventListener("click", function () {
+    copyDraft();
+  });
+
+  document.getElementById("sfrfr-otzyvy-site-btn").addEventListener("click", function () {
+    showSiteErr("");
+    siteOk.hidden = true;
+    var text = (draftEl.value || "").trim();
+    var consent = !!document.getElementById("sfrfr-otzyvy-site-consent").checked;
+    if (text.length < 40) {
+      showSiteErr("Черновик слишком короткий — дополните текст.");
+      return;
+    }
+    if (!consent) {
+      showSiteErr("Отметьте согласие на показ текста на сайте — или публикуйте только на Яндексе.");
+      return;
+    }
+    var token = captchaToken();
+    if (sitekey && !token) {
+      showSiteErr("Отметьте «Я не робот» ещё раз.");
+      return;
+    }
+    var btn = document.getElementById("sfrfr-otzyvy-site-btn");
     btn.disabled = true;
     fetch(apiBase + "/api/public/site-reviews", {
       method: "POST",
@@ -190,15 +347,14 @@
       .then(function (res) {
         btn.disabled = false;
         if (!res.ok) {
-          showError("Не удалось отправить. Проверьте текст (без СНИЛС и сумм) или напишите отзыв на Яндексе.");
+          showSiteErr("Не удалось отправить на сайт. Проверьте текст или опубликуйте на Яндексе.");
           return;
         }
-        form.reset();
-        ok.hidden = false;
+        siteOk.hidden = false;
       })
       .catch(function () {
         btn.disabled = false;
-        showError("Сеть недоступна. Можно оставить отзыв на Яндекс Картах.");
+        showSiteErr("Сеть недоступна.");
       });
   });
 })();
