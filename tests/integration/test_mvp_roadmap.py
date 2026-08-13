@@ -113,6 +113,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr-otzyvy-quotes" in otzyvy
     assert "Обязательное заполнение" not in css
     assert "display: contents" in css
+    assert "grid-template-areas" in css
+    assert '"name channel"' in css
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "Электронная почта" in form
     assert "Телефон" in form

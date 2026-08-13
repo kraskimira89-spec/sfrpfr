@@ -2382,7 +2382,7 @@ body.bvi-active .sfrfr-bvi-float {
   display: none !important;
 }
 
-/* WPForms: карточка контактов+капча | канал+СОПД; кнопка справа внизу */
+/* WPForms: ФИО+почта+телефон | канал+капча; под ними согласие и кнопка */
 .sfrfr-form-block .wpforms-container {
   margin: 0 !important;
 }
@@ -2395,7 +2395,7 @@ body.bvi-active .sfrfr-bvi-float {
 }
 
 .sfrfr-form-block .wpforms-field-container {
-  display: contents;
+  display: contents !important;
 }
 
 .sfrfr-form-block .wpforms-head-container {
@@ -2476,96 +2476,118 @@ body.bvi-active .sfrfr-bvi-float {
 }
 
 .sfrfr-form-block .sfrfr-smartcaptcha-widget {
-  margin: 0.35rem 0 0 !important;
   min-height: 100px;
   max-width: 100%;
+}
+
+.sfrfr-form-block .sfrfr-lead-channel .sfrfr-smartcaptcha-widget,
+.sfrfr-form-block .wpforms-field-radio .sfrfr-smartcaptcha-widget {
+  margin-top: auto !important;
+}
+
+.sfrfr-form-block .wpforms-field-hp,
+.sfrfr-form-block .wpforms-clear {
+  display: none !important;
 }
 
 @media (min-width: 720px) {
   .sfrfr-form-block form.wpforms-form {
     grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "head head"
+      "name channel"
+      "email channel"
+      "phone channel"
+      "consent submit";
     column-gap: 1.15rem;
-    row-gap: 0.55rem;
+    row-gap: 0;
+    align-items: stretch;
   }
 
-  .sfrfr-form-block form.wpforms-form::before {
-    content: "";
-    grid-column: 1;
-    grid-row: 2 / span 3;
-    background: var(--sfrfr-surface);
-    border-radius: var(--sfrfr-radius);
-    box-shadow: var(--sfrfr-shadow);
-    border-left: 4px solid var(--sfrfr-primary);
+  .sfrfr-form-block .wpforms-head-container {
+    grid-area: head;
+    margin-bottom: 0.55rem !important;
   }
 
   .sfrfr-form-block .wpforms-field-name,
-  .sfrfr-form-block .sfrfr-lead-name,
+  .sfrfr-form-block .sfrfr-lead-name {
+    grid-area: name;
+  }
+
   .sfrfr-form-block .wpforms-field-email,
-  .sfrfr-form-block .sfrfr-lead-email,
+  .sfrfr-form-block .sfrfr-lead-email {
+    grid-area: email;
+  }
+
   .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
   .sfrfr-form-block .sfrfr-lead-phone {
-    grid-column: 1;
-    background: transparent;
-    box-shadow: none;
-    border-left: none;
-    border-radius: 0;
+    grid-area: phone;
   }
 
   .sfrfr-form-block .sfrfr-lead-channel,
   .sfrfr-form-block .wpforms-field-radio {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: start;
-  }
-
-  .sfrfr-form-block .sfrfr-smartcaptcha-widget {
-    grid-column: 1;
-    grid-row: 5;
-    align-self: start;
-    margin-top: 0.15rem !important;
+    grid-area: channel;
   }
 
   .sfrfr-form-block .sfrfr-lead-consent,
   .sfrfr-form-block .wpforms-field-checkbox {
-    grid-column: 2;
-    grid-row: 3;
-    align-self: start;
+    grid-area: consent;
+    align-self: center;
+    padding-top: 0.75rem !important;
   }
 
   .sfrfr-form-block .wpforms-submit-container {
-    grid-column: 2;
-    grid-row: 5;
+    grid-area: submit;
     justify-self: end;
-    align-self: end;
+    align-self: center;
+    padding-top: 0.75rem !important;
   }
 }
 
 @media (max-width: 719px) {
   .sfrfr-form-block form.wpforms-form {
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head head"
+      "name name"
+      "email email"
+      "phone phone"
+      "channel channel"
+      "consent submit";
   }
 
-  .sfrfr-form-block .wpforms-head-container,
+  .sfrfr-form-block .wpforms-head-container {
+    grid-area: head;
+  }
+
   .sfrfr-form-block .wpforms-field-name,
-  .sfrfr-form-block .sfrfr-lead-name,
+  .sfrfr-form-block .sfrfr-lead-name {
+    grid-area: name;
+  }
+
   .sfrfr-form-block .wpforms-field-email,
-  .sfrfr-form-block .sfrfr-lead-email,
+  .sfrfr-form-block .sfrfr-lead-email {
+    grid-area: email;
+  }
+
   .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
-  .sfrfr-form-block .sfrfr-lead-phone,
-  .sfrfr-form-block .sfrfr-smartcaptcha-widget,
+  .sfrfr-form-block .sfrfr-lead-phone {
+    grid-area: phone;
+  }
+
   .sfrfr-form-block .sfrfr-lead-channel,
   .sfrfr-form-block .wpforms-field-radio {
-    grid-column: 1 / -1;
+    grid-area: channel;
   }
 
   .sfrfr-form-block .sfrfr-lead-consent,
   .sfrfr-form-block .wpforms-field-checkbox {
-    grid-column: 1;
+    grid-area: consent;
     align-self: center;
   }
 
   .sfrfr-form-block .wpforms-submit-container {
-    grid-column: 2;
+    grid-area: submit;
     justify-self: end;
     align-self: center;
   }

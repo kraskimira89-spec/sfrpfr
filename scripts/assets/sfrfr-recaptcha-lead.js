@@ -54,20 +54,14 @@
       box.setAttribute("data-sitekey", CLIENT_KEY);
       box.style.height = "100px";
     }
-    // Под блоком ФИО/почта/телефон (не внутри канала) — баланс с СОПД справа.
-    var phone =
-      form.querySelector(".sfrfr-lead-phone") ||
-      form.querySelector(".wpforms-field-text:not(.sfrfr-recaptcha-token)");
-    var consent =
-      form.querySelector(".sfrfr-lead-consent") ||
-      form.querySelector(".wpforms-field-checkbox");
+    var channel =
+      form.querySelector(".sfrfr-lead-channel") ||
+      form.querySelector(".wpforms-field-radio");
     var submit = form.querySelector(".wpforms-submit-container");
-    if (phone && phone.parentNode) {
-      if (box.previousElementSibling !== phone) {
-        phone.parentNode.insertBefore(box, phone.nextSibling);
+    if (channel) {
+      if (box.parentNode !== channel) {
+        channel.appendChild(box);
       }
-    } else if (consent && consent.parentNode) {
-      consent.parentNode.insertBefore(box, consent);
     } else if (submit && submit.parentNode) {
       submit.parentNode.insertBefore(box, submit);
     } else {
