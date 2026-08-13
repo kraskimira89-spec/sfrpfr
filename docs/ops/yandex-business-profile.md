@@ -4,7 +4,8 @@
 **Кабинет прайса:** https://yandex.ru/sprav/82469923047/p/edit/price-lists/  
 **Кабинет постов:** https://yandex.ru/sprav/82469923047/p/edit/posts/  
 **Кабинет промо / отзывы:** https://yandex.ru/sprav/82469923047/p/edit/promo/  
-**Форма отзыва:** https://yandex.ru/sprav/82469923047/reviews/add/  
+**Форма отзыва:** https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true  
+**Короткая ссылка:** https://proverkastaza.ru/otzyv/  
 **Карты:** https://yandex.ru/maps/org/proverka_stazha/82469923047/  
 **Сайт:** https://proverkastaza.ru (без www)  
 **ТЗ-18:** достоверный профиль в каталогах, без ложных обещаний.
@@ -108,7 +109,7 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 Полная инструкция: [yandex-business-reviews.md](yandex-business-reviews.md) · ТЗ-19.
 
-1. Форма отзыва: https://proverkastaza.ru/otzyv/ (ведёт на Sprav `…/reviews/add/`).  
+1. Форма отзыва: https://proverkastaza.ru/otzyv/ (редирект на карточку в Картах с `add-review=true`).  
 2. Бейдж рейтинга на сайте: iframe `https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating` — `/kontakty/` и футер.
 3. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
 4. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.

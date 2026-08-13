@@ -1,7 +1,8 @@
 # Промоматериалы Яндекс Бизнеса (отзывы)
 
 Кабинет: https://yandex.ru/sprav/82469923047/p/edit/promo/  
-Форма отзыва: https://yandex.ru/sprav/82469923047/reviews/add/  
+Форма отзыва: https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true  
+Короткая ссылка: https://proverkastaza.ru/otzyv/  
 Бейдж рейтинга (виджет): `https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating`
 
 | Файл | Назначение |

@@ -79,9 +79,9 @@ add_action('template_redirect', static function (): void {
         return;
     }
 
-    // Ведущая короткая ссылка на форму отзыва Яндекс Бизнес / Карты.
+    // Короткая ссылка /otzyv/ → карточка на Картах (форма Sprav /reviews/add/ больше не открывается).
     if ($path === '/otzyv') {
-        wp_redirect('https://yandex.ru/sprav/82469923047/reviews/add/', 302);
+        wp_redirect('https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true', 302);
         exit;
     }
 

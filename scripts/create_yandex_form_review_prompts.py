@@ -19,7 +19,7 @@ import httpx
 from dotenv import load_dotenv
 
 API = "https://api.forms.yandex.net/v1"
-REVIEW_URL = "https://yandex.ru/sprav/82469923047/reviews/add/"
+REVIEW_URL = "https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true"
 
 QUESTIONS: list[dict] = [
     {

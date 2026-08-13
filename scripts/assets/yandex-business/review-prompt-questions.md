@@ -1,6 +1,6 @@
 # Вопросы клиенту для лёгкого отзыва (Яндекс Бизнес)
 
-**Форма отзыва (Карты):** https://yandex.ru/sprav/82469923047/reviews/add/  
+**Форма отзыва (Карты):** https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true  
 **Анкета → черновик:** https://proverkastaza.ru/anketa-otzyv/  
 **Ведущая короткая ссылка на публикацию:** https://proverkastaza.ru/otzyv/ → форма Яндекса  
 **Яндекс Форма (анкета):** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
@@ -88,7 +88,7 @@ Playbook: [`docs/marketing-sales/playbook-yandex-form-review-prompts.md`](../../
 3) Что было удобно (MAX, кабинет, сроки)?
 
 Можно взять за основу один из коротких шаблонов — и поправить под себя.
-Ссылка: https://yandex.ru/sprav/82469923047/reviews/add/
+Ссылка: https://proverkastaza.ru/otzyv/
 
 Оценку и текст выбираете вы. Писать про решение СФР не обязательно.
 ```

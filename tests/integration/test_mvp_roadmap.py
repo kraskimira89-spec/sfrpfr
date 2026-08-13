@@ -206,6 +206,9 @@ def test_tz11_blog_mvp_assets() -> None:
     assert "sfrfr-seo-redirects.php" in deploy
     assert "cache flush" in deploy
     assert (REPO / "scripts/wp-mu-plugins/sfrfr-seo-redirects.php").exists()
+    redirects = (REPO / "scripts/wp-mu-plugins/sfrfr-seo-redirects.php").read_text(encoding="utf-8")
+    assert "maps/org/proverka_stazha/82469923047/reviews" in redirects
+    assert "sprav/82469923047/reviews/add" not in redirects
     assert (REPO / "scripts/assets/blog/21-zakazat-vypisku-ils.html").exists()
     assert "kak-zakazat-vypisku-ils" in php
     miniapp = (REPO / "web/max-miniapp/index.html").read_text(encoding="utf-8")

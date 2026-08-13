@@ -1,7 +1,9 @@
 # Яндекс Бизнес — сбор и ответы на отзывы
 
 **Профиль:** `82469923047`  
-**Форма отзыва:** https://yandex.ru/sprav/82469923047/reviews/add/  
+**Карточка на Картах:** https://yandex.ru/maps/org/proverka_stazha/82469923047/  
+**Форма отзыва:** https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true  
+**Короткая ссылка:** https://proverkastaza.ru/otzyv/  
 **ТЗ:** [19-yandex-reviews-feedback.md](../specs/19-yandex-reviews-feedback.md)  
 **Статья Яндекса:** https://direct.yandex.ru/base/articles/kak-pravilno-motivirovat-klientov-ostavlyat-otzyvy  
 **Промоматериалы в кабинете:** https://yandex.ru/sprav/82469923047/p/edit/promo/
