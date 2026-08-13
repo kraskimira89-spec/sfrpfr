@@ -1029,7 +1029,36 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
 }
 
 #sfrfr-otzyvy-page .sfrfr-yandex-badge {
-  margin: 0.25rem 0 0.45rem;
+  margin: 0;
+}
+
+.sfrfr-otzyvy-yandex-media {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin: 0.15rem 0 0.5rem;
+}
+
+.sfrfr-otzyvy-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-decoration: none;
+  color: #3d4a44;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.sfrfr-otzyvy-qr img {
+  display: block;
+  width: 120px;
+  height: 120px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 #sfrfr-otzyvy-page .sfrfr-note {

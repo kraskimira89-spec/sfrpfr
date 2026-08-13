@@ -107,6 +107,7 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Оставить отзыв" in otzyvy
     assert "sfrfr-otzyvy-msg-captcha" in otzyvy
     assert "/otzyv/" in otzyvy
+    assert 'src="/yandex-review-qr.png"' in otzyvy
     assert "Собрать черновик" not in otzyvy
     assert "Написать нам сообщение" not in otzyvy
     assert "sfrfr-visually-hidden" in otzyvy

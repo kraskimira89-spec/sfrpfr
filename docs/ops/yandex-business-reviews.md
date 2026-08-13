@@ -23,7 +23,8 @@
 | `assets/card.pdf` / `assets/booklet.pdf` | исходники из кабинета |
 
 Публичный QR на сайте (после деплоя):  
-`https://proverkastaza.ru/yandex-review-qr.png`
+`https://proverkastaza.ru/yandex-review-qr.png`  
+Кодирует `https://proverkastaza.ru/otzyv/`. Показан на `/otzyvy/` и `/kontakty/`.
 
 Бейдж рейтинга (официальный виджет Sprav): на `/kontakty/` и в футере сайта.
 
