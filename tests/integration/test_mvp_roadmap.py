@@ -96,11 +96,22 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr-sticky-cta" in home
     assert 'id="stati"' in home  # 3 карточки блога (§13.3)
     assert "Полезные статьи" in home
+    assert 'href="/otzyvy/">Все отзывы' in home
+    assert "Сформулировать текст" not in home
+    otzyvy = (REPO / "scripts/assets/trust/otzyvy.html").read_text(encoding="utf-8")
+    assert 'id="sfrfr-otzyvy-page"' in otzyvy
+    assert 'id="sfrfr-site-review-form"' in otzyvy
+    assert "sfrfr-visually-hidden" in otzyvy
+    assert "sfrfr-otzyvy-quotes" in otzyvy
+    assert "Обязательное заполнение" not in css
+    assert "display: contents" in css
     form = (REPO / "scripts/wp_ensure_lead_form.php").read_text(encoding="utf-8")
     assert "Электронная почта" in form
     assert "Телефон" in form
     assert "хотя бы" in form.lower() or "почту или телефон" in form.lower()
     assert "'type' => 'file'" not in form
+    assert "'label' => 'ФИО'" in form
+    assert "sfrfr-lead-channel" in form
     assert "Личный кабинет на сайте" in form
     assert "channel=max" not in form
     assert "mode=register" in form
@@ -228,6 +239,7 @@ def test_public_leads_route_registered() -> None:
     app = create_app()
     paths = set(app.openapi()["paths"])
     assert "/api/public/leads" in paths
+    assert "/api/public/site-reviews" in paths
     assert "/api/portal/cases/{case_id}/orders/{order_id}/pay" in paths
     assert "/api/integrations/payments/yookassa/webhook" in paths
 

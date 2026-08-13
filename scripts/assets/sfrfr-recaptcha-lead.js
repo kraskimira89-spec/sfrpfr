@@ -54,11 +54,18 @@
     box.setAttribute("data-sitekey", CLIENT_KEY);
     box.style.height = "100px";
     box.style.margin = "0.75rem 0";
-    var submit = form.querySelector(".wpforms-submit-container");
-    if (submit && submit.parentNode) {
-      submit.parentNode.insertBefore(box, submit);
+    var channel =
+      form.querySelector(".sfrfr-lead-channel") ||
+      form.querySelector(".wpforms-field-radio");
+    if (channel) {
+      channel.appendChild(box);
     } else {
-      form.appendChild(box);
+      var submit = form.querySelector(".wpforms-submit-container");
+      if (submit && submit.parentNode) {
+        submit.parentNode.insertBefore(box, submit);
+      } else {
+        form.appendChild(box);
+      }
     }
     return box;
   }

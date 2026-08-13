@@ -112,7 +112,7 @@ def list_published(*, limit: int = 6) -> list[dict[str, Any]]:
                 "published_at": raw.get("published_at"),
             }
         )
-        if len(out) >= max(1, min(limit, 20)):
+        if len(out) >= max(1, min(limit, 24)):
             break
     return out
 

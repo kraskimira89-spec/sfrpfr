@@ -180,9 +180,9 @@
 
   <section class="sfrfr-section" id="otzyvy">
     <div class="sfrfr-wrap">
-      <h2>Отзывы на Яндекс Картах</h2>
+      <h2>Отзывы</h2>
       <p class="sfrfr-section__lead">
-        Рейтинг и число отзывов — только из карточки Яндекса. Цитаты на сайте публикуем после модерации, без персональных данных.
+        Рейтинг — на Яндекс Картах. Короткие цитаты на сайте появляются после модерации, без фамилии и персональных данных.
       </p>
       <div class="sfrfr-home-reviews" id="sfrfr-home-reviews" data-api-base="https://api.proverkastaza.ru">
         <div class="sfrfr-home-reviews__badge-row">
@@ -190,14 +190,12 @@
             <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </p>
           <p class="sfrfr-cta-row" style="margin:0">
-            <a class="sfrfr-btn sfrfr-btn--primary" href="/otzyv/" target="_blank" rel="noopener noreferrer">Оставить отзыв</a>
-            <a class="sfrfr-btn sfrfr-btn--ghost" href="/anketa-otzyv/">Сформулировать текст</a>
-            <a class="sfrfr-btn sfrfr-btn--ghost" href="/otzyvy/">Страница отзывов</a>
+            <a class="sfrfr-btn sfrfr-btn--primary" href="/otzyvy/">Все отзывы</a>
           </p>
         </div>
         <div class="sfrfr-home-reviews__quotes" data-sfrfr-quotes>
           <p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>
-            Цитаты появятся здесь после модерации. Пока можно открыть отзывы на Яндекс Картах.
+            Цитаты появятся после модерации. Оставить отзыв можно на странице «Отзывы».
           </p>
         </div>
       </div>
@@ -210,7 +208,7 @@
     var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
     var box = root.querySelector("[data-sfrfr-quotes]");
     var empty = root.querySelector("[data-sfrfr-quotes-empty]");
-    fetch(apiBase + "/api/public/site-reviews?limit=4")
+    fetch(apiBase + "/api/public/site-reviews?limit=3")
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var items = (data && data.items) || [];

@@ -170,8 +170,8 @@ add_action('wp_enqueue_scripts', function () {
         return;
     }
 
-    // Анкета отзыва: SmartCaptcha без авто-класса smart-captcha (нужен data-sitekey).
-    if (is_page('anketa-otzyv')) {
+    // Анкета и страница отзывов: SmartCaptcha без авто-класса smart-captcha.
+    if (is_page('anketa-otzyv') || is_page('otzyvy')) {
         wp_enqueue_script(
             'yandex-smartcaptcha',
             'https://smartcaptcha.yandexcloud.net/captcha.js',
@@ -226,7 +226,7 @@ add_action('wp_enqueue_scripts', function () {
 }, 20);
 
 add_action('wp_head', function () {
-    if (!is_page('anketa-otzyv')) {
+    if (!is_page('anketa-otzyv') && !is_page('otzyvy')) {
         return;
     }
     $client_key = sfrfr_captcha_client_key();
