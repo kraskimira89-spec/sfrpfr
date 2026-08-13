@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Ссылка на СОПД в description чекбокса формы заявки (HTML).
+ * Чекбокс согласия: текст-ссылка на СОПД, без строки «Документ: СОПД».
  *
  * @param array<string,mixed> $properties
  * @param array<string,mixed> $field
@@ -20,19 +20,24 @@ add_filter('wpforms_field_properties', function ($properties, $field, $form_data
     if (($field['type'] ?? '') !== 'checkbox') {
         return $properties;
     }
+    $css = (string) ($field['css'] ?? '');
     $title = (string) ($form_data['settings']['form_title'] ?? '');
-    if ($title !== '' && $title !== 'Заявка с сайта') {
+    if (!str_contains($css, 'sfrfr-lead-consent') && $title !== 'Заявка с сайта') {
         return $properties;
     }
-    $desc = (string) ($field['description'] ?? '');
-    if ($desc === '' || !str_contains($desc, 'soglasie')) {
-        return $properties;
-    }
+    $link = '<a class="sfrfr-consent-link" href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных*</a>';
     if (isset($properties['description']) && is_array($properties['description'])) {
-        $properties['description']['value'] = wp_kses_post($desc);
+        $properties['description']['value'] = '';
+    }
+    if (!empty($properties['inputs']) && is_array($properties['inputs'])) {
+        foreach ($properties['inputs'] as $key => $input) {
+            if (isset($properties['inputs'][$key]['label']['text'])) {
+                $properties['inputs'][$key]['label']['text'] = $link;
+            }
+        }
     }
     return $properties;
-}, 10, 3);
+}, 20, 3);
 
 /**
  * @return array<string,string>

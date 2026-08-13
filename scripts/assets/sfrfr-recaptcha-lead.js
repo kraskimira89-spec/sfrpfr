@@ -124,6 +124,28 @@
     });
   }
 
+  function linkConsentLabel() {
+    document.querySelectorAll(
+      ".sfrfr-lead-consent .wpforms-field-label-inline, form.wpforms-form .wpforms-field-checkbox .wpforms-field-label-inline"
+    ).forEach(function (label) {
+      if (label.querySelector("a")) return;
+      var a = document.createElement("a");
+      a.href = "/soglasie/";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "sfrfr-consent-link";
+      a.textContent = "Даю согласие на обработку персональных данных*";
+      a.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+      });
+      label.textContent = "";
+      label.appendChild(a);
+    });
+    document.querySelectorAll(".sfrfr-lead-consent .wpforms-field-description").forEach(function (el) {
+      el.remove();
+    });
+  }
+
   function mountYandex() {
     if (!CLIENT_KEY) return;
     document.querySelectorAll("form.wpforms-form").forEach(function (form) {
@@ -133,12 +155,17 @@
     loadYandex(renderYandexWidgets);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountYandex);
-  } else {
+  function bootLeadForm() {
+    linkConsentLabel();
     mountYandex();
   }
-  setTimeout(mountYandex, 800);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootLeadForm);
+  } else {
+    bootLeadForm();
+  }
+  setTimeout(bootLeadForm, 800);
 
   document.addEventListener(
     "submit",
