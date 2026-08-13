@@ -140,18 +140,20 @@ HTML;
 }
 
 /**
- * Компактная кнопка BVI поверх страницы (fixed), без полосы под шапкой —
- * не сдвигает hero и заголовок.
+ * Плавающие кнопки у правого края: чат MAX и BVI.
  */
 add_action('wp_footer', static function (): void {
     if (is_admin()) {
         return;
     }
-    $html = sfrfr_site_footer_bvi_html();
-    if ($html === '') {
-        return;
+    $max = esc_url(sfrfr_site_footer_max_url());
+    $bvi = sfrfr_site_footer_bvi_html();
+    echo '<div class="sfrfr-edge-floats" role="navigation" aria-label="Быстрые действия">';
+    echo '<a class="sfrfr-max-float" href="' . $max . '" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="max_chat_click">Чат MAX</a>';
+    if ($bvi !== '') {
+        echo '<div class="sfrfr-bvi-float">' . $bvi . '</div>';
     }
-    echo '<div class="sfrfr-bvi-float" role="navigation" aria-label="Версия для слабовидящих">' . $html . '</div>';
+    echo '</div>';
 }, 4);
 
 /**
