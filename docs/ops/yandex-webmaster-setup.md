@@ -28,6 +28,8 @@
 | Favicon `/favicon.ico` | ✅ + `/favicon.svg`, `/favicon-120.png` |
 | Яндекс Бизнес (Sprav) | ✅ профиль `82469923047`, прайс: `docs/ops/yandex-business-profile.md` |
 | Регион сайта | ⚠️ задать в UI Вебмастера (Ноябрьск / Россия) |
+| SEO этап 4 (семантика / спринт) | [seo-semantics-map.md](seo-semantics-map.md), [seo-sprint.md](seo-sprint.md), [seo-hypothesis-log.md](seo-hypothesis-log.md) |
+| Ручной UI-чеклист | [seo-webmaster-ui-checklist.md](seo-webmaster-ui-checklist.md) |
 
 ---
 
