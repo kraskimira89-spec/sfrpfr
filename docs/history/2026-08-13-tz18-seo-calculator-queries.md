@@ -13,10 +13,11 @@
    - `seo_production_audit.py`: 45 страниц, **43 OK / 2 FAIL** (`/otzyvy/`, `/anketa-otzyv/` — два H1; вне scope калькуляторных ключей).
    - Вебмастер recrawl: услуга, ИЛС, сверка, FAQ, `/`, sitemap — OK (quota_left≈145).
    - Host diag (https apex): `searchable_pages_count=9`, `excluded_pages_count=3`, sitemap без ошибок; SQI=0.
+6. **Live:** после deploy — `wp_seed_blog_tz11.sh` + trust seed; MU `sfrfr-seo-meta` читает `_rank_math_title` (Rank Math head на витрине отключён).
 
 ## После деплоя кода
 
-На VPS прогнать сиды блога/trust (если не входят в `deploy-vps`), иначе live meta/HTML останутся старыми до ручного `wp_seed_blog_tz11` / trust seed.
+На VPS: trust seed уже в `vps_deploy.sh`; блог — ручной `SITE_DIR=… bash scripts/wp_seed_blog_tz11.sh` (сделано 2026-08-13). MU копируется деплоем.
 
 ## Не делали
 
