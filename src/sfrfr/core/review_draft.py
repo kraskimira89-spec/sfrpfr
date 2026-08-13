@@ -142,7 +142,9 @@ def build_review_draft(
     llm = LLMClient.for_draft()
     if llm.available:
         try:
-            draft = (llm.chat(system=REVIEW_DRAFT_SYSTEM, user=redact_for_llm(user_blob)) or "").strip()
+            draft = (
+                llm.chat(system=REVIEW_DRAFT_SYSTEM, user=redact_for_llm(user_blob)) or ""
+            ).strip()
             if draft:
                 source = "llm"
         except Exception:  # noqa: BLE001

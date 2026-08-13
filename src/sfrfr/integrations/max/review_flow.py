@@ -9,7 +9,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sfrfr.core.review_draft import QUESTIONS, REVIEW_ANKETA_URL, REVIEW_PUBLISH_URL, build_review_draft
+from sfrfr.core.review_draft import (
+    QUESTIONS,
+    REVIEW_ANKETA_URL,
+    REVIEW_PUBLISH_URL,
+    build_review_draft,
+)
 from sfrfr.integrations.max.client import inline_buttons_keyboard
 
 _STORE_LOCK = threading.Lock()
@@ -162,7 +167,10 @@ def handle_review_callback(*, user_id: str, payload: str) -> dict[str, Any] | No
         parts = payload.split(":")
         # review:a:{qid}:{oid}
         if len(parts) < 4:
-            return {"text": "Не понял ответ. Нажмите «Сформулировать отзыв» ещё раз.", "attachments": start_keyboard()}
+            return {
+                "text": "Не понял ответ. Нажмите «Сформулировать отзыв» ещё раз.",
+                "attachments": start_keyboard(),
+            }
         qid, oid = parts[2], parts[3]
         session = get_session(user_id) or ReviewSession(user_id=str(user_id))
         q = _question_by_id(qid)
