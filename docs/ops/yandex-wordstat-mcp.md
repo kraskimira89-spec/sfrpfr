@@ -6,9 +6,9 @@
 ## Что подключено
 
 - Пакет: [`yandex-wordstat-mcp`](https://www.npmjs.com/package/yandex-wordstat-mcp) (Search API v2)
-- Лаунчер: `scripts/mcp-yandex-wordstat.ps1`
+- Лаунчер: `scripts/mcp-yandex-wordstat.cmd` (stdio; PowerShell `.ps1` — только запасной)
 - Секреты: `secrets/wordstat.env` (в `.gitignore`)
-- Конфиг Cursor: `%USERPROFILE%\.cursor\mcp.json` → сервер `yandex-wordstat`
+- Конфиг Cursor: `%USERPROFILE%\.cursor\mcp.json` → сервер `yandex-wordstat` → command на `.cmd`
 
 ## Ключи
 
@@ -26,8 +26,15 @@ YANDEX_FOLDER_ID=b1g…
 
 ## После правки mcp.json
 
-1. Cursor → Settings → MCP → перезапустить `yandex-wordstat` (или Reload Window).
-2. Проверка в чате: «Покажи топ Wordstat по „проверка стажа“».
+1. Cursor → Settings → MCP → `yandex-wordstat` → **Reload** (или Reload Window).
+2. Статус должен быть Connected, не `Connection closed`.
+3. Проверка в чате: «Покажи топ Wordstat по „проверка стажа“».
+
+### Если `Error -32000: Connection closed`
+
+- Не использовать PowerShell-лаунчер для MCP (ломает stdio). Канон: `scripts/mcp-yandex-wordstat.cmd`.
+- Проверить, что есть `secrets/wordstat.env` с `YANDEX_SEARCH_API_KEY` и `YANDEX_FOLDER_ID`.
+- В терминале: запустить `.\\scripts\\mcp-yandex-wordstat.cmd` — в stderr должно быть `Yandex Wordstat MCP server running on stdio`.
 
 ## Billing
 
