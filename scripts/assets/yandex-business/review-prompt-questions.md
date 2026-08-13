@@ -3,7 +3,7 @@
 **Форма отзыва (Карты):** https://yandex.ru/sprav/82469923047/reviews/add/  
 **Анкета → черновик:** https://proverkastaza.ru/anketa-otzyv/  
 **Ведущая короткая ссылка на публикацию:** https://proverkastaza.ru/otzyv/ → форма Яндекса  
-**Яндекс Форма-помощник (запасной, без ИИ):** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
+**Яндекс Форма (анкета):** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 Playbook: [`docs/marketing-sales/playbook-yandex-form-review-prompts.md`](../../../docs/marketing-sales/playbook-yandex-form-review-prompts.md)
 
 

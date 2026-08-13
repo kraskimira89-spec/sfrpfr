@@ -3,15 +3,10 @@
   <section class="sfrfr-section">
     <div class="sfrfr-wrap">
       <h1 class="sfrfr-visually-hidden">Отзывы о сервисе «Проверка стажа»</h1>
-      <p class="sfrfr-section__lead">
-        Отзыв о сервисе оставляете на Яндекс Картах. Чтобы проще сформулировать текст — ответьте на короткую анкету.
-        Без СНИЛС, паспорта и сумм пенсии.
-      </p>
 
       <div class="sfrfr-otzyvy-layout">
         <aside class="sfrfr-otzyvy-yandex-card">
           <h2>Яндекс Карты</h2>
-          <p>Рейтинг и отзывы организации — здесь. Оценку звёздами выбираете вы.</p>
           <p class="sfrfr-yandex-badge">
             <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </p>
@@ -21,23 +16,9 @@
         </aside>
 
         <div class="sfrfr-otzyvy-form-card sfrfr-otzyvy-anketa-card">
-          <h2>Анкета (Яндекс Форма)</h2>
-          <p class="sfrfr-note">
-            Ответьте на вопросы — так проще написать отзыв своими словами.
-            Потом откройте форму на Картах и вставьте текст.
-          </p>
-          <div class="sfrfr-otzyvy-form-frame-wrap">
-            <iframe
-              class="sfrfr-otzyvy-form-frame"
-              title="Анкета-подсказки к отзыву"
-              src="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/?iframe=1"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
-          </div>
-          <p class="sfrfr-cta-row" style="margin-top:0.75rem">
-            <a class="sfrfr-btn sfrfr-btn--ghost" href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/" target="_blank" rel="noopener noreferrer">Открыть анкету в новой вкладке</a>
-            <a class="sfrfr-btn sfrfr-btn--ghost" href="/otzyv/" target="_blank" rel="noopener noreferrer">Затем — форма на Картах</a>
+          <h2>Анкета</h2>
+          <p class="sfrfr-cta-row">
+            <a class="sfrfr-btn sfrfr-btn--primary" href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/" target="_blank" rel="noopener noreferrer">Яндекс Форма</a>
           </p>
         </div>
       </div>
@@ -52,15 +33,15 @@
       </div>
 
       <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
-        <h2>Написать нам сообщение</h2>
+        <h2>Оставить отзыв</h2>
         <p class="sfrfr-note">
-          Короткое сообщение команде (не отзыв на Картах). Без персональных данных в тексте.
-          Появится на сайте только после проверки.
+          Текст на сайте появится после проверки. Без СНИЛС, паспорта и сумм пенсии.
         </p>
         <form id="sfrfr-otzyvy-msg-form" class="sfrfr-site-review-form">
-          <label for="sfrfr-otzyvy-msg-text">Сообщение</label>
+          <label for="sfrfr-otzyvy-msg-text">Текст отзыва</label>
           <textarea id="sfrfr-otzyvy-msg-text" name="text" rows="4" maxlength="600" required placeholder="Два–три предложения"></textarea>
-          <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box"></div>
+          <label for="sfrfr-otzyvy-msg-captcha">Проверка</label>
+          <div id="sfrfr-otzyvy-msg-captcha" class="sfrfr-review-captcha-box smart-captcha" aria-live="polite"></div>
           <p id="sfrfr-otzyvy-msg-captcha-hint" class="sfrfr-note" hidden>
             Если проверка не загрузилась — напишите в MAX или на
             <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.
@@ -74,7 +55,7 @@
             <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-otzyvy-msg-submit">Отправить</button>
           </p>
           <p id="sfrfr-otzyvy-msg-error" class="sfrfr-note" hidden></p>
-          <p id="sfrfr-otzyvy-msg-ok" class="sfrfr-note" hidden>Спасибо. Сообщение принято и ждёт проверки.</p>
+          <p id="sfrfr-otzyvy-msg-ok" class="sfrfr-note" hidden>Спасибо. Отзыв принят и ждёт проверки.</p>
         </form>
       </div>
 
@@ -123,6 +104,7 @@
     ""
   ).trim();
   var captchaWidgetId = null;
+  var captchaRendered = false;
 
   function showError(msg) {
     err.hidden = !msg;
@@ -143,36 +125,53 @@
 
   function renderCaptcha() {
     var cap = document.getElementById("sfrfr-otzyvy-msg-captcha");
-    if (!sitekey || !cap || !window.smartCaptcha) {
+    if (!sitekey || !cap) {
       if (captchaHint) captchaHint.hidden = false;
       return;
     }
+    if (!window.smartCaptcha) {
+      if (captchaHint) captchaHint.hidden = false;
+      return;
+    }
+    if (captchaRendered && cap.childNodes.length) return;
     try {
+      cap.setAttribute("data-sitekey", sitekey);
       captchaWidgetId = window.smartCaptcha.render(cap, { sitekey: sitekey, hl: "ru" });
+      captchaRendered = true;
+      if (captchaHint) captchaHint.hidden = true;
     } catch (e) {
       if (captchaHint) captchaHint.hidden = false;
     }
   }
 
-  if (sitekey) {
+  function bootCaptcha() {
+    if (!sitekey) {
+      if (captchaHint) captchaHint.hidden = false;
+      return;
+    }
     if (window.smartCaptcha) {
       renderCaptcha();
-    } else {
-      var existing = document.querySelector('script[src*="smartcaptcha"]');
-      if (existing) {
-        existing.addEventListener("load", renderCaptcha);
-        setTimeout(function () { if (window.smartCaptcha) renderCaptcha(); }, 1200);
-      } else {
-        var s = document.createElement("script");
-        s.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
-        s.async = true;
-        s.onload = renderCaptcha;
-        s.onerror = function () { if (captchaHint) captchaHint.hidden = false; };
-        document.head.appendChild(s);
-      }
+      return;
     }
-  } else if (captchaHint) {
-    captchaHint.hidden = false;
+    var existing = document.querySelector('script[src*="smartcaptcha"]');
+    if (existing) {
+      existing.addEventListener("load", renderCaptcha);
+      setTimeout(function () { if (window.smartCaptcha) renderCaptcha(); }, 800);
+      setTimeout(function () { if (window.smartCaptcha) renderCaptcha(); }, 2000);
+      return;
+    }
+    var s = document.createElement("script");
+    s.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
+    s.async = true;
+    s.onload = renderCaptcha;
+    s.onerror = function () { if (captchaHint) captchaHint.hidden = false; };
+    document.head.appendChild(s);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootCaptcha);
+  } else {
+    bootCaptcha();
   }
 
   form.addEventListener("submit", function (ev) {
@@ -190,8 +189,12 @@
       return;
     }
     var token = captchaToken();
-    if (sitekey && !token) {
-      showError("Отметьте «Я не робот».");
+    if (!sitekey) {
+      showError("Проверка временно недоступна. Напишите на почту или в MAX.");
+      return;
+    }
+    if (!token) {
+      showError("Пройдите проверку «Я не робот».");
       return;
     }
     var btn = document.getElementById("sfrfr-otzyvy-msg-submit");
@@ -202,7 +205,7 @@
       body: JSON.stringify({
         text: text,
         consent: true,
-        smartcaptcha_token: token || null
+        smartcaptcha_token: token
       })
     })
       .then(function (r) {
@@ -213,10 +216,20 @@
       .then(function (res) {
         btn.disabled = false;
         if (!res.ok) {
-          showError("Не удалось отправить. Попробуйте позже или напишите на почту.");
+          showError("Не удалось отправить. Пройдите проверку ещё раз или напишите на почту.");
+          try {
+            if (window.smartCaptcha && captchaWidgetId !== null) {
+              window.smartCaptcha.reset(captchaWidgetId);
+            }
+          } catch (e) {}
           return;
         }
         form.reset();
+        try {
+          if (window.smartCaptcha && captchaWidgetId !== null) {
+            window.smartCaptcha.reset(captchaWidgetId);
+          }
+        } catch (e) {}
         ok.hidden = false;
       })
       .catch(function () {

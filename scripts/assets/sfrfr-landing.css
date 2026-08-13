@@ -885,7 +885,8 @@ body.page-template-default {
 }
 
 .sfrfr-review-captcha-box {
-  min-height: 1.5rem;
+  min-height: 102px;
+  margin: 0.25rem 0 0.5rem;
 }
 
 .sfrfr-home-reviews {
