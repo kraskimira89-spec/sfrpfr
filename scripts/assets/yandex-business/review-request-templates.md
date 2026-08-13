@@ -1,7 +1,7 @@
 # Шаблоны просьбы об отзыве (MAX) — мягкий тон
 
 **Ссылка на форму:** https://proverkastaza.ru/otzyv/  
-(редирект на https://yandex.ru/sprav/82469923047/reviews/add/)  
+(редирект на https://proverkastaza.ru/otzyv/)  
 **Помощник с вопросами:** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 **QR:** `scripts/assets/yandex-business/promo/qr-review.png` (и `assets/qr.png`)  
 **Визитка / буклет для печати:** `promo/card.pdf`, `promo/booklet.pdf`  
@@ -63,7 +63,7 @@ https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/
 3) Что было удобно — MAX, кабинет, сроки ответа?
 
 Потом вставьте текст в отзыв на Яндексе:
-https://yandex.ru/sprav/82469923047/reviews/add/
+https://proverkastaza.ru/otzyv/
 
 Оценку и текст выбираете вы. Решение СФР и суммы пенсии писать не нужно.
 ```
@@ -79,7 +79,7 @@ https://yandex.ru/sprav/82469923047/reviews/add/
 
 ```text
 Здравствуйте. Если отзыв всё ещё актуален и удобно — ссылка та же:
-https://yandex.ru/sprav/82469923047/reviews/add/
+https://proverkastaza.ru/otzyv/
 
 Если нет — просто не отвечайте, больше не напомню.
 ```
