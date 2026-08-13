@@ -124,14 +124,22 @@ def _env(*names: str) -> str:
 
 def main() -> int:
     load_dotenv(Path(".env"))
+    load_dotenv(Path("secrets/yandex-forms.env"))
     token = _env("YANDEX_FORMS_OAUTH_TOKEN", "YANDEX_OAUTH_ACCESS_TOKEN")
     org_id = _env("YANDEX_FORMS_ORG_ID", "ORG_ID")
     if not token:
         print("Нет YANDEX_FORMS_OAUTH_TOKEN / YANDEX_OAUTH_ACCESS_TOKEN", file=sys.stderr)
+        print(
+            "Откройте и вставьте токен в secrets/yandex-forms.env:\n"
+            "https://oauth.yandex.ru/authorize?response_type=token"
+            "&client_id=4205bd720a8a45b787ddcf8c8a5cbc75",
+            file=sys.stderr,
+        )
         return 2
     if not org_id:
         print(
             "Нет YANDEX_FORMS_ORG_ID — API Форм требует организацию Яндекс 360.\n"
+            "Скопируйте id: https://admin.yandex.ru/ или https://tracker.yandex.ru/admin/orgs\n"
             "Создайте форму вручную: docs/marketing-sales/playbook-yandex-form-review-prompts.md",
             file=sys.stderr,
         )
