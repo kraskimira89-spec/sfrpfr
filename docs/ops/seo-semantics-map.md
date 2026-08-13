@@ -54,6 +54,8 @@
 | Делать | Ключи и пояснения на существующих URL: ИЛС, сверка, услуга, FAQ |
 | Официальный прогноз суммы | Ссылка на калькулятор/сведения СФР / Госуслуги; мы не подменяем |
 | Наш продукт | Сверка документов и план обращения; решение о пенсии — только СФР |
+| Канон копирайта | [`no-calculator-no-recalculation.md`](../../scripts/assets/copy/no-calculator-no-recalculation.md): нет калькулятора стажа / не ведём перерасчёт |
+| CSV seed | кластер `8_calc` в [wordstat-7-clusters-template.csv](../marketing-sales/reports/wordstat-7-clusters-template.csv) |
 
 ## Обновление карты
 

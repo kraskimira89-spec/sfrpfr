@@ -44,8 +44,24 @@
 
 См. правки title/лида/H2 в каноне блога и trust; карта — [seo-semantics-map.md](../ops/seo-semantics-map.md); гипотезы H3–H4 — [seo-hypothesis-log.md](../ops/seo-hypothesis-log.md).
 
+### Канон отстройки (копирайт)
+
+Файл: [`scripts/assets/copy/no-calculator-no-recalculation.md`](../../scripts/assets/copy/no-calculator-no-recalculation.md)
+
+На сайте и в статьях употреблять явно:
+
+- «Здесь нет калькулятора стажа, потому что…» (стаж по ИЛС и трудовой, не формула онлайн);
+- «Мы не ведём перерасчёт пенсии, потому что…» (полномочие СФР; мы готовим документы и план);
+- «Здесь нет пенсионного калькулятора и расчёта суммы…» (прогноз — у СФР / Госуслуг).
+
+Страницы: `/proverka-stazha/`, FAQ, главная `#faq`, `/blog/kak-proverit-stazh-v-vypiske-ils/`, `/blog/kak-sverit-trudovuyu-knizhku-i-ils/`.
+
+### Seed-запросы в CSV (кластер calc)
+
+Добавлены в [reports/wordstat-7-clusters-template.csv](reports/wordstat-7-clusters-template.csv) с префиксом `8_calc`: пенсионный калькулятор, расчёт пенсии, калькулятор пенсии онлайн, калькулятор стажа, перерасчёт пенсии калькулятор. Частоты — после сброса квоты Wordstat API.
+
 ## Следующий спринт
 
-1. Числа Wordstat (РФ + приоритетные регионы).
+1. Числа Wordstat (РФ + приоритетные регионы) для кластера calc.
 2. Запросы Вебмастера после накопления показов.
 3. Решение: нужна ли отдельная честная hub-страница про калькулятор СФР vs проверка документов.
