@@ -2458,38 +2458,30 @@ body.bvi-active .sfrfr-bvi-float {
   .sfrfr-form-block form.wpforms-form {
     grid-template-columns: 1fr 1fr;
     column-gap: 1.15rem;
-    row-gap: 0;
+    row-gap: 0.35rem;
   }
 
-  /* Явные строки: иначе auto-placement уводит ФИО/почту/телефон под кнопку */
-  .sfrfr-form-block .wpforms-field-name,
-  .sfrfr-form-block .sfrfr-lead-name {
+  .sfrfr-form-block form.wpforms-form::before {
+    content: "";
     grid-column: 1;
-    grid-row: 2;
-    border-radius: var(--sfrfr-radius) var(--sfrfr-radius) 0 0;
+    grid-row: 2 / span 3;
+    background: var(--sfrfr-surface);
+    border-radius: var(--sfrfr-radius);
     box-shadow: var(--sfrfr-shadow);
     border-left: 4px solid var(--sfrfr-primary);
-    background: var(--sfrfr-surface);
   }
 
+  .sfrfr-form-block .wpforms-field-name,
+  .sfrfr-form-block .sfrfr-lead-name,
   .sfrfr-form-block .wpforms-field-email,
-  .sfrfr-form-block .sfrfr-lead-email {
-    grid-column: 1;
-    grid-row: 3;
-    border-radius: 0;
-    box-shadow: none;
-    border-left: 4px solid var(--sfrfr-primary);
-    background: var(--sfrfr-surface);
-  }
-
+  .sfrfr-form-block .sfrfr-lead-email,
   .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
   .sfrfr-form-block .sfrfr-lead-phone {
     grid-column: 1;
-    grid-row: 4;
-    border-radius: 0 0 var(--sfrfr-radius) var(--sfrfr-radius);
+    background: transparent;
     box-shadow: none;
-    border-left: 4px solid var(--sfrfr-primary);
-    background: var(--sfrfr-surface);
+    border-left: none;
+    border-radius: 0;
   }
 
   .sfrfr-form-block .sfrfr-lead-channel,
@@ -2503,7 +2495,6 @@ body.bvi-active .sfrfr-bvi-float {
     grid-column: 1;
     grid-row: 5;
     align-self: center;
-    margin-top: 0.85rem !important;
   }
 
   .sfrfr-form-block .wpforms-submit-container {
@@ -2511,7 +2502,6 @@ body.bvi-active .sfrfr-bvi-float {
     grid-row: 5;
     justify-self: end;
     align-self: center;
-    margin-top: 0.85rem !important;
   }
 }
 
@@ -2616,7 +2606,7 @@ body.bvi-active .sfrfr-bvi-float {
 
 .sfrfr-form-block .sfrfr-lead-consent,
 .sfrfr-form-block .wpforms-field-checkbox {
-  margin: 0 !important;
+    margin: 0 !important;
   padding: 0.35rem 0 !important;
   background: none;
   box-shadow: none;
@@ -2635,7 +2625,7 @@ body.bvi-active .sfrfr-bvi-float {
   font-size: 1rem !important;
   border-radius: 10px !important;
   padding: 0.55rem 1.2rem !important;
-  width: auto !important;
+    width: auto !important;
   white-space: nowrap;
 }
 
