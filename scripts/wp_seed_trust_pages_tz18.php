@@ -163,6 +163,8 @@ function sfrfr_trust_upsert_page(array $args): int
     update_post_meta($id, '_rank_math_description', $args['seo_description']);
     update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
     update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    update_post_meta($id, '_sfrfr_seo_title', $args['seo_title']);
+    update_post_meta($id, '_sfrfr_seo_description', $args['seo_description']);
     if (!empty($args['noindex'])) {
         update_post_meta($id, '_rank_math_robots', ['noindex']);
         update_post_meta($id, '_yoast_wpseo_meta-robots-noindex', '1');

@@ -121,6 +121,7 @@ function sfrfr_blog_upsert_post(array $args): int
     update_post_meta($id, '_rank_math_description', $args['seo_description']);
     update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
     update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    update_post_meta($id, '_sfrfr_seo_title', $args['seo_title']);
     update_post_meta($id, '_sfrfr_seo_description', $args['seo_description']);
     delete_post_meta($id, '_sfrfr_noindex');
     return $id;

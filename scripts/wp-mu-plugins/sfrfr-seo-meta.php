@@ -61,6 +61,8 @@ add_action('send_headers', static function (): void {
 
 /**
  * Короткие document title для ключевых страниц (подготовка к быстрым ссылкам Яндекса).
+ * Rank Math / тема могут задавать title через pre_get_document_title — тогда
+ * document_title_parts не вызывается; читаем те же meta, что пишет сид.
  *
  * @param array<string, string> $parts
  * @return array<string, string>
@@ -83,9 +85,8 @@ add_filter('document_title_parts', static function (array $parts): array {
         $parts['title'] = 'Статьи';
     } elseif (is_singular()) {
         $postId = get_queried_object_id();
-        // Rank Math head снят MU-плагином — title берём из тех же meta, что пишет сид.
         $fromMeta = '';
-        foreach (['_sfrfr_seo_title', '_rank_math_title', '_yoast_wpseo_title'] as $metaKey) {
+        foreach (['_rank_math_title', '_yoast_wpseo_title', '_sfrfr_seo_title'] as $metaKey) {
             $saved = trim(wp_check_invalid_utf8((string) get_post_meta($postId, $metaKey, true), true));
             if ($saved !== '') {
                 $fromMeta = $saved;
@@ -106,6 +107,30 @@ add_filter('document_title_parts', static function (array $parts): array {
     }
     return $parts;
 }, 20);
+
+add_filter('pre_get_document_title', static function ($title) {
+    if (is_admin() || is_front_page() || !is_singular()) {
+        return is_string($title) ? $title : '';
+    }
+    $postId = (int) get_queried_object_id();
+    $fromMeta = '';
+    foreach (['_rank_math_title', '_yoast_wpseo_title', '_sfrfr_seo_title'] as $metaKey) {
+        $saved = trim(wp_check_invalid_utf8((string) get_post_meta($postId, $metaKey, true), true));
+        if ($saved !== '') {
+            $fromMeta = $saved;
+            break;
+        }
+    }
+    if ($fromMeta === '') {
+        return is_string($title) ? $title : '';
+    }
+    // Не режем по str_contains(site): SEO-title услуги начинается с «Проверка стажа».
+    $site = trim(wp_check_invalid_utf8((string) get_bloginfo('name', 'display'), true));
+    if ($site !== '' && $fromMeta !== $site) {
+        return $fromMeta . ' — ' . $site;
+    }
+    return $fromMeta;
+}, 9999);
 
 /**
  * Единый URL главной: /glavnaya/ → /.

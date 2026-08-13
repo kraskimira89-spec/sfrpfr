@@ -14,7 +14,7 @@ $pages = [
     'kak-rabotaem' => 'Как это работает',
     'otzyvy' => 'Отзывы',
     'kontakty' => 'Контакты',
-    'proverka-stazha' => 'Проверка стажа',
+    'proverka-stazha' => 'Проверка стажа, а не калькулятор пенсии',
     'blog' => 'Статьи',
 ];
 
@@ -38,11 +38,10 @@ foreach ($pages as $slug => $title) {
         }
         $changed = true;
     }
-    foreach (['_sfrfr_seo_title', '_rank_math_title', '_yoast_wpseo_title'] as $metaKey) {
-        if ((string) get_post_meta($id, $metaKey, true) !== $title) {
-            update_post_meta($id, $metaKey, $title);
-            $changed = true;
-        }
+    // Короткие sitelink-имена — только во вспомогательном meta; Rank Math не перетираем.
+    if ((string) get_post_meta($id, '_sfrfr_seo_title', true) !== $title) {
+        update_post_meta($id, '_sfrfr_seo_title', $title);
+        $changed = true;
     }
     if ($changed) {
         $updated++;
