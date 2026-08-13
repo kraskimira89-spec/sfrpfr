@@ -959,7 +959,8 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
 }
 
 .sfrfr-otzyvy-form-card,
-.sfrfr-otzyvy-yandex-card {
+.sfrfr-otzyvy-yandex-card,
+.sfrfr-otzyvy-message {
   background: var(--sfrfr-surface);
   border-radius: var(--sfrfr-radius);
   box-shadow: var(--sfrfr-shadow);
@@ -969,8 +970,32 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
 
 .sfrfr-otzyvy-form-card h2,
 .sfrfr-otzyvy-yandex-card h2,
-.sfrfr-otzyvy-published h2 {
+.sfrfr-otzyvy-published h2,
+.sfrfr-otzyvy-message h2 {
   margin-top: 0;
+}
+
+.sfrfr-otzyvy-anketa-card {
+  border-left-color: #3d6ea5;
+}
+
+.sfrfr-otzyvy-form-frame-wrap {
+  margin-top: 0.75rem;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #d7e0db;
+  background: #fff;
+}
+
+.sfrfr-otzyvy-form-frame {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  border: 0;
+}
+
+.sfrfr-otzyvy-message {
+  margin-top: 1.5rem;
 }
 
 .sfrfr-site-review-form {
