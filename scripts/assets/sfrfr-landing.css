@@ -2548,7 +2548,7 @@ body.bvi-active .sfrfr-bvi-float {
 
 .sfrfr-form-block .sfrfr-lead-channel .sfrfr-smartcaptcha-widget,
 .sfrfr-form-block .wpforms-field-radio .sfrfr-smartcaptcha-widget {
-  margin-top: auto !important;
+  margin-top: 0.55rem !important;
 }
 
 .sfrfr-form-block .wpforms-field-hp,
@@ -2564,7 +2564,7 @@ body.bvi-active .sfrfr-bvi-float {
       "name channel"
       "email channel"
       "phone channel"
-      "consent submit";
+      ". submit";
     column-gap: 1.15rem;
     row-gap: 0;
     align-items: stretch;
@@ -2595,17 +2595,11 @@ body.bvi-active .sfrfr-bvi-float {
     grid-area: channel;
   }
 
-  .sfrfr-form-block .sfrfr-lead-consent,
-  .sfrfr-form-block .wpforms-field-checkbox {
-    grid-area: consent;
-    align-self: center;
-  }
-
   .sfrfr-form-block .wpforms-submit-container {
     grid-area: submit;
     justify-self: end;
-    align-self: center;
-    padding-top: 0.75rem !important;
+    align-self: start;
+    padding-top: 0.65rem !important;
   }
 }
 
@@ -2618,7 +2612,7 @@ body.bvi-active .sfrfr-bvi-float {
       "email email"
       "phone phone"
       "channel channel"
-      "consent submit";
+      ". submit";
   }
 
   .sfrfr-form-block .wpforms-head-container {
@@ -2643,12 +2637,6 @@ body.bvi-active .sfrfr-bvi-float {
   .sfrfr-form-block .sfrfr-lead-channel,
   .sfrfr-form-block .wpforms-field-radio {
     grid-area: channel;
-  }
-
-  .sfrfr-form-block .sfrfr-lead-consent,
-  .sfrfr-form-block .wpforms-field-checkbox {
-    grid-area: consent;
-    align-self: center;
   }
 
   .sfrfr-form-block .wpforms-submit-container {
@@ -2731,13 +2719,19 @@ body.bvi-active .sfrfr-bvi-float {
 .sfrfr-form-block .wpforms-field-checkbox {
   margin: 0 !important;
   padding: 0.45rem 0.7rem !important;
-  background: var(--sfrfr-surface);
-  border-radius: 10px;
-  box-shadow: var(--sfrfr-shadow);
-  border-left: 4px solid var(--sfrfr-primary);
-  max-width: 22.5rem;
-  width: fit-content;
-  justify-self: start;
+}
+
+.sfrfr-form-block .sfrfr-lead-channel .sfrfr-lead-consent,
+.sfrfr-form-block .sfrfr-lead-channel .wpforms-field-checkbox,
+.sfrfr-form-block .wpforms-field-radio .sfrfr-lead-consent,
+.sfrfr-form-block .wpforms-field-radio .wpforms-field-checkbox {
+  background: none;
+  box-shadow: none;
+  border: none;
+  max-width: none;
+  width: 100%;
+  padding: 0.55rem 0 0 !important;
+  margin-top: auto !important;
 }
 
 .sfrfr-form-block .sfrfr-lead-consent .wpforms-field-description {

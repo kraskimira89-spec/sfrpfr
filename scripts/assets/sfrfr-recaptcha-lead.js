@@ -57,10 +57,16 @@
     var channel =
       form.querySelector(".sfrfr-lead-channel") ||
       form.querySelector(".wpforms-field-radio");
+    var consent =
+      form.querySelector(".sfrfr-lead-consent") ||
+      form.querySelector(".wpforms-field-checkbox");
     var submit = form.querySelector(".wpforms-submit-container");
     if (channel) {
       if (box.parentNode !== channel) {
         channel.appendChild(box);
+      }
+      if (consent && consent.parentNode !== channel) {
+        channel.appendChild(consent);
       }
     } else if (submit && submit.parentNode) {
       submit.parentNode.insertBefore(box, submit);
@@ -146,17 +152,37 @@
     });
   }
 
-  function mountYandex() {
-    if (!CLIENT_KEY) return;
+  function moveConsentIntoChannel() {
     document.querySelectorAll("form.wpforms-form").forEach(function (form) {
-      ensureYandexWidget(form);
-      ensureTokenInput(form);
+      var channel =
+        form.querySelector(".sfrfr-lead-channel") ||
+        form.querySelector(".wpforms-field-radio");
+      var consent =
+        form.querySelector(".sfrfr-lead-consent") ||
+        form.querySelector(".wpforms-field-checkbox");
+      if (channel && consent && consent.parentNode !== channel) {
+        channel.appendChild(consent);
+      }
     });
-    loadYandex(renderYandexWidgets);
+  }
+
+  function mountYandex() {
+    document.querySelectorAll("form.wpforms-form").forEach(function (form) {
+      if (CLIENT_KEY) {
+        ensureYandexWidget(form);
+        ensureTokenInput(form);
+      } else {
+        moveConsentIntoChannel();
+      }
+    });
+    if (CLIENT_KEY) {
+      loadYandex(renderYandexWidgets);
+    }
   }
 
   function bootLeadForm() {
     linkConsentLabel();
+    moveConsentIntoChannel();
     mountYandex();
   }
 
