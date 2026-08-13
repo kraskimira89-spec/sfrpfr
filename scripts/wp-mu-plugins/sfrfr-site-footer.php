@@ -149,7 +149,12 @@ add_action('wp_footer', static function (): void {
     $max = esc_url(sfrfr_site_footer_max_url());
     $bvi = sfrfr_site_footer_bvi_html();
     echo '<div class="sfrfr-edge-floats" role="navigation" aria-label="Быстрые действия">';
-    echo '<a class="sfrfr-max-float" href="' . $max . '" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="max_chat_click">Чат MAX</a>';
+    echo '<a class="sfrfr-max-float" href="' . $max . '" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="max_chat_click" aria-label="Чат MAX">';
+    echo '<svg class="sfrfr-max-float__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">';
+    echo '<path fill="currentColor" d="M19.1 2.6H4.9A3.3 3.3 0 0 0 1.6 5.9v8.4A3.3 3.3 0 0 0 4.9 17.6h2.05v3.2c0 .9 1.04 1.4 1.72.84l4.7-3.94h5.73a3.3 3.3 0 0 0 3.3-3.3V5.9a3.3 3.3 0 0 0-3.3-3.3z"/>';
+    echo '</svg>';
+    echo '<span>Чат MAX</span>';
+    echo '</a>';
     if ($bvi !== '') {
         echo '<div class="sfrfr-bvi-float">' . $bvi . '</div>';
     }

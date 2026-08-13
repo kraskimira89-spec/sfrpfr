@@ -818,6 +818,116 @@ body.page-template-default {
   font: inherit;
 }
 
+.sfrfr-review-card {
+  border-radius: 14px !important;
+  padding: 1rem 1.1rem 1.1rem !important;
+  margin: 0 0 1.1rem !important;
+  border: 1px solid transparent !important;
+}
+
+.sfrfr-review-card--helped {
+  background: #eef6f1;
+  border-color: #c5ddd0 !important;
+}
+
+.sfrfr-review-card--clarity {
+  background: #eef3fa;
+  border-color: #c7d6ea !important;
+}
+
+.sfrfr-review-card--convenient {
+  background: #f7f1e8;
+  border-color: #e2d3bc !important;
+}
+
+.sfrfr-review-card--improve {
+  background: #f4f4f6;
+  border-color: #d8d8de !important;
+}
+
+.sfrfr-review-card--consent {
+  background: #f3faf6;
+  border-color: #9ec3b0 !important;
+}
+
+.sfrfr-review-options {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sfrfr-review-option {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0 !important;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.sfrfr-review-option input {
+  margin-top: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.sfrfr-review-consent {
+  display: flex !important;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0 !important;
+  line-height: 1.45;
+}
+
+.sfrfr-review-consent input {
+  margin-top: 0.25rem;
+}
+
+.sfrfr-review-captcha-box {
+  min-height: 1.5rem;
+}
+
+.sfrfr-home-reviews {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.sfrfr-home-reviews__badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.1rem;
+}
+
+.sfrfr-home-reviews__quotes {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sfrfr-home-reviews__quote {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #f3faf6;
+  border: 1px solid #c5ddd0;
+}
+
+.sfrfr-home-reviews__quote p {
+  margin: 0 0 0.45rem;
+  line-height: 1.45;
+}
+
+.sfrfr-home-reviews__quote footer {
+  color: #5a6b63;
+  font-size: 0.92rem;
+}
+
+.sfrfr-home-reviews__empty {
+  margin: 0;
+  color: #5a6b63;
+}
+
 .sfrfr-muted {
   color: #666;
   font-weight: 400;
@@ -1945,11 +2055,13 @@ html.sfrfr-awards-lightbox-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.35rem;
   max-width: 1.65rem;
   width: 1.65rem;
   padding: 0.7rem 0.18rem;
   border-radius: 6px 0 0 6px;
-  background: var(--sfrfr-primary, #1e4e79);
+  /* Брендбук MAX: голубая комета → синий гигант → пурпурная туманность */
+  background: linear-gradient(180deg, #00bfff 0%, #471aff 48%, #9500ff 100%);
   color: #ffffff !important;
   font-family: var(--sfrfr-font, Manrope, sans-serif);
   font-size: 0.7rem;
@@ -1957,12 +2069,19 @@ html.sfrfr-awards-lightbox-open {
   letter-spacing: 0.03em;
   line-height: 1.1;
   text-decoration: none !important;
-  box-shadow: -2px 2px 10px rgba(16, 42, 67, 0.16);
+  box-shadow: -2px 2px 10px rgba(71, 26, 255, 0.28);
+}
+
+.sfrfr-max-float__icon {
+  width: 0.92rem;
+  height: 0.92rem;
+  flex-shrink: 0;
+  transform: rotate(90deg);
 }
 
 .sfrfr-max-float:hover,
 .sfrfr-max-float:focus-visible {
-  background: #163a5a;
+  background: linear-gradient(180deg, #33ccff 0%, #6e1aff 48%, #a833ff 100%);
   color: #ffffff !important;
   outline: none;
 }
