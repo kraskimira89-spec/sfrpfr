@@ -792,6 +792,37 @@ body.page-template-default {
   font-weight: 600;
 }
 
+.sfrfr-review-form fieldset {
+  border: 0;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.sfrfr-review-form legend {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.sfrfr-review-form label {
+  display: block;
+  margin: 0.35rem 0;
+  line-height: 1.4;
+}
+
+.sfrfr-review-form textarea {
+  width: 100%;
+  max-width: 40rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cfd8d3;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.sfrfr-muted {
+  color: #666;
+  font-weight: 400;
+}
+
 .sfrfr-steps {
   display: grid;
   gap: clamp(0.75rem, 2vw, 1rem);

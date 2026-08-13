@@ -60,9 +60,11 @@ def test_soft_review_ask_message_is_optional_and_once() -> None:
     )
     assert "необязательно" in text.lower() or "не хотите" in text.lower()
     assert "больше не будем напоминать" in text.lower()
+    assert "кнопкам" in text.lower() or "черновик" in text.lower()
     assert "5 звёзд" not in text.lower()
     assert "скидк" not in text.lower()
-    assert "https://yandex.ru/sprav/82469923047/reviews/add/" in text
+    # URL публикации — в кнопках MAX, не обязательно в тексте
+    assert "https://yandex.ru/sprav/82469923047/reviews/add/" not in text
 
     skipped = maybe_send_soft_review_ask(
         case_id="11111111-2222-3333-4444-555555555555",

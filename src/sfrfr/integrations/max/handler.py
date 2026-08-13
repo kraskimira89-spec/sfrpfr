@@ -1704,6 +1704,21 @@ def handle_max_update(
     if intake_result is not None:
         return intake_result
 
+    if callback.startswith("review:"):
+        from sfrfr.integrations.max.review_flow import handle_review_callback
+
+        review = handle_review_callback(user_id=user_id, payload=callback)
+        if review is not None:
+            text = str(review.get("text") or "")
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=text,
+                attachments=review.get("attachments"),
+            )
+            return MaxHandleResult(ok=True, action="review_flow", reply=text)
+
     if lower in {CALL_OPERATOR_LABEL.lower(), "позвать специалиста", "оператор"}:
         return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store)
 

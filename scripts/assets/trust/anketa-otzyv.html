@@ -1,0 +1,185 @@
+<!-- wp:html -->
+<div class="sfrfr-landing" id="sfrfr-review-anketa" data-api-base="https://api.proverkastaza.ru">
+  <section class="sfrfr-section">
+    <div class="sfrfr-wrap">
+      <h1>Сформулировать отзыв</h1>
+      <p class="sfrfr-section__lead">
+        Ответьте на три коротких вопроса — мы соберём черновик текста.
+        Публикуете вы сами на Яндексе. Оценка звёздами — на ваш выбор.
+        Не указывайте СНИЛС, паспорт и суммы пенсии.
+      </p>
+
+      <form id="sfrfr-review-form" class="sfrfr-review-form">
+        <fieldset data-qid="helped">
+          <legend>Чем мы помогли?</legend>
+          <label><input type="radio" name="helped" value="ils_labor" required> Сверили трудовую с выпиской ИЛС</label>
+          <label><input type="radio" name="helped" value="plan"> Подготовили план / проект обращения</label>
+          <label><input type="radio" name="helped" value="word"> Перенесли трудовую в таблицу</label>
+          <label><input type="radio" name="helped" value="docs"> Помогли разобраться с документами</label>
+          <label><input type="radio" name="helped" value="other"> Другое</label>
+        </fieldset>
+
+        <fieldset data-qid="clarity">
+          <legend>Было ли понятно и спокойно общаться?</legend>
+          <label><input type="radio" name="clarity" value="yes" required> Да</label>
+          <label><input type="radio" name="clarity" value="mostly"> В целом да</label>
+          <label><input type="radio" name="clarity" value="hard"> Местами сложно</label>
+        </fieldset>
+
+        <fieldset data-qid="convenient">
+          <legend>Что было удобнее всего?</legend>
+          <label><input type="radio" name="convenient" value="max" required> Личный чат MAX</label>
+          <label><input type="radio" name="convenient" value="cabinet"> Личный кабинет</label>
+          <label><input type="radio" name="convenient" value="speed"> Сроки ответа</label>
+          <label><input type="radio" name="convenient" value="steps"> Понятные шаги</label>
+          <label><input type="radio" name="convenient" value="none"> Пока ничего из этого</label>
+        </fieldset>
+
+        <p>
+          <label for="sfrfr-review-improve">Что улучшить? <span class="sfrfr-muted">(необязательно)</span></label>
+          <textarea id="sfrfr-review-improve" name="improve" rows="2" maxlength="400" placeholder="Одно предложение"></textarea>
+        </p>
+
+        <div id="sfrfr-review-captcha" class="smart-captcha" style="margin:1rem 0"></div>
+
+        <p class="sfrfr-cta-row">
+          <button type="submit" class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-review-submit">Собрать черновик</button>
+        </p>
+        <p id="sfrfr-review-error" class="sfrfr-note" hidden></p>
+      </form>
+
+      <div id="sfrfr-review-result" hidden>
+        <h2>Черновик отзыва</h2>
+        <p class="sfrfr-note">Черновик по вашим ответам — можете править перед публикацией.</p>
+        <textarea id="sfrfr-review-draft" rows="6" maxlength="1200"></textarea>
+        <p class="sfrfr-cta-row" style="margin-top:1rem">
+          <button type="button" class="sfrfr-btn sfrfr-btn--ghost" id="sfrfr-review-copy">Скопировать</button>
+          <a class="sfrfr-btn sfrfr-btn--primary" id="sfrfr-review-publish" href="/otzyv/" target="_blank" rel="noopener noreferrer">Публиковать отзыв</a>
+        </p>
+        <p class="sfrfr-note">Откроется форма Яндекса — вставьте текст (Ctrl+V) и отправьте. Решение о пенсии принимает только СФР.</p>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  var root = document.getElementById("sfrfr-review-anketa");
+  if (!root) return;
+  var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
+  var form = document.getElementById("sfrfr-review-form");
+  var err = document.getElementById("sfrfr-review-error");
+  var result = document.getElementById("sfrfr-review-result");
+  var draftEl = document.getElementById("sfrfr-review-draft");
+  var sitekey = (
+    window.SFRFR_SMARTCAPTCHA_SITEKEY ||
+    (window.SFRFR_SMARTCAPTCHA && window.SFRFR_SMARTCAPTCHA.clientKey) ||
+    ""
+  ).trim();
+  var captchaWidgetId = null;
+
+  function showError(msg) {
+    err.hidden = !msg;
+    err.textContent = msg || "";
+  }
+
+  function collectAnswers() {
+    var answers = {};
+    ["helped", "clarity", "convenient"].forEach(function (name) {
+      var el = form.querySelector('input[name="' + name + '"]:checked');
+      if (el) answers[name] = el.value;
+    });
+    return answers;
+  }
+
+  function captchaToken() {
+    if (!sitekey || !window.smartCaptcha) return "";
+    try {
+      if (captchaWidgetId !== null) {
+        return window.smartCaptcha.getResponse(captchaWidgetId) || "";
+      }
+      return window.smartCaptcha.getResponse() || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function renderCaptcha() {
+    var box = document.getElementById("sfrfr-review-captcha");
+    if (!sitekey || !box || !window.smartCaptcha) return;
+    try {
+      captchaWidgetId = window.smartCaptcha.render(box, { sitekey: sitekey });
+    } catch (e) {}
+  }
+
+  if (sitekey) {
+    if (window.smartCaptcha) {
+      renderCaptcha();
+    } else {
+      var s = document.createElement("script");
+      s.src = "https://smartcaptcha.yandexcloud.net/captcha.js";
+      s.async = true;
+      s.onload = renderCaptcha;
+      document.head.appendChild(s);
+    }
+  }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    showError("");
+    var answers = collectAnswers();
+    if (Object.keys(answers).length < 3) {
+      showError("Ответьте на все обязательные вопросы.");
+      return;
+    }
+    var btn = document.getElementById("sfrfr-review-submit");
+    btn.disabled = true;
+    fetch(apiBase + "/api/public/review-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        answers: answers,
+        improve: (document.getElementById("sfrfr-review-improve").value || "").trim(),
+        smartcaptcha_token: captchaToken() || null
+      })
+    })
+      .then(function (r) {
+        return r.json().then(function (body) {
+          return { ok: r.ok, status: r.status, body: body };
+        });
+      })
+      .then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) {
+          showError("Не удалось собрать черновик. Попробуйте ещё раз или откройте форму отзыва напрямую.");
+          return;
+        }
+        draftEl.value = (res.body && res.body.draft) || "";
+        result.hidden = false;
+        result.scrollIntoView({ behavior: "smooth", block: "start" });
+      })
+      .catch(function () {
+        btn.disabled = false;
+        showError("Сеть недоступна. Откройте форму отзыва: /otzyv/");
+      });
+  });
+
+  document.getElementById("sfrfr-review-copy").addEventListener("click", function () {
+    var text = draftEl.value || "";
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      draftEl.select();
+      document.execCommand("copy");
+    }
+  });
+
+  document.getElementById("sfrfr-review-publish").addEventListener("click", function () {
+    var text = draftEl.value || "";
+    if (text && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+  });
+})();
+</script>
+<!-- /wp:html -->

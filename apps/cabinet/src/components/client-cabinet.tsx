@@ -2085,6 +2085,32 @@ export function ClientCabinet() {
           <p className="status-line">
             {humanCaseStatus(detail.pipeline_status, detail.b2c_status)}
           </p>
+          {(detail.pipeline_status || "").toLowerCase() === "completed" ? (
+            <div className="panel accent" style={{ marginTop: "0.75rem" }}>
+              <p>
+                Если захотите — можно сформулировать короткий отзыв о нашей работе
+                (необязательно). Публикуете вы сами на Яндексе.
+              </p>
+              <p style={{ marginTop: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                <a
+                  className="button-link"
+                  href="https://proverkastaza.ru/anketa-otzyv/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Сформулировать отзыв
+                </a>
+                <a
+                  className="button-link"
+                  href="https://proverkastaza.ru/otzyv/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Сразу форма Яндекса
+                </a>
+              </p>
+            </div>
+          ) : null}
           <p className="now-need">
             Сейчас нужно: <strong>{home.nowNeed}</strong>
           </p>

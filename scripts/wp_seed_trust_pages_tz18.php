@@ -69,6 +69,14 @@ $pages = [
         'seo_description' => 'Порядок работы сервиса «Проверка стажа»: заявка, документы, диагностика, план и самостоятельная подача в СФР.',
     ],
     [
+        'slug' => 'anketa-otzyv',
+        'title' => 'Сформулировать отзыв',
+        'file' => 'anketa-otzyv.html',
+        'seo_title' => 'Сформулировать отзыв о сервисе',
+        'seo_description' => 'Короткая анкета: соберём черновик отзыва. Публикуете вы сами на Яндекс Картах. Без обещания перерасчёта.',
+        'noindex' => true,
+    ],
+    [
         'slug' => 'expert/lopakova-nataliya',
         'title' => 'Лопакова Наталия Федоровна',
         'file' => 'expert-lopakova.html',
@@ -148,6 +156,10 @@ function sfrfr_trust_upsert_page(array $args): int
     update_post_meta($id, '_rank_math_description', $args['seo_description']);
     update_post_meta($id, '_yoast_wpseo_title', $args['seo_title']);
     update_post_meta($id, '_yoast_wpseo_metadesc', $args['seo_description']);
+    if (!empty($args['noindex'])) {
+        update_post_meta($id, '_rank_math_robots', ['noindex']);
+        update_post_meta($id, '_yoast_wpseo_meta-robots-noindex', '1');
+    }
     return $id;
 }
 
@@ -160,6 +172,7 @@ foreach ($pages as $page) {
         'content' => $content,
         'seo_title' => $page['seo_title'],
         'seo_description' => $page['seo_description'],
+        'noindex' => !empty($page['noindex']),
     ]);
     $created[$page['slug']] = $id;
     echo "PAGE {$page['slug']}={$id}\n";

@@ -165,10 +165,32 @@ add_action('wp_enqueue_scripts', function () {
         wp_enqueue_script('sfrfr-utm-attr', $utm_url, [], $utm_ver, true);
     }
 
+    $client_key = sfrfr_captcha_client_key();
+    if ($client_key === '') {
+        return;
+    }
+
+    // Анкета отзыва: SmartCaptcha без WPForms.
+    if (is_page('anketa-otzyv')) {
+        wp_enqueue_script(
+            'yandex-smartcaptcha',
+            'https://smartcaptcha.yandexcloud.net/captcha.js',
+            [],
+            null,
+            true
+        );
+        wp_add_inline_script(
+            'yandex-smartcaptcha',
+            'window.SFRFR_SMARTCAPTCHA_SITEKEY=' . wp_json_encode($client_key) . ';'
+            . 'window.SFRFR_SMARTCAPTCHA=' . wp_json_encode(['clientKey' => $client_key]) . ';',
+            'before'
+        );
+        return;
+    }
+
     if (!is_front_page()) {
         return;
     }
-    $client_key = sfrfr_captcha_client_key();
     $mu_js = WPMU_PLUGIN_DIR . '/sfrfr-recaptcha-lead.js';
     $src_js = '/opt/sfrfr/scripts/assets/sfrfr-recaptcha-lead.js';
     $url = '';

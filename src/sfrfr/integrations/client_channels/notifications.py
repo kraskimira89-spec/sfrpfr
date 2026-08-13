@@ -114,18 +114,12 @@ def format_soft_review_ask_message(*, review_url: str | None = None) -> str:
     """
     Мягкая просьба об отзыве после завершённой услуги (ТЗ-19).
     Без давления, без «поставьте 5», без серии напоминаний.
+    Кнопки: MAX review_flow.soft_ask_attachments().
     """
-    settings = get_settings()
-    url = (review_url or settings.yandex_business_review_url or "").strip()
-    if not url:
-        url = "https://proverkastaza.ru/otzyv/"
-    return (
-        "Спасибо, что обратились в «Проверку стажа».\n\n"
-        "Если захотите и будет удобно — можно оставить короткий отзыв "
-        "о нашей работе (необязательно):\n"
-        f"{url}\n\n"
-        "Если не хотите — ничего писать не нужно. Больше не будем напоминать."
-    )
+    from sfrfr.integrations.max.review_flow import format_soft_ask_with_flow
+
+    _ = review_url  # URL в кнопках; текст общий
+    return format_soft_ask_with_flow()
 
 
 def _review_ask_already_sent(case_id: str) -> bool:
@@ -194,9 +188,14 @@ def maybe_send_soft_review_ask(
     }
     try:
         from sfrfr.integrations.max.client import MaxBotClient
+        from sfrfr.integrations.max.review_flow import soft_ask_attachments
 
         bot = MaxBotClient()
-        send = bot.send_message(text=text, user_id=str(max_user_id))
+        send = bot.send_message(
+            text=text,
+            user_id=str(max_user_id),
+            attachments=soft_ask_attachments(),
+        )
         result["max_sent"] = not send.get("skipped")
         result["max_response"] = send
         if result["max_sent"]:
