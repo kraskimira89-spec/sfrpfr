@@ -5,6 +5,7 @@ Research: [../research-seo-problem-clusters-wordstat-2026-08.md](../research-seo
 
 ## Шаги
 
+0. **Через MCP (если подключён `yandex-wordstat` в Cursor):** спросить агента частоты по фразам из CSV — быстрее ручного кабинета. Ops: [../../ops/yandex-wordstat-mcp.md](../../ops/yandex-wordstat-mcp.md).
 1. Открыть https://wordstat.yandex.ru/ (аккаунт Яндекса).
 2. Регион: **Россия** → для каждой строки CSV колонка `query` снять «Частотность».
 3. Вкладка «Похожие» — новые head-фразы добавить в CSV отдельной строкой (тот же `cluster`).
