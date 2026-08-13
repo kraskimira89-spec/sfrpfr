@@ -976,6 +976,14 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
   height: 100%;
 }
 
+.sfrfr-otzyvy-card-lead {
+  flex: 1 1 auto;
+  margin: 0 0 0.45rem !important;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: #3d4a44;
+}
+
 .sfrfr-otzyvy-layout .sfrfr-cta-row {
   margin-top: auto;
   margin-bottom: 0;
