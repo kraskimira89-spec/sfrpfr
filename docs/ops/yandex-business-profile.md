@@ -113,7 +113,8 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 3. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
 4. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
 5. Ответы компании: `review-reply-templates.md`.
-6. Если клиент спрашивает «что написать?» — лёгкие вопросы: `scripts/assets/yandex-business/review-prompt-questions.md`.
+6. Если клиент спрашивает «что написать?» — форма-помощник: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
+   (вопросы: `scripts/assets/yandex-business/review-prompt-questions.md`).
 
 Кабинет промо: https://yandex.ru/sprav/82469923047/p/edit/promo/
 

@@ -5,7 +5,8 @@
 
 **Вопросы-источник:** `scripts/assets/yandex-business/review-prompt-questions.md`  
 **Создание через API (нужен 360):** `python scripts/create_yandex_form_review_prompts.py`  
-**Статус API:** без `YANDEX_FORMS_ORG_ID` + OAuth с `forms:write` форма из репо **не** создаётся автоматически (ответ API: «Требуется организация»).
+**Статус API:** форма создана 2026-08-13 (`survey_id=6a7db97670ad3712589c7456`).  
+Публичная ссылка: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/
 
 ---
 
@@ -60,8 +61,10 @@ https://yandex.ru/sprav/82469923047/reviews/add/
 
 | Поле | Значение |
 |------|----------|
-| URL формы | _вставить после публикации_ |
-| Дата | |
+| URL формы | https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/ |
+| survey_id | `6a7db97670ad3712589c7456` |
+| Org ID | `8541157` |
+| Дата | 2026-08-13 |
 | Где используем | MAX (если клиент спросил «что написать?»), контакты — по желанию |
 
 ---
