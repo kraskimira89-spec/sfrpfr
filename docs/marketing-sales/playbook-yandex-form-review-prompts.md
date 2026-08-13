@@ -8,9 +8,9 @@
 **Статус API:** форма создана 2026-08-13 (`survey_id=6a7db97670ad3712589c7456`).  
 Публичная ссылка помощника: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 
-**Основной UX (MVP):** https://proverkastaza.ru/anketa-otzyv/ (+ MAX кнопки, кабинет после completed) —  
-[`research-review-ai-draft-flow-2026-08.md`](research-review-ai-draft-flow-2026-08.md).  
-**Эта форма** — временный запасной канал без ИИ; в CTA и soft-ask не продвигать.
+**Основной UX:** https://proverkastaza.ru/otzyvy/ — вопросы → ИИ-черновик → согласование на сайт и/или Яндекс.  
+Алиас анкеты: `/anketa-otzyv/`.  
+**Эта Яндекс Форма** — запасная шпаргалка без ИИ (ссылка на странице отзывов).
 
 ---
 
