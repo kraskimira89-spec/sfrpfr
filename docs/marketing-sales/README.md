@@ -19,6 +19,7 @@
 - [Тест Ноябрьск × север × Директ](research-test-noyabrsk-north-direct-2026-08.md) — одностраничный план (бюджет TBD).
 - [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
 - [SEO: запросы «калькулятор/расчёт пенсии/стаж»](research-seo-pension-queries-2026-08.md) — кластеры, интенты, внедрение ключей без фейкового калькулятора выплат.
+- [SEO: 7 проблемных кластеров Wordstat](research-seo-problem-clusters-wordstat-2026-08.md) — не учли ИЛС, до 2002, архив, север, отказ, СЗИ-ИЛС, перед пенсией; маппинг URL/Title/H1/CTA; [CSV](reports/wordstat-7-clusters-template.csv), [playbook частот](reports/playbook-wordstat-7-clusters.md).
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md), [карточка Яндекс Бизнес](playbook-yandex-business-card.md), [Яндекс Форма к отзыву](playbook-yandex-form-review-prompts.md).
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.

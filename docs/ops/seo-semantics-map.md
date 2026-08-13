@@ -1,7 +1,7 @@
 # Карта семантики SEO (ТЗ-18, этап 4)
 
 **Дата:** 2026-08-13  
-**Связано:** [seo-url-decision-map.md](seo-url-decision-map.md), [ТЗ-18](../specs/18-seo-strategy-and-implementation.md), [research калькуляторных запросов](../marketing-sales/research-seo-pension-queries-2026-08.md)
+**Связано:** [seo-url-decision-map.md](seo-url-decision-map.md), [ТЗ-18](../specs/18-seo-strategy-and-implementation.md), [research калькулятор](../marketing-sales/research-seo-pension-queries-2026-08.md), [research 7 проблемных кластеров](../marketing-sales/research-seo-problem-clusters-wordstat-2026-08.md)
 
 Формат строки: кластер → URL → интент → CTA → статус → обновлено.
 
@@ -31,6 +31,20 @@
 | Север | `/blog/severnyy-stazh-i-rayonnyy-koefficient/` | север / коэффициент | сверка | live | 2026-08 |
 | FAQ | `/blog/chastye-voprosy-o-proverke-stazha/` | общие вопросы | MAX | live+keys | 2026-08-13 |
 | Услуга vs калькулятор СФР | `/proverka-stazha/` + блок на FAQ/ИЛС | «пенсионный калькулятор / расчёт пенсии» | официальный калькулятор СФР + наша сверка | keys | 2026-08-13 |
+
+## 7 проблемных кластеров (Wordstat PDF, mapped 2026-08-13)
+
+| Кластер | URL live | Candidate PDF | Интент | CTA | Статус | Обновлено |
+|---|---|---|---|---|---|---|
+| Не учли / пропал стаж в ИЛС | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | `/ne-uchli-stazh/` | проблемный | разобрать / услуга | mapped; gap commercial | 2026-08-13 |
+| Стаж до 2002 | неучтённый + архив | `/stazh-do-2002/` | проблемный | чек-лист | mapped; **gap** page | 2026-08-13 |
+| Архивная справка | `/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/` | `/arhivnaya-spravka-stazh/` | транзакционный | чек-лист | mapped | 2026-08-13 |
+| Северный стаж / перерасчёт | `/proverka-severnogo-stazha/` + blog север | `/severnyj-stazh/` | высокая ценность | разобрать | mapped | 2026-08-13 |
+| Отказ СФР | `/blog/otkaz-sfr-chto-proverit-v-dokumentah/` | `/otkaz-sfr/` | горячий | разобрать | mapped; gap commercial | 2026-08-13 |
+| Выписка СЗИ-ИЛС | заказ + чтение ИЛС (blog) | `/proverka-ils/` | инфо / диагностика | сверить ИЛС | mapped | 2026-08-13 |
+| Перед назначением пенсии | `/proverka-stazha-pered-pensiey/` | — | диагностика | разобрать | mapped | 2026-08-13 |
+
+Таблица запросов Title/H1/CTA: [research-seo-problem-clusters-wordstat-2026-08.md](../marketing-sales/research-seo-problem-clusters-wordstat-2026-08.md). Частоты Wordstat — TBD ([CSV](../marketing-sales/reports/wordstat-7-clusters-template.csv)).
 
 ## Решение по интенту «калькулятор»
 
