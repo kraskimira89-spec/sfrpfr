@@ -770,10 +770,24 @@ body.page-template-default {
   display: inline-flex;
   margin-top: 0.75rem;
   font-size: 0.95rem;
+  color: var(--sfrfr-primary);
+  font-weight: 600;
 }
 
 .sfrfr-max-guide__more {
   align-self: center;
+  color: var(--sfrfr-primary);
+  font-weight: 600;
+}
+
+.sfrfr-max-guide__links {
+  margin: 0.85rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #444;
+}
+
+.sfrfr-max-guide__links a {
   color: var(--sfrfr-primary);
   font-weight: 600;
 }
