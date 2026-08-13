@@ -1,7 +1,8 @@
 # Вопросы клиенту для лёгкого отзыва (Яндекс Бизнес)
 
 **Форма отзыва (Карты):** https://yandex.ru/sprav/82469923047/reviews/add/  
-**Яндекс Форма-помощник:** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
+**Ведущая короткая ссылка:** https://proverkastaza.ru/otzyv/ → сразу открывает форму отзыва  
+**Яндекс Форма-помощник (вопросы):** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 Playbook: [`docs/marketing-sales/playbook-yandex-form-review-prompts.md`](../../../docs/marketing-sales/playbook-yandex-form-review-prompts.md)
 
 **Когда давать:** только если клиент спросил «что написать?» или сам готов, но «не знает с чего начать».  

@@ -1,6 +1,8 @@
 # Шаблоны просьбы об отзыве (MAX) — мягкий тон
 
-**Ссылка на форму:** https://yandex.ru/sprav/82469923047/reviews/add/  
+**Ссылка на форму:** https://proverkastaza.ru/otzyv/  
+(редирект на https://yandex.ru/sprav/82469923047/reviews/add/)  
+**Помощник с вопросами:** https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 **QR:** `scripts/assets/yandex-business/promo/qr-review.png` (и `assets/qr.png`)  
 **Визитка / буклет для печати:** `promo/card.pdf`, `promo/booklet.pdf`  
 Источник правил: https://direct.yandex.ru/base/articles/kak-pravilno-motivirovat-klientov-ostavlyat-otzyvy
@@ -28,7 +30,7 @@
 Спасибо, что обратились в «Проверку стажа».
 
 Если захотите и будет удобно — можно оставить короткий отзыв о нашей работе (необязательно):
-https://yandex.ru/sprav/82469923047/reviews/add/
+https://proverkastaza.ru/otzyv/
 
 Если не хотите — ничего писать не нужно. Больше не будем напоминать.
 ```
@@ -39,7 +41,7 @@ https://yandex.ru/sprav/82469923047/reviews/add/
 
 ```text
 Если будет минута и желание — отзыв о сервисе можно оставить здесь (по желанию):
-https://yandex.ru/sprav/82469923047/reviews/add/
+https://proverkastaza.ru/otzyv/
 ```
 
 ---

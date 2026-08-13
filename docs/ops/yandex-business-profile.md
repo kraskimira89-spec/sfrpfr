@@ -108,13 +108,12 @@ scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-
 
 Полная инструкция: [yandex-business-reviews.md](yandex-business-reviews.md) · ТЗ-19.
 
-1. Форма: https://yandex.ru/sprav/82469923047/reviews/add/ · QR/визитка/буклет в `scripts/assets/yandex-business/promo/` (исходники также в `docs/brand/`).
+1. Форма отзыва: https://proverkastaza.ru/otzyv/ (ведёт на Sprav `…/reviews/add/`).  
 2. Бейдж рейтинга на сайте: iframe `https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating` — `/kontakty/` и футер.
 3. Просьба только реальным клиентам, мягкие шаблоны: `review-request-templates.md`.
 4. Без оплаты/бонуса; напоминание не раньше 3 дней и не чаще одного раза.
 5. Ответы компании: `review-reply-templates.md`.
-6. Если клиент спрашивает «что написать?» — форма-помощник: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
-   (вопросы: `scripts/assets/yandex-business/review-prompt-questions.md`).
+6. Если клиент спрашивает «что написать?» — помощник: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
 
 Кабинет промо: https://yandex.ru/sprav/82469923047/p/edit/promo/
 

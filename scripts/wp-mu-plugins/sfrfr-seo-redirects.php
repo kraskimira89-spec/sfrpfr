@@ -78,6 +78,13 @@ add_action('template_redirect', static function (): void {
     if ($path === '') {
         return;
     }
+
+    // Ведущая короткая ссылка на форму отзыва Яндекс Бизнес / Карты.
+    if ($path === '/otzyv') {
+        wp_redirect('https://yandex.ru/sprav/82469923047/reviews/add/', 302);
+        exit;
+    }
+
     $map = sfrfr_seo_thin_redirect_map();
     if (!isset($map[$path])) {
         return;
