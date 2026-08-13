@@ -47,25 +47,31 @@
 
   /* ---------- Yandex SmartCaptcha ---------- */
   function ensureYandexWidget(form) {
-    var existing = form.querySelector(".sfrfr-smartcaptcha-widget");
-    if (existing) return existing;
-    var box = document.createElement("div");
-    box.className = "sfrfr-smartcaptcha-widget smart-captcha";
-    box.setAttribute("data-sitekey", CLIENT_KEY);
-    box.style.height = "100px";
-    box.style.margin = "0.75rem 0";
-    var channel =
-      form.querySelector(".sfrfr-lead-channel") ||
-      form.querySelector(".wpforms-field-radio");
-    if (channel) {
-      channel.appendChild(box);
-    } else {
-      var submit = form.querySelector(".wpforms-submit-container");
-      if (submit && submit.parentNode) {
-        submit.parentNode.insertBefore(box, submit);
-      } else {
-        form.appendChild(box);
+    var box = form.querySelector(".sfrfr-smartcaptcha-widget");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "sfrfr-smartcaptcha-widget smart-captcha";
+      box.setAttribute("data-sitekey", CLIENT_KEY);
+      box.style.height = "100px";
+    }
+    // Под блоком ФИО/почта/телефон (не внутри канала) — баланс с СОПД справа.
+    var phone =
+      form.querySelector(".sfrfr-lead-phone") ||
+      form.querySelector(".wpforms-field-text:not(.sfrfr-recaptcha-token)");
+    var consent =
+      form.querySelector(".sfrfr-lead-consent") ||
+      form.querySelector(".wpforms-field-checkbox");
+    var submit = form.querySelector(".wpforms-submit-container");
+    if (phone && phone.parentNode) {
+      if (box.previousElementSibling !== phone) {
+        phone.parentNode.insertBefore(box, phone.nextSibling);
       }
+    } else if (consent && consent.parentNode) {
+      consent.parentNode.insertBefore(box, consent);
+    } else if (submit && submit.parentNode) {
+      submit.parentNode.insertBefore(box, submit);
+    } else {
+      form.appendChild(box);
     }
     return box;
   }

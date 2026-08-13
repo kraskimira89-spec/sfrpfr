@@ -2356,7 +2356,7 @@ body.bvi-active .sfrfr-bvi-float {
   display: none !important;
 }
 
-/* WPForms: карточка контактов | канал+капча; под ними согласие и кнопка в ряд */
+/* WPForms: карточка контактов+капча | канал+СОПД; кнопка справа внизу */
 .sfrfr-form-block .wpforms-container {
   margin: 0 !important;
 }
@@ -2450,15 +2450,16 @@ body.bvi-active .sfrfr-bvi-float {
 }
 
 .sfrfr-form-block .sfrfr-smartcaptcha-widget {
-  margin: 0.85rem 0 0 !important;
+  margin: 0.35rem 0 0 !important;
   min-height: 100px;
+  max-width: 100%;
 }
 
 @media (min-width: 720px) {
   .sfrfr-form-block form.wpforms-form {
     grid-template-columns: 1fr 1fr;
     column-gap: 1.15rem;
-    row-gap: 0.35rem;
+    row-gap: 0.55rem;
   }
 
   .sfrfr-form-block form.wpforms-form::before {
@@ -2487,21 +2488,29 @@ body.bvi-active .sfrfr-bvi-float {
   .sfrfr-form-block .sfrfr-lead-channel,
   .sfrfr-form-block .wpforms-field-radio {
     grid-column: 2;
-    grid-row: 2 / span 3;
+    grid-row: 2;
+    align-self: start;
+  }
+
+  .sfrfr-form-block .sfrfr-smartcaptcha-widget {
+    grid-column: 1;
+    grid-row: 5;
+    align-self: start;
+    margin-top: 0.15rem !important;
   }
 
   .sfrfr-form-block .sfrfr-lead-consent,
   .sfrfr-form-block .wpforms-field-checkbox {
-    grid-column: 1;
-    grid-row: 5;
-    align-self: center;
+    grid-column: 2;
+    grid-row: 3;
+    align-self: start;
   }
 
   .sfrfr-form-block .wpforms-submit-container {
     grid-column: 2;
     grid-row: 5;
     justify-self: end;
-    align-self: center;
+    align-self: end;
   }
 }
 
@@ -2517,6 +2526,7 @@ body.bvi-active .sfrfr-bvi-float {
   .sfrfr-form-block .sfrfr-lead-email,
   .sfrfr-form-block .wpforms-field-text:not(.sfrfr-recaptcha-token),
   .sfrfr-form-block .sfrfr-lead-phone,
+  .sfrfr-form-block .sfrfr-smartcaptcha-widget,
   .sfrfr-form-block .sfrfr-lead-channel,
   .sfrfr-form-block .wpforms-field-radio {
     grid-column: 1 / -1;
