@@ -6,7 +6,10 @@
 **Вопросы-источник:** `scripts/assets/yandex-business/review-prompt-questions.md`  
 **Создание через API (нужен 360):** `python scripts/create_yandex_form_review_prompts.py`  
 **Статус API:** форма создана 2026-08-13 (`survey_id=6a7db97670ad3712589c7456`).  
-Публичная ссылка: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/
+Публичная ссылка помощника: https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
+
+**Целевой UX (лучше):** анкета → ИИ-черновик → клиент копирует и публикует в Яндексе —  
+[`research-review-ai-draft-flow-2026-08.md`](research-review-ai-draft-flow-2026-08.md). Forms-помощник — временный, без ИИ.
 
 ---
 
