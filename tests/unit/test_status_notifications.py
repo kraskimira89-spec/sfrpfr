@@ -64,7 +64,7 @@ def test_soft_review_ask_message_is_optional_and_once() -> None:
     assert "5 звёзд" not in text.lower()
     assert "скидк" not in text.lower()
     # URL публикации — в кнопках MAX, не обязательно в тексте
-    assert "https://yandex.ru/maps/org/proverka_stazha/82469923047/reviews/?add-review=true" not in text
+    assert "add-review=true" not in text
 
     skipped = maybe_send_soft_review_ask(
         case_id="11111111-2222-3333-4444-555555555555",
