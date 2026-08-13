@@ -1029,5 +1029,41 @@ def yandex_mail_send(
         raise typer.Exit(code=1)
 
 
+@app.command("site-reviews-list")
+def site_reviews_list(
+    status: str = typer.Option("pending", "--status", "-s", help="pending|published|all"),
+) -> None:
+    """Очередь цитат для главной (без ПДн в выводе сверх текста цитаты)."""
+    import json
+
+    from sfrfr.core import site_reviews as sr
+
+    if status == "published":
+        items = sr.list_published(limit=50)
+    elif status == "all":
+        with sr._STORE_LOCK:  # noqa: SLF001
+            items = (sr._load().get("items") or [])[:100]  # noqa: SLF001
+    else:
+        items = sr.list_pending(limit=50)
+    payload = {"ok": True, "count": len(items), "items": items}
+    typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+@app.command("site-reviews-set")
+def site_reviews_set(
+    item_id: str = typer.Argument(..., help="UUID цитаты"),
+    status: str = typer.Option(..., "--status", "-s", help="published|rejected|pending"),
+) -> None:
+    """Опубликовать / отклонить цитату (не трогает рейтинг Яндекса)."""
+    import json
+
+    from sfrfr.core.site_reviews import set_status
+
+    result = set_status(item_id, status)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

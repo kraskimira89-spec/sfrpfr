@@ -13,10 +13,10 @@ def test_question_catalog_has_three() -> None:
 
 def test_template_draft_builds_text() -> None:
     text = template_draft(
-        {"helped": "ils_labor", "clarity": "yes", "convenient": "max"}
+        {"helped": ["ils_labor", "plan"], "clarity": "yes", "convenient": ["max", "steps"]}
     )
     assert "Проверка стажа" in text
-    assert "ИЛС" in text or "илс" in text.lower() or "сверил" in text.lower()
+    assert "илс" in text.lower() or "сверил" in text.lower() or "план" in text.lower()
 
 
 def test_build_review_draft_needs_answers() -> None:
@@ -36,7 +36,7 @@ def test_build_review_draft_ok_template_or_llm(monkeypatch) -> None:
 
     monkeypatch.setattr(llm_mod.LLMClient, "for_draft", classmethod(lambda cls, **k: Fake()))
     result = build_review_draft(
-        {"helped": "plan", "clarity": "mostly", "convenient": "steps"}
+        {"helped": ["plan"], "clarity": "mostly", "convenient": ["steps"]}
     )
     assert result["ok"] is True
     assert result["draft"]

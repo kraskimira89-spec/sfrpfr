@@ -11,6 +11,7 @@ from sfrfr.api.routes import (
     portal,
     public_leads,
     public_review_draft,
+    public_site_reviews,
     supabase_auth_email,
 )
 from sfrfr.core.config import get_settings
@@ -54,6 +55,11 @@ def create_app() -> FastAPI:
         public_review_draft.router,
         prefix="/api/public",
         tags=["public-review"],
+    )
+    app.include_router(
+        public_site_reviews.router,
+        prefix="/api/public",
+        tags=["public-reviews"],
     )
     app.include_router(
         max_webhook.router,

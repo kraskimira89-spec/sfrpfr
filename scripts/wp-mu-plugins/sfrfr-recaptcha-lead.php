@@ -170,7 +170,7 @@ add_action('wp_enqueue_scripts', function () {
         return;
     }
 
-    // Анкета отзыва: SmartCaptcha без WPForms.
+    // Анкета отзыва: SmartCaptcha без авто-класса smart-captcha (нужен data-sitekey).
     if (is_page('anketa-otzyv')) {
         wp_enqueue_script(
             'yandex-smartcaptcha',
@@ -224,6 +224,19 @@ add_action('wp_enqueue_scripts', function () {
         'before'
     );
 }, 20);
+
+add_action('wp_head', function () {
+    if (!is_page('anketa-otzyv')) {
+        return;
+    }
+    $client_key = sfrfr_captcha_client_key();
+    if ($client_key === '') {
+        return;
+    }
+    echo '<script>window.SFRFR_SMARTCAPTCHA_SITEKEY=' . wp_json_encode($client_key)
+        . ';window.SFRFR_SMARTCAPTCHA=' . wp_json_encode(['clientKey' => $client_key])
+        . ';</script>' . "\n";
+}, 4);
 
 add_action('wp_head', function () {
     if (!is_front_page()) {

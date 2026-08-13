@@ -21,11 +21,12 @@ REVIEW_DRAFT_SYSTEM = (
     "Верни только текст отзыва (2–5 предложений), без заголовка и кавычек."
 )
 
-# id → (question label, options: id → label)
+# id → (question label, options, multi)
 QUESTIONS: list[dict[str, Any]] = [
     {
         "id": "helped",
         "label": "Чем мы помогли?",
+        "multi": True,
         "options": {
             "ils_labor": "Сверили трудовую с выпиской ИЛС",
             "plan": "Подготовили план / проект обращения",
@@ -37,6 +38,7 @@ QUESTIONS: list[dict[str, Any]] = [
     {
         "id": "clarity",
         "label": "Было ли понятно и спокойно общаться?",
+        "multi": False,
         "options": {
             "yes": "Да",
             "mostly": "В целом да",
@@ -46,6 +48,7 @@ QUESTIONS: list[dict[str, Any]] = [
     {
         "id": "convenient",
         "label": "Что было удобнее всего?",
+        "multi": True,
         "options": {
             "max": "Личный чат MAX",
             "cabinet": "Личный кабинет",
@@ -65,6 +68,7 @@ def question_catalog() -> list[dict[str, Any]]:
             {
                 "id": q["id"],
                 "label": q["label"],
+                "multi": bool(q.get("multi")),
                 "options": [
                     {"id": oid, "label": olabel}
                     for oid, olabel in (q["options"] or {}).items()
@@ -74,20 +78,55 @@ def question_catalog() -> list[dict[str, Any]]:
     return out
 
 
-def _resolve_answers(raw: dict[str, str]) -> list[tuple[str, str]]:
+def _as_choice_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    text = str(value).strip()
+    if not text:
+        return []
+    if "," in text:
+        return [p.strip() for p in text.split(",") if p.strip()]
+    return [text]
+
+
+def normalize_answers(raw: dict[str, Any]) -> dict[str, list[str]]:
+    """question_id → список option_id."""
+    allowed = {str(q["id"]): q for q in QUESTIONS}
+    out: dict[str, list[str]] = {}
+    for key, value in (raw or {}).items():
+        kid = str(key).strip()[:32]
+        q = allowed.get(kid)
+        if not q:
+            continue
+        options: dict[str, str] = q["options"] or {}
+        choices: list[str] = []
+        for oid in _as_choice_list(value)[:8]:
+            if oid in options:
+                choices.append(oid)
+        if not q.get("multi"):
+            choices = choices[:1]
+        if choices:
+            out[kid] = choices
+    return out
+
+
+def _resolve_answers(raw: dict[str, Any]) -> list[tuple[str, str]]:
+    normalized = normalize_answers(raw)
     resolved: list[tuple[str, str]] = []
     for q in QUESTIONS:
         qid = str(q["id"])
-        choice = (raw.get(qid) or "").strip()
+        choices = normalized.get(qid) or []
         options: dict[str, str] = q["options"]
-        label = options.get(choice) or choice
-        if not label:
+        labels = [options[c] for c in choices if c in options]
+        if not labels:
             continue
-        resolved.append((str(q["label"]), label[:200]))
+        resolved.append((str(q["label"]), ", ".join(labels)[:400]))
     return resolved
 
 
-def template_draft(answers: dict[str, str]) -> str:
+def template_draft(answers: dict[str, Any]) -> str:
     """Детерминированный черновик без LLM (fallback)."""
     resolved = dict(_resolve_answers(answers))
     helped = resolved.get("Чем мы помогли?", "разобраться с документами по стажу")
@@ -112,7 +151,7 @@ def template_draft(answers: dict[str, str]) -> str:
 
 
 def build_review_draft(
-    answers: dict[str, str],
+    answers: dict[str, Any],
     *,
     improve: str | None = None,
 ) -> dict[str, Any]:
@@ -154,7 +193,6 @@ def build_review_draft(
         draft = template_draft(answers)
         source = "template"
 
-    # Жёсткая подчистка типичных запретов
     banned = ("поставьте 5", "ставьте пять", "гарантируем перерасчёт", "снилс")
     lower = draft.lower()
     if any(b in lower for b in banned):
