@@ -17,8 +17,15 @@ Ops: `docs/ops/max-channel-chat-id.md`
 ```text
 черновик в starter-posts.json
   → ручная вычитка
-  → sfrfr max-channel-publish-starter
+  → sfrfr max-channel-publish-starter [--only 00-pinned]
   → проверка в канале
+```
+
+Только закреп-представление:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+sfrfr max-channel-publish-starter --only 00-pinned
 ```
 
 Описание канала (`channel-description.md`) публикуется **только вручную** в настройках MAX.

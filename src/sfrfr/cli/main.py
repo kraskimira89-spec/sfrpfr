@@ -434,6 +434,11 @@ def max_channel_publish_starter(
         "--chat-id",
         help="chat_id канала; по умолчанию MAX_CHANNEL_CHAT_ID",
     ),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Опубликовать только пост(ы) по id через запятую (напр. 00-pinned)",
+    ),
 ) -> None:
     """Опубликовать закреп + 5 стартовых постов из scripts/assets/max-channel/starter-posts.json."""
     import json
@@ -453,6 +458,12 @@ def max_channel_publish_starter(
     posts = json.loads(posts_path.read_text(encoding="utf-8"))
     if not isinstance(posts, list) or not posts:
         raise typer.BadParameter("starter-posts.json пуст")
+
+    only_ids = {part.strip() for part in (only or "").split(",") if part.strip()}
+    if only_ids:
+        posts = [p for p in posts if isinstance(p, dict) and str(p.get("id") or "") in only_ids]
+        if not posts:
+            raise typer.BadParameter(f"Не найдены id: {', '.join(sorted(only_ids))}")
 
     if dry_run:
         preview = {"chat_id": target, "count": len(posts), "posts": posts}
