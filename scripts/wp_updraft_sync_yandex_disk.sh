@@ -54,13 +54,19 @@ REMOTE = os.environ["SFRFR_REMOTE_FOLDER"].rstrip("/")
 API = "https://cloud-api.yandex.net/v1/disk"
 
 
-def req(method: str, url: str, data: bytes | None = None, headers: dict | None = None):
+def req(
+    method: str,
+    url: str,
+    data: bytes | None = None,
+    headers: dict | None = None,
+    timeout: int = 120,
+):
     h = {"Authorization": f"OAuth {TOKEN}"}
     if headers:
         h.update(headers)
     request = urllib.request.Request(url, data=data, headers=h, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=120) as resp:
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
             return resp.status, resp.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read() if exc.fp else b""
@@ -68,10 +74,10 @@ def req(method: str, url: str, data: bytes | None = None, headers: dict | None =
 
 def ensure_folder(path: str) -> None:
     enc = quote(path, safe="")
-    code, _ = req("GET", f"{API}/resources?path={enc}")
+    code, _ = req("GET", f"{API}/resources?path={enc}", timeout=60)
     if code == 200:
         return
-    code, body = req("PUT", f"{API}/resources?path={enc}")
+    code, body = req("PUT", f"{API}/resources?path={enc}", timeout=60)
     if code not in (200, 201, 409):
         raise SystemExit(f"mkdir failed {path}: HTTP {code} {body[:200]!r}")
 
@@ -79,20 +85,28 @@ def ensure_folder(path: str) -> None:
 def upload(local: Path) -> None:
     remote = f"{REMOTE}/{local.name}"
     enc = quote(remote, safe="")
-    code, body = req("GET", f"{API}/resources/upload?path={enc}&overwrite=true")
+    code, body = req("GET", f"{API}/resources/upload?path={enc}&overwrite=true", timeout=60)
     if code >= 400:
-        raise SystemExit(f"href failed {local.name}: HTTP {code} {body[:200]!r}")
+        raise RuntimeError(f"href failed {local.name}: HTTP {code} {body[:200]!r}")
     import json
 
     href = (json.loads(body.decode("utf-8") or "{}") or {}).get("href")
     if not href:
-        raise SystemExit(f"no href for {local.name}")
-    data = local.read_bytes()
-    code, body = req("PUT", href, data=data, headers={"Content-Type": "application/octet-stream"})
+        raise RuntimeError(f"no href for {local.name}")
+    # крупные zip — длинный таймаут; не грузим весь файл в память повторно через read_bytes для >80MB
+    size = local.stat().st_size
+    with local.open("rb") as fh:
+        data = fh.read()
+    code, body = req(
+        "PUT",
+        href,
+        data=data,
+        headers={"Content-Type": "application/octet-stream"},
+        timeout=max(600, size // 50_000 + 120),
+    )
     if code not in (200, 201, 202):
-        raise SystemExit(f"upload failed {local.name}: HTTP {code} {body[:200]!r}")
-    print(f"OK uploaded {local.name} ({len(data)} bytes)")
-
+        raise RuntimeError(f"upload failed {local.name}: HTTP {code} {body[:200]!r}")
+    print(f"OK uploaded {local.name} ({size} bytes)")
 
 ensure_folder("disk:/SFRFR-ops")
 ensure_folder(REMOTE)
@@ -120,9 +134,18 @@ if not files:
     print("WARN: no updraft archives to sync (run a backup in UpdraftPlus first)")
     sys.exit(0)
 
+ok = 0
+failed = 0
 for f in files:
-    upload(f)
+    try:
+        upload(f)
+        ok += 1
+    except Exception as exc:  # noqa: BLE001
+        failed += 1
+        print(f"FAIL {f.name}: {exc}", file=sys.stderr)
 
-print(f"done remote={REMOTE} files={len(files)}")
+print(f"done remote={REMOTE} ok={ok} failed={failed}")
 print("NOTE: free UpdraftPlus has no native Yandex Disk; cloud path = this script")
+if failed and not ok:
+    sys.exit(1)
 PY
