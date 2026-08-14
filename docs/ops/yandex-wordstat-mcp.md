@@ -3,9 +3,11 @@
 **Дата:** 2026-08-13  
 **Назначение:** частоты / похожие / динамика / регионы Wordstat v2 из чата Cursor.
 
+Это **не** регион сайта в Яндекс Вебмастере (H2). Wordstat `regions` — распределение спроса по фразе. Регион хоста: UI Вебмастера, **Представление в поиске → Региональность**.
+
 ## Что подключено
 
-- Пакет: [`yandex-wordstat-mcp`](https://www.npmjs.com/package/yandex-wordstat-mcp) (Search API v2)
+- Пакет: [`yandex-wordstat-mcp`](https://www.npmjs.com/package/yandex-wordstat-mcp#setup) v2 (Search API, `Api-Key` + folder; не старый OAuth `YANDEX_WORDSTAT_TOKEN`)
 - Лаунчер: `scripts/mcp-yandex-wordstat.cmd` (stdio; PowerShell `.ps1` — только запасной)
 - Секреты: `secrets/wordstat.env` (в `.gitignore`)
 - Конфиг Cursor: `%USERPROFILE%\.cursor\mcp.json` → сервер `yandex-wordstat` → command на `.cmd`

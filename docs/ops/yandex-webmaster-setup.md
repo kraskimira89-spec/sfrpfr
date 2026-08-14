@@ -41,7 +41,7 @@
 | Рекомендация | Действие |
 |---|---|
 | Favicon / SVG / 120×120 | ✅ `/favicon.svg`, `/favicon-120.png` + link в `wp_head` |
-| Укажите регион сайта | **Только UI:** Информация о сайте → Регион → **Ноябрьск** (юр. адрес) или **Россия** (онлайн по всей РФ) → [Задать регион](https://webmaster.yandex.ru/site/https%3Aproverkastaza.ru%3A443/indexing/region/) |
+| Укажите регион сайта | **Только UI** (путь `/indexing/region/` даёт 404). Кабинет: [сайты](https://webmaster.yandex.ru/sites/) → `https://proverkastaza.ru` → **Представление в поиске → Региональность**. Регион: **Россия** (онлайн по РФ) или Ноябрьск. Ссылка для модерации: `https://proverkastaza.ru/kontakty/`. Справка: [региональность](https://yandex.ru/support/webmaster/ru/site-geography/site-region.html) |
 | Добавьте в Яндекс Бизнес | Профиль уже есть (`82469923047`). В Sprav: сайт = `https://proverkastaza.ru`. Затем в Вебмастере подождать перепроверки или привязать организацию. |
 | Счётчик Метрики не на всех страницах | ✅ код на всех страницах; для роботов Яндекса — без cookie-баннера |
 | Sitemap | ✅ `https://proverkastaza.ru/wp-sitemap.xml` в robots + API (`yandex_webmaster_ensure_site.py`) |
