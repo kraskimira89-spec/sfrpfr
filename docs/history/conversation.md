@@ -1,5 +1,9 @@
 # История бесед
 
+## 2026-08-14 — «Россия» в адресе контактов и футера
+
+- На `/kontakty/` и в футере к адресу добавлено «Россия». В schema по-прежнему `addressCountry: RU`.
+
 ## 2026-08-13 — аудит плагинов WP
 
 - Удалены Hello Dolly, Akismet, лишние темы. Настроены Rank Math / Wordfence / Super Cache / Updraft / BVI.

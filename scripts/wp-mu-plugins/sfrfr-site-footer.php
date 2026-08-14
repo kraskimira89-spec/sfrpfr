@@ -99,7 +99,7 @@ function sfrfr_site_footer_html(): string
         <strong>ООО «ПОД ПРИСМОТРОМ»</strong><br>
         ИНН 8905066468 · КПП 890501001 · ОГРН 1208900000572<br>
         Ген. директор: Лопакова Наталия Федоровна<br>
-        <span itemprop="postalCode">629804</span>, ЯНАО, г.&nbsp;<span itemprop="addressLocality">Ноябрьск</span>, <span itemprop="streetAddress">ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4</span>
+        <span itemprop="postalCode">629804</span>, Россия, ЯНАО, г.&nbsp;<span itemprop="addressLocality">Ноябрьск</span>, <span itemprop="streetAddress">ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4</span>
         <meta itemprop="addressCountry" content="RU">
       </p>
     </div>
