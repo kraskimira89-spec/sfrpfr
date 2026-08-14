@@ -102,6 +102,7 @@ function sfrfr_site_footer_html(): string
         <span itemprop="postalCode">629804</span>, Россия, ЯНАО, г.&nbsp;<span itemprop="addressLocality">Ноябрьск</span>, <span itemprop="streetAddress">ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4</span>
         <meta itemprop="addressCountry" content="RU">
       </p>
+      <p>Работаем дистанционно по всей России. Визит в офис не нужен.</p>
     </div>
     <div>
       <p><strong>Документы</strong></p>

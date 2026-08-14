@@ -28,7 +28,7 @@
 | Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
 | Favicon `/favicon.ico` | ✅ + `/favicon.svg`, `/favicon-120.png` |
 | Яндекс Бизнес (Sprav) | ✅ профиль `82469923047`, прайс: `docs/ops/yandex-business-profile.md` |
-| Регион сайта | ⚠️ задать в UI Вебмастера (Ноябрьск / Россия) |
+| Регион сайта | ⚠️ в UI выбрать **Россия** (юр. адрес Ноябрьск, услуга дистанционно по РФ) |
 | SEO этап 4 (семантика / спринт) | [seo-semantics-map.md](seo-semantics-map.md), [seo-sprint.md](seo-sprint.md), [seo-hypothesis-log.md](seo-hypothesis-log.md) |
 | Ручной UI-чеклист | [seo-webmaster-ui-checklist.md](seo-webmaster-ui-checklist.md) |
 
@@ -41,7 +41,7 @@
 | Рекомендация | Действие |
 |---|---|
 | Favicon / SVG / 120×120 | ✅ `/favicon.svg`, `/favicon-120.png` + link в `wp_head` |
-| Укажите регион сайта | **Только UI** (путь `/indexing/region/` даёт 404). Кабинет: [сайты](https://webmaster.yandex.ru/sites/) → `https://proverkastaza.ru` → **Представление в поиске → Региональность**. Регион: **Россия** (онлайн по РФ) или Ноябрьск. Ссылка для модерации: `https://proverkastaza.ru/kontakty/`. Справка: [региональность](https://yandex.ru/support/webmaster/ru/site-geography/site-region.html) |
+| Укажите регион сайта | **Только UI.** Кабинет: [сайты](https://webmaster.yandex.ru/sites/) → `https://proverkastaza.ru` → **Представление в поиске → Региональность**. Регион: **Россия** ([как выбрать](https://yandex.ru/support/webmaster/ru/site-geography/site-region#choose): юр. адрес в одном городе, клиенты из других регионов — на сайте должно быть подтверждение покрытия). Ссылка для модерации: `https://proverkastaza.ru/kontakty/`. Не `/indexing/region/` (404). |
 | Добавьте в Яндекс Бизнес | Профиль уже есть (`82469923047`). В Sprav: сайт = `https://proverkastaza.ru`. Затем в Вебмастере подождать перепроверки или привязать организацию. |
 | Счётчик Метрики не на всех страницах | ✅ код на всех страницах; для роботов Яндекса — без cookie-баннера |
 | Sitemap | ✅ `https://proverkastaza.ru/wp-sitemap.xml` в robots + API (`yandex_webmaster_ensure_site.py`) |
