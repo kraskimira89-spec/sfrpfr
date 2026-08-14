@@ -155,9 +155,9 @@
 
 | Этап / услуга | Файл |
 |---------------|------|
-| Диагностика | [assoc-diagnostika.md](associations/assoc-diagnostika.md) |
-| Сопровождение | [assoc-soprovozhdenie.md](associations/assoc-soprovozhdenie.md) |
-| Комплекс «Под ключ» | [assoc-pod-kluch.md](associations/assoc-pod-kluch.md) |
+| Диагностика (шаг 1) | [assoc-diagnostika.md](associations/assoc-diagnostika.md) |
+| Подготовка документов / сопровождение (шаги 2–3) | [assoc-soprovozhdenie.md](associations/assoc-soprovozhdenie.md) |
+| Сопровождение до подачи (шаг 3; бывш. «Под ключ») | [assoc-pod-kluch.md](associations/assoc-pod-kluch.md) |
 | Северный стаж | [assoc-severnyy-stazh.md](associations/assoc-severnyy-stazh.md) |
 | Личный кабинет | [assoc-kabinet.md](associations/assoc-kabinet.md) |
 | Семейная цифровая помощь | [assoc-family-digital-support.md](associations/assoc-family-digital-support.md) |

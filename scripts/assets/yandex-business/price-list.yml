@@ -5,7 +5,7 @@
   Источник тарифов: https://proverkastaza.ru/tarify/
   Без телефонов и ПДн в текстах; без гарантий перерасчёта.
 -->
-<yml_catalog date="2026-08-10 21:10">
+<yml_catalog date="2026-08-14 21:00">
   <shop>
     <name>Проверка стажа</name>
     <company>ООО ПОД ПРИСМОТРОМ</company>
@@ -17,32 +17,32 @@
       <category id="1">Проверка стажа</category>
     </categories>
     <offers>
-      <offer id="diag-3000" available="true">
-        <name>Диагностика проверки стажа</name>
+      <offer id="step1-diag-3000" available="true">
+        <name>Шаг 1. Диагностика проверки стажа</name>
         <vendor>Проверка стажа</vendor>
         <url>https://proverkastaza.ru/tarify/</url>
         <price>3000</price>
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
-        <description>Проверка документов и выписки ИЛС; первичный план и чек-лист. Перенос рукописной трудовой в таблицу Word — отдельно: 100 ₽ за разворот. Сервис не является СФР: решение о перерасчёте принимает Социальный фонд России. Условия закрепляются в соглашении.</description>
+        <description>Проверка документов и выписки ИЛС; первичный план и чек-лист. Оплата поэтапная — следующий шаг только если нужен. Перенос рукописной трудовой в таблицу Word — отдельно: 100 ₽ за разворот. Сервис не является СФР: решение о перерасчёте принимает Социальный фонд России. Условия закрепляются в соглашении.</description>
       </offer>
-      <offer id="support-10000" available="true">
-        <name>Сопровождение по документам и этапам</name>
+      <offer id="step2-docs-5000" available="true">
+        <name>Шаг 2. Подготовка документов</name>
         <vendor>Проверка стажа</vendor>
         <url>https://proverkastaza.ru/tarify/</url>
-        <price>10000</price>
+        <price>5000</price>
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
-        <description>Подготовка документов, черновики обращений и контроль этапов. Подаёте через СФР, МФЦ или Госуслуги сами. Перенос трудовой в Word при заказе — 100 ₽ за разворот. Без обещания перерасчёта. Решение принимает СФР.</description>
+        <description>Сборка комплекта под ситуацию, черновики запросов и пояснений, список чего добрать. Оплачивается отдельно после диагностики. Подаёте через СФР, МФЦ или Госуслуги сами. Перенос трудовой в Word при заказе — 100 ₽ за разворот. Без обещания перерасчёта. Решение принимает СФР.</description>
       </offer>
-      <offer id="turnkey-25000" available="true">
-        <name>Комплекс Под ключ: диагностика и сопровождение</name>
+      <offer id="step3-support-8000" available="true">
+        <name>Шаг 3. Сопровождение до подачи</name>
         <vendor>Проверка стажа</vendor>
-        <url>https://proverkastaza.ru/proverka-stazha/</url>
-        <price>25000</price>
+        <url>https://proverkastaza.ru/tarify/</url>
+        <price>8000</price>
         <currencyId>RUB</currencyId>
         <categoryId>1</categoryId>
-        <description>Диагностика плюс сопровождение по документам и этапам до подачи в СФР. Фиксированная цена по соглашению. Перенос трудовой в Word при заказе — 100 ₽ за разворот. Сервис не заменяет СФР и не гарантирует перерасчёт.</description>
+        <description>Проект обращения, пошаговый план и подсказки по подаче через СФР, МФЦ или Госуслуги; контроль известных сроков до вашей подачи. Оплачивается отдельно. Перенос трудовой в Word при заказе — 100 ₽ за разворот. Сервис не заменяет СФР и не гарантирует перерасчёт.</description>
       </offer>
       <offer id="trudovaya-word-100" available="true">
         <name>Перенос трудовой в таблицу Word (за разворот)</name>
