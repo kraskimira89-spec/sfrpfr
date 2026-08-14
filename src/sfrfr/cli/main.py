@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import typer
 
 from sfrfr.models.case_status import CaseStatus, status_label_ru
@@ -411,7 +413,6 @@ def max_channel_review(
     """Отправить черновик(и) в канал специалистов на одобрение (не в клиентский канал)."""
     import json
     import time
-    from pathlib import Path as _Path
 
     from sfrfr.core.config import get_settings
     from sfrfr.integrations.max.channel_review import create_and_send_review
@@ -419,7 +420,7 @@ def max_channel_review(
     settings = get_settings()
     if not (settings.max_specialists_channel_chat_id or "").strip():
         raise typer.BadParameter("Задайте MAX_SPECIALISTS_CHANNEL_CHAT_ID")
-    posts_path = file or _Path("scripts/assets/max-channel/starter-posts.json")
+    posts_path = file or Path("scripts/assets/max-channel/starter-posts.json")
     if not posts_path.is_file():
         raise typer.BadParameter(f"Нет файла {posts_path}")
     posts = json.loads(posts_path.read_text(encoding="utf-8"))
@@ -598,7 +599,13 @@ def max_channel_publish_starter(
                 )
             )
             time.sleep(0.7)
-        typer.echo(json.dumps({"mode": "review", "reviewed": results}, ensure_ascii=False, indent=2))
+        typer.echo(
+            json.dumps(
+                {"mode": "review", "reviewed": results},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
 
     target = (chat_id or settings.max_channel_chat_id or "").strip()

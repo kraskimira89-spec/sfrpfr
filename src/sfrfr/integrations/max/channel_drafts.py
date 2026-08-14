@@ -6,7 +6,7 @@ import json
 import threading
 import uuid
 from dataclasses import asdict, dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -35,7 +35,7 @@ class ChannelDraft:
     waiting_edit_user_ids: list[str] = field(default_factory=list)
 
     def touch(self) -> None:
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
 
 def default_drafts_path() -> Path:
@@ -91,7 +91,7 @@ class ChannelDraftStore:
         if not body:
             raise ValueError("empty draft text")
         with self._lock:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             did = (draft_id or "").strip() or uuid.uuid4().hex[:10]
             draft = ChannelDraft(
                 id=did,
