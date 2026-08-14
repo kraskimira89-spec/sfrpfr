@@ -37,14 +37,14 @@
 | Кластер | URL live | Candidate PDF | Интент | CTA | Статус | Обновлено |
 |---|---|---|---|---|---|---|
 | Не учли / пропал стаж в ИЛС | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | `/ne-uchli-stazh/` | проблемный | разобрать / услуга | mapped; gap commercial | 2026-08-13 |
-| Стаж до 2002 | неучтённый + архив | `/stazh-do-2002/` | проблемный | чек-лист | mapped; **gap** page | 2026-08-13 |
+| Стаж до 2002 | `/stazh-do-2002/` | `/stazh-do-2002/` | проблемный | чек-лист | **live** trust | 2026-08-14 |
 | Архивная справка | `/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/` | `/arhivnaya-spravka-stazh/` | транзакционный | чек-лист | mapped | 2026-08-13 |
 | Северный стаж / перерасчёт | `/proverka-severnogo-stazha/` + blog север | `/severnyj-stazh/` | высокая ценность | разобрать | mapped | 2026-08-13 |
 | Отказ СФР | `/blog/otkaz-sfr-chto-proverit-v-dokumentah/` | `/otkaz-sfr/` | горячий | разобрать | mapped; gap commercial | 2026-08-13 |
 | Выписка СЗИ-ИЛС | заказ + чтение ИЛС (blog) | `/proverka-ils/` | инфо / диагностика | сверить ИЛС | mapped | 2026-08-13 |
 | Перед назначением пенсии | `/proverka-stazha-pered-pensiey/` | — | диагностика | разобрать | mapped | 2026-08-13 |
 
-Таблица запросов Title/H1/CTA: [research-seo-problem-clusters-wordstat-2026-08.md](../marketing-sales/research-seo-problem-clusters-wordstat-2026-08.md). Частоты Wordstat — TBD ([CSV](../marketing-sales/reports/wordstat-7-clusters-template.csv)).
+Таблица запросов Title/H1/CTA: [research-seo-problem-clusters-wordstat-2026-08.md](../marketing-sales/research-seo-problem-clusters-wordstat-2026-08.md). Частоты: [CSV](../marketing-sales/reports/wordstat-7-clusters-template.csv), добор 3–7 — [2026-08-14](../marketing-sales/reports/wordstat-3-7-tbd-2026-08-14.md).
 
 ## Решение по интенту «калькулятор»
 

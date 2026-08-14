@@ -2,12 +2,13 @@
 """Выгрузка частот Яндекс Wordstat (Search API v2) для CSV 7 кластеров.
 
 Env (первый найденный файл, плюс .env):
+  secrets/wordstat.env
   secrets/yandex-wordstat.env
   secrets/yandexAI_studio.env
   .env
 
 Переменные:
-  YANDEX_WORDSTAT_API_KEY или YANDEX_API_KEY  (Api-Key AI Studio)
+  YANDEX_WORDSTAT_API_KEY / YANDEX_SEARCH_API_KEY / YANDEX_API_KEY
   YANDEX_WORDSTAT_FOLDER_ID или YANDEX_FOLDER_ID
 
 Usage:
@@ -45,6 +46,7 @@ GEO_REGIONS: dict[str, str] = {
 
 def load_dotenv() -> None:
     for rel in (
+        "secrets/wordstat.env",
         "secrets/yandex-wordstat.env",
         "secrets/yandexAI_studio.env",
         ".env",
@@ -65,6 +67,7 @@ def load_dotenv() -> None:
 def creds() -> tuple[str, str]:
     key = (
         os.environ.get("YANDEX_WORDSTAT_API_KEY", "").strip()
+        or os.environ.get("YANDEX_SEARCH_API_KEY", "").strip()
         or os.environ.get("YANDEX_API_KEY", "").strip()
     )
     folder = (
@@ -73,8 +76,8 @@ def creds() -> tuple[str, str]:
     )
     if not key or not folder:
         raise SystemExit(
-            "Нужны YANDEX_API_KEY + YANDEX_FOLDER_ID "
-            "(secrets/yandexAI_studio.env или secrets/yandex-wordstat.env)"
+            "Нужны YANDEX_WORDSTAT_API_KEY (или YANDEX_SEARCH_API_KEY) + YANDEX_FOLDER_ID "
+            "(secrets/wordstat.env или secrets/yandex-wordstat.env)"
         )
     return key, folder
 

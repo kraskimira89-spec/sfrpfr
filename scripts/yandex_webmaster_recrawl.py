@@ -25,17 +25,19 @@ API = "https://api.webmaster.yandex.net/v4"
 DEFAULT_URLS = (
     "https://proverkastaza.ru/",
     "https://proverkastaza.ru/proverka-stazha/",
+    "https://proverkastaza.ru/proverka-stazha-pered-pensiey/",
+    "https://proverkastaza.ru/proverka-severnogo-stazha/",
     "https://proverkastaza.ru/tarify/",
     "https://proverkastaza.ru/kak-rabotaem/",
     "https://proverkastaza.ru/kontakty/",
     "https://proverkastaza.ru/blog/",
     "https://proverkastaza.ru/wp-sitemap.xml",
-    "https://proverkastaza.ru/oferta/",
-    "https://proverkastaza.ru/politika-pdn/",
-    "https://proverkastaza.ru/cookies/",
     "https://proverkastaza.ru/blog/kak-zakazat-vypisku-ils/",
-    "https://proverkastaza.ru/blog/kak-sverit-trudovuyu-s-vypiskoy-ils/",
-    "https://proverkastaza.ru/blog/chto-delat-esli-period-ne-voshel-v-stazh/",
+    "https://proverkastaza.ru/blog/kak-proverit-stazh-v-vypiske-ils/",
+    "https://proverkastaza.ru/blog/kak-sverit-trudovuyu-knizhku-i-ils/",
+    "https://proverkastaza.ru/blog/chto-delat-esli-period-raboty-ne-uchten/",
+    "https://proverkastaza.ru/blog/chastye-voprosy-o-proverke-stazha/",
+    "https://proverkastaza.ru/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/",
 )
 
 

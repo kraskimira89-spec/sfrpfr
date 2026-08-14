@@ -48,6 +48,13 @@ $pages = [
         'seo_description' => 'Как помочь родителю с проверкой стажа и ИЛС: порядок действий, согласие и безопасная загрузка документов в кабинет.',
     ],
     [
+        'slug' => 'stazh-do-2002',
+        'title' => 'Как подтвердить стаж до 2002 года',
+        'file' => 'stazh-do-2002.html',
+        'seo_title' => 'Как подтвердить стаж до 2002 года',
+        'seo_description' => 'Страховой стаж до 2002: сверка ИЛС, трудовой и справок. Готовим чек-лист и план обращения — подаёте вы сами, решение принимает СФР. Это не калькулятор стажа.',
+    ],
+    [
         'slug' => 'tarify',
         'title' => 'Тарифы',
         'file' => 'tarify.html',
@@ -321,6 +328,24 @@ if ($menu) {
             ]);
             echo "MENU {$title} under Эксперты\n";
         }
+    }
+
+    $uslugiParentId = 0;
+    foreach ($items as $item) {
+        if ((string) $item->title === 'Услуги' && (int) ($item->menu_item_parent ?? 0) === 0) {
+            $uslugiParentId = (int) $item->ID;
+            break;
+        }
+    }
+    if ($uslugiParentId > 0 && !isset($titles['Стаж до 2002'])) {
+        wp_update_nav_menu_item($menuId, 0, [
+            'menu-item-title' => 'Стаж до 2002',
+            'menu-item-url' => home_url('/stazh-do-2002/'),
+            'menu-item-status' => 'publish',
+            'menu-item-type' => 'custom',
+            'menu-item-parent-id' => $uslugiParentId,
+        ]);
+        echo "MENU Стаж до 2002 under Услуги\n";
     }
 
     // Порядок верхнего уровня: … Услуги → Отзывы → Статьи → …

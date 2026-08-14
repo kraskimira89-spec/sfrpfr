@@ -107,6 +107,7 @@ function sfrfr_site_footer_html(): string
       <p><strong>Документы</strong></p>
       <p class="sfrfr-legal-links">
         <a href="{$home}proverka-stazha/">Услуга</a><br>
+        <a href="{$home}stazh-do-2002/">Стаж до 2002</a><br>
         <a href="{$home}tarify/">Тарифы</a><br>
         <a href="{$home}kak-rabotaem/">Как мы работаем</a><br>
         <a href="{$home}otzyvy/">Отзывы</a><br>

@@ -18,6 +18,7 @@
 | Навигационная цепочка (BreadcrumbList) | ✅ JSON-LD + видимые крошки на страницах/статьях |
 | Главное зеркало HTTPS без www (301) | ✅ Apache |
 | Recrawl после сида / вручную | ✅ `scripts/yandex_webmaster_recrawl.py` |
+| Популярные запросы (H3/H5) | ✅ `scripts/yandex_webmaster_search_queries.py`; съём 2026-08-14: 1 запрос, 0 по калькулятору |
 | Summary / host loaded | ✅ `data_status=OK`; **смотрите хост без www** |
 | Страницы в поиске (apex) | ⏳ `searchable_pages_count=8` (04.08.2026); в sitemap **39** URL — лаг индексации |
 | Обход по счётчикам Метрики | ⚠️ UI: ещё нужно включить (`NO_METRIKA_COUNTER_CRAWL_ENABLED=PRESENT`, 05.08.2026) |
