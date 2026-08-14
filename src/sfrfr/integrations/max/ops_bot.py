@@ -34,7 +34,7 @@ def _ops_welcome_text() -> str:
         "Сюда приходят:",
         "• новые заявки с сайта;",
         "• запросы на вход сотрудников в кабинет;",
-        "• черновики постов клиентского канала (одобрить / править).",
+        "• черновики постов клиентского канала (одобрить / скопировать текст).",
         "",
         "Можете задать вопрос по процессу или стажу — ответит ИИ с опорой на базу знаний.",
         "В канале команды: упомяните бота или напишите /ask …",
@@ -128,49 +128,27 @@ def _handle_channel_draft_callback(
         )
         return MaxHandleResult(ok=True, action="chdraft_published", detail=draft_id)
 
-    # edit
-    store.mark_waiting_edit(draft_id, user_id)
+    # edit — кнопка снята с новых черновиков; старые нажатия гасим подсказкой
     if cb_id:
         try:
             bot.answer_callback(
                 cb_id,
-                notification="Скопируйте текст кнопкой ниже и вставьте в поле",
+                notification="Кнопка убрана — используйте «Скопировать текст»",
             )
         except Exception:  # noqa: BLE001
             pass
-    # Только clipboard + напоминание (полная клавиатура уже на исходном черновике)
-    clip_only = [
-        {
-            "type": "inline_keyboard",
-            "payload": {
-                "buttons": [
-                    [
-                        {
-                            "type": "clipboard",
-                            "text": "Скопировать текст в буфер",
-                            "payload": draft.text
-                            if len(draft.text.encode("utf-8")) <= 4000
-                            else draft.text[:3500] + "\n…",
-                        }
-                    ]
-                ]
-            },
-        }
-    ]
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
         text=(
-            f"Редактирование черновика `{draft.id}`.\n\n"
-            "1) Нажмите «Скопировать текст в буфер».\n"
-            "2) Вставьте в поле сообщения (вставить / Ctrl+V).\n"
-            "3) Поправьте текст и отправьте сюда.\n\n"
-            "После отправки пришлём обновлённый черновик с кнопкой «Опубликовать»."
+            f"Кнопка «Редактировать» отключена (черновик `{draft_id}`).\n"
+            "Нажмите «Скопировать текст» на сообщении черновика, "
+            "поправьте локально и пришлите новый черновик:\n"
+            "`sfrfr max-channel-post --review -t \"…\"`"
         ),
-        attachments=clip_only,
     )
-    return MaxHandleResult(ok=True, action="chdraft_edit_wait", detail=draft_id)
+    return MaxHandleResult(ok=True, action="chdraft_edit_removed", detail=draft_id)
 
 
 def _handle_channel_draft_edit_message(

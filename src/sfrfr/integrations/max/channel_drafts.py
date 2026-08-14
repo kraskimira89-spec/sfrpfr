@@ -232,7 +232,7 @@ def parse_draft_callback(payload: str) -> tuple[str, str] | None:
 
 
 def review_keyboard(draft: ChannelDraft) -> list[dict[str, Any]]:
-    """Кнопки: Опубликовать | Скопировать текст | Редактировать."""
+    """Кнопки: Опубликовать | Скопировать текст."""
     text_for_clip = draft.text
     if len(text_for_clip.encode("utf-8")) > 4000:
         text_for_clip = text_for_clip[:3500] + "\n…"
@@ -250,13 +250,6 @@ def review_keyboard(draft: ChannelDraft) -> list[dict[str, Any]]:
                 "type": "clipboard",
                 "text": "Скопировать текст",
                 "payload": text_for_clip,
-            }
-        ],
-        [
-            {
-                "type": "callback",
-                "text": "Редактировать",
-                "payload": edit_payload(draft.id),
             }
         ],
     ]
@@ -281,9 +274,9 @@ def format_review_message(draft: ChannelDraft) -> str:
     lines.extend(
         [
             "«Опубликовать» — сразу в канал клиентов.",
-            "«Скопировать текст» / «Редактировать» — текст в буфер; "
-            "вставьте в поле сообщения, поправьте и отправьте сюда. "
-            "Пришлём обновлённый черновик на повторное одобрение.",
+            "«Скопировать текст» — в буфер; при необходимости поправьте "
+            "и пришлите новый черновик командой "
+            "`sfrfr max-channel-post --review -t \"…\"`.",
         ]
     )
     return "\n".join(lines)

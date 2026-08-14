@@ -53,7 +53,7 @@ def test_parse_and_keyboard() -> None:
     buttons = kb[0]["payload"]["buttons"]
     assert buttons[0][0]["text"] == "Опубликовать"
     assert buttons[1][0]["type"] == "clipboard"
-    assert buttons[2][0]["text"] == "Редактировать"
+    assert len(buttons) == 2
     msg = format_review_message(draft)
     assert "07-no-calc" in msg
     assert "Текст поста" in msg
@@ -132,7 +132,7 @@ def test_publish_callback(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_edit_callback_sets_waiting(monkeypatch) -> None:
+def test_edit_callback_removed(monkeypatch) -> None:
     path = _draft_path()
     reset_draft_store(path)
     get_draft_store(path).create(text="Правка", draft_id="e2")
@@ -149,9 +149,6 @@ def test_edit_callback_sets_waiting(monkeypatch) -> None:
         "message": {"recipient": {"chat_id": -777}},
     }
     result = handle_ops_update(update, bot=bot)
-    assert result.action == "chdraft_edit_wait"
-    draft = get_draft_store().get("e2")
-    assert draft is not None
-    assert "9" in draft.waiting_edit_user_ids
-    assert any("Скопировать" in (m.get("text") or "") for m in bot.sent)
+    assert result.action == "chdraft_edit_removed"
+    assert any("отключена" in (m.get("text") or "") for m in bot.sent)
     get_settings.cache_clear()
