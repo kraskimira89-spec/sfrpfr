@@ -132,3 +132,60 @@ def max_channel_ids(
         "max_channel_chat_id": settings.max_channel_chat_id or None,
         "discovered": list_known(),
     }
+
+
+def _ops_auth_ok(
+    *,
+    authorization: str | None,
+    x_ops_token: str | None,
+    x_max_bot_api_secret: str | None,
+) -> bool:
+    settings = get_settings()
+    ops = (settings.ops_monitor_token or "").strip()
+    secret = (settings.max_webhook_secret or "").strip()
+    bot = (settings.max_bot_token or "").strip()
+    ops_bot = (settings.max_ops_bot_token or "").strip()
+    auth = (authorization or "").strip()
+    if auth.lower().startswith("bearer "):
+        auth = auth[7:].strip()
+    if ops and x_ops_token == ops:
+        return True
+    if secret and x_max_bot_api_secret == secret:
+        return True
+    if bot and auth == bot:
+        return True
+    if ops_bot and auth == ops_bot:
+        return True
+    return False
+
+
+@router.post("/channel-drafts")
+def upsert_channel_draft(
+    body: dict[str, Any],
+    authorization: str | None = Header(default=None),
+    x_ops_token: str | None = Header(default=None, alias="X-Ops-Token"),
+    x_max_bot_api_secret: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Сохранить черновик на VPS (чтобы кнопка Опубликовать находила его в webhook)."""
+    if not _ops_auth_ok(
+        authorization=authorization,
+        x_ops_token=x_ops_token,
+        x_max_bot_api_secret=x_max_bot_api_secret,
+    ):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    from sfrfr.integrations.max.channel_drafts import get_draft_store
+
+    text = str(body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+    draft_id = str(body.get("id") or body.get("draft_id") or "").strip() or None
+    draft = get_draft_store().create(
+        text=text,
+        cta_label=str(body.get("cta_label") or ""),
+        cta_kind=str(body.get("cta_kind") or ""),
+        cta_url=str(body.get("cta_url") or ""),
+        pin=bool(body.get("pin")),
+        source_id=str(body.get("source_id") or ""),
+        draft_id=draft_id,
+    )
+    return {"ok": True, "draft_id": draft.id, "status": draft.status}

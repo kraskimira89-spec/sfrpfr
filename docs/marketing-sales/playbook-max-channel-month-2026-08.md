@@ -4,7 +4,7 @@
 **Период:** с **15.08** (завтра) по **09.09**, ритм ~через день  
 **Объём:** 12 постов  
 **Сегодня 14.08:** повтор закрепа `00` + стартовая пятёрка `01–05` каждые 2 часа (с блоком про кнопку).  
-**Публикация:** черновик → `sfrfr max-channel-publish-starter --only <id>` (по умолчанию в канал специалистов) → кнопки **Опубликовать** / **Скопировать текст** → канал клиентов. Прямой `--direct` — только осознанно. Автопубликация пакетом запрещена. См. [`docs/ops/max-channel-review.md`](../ops/max-channel-review.md).
+**Публикация:** черновик → личка ops-бота → **Опубликовать** / правка в том же чате → канал клиентов. См. [`docs/ops/max-channel-review.md`](../ops/max-channel-review.md). `--direct` — только осознанно. Автопубликация пакетом запрещена.
 
 Канон: [`submission-position.md`](../../scripts/assets/copy/submission-position.md), [`no-calculator-no-recalculation.md`](../../scripts/assets/copy/no-calculator-no-recalculation.md), голос [`brand-platform-v2.md`](../brand/brand-platform-v2.md).  
 Ассеты: [`starter-posts.json`](../../scripts/assets/max-channel/starter-posts.json), [`plan-2026-08-17.json`](../../scripts/assets/max-channel/plan-2026-08-17.json).

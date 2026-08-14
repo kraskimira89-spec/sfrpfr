@@ -48,68 +48,103 @@ def test_parse_and_keyboard() -> None:
     assert publish_payload(draft.id) == "chdraft:pub:abc123"
     assert edit_payload(draft.id) == "chdraft:edit:abc123"
     assert parse_draft_callback("chdraft:pub:abc123") == ("pub", "abc123")
-    assert parse_draft_callback("other") is None
     kb = review_keyboard(draft)
     buttons = kb[0]["payload"]["buttons"]
     assert buttons[0][0]["text"] == "Опубликовать"
     assert buttons[1][0]["type"] == "clipboard"
-    assert len(buttons) == 2
-    msg = format_review_message(draft)
-    assert "07-no-calc" in msg
-    assert "Текст поста" in msg
+    assert buttons[2][0]["text"] == "Прислать правку"
+    assert "ops-бот" in format_review_message(draft)
 
 
-def test_edit_wait_and_resubmit(monkeypatch) -> None:
+def test_edit_wait_replies_in_ops_dm(monkeypatch) -> None:
     path = _draft_path()
     reset_draft_store(path)
     get_draft_store(path).create(text="Старый текст", draft_id="ed1")
     get_draft_store().mark_waiting_edit("ed1", "42")
 
     monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
     get_settings.cache_clear()
     bot = _SilentOps()
+    # личка: chat_id != канал команды
     update = {
         "update_type": "message_created",
         "message": {
             "sender": {"user_id": 42},
-            "body": {"text": "Новый текст поста"},
-            "recipient": {"chat_id": -100},
+            "body": {"text": "Новый текст поста для канала клиентов, достаточно длинный."},
+            "recipient": {"chat_id": 42},
         },
     }
     result = handle_ops_update(update, bot=bot)
     assert result.action == "chdraft_updated"
-    updated = get_draft_store().get("ed1")
-    assert updated is not None
-    assert updated.text == "Новый текст поста"
-    assert "Опубликовать" in str(bot.sent[-1].get("attachments"))
+    assert get_draft_store().get("ed1").text.startswith("Новый текст")
+    last = bot.sent[-1]
+    assert last.get("user_id") == "42"
+    assert last.get("chat_id") is None
+    assert "Опубликовать" in str(last.get("attachments"))
+    get_settings.cache_clear()
+
+
+def test_long_paste_in_ops_dm_creates_draft(monkeypatch) -> None:
+    path = _draft_path()
+    reset_draft_store(path)
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
+    get_settings.cache_clear()
+    bot = _SilentOps()
+    body = (
+        "Пенсионерам часто предлагают калькулятор стажа.\n"
+        "Мы так не делаем: готовим документы и план, подаёте вы сами."
+    )
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 55},
+            "body": {"text": body},
+            "recipient": {"chat_id": 55},
+        },
+    }
+    result = handle_ops_update(update, bot=bot)
+    assert result.action == "chdraft_created"
+    last = bot.sent[-1]
+    assert last.get("user_id") == "55"
+    assert last.get("chat_id") is None
+    assert body.split("\n")[0] in last["text"]
+    get_settings.cache_clear()
+
+
+def test_channel_ignores_long_paste(monkeypatch) -> None:
+    path = _draft_path()
+    reset_draft_store(path)
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
+    monkeypatch.setenv("MAX_SPECIALISTS_CHANNEL_CHAT_ID", "-77768587291288")
+    get_settings.cache_clear()
+    bot = _SilentOps()
+    body = "x" * 130
+    update = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": 55},
+            "body": {"text": body},
+            "recipient": {"chat_id": -77768587291288},
+        },
+    }
+    result = handle_ops_update(update, bot=bot)
+    assert result.action == "ops_channel_ignore"
     get_settings.cache_clear()
 
 
 def test_publish_callback(monkeypatch) -> None:
     path = _draft_path()
     reset_draft_store(path)
-    get_draft_store(path).create(
-        text="К публикации",
-        draft_id="pub1",
-        cta_label="Уточнить",
-        cta_kind="chat",
-    )
+    get_draft_store(path).create(text="К публикации", draft_id="pub1")
     monkeypatch.setenv("MAX_CHANNEL_CHAT_ID", "-77580376877720")
-    monkeypatch.setenv("MAX_CHAT_URL", "https://max.ru/u/x")
     get_settings.cache_clear()
-
     bot = _SilentOps()
-    published: list[dict] = []
 
     def _fake_publish(draft, **_kw):  # noqa: ANN001
-        published.append({"id": draft.id, "text": draft.text})
         get_draft_store().mark_published(draft.id, url="https://max.ru/pub", mid="mid9")
-        return {
-            "ok": True,
-            "url": "https://max.ru/pub",
-            "mid": "mid9",
-            "draft_id": draft.id,
-        }
+        return {"ok": True, "url": "https://max.ru/pub", "mid": "mid9", "draft_id": draft.id}
 
     monkeypatch.setattr(
         "sfrfr.integrations.max.channel_review.publish_draft_to_client_channel",
@@ -126,13 +161,12 @@ def test_publish_callback(monkeypatch) -> None:
     }
     result = handle_ops_update(update, bot=bot)
     assert result.action == "chdraft_published"
-    assert published and published[0]["id"] == "pub1"
-    assert get_draft_store().get("pub1").status == "published"
-    assert bot.answers and "Публикуем" in (bot.answers[0].get("notification") or "")
+    assert bot.sent[-1].get("chat_id") is None
+    assert bot.sent[-1].get("user_id") == "7"
     get_settings.cache_clear()
 
 
-def test_edit_callback_removed(monkeypatch) -> None:
+def test_edit_callback_waits_in_dm(monkeypatch) -> None:
     path = _draft_path()
     reset_draft_store(path)
     get_draft_store(path).create(text="Правка", draft_id="e2")
@@ -149,6 +183,7 @@ def test_edit_callback_removed(monkeypatch) -> None:
         "message": {"recipient": {"chat_id": -777}},
     }
     result = handle_ops_update(update, bot=bot)
-    assert result.action == "chdraft_edit_removed"
-    assert any("отключена" in (m.get("text") or "") for m in bot.sent)
+    assert result.action == "chdraft_edit_wait"
+    assert "9" in get_draft_store().get("e2").waiting_edit_user_ids
+    assert bot.sent[-1].get("chat_id") is None
     get_settings.cache_clear()

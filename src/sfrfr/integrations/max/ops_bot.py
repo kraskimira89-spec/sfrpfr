@@ -34,9 +34,11 @@ def _ops_welcome_text() -> str:
         "Сюда приходят:",
         "• новые заявки с сайта;",
         "• запросы на вход сотрудников в кабинет;",
-        "• черновики постов клиентского канала (одобрить / скопировать текст).",
+        "• черновики постов клиентского канала — в эту личку "
+        "(одобрить / скопировать / прислать правку);",
         "",
         "Можете задать вопрос по процессу или стажу — ответит ИИ с опорой на базу знаний.",
+        "Черновик поста: вставьте текст сюда или `/draft …`.",
         "В канале команды: упомяните бота или напишите /ask …",
         "",
         "Диагностику клиента и вход в кабинет ведите в боте «Стаж и пенсия».",
@@ -94,7 +96,7 @@ def _handle_channel_draft_callback(
         _reply(
             bot,
             user_id=user_id,
-            chat_id=chat_id,
+            chat_id=None,
             text=f"Черновик `{draft.id}` уже опубликован: {url}",
         )
         return MaxHandleResult(ok=True, action="chdraft_already", detail=draft_id)
@@ -111,7 +113,7 @@ def _handle_channel_draft_callback(
             _reply(
                 bot,
                 user_id=user_id,
-                chat_id=chat_id,
+                chat_id=None,
                 text=f"Не удалось опубликовать `{draft.id}`: {err}",
             )
             return MaxHandleResult(ok=False, action="chdraft_pub_fail", detail=str(err))
@@ -119,7 +121,7 @@ def _handle_channel_draft_callback(
         _reply(
             bot,
             user_id=user_id,
-            chat_id=chat_id,
+            chat_id=None,
             text=(
                 f"Опубликовано в канал клиентов.\n"
                 f"id: `{draft.id}`\n"
@@ -128,27 +130,29 @@ def _handle_channel_draft_callback(
         )
         return MaxHandleResult(ok=True, action="chdraft_published", detail=draft_id)
 
-    # edit — кнопка снята с новых черновиков; старые нажатия гасим подсказкой
+    # Прислать правку — ждём следующее сообщение в личке ops-бота
+    store.mark_waiting_edit(draft_id, user_id)
     if cb_id:
         try:
             bot.answer_callback(
                 cb_id,
-                notification="Кнопка убрана — используйте «Скопировать текст»",
+                notification="Вставьте правку следующим сообщением в этот чат",
             )
         except Exception:  # noqa: BLE001
             pass
     _reply(
         bot,
         user_id=user_id,
-        chat_id=chat_id,
+        chat_id=None,
         text=(
-            f"Кнопка «Редактировать» отключена (черновик `{draft_id}`).\n"
-            "Нажмите «Скопировать текст» на сообщении черновика, "
-            "поправьте локально и пришлите новый черновик:\n"
-            "`sfrfr max-channel-post --review -t \"…\"`"
+            f"Жду правку черновика `{draft.id}`.\n\n"
+            "1) «Скопировать текст» (если ещё не скопировали).\n"
+            "2) Вставьте в поле сообщения этого ops-бота, поправьте.\n"
+            "3) Отправьте сюда — пришлю обновлённый черновик "
+            "с кнопкой «Опубликовать» в этот же чат."
         ),
     )
-    return MaxHandleResult(ok=True, action="chdraft_edit_removed", detail=draft_id)
+    return MaxHandleResult(ok=True, action="chdraft_edit_wait", detail=draft_id)
 
 
 def _handle_channel_draft_edit_message(
@@ -158,32 +162,65 @@ def _handle_channel_draft_edit_message(
     chat_id: int | str | None,
     text: str,
 ) -> MaxHandleResult | None:
+    """Правка/новый черновик только в личке ops-бота — ответ тоже в личку."""
     from sfrfr.integrations.max.channel_drafts import (
-        format_review_message,
         get_draft_store,
-        review_keyboard,
+        looks_like_channel_post,
     )
-    from sfrfr.integrations.max.handler import _reply
+    from sfrfr.integrations.max.channel_review import reply_draft_in_ops_dm
+    from sfrfr.integrations.max.ops_llm import is_specialists_channel
 
     body = (text or "").strip()
-    if not body or body.startswith("/"):
+    if not body:
         return None
-    # Не перехватывать /ask и упоминания — их обработает LLM ниже, если нет waiting.
+    if is_specialists_channel(chat_id):
+        # В канале команды черновики не ведём — только в личке ops.
+        return None
+
     store = get_draft_store()
-    draft = store.find_waiting_for_user(user_id)
-    if not draft:
+    lower = body.lower()
+
+    # /draft текст… — явная отправка черновика в этот же чат
+    if lower.startswith("/draft"):
+        post = body[6:].lstrip(" \t\r\n:").strip()
+        if not post:
+            from sfrfr.integrations.max.handler import _reply
+
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=None,
+                text="Напишите: /draft и далее текст поста.",
+            )
+            return MaxHandleResult(ok=True, action="chdraft_draft_usage")
+        draft = store.create(text=post)
+        store.mark_waiting_edit(draft.id, user_id)
+        reply_draft_in_ops_dm(bot, user_id=user_id, draft=draft)
+        return MaxHandleResult(ok=True, action="chdraft_created", detail=draft.id)
+
+    if body.startswith("/"):
         return None
-    updated = store.update_text(draft.id, body)
-    if not updated:
-        return None
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=format_review_message(updated),
-        attachments=review_keyboard(updated),
-    )
-    return MaxHandleResult(ok=True, action="chdraft_updated", detail=updated.id)
+
+    waiting = store.find_waiting_for_user(user_id)
+    if waiting:
+        if len(body) < 40:
+            return None
+        updated = store.update_text(waiting.id, body)
+        if not updated:
+            return None
+        store.mark_waiting_edit(updated.id, user_id)
+        reply_draft_in_ops_dm(bot, user_id=user_id, draft=updated)
+        return MaxHandleResult(ok=True, action="chdraft_updated", detail=updated.id)
+
+    # В личке: длинный/многострочный текст без ожидания — новый черновик
+    if looks_like_channel_post(body):
+        draft = store.create(text=body)
+        store.mark_waiting_edit(draft.id, user_id)
+        reply_draft_in_ops_dm(bot, user_id=user_id, draft=draft)
+        return MaxHandleResult(ok=True, action="chdraft_created", detail=draft.id)
+
+    return None
+
 
 
 def handle_ops_update(
@@ -282,7 +319,7 @@ def handle_ops_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
 
-    # Правка черновика: следующее сообщение после «Редактировать».
+    # Правка / новый черновик — только личка ops (не канал команды).
     edit_result = _handle_channel_draft_edit_message(
         bot,
         user_id=user_id,

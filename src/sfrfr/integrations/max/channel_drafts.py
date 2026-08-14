@@ -216,6 +216,7 @@ def publish_payload(draft_id: str) -> str:
 
 
 def edit_payload(draft_id: str) -> str:
+    """Callback: специалист пришлёт правку следующим сообщением в ops-бот."""
     return f"{_PAYLOAD_PREFIX}:edit:{draft_id}"
 
 
@@ -232,7 +233,7 @@ def parse_draft_callback(payload: str) -> tuple[str, str] | None:
 
 
 def review_keyboard(draft: ChannelDraft) -> list[dict[str, Any]]:
-    """Кнопки: Опубликовать | Скопировать текст."""
+    """Кнопки: Опубликовать | Скопировать текст | Прислать правку."""
     text_for_clip = draft.text
     if len(text_for_clip.encode("utf-8")) > 4000:
         text_for_clip = text_for_clip[:3500] + "\n…"
@@ -250,6 +251,13 @@ def review_keyboard(draft: ChannelDraft) -> list[dict[str, Any]]:
                 "type": "clipboard",
                 "text": "Скопировать текст",
                 "payload": text_for_clip,
+            }
+        ],
+        [
+            {
+                "type": "callback",
+                "text": "Прислать правку",
+                "payload": edit_payload(draft.id),
             }
         ],
     ]
@@ -274,12 +282,22 @@ def format_review_message(draft: ChannelDraft) -> str:
     lines.extend(
         [
             "«Опубликовать» — сразу в канал клиентов.",
-            "«Скопировать текст» — в буфер; при необходимости поправьте "
-            "и пришлите новый черновик командой "
-            "`sfrfr max-channel-post --review -t \"…\"`.",
+            "«Скопировать текст» → поправьте → вставьте сюда в этот чат "
+            "(или нажмите «Прислать правку» и пришлите текст).",
+            "Ответ с кнопкой «Опубликовать» придёт сюда же, в ops-бот — не в канал команды.",
         ]
     )
     return "\n".join(lines)
+
+
+def looks_like_channel_post(text: str) -> bool:
+    """Эвристика: длинный/многострочный текст в личке ops — это черновик поста."""
+    body = (text or "").strip()
+    if not body or body.startswith("/"):
+        return False
+    if len(body) >= 120:
+        return True
+    return len(body) >= 60 and ("\n" in body)
 
 
 def client_cta_attachments(draft: ChannelDraft) -> list[dict[str, Any]] | None:
