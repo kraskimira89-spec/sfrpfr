@@ -25,6 +25,7 @@
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md), [карточка Яндекс Бизнес](playbook-yandex-business-card.md), [Яндекс Форма к отзыву](playbook-yandex-form-review-prompts.md).
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
+- **ВКонтакте (чат VK):** [`docs/VK/`](../VK/README.md) — сообщество, ритм/CTA/лид-форма/UTM под тарифы 3/5/8, обзор API, промпт агента.
 - **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 
 ## Правила хранения

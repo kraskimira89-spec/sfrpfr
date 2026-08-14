@@ -1,0 +1,22 @@
+---
+description: Материалы и чат агента по ВКонтакте хранить в docs/VK
+alwaysApply: true
+---
+
+# Папка VK (ВКонтакте)
+
+Пакет агента и playbook’и про сообщество / ads / API ВКонтакте:
+
+`docs/VK/`
+
+- `README.md` — индекс;
+- `prompt-agent-vk.md` — промпт нового чата;
+- `playbook-vk-community.md` — ритм, CTA, лид-форма, UTM, тарифы 3/5/8;
+- `research-vk-api.md` — обзор API и границы.
+
+Стратегия и сегменты — в `docs/marketing-sales/` (ссылки, без дублей).
+
+Не хранить токены VK/Ads, ПДн клиентов и сканы в этой папке.
+В формах и API не проектировать приём СНИЛС / ИЛС / сканов.
+Канон подачи: `scripts/assets/copy/submission-position.md`.
+Цены публичные: 3 000 / 5 000 / 8 000 ₽ поэтапно.
