@@ -19,12 +19,28 @@ from pathlib import Path
 
 API = "https://api-metrika.yandex.net/management/v1"
 GOALS = (
-    ("lead_ok", "Заявка отправлена (без ПДн)"),
+    # §7.1
     ("max_click", "Клик Открыть в MAX"),
+    ("phone_click", "Клик Позвонить"),
+    ("contacts_click", "Клик Контакты"),
     ("lead_start", "Старт заявки / фокус формы"),
-    ("cabinet_click", "Клик в кабинет"),
-    ("tariff_view", "Просмотр тарифов"),
+    ("lead_ok", "Заявка отправлена (без ПДн)"),
+    ("tariffs_view", "Просмотр тарифов"),
+    ("tariff_view", "Просмотр тарифов (legacy)"),
     ("form_error", "Ошибка отправки формы"),
+    ("cabinet_click", "Клик в кабинет"),
+    # §7.2 клиентские
+    ("segment_page_view", "Просмотр сегментной страницы"),
+    ("max_chat_click", "Клик в личный чат MAX"),
+    ("max_channel_click", "Клик в канал MAX"),
+    ("callback_click", "Клик Позвонить (сегмент)"),
+    ("checklist_download", "Скачивание чек-листа"),
+    # §7.2 серверные/CRM (создаём цели заранее; без ПДн в params)
+    ("qualification_started", "Квалификация начата"),
+    ("qualification_completed", "Квалификация завершена"),
+    ("diagnostic_offered", "Предложена диагностика"),
+    ("diagnostic_paid", "Оплачена диагностика"),
+    ("service_paid", "Оплачена услуга"),
 )
 # Параметры URL, которые вырезаем до сохранения хита (ПДн / секреты).
 CUT_URL_PARAMS = (
@@ -150,9 +166,13 @@ def ensure_action_goal(counter_id: int, ident: str, title: str, existing: list[d
             if (cond.get("url") or "") == ident:
                 print(f"  goal ok: {ident} (id={g.get('id')})")
                 return
-        if (g.get("name") or "") in (title, ident):
-            print(f"  goal ok by name: {ident} (id={g.get('id')})")
-            return
+        # Не матчить только по похожему имени — иначе tariffs_view ≈ tariff_view.
+        if (g.get("name") or "") == title and (g.get("type") or "") == "action":
+            # имя совпало, но условие другое — создаём отдельную цель
+            has_ident = any((c.get("url") or "") == ident for c in conds)
+            if has_ident:
+                print(f"  goal ok by name: {ident} (id={g.get('id')})")
+                return
     body = {
         "goal": {
             "name": title,

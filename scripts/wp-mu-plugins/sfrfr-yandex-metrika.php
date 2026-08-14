@@ -322,6 +322,15 @@ add_action('wp_footer', static function (): void {
     return undefined;
   }
 
+  function isMaxChannelHref(href) {
+    var h = String(href || "").toLowerCase();
+    return (
+      h.indexOf("joinchat") !== -1 ||
+      h.indexOf("/channel") !== -1 ||
+      h.indexOf("channel_proverkastaza") !== -1
+    );
+  }
+
   function goalWithPlacement(name, el) {
     var placement = placementOf(el);
     var params = {};
@@ -341,20 +350,14 @@ add_action('wp_footer', static function (): void {
       once(a, "sfrfrMetrikaMax", function (el) {
         el.addEventListener("click", function () {
           var custom = el.getAttribute && el.getAttribute("data-sfrfr-goal");
+          var href = el.getAttribute ? el.getAttribute("href") : "";
           if (custom === "max_chat_click") {
             goalWithPlacement("max_chat_click", el);
-          } else if (custom === "max_channel_click") {
+          } else if (custom === "max_channel_click" || isMaxChannelHref(href)) {
             goalWithPlacement("max_channel_click", el);
           } else {
             goalWithPlacement("max_click", el);
           }
-        });
-      });
-    });
-    document.querySelectorAll('a[href*="max.ru/"][href*="joinchat"], a[data-sfrfr-goal="max_channel_click"]').forEach(function (a) {
-      once(a, "sfrfrMetrikaMaxCh", function (el) {
-        el.addEventListener("click", function () {
-          goalWithPlacement("max_channel_click", el);
         });
       });
     });
