@@ -30,7 +30,17 @@ python scripts/wordstat_fetch_7_clusters.py --all --no-geo
 
 Квота (на 2026-08): **~100 запросов Wordstat / час**. С гео (РФ + 4 региона) ≈ 5 запросов на фразу. При `429` скрипт ждёт и ретраит; прогресс пишется в CSV после каждой фразы.
 
-Регионы в скрипте: РФ `225`, Москва `213`, СПб `2`, ЯНАО `10842`, ХМАО `11193`.
+Регионы в скрипте 7 кластеров: РФ `225`, Москва `213`, СПб `2`, **ЯНАО `11232`**, ХМАО `11193`, плюс Мурманск/Архангельск/Коми/Карелия/Красноярск/Якутия.
+
+**Север / АЗРФ / КС / приравненные:** справочник [wordstat-north-regions.json](../marketing-sales/reports/wordstat-north-regions.json), отчёт [wordstat-north-pensioners-2026-08-14.md](../marketing-sales/reports/wordstat-north-pensioners-2026-08-14.md), обход:
+
+```powershell
+python scripts/wordstat_fetch_north_regions.py --list
+python scripts/wordstat_fetch_north_regions.py --phrases-only
+python scripts/wordstat_fetch_north_regions.py --limit-regions 8 --limit-phrases 4
+```
+
+Внимание: раньше ЯНАО ошибочно указывали как `10842` (это Архангельская область).
 
 ## Выход
 

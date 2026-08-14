@@ -34,13 +34,21 @@ ROOT = Path(__file__).resolve().parents[1]
 API = "https://searchapi.api.cloud.yandex.net/v2/wordstat"
 DEFAULT_CSV = ROOT / "docs/marketing-sales/reports/wordstat-7-clusters-template.csv"
 
-# Регионы Wordstat (ID Яндекса)
+# Регионы Wordstat (ID Яндекса). Полный северный справочник:
+# docs/marketing-sales/reports/wordstat-north-regions.json
+# Обход: scripts/wordstat_fetch_north_regions.py
 REGION_RF = "225"
 GEO_REGIONS: dict[str, str] = {
     "Москва": "213",
     "СПб": "2",
-    "ЯНАО": "10842",
+    "ЯНАО": "11232",  # было ошибочно 10842 (= Архангельская)
     "ХМАО": "11193",
+    "Мурманск": "10897",
+    "Архангельск": "10842",
+    "Коми": "10939",
+    "Карелия": "10933",
+    "Красноярск": "11309",
+    "Якутия": "11443",
 }
 
 

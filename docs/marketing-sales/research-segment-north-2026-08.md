@@ -223,7 +223,9 @@
 
 **Статус:** черновик  
 **Сегмент:** север  
-**Канал:** Директ (поиск) + `region_bucket=north_priority`
+**Канал:** Директ (поиск) + `region_bucket=north_priority`  
+**Гео-канон:** [reports/wordstat-north-regions.json](reports/wordstat-north-regions.json) — АЗРФ + Крайний Север + приравненные (Wordstat IDs).  
+**Семантика:** [reports/wordstat-north-pensioners-2026-08-14.md](reports/wordstat-north-pensioners-2026-08-14.md)
 
 #### Формула
 Если в регионах приоритета Севера покажем **проверку ИЛС с акцентом на северные периоды**,  

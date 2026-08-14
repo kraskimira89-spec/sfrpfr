@@ -1,0 +1,113 @@
+{
+  "updated": "2026-08-14",
+  "sources": [
+    "Указ/перечень сухопутных территорий АЗРФ (КонсультантПлюс, разд. 15)",
+    "Постановление Правительства РФ от 16.11.2021 № 1946 (районы Крайнего Севера и приравненные местности)",
+    "Яндекс Wordstat regions tree (MCP get-regions-tree / get-region-children), 2026-08-14"
+  ],
+  "notes": [
+    "Wordstat работает на уровне субъектов и городов: муниципальные районы АЗРФ/КС внутри субъекта в API часто недоступны отдельно.",
+    "coverage=full — весь субъект в перечне; partial — только часть МО (для гео-таргета Wordstat/Директа берём субъект целиком и помечаем partial).",
+    "Ненецкий АО и Чукотский АО в дереве Wordstat отдельными субъектами не найдены (2026-08-14); для обхода используем proxy_note и города/соседей при появлении ID.",
+    "Баг исправлен: ЯНАО Wordstat ID = 11232 (ранее ошибочно указывали 10842 = Архангельская область)."
+  ],
+  "buckets": {
+    "arctic_zone": {
+      "label": "Арктическая зона РФ (субъекты с сухопутными территориями АЗРФ)",
+      "subjects": [
+        {"code": "murmansk", "name": "Мурманская область", "wordstat_id": 10897, "coverage": "full", "also": ["far_north"]},
+        {"code": "yamal", "name": "Ямало-Ненецкий автономный округ", "wordstat_id": 11232, "coverage": "full", "also": ["far_north"]},
+        {"code": "nenets", "name": "Ненецкий автономный округ", "wordstat_id": null, "coverage": "full", "also": ["far_north"], "proxy_note": "ID в дереве Wordstat не найден; при Директе — регион НАО из справочника Директа"},
+        {"code": "chukotka", "name": "Чукотский автономный округ", "wordstat_id": null, "coverage": "full", "also": ["far_north"], "proxy_note": "ID в дереве Wordstat не найден"},
+        {"code": "arkhangelsk", "name": "Архангельская область", "wordstat_id": 10842, "coverage": "partial", "also": ["far_north", "equated"], "arctic_note": "Архангельск, Новодвинск, Северодвинск, Новая Земля, Мезень, Онега, Приморский, Лешуконский, Пинежский и др."},
+        {"code": "karelia", "name": "Республика Карелия", "wordstat_id": 10933, "coverage": "partial", "also": ["far_north", "equated"], "arctic_note": "Беломорский, Калевальский, Кемский, Лоухский, Сегежский, Костомукша"},
+        {"code": "komi", "name": "Республика Коми", "wordstat_id": 10939, "coverage": "partial", "also": ["far_north", "equated"], "arctic_note": "Воркута, Инта, Усинск, Усть-Цилемский и др."},
+        {"code": "krasnoyarsk", "name": "Красноярский край", "wordstat_id": 11309, "coverage": "partial", "also": ["far_north", "equated"], "arctic_note": "Норильск, Таймыр, Туруханский, часть Эвенкии"},
+        {"code": "sakha", "name": "Республика Саха (Якутия)", "wordstat_id": 11443, "coverage": "partial", "also": ["far_north"], "arctic_note": "ряд улусов АЗРФ; весь субъект — районы Крайнего Севера по 1946"},
+        {"code": "khmao", "name": "Ханты-Мансийский автономный округ - Югра", "wordstat_id": 11193, "coverage": "partial", "also": ["far_north", "equated"], "arctic_note": "Белоярский и Берёзовский районы"}
+      ]
+    },
+    "far_north": {
+      "label": "Районы Крайнего Севера (ПП РФ № 1946) — субъекты с территориями КС",
+      "subjects": [
+        {"code": "murmansk", "name": "Мурманская область", "wordstat_id": 10897, "coverage": "full"},
+        {"code": "yamal", "name": "Ямало-Ненецкий автономный округ", "wordstat_id": 11232, "coverage": "full"},
+        {"code": "nenets", "name": "Ненецкий автономный округ", "wordstat_id": null, "coverage": "full"},
+        {"code": "chukotka", "name": "Чукотский автономный округ", "wordstat_id": null, "coverage": "full"},
+        {"code": "sakha", "name": "Республика Саха (Якутия)", "wordstat_id": 11443, "coverage": "full"},
+        {"code": "magadan", "name": "Магаданская область", "wordstat_id": 11403, "coverage": "full"},
+        {"code": "kamchatka", "name": "Камчатский край", "wordstat_id": 11398, "coverage": "full"},
+        {"code": "karelia", "name": "Республика Карелия", "wordstat_id": 10933, "coverage": "partial"},
+        {"code": "komi", "name": "Республика Коми", "wordstat_id": 10939, "coverage": "partial"},
+        {"code": "tyva", "name": "Республика Тыва", "wordstat_id": 10233, "coverage": "partial"},
+        {"code": "krasnoyarsk", "name": "Красноярский край", "wordstat_id": 11309, "coverage": "partial"},
+        {"code": "khabarovsk", "name": "Хабаровский край", "wordstat_id": 11457, "coverage": "partial"},
+        {"code": "arkhangelsk", "name": "Архангельская область", "wordstat_id": 10842, "coverage": "partial"},
+        {"code": "irkutsk", "name": "Иркутская область", "wordstat_id": 11266, "coverage": "partial"},
+        {"code": "sakhalin", "name": "Сахалинская область", "wordstat_id": 11450, "coverage": "partial"},
+        {"code": "khmao", "name": "Ханты-Мансийский автономный округ - Югра", "wordstat_id": 11193, "coverage": "partial"}
+      ]
+    },
+    "equated": {
+      "label": "Местности, приравненные к районам Крайнего Севера (ПП РФ № 1946) — субъекты",
+      "subjects": [
+        {"code": "altay_rep", "name": "Республика Алтай", "wordstat_id": 10231, "coverage": "partial"},
+        {"code": "buryatia", "name": "Республика Бурятия", "wordstat_id": 11330, "coverage": "partial"},
+        {"code": "karelia", "name": "Республика Карелия", "wordstat_id": 10933, "coverage": "partial"},
+        {"code": "komi", "name": "Республика Коми", "wordstat_id": 10939, "coverage": "partial"},
+        {"code": "tyva", "name": "Республика Тыва", "wordstat_id": 10233, "coverage": "partial"},
+        {"code": "zabaykal", "name": "Забайкальский край", "wordstat_id": 21949, "coverage": "partial"},
+        {"code": "krasnoyarsk", "name": "Красноярский край", "wordstat_id": 11309, "coverage": "partial"},
+        {"code": "perm", "name": "Пермский край", "wordstat_id": 11108, "coverage": "partial"},
+        {"code": "primorye", "name": "Приморский край", "wordstat_id": 11409, "coverage": "partial"},
+        {"code": "khabarovsk", "name": "Хабаровский край", "wordstat_id": 11457, "coverage": "partial"},
+        {"code": "amur", "name": "Амурская область", "wordstat_id": 11375, "coverage": "partial"},
+        {"code": "arkhangelsk", "name": "Архангельская область", "wordstat_id": 10842, "coverage": "partial"},
+        {"code": "irkutsk", "name": "Иркутская область", "wordstat_id": 11266, "coverage": "partial"},
+        {"code": "sakhalin", "name": "Сахалинская область", "wordstat_id": 11450, "coverage": "partial"},
+        {"code": "tomsk", "name": "Томская область", "wordstat_id": 11353, "coverage": "partial"},
+        {"code": "tyumen", "name": "Тюменская область", "wordstat_id": 11176, "coverage": "partial"},
+        {"code": "khmao", "name": "Ханты-Мансийский автономный округ - Югра", "wordstat_id": 11193, "coverage": "partial"}
+      ]
+    }
+  },
+  "wordstat_crawl_priority": [
+    {"code": "yamal", "name": "ЯНАО", "wordstat_id": 11232, "reason": "база сервиса; affinity «северный стаж» ~1160"},
+    {"code": "khmao", "name": "ХМАО", "wordstat_id": 11193, "reason": "топ объёма и affinity по северному стажу"},
+    {"code": "murmansk", "name": "Мурманская область", "wordstat_id": 10897, "reason": "АЗРФ full + КС full; affinity ~907"},
+    {"code": "arkhangelsk", "name": "Архангельская область", "wordstat_id": 10842, "reason": "АЗРФ + КС + приравненные"},
+    {"code": "komi", "name": "Республика Коми", "wordstat_id": 10939, "reason": "АЗРФ + КС + приравненные"},
+    {"code": "karelia", "name": "Республика Карелия", "wordstat_id": 10933, "reason": "АЗРФ + КС + приравненные"},
+    {"code": "krasnoyarsk", "name": "Красноярский край", "wordstat_id": 11309, "reason": "Норильск/Таймыр; высокий объём"},
+    {"code": "sakha", "name": "Якутия", "wordstat_id": 11443, "reason": "КС full + АЗРФ partial"},
+    {"code": "magadan", "name": "Магаданская область", "wordstat_id": 11403, "reason": "КС full; affinity ~1218"},
+    {"code": "kamchatka", "name": "Камчатский край", "wordstat_id": 11398, "reason": "КС full"},
+    {"code": "irkutsk", "name": "Иркутская область", "wordstat_id": 11266, "reason": "КС + приравненные; высокий объём"},
+    {"code": "khabarovsk", "name": "Хабаровский край", "wordstat_id": 11457, "reason": "КС + приравненные"},
+    {"code": "sakhalin", "name": "Сахалинская область", "wordstat_id": 11450, "reason": "КС + приравненные"},
+    {"code": "tomsk", "name": "Томская область", "wordstat_id": 11353, "reason": "приравненные"},
+    {"code": "buryatia", "name": "Бурятия", "wordstat_id": 11330, "reason": "приравненные"},
+    {"code": "amur", "name": "Амурская область", "wordstat_id": 11375, "reason": "приравненные"},
+    {"code": "tyumen", "name": "Тюменская область", "wordstat_id": 11176, "reason": "приравненные (Уват)"},
+    {"code": "perm", "name": "Пермский край", "wordstat_id": 11108, "reason": "приравненные"},
+    {"code": "primorye", "name": "Приморский край", "wordstat_id": 11409, "reason": "приравненные"},
+    {"code": "zabaykal", "name": "Забайкальский край", "wordstat_id": 21949, "reason": "приравненные"},
+    {"code": "tyva", "name": "Тыва", "wordstat_id": 10233, "reason": "КС + приравненные"},
+    {"code": "altay_rep", "name": "Республика Алтай", "wordstat_id": 10231, "reason": "приравненные"}
+  ],
+  "pensioner_seed_phrases": [
+    "северный стаж",
+    "северный стаж для пенсии",
+    "северный стаж не учли",
+    "пенсия крайний север",
+    "пенсия в районах крайнего севера",
+    "пенсия приравненные к крайнему северу",
+    "стаж в районах приравненных к крайнему северу",
+    "районный коэффициент пенсия",
+    "не учли стаж",
+    "архивная справка о стаже",
+    "проверить пенсионный стаж",
+    "выписка ИЛС",
+    "отказ в назначении пенсии"
+  ]
+}

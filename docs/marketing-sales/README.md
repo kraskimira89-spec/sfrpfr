@@ -21,6 +21,7 @@
 - [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
 - [SEO: запросы «калькулятор/расчёт пенсии/стаж»](research-seo-pension-queries-2026-08.md) — кластеры, интенты, внедрение ключей без фейкового калькулятора выплат; [частоты 8_calc](reports/wordstat-8-calc-2026-08-14.md).
 - [SEO: 7 проблемных кластеров Wordstat](research-seo-problem-clusters-wordstat-2026-08.md) — не учли ИЛС, до 2002, архив, север, отказ, СЗИ-ИЛС, перед пенсией; маппинг URL/Title/H1/CTA; [CSV](reports/wordstat-7-clusters-template.csv), [playbook](reports/playbook-wordstat-7-clusters.md), [Wordstat API](../ops/yandex-wordstat-setup.md).
+- [Wordstat: север × пенсионеры × АЗРФ/КС](reports/wordstat-north-pensioners-2026-08-14.md) — обход регионов Арктики, Крайнего Севера и приравненных; [JSON регионов](reports/wordstat-north-regions.json).
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md), [карточка Яндекс Бизнес](playbook-yandex-business-card.md), [Яндекс Форма к отзыву](playbook-yandex-form-review-prompts.md).
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
