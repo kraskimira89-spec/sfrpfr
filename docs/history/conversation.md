@@ -1,5 +1,9 @@
 # История бесед
 
+## 2026-08-14 — сценарии A/B: Reg.ru VM vs downsize YC
+
+- Детализация в `docs/ops/yc-cost-breakdown-vs-regru.md`: cutover только Supabase-ВМ; почему stop ≈2.3k residual; downsize 2/4 ≈ CVoS.
+
 ## 2026-08-14 — разбор «8500 ₽ YC» vs Reg.ru VM
 
 - Always-on инфра по прайсу ~7 567 ₽ (ВМ 4/8 + SSD + IP); старая оценка ~3800 устарела.
