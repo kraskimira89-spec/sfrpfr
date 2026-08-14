@@ -1,0 +1,28 @@
+---
+description: Писать на языке поисковых запросов людей (Wordstat), не канцеляритом сервиса
+alwaysApply: true
+---
+
+# Лексика как у людей (targeting)
+
+Во **всех** публичных текстах (сайт, блог, канал MAX, FAQ, title/H1/description, лендинги):
+
+1. Сначала — формулировки из [Wordstat](https://wordstat.yandex.ru/) / аудита семантики, потом — уточнение сервиса.
+2. Если люди ищут «не учли стаж», «архивная справка о стаже», «северный стаж для пенсии» — эти слова должны быть в title/H1/лиде, а не только «период не отражён» / «для СФР».
+3. Канон Яндекса: [targeting](https://yandex.ru/support/webmaster/ru/recommendations/targeting.html), [low-demand](https://yandex.ru/support/webmaster/ru/site-indexing/low-demand.html).
+4. Опора на кластеры: `docs/marketing-sales/reports/wordstat-7-clusters-filled-2026-08-13.csv`, `docs/marketing-sales/reports/blog-targeting-audit-2026-08-14.md`.
+
+## Можно
+
+- Дублировать разговорные и официальные варианты рядом: «не учли стаж» / «стаж не учтён в ИЛС».
+- Оставлять точные термины (ИЛС, СЗИ-ИЛС, СФР) **рядом** с бытовыми словами.
+
+## Нельзя
+
+- Писать только «внутренним» языком сервиса, если у запроса есть массовая бытовая форма.
+- Подменять спрос канцеляритом ради «красивости».
+- Обещать перерасчёт / сумму / калькулятор выплат (см. `blog-submission-disclaimer`, `no-calculator-no-recalculation.md`).
+
+## При правке статьи
+
+Обновить: HTML в `scripts/assets/blog/`, `seo_title`/`title` в `wp_seed_blog_tz11.php`, description в `sfrfr-seo-meta.php` при необходимости; после деплоя — seed WP + переобход.
