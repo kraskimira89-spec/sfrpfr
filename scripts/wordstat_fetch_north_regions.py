@@ -66,7 +66,7 @@ def creds() -> tuple[str, str]:
     return key, folder
 
 
-def api_post(path: str, body: dict, *, retries: int = 6) -> dict:
+def api_post(path: str, body: dict, *, retries: int = 10) -> dict:
     key, folder = creds()
     payload = {**body, "folderId": folder}
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -90,8 +90,12 @@ def api_post(path: str, body: dict, *, retries: int = 6) -> dict:
             err = e.read().decode("utf-8", errors="replace")
             last_err = f"Wordstat HTTP {e.code}: {err[:800]}"
             if e.code == 429:
-                wait = min(120, 15 * (attempt + 1))
-                print(f"  rate limit, sleep {wait}s...", flush=True)
+                # часовая квота ~100: после серии коротких пауз ждём длиннее
+                if attempt < 4:
+                    wait = 20 * (attempt + 1)
+                else:
+                    wait = min(900, 180 * (attempt - 3))
+                print(f"  rate limit, sleep {wait}s (attempt {attempt + 1}/{retries})...", flush=True)
                 time.sleep(wait)
                 continue
             raise SystemExit(last_err) from e
@@ -220,22 +224,44 @@ def cmd_matrix(
     elif limit_phrases is not None:
         phrases = phrases[:limit_phrases]
 
-    fieldnames = ["phrase", "freq_rf"] + [str(r["code"]) for r in regions] + ["similar_rf"]
-    # resume: load existing if same day
+    region_codes = [str(r["code"]) for r in regions]
     out = OUT_DIR / f"wordstat-north-geo-matrix-{date.today().isoformat()}.csv"
-    done_keys: set[str] = set()
     rows_by_phrase: dict[str, dict] = {}
+    existing_fields: list[str] = []
     if out.is_file():
         with out.open(encoding="utf-8", newline="") as f:
-            for row in csv.DictReader(f):
-                ph = row.get("phrase") or ""
-                rows_by_phrase[ph] = dict(row)
-                if (row.get("freq_rf") or "").strip():
-                    done_keys.add(ph)
+            reader = csv.DictReader(f)
+            existing_fields = list(reader.fieldnames or [])
+            for row in reader:
+                ph = (row.get("phrase") or "").strip()
+                if ph:
+                    rows_by_phrase[ph] = dict(row)
 
+    # Не теряем уже снятые колонки при расширении списка субъектов
+    fieldnames: list[str] = ["phrase", "freq_rf"]
+    for code in existing_fields:
+        if code in ("phrase", "freq_rf", "similar_rf"):
+            continue
+        if code not in fieldnames:
+            fieldnames.append(code)
+    for code in region_codes:
+        if code not in fieldnames:
+            fieldnames.append(code)
+    if "similar_rf" not in fieldnames:
+        fieldnames.append("similar_rf")
+
+    def persist() -> None:
+        ordered = [rows_by_phrase[p] for p in phrases if p in rows_by_phrase]
+        # плюс старые фразы, которых нет в текущем списке
+        for ph, row in rows_by_phrase.items():
+            if ph not in phrases:
+                ordered.append(row)
+        write_csv(out, fieldnames, ordered)
+
+    pending_geo = 0
     for phrase in phrases:
         row = rows_by_phrase.get(phrase) or {"phrase": phrase}
-        if phrase not in done_keys or not (row.get("freq_rf") or "").strip():
+        if not (row.get("freq_rf") or "").strip():
             print(f"> RF {phrase}", flush=True)
             rf = top_requests(phrase, REGION_RF, num=15)
             time.sleep(sleep_s)
@@ -246,6 +272,8 @@ def cmd_matrix(
                     similar.append(f"{item['phrase']}:{as_int(item.get('count'))}")
             row["similar_rf"] = " | ".join(similar)
             print(f"  RF={row['freq_rf']}", flush=True)
+            rows_by_phrase[phrase] = row
+            persist()
         for reg in regions:
             code = str(reg["code"])
             if (row.get(code) or "").strip() not in ("", "TBD"):
@@ -256,15 +284,14 @@ def cmd_matrix(
             time.sleep(sleep_s)
             row[code] = str(exact_or_total(phrase, g))
             print(f"    ={row[code]}", flush=True)
+            pending_geo += 1
             rows_by_phrase[phrase] = row
-            write_csv(out, fieldnames, [rows_by_phrase[p] for p in phrases if p in rows_by_phrase])
+            persist()
         rows_by_phrase[phrase] = row
-        done_keys.add(phrase)
-        write_csv(out, fieldnames, [rows_by_phrase[p] for p in phrases if p in rows_by_phrase])
+        persist()
 
-    ordered = [rows_by_phrase[p] for p in phrases if p in rows_by_phrase]
-    write_csv(out, fieldnames, ordered)
-    print(f"OK {out}")
+    persist()
+    print(f"OK {out} (new geo cells this run ≈ {pending_geo})")
     return out
 
 
