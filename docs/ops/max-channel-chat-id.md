@@ -70,23 +70,29 @@ MAX_CHANNEL_CHAT_ID=<число_из_лога>
 
 ## 5. Тест публикации
 
+Прямой пост в клиентский канал (минуя премодерацию):
+
 ```powershell
 sfrfr max-channel-post -t "Тест: публикация через API SFRFR"
 ```
 
 В канале должен появиться пост. Текст без ПДн и без обещаний перерасчёта.
 
-## 6. Боевой путь
+## 6. Боевой путь (премодерация)
 
 ```text
-черновик → ручная проверка → sfrfr max-channel-post / API → проверка в канале
+черновик → канал специалистов (кнопки) → Опубликовать → канал клиентов
 ```
 
-Стартовый набор (закреп + 5 постов):
+Подробно: [max-channel-review.md](./max-channel-review.md).
+
+Стартовый набор (по умолчанию — в канал команды на одобрение):
 
 ```powershell
 sfrfr max-channel-publish-starter --dry-run
-sfrfr max-channel-publish-starter
+sfrfr max-channel-publish-starter --only 07-no-calc
+# сразу в клиентский канал (только осознанно):
+sfrfr max-channel-publish-starter --direct --only 07-no-calc
 ```
 
 Файлы: `scripts/assets/max-channel/starter-posts.json`.

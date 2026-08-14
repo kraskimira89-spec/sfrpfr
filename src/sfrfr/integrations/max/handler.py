@@ -265,6 +265,17 @@ def _callback_payload(update: dict[str, Any]) -> str:
     return ""
 
 
+def _callback_id(update: dict[str, Any]) -> str:
+    """callback_id для POST /answers."""
+    for key in ("callback", "message_callback"):
+        block = update.get(key)
+        if isinstance(block, dict) and block.get("callback_id") is not None:
+            return str(block["callback_id"]).strip()
+    if update.get("callback_id") is not None:
+        return str(update["callback_id"]).strip()
+    return ""
+
+
 def _reply(
     bot: MaxBotClient,
     *,

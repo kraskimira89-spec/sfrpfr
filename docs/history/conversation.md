@@ -1,5 +1,10 @@
 # История бесед
 
+## 2026-08-14 — премодерация постов MAX
+
+- Черновик → канал специалистов (Опубликовать / Редактировать) → канал клиентов.
+- Docs: `docs/ops/max-channel-review.md`, `docs/history/2026-08-14-max-channel-review.md`.
+
 ## 2026-08-14 — сценарии A/B: Reg.ru VM vs downsize YC
 
 - Детализация в `docs/ops/yc-cost-breakdown-vs-regru.md`: cutover только Supabase-ВМ; почему stop ≈2.3k residual; downsize 2/4 ≈ CVoS.

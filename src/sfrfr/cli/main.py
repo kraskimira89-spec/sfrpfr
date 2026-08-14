@@ -388,6 +388,87 @@ def max_channel_info(
     typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+@app.command("max-channel-review")
+def max_channel_review(
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="id поста(ов) из starter-posts.json через запятую",
+    ),
+    file: Path | None = typer.Option(
+        None,
+        "--file",
+        help="JSON с постами (по умолчанию starter-posts.json)",
+        exists=True,
+        dir_okay=False,
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Только показать очередь, без отправки в канал команды",
+    ),
+) -> None:
+    """Отправить черновик(и) в канал специалистов на одобрение (не в клиентский канал)."""
+    import json
+    import time
+    from pathlib import Path as _Path
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.channel_review import create_and_send_review
+
+    settings = get_settings()
+    if not (settings.max_specialists_channel_chat_id or "").strip():
+        raise typer.BadParameter("Задайте MAX_SPECIALISTS_CHANNEL_CHAT_ID")
+    posts_path = file or _Path("scripts/assets/max-channel/starter-posts.json")
+    if not posts_path.is_file():
+        raise typer.BadParameter(f"Нет файла {posts_path}")
+    posts = json.loads(posts_path.read_text(encoding="utf-8"))
+    if not isinstance(posts, list) or not posts:
+        raise typer.BadParameter("JSON постов пуст")
+
+    only_ids = {part.strip() for part in (only or "").split(",") if part.strip()}
+    if only_ids:
+        posts = [p for p in posts if isinstance(p, dict) and str(p.get("id") or "") in only_ids]
+        if not posts:
+            raise typer.BadParameter(f"Не найдены id: {', '.join(sorted(only_ids))}")
+
+    if dry_run:
+        typer.echo(
+            json.dumps(
+                {
+                    "mode": "review",
+                    "specialists_chat_id": settings.max_specialists_channel_chat_id,
+                    "count": len(posts),
+                    "ids": [p.get("id") for p in posts if isinstance(p, dict)],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+
+    results: list[dict] = []
+    for item in posts:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        source_id = str(item.get("id") or "").strip()
+        out = create_and_send_review(
+            text=text,
+            cta_label=str(item.get("cta_label") or ""),
+            cta_kind=str(item.get("cta_kind") or ""),
+            cta_url=str(item.get("cta_url") or ""),
+            pin=bool(item.get("pin")),
+            source_id=source_id,
+            draft_id=source_id or None,
+        )
+        results.append(out)
+        time.sleep(0.7)
+    typer.echo(json.dumps({"reviewed": results}, ensure_ascii=False, indent=2))
+
+
 @app.command("max-channel-post")
 def max_channel_post(
     text: str = typer.Option(
@@ -401,14 +482,24 @@ def max_channel_post(
         "--chat-id",
         help="chat_id канала; по умолчанию MAX_CHANNEL_CHAT_ID из .env",
     ),
+    review: bool = typer.Option(
+        False,
+        "--review",
+        help="Сначала в канал специалистов (кнопки Опубликовать / Редактировать)",
+    ),
 ) -> None:
-    """Тестовая публикация в канал MAX (POST /messages?chat_id=...)."""
+    """Публикация в канал MAX (или --review в канал команды)."""
     import json
 
     from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.channel_review import create_and_send_review
     from sfrfr.integrations.max.client import MaxBotClient
 
     settings = get_settings()
+    if review:
+        out = create_and_send_review(text=text)
+        typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
+        return
     target = (chat_id or settings.max_channel_chat_id or "").strip()
     if not target:
         raise typer.BadParameter(
@@ -439,19 +530,22 @@ def max_channel_publish_starter(
         "--only",
         help="Опубликовать только пост(ы) по id через запятую (напр. 00-pinned)",
     ),
+    review: bool = typer.Option(
+        True,
+        "--review/--direct",
+        help="По умолчанию: в канал специалистов на одобрение. --direct — сразу в клиентский канал",
+    ),
 ) -> None:
-    """Опубликовать закреп + 5 стартовых постов из scripts/assets/max-channel/starter-posts.json."""
+    """Черновики из starter-posts.json → review (канал команды) или --direct в клиентский канал."""
     import json
     import time
     from pathlib import Path
 
     from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.channel_review import create_and_send_review
     from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
 
     settings = get_settings()
-    target = (chat_id or settings.max_channel_chat_id or "").strip()
-    if not target:
-        raise typer.BadParameter("Задайте MAX_CHANNEL_CHAT_ID")
     posts_path = Path("scripts/assets/max-channel/starter-posts.json")
     if not posts_path.is_file():
         raise typer.BadParameter(f"Нет файла {posts_path}")
@@ -465,8 +559,54 @@ def max_channel_publish_starter(
         if not posts:
             raise typer.BadParameter(f"Не найдены id: {', '.join(sorted(only_ids))}")
 
+    if review:
+        if dry_run:
+            typer.echo(
+                json.dumps(
+                    {
+                        "mode": "review",
+                        "count": len(posts),
+                        "ids": [p.get("id") for p in posts if isinstance(p, dict)],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return
+        if not (settings.max_specialists_channel_chat_id or "").strip():
+            raise typer.BadParameter(
+                "Для --review задайте MAX_SPECIALISTS_CHANNEL_CHAT_ID "
+                "(или используйте --direct)"
+            )
+        results = []
+        for item in posts:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("text") or "").strip()
+            if not text:
+                continue
+            source_id = str(item.get("id") or "").strip()
+            results.append(
+                create_and_send_review(
+                    text=text,
+                    cta_label=str(item.get("cta_label") or ""),
+                    cta_kind=str(item.get("cta_kind") or ""),
+                    cta_url=str(item.get("cta_url") or ""),
+                    pin=bool(item.get("pin")),
+                    source_id=source_id,
+                    draft_id=source_id or None,
+                )
+            )
+            time.sleep(0.7)
+        typer.echo(json.dumps({"mode": "review", "reviewed": results}, ensure_ascii=False, indent=2))
+        return
+
+    target = (chat_id or settings.max_channel_chat_id or "").strip()
+    if not target:
+        raise typer.BadParameter("Задайте MAX_CHANNEL_CHAT_ID")
+
     if dry_run:
-        preview = {"chat_id": target, "count": len(posts), "posts": posts}
+        preview = {"mode": "direct", "chat_id": target, "count": len(posts), "posts": posts}
         typer.echo(json.dumps(preview, ensure_ascii=False, indent=2))
         return
 
@@ -523,6 +663,7 @@ def max_channel_publish_starter(
     typer.echo(
         json.dumps(
             {
+                "mode": "direct",
                 "chat_id": target,
                 "published": published,
                 "pin": pin_result,

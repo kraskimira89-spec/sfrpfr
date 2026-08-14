@@ -41,6 +41,7 @@ storage/processed/*
 storage/knowledge_inbox/
 storage/cases.json
 storage/cases.tmp
+storage/max_channel_drafts.json
 !storage/uploads/.gitkeep
 !storage/processed/.gitkeep
 *.pdf

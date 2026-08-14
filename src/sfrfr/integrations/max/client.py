@@ -165,6 +165,38 @@ class MaxBotClient:
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}
 
+    def answer_callback(
+        self,
+        callback_id: str,
+        *,
+        notification: str | None = None,
+        message: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """POST /answers — ответ на нажатие inline-кнопки."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        cid = (callback_id or "").strip()
+        if not cid:
+            return {"ok": False, "skipped": True, "reason": "no callback_id"}
+        body: dict[str, Any] = {}
+        if notification:
+            body["notification"] = notification[:200]
+        if message is not None:
+            body["message"] = message
+        if not body:
+            body["notification"] = "OK"
+        endpoint = f"{self.api_base}/answers"
+        with self._client() as client:
+            resp = client.post(
+                endpoint,
+                headers=self._headers(),
+                params={"callback_id": cid},
+                json=body,
+            )
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            return data if isinstance(data, dict) else {"raw": data}
+
     def subscribe_webhook(self, url: str, *, secret: str | None = None) -> dict[str, Any]:
         """POST /subscriptions — зарегистрировать HTTPS webhook."""
         if not self.available:
