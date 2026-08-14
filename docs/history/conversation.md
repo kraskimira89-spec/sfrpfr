@@ -5,6 +5,7 @@
 - Статья `/blog/chto-delat-esli-period-raboty-ne-uchten/`: H1/title/H2 под запросы «не учли стаж».
 - Повод: статус Яндекса «малоценная/маловостребованная» + рекомендация targeting.
 - История: `docs/history/2026-08-14-seo-ne-uchli-stazh-targeting.md`.
+- Аудит остальных статей: `docs/marketing-sales/reports/blog-targeting-audit-2026-08-14.md`.
 
 ## 2026-08-14 — премодерация постов MAX
 
