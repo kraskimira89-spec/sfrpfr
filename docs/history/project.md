@@ -88,6 +88,12 @@
 - Единые реквизиты в футере и на `/kontakty/`; `tariff_view` на `/tarify/`.
 - Ops: `docs/ops/seo-trust-commerce-pages.md`; сидер `wp_seed_trust_pages_tz18.sh`.
 
+## 2026-08-14 (стоимость YC vs Reg.ru VM)
+
+- Разбор burn ~8500: почти всё — Compute 4/8 + network-ssd + IP (~7.5k), не DBaaS.
+- 1:1 с Reg.ru High C4-M8-D120 (~4.4k); AI/Captcha остаются в YC.
+- `docs/ops/yc-cost-breakdown-vs-regru.md`; обновлена таблица в `infra/yandex-cloud/README.md`.
+
 ## 2026-08-03 (юридические документы после переноса в РФ)
 
 - Политика, Согласие и Правила файлов браузера обновлены до редакций 2026-08-03.

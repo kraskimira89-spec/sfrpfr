@@ -72,16 +72,21 @@ terraform destroy
 
 ## Оценка стоимости (ориентир)
 
+Прайс с **30.04.2026**, 720 ч/мес. Детальный разбор и сравнение с Reg.ru VM:
+[docs/ops/yc-cost-breakdown-vs-regru.md](../../docs/ops/yc-cost-breakdown-vs-regru.md).
+
 | Ресурс | ~₽/мес |
 |--------|--------|
-| VM 4 vCPU / 8 GB | ~2500 |
-| Boot 30 GB SSD | ~240 |
-| Data 100 GB SSD | ~800 |
-| Static IP | ~200 |
-| KMS + Object Storage | по факту |
-| **Итого** | **~3800+** |
+| VM 4 vCPU Ice Lake 100% | ~3 571 |
+| RAM 8 GB | ~1 901 |
+| Boot 30 GB network-ssd | ~430 |
+| Data 100 GB network-ssd | ~1 433 |
+| Static IP (active) | ~190 |
+| Lockbox + KMS | ~42 |
+| Object Storage / Captcha / AI | по факту |
+| **Итого always-on** | **~7 567+** |
 
-Перед apply: нет баннера «Облако заблокировано».
+Старая оценка ~3800 устарела. Перед apply: нет баннера «Облако заблокировано».
 
 ## Безопасность
 
