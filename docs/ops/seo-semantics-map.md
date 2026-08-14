@@ -56,6 +56,7 @@
 | Наш продукт | Сверка документов и план обращения; решение о пенсии — только СФР |
 | Канон копирайта | [`no-calculator-no-recalculation.md`](../../scripts/assets/copy/no-calculator-no-recalculation.md): нет калькулятора стажа / не ведём перерасчёт |
 | CSV seed | кластер `8_calc` в [wordstat-7-clusters-template.csv](../marketing-sales/reports/wordstat-7-clusters-template.csv) |
+| Частоты 2026-08-14 | [wordstat-8-calc-2026-08-14.md](../marketing-sales/reports/wordstat-8-calc-2026-08-14.md): стаж 89 718, расчет пенсии 75 770, пенсионный калькулятор 19 314; перерасчёт-калькулятор 130 |
 
 ## Обновление карты
 
