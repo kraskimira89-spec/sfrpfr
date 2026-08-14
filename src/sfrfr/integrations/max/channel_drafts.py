@@ -277,12 +277,12 @@ def format_review_message(draft: ChannelDraft) -> str:
     ]
     if draft.cta_label:
         target = draft.cta_url if draft.cta_kind == "url" else "личный чат MAX"
-        lines.append(f"Кнопка у клиентов: «{draft.cta_label}» → {target}")
+        lines.append(f"Кнопка у клиентов: «{draft.cta_label}» -> {target}")
         lines.append("")
     lines.extend(
         [
             "«Опубликовать» — сразу в канал клиентов.",
-            "«Скопировать текст» → поправьте → вставьте сюда в этот чат "
+            "«Скопировать текст» -> поправьте -> вставьте сюда в этот чат "
             "(или нажмите «Прислать правку» и пришлите текст).",
             "Ответ с кнопкой «Опубликовать» придёт сюда же, в ops-бот — не в канал команды.",
         ]
