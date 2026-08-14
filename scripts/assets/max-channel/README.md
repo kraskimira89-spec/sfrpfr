@@ -9,7 +9,7 @@ Ops: `docs/ops/max-channel-chat-id.md`
 
 | Файл | Назначение |
 |------|------------|
-| `starter-posts.json` | Закреп + 5 постов (коллеги → чек-лист → снижение → границы → MAX) |
+| `starter-posts.json` | Закреп + стартовые посты + `06-four-checks` |
 | `channel-description.md` | Текст описания канала для ручной вставки в UI MAX |
 
 ## Путь публикации
