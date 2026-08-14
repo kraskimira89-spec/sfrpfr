@@ -1141,6 +1141,38 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
   margin-bottom: 0 !important;
 }
 
+body:has(#sfrfr-kontakty-page) .entry-header,
+body:has(#sfrfr-kontakty-page) .ast-page-title-wrapper {
+  margin: 0.2rem 0 0.15rem !important;
+  padding: 0.15rem 0 0 !important;
+}
+
+body:has(#sfrfr-kontakty-page) h1.entry-title {
+  margin: 0 0 0.2rem !important;
+}
+
+body:has(#sfrfr-kontakty-page) #primary,
+body:has(#sfrfr-kontakty-page) .site-content,
+body:has(#sfrfr-kontakty-page) .entry-content,
+body:has(#sfrfr-kontakty-page) .ast-article-single {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+body:has(#sfrfr-kontakty-page) .ast-breadcrumbs-wrapper,
+body:has(#sfrfr-kontakty-page) .sfrfr-breadcrumbs {
+  margin: 0.2rem 0 0.1rem !important;
+  padding-bottom: 0 !important;
+}
+
+#sfrfr-kontakty-page > .sfrfr-section {
+  padding-top: 0.5rem;
+}
+
+#sfrfr-kontakty-page .sfrfr-kontakty-geo {
+  margin: 0 0 0.55rem;
+}
+
 body:has(#sfrfr-otzyvy-page) #primary,
 body:has(#sfrfr-otzyvy-page) .site-content,
 body:has(#sfrfr-otzyvy-page) .entry-content,
