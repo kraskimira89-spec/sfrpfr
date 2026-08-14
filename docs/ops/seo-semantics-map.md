@@ -23,7 +23,7 @@
 | Заказ ИЛС | `/blog/kak-zakazat-vypisku-ils/` | получить выписку | сверка / услуга | live | 2026-08 |
 | Чтение ИЛС / стаж | `/blog/kak-proverit-stazh-v-vypiske-ils/` | понять выписку, **оценка стажа без фейкового калькулятора** | сверка / MAX | live+keys | 2026-08-13 |
 | Сверка трудовая↔ИЛС | `/blog/kak-sverit-trudovuyu-knizhku-i-ils/` | найти расхождения | документы / услуга | live+keys | 2026-08-13 |
-| Неучтённый период | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | исправить пробел | архив / услуга | live | 2026-08 |
+| Неучтённый период / не учли стаж | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | исправить пробел | архив / услуга | live | 2026-08-14: title/H1 под «не учли стаж» |
 | Архив | `/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/` | подтвердить период | комплект | live | 2026-08 |
 | Документы | `/blog/kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr/` | собрать комплект | подача / услуга | live | 2026-08 |
 | Подача | `/blog/kak-podat-zayavlenie-cherez-gosuslugi-ili-mfc/` | подать сам | услуга (подготовка) | live | 2026-08 |
