@@ -28,7 +28,7 @@ SUCCESS_FEE_DUE_AT
 SUCCESS_FEE_PAID_AT
 ```
 
-Поля success fee — только после юр. утверждения модели; до этого не в LTV/CAC.
+Поля success fee — скрыты (`is_api_only`); продажи SF не включены (решение 14.08.2026).
 
 Базовые поля ТЗ-12: `CASE_ID`, `SFRFR_CASE_URL`, `PIPELINE_STATUS`, `CHANNEL`, `SOURCE`, `CONSENT`.
 

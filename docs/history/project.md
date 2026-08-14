@@ -1,3 +1,9 @@
+## 2026-08-14 — оферта и success fee
+
+- Юр. решение: `docs/contracts/decision-success-fee-2026-08-14.md` — SF допустим как опция Заказа, в MVP не продаём.
+- Редакция оферты `offer-2026-08-14` (+ §7.11); шаблон заказа; trust на главной без «оплаты за результат».
+- История: `docs/history/2026-08-14-offer-success-fee-decision.md`.
+
 ## 2026-08-09 — wipe test data
 
 - Self-host БД очищена под новый QA; сохранён admin `staff_roles`.

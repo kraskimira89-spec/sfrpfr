@@ -11,7 +11,7 @@
 | Этап 0–1 (UTM, CRM-атрибуция, baseline) | PARTIAL → in-repo реализация в этом проходе |
 | Этап 2 (сегментные страницы, MAX §10.1) | PARTIAL → in-repo |
 | Этап 3–4 (реклама, B2B discovery) | NOT DONE / BLOCKED (владелец) |
-| Success fee на публичных тарифах | DONE (корректно не публикуется до юр. проверки) |
+| Success fee на публичных тарифах | DONE (не публикуется; опция только в Заказе по решению 14.08.2026) |
 
 ## P0 — Управление и измерение
 
@@ -24,11 +24,11 @@
 | 5 | Поля CRM атрибуции | DONE (код) | amoCRM `LEAD_FIELD_SPECS` |
 | 6 | Отчёт до оплаты | PARTIAL | Шаблон weekly; dbt UTM-mart — позже |
 | 7 | Сценарий квалификации + потери | DONE (docs) | playbook-sales-qualification |
-| 8 | Success fee / цена / юр. | BLOCKED | Юр. проверка |
+| 8 | Success fee / цена / юр. | DONE | Решение 14.08.2026: SF допустим только как опция Заказа; в MVP не продаём |
 | 9 | Яндекс Бизнес dual ID | BLOCKED | Ручная сверка UI |
 | 10 | Развести baseline SEO/ads/product | PARTIAL | Зафиксировано здесь |
 | 11 | MAX channel click→pay | PARTIAL | Цели `max_channel_click`; E2E в живой Метрике — владелец |
-| 12 | Юр. оферта | BLOCKED | |
+| 12 | Юр. оферта | DONE | Редакция `offer-2026-08-14` + decision-success-fee |
 | 13 | Редакционный стандарт | DONE (docs) | playbook-editorial-standard |
 | 14 | ТЗ-10 superseded | DONE | Баннер в ТЗ-10 |
 
@@ -55,7 +55,7 @@
 
 1. Назначить владельца воронки и месячный лимит рекламы.  
 2. Снять baseline из Метрики и amoCRM.  
-3. Юр. проверка оферты и решение по success fee.  
+3. ~~Юр. проверка оферты и решение по success fee.~~ → DONE 14.08.2026 (`decision-success-fee-2026-08-14.md`, оферта `offer-2026-08-14`).  
 4. Карточка Яндекс Бизнеса: канон `82469923047`, дубликат удалён (2026-08-12).  
 5. ~~Создать цели §7.2~~ DONE 2026-08-14 (ensure + путь канала MAX).  
 6. Запустить узкие тесты Директ / VK / ОК с ERID.  

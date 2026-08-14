@@ -209,6 +209,7 @@ def cmd_matrix(
     sleep_s: float,
     limit_regions: int | None,
     limit_phrases: int | None,
+    offset_phrases: int,
     region_code: str,
     only_phrase: str,
 ) -> Path:
@@ -221,8 +222,11 @@ def cmd_matrix(
     phrases = list(catalog.get("pensioner_seed_phrases") or [])
     if only_phrase.strip():
         phrases = [only_phrase.strip()]
-    elif limit_phrases is not None:
-        phrases = phrases[:limit_phrases]
+    else:
+        if offset_phrases:
+            phrases = phrases[offset_phrases:]
+        if limit_phrases is not None:
+            phrases = phrases[:limit_phrases]
 
     region_codes = [str(r["code"]) for r in regions]
     out = OUT_DIR / f"wordstat-north-geo-matrix-{date.today().isoformat()}.csv"
@@ -291,7 +295,7 @@ def cmd_matrix(
         persist()
 
     persist()
-    print(f"OK {out} (new geo cells this run ≈ {pending_geo})")
+    print(f"OK {out} (new geo cells this run ~ {pending_geo})")
     return out
 
 
@@ -304,6 +308,7 @@ def main() -> int:
     p.add_argument("--limit", type=int, default=None, help="Лимит фраз для --phrases-only")
     p.add_argument("--limit-regions", type=int, default=None)
     p.add_argument("--limit-phrases", type=int, default=None)
+    p.add_argument("--offset-phrases", type=int, default=0, help="Пропустить первые N seed-фраз")
     p.add_argument("--region-code", type=str, default="", help="Один code из crawl_priority")
     p.add_argument("--phrase", type=str, default="")
     p.add_argument("--sleep", type=float, default=0.4)
@@ -319,6 +324,7 @@ def main() -> int:
         sleep_s=args.sleep,
         limit_regions=args.limit_regions,
         limit_phrases=args.limit_phrases,
+        offset_phrases=args.offset_phrases,
         region_code=args.region_code,
         only_phrase=args.phrase,
     )
