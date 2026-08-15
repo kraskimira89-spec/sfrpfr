@@ -20,6 +20,10 @@
 | [viz-pered-pensiey.md](viz-pered-pensiey.md) | перед пенсией | 16:9 |
 | [viz-tarify.md](viz-tarify.md) | тарифы | 16:9 |
 | [viz-kabinet.md](viz-kabinet.md) | kabinet | 16:9, 1:1 |
+| [viz-kontakty.md](viz-kontakty.md) | контакты | 16:9 |
+| [viz-otzyvy.md](viz-otzyvy.md) | отзывы | 16:9 |
+| [viz-stazh-do-2002.md](viz-stazh-do-2002.md) | стаж до 2002 | 16:9 |
+| [viz-eksperty.md](viz-eksperty.md) | эксперты | 16:9 |
 
 ---
 

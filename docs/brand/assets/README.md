@@ -20,6 +20,10 @@
 | `viz-pered-pensiey-16x9.png` | `/proverka-stazha-pered-pensiey/` | на сайте |
 | `viz-tarify-16x9.png` | `/tarify/` | на сайте |
 | `viz-kabinet-16x9.png` / `1x1` | кабинет / инструкция | запас |
+| `viz-kontakty-16x9.png` | `/kontakty/` | на сайте |
+| `viz-otzyvy-16x9.png` | `/otzyvy/` | на сайте |
+| `viz-stazh-do-2002-16x9.png` | `/stazh-do-2002/` | на сайте |
+| `viz-eksperty-16x9.png` | `/expert/` | на сайте |
 
 Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.
 

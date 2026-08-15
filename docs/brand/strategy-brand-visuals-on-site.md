@@ -27,6 +27,10 @@
 | `/pomoch-rodstvenniku-proverit-stazh/` | `viz-family-digital-support-16x9.png` | то же |
 | `/tarify/` | `viz-tarify-16x9.png` | то же; карточки тарифов ниже |
 | `/kak-rabotaem/` | `viz-soprovozhdenie-16x9.png` | то же; шаги ниже |
+| `/stazh-do-2002/` | `viz-stazh-do-2002-16x9.png` | то же |
+| `/kontakty/` | `viz-kontakty-16x9.png` | то же |
+| `/otzyvy/` | `viz-otzyvy-16x9.png` | lead + слот над карточками |
+| `/expert/` | `viz-eksperty-16x9.png` | то же; фото экспертов ниже |
 | Кабинет | `viz-kabinet-16x9.png` | запас |
 | OG / посты | 1:1 | SEO / соцсети |
 
