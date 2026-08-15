@@ -36,9 +36,13 @@ python scripts/wordstat_fetch_7_clusters.py --all --no-geo
 
 ```powershell
 python scripts/wordstat_fetch_north_regions.py --list
-python scripts/wordstat_fetch_north_regions.py --phrases-only
-python scripts/wordstat_fetch_north_regions.py --limit-regions 8 --limit-phrases 4
+# до полного заполнения матрицы, не больше 80 req/час (запас до квоты 100)
+python scripts/wordstat_fetch_north_regions.py --until-done --rph 80
+# один проход без ожидания
+python scripts/wordstat_fetch_north_regions.py --once
 ```
+
+Файл прогресса: `docs/marketing-sales/reports/wordstat-north-geo-matrix.csv` (+ дневная копия). При 429 скрипт **не останавливается** — ждёт окно и продолжает.
 
 Внимание: раньше ЯНАО ошибочно указывали как `10842` (это Архангельская область).
 

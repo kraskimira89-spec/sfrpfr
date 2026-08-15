@@ -70,13 +70,13 @@
 
 ## Как добрать матрицу частот по регионам
 
-Квота ~100 req/час. Пример:
+Квота API ~100 req/час. Скрипт по умолчанию держит **80/час**, при 429 ждёт и **продолжает до полного заполнения**:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python scripts/wordstat_fetch_north_regions.py --list
-python scripts/wordstat_fetch_north_regions.py --phrases-only
-python scripts/wordstat_fetch_north_regions.py --limit-regions 8 --limit-phrases 4
+python scripts/wordstat_fetch_north_regions.py --until-done --rph 80
 ```
 
-Выход: `wordstat-north-geo-matrix-YYYY-MM-DD.csv`, `wordstat-north-phrases-rf-YYYY-MM-DD.csv`.
+Прогресс: `wordstat-north-geo-matrix.csv` (+ `wordstat-north-geo-matrix-YYYY-MM-DD.csv`).
+РФ seed: `wordstat-north-phrases-rf-YYYY-MM-DD.csv`.
