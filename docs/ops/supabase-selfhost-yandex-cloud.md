@@ -194,6 +194,7 @@ docker compose exec -T db pg_dump -U postgres > backup-$(date +%F).sql
 - [x] SmartCaptcha: ключи YC + `CAPTCHA_PROVIDER=yandex` на API/VPS; MU-плагин на витрине (`wp_apply_landing_vps.sh`)
 - [x] Cabinet/admin/API переключены на `https://supabase.proverkastaza.ru` (cutover 2026-08-03; данные Cloud импортированы)
 - [x] `DATABASE_URL` / `DBT_*` → YC Postgres **:5433** (direct; Supavisor на :5432), SG `allowed_postgres_cidrs`
+- [x] Публикация `:5433` на `supabase-db` (2026-08-17): override `docker-compose.sfrfr-direct-pg.yml` в `COMPOSE_FILE`; RestartPolicy `unless-stopped`. Памятка на ВМ: `/opt/sfrfr-supabase/README.sfrfr-ports.txt`. Не делать `docker compose -f docker-compose.yml up` без override — снимет `:5433`.
 - [ ] Drain Cloud — чеклист [supabase-cloud-drain-checklist.md](./supabase-cloud-drain-checklist.md) (не в день cutover)
 
 ## Чего не делать

@@ -5,6 +5,7 @@
 - Override уже был в COMPOSE_FILE, но `supabase-db` не публиковал `:5433`.
 - `docker compose up -d db` → `0.0.0.0:5433->5432`; с app-VPS TCP OPEN.
 - SG SSH: добавлен `109.252.109.48/32` (агент); `:5433` для `91.229.11.147/32` уже был.
+- Закрепление: RestartPolicy `unless-stopped`, systemd Compose нет; памятка `/opt/sfrfr-supabase/README.sfrfr-ports.txt`; `up -d db` no-op. dbt не гоняли.
 
 ## 2026-08-17 — dbt после переезда на Yandex
 

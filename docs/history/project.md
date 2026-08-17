@@ -14,6 +14,7 @@
 - На `sfrfr-staging-supabase` override уже в `COMPOSE_FILE`, контейнер `db` порт не публиковал.
 - Recreate только `supabase-db`: `0.0.0.0:5433->5432`; стек Kong/Caddy без down.
 - С app-VPS `91.229.11.147` TCP `:5433` OPEN. Nightly dbt можно гонять снова (RLS-скрипт без +x — отдельно).
+- Закрепление: `unless-stopped`; отдельного systemd Compose нет (reboot = Docker policy); памятка на ВМ + runbook.
 
 ## 2026-08-09 — wipe test data
 
