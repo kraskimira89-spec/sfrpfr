@@ -3,6 +3,7 @@
   "python.terminal.activateEnvironment": true,
   "python.terminal.activateEnvInCurrentTerminal": true,
   "mypy-type-checker.args": ["--config-file", "pyproject.toml"],
+  "mypy-type-checker.trace.server": "verbose",
   "python.analysis.typeCheckingMode": "basic",
   "terminal.integrated.defaultProfile.windows": "PowerShell (venv)",
   "terminal.integrated.profiles.windows": {
