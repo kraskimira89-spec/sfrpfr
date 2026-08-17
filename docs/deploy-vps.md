@@ -1,5 +1,7 @@
 # Деплой: WordPress + API на VPS (reg.ru)
 
+SSH с ПК владельца: `ssh sfrfr-vps` — см. [ops/vps-ssh.md](ops/vps-ssh.md).
+
 ## Домены (актуально)
 
 Основной: **proverkastaza.ru**. Алиасы с 301: `proverka-staza.ru`, `prostaz.ru`, старый `taxi-doroga-dobra.ru`.  

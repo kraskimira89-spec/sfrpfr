@@ -46,9 +46,11 @@ ssh-keygen -t ed25519 -f $HOME\.ssh\sfrfr-deploy\id_ed25519_sfrfr_deploy -N '""'
 
 ## На VPS — один раз (bootstrap)
 
-Подключитесь:
+Подключитесь (предпочтительно алиас из [ops/vps-ssh.md](ops/vps-ssh.md)):
 
 ```powershell
+ssh sfrfr-vps
+# или явно ключом деплоя:
 ssh -i $HOME\.ssh\sfrfr-deploy\id_ed25519_sfrfr_deploy USER@HOST
 ```
 
