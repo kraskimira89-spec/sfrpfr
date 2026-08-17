@@ -52,5 +52,6 @@ fi
 "$DBT_BIN" debug --profiles-dir .
 # Direct Postgres (YC :5433 или Cloud direct); последовательно.
 "$DBT_BIN" build --profiles-dir . --threads 1 --no-populate-cache
-"$ROOT/scripts/dbt_apply_rls.sh"
+# bash: на VPS git checkout часто без +x (04.08 Permission denied / exit 126).
+bash "$ROOT/scripts/dbt_apply_rls.sh"
 "$DBT_BIN" docs generate --profiles-dir . --threads 1 --no-populate-cache || true

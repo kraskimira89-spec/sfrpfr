@@ -7,6 +7,11 @@
 - SG SSH: добавлен `109.252.109.48/32` (агент); `:5433` для `91.229.11.147/32` уже был.
 - Закрепление: RestartPolicy `unless-stopped`, systemd Compose нет; памятка `/opt/sfrfr-supabase/README.sfrfr-ports.txt`; `up -d db` no-op. dbt не гоняли.
 
+## 2026-08-17 — разовый dbt_run на app-VPS
+
+- `dbt debug` OK на `:5433`; `PASS=51`; RLS через `bash dbt_apply_rls.sh` (не +x).
+- `dbt_run.sh`: вызов RLS всегда через `bash`, чтобы nightly не падал с exit 126.
+
 ## 2026-08-17 — dbt после переезда на Yandex
 
 - Gap analysis runtime → патч канона YC `:5433` (defaults + docs); SSH/timer не трогали.

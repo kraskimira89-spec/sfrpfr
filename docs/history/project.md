@@ -15,6 +15,7 @@
 - Recreate только `supabase-db`: `0.0.0.0:5433->5432`; стек Kong/Caddy без down.
 - С app-VPS `91.229.11.147` TCP `:5433` OPEN. Nightly dbt можно гонять снова (RLS-скрипт без +x — отдельно).
 - Закрепление: `unless-stopped`; отдельного systemd Compose нет (reboot = Docker policy); памятка на ВМ + runbook.
+- Разовый `dbt_run.sh` 2026-08-17: debug OK `:5433`, PASS=51, RLS через `bash` (не chmod).
 
 ## 2026-08-09 — wipe test data
 
