@@ -9,6 +9,12 @@
 - Default `DBT_PORT=5433` / `DBT_SSLMODE=disable` в profiles, `dbt_run.sh`, `dbt_apply_rls.sh`, probe; WARN при `:5432`.
 - Docs YC-first (`dbt-analytics.md`, runbook, drain checklist); Cloud — legacy.
 
+## 2026-08-17 — self-host: публикация Postgres :5433
+
+- На `sfrfr-staging-supabase` override уже в `COMPOSE_FILE`, контейнер `db` порт не публиковал.
+- Recreate только `supabase-db`: `0.0.0.0:5433->5432`; стек Kong/Caddy без down.
+- С app-VPS `91.229.11.147` TCP `:5433` OPEN. Nightly dbt можно гонять снова (RLS-скрипт без +x — отдельно).
+
 ## 2026-08-09 — wipe test data
 
 - Self-host БД очищена под новый QA; сохранён admin `staff_roles`.
