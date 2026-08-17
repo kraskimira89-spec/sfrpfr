@@ -11,6 +11,8 @@
 
 - `dbt debug` OK на `:5433`; `PASS=51`; RLS через `bash dbt_apply_rls.sh` (не +x).
 - `dbt_run.sh`: вызов RLS всегда через `bash`, чтобы nightly не падал с exit 126.
+- Проверен путь systemd: `systemctl start sfrfr-dbt.service` → Result=success, PASS=51, RLS DO, unit Finished.
+- `chmod +x` на VPS + git mode 100755, чтобы `git reset` деплоя не снимал бит.
 
 ## 2026-08-17 — dbt после переезда на Yandex
 
