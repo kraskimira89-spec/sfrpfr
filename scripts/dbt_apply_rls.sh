@@ -29,11 +29,15 @@ fi
 : "${DBT_HOST:?DBT_HOST must be set}"
 : "${DBT_PASSWORD:?DBT_PASSWORD must be set}"
 
-DBT_PORT="${DBT_PORT:-5432}"
+# YC: прямой Postgres :5433. :5432 = Supavisor — не использовать для DDL/RLS.
+DBT_PORT="${DBT_PORT:-5433}"
 DBT_USER="${DBT_USER:-analytics_transformer}"
 DBT_DBNAME="${DBT_DBNAME:-postgres}"
-# Cloud: require. Self-host YC (ssl=off): disable.
+# Cloud legacy: require. Self-host YC (ssl=off): disable.
 DBT_SSLMODE="${DBT_SSLMODE:-disable}"
+if [[ "$DBT_PORT" == "5432" ]]; then
+  echo "WARN: DBT_PORT=5432 (часто Supavisor). Для YC dbt канон — 5433." >&2
+fi
 
 export PGPASSWORD="$DBT_PASSWORD"
 CONN="host=${DBT_HOST} port=${DBT_PORT} user=${DBT_USER} dbname=${DBT_DBNAME} sslmode=${DBT_SSLMODE} connect_timeout=30"

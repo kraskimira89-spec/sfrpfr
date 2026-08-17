@@ -7,6 +7,8 @@ model-paths: ["models"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages", "logs"]
 
+# Analytics mart tables are owned by analytics_transformer (created by dbt).
+# RLS/REVOKE after build: scripts/dbt_apply_rls.sh (not dbt post-hook — COMMIT hangs).
 models:
   sfrfr_analytics:
     staging:
@@ -14,4 +16,4 @@ models:
     marts:
       +materialized: table
       # RLS/REVOKE применяются после build в scripts/dbt_run.sh:
-      # post-hook внутри dbt зависает на Supabase (idle COMMIT / futex).
+      # post-hook внутри dbt зависает на idle COMMIT / futex (Cloud и self-host).

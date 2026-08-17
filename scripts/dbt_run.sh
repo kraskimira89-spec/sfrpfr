@@ -30,6 +30,12 @@ fi
 
 : "${DBT_HOST:?DBT_HOST must be set}"
 : "${DBT_PASSWORD:?DBT_PASSWORD must be set}"
+# Канон YC: прямой Postgres :5433 (не Supavisor :5432).
+export DBT_PORT="${DBT_PORT:-5433}"
+export DBT_SSLMODE="${DBT_SSLMODE:-disable}"
+if [[ "$DBT_PORT" == "5432" ]]; then
+  echo "WARN: DBT_PORT=5432 (часто Supavisor). Для YC dbt канон — 5433." >&2
+fi
 
 if [[ ! -f "$DBT_DIR/profiles.yml" ]]; then
   echo "Missing $DBT_DIR/profiles.yml. Copy profiles.yml.example and keep DBT_PASSWORD in .env." >&2

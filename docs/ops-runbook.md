@@ -39,8 +39,9 @@
 SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 ```
 
-Используйте `sfrfr-dbt.timer` от `sfrfr` (ежедневно в 05:30 МСК) с direct PostgreSQL
-endpoint после включения IPv4 add-on. Не добавляйте этот запуск в `vps_deploy.sh`.
+Используйте `sfrfr-dbt.timer` от `sfrfr` (ежедневно в 05:30 МСК) с **прямым**
+Postgres YC `:5433` (`DBT_PORT=5433`, `DBT_SSLMODE=disable`). Не добавляйте
+этот запуск в `vps_deploy.sh`. Не используйте Supavisor `:5432` для dbt DDL.
 
 ## Российский рабочий контур
 

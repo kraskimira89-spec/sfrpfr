@@ -9,8 +9,9 @@
 - [ ] API `/health` = 200, `supabase_configured=true`
 - [ ] Cabinet + admin открываются, magic link / OTP работает
 - [ ] Лиды / кейсы пишутся в YC (row counts растут только там)
-- [ ] `DATABASE_URL` / `DBT_*` на VPS → YC Postgres (не `*.supabase.co`)
-- [ ] Nightly `sfrfr-dbt.timer` (если включён) успешен против YC
+- [ ] `DATABASE_URL` / `DBT_*` на VPS → YC Postgres **`:5433`** (не `*.supabase.co`, не Supavisor `:5432`)
+- [ ] Nightly `sfrfr-dbt.timer` (если включён) успешен против YC (`journalctl -u sfrfr-dbt.service`)
+- [ ] В `.env`: `DBT_PORT=5433`, `DBT_SSLMODE=disable` (defaults в `dbt_run.sh` / `profiles.yml.example` — тоже 5433/disable)
 - [ ] Нет критичных ошибок Auth/Storage в логах 24–72 ч
 - [ ] Бэкап YC Postgres + `restore_drill` свежий
 

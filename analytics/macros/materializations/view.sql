@@ -1,5 +1,5 @@
 {% materialization view, default %}
-  {# Avoid dbt's tmp/rename/backup dance: on Supabase it contends on pg_type
+  {# Avoid dbt's tmp/rename/backup dance: on pooled PG it contends on pg_type
      (statement timeout / hang on ALTER ... RENAME). CREATE OR REPLACE is enough. #}
   {%- set target_relation = this.incorporate(type='view') -%}
   {%- set existing_relation = load_relation(this) -%}

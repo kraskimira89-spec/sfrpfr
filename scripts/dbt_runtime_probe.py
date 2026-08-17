@@ -60,21 +60,29 @@ def execute_probe(cursor: psycopg.Cursor, hypothesis_id: str, name: str, sql: st
 
 def main() -> None:
     load_dotenv(ROOT / ".env")
-    required = ("DBT_HOST", "DBT_PORT", "DBT_USER", "DBT_PASSWORD", "DBT_DBNAME")
+    required = ("DBT_HOST", "DBT_USER", "DBT_PASSWORD", "DBT_DBNAME")
     missing = [name for name in required if not os.getenv(name)]
     if missing:
         debug_log("H0", "DBT environment incomplete", missing=missing)
         raise SystemExit(2)
 
     host = os.environ["DBT_HOST"]
-    port = int(os.environ["DBT_PORT"])
-    host_kind = (
-        "direct"
-        if host.startswith("db.")
-        else "pooler"
-        if ".pooler.supabase.com" in host
-        else "other"
-    )
+    port = int(os.environ.get("DBT_PORT", "5433"))
+    sslmode = os.environ.get("DBT_SSLMODE", "disable")
+    if host.startswith("db.") and host.endswith(".supabase.co"):
+        host_kind = "cloud_direct"
+    elif ".pooler.supabase.com" in host:
+        host_kind = "pooler"
+    elif port == 5433:
+        host_kind = "yc_direct"
+    else:
+        host_kind = "other"
+    if port == 5432:
+        debug_log(
+            "H0",
+            "DBT_PORT=5432 warning (often Supavisor; YC dbt canon is 5433)",
+            host_kind=host_kind,
+        )
     try:
         addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
         families = {
@@ -113,12 +121,18 @@ def main() -> None:
             user=os.environ["DBT_USER"],
             password=os.environ["DBT_PASSWORD"],
             dbname=os.environ["DBT_DBNAME"],
-            sslmode="require",
+            sslmode=sslmode,
             connect_timeout=15,
             application_name="sfrfr-dbt-runtime-probe",
             autocommit=False,
         ) as connection:
-            debug_log("H1", "dbt connection established", host_kind=host_kind, port=os.environ["DBT_PORT"])
+            debug_log(
+                "H1",
+                "dbt connection established",
+                host_kind=host_kind,
+                port=str(port),
+                sslmode=sslmode,
+            )
             with connection.cursor() as cursor:
                 execute_probe(
                     cursor,

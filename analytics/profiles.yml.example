@@ -4,7 +4,8 @@ sfrfr_analytics:
     dev:
       type: postgres
       host: "{{ env_var('DBT_HOST') }}"
-      port: "{{ env_var('DBT_PORT', '5432') | int }}"
+      # YC direct PG :5433 (Supavisor на :5432 — не для dbt DDL).
+      port: "{{ env_var('DBT_PORT', '5433') | int }}"
       user: "{{ env_var('DBT_USER', 'analytics_transformer') }}"
       password: "{{ env_var('DBT_PASSWORD') }}"
       dbname: "{{ env_var('DBT_DBNAME', 'postgres') }}"

@@ -4,6 +4,11 @@
 - Редакция оферты `offer-2026-08-14` (+ §7.11); шаблон заказа; trust на главной без «оплаты за результат».
 - История: `docs/history/2026-08-14-offer-success-fee-decision.md`.
 
+## 2026-08-17 — dbt: канон YC :5433
+
+- Default `DBT_PORT=5433` / `DBT_SSLMODE=disable` в profiles, `dbt_run.sh`, `dbt_apply_rls.sh`, probe; WARN при `:5432`.
+- Docs YC-first (`dbt-analytics.md`, runbook, drain checklist); Cloud — legacy.
+
 ## 2026-08-09 — wipe test data
 
 - Self-host БД очищена под новый QA; сохранён admin `staff_roles`.
