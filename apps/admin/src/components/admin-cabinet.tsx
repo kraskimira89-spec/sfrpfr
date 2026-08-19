@@ -196,6 +196,7 @@ export function AdminCabinet() {
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_OPS_BOT);
   const [maxReplyBody, setMaxReplyBody] = useState("");
+  const [maxReplyFocus, setMaxReplyFocus] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -435,7 +436,7 @@ export function AdminCabinet() {
   async function openCase(caseId: string, opts?: { focusMaxReply?: boolean }) {
     if (!token) return;
     if (opts?.focusMaxReply) {
-      window.location.hash = "max-reply";
+      setMaxReplyFocus(true);
     }
     setBusy(true);
     try {
@@ -461,6 +462,7 @@ export function AdminCabinet() {
     if (!token || !me?.is_staff) return;
     const params = new URLSearchParams(window.location.search);
     const caseId = params.get("case")?.trim();
+    const focusMax = window.location.hash === "#max-reply";
     if (caseId) {
       void (async () => {
         if (!token) return;
@@ -477,6 +479,7 @@ export function AdminCabinet() {
           setMessages(caseMessages);
           setPipelineStatus(caseDetail.pipeline_status);
           setView("case");
+          if (focusMax) setMaxReplyFocus(true);
         } catch {
           setNotice("Дело недоступно для вашей роли.");
         } finally {
@@ -487,12 +490,13 @@ export function AdminCabinet() {
   }, [token, me?.is_staff]);
 
   useEffect(() => {
-    if (view !== "case" || !detail || window.location.hash !== "#max-reply") return;
+    if (view !== "case" || !detail || !maxReplyFocus) return;
     window.requestAnimationFrame(() => {
       document.getElementById("max-reply-panel")?.scrollIntoView({ behavior: "smooth" });
       document.getElementById("max-reply-text")?.focus();
+      setMaxReplyFocus(false);
     });
-  }, [view, detail]);
+  }, [view, detail, maxReplyFocus]);
 
   async function loadFinance() {
     if (!token) return;
@@ -674,11 +678,7 @@ export function AdminCabinet() {
   }
 
   function focusMaxReplyPanel() {
-    window.location.hash = "max-reply";
-    window.requestAnimationFrame(() => {
-      document.getElementById("max-reply-panel")?.scrollIntoView({ behavior: "smooth" });
-      document.getElementById("max-reply-text")?.focus();
-    });
+    setMaxReplyFocus(true);
   }
 
   async function sendMaxReply(event: FormEvent) {
