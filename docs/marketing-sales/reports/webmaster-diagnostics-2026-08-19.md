@@ -1,6 +1,6 @@
 # Диагностика Яндекс Вебмастера (2026-08-19)
 
-Снято: `2026-08-19T20:12:53+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
+Снято: `2026-08-19T20:16:34+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
 
 **Канон:** смотреть только apex `https://proverkastaza.ru` (без www).
 Зеркала `www` / `http` с 301 — предупреждения там ожидаемы.
@@ -35,9 +35,17 @@ UI: [диагностика apex](https://webmaster.yandex.ru/site/https%3Aprove
 - `NOT_IN_SPRAV` (RECOMMENDATION) _(зеркало, можно игнорировать)_
 - `NO_REGIONS` (RECOMMENDATION) _(зеркало, можно игнорировать)_
 
+## Автоисправления
+
+- OK ensure_site
+- FAIL vps_ssh exit 127
+bash: C:UsersuserDocumentsCursorSFRFRscriptsvps_webmaster_remediate.sh: No such file or directory
+
+- after_probe: OK
+
 ## Как обновить
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python scripts/yandex_webmaster_diagnostics.py --report
+python scripts/yandex_webmaster_diagnostics.py --report --fix --ssh
 ```

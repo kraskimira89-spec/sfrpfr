@@ -9,6 +9,7 @@ Usage:
   python scripts/yandex_webmaster_diagnostics.py
   python scripts/yandex_webmaster_diagnostics.py --all-hosts
   python scripts/yandex_webmaster_diagnostics.py --report
+  python scripts/yandex_webmaster_diagnostics.py --report --fix --ssh
 """
 from __future__ import annotations
 
@@ -22,6 +23,9 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from yandex_webmaster_remediate import live_probe_issues, remediate  # noqa: E402
 
 API = "https://api.webmaster.yandex.net/v4"
 ROOT = Path(__file__).resolve().parents[1]
@@ -245,13 +249,26 @@ def render_markdown(payload: dict) -> str:
                 note = " _(зеркало, можно игнорировать)_" if p not in row["actionable"] else ""
                 lines.append(f"- `{p['code']}` ({p['severity']}){note}")
         lines.append("")
+    if payload.get("live_probe"):
+        lines.extend(["## Live-проверка сайта", ""])
+        if payload["live_probe"]:
+            for item in payload["live_probe"]:
+                lines.append(f"- {item}")
+        else:
+            lines.append("- OK")
+        lines.append("")
+    if payload.get("remediation"):
+        lines.extend(["## Автоисправления", ""])
+        for item in payload["remediation"]:
+            lines.append(f"- {item}")
+        lines.append("")
     lines.extend(
         [
             "## Как обновить",
             "",
             "```powershell",
             ".\\.venv\\Scripts\\Activate.ps1",
-            "python scripts/yandex_webmaster_diagnostics.py --report",
+            "python scripts/yandex_webmaster_diagnostics.py --report --fix --ssh",
             "```",
             "",
         ]
@@ -272,6 +289,16 @@ def main() -> int:
         help=f"Записать markdown в docs/marketing-sales/reports/webmaster-diagnostics-{date.today()}.md",
     )
     parser.add_argument("--json", action="store_true", help="JSON на stdout")
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Live-проверки и автоисправления (ensure + опционально SSH)",
+    )
+    parser.add_argument(
+        "--ssh",
+        action="store_true",
+        help="При --fix: bash scripts/vps_webmaster_remediate.sh на VPS (VPS_HOST, VPS_SSH_KEY_PATH)",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -287,6 +314,15 @@ def main() -> int:
 
     payload = collect(uid, console_hosts)
     apex_payload = collect(uid, hosts)
+    apex_payload["live_probe"] = live_probe_issues()
+
+    if args.fix:
+        apex_row = next((r for r in apex_payload["hosts"] if r["host_id"] == APEX_HOST_ID), None)
+        codes = [p["code"] for p in (apex_row or {}).get("actionable", [])]
+        apex_payload["remediation"] = remediate(codes, ssh=args.ssh)
+        apex_payload["live_probe"] = live_probe_issues()
+        for line in apex_payload["remediation"]:
+            print(f"remediate: {line}", file=sys.stderr)
 
     if args.json:
         print(json.dumps(apex_payload, ensure_ascii=False, indent=2))
@@ -299,7 +335,9 @@ def main() -> int:
         out_path.write_text(render_markdown(apex_payload), encoding="utf-8")
         print(f"\nreport: {out_path.relative_to(ROOT)}", file=sys.stderr)
 
-    return 1 if (apex_payload.get("apex_actionable_count") or 0) > 0 else 0
+    failed = (apex_payload.get("apex_actionable_count") or 0) > 0
+    failed = failed or bool(apex_payload.get("live_probe"))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

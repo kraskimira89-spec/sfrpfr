@@ -3,6 +3,8 @@ name: deploy-vps
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/marketing-sales/reports/webmaster-diagnostics-*.md"
   workflow_dispatch:
 
 # Очередь: параллельные push в main не отменяют друг друга (нужен cancel-in-progress: false).

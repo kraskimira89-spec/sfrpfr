@@ -1,0 +1,42 @@
+---
+description: Ежедневная диагностика Яндекс Вебмастера и автоисправления
+alwaysApply: true
+---
+
+# Вебмастер: ежедневная проверка и автофикс
+
+## Когда запускать
+
+1. **Каждый рабочий день** при задачах SEO/деплоя WP/robots/sitemap — в начале сессии.
+2. После правок `sfrfr-seo-robots.php`, sitemap, favicon, MU Метрики.
+3. Если пользователь переслал письмо/уведомление Вебмастера.
+
+## Команда (канон)
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python scripts/yandex_webmaster_diagnostics.py --report --fix --ssh
+```
+
+На CI (без локального SSH): `--report --fix`; VPS чинит workflow `webmaster-diagnostics-daily.yml`.
+
+## Что делать по результатам
+
+| Тип | Действие агента |
+|-----|-----------------|
+| Apex `PRESENT` + код из AUTO_FIX | Запустить `--fix --ssh`; если не помогло — правка в репо + деплoy |
+| `live_probe` ошибки | `vps_webmaster_remediate.sh`, проверить robots/favicon/sitemap |
+| `NO_REGIONS`, `NOT_IN_SPRAV`, `NO_METRIKA_COUNTER_CRAWL_ENABLED` | **UI владельца** — не чинить кодом; напомнить в отчёте |
+| Проблемы только на `www`/`http` | **Игнорировать** (зеркало 301) |
+| Код в репо после фикса | Коммит + push (отчёты `webmaster-diagnostics-*.md` не тригgerят deploy-vps) |
+
+## Автоисправления (скрипты)
+
+- `scripts/yandex_webmaster_remediate.py` — live-проверки + ensure sitemap
+- `scripts/vps_webmaster_remediate.sh` — MU metrika/robots, favicons, cache на VPS
+
+## Отчёт
+
+`docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md` — обновлять ежедневно.
+
+Секреты: только `secrets/yandex-webmaster.env`, не в git.

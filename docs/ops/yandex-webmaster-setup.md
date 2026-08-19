@@ -131,7 +131,13 @@ python scripts/yandex_webmaster_recrawl.py https://proverkastaza.ru/blog/...
 
 Ensure: хост → META_TAG → sitemap → статус host/summary.  
 Recrawl: очередь переобхода (суточная квота Яндекса).  
-Diagnostics: `GET …/diagnostics` + summary по apex (аналог части email Вебмастера); `--report` → `docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md`.
+Diagnostics: `GET …/diagnostics` + summary по apex (аналог части email Вебмастера); `--report` → `docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md`.  
+Ежедневно: GH Actions `webmaster-diagnostics-daily.yml` (09:15 MSK) + `--fix` + SSH remediate на VPS.
+
+```powershell
+python scripts/yandex_webmaster_diagnostics.py --report --fix --ssh
+bash scripts/vps_webmaster_remediate.sh   # только на VPS
+```
 
 После `wp_seed_site_tz02.sh` recrawl вызывается сам, если есть `secrets/yandex-webmaster.env`.
 
