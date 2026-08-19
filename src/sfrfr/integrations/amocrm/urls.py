@@ -1,8 +1,10 @@
-"""Публичные URL и подсказки для полей amo (admin, MAX)."""
-
 from __future__ import annotations
 
 from sfrfr.core.config import get_settings
+
+# Клиентский бот MAX (отображаемое имя на business.max.ru, 2026-08)
+MAX_CLIENT_BOT_DISPLAY_NAME = "Проверка стажа-личный бот"
+MAX_CLIENT_BOT_USERNAME = "id8905998693_1_bot"
 
 
 def admin_case_url(case_id: str | None) -> str | None:
@@ -52,5 +54,5 @@ def max_operator_reply_hint(max_user_id: str | None) -> str | None:
     return (
         f"MAX user_id {uid}. Основной ответ: amo → Чаты → диалог клиента. "
         f"Запасной: поле «Диалог MAX» (admin). "
-        f"Или MAX Business → бот «Стаж и пенсия» → Диалоги → {uid}."
+        f"Или MAX Business → «{MAX_CLIENT_BOT_DISPLAY_NAME}» ({MAX_CLIENT_BOT_USERNAME}) → Диалоги → {uid}."
     )

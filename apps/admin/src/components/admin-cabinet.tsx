@@ -816,7 +816,7 @@ export function AdminCabinet() {
                       <li>Пришлите код с этой страницы</li>
                     </ol>
                     <p className="hint">
-                      Клиентский бот «Стаж и пенсия» — только для клиентов. Для ответа клиенту используйте
+                      Клиентский бот «Проверка стажа-личный бот» — только для клиентов. Для ответа клиенту используйте
                       кабинет → дело → «Написать в MAX».
                     </p>
                   </>
@@ -1153,7 +1153,7 @@ export function AdminCabinet() {
                     rows={3}
                     value={maxReplyBody}
                     onChange={(e) => setMaxReplyBody(e.target.value)}
-                    placeholder="Текст сообщения клиенту в его чат с ботом «Стаж и пенсия»"
+                    placeholder="Текст сообщения клиенту (бот «Проверка стажа-личный бот» в MAX)"
                     required
                     disabled={busy}
                   />
@@ -1166,7 +1166,7 @@ export function AdminCabinet() {
                 Ссылка max.ru/…_1_bot открывает ваш личный чат с ботом, не переписку клиента. Здесь сообщение
                 уходит клиенту через API.
                 {detail.channels.max_business_url && detail.client.max_user_id
-                  ? ` В MAX Business найдите диалог по user_id ${detail.client.max_user_id}.`
+                  ? ` В MAX Business → «Проверка стажа-личный бот» → Диалоги → user_id ${detail.client.max_user_id}.`
                   : ""}
               </p>
             </div>
