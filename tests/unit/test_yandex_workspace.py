@@ -75,3 +75,37 @@ def test_disk_path_policy() -> None:
     assert _path_allowed("disk:/SFRFR-ops/template.docx") is True
     assert _path_allowed("disk:/SFRFR-ops/cases/scan.pdf") is False
     assert _path_allowed("disk:/other/file.txt") is False
+
+
+def test_imap_skipped_when_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("YANDEX_OAUTH_ACCESS_TOKEN", "tok")
+    monkeypatch.setenv("YANDEX_MAIL_ENABLED", "true")
+    monkeypatch.setenv("YANDEX_MAIL_IMAP_ENABLED", "false")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
+    from sfrfr.integrations.yandex_workspace.mail_imap import imap_ping, list_inbox
+
+    oauth_mod._loaded = True
+    get_settings.cache_clear()
+    ping_result = imap_ping()
+    list_result = list_inbox()
+    assert ping_result.get("skipped") is True
+    assert "IMAP" in (ping_result.get("reason") or "")
+    assert list_result.get("skipped") is True
+    get_settings.cache_clear()
+
+
+def test_fetch_invalid_uid(monkeypatch) -> None:
+    monkeypatch.setenv("YANDEX_OAUTH_ACCESS_TOKEN", "tok")
+    monkeypatch.setenv("YANDEX_MAIL_ENABLED", "true")
+    monkeypatch.setenv("YANDEX_MAIL_IMAP_ENABLED", "true")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
+    from sfrfr.integrations.yandex_workspace.mail_imap import fetch_message
+
+    oauth_mod._loaded = True
+    get_settings.cache_clear()
+    result = fetch_message("not-a-uid")
+    assert result.get("ok") is False
+    assert result.get("error") == "invalid_uid"
+    get_settings.cache_clear()

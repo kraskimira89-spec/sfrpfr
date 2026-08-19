@@ -1210,6 +1210,57 @@ def yandex_mail_send(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-mail-imap-ping")
+def yandex_mail_imap_ping() -> None:
+    """Проверить IMAP XOAUTH2 для proverkastaza@yandex.ru."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import imap_ping
+
+    result = imap_ping()
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-mail-list")
+def yandex_mail_list(
+    limit: int = typer.Option(10, "--limit", "-n", min=1, max=100),
+    unseen: bool = typer.Option(False, "--unseen", help="Только непрочитанные"),
+) -> None:
+    """Список входящих (метаданные, без тела)."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import list_inbox
+
+    result = list_inbox(limit=limit, unseen_only=unseen)
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-mail-fetch")
+def yandex_mail_fetch(
+    uid: str = typer.Argument(..., help="IMAP UID письма"),
+    body: bool = typer.Option(False, "--body", help="Включить текст (с маскированием ПДн)"),
+) -> None:
+    """Получить одно письмо по UID."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import fetch_message
+
+    result = fetch_message(uid, include_body=body, redact_body=True)
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("site-reviews-list")
 def site_reviews_list(
     status: str = typer.Option("pending", "--status", "-s", help="pending|published|all"),

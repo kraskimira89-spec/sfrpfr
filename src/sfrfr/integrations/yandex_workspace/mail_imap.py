@@ -187,7 +187,8 @@ def fetch_message(
     if not uid_clean.isdigit():
         return {"ok": False, "error": "invalid_uid"}
     try:
-        with _connect_imap() as imap:
+        imap = _connect_imap()
+        try:
             status, _ = imap.select("INBOX", readonly=True)
             if status != "OK":
                 return {"ok": False, "error": "imap_select_failed"}
@@ -230,7 +231,9 @@ def fetch_message(
                     body_out = body_text[:max_body_chars]
                     result["body_redacted"] = False
                 result["body"] = body_out
-            return result
+        finally:
+            _close_imap(imap)
+        return result
     except imaplib.IMAP4.error as exc:
         return {"ok": False, "error": "imap_error", "detail": str(exc)[:200], "uid": uid_clean}
     except Exception as exc:  # noqa: BLE001

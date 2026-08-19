@@ -97,11 +97,16 @@ sfrfr calendar-mirror-yandex
 **MVP**
 
 - Почта SMTP — `mail:smtp`
+- Почта IMAP (read-only) — `mail:imap_ro` — **для чтения входящих агентом/CLI**
 - Телемост — `telemost-api:conferences.create`, `telemost-api:conferences.read`
 - Календарь — `calendar:events.write` или `calendar:all` (что есть в UI)
 - Диск (ops) — `cloud_api:disk.read` / `cloud_api:disk.write` (или эквивалент в UI)
 
-**Не включать:** полный IMAP без правил ПДн, addressbook как CRM.
+**Не включать:** `mail:imap_full` (запись/удаление), addressbook как CRM.
+
+После добавления `mail:imap_ro` **перевыпустите** `YANDEX_OAUTH_ACCESS_TOKEN` (старый токен scope не подхватит).
+
+**Не включать (устарело):** полный IMAP без правил ПДн — см. код `mail_imap.py` (read-only + redact).
 
 Если scopes Телемоста требуют организацию 360 — оформите 360 или используйте ручные ссылки.  
 На 2026-07-28 create conference через API **успешен** на токене Telemost-приложения.
@@ -148,6 +153,7 @@ YANDEX_OAUTH_REFRESH_TOKEN=
 YANDEX_WORKSPACE_EMAIL=proverkastaza@yandex.ru
 YANDEX_TELEMOST_ENABLED=true
 YANDEX_MAIL_ENABLED=true
+YANDEX_MAIL_IMAP_ENABLED=true
 YANDEX_CALENDAR_ENABLED=true
 YANDEX_DISK_ENABLED=true
 # + YANDEX_TELEMOST_OAUTH_* для SFRFR_telemost
@@ -171,6 +177,8 @@ sudo systemctl restart sfrfr-api
 | `sfrfr yandex-disk-status` | `ok`, папка `disk:/SFRFR-ops` |
 | `sfrfr yandex-telemost-create -c <uuid>` | `join_url` **или** `403 ApiRestrictedToOrganizations` → нужен Яндекс 360 |
 | `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
+| `sfrfr yandex-mail-imap-ping` | `ok`, `messages_total` при `mail:imap_ro` + `YANDEX_MAIL_IMAP_ENABLED=true` |
+| `sfrfr yandex-mail-list --limit 5` | список входящих (метаданные) |
 | `sfrfr calendar-create …` | Google + Яндекс (dual-write) |
 | Admin: кнопки «Создать Телемост» / «Письмо» | audit + `meeting_url` |
 

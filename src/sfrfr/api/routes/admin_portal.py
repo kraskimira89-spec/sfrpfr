@@ -527,6 +527,33 @@ def send_case_email(
     return result
 
 
+@router.get("/admin/mail/inbox")
+def mail_inbox(
+    limit: int = 20,
+    unseen: bool = False,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Входящие на proverkastaza@yandex.ru — только метаданные."""
+    from sfrfr.integrations.yandex_workspace import list_inbox
+
+    _ = principal
+    result = list_inbox(limit=min(max(limit, 1), 100), unseen_only=unseen)
+    return result
+
+
+@router.get("/admin/mail/messages/{uid}")
+def mail_message(
+    uid: str,
+    body: bool = False,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Одно письмо по IMAP UID. Тело — только ?body=true, с маскированием ПДн."""
+    from sfrfr.integrations.yandex_workspace import fetch_message
+
+    _ = principal
+    return fetch_message(uid, include_body=body, redact_body=True)
+
+
 @router.post("/admin/cases/{case_id}/result/confirm")
 def confirm_result(
     case_id: str,
