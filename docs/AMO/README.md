@@ -24,6 +24,7 @@
 | [playbook-operator-new-lead-cheatsheet.md](playbook-operator-new-lead-cheatsheet.md) | **Шпаргалка на 1 стр.** (новый лид) + [PDF](assets/playbook-operator-new-lead-cheatsheet.pdf) |
 | [playbook-operator-first-message-max.md](playbook-operator-first-message-max.md) | **Первое сообщение** в MAX (скрипт квалификации) |
 | [ops-amocrm-task-templates.md](ops-amocrm-task-templates.md) | Шаблоны задач amo (Digital Pipeline + тексты из кода) |
+| [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) | **Виджет MAX в amo** — клиентский бот, чаты, инструкция оператору |
 | [vendor-user-docs.md](vendor-user-docs.md) | Оглавление пользовательской доки amo |
 | [vendor-dev-docs.md](vendor-dev-docs.md) | Оглавление доки разработчика amo |
 

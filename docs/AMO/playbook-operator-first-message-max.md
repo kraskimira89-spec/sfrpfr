@@ -3,7 +3,7 @@
 **Для:** оператор · канал MAX · этап «Новый лид»  
 **Скрипт:** [playbook-sales-qualification.md](../marketing-sales/playbook-sales-qualification.md)
 
-Перед отправкой: в amo — **Ссылка на дело SFRFR** (admin). Ответ клиенту — через admin «Написать в MAX», **не** по ссылке на бота.
+Перед отправкой: в amo — **Ссылка на дело SFRFR** (документы). Ответ клиенту — **amo → Чаты** (виджет MAX, бот «Стаж и пенсия») или запасной admin «Написать в MAX». См. [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md).
 
 ---
 

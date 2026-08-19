@@ -50,7 +50,7 @@ def test_max_operator_reply_hint_includes_user_id() -> None:
     hint = max_operator_reply_hint("48799013")
     assert hint
     assert "48799013" in hint
-    assert "business.max.ru" in hint
+    assert "amo" in hint.lower()
 
 
 def test_build_lead_custom_fields_urls_and_hint() -> None:

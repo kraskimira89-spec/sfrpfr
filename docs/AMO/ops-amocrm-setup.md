@@ -59,6 +59,7 @@
 | 5 | VPS `/opt/sfrfr/.env` | Прописать 4 переменные, перезапустить API |
 | 6 | CLI на VPS + UI amo | `amocrm-ensure-fields`, тестовый sync, проверка карточки |
 | 7 | **Настройки** → пользователи | Права операторов на воронку |
+| 8 | **amoMARKET** → MAX | Токен **клиентского** бота «Стаж и пенсия» → переписка в **Чатах** amo — [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) |
 
 ---
 

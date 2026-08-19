@@ -20,8 +20,8 @@
 |-------------------|-----|-----------------|
 | ID дела (SFRFR) | `CASE_ID` | Связь с кабинетом / admin |
 | Ссылка на дело SFRFR | `SFRFR_CASE_URL` | Открыть дело и документы |
-| Диалог MAX (ответ клиенту) | `MAX_DIALOG_URL` | Кабинет сотрудника → форма «Написать в MAX» (`#max-reply`) |
-| Как ответить в MAX | `MAX_REPLY_HINT` | Подсказка: кабинет / MAX Business / user_id |
+| Диалог MAX (ответ клиенту) | `MAX_DIALOG_URL` | Запасной путь: admin → «Написать в MAX» |
+| Как ответить в MAX | `MAX_REPLY_HINT` | **Основной:** amo → **Чаты** (виджет MAX). См. [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) |
 | MAX user_id | `MAX_USER_ID` | ID клиента в MAX |
 | Статус пайплайна SFRFR | `PIPELINE_STATUS` | Что уже в SFRFR (не путать с этапом воронки amo) |
 | Канал клиента | `CHANNEL` | MAX / кабинет / сайт… |
