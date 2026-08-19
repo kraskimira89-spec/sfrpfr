@@ -1062,16 +1062,22 @@ def amocrm_sync(
 
 @app.command("yandex-workspace-ping")
 def yandex_workspace_ping() -> None:
-    """Проверить OAuth-токен Яндекс Workspace (ТЗ-14)."""
+    """Проверить OAuth-токен Яндекс Workspace (ТЗ-14) + IMAP при включённом флаге."""
     import json
 
-    from sfrfr.integrations.yandex_workspace import ping
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import imap_ping, ping
 
     result = ping()
+    if get_settings().yandex_mail_imap_enabled:
+        result["imap"] = imap_ping()
     typer.echo(json.dumps(result, ensure_ascii=False))
     if result.get("skipped"):
         raise typer.Exit(code=0)
     if not result.get("ok"):
+        raise typer.Exit(code=1)
+    imap = result.get("imap") or {}
+    if imap and not imap.get("ok") and not imap.get("skipped"):
         raise typer.Exit(code=1)
 
 

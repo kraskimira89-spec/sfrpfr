@@ -7,7 +7,7 @@ import imaplib
 import ssl
 from email.header import decode_header, make_header
 from email.utils import parsedate_to_datetime
-from typing import Any
+from typing import Any, cast
 
 from sfrfr.ai.pii.depersonalize import depersonalize_text
 from sfrfr.core.config import get_settings
@@ -41,6 +41,41 @@ def _subject_safe(subject: str) -> str:
     if any(marker in low for marker in _FORBIDDEN_BODY_MARKERS):
         return _redact_preview(subj, max_len=200)
     return subj[:200]
+
+
+def _imap_fetch_parts(msg_data: list[Any] | None) -> tuple[bytes, str]:
+    """Разобрать ответ imap.fetch: тело письма и строку FLAGS."""
+    if not msg_data:
+        return b"", ""
+    first = msg_data[0]
+    if not isinstance(first, tuple) or len(first) < 2:
+        return b"", ""
+    meta, raw = first[0], first[1]
+    flags = ""
+    if isinstance(meta, bytes):
+        flags = meta.decode("utf-8", errors="replace")
+    elif isinstance(meta, str):
+        flags = meta
+    body = raw if isinstance(raw, bytes) else b""
+    return body, flags
+
+
+def _payload_to_text(payload: Any) -> str:
+    if not payload:
+        return ""
+    if isinstance(payload, bytes):
+        data = payload
+    elif isinstance(payload, str):
+        data = payload.encode("utf-8")
+    else:
+        return ""
+    return data.decode("utf-8", errors="replace")
+
+
+def _uid_str(uid: bytes | str) -> str:
+    if isinstance(uid, bytes):
+        return uid.decode("ascii", errors="replace")
+    return str(uid)
 
 
 def _connect_imap() -> imaplib.IMAP4_SSL:
@@ -131,13 +166,14 @@ def list_inbox(*, limit: int = 20, unseen_only: bool = False) -> dict[str, Any]:
             uids = uids[-limit:][::-1]
             items: list[dict[str, Any]] = []
             for uid in uids:
+                uid_label = _uid_str(uid)
                 status, msg_data = imap.fetch(
-                    uid,
+                    uid_label,
                     "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] FLAGS)",
                 )
                 if status != "OK" or not msg_data:
                     continue
-                raw = msg_data[0][1] if isinstance(msg_data[0], tuple) else b""
+                raw, flags_line = _imap_fetch_parts(cast(list[Any], msg_data))
                 msg = email.message_from_bytes(raw)
                 date_raw = msg.get("Date")
                 date_iso = None
@@ -146,10 +182,9 @@ def list_inbox(*, limit: int = 20, unseen_only: bool = False) -> dict[str, Any]:
                         date_iso = parsedate_to_datetime(date_raw).isoformat()
                     except Exception:  # noqa: BLE001
                         date_iso = date_raw[:40]
-                flags_line = msg_data[0][0].decode("utf-8", errors="replace") if msg_data else ""
                 items.append(
                     {
-                        "uid": uid.decode("ascii", errors="replace"),
+                        "uid": uid_label,
                         "message_id": _decode_mime(msg.get("Message-ID"))[:120],
                         "from": _redact_preview(_decode_mime(msg.get("From")), max_len=120),
                         "subject": _subject_safe(msg.get("Subject") or ""),
@@ -195,12 +230,11 @@ def fetch_message(
             fetch_parts = "(BODY.PEEK[HEADER] FLAGS)"
             if include_body:
                 fetch_parts = "(BODY.PEEK[] FLAGS)"
-            status, msg_data = imap.fetch(uid_clean.encode("ascii"), fetch_parts)
+            status, msg_data = imap.fetch(uid_clean, fetch_parts)
             if status != "OK" or not msg_data:
                 return {"ok": False, "error": "message_not_found", "uid": uid_clean}
-            raw = msg_data[0][1] if isinstance(msg_data[0], tuple) else b""
+            raw, flags_line = _imap_fetch_parts(cast(list[Any], msg_data))
             msg = email.message_from_bytes(raw)
-            flags_line = msg_data[0][0].decode("utf-8", errors="replace") if msg_data else ""
             date_raw = msg.get("Date")
             date_iso = None
             if date_raw:
@@ -256,10 +290,21 @@ def _extract_plain_body(msg: email.message.Message) -> str:
                 payload = part.get_payload(decode=True)
                 if payload:
                     charset = part.get_content_charset() or "utf-8"
-                    return payload.decode(charset, errors="replace")
+                    text = _payload_to_text(payload)
+                    if charset.lower() not in ("utf-8", "utf8") and isinstance(payload, bytes):
+                        try:
+                            return payload.decode(charset, errors="replace")
+                        except LookupError:
+                            return text
+                    return text
         return ""
     payload = msg.get_payload(decode=True)
     if not payload:
         return ""
     charset = msg.get_content_charset() or "utf-8"
-    return payload.decode(charset, errors="replace")
+    if isinstance(payload, bytes) and charset.lower() not in ("utf-8", "utf8"):
+        try:
+            return payload.decode(charset, errors="replace")
+        except LookupError:
+            pass
+    return _payload_to_text(payload)

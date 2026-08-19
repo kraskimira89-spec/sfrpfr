@@ -14,7 +14,14 @@
 1. OAuth app `SFRFR Workspace` → scope `mail:imap_ro`
 2. Почта → настройки → IMAP + OAuth-токены
 3. Перевыпустить `YANDEX_OAUTH_ACCESS_TOKEN`
-4. `.env`: `YANDEX_MAIL_IMAP_ENABLED=true`
+4. `.env` / VPS: `YANDEX_MAIL_IMAP_ENABLED=true` + restart `sfrfr-api`
+
+## Проверка
+
+```bash
+sfrfr yandex-workspace-ping   # включает imap при флаге
+sfrfr yandex-mail-list --limit 5
+```
 
 ## Ограничения
 
