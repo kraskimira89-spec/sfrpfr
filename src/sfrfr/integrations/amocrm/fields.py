@@ -7,6 +7,8 @@ from typing import Any
 # Стабильные field_code — заполнение через API без хардкода field_id.
 CASE_ID = "CASE_ID"
 SFRFR_CASE_URL = "SFRFR_CASE_URL"
+MAX_DIALOG_URL = "MAX_DIALOG_URL"
+MAX_USER_ID = "MAX_USER_ID"
 PIPELINE_STATUS = "PIPELINE_STATUS"
 CHANNEL = "CHANNEL"
 SOURCE = "SOURCE"
@@ -47,6 +49,8 @@ LOSS_REASON_VALUES = (
 LEAD_FIELD_SPECS: tuple[dict[str, Any], ...] = (
     {"code": CASE_ID, "name": "ID дела (SFRFR)", "type": "text"},
     {"code": SFRFR_CASE_URL, "name": "Ссылка на дело SFRFR", "type": "url"},
+    {"code": MAX_DIALOG_URL, "name": "Продолжить диалог MAX", "type": "url"},
+    {"code": MAX_USER_ID, "name": "MAX user_id", "type": "text"},
     {"code": PIPELINE_STATUS, "name": "Статус пайплайна SFRFR", "type": "text"},
     {"code": CHANNEL, "name": "Канал клиента", "type": "text"},
     {"code": SOURCE, "name": "Источник лида", "type": "text"},
@@ -129,10 +133,16 @@ def cf_checkbox(code: str, value: bool) -> dict[str, Any]:
     return {"field_code": code, "values": [{"value": bool(value)}]}
 
 
+def cf_url(code: str, value: str) -> dict[str, Any]:
+    return {"field_code": code, "values": [{"value": value.strip()}]}
+
+
 def build_lead_custom_fields(
     *,
     case_id: str,
     case_url: str | None = None,
+    max_dialog_url: str | None = None,
+    max_user_id: str | None = None,
     pipeline_status: str | None = None,
     channel: str | None = None,
     source: str | None = None,
@@ -152,8 +162,15 @@ def build_lead_custom_fields(
 ) -> list[dict[str, Any]]:
     """Собрать custom_fields_values для сделки (без ПДн-сканов)."""
     out: list[dict[str, Any]] = [cf_text(CASE_ID, case_id)]
-    pairs = (
+    url_pairs = (
         (SFRFR_CASE_URL, case_url),
+        (MAX_DIALOG_URL, max_dialog_url),
+    )
+    for code, value in url_pairs:
+        if value:
+            out.append(cf_url(code, str(value)[:500]))
+    pairs = (
+        (MAX_USER_ID, max_user_id),
         (PIPELINE_STATUS, pipeline_status),
         (CHANNEL, channel),
         (SOURCE, source),

@@ -4,15 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from sfrfr.core.config import get_settings
 from sfrfr.integrations.amocrm import sync_case_to_amocrm
-
-
-def _admin_case_url(case_id: str) -> str:
-    base = (get_settings().admin_public_url or "").rstrip("/")
-    if not base:
-        return ""
-    return f"{base}/?case={case_id}"
+from sfrfr.integrations.amocrm.urls import admin_case_url, max_dialog_url
 
 
 def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dict[str, Any]:
@@ -21,6 +14,9 @@ def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dic
     if isinstance(client, list):
         client = client[0] if client else {}
     case_id = str(case.get("id") or "")
+    channel = str(client.get("preferred_channel") or "")
+    max_uid = client.get("max_user_id")
+    is_max = bool(max_uid) or channel in {"max_miniapp", "max_chat", "max"}
     return sync_case_to_amocrm(
         case_id=case_id,
         b2c_status=str(case.get("b2c_status") or ""),
@@ -28,11 +24,13 @@ def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dic
         full_name=client.get("full_name"),
         phone=client.get("phone"),
         email=client.get("email"),
-        channel=client.get("preferred_channel"),
+        channel=channel or None,
         source="sfrfr",
         consent=True,
         crm_external_id=str(case["crm_external_id"]) if case.get("crm_external_id") else None,
-        case_url=_admin_case_url(case_id) or None,
+        case_url=admin_case_url(case_id),
+        max_dialog_url=max_dialog_url() if is_max else None,
+        max_user_id=str(max_uid).strip() if max_uid else None,
         task=task,
     )
 

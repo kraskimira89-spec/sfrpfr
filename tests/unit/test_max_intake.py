@@ -140,13 +140,55 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     calls: list[dict] = []
 
-    def _fake_sync(**kwargs):  # noqa: ANN003
-        calls.append(kwargs)
-        return {"ok": True}
+    def _fake_push(case, *, task=None):  # noqa: ANN001, ANN202
+        calls.append({"case": case, "task": task})
+        return {"ok": True, "lead_id": "999"}
+
+    class _FakeSb:
+        def table(self, _name):  # noqa: ANN001
+            return self
+
+        def select(self, _cols):  # noqa: ANN001
+            return self
+
+        def eq(self, _col, _val):  # noqa: ANN001
+            return self
+
+        def limit(self, _n):  # noqa: ANN001
+            return self
+
+        def execute(self):
+            return type(
+                "R",
+                (),
+                {
+                    "data": [
+                        {
+                            "id": "case-1",
+                            "b2c_status": "lead",
+                            "pipeline_status": "intake",
+                            "crm_external_id": None,
+                            "clients": {
+                                "full_name": "MAX 11",
+                                "preferred_channel": "max_chat",
+                                "max_user_id": "11",
+                            },
+                        }
+                    ]
+                },
+            )()
 
     monkeypatch.setattr(
-        "sfrfr.integrations.amocrm.sync_case_to_amocrm",
-        _fake_sync,
+        "sfrfr.integrations.amocrm.sync.push_case_to_amocrm",
+        _fake_push,
+    )
+    monkeypatch.setattr(
+        "sfrfr.db.session.get_supabase_client",
+        lambda: _FakeSb(),
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.amocrm.sync.persist_crm_external_id",
+        lambda *_a, **_k: None,
     )
 
     handle_max_update(_msg(11, "/start"), bot=bot)
@@ -154,7 +196,7 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     assert result.action == "max_operator_requested"
     assert result.case_id
     assert any("специалисту" in t for _, t in bot.sent)
-    assert calls and calls[0].get("task") == "Продолжить диалог MAX"
+    assert calls and calls[0].get("task") == "max_operator"
     get_settings.cache_clear()
 
 

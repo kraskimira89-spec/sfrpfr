@@ -270,6 +270,8 @@ class AmoCrmClient:
         consent: bool | None = True,
         crm_external_id: str | None = None,
         case_url: str | None = None,
+        max_dialog_url: str | None = None,
+        max_user_id: str | None = None,
         task: str | None = None,
         first_source: str | None = None,
         last_source: str | None = None,
@@ -291,6 +293,8 @@ class AmoCrmClient:
         custom_fields = build_lead_custom_fields(
             case_id=case_id,
             case_url=case_url,
+            max_dialog_url=max_dialog_url,
+            max_user_id=max_user_id,
             pipeline_status=pipeline_status or b2c_status,
             channel=channel,
             source=source,
@@ -310,8 +314,6 @@ class AmoCrmClient:
         )
         name = (full_name or "Клиент SFRFR").strip()[:250]
         lead_name = f"Проверка стажа — {name}"[:250]
-        if task:
-            lead_name = f"{lead_name} [{task}]"[:250]
 
         stage_key = suggest_amo_stage_key(
             pipeline_status=pipeline_status,
@@ -444,6 +446,8 @@ def sync_case_to_amocrm(
     consent: bool | None = True,
     crm_external_id: str | None = None,
     case_url: str | None = None,
+    max_dialog_url: str | None = None,
+    max_user_id: str | None = None,
     task: str | None = None,
     first_source: str | None = None,
     last_source: str | None = None,
@@ -470,6 +474,8 @@ def sync_case_to_amocrm(
         consent=consent,
         crm_external_id=crm_external_id,
         case_url=case_url,
+        max_dialog_url=max_dialog_url,
+        max_user_id=max_user_id,
         task=task,
         first_source=first_source,
         last_source=last_source,

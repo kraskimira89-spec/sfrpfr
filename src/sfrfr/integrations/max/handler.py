@@ -493,19 +493,32 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
 
 
 def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
+    if not case_id:
+        return
     try:
-        from sfrfr.integrations.amocrm import sync_case_to_amocrm
+        from sfrfr.db.session import get_supabase_client
+        from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
 
-        sync_case_to_amocrm(
-            case_id=case_id or f"max-intake-{intake.id}",
-            b2c_status="lead",
-            pipeline_status="intake",
-            full_name=f"MAX {user_id}",
-            channel="max_chat",
-            source="max_intake_operator",
-            consent=False,
-            task="Продолжить диалог MAX",
+        rows = (
+            get_supabase_client()
+            .table("cases")
+            .select(
+                "id,b2c_status,pipeline_status,crm_external_id,"
+                "clients(full_name,phone,email,preferred_channel,max_user_id)"
+            )
+            .eq("id", case_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
         )
+        if not rows:
+            return
+        case = rows[0]
+        amo = push_case_to_amocrm(case, task="max_operator")
+        lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
+        if lead_id and amo.get("ok"):
+            persist_crm_external_id(case_id, str(lead_id))
     except Exception:
         import logging
 
