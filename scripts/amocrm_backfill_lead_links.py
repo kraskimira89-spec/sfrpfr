@@ -19,7 +19,11 @@ from sfrfr.integrations.amocrm.fields import (  # noqa: E402
     SFRFR_CASE_URL,
     build_lead_custom_fields,
 )
-from sfrfr.integrations.amocrm.urls import admin_case_url, max_dialog_url  # noqa: E402
+from sfrfr.integrations.amocrm.urls import (  # noqa: E402
+    admin_case_url,
+    max_dialog_url,
+    max_operator_reply_hint,
+)
 
 
 def load_dotenv(path: Path) -> dict[str, str]:
@@ -93,10 +97,16 @@ def main() -> None:
         channel = str(client.get("preferred_channel") or "")
         max_uid = client.get("max_user_id")
         is_max = bool(max_uid) or channel in {"max_miniapp", "max_chat", "max"}
+        hint = (
+            max_operator_reply_hint(str(max_uid).strip() if max_uid else None)
+            if is_max
+            else None
+        )
         fields = build_lead_custom_fields(
             case_id=case_id,
             case_url=admin_case_url(case_id),
             max_dialog_url=max_dialog_url(case_id) if is_max else None,
+            max_reply_hint=hint,
             max_user_id=str(max_uid).strip() if max_uid else None,
             pipeline_status="intake",
             channel=channel or None,
@@ -118,6 +128,7 @@ def main() -> None:
                     "status": status,
                     "has_admin": bool(admin_case_url(case_id)),
                     "has_max_dialog": bool(max_dialog_url(case_id)) if is_max else False,
+                    "has_max_reply_hint": bool(hint),
                 },
                 ensure_ascii=False,
             )
