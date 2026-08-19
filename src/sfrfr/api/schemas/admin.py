@@ -78,6 +78,10 @@ class YandexMailRequest(BaseModel):
     body: str | None = Field(default=None, max_length=4000)
 
 
+class MaxReplyRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=3500)
+
+
 class KnowledgeFeedbackRequest(BaseModel):
     what_worked: str | None = Field(default=None, max_length=4000)
     documents_note: str | None = Field(default=None, max_length=4000)

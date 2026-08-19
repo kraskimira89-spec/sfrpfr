@@ -20,8 +20,9 @@
 |-------------------|-----|-----------------|
 | ID дела (SFRFR) | `CASE_ID` | Связь с кабинетом / admin |
 | Ссылка на дело SFRFR | `SFRFR_CASE_URL` | Открыть дело и документы |
-| Продолжить диалог MAX | `MAX_DIALOG_URL` | Клик → чат бота в MAX Business |
-| MAX user_id | `MAX_USER_ID` | Найти диалог по ID |
+| Продолжить диалог MAX | `MAX_DIALOG_URL` | **Устарело** — скрыто; не использовать |
+| Как ответить в MAX | `MAX_REPLY_HINT` | Текст: admin / MAX Business / user_id |
+| MAX user_id | `MAX_USER_ID` | ID клиента в MAX |
 | Статус пайплайна SFRFR | `PIPELINE_STATUS` | Что уже в SFRFR (не путать с этапом воронки amo) |
 | Канал клиента | `CHANNEL` | MAX / кабинет / сайт… |
 | Источник лида | `SOURCE` | Откуда пришёл |

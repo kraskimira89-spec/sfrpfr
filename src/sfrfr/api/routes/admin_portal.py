@@ -14,6 +14,7 @@ from sfrfr.api.schemas.admin import (
     ChecklistItemUpdate,
     DashboardResponse,
     KnowledgeFeedbackRequest,
+    MaxReplyRequest,
     OrderCreateRequest,
     ResultConfirmRequest,
     StaffCaseSummary,
@@ -468,6 +469,34 @@ def request_review(
     repo = _repo()
     repo.require_case(principal, case_id)
     return repo.request_pipeline_run(case_id, principal.user_id)
+
+
+@router.post("/admin/cases/{case_id}/max-reply")
+def send_max_reply_to_client(
+    case_id: str,
+    payload: MaxReplyRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Отправить сообщение клиенту в его личный чат с клиентским ботом MAX."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.integrations.max.client import MaxBotClient
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    client = case.get("clients") or {}
+    max_uid = str(client.get("max_user_id") or "").strip()
+    if not max_uid:
+        raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
+    bot = MaxBotClient()
+    if not bot.available:
+        raise HTTPException(status_code=503, detail="max_bot_not_configured")
+    try:
+        result = bot.send_message(text=payload.message.strip(), user_id=max_uid)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"max_send_failed:{type(exc).__name__}") from exc
+    repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
+    return {"ok": True, "max_user_id": max_uid, "result": result}
 
 
 @router.post("/admin/cases/{case_id}/telemost")

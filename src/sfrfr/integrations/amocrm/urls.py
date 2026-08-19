@@ -1,4 +1,4 @@
-"""Публичные URL для полей сделки amo (admin, MAX)."""
+"""Публичные URL и подсказки для полей amo (admin, MAX)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,18 @@ def admin_case_url(case_id: str | None) -> str | None:
     return f"{base}/?case={cid}"
 
 
-def max_dialog_url() -> str | None:
-    """Ссылка на личный чат бота — оператор продолжает диалог в MAX Business."""
-    url = (get_settings().max_chat_url or get_settings().max_public_bot_url or "").strip()
-    if not url:
-        return None
-    # Без ?startapp — открыть чат, не mini-app.
-    if "?" in url:
-        url = url.split("?", 1)[0]
-    return url
+def max_operator_reply_hint(max_user_id: str | None) -> str | None:
+    """
+    Прямой URL на чат клиента в MAX не существует.
+    Ссылка на бота открывает личный диалог оператора с ботом, не переписку клиента.
+    """
+    uid = (max_user_id or "").strip()
+    if not uid:
+        return (
+            "Ответ в MAX: кабинет admin → дело → «Написать клиенту в MAX». "
+            "Не открывать ссылку на бота — это ваш чат с ботом."
+        )
+    return (
+        f"Клиент MAX user_id={uid}. Ответ: admin → дело → «Написать в MAX». "
+        f"Или MAX Business → бот «Стаж и пенсия» → диалоги → ID {uid}."
+    )

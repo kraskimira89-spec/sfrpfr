@@ -519,10 +519,62 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
         lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
         if lead_id and amo.get("ok"):
             persist_crm_external_id(case_id, str(lead_id))
+        _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=amo.get("crm_url"))
     except Exception:
         import logging
 
         logging.getLogger(__name__).exception("max_operator_amocrm_failed max=%s", user_id)
+
+
+def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None) -> None:
+    """Ops-бот: клиент ждёт ответа в MAX (не ссылка на бота)."""
+    try:
+        from sfrfr.core.config import get_settings
+        from sfrfr.db.staff_roles import list_manager_max_user_ids
+        from sfrfr.integrations.amocrm.urls import admin_case_url, max_operator_reply_hint
+        from sfrfr.integrations.max.ops_bot import get_ops_bot
+
+        settings = get_settings()
+        bot = get_ops_bot()
+        if not bot.available:
+            return
+        admin = admin_case_url(case_id) or ""
+        text = (
+            "Клиент ждёт ответа в MAX\n"
+            f"MAX user_id: {user_id}\n"
+            f"Дело: {admin}\n"
+            f"{max_operator_reply_hint(user_id)}\n"
+        )
+        if crm_url:
+            text += f"amo: {crm_url}\n"
+        manager_ids = list_manager_max_user_ids(
+            extra_ids=settings.staff_login_approver_max_user_ids,
+        )
+        chat_ids = [
+            p.strip()
+            for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
+            if p.strip()
+        ]
+        team_channel = (settings.max_specialists_channel_chat_id or "").strip()
+        for mid in manager_ids:
+            try:
+                bot.send_message(text=text, user_id=str(mid))
+            except Exception:
+                continue
+        for cid in chat_ids:
+            try:
+                bot.send_message(text=text, chat_id=cid)
+            except Exception:
+                continue
+        if team_channel:
+            try:
+                bot.send_message(text=text, chat_id=team_channel)
+            except Exception:
+                pass
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("max_ops_operator_notify_failed max=%s", user_id)
 
 
 def _handle_operator(

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sfrfr.integrations.amocrm import sync_case_to_amocrm
-from sfrfr.integrations.amocrm.urls import admin_case_url, max_dialog_url
+from sfrfr.integrations.amocrm.urls import admin_case_url, max_operator_reply_hint
 
 
 def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dict[str, Any]:
@@ -17,6 +17,7 @@ def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dic
     channel = str(client.get("preferred_channel") or "")
     max_uid = client.get("max_user_id")
     is_max = bool(max_uid) or channel in {"max_miniapp", "max_chat", "max"}
+    hint = max_operator_reply_hint(str(max_uid).strip() if max_uid else None) if is_max else None
     return sync_case_to_amocrm(
         case_id=case_id,
         b2c_status=str(case.get("b2c_status") or ""),
@@ -29,7 +30,7 @@ def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dic
         consent=True,
         crm_external_id=str(case["crm_external_id"]) if case.get("crm_external_id") else None,
         case_url=admin_case_url(case_id),
-        max_dialog_url=max_dialog_url() if is_max else None,
+        max_reply_hint=hint,
         max_user_id=str(max_uid).strip() if max_uid else None,
         task=task,
     )
