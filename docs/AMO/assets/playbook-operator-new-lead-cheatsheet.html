@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ru" xml:lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>playbook-operator-new-lead-cheatsheet</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="data:text/css,body{font-family:Segoe UI,Arial,sans-serif;max-width:720px;margin:2em auto;line-height:1.4;font-size:11pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 8px}code,pre{background:#f4f4f4}" />
+</head>
+<body>
+<h1 id="шпаргалка-оператора-новый-лид-в-amo">Шпаргалка оператора: новый
+лид в amo</h1>
+<p><strong>Воронка:</strong> «Проверка стажа» · <strong>Этап:</strong>
+«Новый лид»<br />
+<strong>Полная инструкция:</strong> <a
+href="playbook-operator-amo-card.md">playbook-operator-amo-card.md</a> ·
+<a
+href="playbook-funnel-checklists-automation.md">playbook-funnel-checklists-automation.md</a></p>
+<hr />
+<h2 id="за-30-секунд">За 30 секунд</h2>
+<ol type="1">
+<li><strong>ID дела (SFRFR)</strong> + <strong>Ссылка на дело
+SFRFR</strong> — открыть дело.</li>
+<li><strong>CONSENT</strong> и <strong>Канал</strong> — можно ли писать;
+MAX / телефон / сайт.</li>
+<li>Задача <strong>«Первый контакт»</strong> — выполнить чеклист →
+<strong>«Связались»</strong>.</li>
+</ol>
+<blockquote>
+<p>В amo — связь и статусы. Сканы, СНИЛС, ИЛС — <strong>только в
+кабинете SFRFR</strong>.</p>
+</blockquote>
+<hr />
+<h2 id="первый-контакт-sla-тот-же-рабочий-день">Первый контакт (SLA: тот
+же рабочий день)</h2>
+<table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 76%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Написать / позвонить (см. канал)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Скрипт: за себя или родственника; пенсия уже или ещё нет; фокус
+(ИЛС, север, отказ СФР)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Есть ли выписка ИЛС; трудовая бумажная или электронные сведения</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Заметка в amo (шаблон ниже) — <strong>без</strong> СНИЛС, паспорта,
+OCR, файлов</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Задачу закрыть → этап <strong>«Связались»</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>MAX:</strong> имя «MAX 12345678» = ID пользователя; телефона
+часто нет — пишем в MAX.</p>
+<p><strong>Подача:</strong> готовим документы и план — подаёт клиент
+через СФР/МФЦ/Госуслуги; решение принимает только СФР.</p>
+<hr />
+<h2 id="дальше-по-воронке-вручную">Дальше по воронке (вручную)</h2>
+<table>
+<thead>
+<tr>
+<th>После</th>
+<th>Этап amo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Квалификация + «Тип проблемы»</td>
+<td>Квалифицирован</td>
+</tr>
+<tr>
+<td>Оффер 3 000 ₽, ссылка в кабинет</td>
+<td>Диагностика предложена</td>
+</tr>
+<tr>
+<td>Оплата (авто из SFRFR)</td>
+<td>Диагностика оплачена</td>
+</tr>
+<tr>
+<td>Документы в кабинете</td>
+<td>Документы в кабинете</td>
+</tr>
+</tbody>
+</table>
+<p>Тарифы: диагностика <strong>3 000 ₽</strong> · подготовка <strong>5
+000 ₽</strong> · сопровождение <strong>8 000 ₽</strong>. Без обещания
+перерасчёта.</p>
+<hr />
+<h2 id="шаблон-заметки-копировать">Шаблон заметки (копировать)</h2>
+<pre class="text"><code>Связь: [MAX / дозвон] — [дата]
+Кейс: [за себя / родственник]; пенсия: [уже / ещё нет]
+Фокус: [ИЛС / север / отказ СФР]
+
+Документы (только статус):
+- ИЛС: нет | запрошен | в кабинете
+- Трудовая / эл. сведения: …
+- Согласие/кабинет: …
+
+Следующий шаг: …
+Дело: SFRFR_CASE_URL</code></pre>
+<hr />
+<h2 id="можно-нельзя">Можно / нельзя</h2>
+<table>
+<thead>
+<tr>
+<th>✅</th>
+<th>❌</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Статусы документов в заметке</td>
+<td>Сканы и файлы в amo</td>
+</tr>
+<tr>
+<td>Смотреть документы в кабинете</td>
+<td>СНИЛС, паспорт, OCR в CRM</td>
+</tr>
+<tr>
+<td>LOSS с «Причиной потери»</td>
+<td>Отказ без причины</td>
+</tr>
+<tr>
+<td>Цены с сайта</td>
+<td>Обещание суммы пенсии / перерасчёта</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="если-нет-case_id">Если нет CASE_ID</h2>
+<p>Не вести «пустую» сделку — эскалация: sync /
+<code>amocrm-sync</code>.<br />
+PDF: <a
+href="assets/playbook-operator-new-lead-cheatsheet.pdf">assets/playbook-operator-new-lead-cheatsheet.pdf</a></p>
+</body>
+</html>

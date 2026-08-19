@@ -47,30 +47,10 @@ AMO_STAGES_TO_ENSURE: tuple[str, ...] = tuple(
     AMO_STAGE_NAMES[k] for k in AMO_STAGE_ORDER
 )
 
-TASK_FIRST_CONTACT = (
-    "Чеклист: первый контакт\n"
-    "- CONSENT и канал\n"
-    "- Открыть SFRFR_CASE_URL\n"
-    "- Связаться ≤ SLA\n"
-    "- Перенести в «Связались»\n"
-    "Сканы не принимать в amo."
-)
-
-TASK_DOCS_AFTER_DIAG = (
-    "Чеклист: документы после диагностики\n"
-    "- ИЛС: статус\n"
-    "- Трудовая / эл. сведения: статус\n"
-    "- Согласие/кабинет: статус\n"
-    "- Когда базовый пакет в кабинете → «Документы в кабинете»\n"
-    "Без вложений и без СНИЛС в заметках."
-)
-
-TASK_REVIEW_REMINDER = (
-    "Чеклист: отзыв (ТЗ-19)\n"
-    "- Напоминание ≥3 дня после первой просьбы, не чаще 1 раза\n"
-    "- При отзыве → «Отзыв получен» → «Закрыто успешно»\n"
-    "- Отказ/молчание — стоп\n"
-    "Без ПДн и без обещания перерасчёта."
+from sfrfr.integrations.amocrm.task_templates import (  # noqa: F401
+    TASK_DOCS_AFTER_DIAG,
+    TASK_FIRST_CONTACT,
+    TASK_REVIEW_REMINDER,
 )
 
 

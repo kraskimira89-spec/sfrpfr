@@ -1,7 +1,7 @@
 # Карточка amo: что видит оператор
 
 **Для кого:** оператор продаж / квалификации.  
-**Связь:** [how-we-work-amocrm.md](how-we-work-amocrm.md) · [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md) · `docs/marketing-sales/playbook-sales-qualification.md`
+**Связь:** [how-we-work-amocrm.md](how-we-work-amocrm.md) · [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md) · [playbook-operator-new-lead-cheatsheet.md](playbook-operator-new-lead-cheatsheet.md) (1 стр.) · `docs/marketing-sales/playbook-sales-qualification.md`
 
 ## Правило одной строки
 
