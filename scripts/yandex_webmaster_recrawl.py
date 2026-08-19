@@ -25,6 +25,9 @@ API = "https://api.webmaster.yandex.net/v4"
 DEFAULT_URLS = (
     "https://proverkastaza.ru/",
     "https://proverkastaza.ru/proverka-stazha/",
+    "https://proverkastaza.ru/ne-uchli-stazh/",
+    "https://proverkastaza.ru/arhivnaya-spravka-stazh/",
+    "https://proverkastaza.ru/otkaz-sfr/",
     "https://proverkastaza.ru/proverka-stazha-pered-pensiey/",
     "https://proverkastaza.ru/proverka-severnogo-stazha/",
     "https://proverkastaza.ru/tarify/",
@@ -36,6 +39,8 @@ DEFAULT_URLS = (
     "https://proverkastaza.ru/blog/kak-proverit-stazh-v-vypiske-ils/",
     "https://proverkastaza.ru/blog/kak-sverit-trudovuyu-knizhku-i-ils/",
     "https://proverkastaza.ru/blog/chto-delat-esli-period-raboty-ne-uchten/",
+    "https://proverkastaza.ru/blog/kak-podat-zayavlenie-cherez-gosuslugi-ili-mfc/",
+    "https://proverkastaza.ru/blog/otkaz-sfr-chto-proverit-v-dokumentah/",
     "https://proverkastaza.ru/blog/chastye-voprosy-o-proverke-stazha/",
     "https://proverkastaza.ru/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/",
 )

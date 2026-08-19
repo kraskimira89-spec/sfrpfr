@@ -60,6 +60,20 @@ H1 про коэффициент — правильный угол сверки,
 - **Калькулятор стажа** — якорь на сверку трудовой/ИЛС + FAQ, без калькулятора выплат.  
 - **Не учли стаж** — уже на pillar `period-ne-uchten`.
 
+## Low-demand Яндекс (2026-08-19)
+
+6 pillar-статей переведены в «малоценная / малovostrebованная» (не санкция). Ответ:
+
+| Commercial URL | Blog pillar | Статус |
+|---|---|---|
+| `/ne-uchli-stazh/` | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | **live 2026-08-19** |
+| `/arhivnaya-spravka-stazh/` | `/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/` | **live 2026-08-19** |
+| `/otkaz-sfr/` | `/blog/otkaz-sfr-chto-proverit-v-dokumentah/` | **live 2026-08-19** |
+
+Дополнительно: правки `kak-zakazat-vypisku-ils`, `kak-podat-zayavlenie…`, `kak-sverit-trudovuyu-knizhku-i-ils` — дифференциация от Госуслуг, перелинковка. Переобход отправлен.
+
+**Мониторинг:** статус в Вебмастере — проверить ~сентябрь 2026.
+
 ## Следующий шаг
 
 Дальше — только точечные правки по Wordstat или явной команде. Правило `search-lexicon-people-first` действует постоянно для сайта/блога/MAX.
