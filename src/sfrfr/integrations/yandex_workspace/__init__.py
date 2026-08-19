@@ -14,6 +14,7 @@ from sfrfr.integrations.yandex_workspace.disk import (
     upload_ops_file,
 )
 from sfrfr.integrations.yandex_workspace.mail import send_mail
+from sfrfr.integrations.yandex_workspace.mail_imap import fetch_message, imap_ping, list_inbox
 from sfrfr.integrations.yandex_workspace.oauth import load_workspace_secrets, ping, token_available
 from sfrfr.integrations.yandex_workspace.telemost import create_conference
 
@@ -23,6 +24,9 @@ __all__ = [
     "ping",
     "create_conference",
     "send_mail",
+    "imap_ping",
+    "list_inbox",
+    "fetch_message",
     "create_event",
     "create_on_both",
     "mirror_google_to_yandex",

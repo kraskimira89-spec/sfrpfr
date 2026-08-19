@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     yandex_telemost_oauth_access_token: str = ""
     yandex_telemost_enabled: bool = True
     yandex_mail_enabled: bool = True
+    yandex_mail_imap_enabled: bool = False
     yandex_calendar_enabled: bool = True
     yandex_disk_enabled: bool = False
     # Алиасы из раздела «Аналитика» / docs (часто заполнены вместо YANDEX_*)
