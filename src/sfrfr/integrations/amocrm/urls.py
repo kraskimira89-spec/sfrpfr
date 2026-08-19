@@ -51,8 +51,10 @@ def max_operator_reply_hint(max_user_id: str | None) -> str | None:
     uid = (max_user_id or "").strip()
     if not uid:
         return "Ответ: amo → Чаты (виджет MAX). Запасной: кабинет admin → «Написать в MAX»."
+    bot = MAX_CLIENT_BOT_DISPLAY_NAME
+    user = MAX_CLIENT_BOT_USERNAME
     return (
         f"MAX user_id {uid}. Основной ответ: amo → Чаты → диалог клиента. "
         f"Запасной: поле «Диалог MAX» (admin). "
-        f"Или MAX Business → «{MAX_CLIENT_BOT_DISPLAY_NAME}» ({MAX_CLIENT_BOT_USERNAME}) → Диалоги → {uid}."
+        f"Или MAX Business → «{bot}» ({user}) → Диалоги → {uid}."
     )
