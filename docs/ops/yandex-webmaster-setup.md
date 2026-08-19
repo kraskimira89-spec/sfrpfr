@@ -25,7 +25,7 @@
 | Страницы в поиске (www) | ⚠️ всегда **0** — ожидаемо: `www` → 301 на apex |
 | Демо `sample-page` из индекса | ✅ draft (`wp_fix_sample_page.php`) |
 | Clean-param в robots | ✅ MU `sfrfr-seo-robots.php`: ПДн и рекламные метки |
-| Диагностика API | `python scripts/yandex_webmaster_host_diag.py` |
+| Диагностика API | ✅ `scripts/yandex_webmaster_diagnostics.py` (--report → reports/) |
 | Favicon `/favicon.ico` | ✅ + `/favicon.svg`, `/favicon-120.png` |
 | Яндекс Бизнес (Sprav) | ✅ профиль `82469923047`, прайс: `docs/ops/yandex-business-profile.md` |
 | Регион сайта | ⚠️ в UI выбрать **Россия** (юр. адрес Ноябрьск, услуга дистанционно по РФ) |
@@ -118,17 +118,20 @@
 
 ---
 
-## API ensure + recrawl
+## API ensure + recrawl + diagnostics
 
 ```powershell
 python scripts/yandex_webmaster_ensure_site.py
 python scripts/yandex_webmaster_recrawl.py
+python scripts/yandex_webmaster_diagnostics.py
+python scripts/yandex_webmaster_diagnostics.py --report
 # или точечно:
 python scripts/yandex_webmaster_recrawl.py https://proverkastaza.ru/blog/...
 ```
 
 Ensure: хост → META_TAG → sitemap → статус host/summary.  
-Recrawl: очередь переобхода (суточная квота Яндекса).
+Recrawl: очередь переобхода (суточная квота Яндекса).  
+Diagnostics: `GET …/diagnostics` + summary по apex (аналог части email Вебмастера); `--report` → `docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md`.
 
 После `wp_seed_site_tz02.sh` recrawl вызывается сам, если есть `secrets/yandex-webmaster.env`.
 

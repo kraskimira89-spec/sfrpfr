@@ -33,3 +33,11 @@
 
 -
 -
+
+## Вебмастер (API, без почты)
+
+```powershell
+python scripts/yandex_webmaster_diagnostics.py --report
+```
+
+Отчёт: `docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md` · apex без PRESENT = OK.

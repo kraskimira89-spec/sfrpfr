@@ -11,6 +11,7 @@
 | 4 | Проверить раздел **Sitemap** на apex | Индексирование → Файлы Sitemap | ☐ | `wp-sitemap.xml` уже в API/robots |
 | 5 | Мониторить **быстрые ссылки** | Представление в поиске | ☐ | Робот формирует сам; sitelink titles на сайте уже готовят |
 | 6 | После правок title — **переобход** | Переобход страниц или `scripts/yandex_webmaster_recrawl.py` | ☐ | Этап 4 / гипотезы H3–H4 |
+| 7 | Прогнать **диагностику API** | `python scripts/yandex_webmaster_diagnostics.py --report` | ☐ | Без почты; apex без PRESENT = OK |
 
 Секреты (`y0_…`) только в `secrets/yandex-webmaster.env`, не в git.
 
