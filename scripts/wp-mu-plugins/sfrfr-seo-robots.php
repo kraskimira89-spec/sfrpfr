@@ -13,7 +13,7 @@ add_filter('robots_txt', static function (string $output, $public): string {
         return $output;
     }
     $marker = '# SFRFR Yandex Clean-param';
-    $block = "\n{$marker} (не индексировать варианты URL с ПДн и рекламными метками)\n"
+    $block = "\n{$marker} (PDn + ad tracking query params; Yandex only)\n"
         . "Clean-param: email&mail&e-mail&phone&tel&telephone&mobile&fio&name&firstname&lastname&snils&password&pass&token&access_token /\n"
         . "Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid&ysclid&gclid&gad_source&gad_campaignid&gbraid&wbraid&fbclid&vkclid&mt_click_id&_erid&erid&_openstat&referral_code&campaign_code /\n";
     if (!str_contains($output, $marker)) {
