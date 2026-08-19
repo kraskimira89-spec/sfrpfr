@@ -110,8 +110,7 @@ def run_vps_ssh() -> str:
     user = __import__("os").environ.get("VPS_USER", "root")
     key = __import__("os").environ.get("VPS_SSH_KEY_PATH", "")
     port = __import__("os").environ.get("VPS_PORT", "22")
-    script = ROOT / "scripts/vps_webmaster_remediate.sh"
-    _ = script  # путь на VPS: /opt/sfrfr/scripts/vps_webmaster_remediate.sh
+    cmd = ["ssh", "-o", "BatchMode=yes", "-p", port]
     if key:
         cmd.extend(["-i", key])
     cmd.append(f"{user}@{host}")
