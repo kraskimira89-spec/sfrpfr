@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from sfrfr.integrations.amocrm import sync_case_to_amocrm
-from sfrfr.integrations.amocrm.urls import admin_case_url, max_operator_reply_hint
+from sfrfr.integrations.amocrm.urls import (
+    admin_case_url,
+    max_dialog_url,
+    max_operator_reply_hint,
+)
 
 
 def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dict[str, Any]:
@@ -30,6 +34,7 @@ def push_case_to_amocrm(case: dict[str, Any], *, task: str | None = None) -> dic
         consent=True,
         crm_external_id=str(case["crm_external_id"]) if case.get("crm_external_id") else None,
         case_url=admin_case_url(case_id),
+        max_dialog_url=max_dialog_url(case_id) if is_max else None,
         max_reply_hint=hint,
         max_user_id=str(max_uid).strip() if max_uid else None,
         task=task,

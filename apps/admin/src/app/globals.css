@@ -239,6 +239,12 @@ header div { display: grid; gap: 3px; }
   font-size: 1.15rem;
   min-height: 60px;
 }
+.max-action-btn--inline {
+  width: auto;
+  min-height: auto;
+  font-size: 1rem;
+  padding: 0.55rem 1.1rem;
+}
 .max-login-steps {
   margin: 0;
   padding-left: 1.35rem;

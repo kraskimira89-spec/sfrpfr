@@ -79,7 +79,13 @@ type StaffCaseDetail = {
   ils_periods?: unknown[];
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
-  channels: { cabinet_url: string; max_bot_url: string; max_miniapp_url: string };
+  channels: {
+    cabinet_url: string;
+    staff_cabinet_url?: string | null;
+    max_reply_url?: string | null;
+    max_business_url?: string | null;
+    max_ops_bot_url?: string | null;
+  };
   representatives?: {
     user_id: string;
     email?: string | null;
@@ -105,19 +111,19 @@ const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://proverkastaza.ru";
-const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
+const DEFAULT_MAX_OPS_BOT = "https://max.ru/id8905998693_3_bot";
 
 /** Экран входа: MAX (основной) | код на почту (запасной). Саморегистрации нет. */
 type AuthScreen = "max" | "email_otp";
 
 function chatUrlOnly(url: string): string {
   try {
-    const u = new URL(url || DEFAULT_MAX_CHAT);
+    const u = new URL(url || DEFAULT_MAX_OPS_BOT);
     u.search = "";
     u.hash = "";
     return u.toString();
   } catch {
-    return DEFAULT_MAX_CHAT;
+    return DEFAULT_MAX_OPS_BOT;
   }
 }
 
@@ -188,7 +194,8 @@ export function AdminCabinet() {
   const [maxTicket, setMaxTicket] = useState("");
   const [maxPairCode, setMaxPairCode] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
-  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_CHAT);
+  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_OPS_BOT);
+  const [maxReplyBody, setMaxReplyBody] = useState("");
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -425,8 +432,11 @@ export function AdminCabinet() {
     setNotice(error ? "Неверный код." : "");
   }
 
-  async function openCase(caseId: string) {
+  async function openCase(caseId: string, opts?: { focusMaxReply?: boolean }) {
     if (!token) return;
+    if (opts?.focusMaxReply) {
+      window.location.hash = "max-reply";
+    }
     setBusy(true);
     try {
       const [caseDetail, caseMessages] = await Promise.all([
@@ -446,6 +456,43 @@ export function AdminCabinet() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!token || !me?.is_staff) return;
+    const params = new URLSearchParams(window.location.search);
+    const caseId = params.get("case")?.trim();
+    if (caseId) {
+      void (async () => {
+        if (!token) return;
+        setBusy(true);
+        try {
+          const [caseDetail, caseMessages] = await Promise.all([
+            apiFetch<StaffCaseDetail>(`/api/portal/admin/cases/${caseId}`, token),
+            apiFetch<{ id: string; author_kind: string; body: string; created_at: string }[]>(
+              `/api/portal/cases/${caseId}/messages`,
+              token,
+            ),
+          ]);
+          setDetail(caseDetail);
+          setMessages(caseMessages);
+          setPipelineStatus(caseDetail.pipeline_status);
+          setView("case");
+        } catch {
+          setNotice("Дело недоступно для вашей роли.");
+        } finally {
+          setBusy(false);
+        }
+      })();
+    }
+  }, [token, me?.is_staff]);
+
+  useEffect(() => {
+    if (view !== "case" || !detail || window.location.hash !== "#max-reply") return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("max-reply-panel")?.scrollIntoView({ behavior: "smooth" });
+      document.getElementById("max-reply-text")?.focus();
+    });
+  }, [view, detail]);
 
   async function loadFinance() {
     if (!token) return;
@@ -626,6 +673,32 @@ export function AdminCabinet() {
     setNotice(`Обратная связь для RAG сохранена (${feedbackQuality}).`);
   }
 
+  function focusMaxReplyPanel() {
+    window.location.hash = "max-reply";
+    window.requestAnimationFrame(() => {
+      document.getElementById("max-reply-panel")?.scrollIntoView({ behavior: "smooth" });
+      document.getElementById("max-reply-text")?.focus();
+    });
+  }
+
+  async function sendMaxReply(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/max-reply`, token, {
+        method: "POST",
+        body: JSON.stringify({ message: maxReplyBody.trim() }),
+      });
+      setMaxReplyBody("");
+      setNotice("Сообщение отправлено клиенту в MAX.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить в MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     if (!token || !detail || !messageBody.trim()) return;
@@ -709,7 +782,8 @@ export function AdminCabinet() {
           </p>
           <h1>Кабинет сотрудника</h1>
           <p className="lead lead-compact">
-            Войдите через чат MAX. Роль выдаёт администратор заранее — открытой регистрации нет.
+            Веб-кабинет сотрудника. Вход — через ops-бот MAX «Проверка стажа-Ops», не через клиентский бот.
+            Роль выдаёт администратор заранее — открытой регистрации нет.
           </p>
 
           {authScreen === "max" ? (
@@ -734,15 +808,16 @@ export function AdminCabinet() {
                       disabled={busy}
                       onClick={() => void startMaxLogin()}
                     >
-                      Войти через MAX
+                      Войти через ops-бот MAX
                     </button>
                     <ol className="max-login-steps">
-                      <li>Откроется чат</li>
+                      <li>Откроется ops-бот «Проверка стажа-Ops»</li>
                       <li>Нажмите «Начать»</li>
                       <li>Пришлите код с этой страницы</li>
                     </ol>
                     <p className="hint">
-                      При первом входе руководитель подтвердит доступ в чате MAX. Дальше — только код.
+                      Клиентский бот «Стаж и пенсия» — только для клиентов. Для ответа клиенту используйте
+                      кабинет → дело → «Написать в MAX».
                     </p>
                   </>
                 ) : (
@@ -760,7 +835,7 @@ export function AdminCabinet() {
                       </p>
                     ) : null}
                     <ol className="max-login-steps">
-                      <li>Откройте чат MAX</li>
+                      <li>Откройте ops-бот «Проверка стажа-Ops»</li>
                       <li>Нажмите «Начать», если ещё не нажимали</li>
                       <li>Отправьте код сообщением</li>
                     </ol>
@@ -994,6 +1069,20 @@ export function AdminCabinet() {
                       amoCRM: <a href={item.crm_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>открыть</a>
                     </span>
                   )}
+                  {item.max_linked && (
+                    <span>
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void openCase(item.id, { focusMaxReply: true });
+                        }}
+                      >
+                        Написать в MAX
+                      </button>
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -1020,15 +1109,31 @@ export function AdminCabinet() {
               Предпочтение: <strong>{CHANNEL_LABELS[detail.client.preferred_channel] ?? detail.client.preferred_channel}</strong>
             </p>
             <p>
-              MAX: {detail.client.max_linked ? "привязан" : "нет"} · веб-кабинет:{" "}
-              {detail.client.web_linked ? "привязан" : "нет"}
+              MAX: {detail.client.max_linked ? "привязан" : "нет"}
+              {detail.client.max_user_id ? ` · user_id ${detail.client.max_user_id}` : ""}
+              {" · "}веб-кабинет: {detail.client.web_linked ? "привязан" : "нет"}
             </p>
             <p className="hint">
-              Один `case_id` в MAX mini-app и веб-кабинете. Admin не дублируется в mini-app.
+              Кабинет клиента (веб) и MAX mini-app — один case_id. Ответ клиенту в MAX — из этого кабинета
+              или MAX Business, не через ссылку на клиентского бота.
             </p>
             <div className="row-actions">
-              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет дела</a>
-              <a href={detail.channels.max_bot_url} target="_blank" rel="noreferrer">Бот MAX</a>
+              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет клиента</a>
+              {detail.client.max_linked ? (
+                <button
+                  type="button"
+                  className="max-action-btn max-action-btn--inline"
+                  disabled={busy}
+                  onClick={focusMaxReplyPanel}
+                >
+                  Написать в MAX
+                </button>
+              ) : null}
+              {detail.channels.max_business_url && (
+                <a href={detail.channels.max_business_url} target="_blank" rel="noreferrer">
+                  MAX Business → диалоги
+                </a>
+              )}
               {detail.crm_url && (
                 <a href={detail.crm_url} target="_blank" rel="noreferrer">amoCRM</a>
               )}
@@ -1036,6 +1141,36 @@ export function AdminCabinet() {
                 <a href={detail.meeting_url} target="_blank" rel="noreferrer">Телемост</a>
               )}
             </div>
+
+            <div className="panel" id="max-reply-panel">
+              <h3>Написать клиенту в MAX</h3>
+              {!detail.client.max_linked ? (
+                <p className="hint">У клиента нет MAX user_id — ответ через MAX недоступен.</p>
+              ) : (
+                <form className="stack-form" onSubmit={(e) => void sendMaxReply(e)}>
+                  <textarea
+                    id="max-reply-text"
+                    rows={3}
+                    value={maxReplyBody}
+                    onChange={(e) => setMaxReplyBody(e.target.value)}
+                    placeholder="Текст сообщения клиенту в его чат с ботом «Стаж и пенсия»"
+                    required
+                    disabled={busy}
+                  />
+                  <button type="submit" className="max-action-btn max-action-btn--inline" disabled={busy}>
+                    Отправить в MAX
+                  </button>
+                </form>
+              )}
+              <p className="hint">
+                Ссылка max.ru/…_1_bot открывает ваш личный чат с ботом, не переписку клиента. Здесь сообщение
+                уходит клиенту через API.
+                {detail.channels.max_business_url && detail.client.max_user_id
+                  ? ` В MAX Business найдите диалог по user_id ${detail.client.max_user_id}.`
+                  : ""}
+              </p>
+            </div>
+
             <div className="row-actions">
               <button type="button" onClick={() => void requestReview()} disabled={busy}>
                 Запросить проверку / run

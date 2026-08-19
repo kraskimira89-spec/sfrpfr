@@ -319,6 +319,13 @@ def handle_ops_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
 
+    from sfrfr.integrations.max.handler import _handle_pair_code
+
+    digits_only = "".join(ch for ch in text if ch.isdigit())
+    compact = "".join(ch for ch in text if not ch.isspace())
+    if len(digits_only) == 6 and len(compact) <= 24:
+        return _handle_pair_code(bot, user_id=user_id, chat_id=chat_id, code=digits_only)
+
     # Правка / новый черновик — только личка ops (не канал команды).
     edit_result = _handle_channel_draft_edit_message(
         bot,

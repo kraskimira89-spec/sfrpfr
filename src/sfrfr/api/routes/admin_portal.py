@@ -30,6 +30,11 @@ from sfrfr.core.success_fee import (
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
+from sfrfr.integrations.amocrm.urls import (
+    admin_case_max_reply_url,
+    max_business_dialogs_url,
+    staff_max_login_url,
+)
 from sfrfr.security.auth import (
     Principal,
     StaffRole,
@@ -169,8 +174,10 @@ def _filter_staff_case(
             "cabinet_url": (
                 f"{settings.cabinet_public_url.rstrip('/')}/cases/{case['id']}"
             ),
-            "max_bot_url": settings.max_public_bot_url,
-            "max_miniapp_url": settings.max_miniapp_url,
+            "staff_cabinet_url": admin_case_max_reply_url(str(case["id"])),
+            "max_reply_url": admin_case_max_reply_url(str(case["id"])),
+            "max_business_url": max_business_dialogs_url(),
+            "max_ops_bot_url": staff_max_login_url(),
         },
         "representatives": representatives if representatives is not None else [],
         "warning": (

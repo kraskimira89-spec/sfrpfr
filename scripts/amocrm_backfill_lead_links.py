@@ -96,7 +96,7 @@ def main() -> None:
         fields = build_lead_custom_fields(
             case_id=case_id,
             case_url=admin_case_url(case_id),
-            max_dialog_url=max_dialog_url() if is_max else None,
+            max_dialog_url=max_dialog_url(case_id) if is_max else None,
             max_user_id=str(max_uid).strip() if max_uid else None,
             pipeline_status="intake",
             channel=channel or None,
@@ -117,7 +117,7 @@ def main() -> None:
                     "ok": ok,
                     "status": status,
                     "has_admin": bool(admin_case_url(case_id)),
-                    "has_max": bool(max_dialog_url()) if is_max else False,
+                    "has_max_dialog": bool(max_dialog_url(case_id)) if is_max else False,
                 },
                 ensure_ascii=False,
             )

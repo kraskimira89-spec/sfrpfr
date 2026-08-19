@@ -450,6 +450,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     Для staff — отдельный сценарий с кодом со страницы входа.
     """
     from sfrfr.db.staff_roles import get_staff_role_by_email
+    from sfrfr.integrations.amocrm.urls import staff_max_login_url
     from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
@@ -496,12 +497,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             ticket=pending.ticket_id,
             pair_code=pending.pair_code,
             expires_in=max(60, int(pending.expires_at - time.time())),
-            max_bot_url=settings.max_chat_url,
+            max_bot_url=staff_max_login_url(),
             status="pending_pair",
             message=(
-                f"В чат MAX отправьте код {pending.pair_code} со страницы входа. "
-                "После кода вход на странице входа подтвердится сам. "
-                "При первом входе нужно одобрение руководителя; дальше — только ваш чат MAX."
+                f"Откройте ops-бот «Проверка стажа-Ops» и отправьте код {pending.pair_code}. "
+                "После кода вход на этой странице подтвердится сам. "
+                "При первом входе нужно одобрение руководителя; дальше — только ваш MAX."
             ),
         )
 

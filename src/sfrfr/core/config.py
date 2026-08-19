@@ -78,6 +78,8 @@ class Settings(BaseSettings):
     max_ops_bot_token: str = ""
     max_ops_webhook_secret: str = ""
     max_ops_chat_url: str = ""
+    # Веб-кабинет MAX Business → диалоги бота (ручной поиск по user_id)
+    max_business_dialogs_url: str = "https://business.max.ru/self"
     # ТЗ-27: AI-ответы специалистам в ops / канале команды
     max_ops_llm_enabled: bool = True
     max_ops_llm_max_chars: int = 3500

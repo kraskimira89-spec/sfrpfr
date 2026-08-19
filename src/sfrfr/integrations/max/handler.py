@@ -531,18 +531,21 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
     try:
         from sfrfr.core.config import get_settings
         from sfrfr.db.staff_roles import list_manager_max_user_ids
-        from sfrfr.integrations.amocrm.urls import admin_case_url, max_operator_reply_hint
+        from sfrfr.integrations.amocrm.urls import (
+            admin_case_max_reply_url,
+            max_operator_reply_hint,
+        )
         from sfrfr.integrations.max.ops_bot import get_ops_bot
 
         settings = get_settings()
         bot = get_ops_bot()
         if not bot.available:
             return
-        admin = admin_case_url(case_id) or ""
+        admin = admin_case_max_reply_url(case_id) or ""
         text = (
             "Клиент ждёт ответа в MAX\n"
             f"MAX user_id: {user_id}\n"
-            f"Дело: {admin}\n"
+            f"Ответить: {admin}\n"
             f"{max_operator_reply_hint(user_id)}\n"
         )
         if crm_url:

@@ -52,9 +52,8 @@ LEAD_FIELD_SPECS: tuple[dict[str, Any], ...] = (
     {"code": SFRFR_CASE_URL, "name": "Ссылка на дело SFRFR", "type": "url"},
     {
         "code": MAX_DIALOG_URL,
-        "name": "Продолжить диалог MAX (устар.)",
+        "name": "Диалог MAX (ответ клиенту)",
         "type": "url",
-        "is_api_only": True,
     },
     {"code": MAX_REPLY_HINT, "name": "Как ответить в MAX", "type": "text"},
     {"code": MAX_USER_ID, "name": "MAX user_id", "type": "text"},
@@ -148,6 +147,7 @@ def build_lead_custom_fields(
     *,
     case_id: str,
     case_url: str | None = None,
+    max_dialog_url: str | None = None,
     max_reply_hint: str | None = None,
     max_user_id: str | None = None,
     pipeline_status: str | None = None,
@@ -169,7 +169,10 @@ def build_lead_custom_fields(
 ) -> list[dict[str, Any]]:
     """Собрать custom_fields_values для сделки (без ПДн-сканов)."""
     out: list[dict[str, Any]] = [cf_text(CASE_ID, case_id)]
-    url_pairs = ((SFRFR_CASE_URL, case_url),)
+    url_pairs = (
+        (SFRFR_CASE_URL, case_url),
+        (MAX_DIALOG_URL, max_dialog_url),
+    )
     for code, value in url_pairs:
         if value:
             out.append(cf_url(code, str(value)[:500]))
