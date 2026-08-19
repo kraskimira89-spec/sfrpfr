@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from sfrfr.integrations.amocrm.fields import MAX_REPLY_HINT, SFRFR_CASE_URL, build_lead_custom_fields
+from sfrfr.integrations.amocrm.fields import (
+    MAX_REPLY_HINT,
+    SFRFR_CASE_URL,
+    build_lead_custom_fields,
+)
 from sfrfr.integrations.amocrm.urls import admin_case_url, max_operator_reply_hint
 
 

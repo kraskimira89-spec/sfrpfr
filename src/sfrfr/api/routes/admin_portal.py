@@ -494,7 +494,8 @@ def send_max_reply_to_client(
     try:
         result = bot.send_message(text=payload.message.strip(), user_id=max_uid)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"max_send_failed:{type(exc).__name__}") from exc
+        detail = f"max_send_failed:{type(exc).__name__}"
+        raise HTTPException(status_code=502, detail=detail) from exc
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
     return {"ok": True, "max_user_id": max_uid, "result": result}
 

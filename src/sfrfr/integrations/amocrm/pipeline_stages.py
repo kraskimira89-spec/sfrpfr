@@ -47,12 +47,6 @@ AMO_STAGES_TO_ENSURE: tuple[str, ...] = tuple(
     AMO_STAGE_NAMES[k] for k in AMO_STAGE_ORDER
 )
 
-from sfrfr.integrations.amocrm.task_templates import (  # noqa: F401
-    TASK_DOCS_AFTER_DIAG,
-    TASK_FIRST_CONTACT,
-    TASK_REVIEW_REMINDER,
-)
-
 
 def stage_order_index(key: str | None) -> int:
     if not key:
