@@ -1407,7 +1407,7 @@ export function AdminCabinet() {
   const caps = detail?.role_capabilities;
 
   return (
-    <main className="app-layout">
+    <main className={`app-layout${view === "case" ? " app-layout--case" : ""}`}>
       <header className="app-header">
         <div className="brand-block">
           <BrandHomeLink className="brand-home-link--header">
@@ -1702,18 +1702,17 @@ export function AdminCabinet() {
       )}
 
       {view === "case" && detail && (
-        <section className="stack case-page">
-          <div className="case-page-top">
-            <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
-            <h1>
-              {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
-            </h1>
-            <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
-            <p className="warning inline">{detail.warning}</p>
-          </div>
-
-          <div className="case-layout">
+        <section className="case-page">
           <div className="case-main stack">
+            <div className="case-page-top">
+              <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
+              <h1>
+                {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
+              </h1>
+              <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
+              <p className="warning inline">{detail.warning}</p>
+            </div>
+
           <div className="panel accent">
             <h2>Следующий шаг</h2>
             <div className="filters">
@@ -2031,7 +2030,6 @@ export function AdminCabinet() {
             onSendMax={() => void sendMaxReply()}
             onSendInternal={() => void sendMessage()}
           />
-          </div>
         </section>
       )}
 

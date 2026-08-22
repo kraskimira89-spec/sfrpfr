@@ -90,7 +90,7 @@ export const STAFF_STATUS_LABELS: Record<string, string> = {
 export const AUTHOR_KIND_LABELS: Record<string, string> = {
   client: "Клиент",
   representative: "Представитель",
-  system: "Система",
+  system: "Бот MAX",
   expert: "Эксперт",
   operator: "Оператор",
   staff: "Сотрудник",

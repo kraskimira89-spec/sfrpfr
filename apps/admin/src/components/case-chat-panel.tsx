@@ -10,12 +10,28 @@ export type CaseChatMessage = {
   created_at: string;
 };
 
+const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
+
+function splitBody(body: string): { text: string; buttons: string[] } {
+  const match = body.match(BUTTONS_RE);
+  if (!match) return { text: body, buttons: [] };
+  return {
+    text: body.slice(0, match.index).trimEnd(),
+    buttons: match[1].split(" · ").map((x) => x.trim()).filter(Boolean),
+  };
+}
+
 function bubbleClass(authorKind: string): string {
   if (authorKind === "client" || authorKind === "representative") {
     return "case-chat-bubble case-chat-bubble--client";
   }
-  if (authorKind === "system") return "case-chat-bubble case-chat-bubble--system";
+  if (authorKind === "system") return "case-chat-bubble case-chat-bubble--bot";
   return "case-chat-bubble case-chat-bubble--staff";
+}
+
+function authorLabel(authorKind: string): string {
+  if (authorKind === "system") return "Бот MAX";
+  return labelAuthorKind(authorKind);
 }
 
 export function CaseChatPanel({
@@ -52,31 +68,43 @@ export function CaseChatPanel({
       <div className="case-chat-head">
         <h2>Чат с клиентом</h2>
         <p className="hint">
-          {maxLinked
-            ? "Лента дела. Отправка в MAX уходит в личный бот клиента."
-            : "Лента дела. MAX не привязан — можно писать во внутреннюю переписку."}
+          Справа всегда: бот MAX, кнопки сценария и переписка сотрудника с клиентом.
         </p>
       </div>
 
       <div className="case-chat-feed" ref={feedRef}>
         {messages.length === 0 ? (
-          <p className="hint case-chat-empty">Пока нет сообщений — история появится здесь.</p>
+          <p className="hint case-chat-empty">
+            Пока пусто. Здесь появятся сообщения бота, нажатия клиента и ответы сотрудника.
+          </p>
         ) : (
           <ul className="case-chat-list">
-            {messages.map((m) => (
-              <li key={m.id} className={bubbleClass(m.author_kind)}>
-                <span className="meta">
-                  {labelAuthorKind(m.author_kind)} ·{" "}
-                  {new Date(m.created_at).toLocaleString("ru-RU", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-                <p>{m.body}</p>
-              </li>
-            ))}
+            {messages.map((m) => {
+              const parsed = splitBody(m.body);
+              return (
+                <li key={m.id} className={bubbleClass(m.author_kind)}>
+                  <span className="meta">
+                    {authorLabel(m.author_kind)} ·{" "}
+                    {new Date(m.created_at).toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <p>{parsed.text}</p>
+                  {parsed.buttons.length > 0 ? (
+                    <div className="case-chat-buttons" aria-label="Кнопки бота в MAX">
+                      {parsed.buttons.map((label) => (
+                        <span key={`${m.id}-${label}`} className="case-chat-btn-chip">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -122,9 +150,9 @@ export function CaseChatPanel({
           </button>
         </div>
         <p className="hint">
-          Ссылка max.ru/…_1_bot открывает ваш личный чат с ботом, не переписку клиента.
+          Ctrl+Enter — отправить.
           {maxBusinessUrl && maxUserId
-            ? ` В MAX Business → «Проверка стажа-личный бот» → Диалоги → user_id ${maxUserId}.`
+            ? ` MAX Business · user_id ${maxUserId}.`
             : ""}
         </p>
       </div>

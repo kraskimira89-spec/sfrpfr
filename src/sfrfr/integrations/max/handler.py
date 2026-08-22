@@ -260,6 +260,93 @@ def _append_client_case_message(*, case_id: str | None, text: str) -> None:
         logger.warning("case_message client append failed case=%s: %s", cid[:8], exc)
 
 
+def _keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str]:
+    labels: list[str] = []
+    for att in attachments or []:
+        if not isinstance(att, dict):
+            continue
+        payload = att.get("payload") if isinstance(att.get("payload"), dict) else att
+        rows = payload.get("buttons") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, list):
+                continue
+            for btn in row:
+                if isinstance(btn, dict) and btn.get("text"):
+                    labels.append(str(btn["text"]).strip())
+    return [x for x in labels if x]
+
+
+def _resolve_case_id_by_max_user(user_id: str | None) -> str | None:
+    mid = str(user_id or "").strip()
+    if not mid:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        client_row = (
+            get_supabase_client()
+            .table("clients")
+            .select("id")
+            .eq("max_user_id", mid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not client_row:
+            return None
+        client_id = client_row[0].get("id")
+        cases = (
+            get_supabase_client()
+            .table("cases")
+            .select("id")
+            .eq("client_id", client_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not cases:
+            return None
+        cid = str(cases[0].get("id") or "")
+        return cid if len(cid) >= 32 else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("resolve case by max_user failed: %s", exc)
+        return None
+
+
+def _append_bot_case_message(
+    *,
+    case_id: str | None,
+    text: str,
+    attachments: list[dict[str, Any]] | None = None,
+) -> None:
+    """Сохранить ответ бота MAX (текст + подписи кнопок) в ленту дела."""
+    cid = (case_id or "").strip()
+    body = (text or "").strip()
+    if not cid or not body or len(cid) < 32:
+        return
+    labels = _keyboard_button_labels(attachments)
+    if labels:
+        body = f"{body}\n\n[Кнопки бота: {' · '.join(labels)}]"
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        get_supabase_client().table("case_messages").insert(
+            {
+                "case_id": cid,
+                "author_kind": "system",
+                "author_user_id": None,
+                "body": body[:4000],
+            }
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("case_message bot append failed case=%s: %s", cid[:8], exc)
+
+
 def _text(update: dict[str, Any]) -> str:
     message = update.get("message") or update.get("message_created") or update
     if not isinstance(message, dict):
@@ -304,6 +391,7 @@ def _reply(
     chat_id: int | str | None,
     text: str,
     attachments: list[dict[str, Any]] | None = None,
+    case_id: str | None = None,
 ) -> bool:
     try:
         bot.send_message(
@@ -312,6 +400,8 @@ def _reply(
             chat_id=chat_id,
             attachments=attachments,
         )
+        cid = case_id or _resolve_case_id_by_max_user(user_id)
+        _append_bot_case_message(case_id=cid, text=text, attachments=attachments)
         return True
     except Exception as exc:  # noqa: BLE001
         import logging
@@ -1876,6 +1966,13 @@ def handle_max_update(
 
     store = get_case_store()
     welcome_text = _welcome_for_update(update, user_id)
+
+    # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
+    if callback:
+        _append_client_case_message(
+            case_id=_resolve_case_id_by_max_user(user_id),
+            text=f"Нажал кнопку: {callback}",
+        )
 
     # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:
