@@ -371,8 +371,88 @@ header div { display: grid; gap: 3px; }
 .case-main {
   min-width: 0;
   grid-column: 1;
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
-.case-page-top { display: grid; gap: 6px; }
+.case-page-top { display: grid; gap: 4px; }
+.case-page-top h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+.case-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.case-card--wide {
+  grid-column: 1 / -1;
+}
+.case-main .panel {
+  padding: 10px 12px;
+  margin: 0;
+}
+.case-main .panel h2 {
+  margin: 0 0 6px;
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+.case-main .panel p {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.case-main .panel .hint {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+.case-main .plain-list {
+  margin: 0;
+  gap: 4px;
+}
+.case-main .plain-list li {
+  padding: 2px 0;
+  font-size: 0.9rem;
+}
+.case-main .filters,
+.case-main .inline-form,
+.case-main .row-actions {
+  margin-top: 6px;
+  gap: 6px;
+}
+.case-main .stack-form {
+  margin-top: 6px;
+  gap: 6px;
+}
+.case-main .draft {
+  max-height: 180px;
+  overflow: auto;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  margin: 4px 0 0;
+}
+.case-audit-list {
+  max-height: 220px;
+  overflow: auto;
+}
+.case-main .service-details summary {
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.case-main .service-details[open] summary {
+  margin-bottom: 6px;
+}
+@media (max-width: 1100px) {
+  .case-cards {
+    grid-template-columns: 1fr;
+  }
+  .case-card--wide {
+    grid-column: auto;
+  }
+}
 .case-chat {
   grid-column: 2;
   grid-row: 1;
