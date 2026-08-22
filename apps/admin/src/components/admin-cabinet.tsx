@@ -689,6 +689,7 @@ export function AdminCabinet() {
       const qs = params.toString();
       setFinance(await apiFetch(`/api/portal/admin/finance${qs ? `?${qs}` : ""}`, token));
       setView("finance");
+      if (cases.length === 0) await loadCases();
     } catch {
       setNotice("Финансы недоступны для роли оператора.");
     } finally {

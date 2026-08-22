@@ -78,7 +78,12 @@ def test_build_admin_analytics_snapshot_shape() -> None:
         ),
     ]
     orders = [
-        {"case_id": "00000000-0000-0000-0000-000000000102", "package_code": "DIAG", "status": "paid", "amount_rub": 3000},
+        {
+            "case_id": "00000000-0000-0000-0000-000000000102",
+            "package_code": "DIAG",
+            "status": "paid",
+            "amount_rub": 3000,
+        },
     ]
     snap = build_admin_analytics(cases=cases, orders=orders, now=NOW, include_finance=True)
     assert snap["kpi"]["total_cases"] == 2
@@ -137,7 +142,12 @@ def test_admin_analytics_endpoint_admin_includes_finance(monkeypatch: pytest.Mon
         )
     ]
     repo.list_all_orders.return_value = [
-        {"case_id": "00000000-0000-0000-0000-000000000101", "package_code": "DIAG", "status": "paid", "amount_rub": 3000},
+        {
+            "case_id": "00000000-0000-0000-0000-000000000101",
+            "package_code": "DIAG",
+            "status": "paid",
+            "amount_rub": 3000,
+        },
     ]
     monkeypatch.setattr(admin_portal, "_repo", lambda: repo)
 

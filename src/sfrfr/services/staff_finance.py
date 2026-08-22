@@ -165,7 +165,8 @@ def serialize_order(
     return {
         "id": str(order.get("id") or ""),
         "case_id": str(order.get("case_id") or ""),
-        "invoice_number": order.get("invoice_number") or invoice_number_from_id(str(order.get("id") or "")),
+        "invoice_number": order.get("invoice_number")
+        or invoice_number_from_id(str(order.get("id") or "")),
         "package_code": order.get("package_code"),
         "service_label": service,
         "amount_rub": amount,

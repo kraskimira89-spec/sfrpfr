@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -47,13 +46,13 @@ from sfrfr.security.auth import (
     require_admin,
     require_staff,
 )
-from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, staff_package_label
 from sfrfr.services.admin_analytics import (
     analytics_export_rows,
     build_admin_analytics,
     rows_to_csv,
     rows_to_json,
 )
+from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, staff_package_label
 from sfrfr.services.staff_finance import (
     build_finance_snapshot,
     reminder_draft_text,
@@ -821,7 +820,9 @@ def admin_finance(
     return snap
 
 
-def _require_order(principal: Principal, order_id: str) -> tuple[CaseRepository, dict[str, Any], dict[str, Any]]:
+def _require_order(
+    principal: Principal, order_id: str
+) -> tuple[CaseRepository, dict[str, Any], dict[str, Any]]:
     repo = _repo()
     order = repo.get_order_by_id(order_id)
     if not order:
@@ -923,7 +924,9 @@ def admin_order_remind(
         try:
             bot.send_message(text=text, user_id=max_uid)
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=502, detail=f"max_send_failed:{type(exc).__name__}") from exc
+            raise HTTPException(
+                status_code=502, detail=f"max_send_failed:{type(exc).__name__}"
+            ) from exc
         sent = True
     repo.update_order_fields(
         order_id,

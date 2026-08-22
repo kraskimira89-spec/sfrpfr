@@ -133,7 +133,12 @@ def case_to_analytics_row(case: dict[str, Any]) -> dict[str, Any]:
     orders = case.get("orders") or []
     codes = {str(o.get("package_code")) for o in orders}
     paid = {str(o.get("package_code")) for o in orders if o.get("status") == "paid"}
-    pending = {str(o.get("package_code")) for o in orders if o.get("status") in {"pending", "awaiting_payment"}}
+    pending_statuses = {"pending", "awaiting_payment"}
+    pending = {
+        str(o.get("package_code"))
+        for o in orders
+        if o.get("status") in pending_statuses
+    }
     evidence_list = case.get("result_evidence") or []
     evidence = evidence_list[0] if evidence_list else {}
     before = float((evidence or {}).get("monthly_before_rub") or 0)
@@ -169,7 +174,8 @@ def case_to_analytics_row(case: dict[str, Any]) -> dict[str, Any]:
         "paid_diag": "DIAG" in paid,
         "paid_service": "ACCOMP" in paid,
         "pending_order": bool(pending),
-        "result_confirmed": b2c in {"result_confirmed", "success_fee_due", "success_fee_paid", "closed"}
+        "result_confirmed": b2c
+        in {"result_confirmed", "success_fee_due", "success_fee_paid", "closed"}
         or (after > before and bool(evidence)),
         "result_band": "confirmed_change"
         if after > before and evidence
@@ -216,7 +222,8 @@ def _funnel_count(rows: list[dict[str, Any]], key: str) -> int:
         "consent": lambda r: r["has_consent"],
         "checklist": lambda r: r["has_checklist"],
         "documents": lambda r: r["has_documents"],
-        "diagnostic": lambda r: r["paid_diag"] or _b2c_rank(r["stage"]) >= _b2c_rank("diagnostic_paid"),
+        "diagnostic": lambda r: r["paid_diag"]
+        or _b2c_rank(r["stage"]) >= _b2c_rank("diagnostic_paid"),
         "plan": lambda r: r["pipeline"] in {"draft_ready", "human_review", "completed", "audited"},
         "payment": lambda r: r["paid_diag"]
         or r["paid_service"]
@@ -290,7 +297,9 @@ def build_admin_analytics(
     if channel:
         work_items = [i for i in work_items if i.get("channel") == channel]
 
-    response_hours = [float(r["response_hours"]) for r in rows if r.get("response_hours") is not None]
+    response_hours = [
+        float(r["response_hours"]) for r in rows if r.get("response_hours") is not None
+    ]
     overdue = sum(1 for i in work_items if i.get("deadline_status") == "overdue")
     waiting_staff = sum(1 for i in work_items if i.get("waiting_on") == "staff")
     waiting_client = sum(1 for i in work_items if i.get("waiting_on") in {"client", "archive"})
@@ -326,7 +335,11 @@ def build_admin_analytics(
     for ch, count in sorted(by_channel.items(), key=lambda x: (-x[1], x[0])):
         ch_rows = [r for r in rows if r["preferred_channel"] == ch]
         ch_items = [i for i in work_items if i.get("channel") == ch]
-        ch_resp = [float(r["response_hours"]) for r in ch_rows if r.get("response_hours") is not None]
+        ch_resp = [
+            float(r["response_hours"])
+            for r in ch_rows
+            if r.get("response_hours") is not None
+        ]
         channel_rows.append(
             {
                 "channel": ch,
@@ -402,7 +415,11 @@ def build_admin_analytics(
         ]
         paid_diag = sum(1 for r in rows if r["paid_diag"])
         paid_service = sum(1 for r in rows if r["paid_service"])
-        pending_orders = [o for o in scoped_orders if o.get("status") in {"pending", "awaiting_payment"}]
+        pending_orders = [
+            o
+            for o in scoped_orders
+            if o.get("status") in {"pending", "awaiting_payment"}
+        ]
         paid_orders = [o for o in scoped_orders if o.get("status") == "paid"]
         diag_paid_cases = {r["case_id"] for r in rows if r["paid_diag"]}
         service_after_diag = sum(
@@ -518,7 +535,11 @@ def filtered_analytics_rows(
     return rows
 
 
-def analytics_export_rows(cases: list[dict[str, Any]], orders: list[dict[str, Any]], **filters: Any) -> list[dict[str, Any]]:
+def analytics_export_rows(
+    cases: list[dict[str, Any]],
+    orders: list[dict[str, Any]],
+    **filters: Any,
+) -> list[dict[str, Any]]:
     return filtered_analytics_rows(cases=cases, orders=orders, **filters)
 
 
