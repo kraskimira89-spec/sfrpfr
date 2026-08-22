@@ -2,41 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import time
 from dataclasses import dataclass
 from typing import Any
 
 from sfrfr.db.session import get_supabase_client
 from sfrfr.security.auth import StaffRole
-
-
-# #region agent log
-def _dbg(
-    hypothesis_id: str,
-    location: str,
-    message: str,
-    data: dict[str, Any] | None = None,
-) -> None:
-    try:
-        from pathlib import Path
-
-        payload = {
-            "sessionId": "4304ae",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data or {},
-            "timestamp": int(time.time() * 1000),
-        }
-        Path("debug-4304ae.log").open("a", encoding="utf-8").write(
-            json.dumps(payload, ensure_ascii=False) + "\n"
-        )
-    except Exception:
-        pass
-
-
-# #endregion
 
 
 @dataclass(frozen=True)
@@ -100,9 +70,6 @@ def _bootstrap_role_for_ops_email(normalized: str) -> StaffRole | None:
     uid = _bootstrap_user_id_for_ops_email(normalized)
     if not uid:
         return None
-    # #region agent log
-    _dbg("C", "staff_roles._bootstrap_role_for_ops_email", "ops email bootstrap admin", {})
-    # #endregion
     return StaffRole.ADMIN
 
 
@@ -132,14 +99,6 @@ def find_user_by_email(email: str) -> Any | None:
     normalized = email.strip().lower()
     row = _staff_row_by_email(normalized)
     if row:
-        # #region agent log
-        _dbg(
-            "A",
-            "staff_roles.find_user_by_email",
-            "staff_email row hit",
-            {"has_user_id": bool(row.get("user_id"))},
-        )
-        # #endregion
         return _StaffUserStub(str(row["user_id"]), normalized)
 
     boot_uid = _bootstrap_user_id_for_ops_email(normalized)
@@ -161,15 +120,7 @@ def find_user_by_email(email: str) -> Any | None:
             if len(users) < per_page:
                 return None
             page += 1
-    except Exception as exc:  # noqa: BLE001
-        # #region agent log
-        _dbg(
-            "A",
-            "staff_roles.find_user_by_email",
-            "list_users failed",
-            {"error": type(exc).__name__},
-        )
-        # #endregion
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -258,16 +209,7 @@ def get_staff_role_by_email(email: str) -> StaffRole | None:
     row = _staff_row_by_email(normalized)
     if row:
         try:
-            role = StaffRole(str(row["role"]))
-            # #region agent log
-            _dbg(
-                "A",
-                "staff_roles.get_staff_role_by_email",
-                "resolved via staff_email",
-                {"role": role.value},
-            )
-            # #endregion
-            return role
+            return StaffRole(str(row["role"]))
         except ValueError:
             return None
 
@@ -277,9 +219,6 @@ def get_staff_role_by_email(email: str) -> StaffRole | None:
 
     user = find_user_by_email(normalized)
     if user is None:
-        # #region agent log
-        _dbg("B", "staff_roles.get_staff_role_by_email", "no user for email", {})
-        # #endregion
         return None
     client = get_supabase_client()
     rows = (

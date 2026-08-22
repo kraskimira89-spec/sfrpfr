@@ -477,28 +477,6 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 reason="missing_email",
             )
         role = get_staff_role_by_email(staff_email)
-        # #region agent log
-        try:
-            import json
-            from pathlib import Path
-
-            Path("debug-4304ae.log").open("a", encoding="utf-8").write(
-                json.dumps(
-                    {
-                        "sessionId": "4304ae",
-                        "hypothesisId": "A",
-                        "location": "portal.request_max_otp",
-                        "message": "staff role lookup",
-                        "data": {"has_role": role is not None},
-                        "timestamp": int(time.time() * 1000),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
-        except Exception:
-            pass
-        # #endregion
         if role is None:
             _raise_auth(
                 403,
