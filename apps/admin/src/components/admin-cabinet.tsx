@@ -13,7 +13,7 @@ import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-regis
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
-import { CaseFunnelMain } from "@/components/case-funnel-main";
+import { CaseFunnelMain, type StepChatMessage } from "@/components/case-funnel-main";
 import { StaffRolesPanel } from "@/components/staff-roles-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -253,16 +253,30 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
   });
   if (!response.ok) {
     const raw = (await response.text()) || `HTTP ${response.status}`;
-    let detail = raw;
+    let detail: string | Record<string, unknown> = raw;
     try {
       const parsed = JSON.parse(raw) as { detail?: unknown };
       if (typeof parsed.detail === "string" && parsed.detail.trim()) {
         detail = parsed.detail;
+      } else if (parsed.detail && typeof parsed.detail === "object") {
+        detail = parsed.detail as Record<string, unknown>;
       }
     } catch {
       /* оставить сырой текст */
     }
-    throw new Error(detail);
+    const message =
+      typeof detail === "string"
+        ? detail
+        : typeof detail.detail === "string"
+          ? detail.detail
+          : `HTTP ${response.status}`;
+    const err = new Error(message) as Error & {
+      status?: number;
+      payload?: Record<string, unknown>;
+    };
+    err.status = response.status;
+    if (typeof detail === "object") err.payload = detail;
+    throw err;
   }
   return response.json() as Promise<T>;
 }
@@ -288,8 +302,16 @@ export function AdminCabinet() {
     reason: string;
     source: string;
   } | null>(null);
-  const [stepMessages, setStepMessages] = useState<string[]>([]);
+  const [stepMessages, setStepMessages] = useState<StepChatMessage[]>([]);
   const [maxReplyFocus, setMaxReplyFocus] = useState(false);
+  const [composerFlash, setComposerFlash] = useState(false);
+  const [dupDialog, setDupDialog] = useState<{
+    code: string;
+    lastAt?: string;
+    preview?: string;
+    count48h?: number;
+  } | null>(null);
+  const [sfrReceived, setSfrReceived] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -345,7 +367,7 @@ export function AdminCabinet() {
   const [pipelineStatus, setPipelineStatus] = useState("human_review");
   const [beforeRub, setBeforeRub] = useState("");
   const [afterRub, setAfterRub] = useState("");
-  const [lumpRub, setLumpRub] = useState("0");
+  const [lumpRub, setLumpRub] = useState("");
   const [feedbackQuality, setFeedbackQuality] = useState("verified");
   const [feedbackText, setFeedbackText] = useState("");
   const [orderAmount, setOrderAmount] = useState("");
@@ -605,6 +627,13 @@ export function AdminCabinet() {
       setNextActionText(caseDetail.next_action ?? "");
       setNextActionAt(caseDetail.next_action_at ? caseDetail.next_action_at.slice(0, 16) : "");
       setWaitingOn(caseDetail.waiting_on ?? "staff");
+      setSfrReceived(
+        ["result_confirmed", "success_fee_due", "success_fee_paid", "closed"].includes(
+          caseDetail.b2c_status,
+        ),
+      );
+      setLumpRub("");
+      setDupDialog(null);
       setView("case");
     } catch (err) {
       const detail = err instanceof Error ? err.message : "";
@@ -843,7 +872,7 @@ export function AdminCabinet() {
         waiting_on: string;
         reason?: string;
         source?: string;
-        chat_messages?: string[];
+        chat_messages?: Array<string | { kind?: string; text?: string }>;
       }>(`/api/portal/admin/cases/${caseId}/suggest-next-action`, token, { method: "POST" });
       // Сохраняем шаг в деле, но НЕ отправляем текст клиенту.
       await apiFetch(`/api/portal/admin/cases/${caseId}/next-action`, token, {
@@ -861,7 +890,19 @@ export function AdminCabinet() {
           });
         }
       }
-      const msgs = (hint.chat_messages || []).filter(Boolean);
+      const kinds: StepChatMessage["kind"][] = ["full", "short", "cabinet_howto"];
+      const msgs: StepChatMessage[] = [];
+      for (const [idx, item] of (hint.chat_messages || []).entries()) {
+        if (typeof item === "string" && item.trim()) {
+          msgs.push({ kind: kinds[idx] || "full", text: item.trim() });
+        } else if (item && typeof item === "object" && String(item.text || "").trim()) {
+          const k = String(item.kind || kinds[idx] || "full");
+          const kind = (kinds.includes(k as StepChatMessage["kind"])
+            ? k
+            : kinds[idx] || "full") as StepChatMessage["kind"];
+          msgs.push({ kind, text: String(item.text).trim() });
+        }
+      }
       setStepHint({
         action: hint.next_action,
         reason: (hint.reason || "").trim(),
@@ -869,7 +910,7 @@ export function AdminCabinet() {
       });
       setStepMessages(msgs);
       setNotice(
-        "Подсказка готова: выберите сообщение и нажмите «Подставить в чат», затем отправьте в MAX вручную.",
+        "Подсказка готова: выберите тип сообщения и нажмите подстановку, затем отправьте в MAX вручную.",
       );
       if (view !== "case") {
         await loadCases();
@@ -886,11 +927,33 @@ export function AdminCabinet() {
     }
   }
 
-  function applyStepMessageToChat(text: string) {
+  function applyStepMessageToChat(text: string, opts?: { confirmAssign?: boolean }) {
+    if (opts?.confirmAssign && detail && !detail.expert_user_id) {
+      if (!window.confirm("Назначить себе и подставить текст в чат?")) return;
+      void takeCase(detail.id);
+    }
     setMaxReplyBody(text);
     setReplySuggestions([]);
     setMaxReplyFocus(true);
-    setNotice("Текст в поле чата справа. Проверьте и нажмите «Отправить в MAX».");
+    setComposerFlash(true);
+    window.setTimeout(() => setComposerFlash(false), 2000);
+    setNotice("Текст добавлен в черновик. Отправьте после проверки.");
+  }
+
+  async function recordServiceConsent() {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/service-consent`, token, {
+        method: "POST",
+      });
+      setNotice("Согласие клиента на услугу зафиксировано.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось зафиксировать согласие.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function requestDocsFor(caseId: string) {
@@ -1178,19 +1241,35 @@ export function AdminCabinet() {
     }
   }
 
-  async function sendMaxReply() {
+  async function sendMaxReply(opts?: { force?: boolean }) {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
     setBusy(true);
     try {
       await apiFetch(`/api/portal/admin/cases/${detail.id}/max-reply`, token, {
         method: "POST",
-        body: JSON.stringify({ message: maxReplyBody.trim() }),
+        body: JSON.stringify({ message: maxReplyBody.trim(), force: Boolean(opts?.force) }),
       });
       setMaxReplyBody("");
+      setDupDialog(null);
       setNotice("Сообщение отправлено клиенту в MAX.");
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
       setMessages(next);
     } catch (error) {
+      const err = error as Error & { status?: number; payload?: Record<string, unknown> };
+      if (err.status === 409 && err.payload && !opts?.force) {
+        const code = String(err.payload.code || "duplicate_message");
+        const count48h = Number(err.payload.count_48h || 0);
+        setDupDialog({
+          code,
+          lastAt: typeof err.payload.last_at === "string" ? err.payload.last_at : undefined,
+          preview:
+            typeof err.payload.last_body_preview === "string"
+              ? err.payload.last_body_preview
+              : undefined,
+          count48h,
+        });
+        return;
+      }
       setNotice(error instanceof Error ? error.message : "Не удалось отправить в MAX.");
     } finally {
       setBusy(false);
@@ -1752,6 +1831,7 @@ export function AdminCabinet() {
             beforeRub={beforeRub}
             afterRub={afterRub}
             lumpRub={lumpRub}
+            sfrReceived={sfrReceived}
             orderCode={orderCode}
             orderAmount={orderAmount}
             feedbackText={feedbackText}
@@ -1785,9 +1865,11 @@ export function AdminCabinet() {
             onBeforeRub={setBeforeRub}
             onAfterRub={setAfterRub}
             onLumpRub={setLumpRub}
+            onSfrReceived={setSfrReceived}
             onOrderCode={setOrderCode}
             onOrderAmount={setOrderAmount}
             onCreateOrder={(e) => void createOrder(e)}
+            onRecordServiceConsent={() => void recordServiceConsent()}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}
             onSendFeedback={(e) => void sendFeedback(e)}
@@ -1799,6 +1881,8 @@ export function AdminCabinet() {
           <CaseChatPanel
             messages={messages}
             maxLinked={Boolean(detail.client.max_linked)}
+            maxUserId={detail.client.max_user_id ?? null}
+            maxBusinessUrl={detail.channels.max_business_url ?? null}
             body={maxReplyBody}
             onBodyChange={setMaxReplyBody}
             busy={busy}
@@ -1806,7 +1890,68 @@ export function AdminCabinet() {
             onSendInternal={() => void sendMessage()}
             suggestions={replySuggestions}
             onSuggest={() => void suggestReplies()}
+            composerHighlight={composerFlash || maxReplyFocus}
           />
+          {dupDialog ? (
+            <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">
+              <div className="dup-dialog">
+                <h3>Повтор сообщения</h3>
+                <p>
+                  Этот запрос уже отправлялся
+                  {dupDialog.lastAt
+                    ? ` ${new Date(dupDialog.lastAt).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : " сегодня"}
+                  .
+                </p>
+                {dupDialog.preview ? (
+                  <p className="hint">{dupDialog.preview}</p>
+                ) : null}
+                <div className="dup-dialog-actions">
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setDupDialog(null);
+                      setMaxReplyFocus(true);
+                      document.getElementById("max-reply-panel")?.scrollIntoView({
+                        behavior: "smooth",
+                      });
+                    }}
+                  >
+                    Открыть последнее
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      const needExtra =
+                        dupDialog.code === "duplicate_message_limit" ||
+                        (dupDialog.count48h ?? 0) >= 2;
+                      if (
+                        needExtra &&
+                        !window.confirm(
+                          "Похожих сообщений уже несколько за 48 часов. Отправить повторно?",
+                        )
+                      ) {
+                        return;
+                      }
+                      void sendMaxReply({ force: true });
+                    }}
+                  >
+                    Отправить повторно
+                  </button>
+                  <button type="button" className="ghost" onClick={() => setDupDialog(null)}>
+                    Отменить
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
       )}
 
