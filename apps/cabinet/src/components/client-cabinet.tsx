@@ -1455,10 +1455,16 @@ export function ClientCabinet() {
   }
 
   function renderMaxWizard() {
+    const awaitingMaxConfirm =
+      maxWaitStatus === "pending_pair" ||
+      maxWaitStatus === "pending_confirm" ||
+      (!maxWaitStatus && !maxVerifyTicket);
+    const needsCodeOnSite = maxWaitStatus === "code_sent";
+
     return (
       <>
         <p className="lead lead-compact">
-          Войдите через чат MAX — код придёт в чат, введите его здесь.
+          Войдите через чат MAX — подтвердите вход в приложении, кабинет откроется здесь.
         </p>
         <div className="max-wizard max-wizard--actions">
           {!otpSent ? (
@@ -1474,15 +1480,32 @@ export function ClientCabinet() {
               <ol className="max-login-steps">
                 <li>Откроется чат MAX</li>
                 <li>Нажмите «Получить код для входа»</li>
-                <li>Введите код на этой странице</li>
+                <li>Кабинет откроется на этой странице</li>
               </ol>
+            </>
+          ) : awaitingMaxConfirm && !needsCodeOnSite ? (
+            <>
+              <p className="max-wizard-status" role="status">
+                {maxWaitStatus === "pending_confirm"
+                  ? "Подтвердите вход в чате MAX — кабинет откроется автоматически"
+                  : "Откройте чат MAX и нажмите «Получить код для входа»"}
+              </p>
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={() => openMaxChat()}
+              >
+                Открыть чат MAX
+              </button>
+              <button type="button" className="ghost" onClick={resetMaxWizard}>
+                Начать заново
+              </button>
             </>
           ) : (
             <>
               <p className="max-wizard-status" role="status">
-                {maxWaitStatus === "code_sent" || maxVerifyTicket
-                  ? "Код отправлен в чат MAX — введите его здесь"
-                  : "Откройте чат MAX и нажмите «Получить код для входа»"}
+                Код отправлен в чат MAX — введите его здесь
               </p>
               <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
                 <label htmlFor="max-site-otp">Код из MAX</label>

@@ -454,8 +454,6 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
     from sfrfr.security.login_otp import (
         CONFIRM_WEB_LOGIN_LABEL,
-        confirm_web_login_message,
-        issue_login_link,
         normalize_phone,
     )
     from sfrfr.security.login_pending import (
@@ -486,6 +484,54 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 reason="staff_email_unknown",
             )
         pending = create_pending(audience="staff", staff_email=staff_email)
+        from sfrfr.db.staff_roles import trusted_login_max_user_id
+        from sfrfr.integrations.max.ops_bot import get_ops_bot, ops_bot_configured
+
+        trusted_mid = trusted_login_max_user_id(staff_email)
+        if trusted_mid:
+            bind_max_direct(
+                ticket_id=pending.ticket_id,
+                max_user_id=trusted_mid,
+                contact=staff_email,
+            )
+            auth_event(
+                "otp_request",
+                outcome="ok",
+                audience="staff",
+                ticket=pending.ticket_id,
+                status="pending_confirm",
+                mode="trusted_max",
+            )
+            if ops_bot_configured():
+                try:
+                    ops = get_ops_bot()
+                    if ops.available:
+                        ops.send_message(
+                            user_id=trusted_mid,
+                            text=(
+                                "Запрос входа в кабинет сотрудника.\n"
+                                f"Нажмите «{CONFIRM_WEB_LOGIN_LABEL}»."
+                            ),
+                            attachments=inline_confirm_login_keyboard(
+                                ticket_id=pending.ticket_id,
+                                label=CONFIRM_WEB_LOGIN_LABEL,
+                            ),
+                        )
+                except Exception:  # noqa: BLE001
+                    logger.exception("ops staff login notify failed email=%s", staff_email)
+            return MaxOtpRequestResponse(
+                ok=True,
+                ticket=pending.ticket_id,
+                pair_code="",
+                expires_in=max(60, int(pending.expires_at - time.time())),
+                max_bot_url=staff_max_login_url(),
+                status="pending_confirm",
+                message=(
+                    "Откройте ops-бот «Проверка стажа-Ops» и подтвердите вход одной кнопкой. "
+                    "Кабинет откроется на этой странице автоматически."
+                ),
+            )
+
         auth_event(
             "otp_request",
             outcome="ok",
@@ -493,28 +539,6 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             ticket=pending.ticket_id,
             status="pending_pair",
         )
-        from sfrfr.db.staff_roles import trusted_login_max_user_id
-        from sfrfr.integrations.max.ops_bot import get_ops_bot, ops_bot_configured
-
-        trusted_mid = trusted_login_max_user_id(staff_email)
-        if trusted_mid and ops_bot_configured():
-            try:
-                ops = get_ops_bot()
-                if ops.available:
-                    from sfrfr.integrations.max.client import inline_get_login_code_keyboard
-                    from sfrfr.security.login_otp import GET_CODE_IN_BROWSER_LABEL
-
-                    ops.send_message(
-                        user_id=trusted_mid,
-                        text=(
-                            "Запрос входа в кабинет сотрудника.\n"
-                            f"Код на странице admin: {pending.pair_code}\n\n"
-                            f"Или нажмите «{GET_CODE_IN_BROWSER_LABEL}»."
-                        ),
-                        attachments=inline_get_login_code_keyboard(),
-                    )
-            except Exception:  # noqa: BLE001
-                logger.exception("ops staff login notify failed email=%s", staff_email)
         return MaxOtpRequestResponse(
             ok=True,
             ticket=pending.ticket_id,
@@ -580,23 +604,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 ticket=pending.ticket_id,
                 reason="max_bot_missing",
             )
-        issued = issue_login_link(
-            contact=contact,
-            max_user_id=str(row["max_user_id"]),
+        text = (
+            "Запрос входа в личный кабинет на компьютере.\n"
+            f"Нажмите «{CONFIRM_WEB_LOGIN_LABEL}»."
         )
-        from sfrfr.security.login_pending import attach_otp_verify_ticket
-
-        attach_otp_verify_ticket(
-            ticket_id=pending.ticket_id,
-            otp_verify_ticket=issued.ticket,
-            otp_code=issued.code,
-            max_user_id=str(row["max_user_id"]),
-            contact=contact,
-        )
-        text = f"{confirm_web_login_message(code=issued.code)}\n{issued.login_url}"
         attachments = inline_confirm_login_keyboard(
             ticket_id=pending.ticket_id,
-            login_url=issued.login_url,
             label=CONFIRM_WEB_LOGIN_LABEL,
         )
         try:
@@ -624,7 +637,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             ) from exc
         ClientChannelRepository().audit(
             str(row.get("user_id") or row.get("id")),
-            f"login_otp_max_sent:{row['max_user_id']}",
+            f"login_confirm_max_sent:{row['max_user_id']}",
         )
         auth_event(
             "otp_request",
@@ -637,14 +650,13 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         return MaxOtpRequestResponse(
             ok=True,
             ticket=pending.ticket_id,
-            pair_code=pending.pair_code,
+            pair_code="",
             expires_in=max(60, int(pending.expires_at - time.time())),
             max_bot_url=settings.max_chat_url,
             status="pending_confirm",
-            verify_ticket=issued.ticket,
             message=(
-                "Проверочный код отправлен в чат MAX. "
-                "Введите его на этой странице или нажмите кнопку в чате."
+                "Подтвердите вход в чате MAX одной кнопкой — "
+                "кабинет откроется на этой странице автоматически."
             ),
         )
 
@@ -663,8 +675,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         max_bot_url=settings.max_chat_url,
         status="pending_pair",
         message=(
-            "Откройте личный чат MAX и нажмите «Получить код для входа». "
-            "Введите полученный код на этой странице."
+            "Откройте чат MAX и нажмите «Получить код для входа» — "
+            "кабинет откроется на этой странице автоматически."
         ),
     )
 

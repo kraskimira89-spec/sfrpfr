@@ -1300,7 +1300,11 @@ def _complete_pc_login(
         pending = get_pending(ticket_id)
     if pending is None:
         pending = latest_for_max(user_id)
-    if pending is None or pending.status not in {"pending_confirm", "pending_pair"}:
+    if pending is None or pending.status not in {
+        "pending_confirm",
+        "pending_pair",
+        "code_sent",
+    }:
         reply = ask_code_from_login_page()
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_no_pending", reply=reply)
@@ -1660,7 +1664,7 @@ def _handle_pair_code(
     pending = bind_max_by_code(
         pair_code=code, max_user_id=user_id, contact=contact
     )
-    if pending and pending.audience == "staff":
+    if pending:
         auth_event(
             "max_pair",
             outcome="ok",
@@ -1684,17 +1688,32 @@ def _send_confirm_web_login(
     chat_id: int | str | None,
     callback_payload: str = "",
 ) -> MaxHandleResult:
-    """Клиент: выдать код. Staff/confirm: завершить вход на ПК."""
+    """Клиент в системе: подтвердить вход на ПК. Новый MAX — код для ввода на сайте."""
     ticket_from_cb = parse_confirm_callback(callback_payload)
-    if ticket_from_cb:
+    if ticket_from_cb is not None:
         return _complete_pc_login(
-            bot, user_id=user_id, chat_id=chat_id, ticket_id=ticket_from_cb
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=ticket_from_cb or None,
         )
     pending = latest_for_max(user_id)
     if pending and pending.audience == "staff":
         return _complete_pc_login(
             bot, user_id=user_id, chat_id=chat_id, ticket_id=pending.ticket_id
         )
+    row = _ensure_client_row(user_id)
+    if row:
+        contact = _auth_email_for_row(row, user_id)
+        if not pending or pending.audience == "client":
+            if not pending:
+                pending = ensure_pending_for_max(max_user_id=user_id, contact=contact)
+            return _complete_pc_login(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                ticket_id=pending.ticket_id,
+            )
     return _issue_login_code_to_max(bot, user_id=user_id, chat_id=chat_id)
 
 

@@ -85,7 +85,7 @@ def test_otp_request_client_opens_max_for_code(monkeypatch) -> None:
     assert body["ticket"]
     assert body["pair_code"] == ""
     assert "Получить код" in body["message"]
-    assert "отправьте код" not in body["message"].lower()
+    assert "автоматически" in body["message"]
 
     poll = client.get(f"/api/portal/auth/otp/poll?ticket={body['ticket']}")
     assert poll.status_code == 200

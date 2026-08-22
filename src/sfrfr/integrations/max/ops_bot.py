@@ -364,7 +364,7 @@ def handle_ops_update(
         _text,
         _user_id,
     )
-    from sfrfr.security.login_pending import parse_manager_callback
+    from sfrfr.security.login_pending import parse_confirm_callback, parse_manager_callback
 
     bot = bot or get_ops_bot()
     text = _text(update).strip()
@@ -374,6 +374,16 @@ def handle_ops_update(
     update_type = str(update.get("update_type") or "")
     lower = text.lower()
     manager_ticket = parse_manager_callback(callback)
+    confirm_ticket = parse_confirm_callback(callback)
+    if confirm_ticket is not None:
+        from sfrfr.integrations.max.handler import _complete_pc_login
+
+        return _complete_pc_login(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=confirm_ticket or None,
+        )
 
     # Канал команды: chat_id из bot_added (также доступен через GET /chats у ops-бота).
     if "bot_added" in update_type or update_type.endswith("bot_added"):

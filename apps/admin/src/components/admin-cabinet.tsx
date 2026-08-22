@@ -838,8 +838,10 @@ export function AdminCabinet() {
                       {maxWaitStatus === "pending_manager"
                         ? "Код принят. Ждём руководителя в чате MAX…"
                         : maxWaitStatus === "pending_confirm"
-                          ? "Код принят. Открываем кабинет…"
-                          : "Пришлите этот код в чат MAX"}
+                          ? "Подтвердите вход в ops-боте — кабинет откроется автоматически"
+                          : maxPairCode
+                            ? "Пришлите этот код в чат MAX"
+                            : "Подтвердите вход в ops-боте MAX"}
                     </p>
                     {maxPairCode ? (
                       <p className="max-code-block">
@@ -849,14 +851,22 @@ export function AdminCabinet() {
                     <ol className="max-login-steps">
                       <li>Откройте ops-бот «Проверка стажа-Ops»</li>
                       <li>Нажмите «Начать», если ещё не нажимали</li>
-                      <li>Отправьте код сообщением</li>
+                      {maxPairCode ? (
+                        <li>Отправьте код сообщением</li>
+                      ) : (
+                        <li>Нажмите «Подтвердить вход в браузере»</li>
+                      )}
                     </ol>
                     {maxWaitStatus === "pending_manager" ? (
                       <p className="hint">
                         Руководитель нажмёт «Разрешить вход» — кабинет откроется сам.
                       </p>
-                    ) : (
+                    ) : maxPairCode ? (
                       <p className="hint">После кода вход откроется на этой странице сам.</p>
+                    ) : (
+                      <p className="hint">
+                        После подтверждения в ops-боте кабинет откроется на этой странице сам.
+                      </p>
                     )}
                     <button type="button" className="ghost" onClick={resetMaxWizard}>
                       Начать заново
