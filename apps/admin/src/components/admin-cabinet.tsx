@@ -16,6 +16,8 @@ import {
   humanCaseStage,
 } from "@/lib/ui-labels";
 import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-registry";
+import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
+import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -297,12 +299,36 @@ export function AdminCabinet() {
   const [detail, setDetail] = useState<StaffCaseDetail | null>(null);
   const [messages, setMessages] = useState<{ id: string; author_kind: string; body: string; created_at: string }[]>([]);
   const [messageBody, setMessageBody] = useState("");
-  const [finance, setFinance] = useState<{ orders: StaffCaseDetail["orders"]; formula: string } | null>(null);
-  const [analytics, setAnalytics] = useState<{
-    rows: Record<string, unknown>[];
-    aggregates: Record<string, unknown>;
-    note: string;
-  } | null>(null);
+  const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
+  const [financeQueue, setFinanceQueue] = useState("all");
+  const [financeQ, setFinanceQ] = useState("");
+  const [financePeriod, setFinancePeriod] = useState("");
+  const [financePackage, setFinancePackage] = useState("");
+  const [financeIncludeTest, setFinanceIncludeTest] = useState(false);
+  const [financeLoading, setFinanceLoading] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [invoiceCaseId, setInvoiceCaseId] = useState("");
+  const [invoiceCode, setInvoiceCode] = useState<"DIAG" | "ACCOMP">("DIAG");
+  const [invoiceLabel, setInvoiceLabel] = useState("Диагностика");
+  const [invoiceAmount, setInvoiceAmount] = useState("3000");
+  const [invoiceDue, setInvoiceDue] = useState("");
+  const [markPaidOrder, setMarkPaidOrder] = useState<FinanceOrder | null>(null);
+  const [paidAt, setPaidAt] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const [paidMethod, setPaidMethod] = useState("transfer");
+  const [paidRef, setPaidRef] = useState("");
+  const [cancelOrder, setCancelOrder] = useState<FinanceOrder | null>(null);
+  const [cancelReason, setCancelReason] = useState("refusal");
+  const [cancelComment, setCancelComment] = useState("");
+  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
+  const [analyticsFilters, setAnalyticsFilters] = useState({
+    period: "30d",
+    dateFrom: "",
+    dateTo: "",
+    channel: "",
+    packageCode: "",
+    pipelineStatus: "",
+  });
   const [roles, setRoles] = useState<{ user_id: string; role: string }[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -354,27 +380,37 @@ export function AdminCabinet() {
     setDashboard(await apiFetch<Dashboard>("/api/portal/admin/dashboard", token));
   }, [token]);
 
-  const loadCases = useCallback(async () => {
-    if (!token) return;
-    setCasesLoading(true);
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (filterPipeline) params.set("pipeline_status", filterPipeline);
-    if (filterChannel) params.set("preferred_channel", filterChannel);
-    if (filterPackage) params.set("package_code", filterPackage);
-    params.set("queue", registryQueue);
-    const qs = params.toString();
-    try {
-      setCases(
-        await apiFetch<StaffCaseSummary[]>(
-          `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
-          token,
-        ),
-      );
-    } finally {
-      setCasesLoading(false);
-    }
-  }, [token, q, filterPipeline, filterChannel, filterPackage, registryQueue]);
+  const loadCases = useCallback(
+    async (overrides?: {
+      queue?: string;
+      preferred_channel?: string;
+      pipeline_status?: string;
+    }) => {
+      if (!token) return;
+      setCasesLoading(true);
+      const params = new URLSearchParams();
+      if (q.trim()) params.set("q", q.trim());
+      const pipeline = overrides?.pipeline_status ?? filterPipeline;
+      const channel = overrides?.preferred_channel ?? filterChannel;
+      const queue = overrides?.queue ?? registryQueue;
+      if (pipeline) params.set("pipeline_status", pipeline);
+      if (channel) params.set("preferred_channel", channel);
+      if (filterPackage) params.set("package_code", filterPackage);
+      params.set("queue", queue);
+      const qs = params.toString();
+      try {
+        setCases(
+          await apiFetch<StaffCaseSummary[]>(
+            `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
+            token,
+          ),
+        );
+      } finally {
+        setCasesLoading(false);
+      }
+    },
+    [token, q, filterPipeline, filterChannel, filterPackage, registryQueue],
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -639,30 +675,65 @@ export function AdminCabinet() {
     });
   }, [view, detail, maxReplyFocus]);
 
-  async function loadFinance() {
+  async function loadFinance(nextQueue = financeQueue) {
     if (!token) return;
+    setFinanceLoading(true);
     setBusy(true);
     try {
-      setFinance(await apiFetch("/api/portal/admin/finance", token));
+      const params = new URLSearchParams();
+      if (nextQueue && nextQueue !== "all") params.set("queue", nextQueue);
+      if (financeQ.trim()) params.set("q", financeQ.trim());
+      if (financePeriod) params.set("period", financePeriod);
+      if (financePackage) params.set("package_code", financePackage);
+      if (financeIncludeTest) params.set("include_test", "true");
+      const qs = params.toString();
+      setFinance(await apiFetch(`/api/portal/admin/finance${qs ? `?${qs}` : ""}`, token));
       setView("finance");
     } catch {
       setNotice("Финансы недоступны для роли оператора.");
     } finally {
+      setFinanceLoading(false);
       setBusy(false);
     }
   }
 
-  async function loadAnalytics() {
+  async function loadAnalytics(nextFilters = analyticsFilters) {
     if (!token) return;
     setBusy(true);
     try {
-      setAnalytics(await apiFetch("/api/portal/admin/analytics", token));
+      const params = new URLSearchParams();
+      params.set("period", nextFilters.period);
+      if (nextFilters.period === "custom") {
+        if (nextFilters.dateFrom) params.set("date_from", nextFilters.dateFrom);
+        if (nextFilters.dateTo) params.set("date_to", nextFilters.dateTo);
+      }
+      if (nextFilters.channel) params.set("channel", nextFilters.channel);
+      if (nextFilters.packageCode) params.set("package_code", nextFilters.packageCode);
+      if (nextFilters.pipelineStatus) params.set("pipeline_status", nextFilters.pipelineStatus);
+      setAnalytics(
+        await apiFetch<AnalyticsSnapshot>(
+          `/api/portal/admin/analytics?${params.toString()}`,
+          token,
+        ),
+      );
       setView("analytics");
     } catch {
       setNotice("Аналитика недоступна для роли оператора.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function openRegistryFromAnalytics(filter: Partial<Record<"queue" | "preferred_channel" | "pipeline_status", string>>) {
+    if (filter.queue) setRegistryQueue(filter.queue);
+    if (filter.preferred_channel !== undefined) setFilterChannel(filter.preferred_channel);
+    if (filter.pipeline_status) setFilterPipeline(filter.pipeline_status);
+    setView("cases");
+    void loadCases({
+      queue: filter.queue,
+      preferred_channel: filter.preferred_channel,
+      pipeline_status: filter.pipeline_status,
+    });
   }
 
   async function loadRoles() {
@@ -902,6 +973,116 @@ export function AdminCabinet() {
       await openCase(detail.id);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
+    }
+  }
+
+  async function createFinanceInvoice(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !invoiceCaseId) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${invoiceCaseId}/orders`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          package_code: invoiceCode,
+          amount_rub: Number(invoiceAmount),
+          status: "draft",
+          service_label: invoiceLabel,
+          due_at: invoiceDue ? new Date(invoiceDue).toISOString() : undefined,
+        }),
+      });
+      setCreateInvoiceOpen(false);
+      setNotice("Черновик счёта создан.");
+      await loadFinance(financeQueue);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPayLink(order: FinanceOrder) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      let url = order.pay_url || "";
+      if (!url) {
+        const result = await apiFetch<{ pay_url?: string }>(
+          `/api/portal/admin/orders/${order.id}/pay-link`,
+          token,
+          { method: "POST" },
+        );
+        url = result.pay_url || "";
+      }
+      if (!url) throw new Error("Нет ссылки");
+      await navigator.clipboard.writeText(url);
+      setNotice("Ссылка на оплату скопирована.");
+      await loadFinance(financeQueue);
+    } catch {
+      setNotice("Не удалось получить ссылку на оплату.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remindPayment(order: FinanceOrder, sendMax: boolean) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ reminder_draft?: string; sent?: boolean }>(
+        `/api/portal/admin/orders/${order.id}/remind`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: sendMax, channel: sendMax ? "max" : "web" }) },
+      );
+      setNotice(result.sent ? "Напоминание отправлено в MAX." : "Черновик напоминания сохранён.");
+      await loadFinance(financeQueue);
+    } catch {
+      setNotice("Не удалось подготовить напоминание.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitMarkPaid(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !markPaidOrder) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/orders/${markPaidOrder.id}/mark-paid`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          paid_at: paidAt ? new Date(paidAt).toISOString() : new Date().toISOString(),
+          amount_rub: Number(paidAmount),
+          method: paidMethod,
+          reference: paidRef.trim(),
+        }),
+      });
+      setMarkPaidOrder(null);
+      setNotice("Оплата отмечена, запись в журнале аудита.");
+      await loadFinance(financeQueue);
+    } catch {
+      setNotice("Не удалось отметить оплату.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitCancel(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !cancelOrder) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/orders/${cancelOrder.id}/cancel`, token, {
+        method: "POST",
+        body: JSON.stringify({ reason: cancelReason, comment: cancelComment.trim() || null }),
+      });
+      setCancelOrder(null);
+      setNotice("Счёт отменён.");
+      await loadFinance(financeQueue);
+    } catch {
+      setNotice("Не удалось отменить счёт.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1757,16 +1938,14 @@ export function AdminCabinet() {
             <div className="panel">
               <h2>Подтверждение результата</h2>
               <form className="stack-form" onSubmit={confirmResult}>
-                <label>Прежний размер ₽<input value={beforeRub} onChange={(e) => setBeforeRub(e.target.value)} required /></label>
-                <label>Новый размер ₽<input value={afterRub} onChange={(e) => setAfterRub(e.target.value)} required /></label>
-                <label>ЕДВ ₽<input value={lumpRub} onChange={(e) => setLumpRub(e.target.value)} /></label>
-                <button type="submit">Подтвердить результат</button>
+                <label>Прежний размер выплаты по решению СФР, ₽<input value={beforeRub} onChange={(e) => setBeforeRub(e.target.value)} required /></label>
+                <label>Новый размер выплаты по решению СФР, ₽<input value={afterRub} onChange={(e) => setAfterRub(e.target.value)} required /></label>
+                <label>Единовременная выплата по решению СФР, ₽<input value={lumpRub} onChange={(e) => setLumpRub(e.target.value)} /></label>
+                <button type="submit">Зафиксировать решение СФР</button>
               </form>
-              {detail.result?.success_fee && (
-                <p className="hint">
-                  Вознаграждение: {detail.result.success_fee.sf_total} ₽ (ЕДВ {detail.result.success_fee.sf_lump} + прибавка {detail.result.success_fee.sf_month})
-                </p>
-              )}
+              <p className="hint">
+                Это факты из решения СФР для дела, не цена услуги и не обещание перерасчёта.
+              </p>
             </div>
           )}
 
@@ -1791,7 +1970,10 @@ export function AdminCabinet() {
                 />
                 <button type="submit">Создать</button>
               </form>
-              <p className="hint">Счета за результат (SF_*) — только после подтверждения и окна 60+ дней.</p>
+              <p className="hint">
+                Индивидуальное соглашение — фиксированная сумма по договору, не процент от пенсии.
+                SF_* только после фиксации решения СФР и окна 60+ дней.
+              </p>
             </div>
           )}
 
@@ -1846,37 +2028,149 @@ export function AdminCabinet() {
         </section>
       )}
 
-      {view === "finance" && finance && (
-        <section className="stack">
-          <h1>Финансы</h1>
-          <p>{finance.formula}</p>
-          <ul className="case-list">
-            {(finance.orders ?? []).map((order) => (
-              <li key={order.id}>
-                <strong>{labelPackage(order.package_code)}</strong>
-                <span>{order.amount_rub} ₽ · {labelOrderStatus(order.status)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {view === "finance" && (
+        <>
+          <FinancePanel
+            data={finance}
+            loading={financeLoading}
+            busy={busy}
+            canManage={me?.role === "admin"}
+            meRole={me?.role ?? null}
+            q={financeQ}
+            onQ={setFinanceQ}
+            queue={financeQueue}
+            onQueue={(value) => {
+              setFinanceQueue(value);
+              void loadFinance(value);
+            }}
+            period={financePeriod}
+            onPeriod={setFinancePeriod}
+            packageCode={financePackage}
+            onPackageCode={setFinancePackage}
+            includeTest={financeIncludeTest}
+            onIncludeTest={setFinanceIncludeTest}
+            onSearch={() => void loadFinance(financeQueue)}
+            onCreate={() => setCreateInvoiceOpen(true)}
+            onOpenCase={(caseId) => void openCase(caseId)}
+            onCopyLink={(order) => void copyPayLink(order)}
+            onRemind={(order, sendMax) => void remindPayment(order, sendMax)}
+            onMarkPaid={(order) => {
+              setMarkPaidOrder(order);
+              setPaidAmount(String(order.amount_rub));
+              setPaidAt("");
+              setPaidRef("");
+            }}
+            onCancel={(order) => {
+              setCancelOrder(order);
+              setCancelReason("refusal");
+              setCancelComment("");
+            }}
+          />
+
+          {createInvoiceOpen && (
+            <section className="panel stack finance-modal">
+              <h2>Создать счёт</h2>
+              <form className="stack-form" onSubmit={(e) => void createFinanceInvoice(e)}>
+                <label>
+                  Дело
+                  <select value={invoiceCaseId} onChange={(e) => setInvoiceCaseId(e.target.value)} required>
+                    <option value="">Выберите дело</option>
+                    {cases.filter((c) => !c.is_test).map((c) => (
+                      <option key={c.id} value={c.id}>{c.client_name ?? "Клиент"} · {c.id.slice(0, 8)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Услуга с /tarify/
+                  <select
+                    value={`${invoiceCode}:${invoiceAmount}:${invoiceLabel}`}
+                    onChange={(e) => {
+                      const [code, amount, ...rest] = e.target.value.split(":");
+                      setInvoiceCode((code as "DIAG" | "ACCOMP") || "DIAG");
+                      setInvoiceAmount(amount || "3000");
+                      setInvoiceLabel(rest.join(":") || "Диагностика");
+                    }}
+                  >
+                    <option value="DIAG:3000:Диагностика">Диагностика · 3 000 ₽</option>
+                    <option value="ACCOMP:5000:Подготовка документов">Подготовка документов · 5 000 ₽</option>
+                    <option value="ACCOMP:8000:Сопровождение до подачи">Сопровождение до подачи · 8 000 ₽</option>
+                  </select>
+                </label>
+                <label>Сумма ₽<input type="number" min={1} step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} required /></label>
+                <label>Срок оплаты<input type="datetime-local" value={invoiceDue} onChange={(e) => setInvoiceDue(e.target.value)} /></label>
+                <p className="hint">Оплата за информационно-документарную поддержку согласно выбранной услуге/договору.</p>
+                <div className="inline-form">
+                  <button type="submit">Сохранить черновик</button>
+                  <button type="button" className="ghost" onClick={() => setCreateInvoiceOpen(false)}>Отмена</button>
+                </div>
+              </form>
+            </section>
+          )}
+
+          {markPaidOrder && (
+            <section className="panel stack finance-modal">
+              <h2>Отметить оплату вручную</h2>
+              <form className="stack-form" onSubmit={(e) => void submitMarkPaid(e)}>
+                <label>Дата и время<input type="datetime-local" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} required /></label>
+                <label>Сумма ₽<input type="number" min={1} step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} required /></label>
+                <label>
+                  Способ
+                  <select value={paidMethod} onChange={(e) => setPaidMethod(e.target.value)}>
+                    <option value="transfer">Перевод</option>
+                    <option value="card">Карта</option>
+                    <option value="yookassa">ЮKassa</option>
+                    <option value="cash">Наличные</option>
+                    <option value="other">Другое</option>
+                  </select>
+                </label>
+                <label>Номер операции / комментарий<input value={paidRef} onChange={(e) => setPaidRef(e.target.value)} required /></label>
+                <p className="hint">Сотрудник и время попадут в журнал аудита. Удалить запись через интерфейс нельзя.</p>
+                <div className="inline-form">
+                  <button type="submit">Записать оплату</button>
+                  <button type="button" className="ghost" onClick={() => setMarkPaidOrder(null)}>Отмена</button>
+                </div>
+              </form>
+            </section>
+          )}
+
+          {cancelOrder && (
+            <section className="panel stack finance-modal">
+              <h2>Отменить счёт</h2>
+              <form className="stack-form" onSubmit={(e) => void submitCancel(e)}>
+                <label>
+                  Причина
+                  <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
+                    <option value="refusal">Отказ</option>
+                    <option value="duplicate">Дубль</option>
+                    <option value="amount_error">Ошибка суммы</option>
+                    <option value="no_contact">Нет связи</option>
+                    <option value="other">Другое</option>
+                  </select>
+                </label>
+                <label>Комментарий<input value={cancelComment} onChange={(e) => setCancelComment(e.target.value)} /></label>
+                <div className="inline-form">
+                  <button type="submit">Отменить счёт</button>
+                  <button type="button" className="ghost" onClick={() => setCancelOrder(null)}>Закрыть</button>
+                </div>
+              </form>
+            </section>
+          )}
+        </>
       )}
 
-      {view === "analytics" && analytics && (
-        <section className="stack">
-          <h1>Аналитика (без ПДн)</h1>
-          <p className="hint">{analytics.note}</p>
-          <pre className="draft">{JSON.stringify(analytics.aggregates, null, 2)}</pre>
-          <p>Обезличенных строк: {analytics.rows.length}</p>
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard.writeText(JSON.stringify(analytics.rows, null, 2));
-              setNotice("Обезличенные строки скопированы в буфер.");
-            }}
-          >
-            Копировать обезличенный JSON
-          </button>
-        </section>
+      {view === "analytics" && analytics && token && (
+        <AdminAnalyticsPanel
+          data={analytics}
+          filters={analyticsFilters}
+          onFiltersChange={setAnalyticsFilters}
+          onReload={() => void loadAnalytics(analyticsFilters)}
+          onOpenRegistry={openRegistryFromAnalytics}
+          showFinance={me?.role === "admin"}
+          apiBase={apiBase}
+          token={token}
+          busy={busy}
+          onNotice={setNotice}
+        />
       )}
 
       {view === "roles" && (

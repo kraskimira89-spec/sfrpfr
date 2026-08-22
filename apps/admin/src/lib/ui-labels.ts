@@ -19,4 +19,6 @@ export {
   FEEDBACK_QUALITY_STAGES,
   formatCaseStatuses,
   humanCaseStage,
+  FINANCE_STATUS_LABELS,
+  labelFinanceStatus,
 } from "../../../../shared/ui-labels";

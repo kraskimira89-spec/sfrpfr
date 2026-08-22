@@ -12,6 +12,7 @@ from sfrfr.core.config import get_settings
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.security.auth import Principal, get_current_principal
+from sfrfr.services.public_tariffs import PAYMENT_PURPOSE
 
 router = APIRouter()
 webhook_router = APIRouter()
@@ -78,7 +79,7 @@ def start_order_payment(
 
     result = client.create_payment(
         amount_rub=amount,
-        description=f"SFRFR {order.get('package_code')} {order_id[:8]}",
+        description=PAYMENT_PURPOSE,
         return_url=_return_url(case_id, channel),
         metadata={
             "order_id": order_id,

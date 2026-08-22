@@ -665,7 +665,12 @@ class CaseRepository:
         amount_rub: float,
         status_value: str,
         actor_id: str,
+        due_at: str | None = None,
+        service_label: str | None = None,
+        invoice_status: str | None = None,
     ) -> dict[str, Any]:
+        from sfrfr.services.staff_finance import invoice_number_from_id
+
         response = (
             self.client.table("orders")
             .insert(
@@ -678,8 +683,104 @@ class CaseRepository:
             )
             .execute()
         )
+        row = response.data[0]
+        oid = str(row.get("id") or "")
+        extra: dict[str, Any] = {}
+        if oid:
+            extra["invoice_number"] = invoice_number_from_id(oid)
+        if due_at:
+            extra["due_at"] = due_at
+        if service_label:
+            extra["service_label"] = service_label
+        if invoice_status:
+            extra["invoice_status"] = invoice_status
+        elif status_value == "draft":
+            extra["invoice_status"] = "draft"
+        if extra and oid:
+            try:
+                updated = self.client.table("orders").update(extra).eq("id", oid).execute()
+                if updated.data:
+                    row = updated.data[0]
+            except Exception:  # noqa: BLE001 — колонки finance появятся после миграции
+                pass
         self.audit(case_id, actor_id, f"order_created:{package_code}")
-        return response.data[0]
+        try:
+            self.append_finance_audit(
+                order_id=oid,
+                case_id=case_id,
+                actor_id=actor_id,
+                action="order_created",
+                payload={
+                    "package_code": package_code,
+                    "amount_rub": amount_rub,
+                    "status": status_value,
+                },
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return row
+
+    def get_order_by_id(self, order_id: str) -> dict[str, Any] | None:
+        return self._one_or_none(
+            self.client.table("orders")
+            .select("*, payments(*)")
+            .eq("id", order_id)
+            .limit(1)
+            .execute()
+        )
+
+    def update_order_fields(
+        self,
+        order_id: str,
+        *,
+        case_id: str,
+        actor_id: str,
+        action: str,
+        fields: dict[str, Any],
+        audit_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        response = self.client.table("orders").update(fields).eq("id", order_id).execute()
+        row = response.data[0] if response.data else {"id": order_id, **fields}
+        self.audit(case_id, actor_id, action)
+        self.append_finance_audit(
+            order_id=order_id,
+            case_id=case_id,
+            actor_id=actor_id,
+            action=action,
+            payload=audit_payload or fields,
+        )
+        return row
+
+    def append_finance_audit(
+        self,
+        *,
+        order_id: str,
+        case_id: str,
+        actor_id: str | None,
+        action: str,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        self.client.table("finance_audit").insert(
+            {
+                "order_id": order_id,
+                "case_id": case_id,
+                "actor_id": actor_id,
+                "action": action,
+                "payload": payload or {},
+            }
+        ).execute()
+
+    def list_finance_audit(self, order_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        return (
+            self.client.table("finance_audit")
+            .select("id, action, payload, actor_id, at")
+            .eq("order_id", order_id)
+            .order("at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+            or []
+        )
 
     def get_order(self, case_id: str, order_id: str) -> dict[str, Any] | None:
         return self._one_or_none(
@@ -972,48 +1073,38 @@ class CaseRepository:
         self.audit(user_id, actor_id, f"staff_role_upsert:{role}")
         return response.data[0]
 
+    def list_analytics_cases(self, principal: Principal) -> list[dict[str, Any]]:
+        """Дела для аналитики без ПДн клиента (только агрегаты на сервере)."""
+        query = self.client.table("cases").select(
+            "id, pipeline_status, b2c_status, segment, region_bucket, problem_type, "
+            "created_at, first_contact_at, expert_user_id, "
+            "clients(preferred_channel, max_user_id, user_id), "
+            "checklist_items(id), documents(id), consents(id), "
+            "orders(package_code, status, amount_rub, created_at, paid_at), "
+            "result_evidence(monthly_before_rub, monthly_after_rub, lump_sum_rub)"
+        )
+        if principal.role is StaffRole.EXPERT:
+            query = query.eq("expert_user_id", principal.user_id)
+        return query.order("created_at", desc=True).execute().data or []
+
     def anonymized_analytics_rows(self) -> list[dict[str, Any]]:
+        """Legacy export rows (service role, все дела)."""
+        from sfrfr.services.admin_analytics import case_to_analytics_row
+
         cases = (
             self.client.table("cases")
             .select(
-                "id, segment, region_bucket, pipeline_status, b2c_status, problem_type, "
-                "created_at, first_contact_at, orders(package_code, status), "
-                "result_evidence(monthly_before_rub, monthly_after_rub, lump_sum_rub), "
-                "clients(preferred_channel, max_user_id, user_id)"
+                "id, pipeline_status, b2c_status, segment, region_bucket, problem_type, "
+                "created_at, first_contact_at, expert_user_id, "
+                "clients(preferred_channel, max_user_id, user_id), "
+                "checklist_items(id), documents(id), consents(id), "
+                "orders(package_code, status, amount_rub), "
+                "result_evidence(monthly_before_rub, monthly_after_rub, lump_sum_rub)"
             )
             .order("created_at", desc=True)
             .execute()
             .data
             or []
         )
-        rows: list[dict[str, Any]] = []
-        for case in cases:
-            orders = case.get("orders") or []
-            evidence_list = case.get("result_evidence") or []
-            evidence = evidence_list[0] if evidence_list else {}
-            client = case.get("clients") or {}
-            codes = {o.get("package_code") for o in orders}
-            paid = {o.get("package_code") for o in orders if o.get("status") == "paid"}
-            before = float((evidence or {}).get("monthly_before_rub") or 0)
-            after = float((evidence or {}).get("monthly_after_rub") or 0)
-            rows.append(
-                {
-                    "case_id": str(case["id"]),
-                    "segment": case.get("segment"),
-                    "region_bucket": case.get("region_bucket"),
-                    "stage": case.get("b2c_status"),
-                    "pipeline": case.get("pipeline_status"),
-                    "problem_type": case.get("problem_type"),
-                    "created_at": case.get("created_at"),
-                    "paid_diag": "DIAG" in paid,
-                    "paid_service": "ACCOMP" in paid,
-                    "result_band": "up" if after > before else ("flat" if evidence else "unknown"),
-                    "sf_due": "SF_LUMP" in codes or "SF_MONTH" in codes,
-                    "sf_paid": "SF_LUMP" in paid or "SF_MONTH" in paid,
-                    "silent_flag": case.get("b2c_status") == "client_silent_escalation",
-                    "preferred_channel": client.get("preferred_channel") or "unset",
-                    "max_linked": bool(client.get("max_user_id")),
-                    "web_linked": bool(client.get("user_id")),
-                }
-            )
-        return rows
+        return [case_to_analytics_row(case) for case in cases]
+

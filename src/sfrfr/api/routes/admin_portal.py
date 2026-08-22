@@ -4,18 +4,21 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
+    CancelOrderRequest,
     CaseFlagsUpdate,
     CaseNextActionUpdate,
     ChecklistItemCreate,
     ChecklistItemUpdate,
     DashboardResponse,
+    FinanceRemindRequest,
     KnowledgeFeedbackRequest,
+    ManualPaymentRequest,
     MaxReplyRequest,
     OrderCreateRequest,
     ResultConfirmRequest,
@@ -43,6 +46,18 @@ from sfrfr.security.auth import (
     StaffRole,
     require_admin,
     require_staff,
+)
+from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, staff_package_label
+from sfrfr.services.admin_analytics import (
+    analytics_export_rows,
+    build_admin_analytics,
+    rows_to_csv,
+    rows_to_json,
+)
+from sfrfr.services.staff_finance import (
+    build_finance_snapshot,
+    reminder_draft_text,
+    serialize_order,
 )
 from sfrfr.services.staff_next_action_ai import suggest_next_action
 from sfrfr.services.staff_work_queue import (
@@ -769,6 +784,9 @@ def create_order(
         amount_rub=payload.amount_rub,
         status_value=payload.status,
         actor_id=principal.user_id,
+        due_at=payload.due_at,
+        service_label=payload.service_label,
+        invoice_status=payload.invoice_status,
     )
     case = repo.require_case(principal, case_id)
     _push_case_crm(case, task=f"order:{payload.package_code}")
@@ -776,39 +794,340 @@ def create_order(
 
 
 @router.get("/admin/finance")
-def admin_finance(principal: Principal = Depends(require_staff)) -> dict:
+def admin_finance(
+    queue: str | None = Query(default=None, max_length=32),
+    q: str | None = Query(default=None, max_length=120),
+    package_code: str | None = None,
+    period: str | None = Query(default=None, max_length=16),
+    include_test: bool = False,
+    principal: Principal = Depends(require_staff),
+) -> dict:
     if principal.role is StaffRole.OPERATOR:
         raise HTTPException(status_code=403, detail="expert or admin role required")
     repo = _repo()
     cases = repo.list_cases(principal)
     case_ids = {str(c["id"]) for c in cases}
     orders = [o for o in repo.list_all_orders() if str(o.get("case_id")) in case_ids]
-    return {
-        "orders": orders,
-        "formula": "10% ЕДВ + 50% прибавки за 3 месяца",
-        "post_payment_delay_days_min": SUCCESS_FEE_DELAY_DAYS_MIN,
-    }
+    snap = build_finance_snapshot(
+        orders=orders,
+        cases=cases,
+        queue=queue,
+        include_test=include_test,
+        period=period,
+        package_code=package_code,
+        q=q,
+    )
+    snap["can_manage"] = principal.role is StaffRole.ADMIN
+    return snap
+
+
+def _require_order(principal: Principal, order_id: str) -> tuple[CaseRepository, dict[str, Any], dict[str, Any]]:
+    repo = _repo()
+    order = repo.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="order not found")
+    case = repo.require_case(principal, str(order.get("case_id") or ""))
+    return repo, order, case
+
+
+@router.post("/admin/orders/{order_id}/pay-link")
+def admin_order_pay_link(
+    order_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role is StaffRole.OPERATOR:
+        raise HTTPException(status_code=403, detail="expert or admin role required")
+    from sfrfr.integrations.payments import YooKassaClient
+
+    repo, order, case = _require_order(principal, order_id)
+    case_id = str(order.get("case_id"))
+    if order.get("status") == "paid":
+        raise HTTPException(status_code=400, detail="order already paid")
+    settings = get_settings()
+    pay_url = str(order.get("pay_url") or "")
+    channel = "web_cabinet"
+    client = YooKassaClient()
+    if client.available:
+        from sfrfr.api.routes.payments import _return_url
+
+        amount = float(order.get("amount_rub") or 0)
+        result = client.create_payment(
+            amount_rub=amount,
+            description=PAYMENT_PURPOSE,
+            return_url=_return_url(case_id, "web_cabinet"),
+            metadata={
+                "order_id": order_id,
+                "case_id": case_id,
+                "package_code": str(order.get("package_code") or ""),
+                "channel": channel,
+            },
+        )
+        if result.get("ok") and result.get("confirmation_url"):
+            pay_url = str(result["confirmation_url"])
+            payment_id = str(result.get("payment_id") or "")
+            if payment_id:
+                repo.create_payment_record(
+                    order_id=order_id,
+                    case_id=case_id,
+                    provider="yookassa",
+                    provider_payment_id=payment_id,
+                    status_value=str(result.get("status") or "pending"),
+                    actor_id=principal.user_id,
+                )
+    if not pay_url:
+        cabinet = settings.cabinet_public_url.rstrip("/")
+        pay_url = f"{cabinet}/cases/{case_id}?view=payments"
+    updated = repo.update_order_fields(
+        order_id,
+        case_id=case_id,
+        actor_id=principal.user_id,
+        action="invoice_sent",
+        fields={
+            "pay_url": pay_url,
+            "sent_channel": channel,
+            "sent_at": datetime.now(UTC).isoformat(),
+            "invoice_status": "invoice_sent",
+            "status": "pending" if order.get("status") == "draft" else order.get("status"),
+        },
+        audit_payload={"channel": channel},
+    )
+    return {"pay_url": pay_url, "order": serialize_order(updated, case)}
+
+
+@router.post("/admin/orders/{order_id}/remind")
+def admin_order_remind(
+    order_id: str,
+    payload: FinanceRemindRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role is StaffRole.OPERATOR:
+        raise HTTPException(status_code=403, detail="expert or admin role required")
+    repo, order, case = _require_order(principal, order_id)
+    service = staff_package_label(str(order.get("package_code") or ""), order.get("service_label"))
+    text = reminder_draft_text(
+        service=service,
+        amount_rub=float(order.get("amount_rub") or 0),
+        pay_url=order.get("pay_url"),
+    )
+    sent = False
+    if payload.send_max:
+        from sfrfr.integrations.max.client import MaxBotClient
+
+        client = case.get("clients") or {}
+        max_uid = str(client.get("max_user_id") or "").strip()
+        bot = MaxBotClient()
+        if not max_uid:
+            raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
+        if not bot.available:
+            raise HTTPException(status_code=503, detail="max_bot_not_configured")
+        try:
+            bot.send_message(text=text, user_id=max_uid)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=502, detail=f"max_send_failed:{type(exc).__name__}") from exc
+        sent = True
+    repo.update_order_fields(
+        order_id,
+        case_id=str(order.get("case_id")),
+        actor_id=principal.user_id,
+        action="payment_reminder",
+        fields={"reminder_draft": text, "next_action": "Проверить оплату"},
+        audit_payload={"channel": payload.channel, "sent": sent},
+    )
+    due = order.get("due_at")
+    if due:
+        repo.upsert_checklist_item(
+            str(order.get("case_id")),
+            title="Проверить оплату",
+            item_type="payment",
+            owner="expert",
+            actor_id=principal.user_id,
+            due_at=str(due),
+        )
+    return {"reminder_draft": text, "sent": sent}
+
+
+@router.post("/admin/orders/{order_id}/mark-paid")
+def admin_order_mark_paid(
+    order_id: str,
+    payload: ManualPaymentRequest,
+    principal: Principal = Depends(require_admin),
+) -> dict[str, Any]:
+    repo, order, case = _require_order(principal, order_id)
+    if order.get("status") == "paid":
+        raise HTTPException(status_code=400, detail="order already paid")
+    expected = float(order.get("amount_rub") or 0)
+    if payload.amount_rub + 0.009 < expected:
+        updated = repo.update_order_fields(
+            order_id,
+            case_id=str(order.get("case_id")),
+            actor_id=principal.user_id,
+            action="partial_payment",
+            fields={
+                "invoice_status": "partially_paid",
+                "next_action": "Решить вручную: частичная оплата",
+            },
+            audit_payload={
+                "paid_at": payload.paid_at,
+                "amount_rub": payload.amount_rub,
+                "method": payload.method,
+                "reference": payload.reference,
+            },
+        )
+        return {"order": serialize_order(updated, case), "partial": True}
+    provider_payment_id = f"manual:{order_id}:{payload.reference[:40]}"
+    repo.create_payment_record(
+        order_id=order_id,
+        case_id=str(order.get("case_id")),
+        provider=f"manual:{payload.method}",
+        provider_payment_id=provider_payment_id,
+        status_value="pending",
+        actor_id=principal.user_id,
+    )
+    repo.apply_provider_payment(
+        provider_payment_id=provider_payment_id,
+        status_value="succeeded",
+        order_id=order_id,
+        paid=True,
+        package_code=str(order.get("package_code") or ""),
+        case_id=str(order.get("case_id")),
+    )
+    repo.update_order_fields(
+        order_id,
+        case_id=str(order.get("case_id")),
+        actor_id=principal.user_id,
+        action="manual_paid",
+        fields={"invoice_status": "paid"},
+        audit_payload={
+            "paid_at": payload.paid_at,
+            "amount_rub": payload.amount_rub,
+            "method": payload.method,
+            "reference": payload.reference,
+        },
+    )
+    refreshed = repo.get_order_by_id(order_id) or order
+    return {"order": serialize_order(refreshed, case), "partial": False}
+
+
+@router.post("/admin/orders/{order_id}/cancel")
+def admin_order_cancel(
+    order_id: str,
+    payload: CancelOrderRequest,
+    principal: Principal = Depends(require_admin),
+) -> dict[str, Any]:
+    repo, order, case = _require_order(principal, order_id)
+    if order.get("status") == "paid":
+        raise HTTPException(status_code=400, detail="cannot cancel paid order")
+    updated = repo.update_order_fields(
+        order_id,
+        case_id=str(order.get("case_id")),
+        actor_id=principal.user_id,
+        action="order_cancelled",
+        fields={
+            "status": "cancelled",
+            "invoice_status": "cancelled",
+            "cancel_reason": payload.reason,
+            "next_action": "Счёт отменён",
+        },
+        audit_payload={"reason": payload.reason, "comment": payload.comment},
+    )
+    return {"order": serialize_order(updated, case)}
+
+
+@router.get("/admin/orders/{order_id}/audit")
+def admin_order_audit(
+    order_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role is StaffRole.OPERATOR:
+        raise HTTPException(status_code=403, detail="expert or admin role required")
+    _repo_obj, _order, _case = _require_order(principal, order_id)
+    rows = _repo_obj.list_finance_audit(order_id)
+    return {"items": rows}
 
 
 @router.get("/admin/analytics")
-def admin_analytics(principal: Principal = Depends(require_staff)) -> dict:
+def admin_analytics(
+    principal: Principal = Depends(require_staff),
+    period: str = Query("30d"),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    channel: str | None = Query(None),
+    package_code: str | None = Query(None),
+    pipeline_status: str | None = Query(None),
+) -> dict:
     if principal.role is StaffRole.OPERATOR:
         raise HTTPException(status_code=403, detail="expert or admin role required")
-    rows = _repo().anonymized_analytics_rows()
-    if principal.role is StaffRole.EXPERT:
-        allowed = {str(c["id"]) for c in _repo().list_cases(principal)}
-        rows = [r for r in rows if r["case_id"] in allowed]
-    return {
-        "rows": rows,
-        "note": "Обезличенная выборка без ФИО, контактов, СНИЛС, файлов и распознанного текста.",
-        "aggregates": {
-            "cases": len(rows),
-            "paid_diag": sum(1 for r in rows if r["paid_diag"]),
-            "paid_service": sum(1 for r in rows if r["paid_service"]),
-            "result_up": sum(1 for r in rows if r["result_band"] == "up"),
-            "by_channel": dict(Counter(r["preferred_channel"] for r in rows)),
-        },
-    }
+    repo = _repo()
+    cases = repo.list_analytics_cases(principal)
+    case_ids = {str(c["id"]) for c in cases}
+    orders = [o for o in repo.list_all_orders() if str(o.get("case_id")) in case_ids]
+    return build_admin_analytics(
+        cases=cases,
+        orders=orders,
+        period=period,
+        date_from=date_from,
+        date_to=date_to,
+        channel=channel,
+        package_code=package_code,
+        pipeline_status=pipeline_status,
+        include_finance=principal.role is StaffRole.ADMIN,
+    )
+
+
+@router.get("/admin/analytics/export")
+def admin_analytics_export(
+    principal: Principal = Depends(require_staff),
+    format: Literal["csv", "json"] = Query("json"),
+    period: str = Query("30d"),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    channel: str | None = Query(None),
+    package_code: str | None = Query(None),
+    pipeline_status: str | None = Query(None),
+) -> Response:
+    if principal.role is StaffRole.OPERATOR:
+        raise HTTPException(status_code=403, detail="expert or admin role required")
+    repo = _repo()
+    cases = repo.list_analytics_cases(principal)
+    case_ids = {str(c["id"]) for c in cases}
+    orders = [o for o in repo.list_all_orders() if str(o.get("case_id")) in case_ids]
+    rows = analytics_export_rows(
+        cases=cases,
+        orders=orders,
+        period=period,
+        date_from=date_from,
+        date_to=date_to,
+        channel=channel,
+        package_code=package_code,
+        pipeline_status=pipeline_status,
+    )
+    filter_note = ":".join(
+        part
+        for part in (
+            period,
+            channel or "-",
+            package_code or "-",
+            pipeline_status or "-",
+        )
+    )
+    repo.audit(
+        "analytics",
+        principal.user_id,
+        f"analytics_export:{format}:{filter_note}:rows={len(rows)}",
+    )
+    if format == "csv":
+        body = rows_to_csv(rows)
+        media_type = "text/csv; charset=utf-8"
+        filename = "sfrfr-analytics.csv"
+    else:
+        body = rows_to_json(rows)
+        media_type = "application/json; charset=utf-8"
+        filename = "sfrfr-analytics.json"
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/admin/cases/{case_id}/knowledge-feedback", status_code=201)

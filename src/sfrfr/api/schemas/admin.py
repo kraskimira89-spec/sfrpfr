@@ -116,6 +116,26 @@ class OrderCreateRequest(BaseModel):
     package_code: Literal["DIAG", "ACCOMP", "SF_LUMP", "SF_MONTH"]
     amount_rub: float = Field(gt=0)
     status: Literal["draft", "pending", "paid", "cancelled"] = "pending"
+    due_at: str | None = None
+    service_label: str | None = Field(default=None, max_length=200)
+    invoice_status: str | None = Field(default=None, max_length=40)
+
+
+class ManualPaymentRequest(BaseModel):
+    paid_at: str
+    amount_rub: float = Field(gt=0)
+    method: Literal["card", "transfer", "cash", "yookassa", "other"]
+    reference: str = Field(min_length=1, max_length=200)
+
+
+class CancelOrderRequest(BaseModel):
+    reason: Literal["refusal", "duplicate", "amount_error", "no_contact", "other"]
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class FinanceRemindRequest(BaseModel):
+    send_max: bool = False
+    channel: Literal["max", "email", "web"] = "max"
 
 
 class YandexMailRequest(BaseModel):

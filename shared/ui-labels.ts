@@ -36,8 +36,24 @@ export const B2C_LABELS: Record<string, string> = {
 export const PACKAGE_LABELS: Record<string, string> = {
   DIAG: "Диагностика",
   ACCOMP: "Подготовка документов / сопровождение",
-  SF_LUMP: "Вознаграждение (ЕДВ)",
-  SF_MONTH: "Вознаграждение (прибавка × 3 мес.)",
+  SF_LUMP: "Индивидуальное соглашение",
+  SF_MONTH: "Индивидуальное соглашение",
+};
+
+export const FINANCE_STATUS_LABELS: Record<string, string> = {
+  draft: "Черновик",
+  invoice_ready: "Счёт подготовлен",
+  invoice_sent: "Счёт отправлен",
+  pending_payment: "Ожидает оплату",
+  pending: "Ожидает оплату",
+  awaiting_payment: "Ожидает оплату",
+  partially_paid: "Частично оплачено",
+  paid: "Оплачено",
+  overdue: "Просрочено",
+  cancelled: "Отменено",
+  canceled: "Отменено",
+  refund: "Возврат",
+  reconciliation_error: "Ошибка сверки",
 };
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -150,7 +166,11 @@ export function labelPackage(value: string): string {
 }
 
 export function labelOrderStatus(value: string): string {
-  return ORDER_STATUS_LABELS[value] ?? value;
+  return FINANCE_STATUS_LABELS[value] ?? ORDER_STATUS_LABELS[value] ?? value;
+}
+
+export function labelFinanceStatus(value: string): string {
+  return FINANCE_STATUS_LABELS[value] ?? labelOrderStatus(value);
 }
 
 export function labelPaymentStatus(value: string): string {
