@@ -18,6 +18,7 @@ import {
 import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-registry";
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
+import { CaseChatPanel } from "@/components/case-chat-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -298,7 +299,6 @@ export function AdminCabinet() {
   const [cases, setCases] = useState<StaffCaseSummary[]>([]);
   const [detail, setDetail] = useState<StaffCaseDetail | null>(null);
   const [messages, setMessages] = useState<{ id: string; author_kind: string; body: string; created_at: string }[]>([]);
-  const [messageBody, setMessageBody] = useState("");
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeQueue, setFinanceQueue] = useState("all");
   const [financeQ, setFinanceQ] = useState("");
@@ -669,11 +669,21 @@ export function AdminCabinet() {
   useEffect(() => {
     if (view !== "case" || !detail || !maxReplyFocus) return;
     window.requestAnimationFrame(() => {
-      document.getElementById("max-reply-panel")?.scrollIntoView({ behavior: "smooth" });
       document.getElementById("max-reply-text")?.focus();
       setMaxReplyFocus(false);
     });
   }, [view, detail, maxReplyFocus]);
+
+  useEffect(() => {
+    if (view !== "case" || !detail || !token) return;
+    const caseId = detail.id;
+    const timer = window.setInterval(() => {
+      void apiFetch<typeof messages>(`/api/portal/cases/${caseId}/messages`, token)
+        .then(setMessages)
+        .catch(() => undefined);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [view, detail?.id, token]);
 
   async function loadFinance(nextQueue = financeQueue) {
     if (!token) return;
@@ -1121,8 +1131,7 @@ export function AdminCabinet() {
     setMaxReplyFocus(true);
   }
 
-  async function sendMaxReply(event: FormEvent) {
-    event.preventDefault();
+  async function sendMaxReply() {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
     setBusy(true);
     try {
@@ -1132,6 +1141,8 @@ export function AdminCabinet() {
       });
       setMaxReplyBody("");
       setNotice("Сообщение отправлено клиенту в MAX.");
+      const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+      setMessages(next);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось отправить в MAX.");
     } finally {
@@ -1139,16 +1150,23 @@ export function AdminCabinet() {
     }
   }
 
-  async function sendMessage(event: FormEvent) {
-    event.preventDefault();
-    if (!token || !detail || !messageBody.trim()) return;
-    await apiFetch(`/api/portal/cases/${detail.id}/messages`, token, {
-      method: "POST",
-      body: JSON.stringify({ body: messageBody.trim() }),
-    });
-    setMessageBody("");
-    const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
-    setMessages(next);
+  async function sendMessage() {
+    if (!token || !detail || !maxReplyBody.trim()) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/cases/${detail.id}/messages`, token, {
+        method: "POST",
+        body: JSON.stringify({ body: maxReplyBody.trim() }),
+      });
+      setMaxReplyBody("");
+      const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+      setMessages(next);
+      setNotice("Сообщение сохранено в ленту дела.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось сохранить сообщение.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addRepresentative(event: FormEvent) {
@@ -1685,13 +1703,18 @@ export function AdminCabinet() {
       )}
 
       {view === "case" && detail && (
-        <section className="stack">
-          <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
-          <h1>
-            {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
-          </h1>
-          <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
-          <p className="warning inline">{detail.warning}</p>
+        <section className="stack case-page">
+          <div className="case-page-top">
+            <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
+            <h1>
+              {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
+            </h1>
+            <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
+            <p className="warning inline">{detail.warning}</p>
+          </div>
+
+          <div className="case-layout">
+          <div className="case-main stack">
           <div className="panel accent">
             <h2>Следующий шаг</h2>
             <div className="filters">
@@ -1774,35 +1797,6 @@ export function AdminCabinet() {
               {detail.meeting_url && (
                 <a href={detail.meeting_url} target="_blank" rel="noreferrer">Телемост</a>
               )}
-            </div>
-
-            <div className="panel" id="max-reply-panel">
-              <h3>Написать клиенту в MAX</h3>
-              {!detail.client.max_linked ? (
-                <p className="hint">У клиента нет MAX user_id — ответ через MAX недоступен.</p>
-              ) : (
-                <form className="stack-form" onSubmit={(e) => void sendMaxReply(e)}>
-                  <textarea
-                    id="max-reply-text"
-                    rows={3}
-                    value={maxReplyBody}
-                    onChange={(e) => setMaxReplyBody(e.target.value)}
-                    placeholder="Текст сообщения клиенту (бот «Проверка стажа-личный бот» в MAX)"
-                    required
-                    disabled={busy}
-                  />
-                  <button type="submit" className="max-action-btn max-action-btn--inline" disabled={busy}>
-                    Отправить в MAX
-                  </button>
-                </form>
-              )}
-              <p className="hint">
-                Ссылка max.ru/…_1_bot открывает ваш личный чат с ботом, не переписку клиента. Здесь сообщение
-                уходит клиенту через API.
-                {detail.channels.max_business_url && detail.client.max_user_id
-                  ? ` В MAX Business → «Проверка стажа-личный бот» → Диалоги → user_id ${detail.client.max_user_id}.`
-                  : ""}
-              </p>
             </div>
 
             <div className="row-actions">
@@ -2016,22 +2010,6 @@ export function AdminCabinet() {
           )}
 
           <div className="panel">
-            <h2>Сообщения</h2>
-            <ul className="messages">
-              {messages.map((m) => (
-                <li key={m.id}>
-                  <span className="meta">{labelAuthorKind(m.author_kind)} · {new Date(m.created_at).toLocaleString("ru-RU")}</span>
-                  <p>{m.body}</p>
-                </li>
-              ))}
-            </ul>
-            <form className="stack-form" onSubmit={sendMessage}>
-              <textarea rows={2} value={messageBody} onChange={(e) => setMessageBody(e.target.value)} required />
-              <button type="submit">Отправить</button>
-            </form>
-          </div>
-
-          <div className="panel">
             <h2>Журнал действий</h2>
             <ul className="plain-list">
               {detail.audit.slice(0, 40).map((row, idx) => (
@@ -2040,6 +2018,20 @@ export function AdminCabinet() {
                 </li>
               ))}
             </ul>
+          </div>
+          </div>
+
+          <CaseChatPanel
+            messages={messages}
+            maxLinked={Boolean(detail.client.max_linked)}
+            maxUserId={detail.client.max_user_id ?? null}
+            maxBusinessUrl={detail.channels.max_business_url ?? null}
+            body={maxReplyBody}
+            onBodyChange={setMaxReplyBody}
+            busy={busy}
+            onSendMax={() => void sendMaxReply()}
+            onSendInternal={() => void sendMessage()}
+          />
           </div>
         </section>
       )}

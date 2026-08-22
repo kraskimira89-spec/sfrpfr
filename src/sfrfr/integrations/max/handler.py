@@ -239,6 +239,27 @@ def _looks_like_channel_update(update: dict[str, Any]) -> bool:
     return False
 
 
+def _append_client_case_message(*, case_id: str | None, text: str) -> None:
+    """Сохранить текст клиента в ленту дела (без команд/колбэков)."""
+    cid = (case_id or "").strip()
+    body = (text or "").strip()
+    if not cid or not body or len(cid) < 32:
+        return
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        get_supabase_client().table("case_messages").insert(
+            {
+                "case_id": cid,
+                "author_kind": "client",
+                "author_user_id": None,
+                "body": body[:4000],
+            }
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("case_message client append failed case=%s: %s", cid[:8], exc)
+
+
 def _text(update: dict[str, Any]) -> str:
     message = update.get("message") or update.get("message_created") or update
     if not isinstance(message, dict):
@@ -2075,6 +2096,11 @@ def handle_max_update(
         if intake is None:
             get_intake_store().upsert_started(user_id)
             intake = get_intake_store().get_active(user_id)
+        case_for_log = (
+            (intake.case_id if intake else None)
+            or (record.case_id if record else None)
+        )
+        _append_client_case_message(case_id=case_for_log, text=text)
         reply, attachments = free_text_nudge(intake=intake)
         _reply(
             bot,
