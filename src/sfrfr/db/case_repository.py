@@ -13,7 +13,7 @@ from fastapi import HTTPException, status
 from sfrfr.db.session import get_supabase_client
 from sfrfr.security.auth import Principal, StaffRole
 
-CURRENT_CONSENT_VERSION = "pdn-consent-2026-08-03"
+CURRENT_CONSENT_VERSION = "pdn-consent-2026-08-22"
 
 
 class CaseRepository:
