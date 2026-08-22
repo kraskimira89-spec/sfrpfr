@@ -28,6 +28,32 @@ class StaffCaseSummary(BaseModel):
     web_linked: bool = False
     silent_days: int = 0
     package_codes: list[str] = Field(default_factory=list)
+    next_action: str | None = None
+    next_action_at: str | None = None
+    waiting_on: str | None = None
+    priority: str | None = None
+
+
+class WorkQueueItem(BaseModel):
+    case_id: str
+    client_name: str | None = None
+    priority: Literal["urgent", "today", "standard"]
+    pipeline_status: str
+    b2c_status: str = ""
+    waiting_on: str
+    last_event: str
+    next_action: str
+    next_action_at: str | None = None
+    deadline_status: Literal["overdue", "soon", "today", "ok", "waiting"]
+    channel: str = "unset"
+    expert_user_id: str | None = None
+    doc_flags: dict[str, bool] = Field(default_factory=dict)
+
+
+class CaseNextActionUpdate(BaseModel):
+    next_action: str | None = Field(default=None, max_length=500)
+    next_action_at: str | None = None
+    waiting_on: Literal["staff", "client", "archive", "sfr", "payment", "none"] | None = None
 
 
 class DashboardResponse(BaseModel):
@@ -40,6 +66,20 @@ class DashboardResponse(BaseModel):
     channel_conflicts: int
     unlinked_max: int
     unlinked_web: int
+    needs_reply: int = 0
+    needs_reply_over_30m: int = 0
+    deadline_today: int = 0
+    waiting_docs: int = 0
+    waiting_docs_max_days: int = 0
+    sla_risk: int = 0
+    greeting_priority_count: int = 0
+    payments_pending_amount: float = 0
+    payments_paid_today: int = 0
+    payments_paid_today_amount: float = 0
+    sla_control: dict[str, int] = Field(default_factory=dict)
+    doc_status: dict[str, int] = Field(default_factory=dict)
+    work_queue: list[WorkQueueItem] = Field(default_factory=list)
+    my_tasks_today: list[WorkQueueItem] = Field(default_factory=list)
 
 
 class ChecklistItemCreate(BaseModel):

@@ -30,7 +30,7 @@ button { cursor: pointer; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .auth-layout, .app-layout {
-  width: min(1100px, calc(100% - 32px));
+  width: min(1280px, calc(100% - 32px));
   margin: 0 auto;
   padding-bottom: 48px;
 }
@@ -182,6 +182,57 @@ header div { display: grid; gap: 3px; }
 }
 .metrics article { display: grid; gap: 8px; padding: 16px; }
 .metrics strong { font-size: 1.45rem; }
+.metric-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: 0;
+}
+.metric-card:hover { background: #f7fafc; color: inherit; }
+.metric-card span { color: var(--muted); font-size: 0.88rem; font-weight: 700; }
+.metric-card strong { font-size: 1.35rem; }
+.metric-card em { font-style: normal; color: var(--muted); font-size: 0.82rem; line-height: 1.35; }
+.metric-card--risk { border-color: #d48a8a; background: #fff5f5; }
+.dashboard-split {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.chip {
+  background: #f3f6fa;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+.chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.queue-wrap { overflow-x: auto; }
+.queue-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.queue-table th, .queue-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.queue-table th { color: var(--muted); font-size: 0.8rem; }
+.deadline { font-weight: 700; }
+.deadline--overdue, .tone-risk { color: #9b1c1c; }
+.deadline--soon, .tone-warn { color: #8a5a00; }
+.deadline--today, .tone-today { color: #1d4f91; }
+.deadline--waiting, .tone-wait { color: #5a6a7a; }
+.tone-muted { color: var(--muted); }
+.task-list .linkish { font-weight: 600; }
+.sla-list { font-weight: 600; }
+@media (max-width: 900px) {
+  .dashboard-split { grid-template-columns: 1fr; }
+}
 
 .case-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .case-list li { padding: 14px 16px; display: grid; gap: 4px; }

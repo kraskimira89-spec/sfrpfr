@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
+    CaseNextActionUpdate,
     ChecklistItemCreate,
     ChecklistItemUpdate,
     DashboardResponse,
@@ -19,6 +20,7 @@ from sfrfr.api.schemas.admin import (
     ResultConfirmRequest,
     StaffCaseSummary,
     StaffRoleUpsert,
+    WorkQueueItem,
     YandexMailRequest,
 )
 from sfrfr.api.schemas.portal import CaseStatusUpdate, CaseSummary
@@ -41,11 +43,14 @@ from sfrfr.security.auth import (
     require_admin,
     require_staff,
 )
+from sfrfr.services.staff_work_queue import (
+    build_dashboard_snapshot,
+    build_work_item,
+    derive_next_action,
+    derive_waiting_on,
+)
 
 router = APIRouter()
-
-_SILENT_BUCKETS = (30, 90, 150, 180)
-
 
 def _repo() -> CaseRepository:
     return CaseRepository()
@@ -102,6 +107,7 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
     checklist = case.get("checklist_items") or []
     orders = case.get("orders") or []
     show_contact = role in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT)
+    work = build_work_item(case, show_contact=show_contact)
     return StaffCaseSummary(
         id=str(case["id"]),
         pipeline_status=case["pipeline_status"],
@@ -120,6 +126,11 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         web_linked=bool(client.get("user_id")),
         silent_days=_silent_days(case),
         package_codes=[str(o.get("package_code")) for o in orders if o.get("package_code")],
+        next_action=(work or {}).get("next_action")
+        or derive_next_action(case, derive_waiting_on(case)),
+        next_action_at=(work or {}).get("next_action_at") or case.get("next_action_at"),
+        waiting_on=(work or {}).get("waiting_on") or derive_waiting_on(case),
+        priority=(work or {}).get("priority"),
     )
 
 
@@ -142,6 +153,9 @@ def _filter_staff_case(
         "crm_external_id": case.get("crm_external_id"),
         "crm_url": _crm_url(case.get("crm_external_id")),
         "meeting_url": case.get("meeting_url"),
+        "next_action": case.get("next_action"),
+        "next_action_at": case.get("next_action_at"),
+        "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
         "segment": case.get("segment"),
         "region_bucket": case.get("region_bucket"),
         "problem_type": case.get("problem_type"),
@@ -217,24 +231,18 @@ def _filter_staff_case(
 @router.get("/admin/dashboard", response_model=DashboardResponse)
 def admin_dashboard(principal: Principal = Depends(require_staff)) -> DashboardResponse:
     cases = _repo().list_cases(principal)
-    by_pipeline = Counter(str(c.get("pipeline_status")) for c in cases)
-    by_b2c = Counter(str(c.get("b2c_status")) for c in cases)
-    silent = {str(days): 0 for days in _SILENT_BUCKETS}
-    for case in cases:
-        days = _silent_days(case)
-        for bucket in reversed(_SILENT_BUCKETS):
-            if days >= bucket:
-                silent[str(bucket)] += 1
-                break
-
-    orders = _repo().list_all_orders() if principal.role is StaffRole.ADMIN else []
-    # Эксперт/оператор считают оплаты только по своим делам
-    if principal.role is not StaffRole.ADMIN:
+    all_orders = _repo().list_all_orders()
+    if principal.role is StaffRole.ADMIN:
+        orders = all_orders
+    else:
         case_ids = {str(c["id"]) for c in cases}
-        orders = [o for o in _repo().list_all_orders() if str(o.get("case_id")) in case_ids]
+        orders = [o for o in all_orders if str(o.get("case_id")) in case_ids]
 
-    pending = sum(1 for o in orders if o.get("status") == "pending")
-    paid = sum(1 for o in orders if o.get("status") == "paid")
+    snap = build_dashboard_snapshot(
+        cases,
+        orders,
+        show_contact=principal.role in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT),
+    )
 
     channel_conflicts = 0
     unlinked_max = 0
@@ -247,7 +255,6 @@ def admin_dashboard(principal: Principal = Depends(require_staff)) -> DashboardR
             unlinked_max += 1
         if not web_linked:
             unlinked_web += 1
-        # конфликт: предпочтение MAX без max_user_id или web без OTP
         preferred = client.get("preferred_channel") or "unset"
         if preferred == "max_miniapp" and not max_linked:
             channel_conflicts += 1
@@ -255,15 +262,29 @@ def admin_dashboard(principal: Principal = Depends(require_staff)) -> DashboardR
             channel_conflicts += 1
 
     return DashboardResponse(
-        new_leads=by_b2c.get("lead", 0),
-        by_pipeline=dict(by_pipeline),
-        by_b2c=dict(by_b2c),
-        payments_pending=pending,
-        payments_paid=paid,
-        silent=silent,
+        new_leads=snap["new_leads"],
+        by_pipeline=snap["by_pipeline"],
+        by_b2c=snap["by_b2c"],
+        payments_pending=snap["payments_pending"],
+        payments_paid=snap["payments_paid"],
+        silent=snap["silent"],
         channel_conflicts=channel_conflicts,
         unlinked_max=unlinked_max,
         unlinked_web=unlinked_web,
+        needs_reply=snap["needs_reply"],
+        needs_reply_over_30m=snap["needs_reply_over_30m"],
+        deadline_today=snap["deadline_today"],
+        waiting_docs=snap["waiting_docs"],
+        waiting_docs_max_days=snap["waiting_docs_max_days"],
+        sla_risk=snap["sla_risk"],
+        greeting_priority_count=snap["greeting_priority_count"],
+        payments_pending_amount=snap["payments_pending_amount"],
+        payments_paid_today=snap["payments_paid_today"],
+        payments_paid_today_amount=snap["payments_paid_today_amount"],
+        sla_control=snap["sla_control"],
+        doc_status=snap["doc_status"],
+        work_queue=[WorkQueueItem.model_validate(row) for row in snap["work_queue"]],
+        my_tasks_today=[WorkQueueItem.model_validate(row) for row in snap["my_tasks_today"]],
     )
 
 
@@ -370,6 +391,29 @@ def update_pipeline_status(
         checklist_open_count=sum(1 for item in checklist if item.get("status") != "done"),
         consent_accepted=repo.has_consent(case_id),
     )
+
+
+@router.patch("/admin/cases/{case_id}/next-action")
+def update_next_action(
+    case_id: str,
+    payload: CaseNextActionUpdate,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    updated = repo.update_next_action(
+        case_id,
+        principal.user_id,
+        next_action=payload.next_action,
+        next_action_at=payload.next_action_at,
+        waiting_on=payload.waiting_on,
+    )
+    return {
+        "id": str(updated.get("id") or case_id),
+        "next_action": updated.get("next_action"),
+        "next_action_at": updated.get("next_action_at"),
+        "waiting_on": updated.get("waiting_on"),
+    }
 
 
 @router.patch("/admin/cases/{case_id}/assign-expert")

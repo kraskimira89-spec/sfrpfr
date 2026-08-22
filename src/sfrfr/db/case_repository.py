@@ -110,7 +110,8 @@ class CaseRepository:
     def list_cases(self, principal: Principal) -> list[dict[str, Any]]:
         query = self.client.table("cases").select(
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
-            "checklist_items(id, status, owner), orders(package_code, status)"
+            "checklist_items(id, status, owner, title, item_type, due_at), "
+            "orders(package_code, status, amount_rub, created_at)"
         )
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
             return query.order("created_at", desc=True).execute().data or []
@@ -135,7 +136,8 @@ class CaseRepository:
             self.client.table("case_representatives")
             .select(
                 "cases(*, clients(full_name, phone, email, max_user_id, "
-                "preferred_channel, user_id), checklist_items(id, status, owner))"
+                "preferred_channel, user_id), "
+                "checklist_items(id, status, owner, title, item_type, due_at))"
             )
             .eq("user_id", principal.user_id)
             .execute()
@@ -828,6 +830,35 @@ class CaseRepository:
         if not response.data:
             raise HTTPException(status_code=404, detail="checklist item not found")
         self.audit(case_id, actor_id, "checklist_item_updated")
+        return response.data[0]
+
+    def update_next_action(
+        self,
+        case_id: str,
+        actor_id: str,
+        *,
+        next_action: str | None = None,
+        next_action_at: str | None = None,
+        waiting_on: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if next_action is not None:
+            payload["next_action"] = next_action.strip() or None
+        if next_action_at is not None:
+            payload["next_action_at"] = next_action_at or None
+        if waiting_on is not None:
+            payload["waiting_on"] = waiting_on
+        if not payload:
+            case = self._case(case_id)
+            if case is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+            return case
+        response = (
+            self.client.table("cases").update(payload).eq("id", case_id).execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        self.audit(case_id, actor_id, "next_action_updated")
         return response.data[0]
 
     def assign_expert(

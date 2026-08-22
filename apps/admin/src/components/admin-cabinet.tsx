@@ -60,6 +60,7 @@ type WorkQueueItem = {
   deadline_status: "overdue" | "soon" | "today" | "ok" | "waiting";
   channel: string;
   expert_user_id: string | null;
+  doc_flags?: Record<string, boolean>;
 };
 
 type Dashboard = {
@@ -725,6 +726,28 @@ export function AdminCabinet() {
     }
   }
 
+  async function saveNextAction() {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/next-action`, token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          next_action: nextActionText.trim() || null,
+          next_action_at: nextActionAt ? new Date(nextActionAt).toISOString() : null,
+          waiting_on: waitingOn,
+        }),
+      });
+      setNotice("Следующий шаг сохранён.");
+      await openCase(detail.id);
+      await loadDashboard();
+    } catch {
+      setNotice("Не удалось сохранить следующий шаг. Если колонки ещё не применены в БД — примените миграцию.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function savePipeline() {
     if (!token || !detail) return;
     await apiFetch(`/api/portal/admin/cases/${detail.id}/pipeline-status`, token, {
@@ -1131,13 +1154,185 @@ export function AdminCabinet() {
       {view === "dashboard" && dashboard && (
         <section className="stack">
           <h1>Дашборд</h1>
+          <p className="lead lead-compact">
+            Сегодня: <strong>{dashboard.greeting_priority_count}</strong>{" "}
+            {dashboard.greeting_priority_count === 1 ? "действие" : "действий"} с высоким приоритетом.
+            Сначала отвечаем клиенту, затем закрываем дедлайны и риски SLA.
+          </p>
           <div className="metrics">
-            <article><span>Новые заявки</span><strong>{dashboard.new_leads}</strong></article>
-            <article><span>Оплаты: ожидают / оплачено</span><strong>{dashboard.payments_pending} / {dashboard.payments_paid}</strong></article>
-            <article><span>Без ответа ≥30/90/150/180</span><strong>{dashboard.silent["30"]}/{dashboard.silent["90"]}/{dashboard.silent["150"]}/{dashboard.silent["180"]}</strong></article>
-            <article><span>Конфликты каналов (ТЗ-09)</span><strong>{dashboard.channel_conflicts}</strong></article>
-            <article><span>Без MAX / без веб-кабинета</span><strong>{dashboard.unlinked_max} / {dashboard.unlinked_web}</strong></article>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("reply")}>
+              <span>Требуют моего ответа</span>
+              <strong>{dashboard.needs_reply}</strong>
+              <em>{dashboard.needs_reply_over_30m} без ответа более 30 мин</em>
+            </button>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("today")}>
+              <span>Дедлайн сегодня</span>
+              <strong>{dashboard.deadline_today}</strong>
+              <em>Задачи и следующий шаг на сегодня</em>
+            </button>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("new")}>
+              <span>Новые обращения</span>
+              <strong>{dashboard.new_leads}</strong>
+              <em>Заявки без перевода в работу</em>
+            </button>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("docs")}>
+              <span>Ожидаем документы</span>
+              <strong>{dashboard.waiting_docs}</strong>
+              <em>
+                {dashboard.waiting_docs_max_days > 0
+                  ? `самое долгое ожидание ${dashboard.waiting_docs_max_days} дн.`
+                  : "ИЛС, трудовая, справки, согласие"}
+              </em>
+            </button>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("payment")}>
+              <span>Ожидаем оплату</span>
+              <strong>{dashboard.payments_pending} / {formatRub(dashboard.payments_pending_amount)}</strong>
+              <em>
+                Оплачено сегодня: {dashboard.payments_paid_today} / {formatRub(dashboard.payments_paid_today_amount)}
+              </em>
+            </button>
+            <button type="button" className={`metric-card ${dashboard.sla_risk > 0 ? "metric-card--risk" : ""}`} onClick={() => setQueueFilter("sla")}>
+              <span>Риск SLA</span>
+              <strong>{dashboard.sla_risk}</strong>
+              <em>Срок ответа сотрудника нарушен</em>
+            </button>
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("conflicts")}>
+              <span>Конфликты каналов</span>
+              <strong>{dashboard.channel_conflicts}</strong>
+              <em>Предпочтение MAX/веб без привязки. Без MAX / без веб: {dashboard.unlinked_max} / {dashboard.unlinked_web}</em>
+            </button>
           </div>
+
+          <div className="dashboard-split">
+            <div className="panel">
+              <h2>Мои задачи сегодня</h2>
+              {dashboard.my_tasks_today.length === 0 ? (
+                <p className="hint">Срочных задач нет — можно разобрать стандартную очередь.</p>
+              ) : (
+                <ul className="plain-list task-list">
+                  {dashboard.my_tasks_today.map((item) => (
+                    <li key={item.case_id}>
+                      <button type="button" className="linkish" onClick={() => void openCase(item.case_id)}>
+                        <strong>{formatWhen(item.next_action_at)}</strong>
+                        {" · "}
+                        {item.client_name ?? "Клиент"} — {item.next_action}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="panel">
+              <h2>Контроль сроков ответа</h2>
+              <p className="hint">Ожидание архива, СФР или документов клиента не считается «без ответа».</p>
+              <ul className="plain-list sla-list">
+                <li className="tone-risk">Просрочено: {dashboard.sla_control.overdue ?? 0}</li>
+                <li className="tone-warn">Ответ нужен в 1 час: {dashboard.sla_control.due_1h ?? 0}</li>
+                <li className="tone-today">Ответ нужен сегодня: {dashboard.sla_control.due_today ?? 0}</li>
+                <li className="tone-wait">Ожидаем клиента / архив / СФР: {dashboard.sla_control.waiting_external ?? 0}</li>
+                <li className="tone-muted">На паузе: {dashboard.sla_control.paused ?? 0}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>Статус документов</h2>
+            <div className="chip-row">
+              {Object.entries(DOC_STATUS_LABELS).map(([key, label]) => {
+                const count = dashboard.doc_status[key] ?? 0;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={queueFilter === `doc:${key}` ? "chip active" : "chip"}
+                    onClick={() => setQueueFilter(`doc:${key}`)}
+                  >
+                    {label} — {count}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>Рабочая очередь</h2>
+            <div className="chip-row">
+              {[
+                ["all", "Все"],
+                ["urgent", "Срочно"],
+                ["today", "Сегодня"],
+                ["reply", "Мой ответ"],
+                ["docs", "Документы"],
+                ["payment", "Оплата"],
+                ["sla", "Риск SLA"],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={queueFilter === id ? "chip active" : "chip"}
+                  onClick={() => setQueueFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="queue-wrap">
+              <table className="queue-table">
+                <thead>
+                  <tr>
+                    <th>Приоритет</th>
+                    <th>Дело</th>
+                    <th>Этап</th>
+                    <th>Последнее событие</th>
+                    <th>Следующий шаг</th>
+                    <th>Дедлайн</th>
+                    <th>Канал</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(dashboard.work_queue || [])
+                    .filter((item) => {
+                      if (queueFilter === "all") return true;
+                      if (queueFilter === "urgent") return item.priority === "urgent";
+                      if (queueFilter === "today") return item.priority === "today" || item.deadline_status === "today";
+                      if (queueFilter === "reply") return item.waiting_on === "staff";
+                      if (queueFilter === "docs") return item.waiting_on === "client" || item.waiting_on === "archive";
+                      if (queueFilter === "payment") return item.waiting_on === "payment";
+                      if (queueFilter === "sla") return item.deadline_status === "overdue";
+                      if (queueFilter === "new") return item.pipeline_status === "intake" || item.b2c_status === "lead";
+                      if (queueFilter === "conflicts") return item.channel !== "unset";
+                      if (queueFilter.startsWith("doc:")) {
+                        const key = queueFilter.slice(4);
+                        return Boolean(item.doc_flags?.[key]);
+                      }
+                      return true;
+                    })
+                    .map((item) => (
+                      <tr key={item.case_id} className={`tone-${item.deadline_status}`}>
+                        <td>{PRIORITY_LABELS[item.priority]}</td>
+                        <td>{item.client_name ?? "Клиент"}</td>
+                        <td>{labelPipeline(item.pipeline_status)}</td>
+                        <td>{item.last_event}</td>
+                        <td>{item.next_action}</td>
+                        <td>
+                          <span className={`deadline deadline--${item.deadline_status}`}>
+                            {formatWhen(item.next_action_at)}
+                          </span>
+                        </td>
+                        <td>{CHANNEL_LABELS[item.channel] ?? item.channel}</td>
+                        <td>
+                          <button type="button" className="ghost" onClick={() => void openCase(item.case_id)}>
+                            Открыть
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="panel">
             <h2>Дела по этапам</h2>
             <ul className="plain-list">
@@ -1236,6 +1431,35 @@ export function AdminCabinet() {
             {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
           </h1>
           <p className="warning inline">{detail.warning}</p>
+          <div className="panel accent">
+            <h2>Следующий шаг</h2>
+            <div className="filters">
+              <label>
+                Что сделать
+                <input value={nextActionText} onChange={(e) => setNextActionText(e.target.value)} placeholder="Проверить ИЛС" />
+              </label>
+              <label>
+                Срок
+                <input type="datetime-local" value={nextActionAt} onChange={(e) => setNextActionAt(e.target.value)} />
+              </label>
+              <label>
+                Кто должен действовать
+                <select value={waitingOn} onChange={(e) => setWaitingOn(e.target.value)}>
+                  <option value="staff">Сотрудник</option>
+                  <option value="client">Клиент</option>
+                  <option value="archive">Архив</option>
+                  <option value="sfr">СФР</option>
+                  <option value="payment">Оплата</option>
+                  <option value="none">Не задано</option>
+                </select>
+              </label>
+              <button type="button" disabled={busy} onClick={() => void saveNextAction()}>Сохранить шаг</button>
+            </div>
+            <p className="hint">
+              Сейчас: {WAITING_LABELS[detail.waiting_on ?? ""] ?? detail.waiting_on ?? "считаем автоматически"}.
+              Ожидание архива или СФР не попадает в «без ответа».
+            </p>
+          </div>
           <p>
             {formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}
             {detail.client.phone ? ` · ${detail.client.phone}` : ""}
