@@ -52,9 +52,9 @@ def _ops_welcome_text() -> str:
         "(одобрить / скопировать / прислать правку);",
         "",
         "Вход в кабинет сотрудника:",
-        f"1) На {admin or 'admin'} нажмите «Войти через MAX».",
-        f"2) Здесь нажмите «{GET_CODE_IN_BROWSER_LABEL}».",
-        "3) Отправьте 6 цифр со страницы входа этим сообщением.",
+        f"1) На {admin or 'admin'} укажите email и нажмите «Получить код».",
+        "2) Нажмите «Перейти в MAX» и отправьте код из браузера сюда.",
+        "3) Нажмите «Войти в кабинет сотрудника».",
         "",
         "Можете задать вопрос по процессу или стажу — ответит ИИ с опорой на базу знаний.",
         "Черновик поста: вставьте текст сюда или `/draft …`.",
@@ -92,18 +92,10 @@ def _handle_ops_staff_login(
 
     unbound = latest_unbound_staff_pending()
     if unbound:
-        bound = _complete_pc_login(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            ticket_id=unbound.ticket_id,
-        )
-        if bound.ok:
-            return bound
         reply = (
-            f"Вход в кабинет сотрудника.\n\n"
-            f"Код на странице admin: {unbound.pair_code}\n\n"
-            "Отправьте эти 6 цифр следующим сообщением в этот чат."
+            f"Код со страницы admin: {unbound.pair_code}\n\n"
+            "Отправьте эти 6 цифр следующим сообщением в этот чат, "
+            "затем нажмите «Войти в кабинет сотрудника»."
         )
         _reply(
             bot,
@@ -117,8 +109,8 @@ def _handle_ops_staff_login(
     settings = get_settings()
     admin = (settings.admin_public_url or "admin.proverkastaza.ru").rstrip("/")
     reply = (
-        f"Сначала нажмите «Войти через MAX» на {admin} и укажите рабочий email.\n"
-        f"Затем снова нажмите «{GET_CODE_IN_BROWSER_LABEL}» здесь."
+        f"Сначала на {admin} укажите рабочий email и нажмите «Получить код».\n"
+        "Затем «Перейти в MAX» и пришлите код сюда."
     )
     _reply(
         bot,

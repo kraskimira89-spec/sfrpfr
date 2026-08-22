@@ -23,6 +23,7 @@ TERM_EMAIL = "почта"
 
 CONFIRM_WEB_LOGIN_LABEL = "Подтвердить вход в браузере"
 CONFIRM_WEB_LOGIN_CALLBACK = "confirm_web_login"
+CONFIRM_STAFF_CABINET_LOGIN_LABEL = "Войти в кабинет сотрудника"
 APPROVE_STAFF_LOGIN_LABEL = "Разрешить вход"
 START_DIALOG_LABEL = "Начать"
 START_DIALOG_CALLBACK = "start_dialog"

@@ -67,27 +67,18 @@ def test_ops_start_welcome(monkeypatch) -> None:
 
 
 def test_ops_login_shows_pair_hint(monkeypatch) -> None:
-    from sfrfr.integrations.max.handler import MaxHandleResult
     from sfrfr.security.login_pending import create_pending
 
     monkeypatch.setenv("ADMIN_PUBLIC_URL", "https://admin.example")
     monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
     get_settings.cache_clear()
     pending = create_pending(audience="staff", staff_email="op@example.com")
-    monkeypatch.setattr(
-        "sfrfr.integrations.max.handler._complete_pc_login",
-        lambda *args, **kwargs: MaxHandleResult(ok=False, action="login_test_skip"),
-    )
     bot = _SilentBot()
     result = handle_ops_update(_msg(42, "/login"), bot=bot)
-    assert result.action in {
-        "ops_staff_pair_hint",
-        "login_pending_manager",
-        "login_approved_trusted",
-    }
+    assert result.action == "ops_staff_pair_hint"
     assert bot.sent
-    texts = " ".join(str(m.get("text") or "") for m in bot.sent)
-    assert pending.pair_code in texts or "6 цифр" in texts or "Готово" in texts
+    assert pending.pair_code in bot.sent[0]["text"]
+    assert "Войти в кабинет сотрудника" in bot.sent[0]["text"]
     get_settings.cache_clear()
 
 

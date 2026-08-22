@@ -453,6 +453,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     from sfrfr.integrations.amocrm.urls import staff_max_login_url
     from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
     from sfrfr.security.login_otp import (
+        CONFIRM_STAFF_CABINET_LOGIN_LABEL,
         CONFIRM_WEB_LOGIN_LABEL,
         normalize_phone,
     )
@@ -510,11 +511,11 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                             user_id=trusted_mid,
                             text=(
                                 "Запрос входа в кабинет сотрудника.\n"
-                                f"Нажмите «{CONFIRM_WEB_LOGIN_LABEL}»."
+                                f"Нажмите «{CONFIRM_STAFF_CABINET_LOGIN_LABEL}»."
                             ),
                             attachments=inline_confirm_login_keyboard(
                                 ticket_id=pending.ticket_id,
-                                label=CONFIRM_WEB_LOGIN_LABEL,
+                                label=CONFIRM_STAFF_CABINET_LOGIN_LABEL,
                             ),
                         )
                 except Exception:  # noqa: BLE001
@@ -527,7 +528,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 max_bot_url=staff_max_login_url(),
                 status="pending_confirm",
                 message=(
-                    "Откройте ops-бот «Проверка стажа-Ops» и подтвердите вход одной кнопкой. "
+                    "Нажмите «Перейти в MAX» ниже и подтвердите вход в ops-боте. "
                     "Кабинет откроется на этой странице автоматически."
                 ),
             )
@@ -547,9 +548,9 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             max_bot_url=staff_max_login_url(),
             status="pending_pair",
             message=(
-                f"Откройте ops-бот «Проверка стажа-Ops» и отправьте код {pending.pair_code}. "
-                "После кода вход на этой странице подтвердится сам. "
-                "При первом входе нужно одобрение руководителя; дальше — только ваш MAX."
+                "Код ниже — отправьте его в ops-бот MAX, затем нажмите "
+                "«Войти в кабинет сотрудника». Кабинет откроется на этой странице. "
+                "При первом входе нужно одобрение руководителя."
             ),
         )
 

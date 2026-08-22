@@ -1660,6 +1660,25 @@ def _handle_pair_code(
             ticket=pending.ticket_id,
             status=pending.status,
         )
+        if pending.audience == "staff":
+            from sfrfr.security.login_otp import CONFIRM_STAFF_CABINET_LOGIN_LABEL
+
+            reply = (
+                "Код принят.\n"
+                f"Нажмите «{CONFIRM_STAFF_CABINET_LOGIN_LABEL}» — "
+                "на компьютере откроется кабинет сотрудника."
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=inline_confirm_login_keyboard(
+                    ticket_id=pending.ticket_id,
+                    label=CONFIRM_STAFF_CABINET_LOGIN_LABEL,
+                ),
+            )
+            return MaxHandleResult(ok=True, action="staff_pair_accepted", reply=reply)
         return _complete_pc_login(
             bot,
             user_id=user_id,

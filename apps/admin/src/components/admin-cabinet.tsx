@@ -344,7 +344,7 @@ export function AdminCabinet() {
       setOtpSent(true);
       setNotice(
         body.message ||
-          "Код появился ниже — отправьте его в ops-бот MAX. Код не приходит в бот автоматически.",
+          "Код появился ниже. Нажмите «Перейти в MAX», отправьте код в ops-бот и подтвердите вход.",
       );
       return true;
     } catch (err) {
@@ -355,19 +355,16 @@ export function AdminCabinet() {
     }
   }
 
-  function openMaxChat() {
-    window.open(chatUrlOnly(maxBotUrl), "_blank", "noopener,noreferrer");
-  }
-
-  async function startMaxLogin() {
+  async function getMaxLoginCode() {
     if (!email.trim() || !email.includes("@")) {
       setNotice("Сначала укажите рабочий email.");
       return;
     }
-    const ok = await requestMaxLogin();
-    if (ok) {
-      openMaxChat();
-    }
+    await requestMaxLogin();
+  }
+
+  function openMaxChat() {
+    window.open(chatUrlOnly(maxBotUrl), "_blank", "noopener,noreferrer");
   }
 
   function resetMaxWizard() {
@@ -794,7 +791,7 @@ export function AdminCabinet() {
           </p>
           <h1>Кабинет сотрудника</h1>
           <p className="lead lead-compact">
-            Веб-кабинет сотрудника. Вход — через ops-бот MAX «Проверка стажа-Ops», не через клиентский бот.
+            Вход через ops-бот MAX «Проверка стажа-Ops»: получите код на этой странице, подтвердите в MAX.
             Роль выдаёт администратор заранее — открытой регистрации нет.
           </p>
 
@@ -818,19 +815,15 @@ export function AdminCabinet() {
                       type="button"
                       className="max-action-btn"
                       disabled={busy}
-                      onClick={() => void startMaxLogin()}
+                      onClick={() => void getMaxLoginCode()}
                     >
-                      Войти через ops-бот MAX
+                      Получить код
                     </button>
                     <ol className="max-login-steps">
-                      <li>Откроется ops-бот «Проверка стажа-Ops»</li>
-                      <li>Нажмите «Начать»</li>
-                      <li>Пришлите код с этой страницы</li>
+                      <li>Нажмите «Получить код» — появятся 6 цифр</li>
+                      <li>Нажмите «Перейти в MAX»</li>
+                      <li>В ops-боте отправьте код и нажмите «Войти в кабинет сотрудника»</li>
                     </ol>
-                    <p className="hint">
-                      Клиентский бот «Проверка стажа-личный бот» — только для клиентов. Для ответа клиенту используйте
-                      кабинет → дело → «Написать в MAX».
-                    </p>
                   </>
                 ) : (
                   <>
@@ -838,9 +831,9 @@ export function AdminCabinet() {
                       {maxWaitStatus === "pending_manager"
                         ? "Код принят. Ждём руководителя в чате MAX…"
                         : maxWaitStatus === "pending_confirm"
-                          ? "Подтвердите вход в ops-боте — кабинет откроется автоматически"
+                          ? "Подтвердите вход в ops-боте — кабинет откроется здесь"
                           : maxPairCode
-                            ? "Пришлите этот код в чат MAX"
+                            ? "Отправьте код в ops-бот MAX"
                             : "Подтвердите вход в ops-боте MAX"}
                     </p>
                     {maxPairCode ? (
@@ -848,24 +841,31 @@ export function AdminCabinet() {
                         Код: <strong className="max-pair-code">{maxPairCode}</strong>
                       </p>
                     ) : null}
+                    <button
+                      type="button"
+                      className="max-action-btn"
+                      onClick={openMaxChat}
+                    >
+                      Перейти в MAX
+                    </button>
                     <ol className="max-login-steps">
                       <li>Откройте ops-бот «Проверка стажа-Ops»</li>
-                      <li>Нажмите «Начать», если ещё не нажимали</li>
                       {maxPairCode ? (
-                        <li>Отправьте код сообщением</li>
+                        <>
+                          <li>Отправьте код сообщением в чат</li>
+                          <li>Нажмите «Войти в кабинет сотрудника»</li>
+                        </>
                       ) : (
-                        <li>Нажмите «Подтвердить вход в браузере»</li>
+                        <li>Нажмите «Войти в кабинет сотрудника»</li>
                       )}
                     </ol>
                     {maxWaitStatus === "pending_manager" ? (
                       <p className="hint">
                         Руководитель нажмёт «Разрешить вход» — кабинет откроется сам.
                       </p>
-                    ) : maxPairCode ? (
-                      <p className="hint">После кода вход откроется на этой странице сам.</p>
                     ) : (
                       <p className="hint">
-                        После подтверждения в ops-боте кабинет откроется на этой странице сам.
+                        После кнопки в ops-боте кабинет откроется на этой странице.
                       </p>
                     )}
                     <button type="button" className="ghost" onClick={resetMaxWizard}>

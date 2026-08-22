@@ -82,33 +82,6 @@ def _lookup_role(user_id: str, email: str | None = None) -> StaffRole | None:
 
     role = get_staff_role_by_email(normalized)
     if role is not None:
-        # #region agent log
-        try:
-            import json
-            import time as _time
-
-            with open("debug-4304ae.log", "a", encoding="utf-8") as _f:
-                _f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "4304ae",
-                            "location": "auth.py:_lookup_role",
-                            "message": "staff role by email fallback",
-                            "data": {
-                                "jwt_user_id": user_id,
-                                "email": normalized,
-                                "role": role.value,
-                            },
-                            "hypothesisId": "F",
-                            "timestamp": int(_time.time() * 1000),
-                        },
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
-        except OSError:
-            pass
-        # #endregion
         sync_staff_role_auth_user_id(email=normalized, auth_user_id=user_id)
     return role
 
