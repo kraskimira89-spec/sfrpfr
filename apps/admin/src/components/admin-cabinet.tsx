@@ -307,6 +307,7 @@ export function AdminCabinet() {
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_OPS_BOT);
   const [maxReplyBody, setMaxReplyBody] = useState("");
+  const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [maxReplyFocus, setMaxReplyFocus] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
@@ -1139,6 +1140,26 @@ export function AdminCabinet() {
 
   function focusMaxReplyPanel() {
     setMaxReplyFocus(true);
+  }
+
+  async function suggestReplies() {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ suggestions?: string[] }>(
+        `/api/portal/admin/cases/${detail.id}/suggest-replies`,
+        token,
+        { method: "POST" },
+      );
+      setReplySuggestions(result.suggestions ?? []);
+      if (!(result.suggestions && result.suggestions.length)) {
+        setNotice("DeepSeek не вернул варианты — проверьте ключ Yandex AI Studio.");
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось получить подсказки.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function sendMaxReply() {
@@ -2020,6 +2041,8 @@ export function AdminCabinet() {
             busy={busy}
             onSendMax={() => void sendMaxReply()}
             onSendInternal={() => void sendMessage()}
+            suggestions={replySuggestions}
+            onSuggest={() => void suggestReplies()}
           />
         </section>
       )}

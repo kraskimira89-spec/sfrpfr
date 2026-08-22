@@ -1973,6 +1973,14 @@ def handle_max_update(
             case_id=_resolve_case_id_by_max_user(user_id),
             text=f"Нажал кнопку: {callback}",
         )
+        # Soft-кнопки от DeepSeek → дальше как свободный текст
+        if callback.startswith("llmsoft:"):
+            parts = callback.split(":", 2)
+            soft = parts[2].strip() if len(parts) > 2 else ""
+            if soft:
+                text = soft
+                callback = ""
+                lower = text.lower()
 
     # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:
@@ -2238,7 +2246,7 @@ def handle_max_update(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    # Свободный текст без LLM: короткая подсказка + кнопки текущего шага (ТЗ-20).
+    # Свободный текст: DeepSeek (Yandex AI Studio) + кнопки шага / fallback nudge (ТЗ-26).
     if text:
         if intake is None:
             get_intake_store().upsert_started(user_id)
@@ -2248,17 +2256,20 @@ def handle_max_update(
             or (record.case_id if record else None)
         )
         _append_client_case_message(case_id=case_for_log, text=text)
-        reply, attachments = free_text_nudge(intake=intake)
+        from sfrfr.integrations.max.llm_chat import reply_to_free_text
+
+        reply, attachments, action = reply_to_free_text(user_text=text, intake=intake)
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=reply,
             attachments=attachments,
+            case_id=case_for_log,
         )
         return MaxHandleResult(
             ok=True,
-            action="free_text_nudge",
+            action=action,
             case_id=record.case_id,
             reply=reply,
         )

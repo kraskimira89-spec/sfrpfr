@@ -55,10 +55,9 @@ class CaseOrchestrator:
     LLM-шаги: classified → extracted → (reason) → draft_ready.
     Код: ocr_done (внешне), audited (audit_ils), human_review (HITL).
 
-    Модели (по умолчанию):
-    - classify: YandexGPT Lite
-    - extract + reason: DeepSeek (analyze)
-    - draft: YandexGPT Pro
+    Модели (по умолчанию, Yandex AI Studio):
+    - classify / extract / reason / draft: DeepSeek V4 Flash
+    - YandexGPT не используется
     Сверка ИЛС↔трудовая — только детерминированный код.
     """
 

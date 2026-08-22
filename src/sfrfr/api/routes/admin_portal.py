@@ -62,6 +62,7 @@ from sfrfr.services.staff_finance import (
     serialize_order,
 )
 from sfrfr.services.staff_next_action_ai import suggest_next_action
+from sfrfr.services.staff_reply_suggest import suggest_staff_replies
 from sfrfr.services.staff_work_queue import (
     build_dashboard_snapshot,
     build_work_item,
@@ -489,6 +490,33 @@ def suggest_case_next_action(
     repo = _repo()
     case = repo.require_case(principal, case_id)
     return suggest_next_action(case)
+
+
+@router.post("/admin/cases/{case_id}/suggest-replies")
+def suggest_case_replies(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """DeepSeek: 2–3 варианта ответа клиенту в MAX (без ПДн)."""
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    messages = (
+        get_supabase_client()
+        .table("case_messages")
+        .select("author_kind, body, created_at")
+        .eq("case_id", case_id)
+        .order("created_at")
+        .limit(30)
+        .execute()
+        .data
+        or []
+    )
+    suggestions = suggest_staff_replies(
+        messages=messages,
+        pipeline_status=str(case.get("pipeline_status") or ""),
+        b2c_status=str(case.get("b2c_status") or ""),
+    )
+    return {"suggestions": suggestions, "source": "deepseek"}
 
 
 @router.patch("/admin/cases/{case_id}/flags")

@@ -1,7 +1,8 @@
 # ТЗ-26: LLM-чат в личном диалоге MAX (черновик)
 
-**Статус:** черновик / не к реализации без явного go  
-**Дата:** 2026-08-11  
+**Статус:** реализовано (go): провайдер — **DeepSeek V4 Flash в Yandex AI Studio**, не YandexGPT.  
+Флаги: `MAX_LLM_CHAT_ENABLED`, `MAX_LLM_CHAT_MAX_TURNS`.  
+**Дата:** 2026-08-11 / обновлено 2026-08-22  
 **Связано:** [ТЗ-20](20-max-private-chat-funnel.md), [ТЗ-08](08-knowledge-rag.md), [ТЗ-12](12-amocrm.md), [ТЗ-06](06-integrations-and-security.md), [ТЗ-25](25-max-ops-bot.md)
 
 ## 1. Проблема

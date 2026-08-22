@@ -38,11 +38,11 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     yandex_api_key: str = ""
     yandex_folder_id: str = ""
-    yandex_model: str = "yandexgpt/latest"
-    # Dual-model: classify (дёшево) / analyze (DeepSeek via YC) / draft (YandexGPT Pro)
-    yandex_model_classify: str = "yandexgpt-lite/latest"
+    yandex_model: str = "deepseek-v4-flash"
+    # Роли LLM в Yandex AI Studio: канон — DeepSeek (не YandexGPT)
+    yandex_model_classify: str = "deepseek-v4-flash"
     yandex_model_analyze: str = "deepseek-v4-flash"
-    yandex_model_draft: str = "yandexgpt/latest"
+    yandex_model_draft: str = "deepseek-v4-flash"
     yandex_base_url: str = "https://llm.api.cloud.yandex.net/v1"
     # DeepSeek platform API — только для локальных экспериментов, не для production-ПДн
     deepseek_api_key: str = ""
@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     max_ops_llm_max_chars: int = 3500
     # Модель в Yandex AI Studio (канон: DeepSeek V4 Flash), не platform.deepseek.com
     max_ops_llm_model: str = "deepseek-v4-flash"
+    # ТЗ-26: LLM-ответ на свободный текст в MAX (DeepSeek via YC)
+    max_llm_chat_enabled: bool = True
+    max_llm_chat_max_turns: int = 5
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

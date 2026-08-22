@@ -44,6 +44,8 @@ export function CaseChatPanel({
   busy,
   onSendMax,
   onSendInternal,
+  suggestions,
+  onSuggest,
 }: {
   messages: CaseChatMessage[];
   maxLinked: boolean;
@@ -54,6 +56,8 @@ export function CaseChatPanel({
   busy: boolean;
   onSendMax: () => void;
   onSendInternal: () => void;
+  suggestions: string[];
+  onSuggest: () => void;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +114,20 @@ export function CaseChatPanel({
       </div>
 
       <div className="case-chat-composer">
+        {suggestions.length > 0 ? (
+          <div className="case-chat-buttons" aria-label="Варианты ответа DeepSeek">
+            {suggestions.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className="case-chat-btn-chip case-chat-btn-chip--clickable"
+                onClick={() => onBodyChange(item)}
+              >
+                {item.length > 80 ? `${item.slice(0, 80)}…` : item}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <textarea
           id="max-reply-text"
           rows={3}
@@ -130,6 +148,9 @@ export function CaseChatPanel({
           }}
         />
         <div className="case-chat-actions">
+          <button type="button" className="ghost" disabled={busy} onClick={onSuggest}>
+            Подсказать ответы (DeepSeek)
+          </button>
           {maxLinked ? (
             <button
               type="button"

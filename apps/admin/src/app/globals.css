@@ -538,6 +538,16 @@ header div { display: grid; gap: 3px; }
   font-size: 0.8rem;
   font-weight: 700;
 }
+.case-chat-btn-chip--clickable {
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.25;
+}
+.case-chat-btn-chip--clickable:hover {
+  background: #eef6f1;
+}
 .case-chat-composer {
   display: grid;
   gap: 8px;

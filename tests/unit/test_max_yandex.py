@@ -38,7 +38,7 @@ def test_llm_yandex_model_uri(monkeypatch) -> None:
     monkeypatch.setenv("AI_PROVIDER", "yandex")
     monkeypatch.setenv("YANDEX_API_KEY", "key")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
-    monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
+    monkeypatch.setenv("YANDEX_MODEL", "deepseek-v4-flash")
     monkeypatch.setenv("YANDEX_MODEL_CLASSIFY", "")
     monkeypatch.setenv("YANDEX_MODEL_ANALYZE", "")
     monkeypatch.setenv("YANDEX_MODEL_DRAFT", "")
@@ -48,7 +48,7 @@ def test_llm_yandex_model_uri(monkeypatch) -> None:
     get_settings.cache_clear()
     client = LLMClient()
     assert client.available is True
-    assert client.model == "gpt://folder123/yandexgpt/latest"
+    assert client.model == "gpt://folder123/deepseek-v4-flash"
     get_settings.cache_clear()
 
 
@@ -56,15 +56,30 @@ def test_llm_dual_model_purposes(monkeypatch) -> None:
     monkeypatch.setenv("AI_PROVIDER", "yandex")
     monkeypatch.setenv("YANDEX_API_KEY", "key")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
+    monkeypatch.setenv("YANDEX_MODEL", "deepseek-v4-flash")
+    monkeypatch.setenv("YANDEX_MODEL_CLASSIFY", "deepseek-v4-flash")
+    monkeypatch.setenv("YANDEX_MODEL_ANALYZE", "deepseek-v4-flash")
+    monkeypatch.setenv("YANDEX_MODEL_DRAFT", "deepseek-v4-flash")
+    monkeypatch.setenv("LLM_MODEL", "")
+    get_settings.cache_clear()
+    assert LLMClient.for_classify().model == "gpt://folder123/deepseek-v4-flash"
+    assert LLMClient.for_analyze().model == "gpt://folder123/deepseek-v4-flash"
+    assert LLMClient.for_draft().model == "gpt://folder123/deepseek-v4-flash"
+    get_settings.cache_clear()
+
+
+def test_llm_remaps_yandexgpt_to_deepseek(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "yandex")
+    monkeypatch.setenv("YANDEX_API_KEY", "key")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "folder123")
     monkeypatch.setenv("YANDEX_MODEL", "yandexgpt/latest")
     monkeypatch.setenv("YANDEX_MODEL_CLASSIFY", "yandexgpt-lite/latest")
     monkeypatch.setenv("YANDEX_MODEL_ANALYZE", "deepseek-v4-flash")
     monkeypatch.setenv("YANDEX_MODEL_DRAFT", "yandexgpt/latest")
-    monkeypatch.setenv("LLM_MODEL", "gpt://folder123/yandexgpt-lite/latest")
+    monkeypatch.setenv("LLM_MODEL", "")
     get_settings.cache_clear()
-    assert LLMClient.for_classify().model == "gpt://folder123/yandexgpt-lite/latest"
-    assert LLMClient.for_analyze().model == "gpt://folder123/deepseek-v4-flash"
-    assert LLMClient.for_draft().model == "gpt://folder123/yandexgpt/latest"
+    assert LLMClient.for_draft().model == "gpt://folder123/deepseek-v4-flash"
+    assert LLMClient.for_classify().model == "gpt://folder123/deepseek-v4-flash"
     get_settings.cache_clear()
 
 
@@ -87,13 +102,13 @@ def test_llm_uses_llm_aliases(monkeypatch) -> None:
     monkeypatch.setenv("YANDEX_FOLDER_ID", "")
     monkeypatch.setenv("LLM_API_KEY", "llm-key")
     monkeypatch.setenv("LLM_FOLDER_ID", "llm-folder")
-    monkeypatch.setenv("LLM_MODEL", "gpt://llm-folder/yandexgpt-lite/latest")
+    monkeypatch.setenv("LLM_MODEL", "gpt://llm-folder/deepseek-v4-flash")
     get_settings.cache_clear()
     client = LLMClient()
     assert client.available is True
     assert client.api_key == "llm-key"
     assert client.folder_id == "llm-folder"
-    assert client.model == "gpt://llm-folder/yandexgpt-lite/latest"
+    assert client.model == "gpt://llm-folder/deepseek-v4-flash"
     get_settings.cache_clear()
 
 

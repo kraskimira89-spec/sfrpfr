@@ -27,10 +27,10 @@
 ### Yandex AI Studio
 
 - Применять для классификации, извлечения, обоснования findings и черновиков.
-- **Dual-model (по умолчанию):**
-  - classify → `yandexgpt-lite` (быстро/дешево);
-  - extract + reason → `deepseek-v4-flash` (логика/обоснование);
-  - draft → `yandexgpt` Pro (русский официальный стиль).
+- **Модели (по умолчанию):** все роли — `deepseek-v4-flash` в Yandex AI Studio.
+  - classify / extract / reason / draft → DeepSeek;
+  - YandexGPT не используется (если в `.env` остался `yandexgpt*`, код подменяет на DeepSeek).
+- Чатбот MAX (свободный текст) и подсказки ответов сотруднику — тоже DeepSeek (ТЗ-26).
 - `analysis_notes` хранится в `case_pipeline_data` и виден **эксперту/админу**; клиенту не отдаём.
 - Маскировать ПДн до передачи в модель (`redact_for_llm` / `x-data-logging-enabled: false`).
 - Не использовать LLM для детерминированной сверки ИЛС и трудовой.

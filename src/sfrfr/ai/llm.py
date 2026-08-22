@@ -107,6 +107,24 @@ class LLMClient:
         return folder.strip()
 
     @staticmethod
+    def _prefer_yc_deepseek(model: str, settings: Any) -> str:
+        """YandexGPT в каталоге не используем: канон — DeepSeek в Yandex AI Studio."""
+        raw = (model or "").strip()
+        lower = raw.lower()
+        if "deepseek" in lower:
+            return raw
+        ds = (settings.yandex_model_analyze or "").strip() or "deepseek-v4-flash"
+        if ds.startswith("gpt://"):
+            return ds
+        if "yandexgpt" in lower or not raw:
+            if raw.startswith("gpt://"):
+                folder = LLMClient._folder_from_model(raw)
+                if folder:
+                    return f"gpt://{folder}/{ds.lstrip('/')}"
+            return ds
+        return raw
+
+    @staticmethod
     def _yandex_model_uri(settings: Any, *, purpose: LlmPurpose = "default") -> str:
         purpose_model = ""
         if purpose == "classify":
@@ -123,11 +141,13 @@ class LLMClient:
         else:
             model = (settings.llm_model or settings.yandex_model or "").strip()
 
+        model = LLMClient._prefer_yc_deepseek(model, settings)
+
         if model.startswith("gpt://"):
             return model
         folder = (settings.yandex_folder_id or settings.llm_folder_id or "").strip()
         if not folder:
-            return model or "yandexgpt/latest"
+            return model or "deepseek-v4-flash"
         return f"gpt://{folder}/{model.lstrip('/')}"
 
     @property
