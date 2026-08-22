@@ -37,3 +37,17 @@ bash scripts/vm_supabase_apply_migrations.sh
 Подсказка шага: DeepSeek V4 Flash в Yandex AI Studio, в модель уходят только обезличенные этап/чек-лист, не ФИО и телефон.
 
 Миграция флага: `supabase/migrations/20260822183000_cases_is_test.sql`.
+
+## Rollback
+
+1. Откатить коммит UI/API (`git revert`) и дождаться `deploy-vps`.
+2. Колонки можно оставить: код читает их опционально.
+3. Если нужно убрать схему:
+
+```sql
+alter table public.cases drop column if exists is_test;
+alter table public.cases drop column if exists next_action;
+alter table public.cases drop column if exists next_action_at;
+alter table public.cases drop constraint if exists cases_waiting_on_check;
+alter table public.cases drop column if exists waiting_on;
+```

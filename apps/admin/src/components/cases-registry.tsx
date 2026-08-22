@@ -246,6 +246,7 @@ export function CasesRegistry({
                       <th>Каналы</th>
                       <th>Следующий шаг</th>
                       <th>Срок</th>
+                      <th>Ответственный</th>
                       <th>Действия</th>
                     </tr>
                   </thead>
@@ -275,6 +276,13 @@ export function CasesRegistry({
                           <span className={`deadline deadline--${item.deadline_status || "ok"}`}>
                             {formatRelative(item.next_action_at)}
                           </span>
+                        </td>
+                        <td>
+                          {item.expert_user_id === meUserId
+                            ? "Я"
+                            : item.expert_user_id
+                              ? "Назначен"
+                              : "Не назначен"}
                         </td>
                         <td>
                           <div className="row-actions" onClick={(e) => e.stopPropagation()}>
@@ -329,6 +337,14 @@ export function CasesRegistry({
                     <p>{humanCaseStage(item.pipeline_status, item.b2c_status)}</p>
                     <p>Следующий шаг: {item.next_action || "Уточнить ситуацию"}</p>
                     <p>Срок: {formatRelative(item.next_action_at)}</p>
+                    <p>
+                      Ответственный:{" "}
+                      {item.expert_user_id === meUserId
+                        ? "я"
+                        : item.expert_user_id
+                          ? "назначен"
+                          : "не назначен"}
+                    </p>
                     <div className="row-actions">
                       <button type="button" onClick={() => onOpen(item.id)}>Открыть дело</button>
                       {item.max_linked && (
