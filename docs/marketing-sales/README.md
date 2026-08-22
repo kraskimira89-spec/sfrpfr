@@ -12,7 +12,7 @@
 - [Промпт чата «Маркетинг» (legacy-ссылка)](prompt-agent-marketing.md) — перенаправляет в пакет Marketing.
 - [Исследование аудитории и каналов](research-audience-channels-2026-08.md) — исходные данные, ограничения и источники.
 - [План 1 000 подписчиков в MAX (Launchi)](research-launchi-max-1000-subscribers.md) — конспект статьи с раскрытыми блоками + адаптация под SFRFR.
-- [Контент-план канала MAX (15.08–09.09.2026)](playbook-max-channel-month-2026-08.md) — 12 постов + обязательный блок «что будет после кнопки».
+- [Контент-план канала MAX (ежедневно с 22.08.2026)](playbook-max-channel-month-2026-08.md) — очередь + блок «что будет после кнопки»; cron → ops.
 - [Цифровой ID MAX для SFRFR](research-max-digital-id-for-sfrfr.md) — выжимка API age-verification / `pensioner`, границы внедрения (кабинет, не чат).
 - [Сегмент «Северный стаж»](research-segment-north-2026-08.md) — формула, сообщения v2, 5 постов MAX, 5 гипотез с UTM.
 - [Сегмент «Родственники»](research-segment-relative-2026-08.md) — рабочий лист, рядом/вместе, гипотезы.

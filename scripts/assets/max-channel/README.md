@@ -10,7 +10,8 @@ Ops: `docs/ops/max-channel-chat-id.md`
 | Файл | Назначение |
 |------|------------|
 | `starter-posts.json` | Закреп + стартер + план 07–18 (публиковать только с `--only`) |
-| `plan-2026-08-17.json` | Копия постов плана 15.08–09.09 (с блоком про кнопку) |
+| `daily-queue.json` | Очередь ежедневного полуавто (`max-channel-daily-tick`) |
+| `plan-2026-08-17.json` | Копия постов плана (с блоком про кнопку) |
 | `channel-description.md` | Текст описания канала для ручной вставки в UI MAX |
 
 ## Путь публикации
@@ -29,19 +30,15 @@ Ops: `docs/ops/max-channel-chat-id.md`
 sfrfr max-channel-publish-starter --only 00-pinned
 ```
 
-Описание канала (`channel-description.md`) публикуется **только вручную** в настройках MAX.
-
-## Команды
+Ежедневный полуавто (один пост → ops):
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-sfrfr max-channel-publish-starter --dry-run
-sfrfr max-channel-publish-starter
+sfrfr max-channel-daily-tick --dry-run
+sfrfr max-channel-daily-tick
 ```
 
-Первый пост (`pin: true`) закрепляется через `PUT /chats/{id}/pin`.
+Описание канала (`channel-description.md`) публикуется **только вручную** в настройках MAX.
 
-Не коммитить ПДн, обещания перерасчёта и непроверенные ссылки.
-
-Месячный план (календарь + тексты): `docs/marketing-sales/playbook-max-channel-month-2026-08.md`.
-Чтобы выпустить один пост из плана, перенесите объект в `starter-posts.json` и вызовите `--only 07-no-calc` (и т.д.). Без `--only` стартовый файл не гонять.
+Ops cron: `docs/ops/max-channel-daily-cron.md`.
+Playbook (ежедневно): `docs/marketing-sales/playbook-max-channel-month-2026-08.md`.
+Чтобы выпустить один пост вручную: `--only 09-sverka`. Без `--only` стартовый файл не гонять.

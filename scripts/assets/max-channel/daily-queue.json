@@ -1,0 +1,18 @@
+{
+  "timezone": "Europe/Moscow",
+  "mode": "ops_review",
+  "note": "Полуавто: cron шлёт один пост в личку ops; в канал — только после кнопки «Опубликовать». Без --direct.",
+  "queue": [
+    "08-ils",
+    "09-sverka",
+    "10-do-2002",
+    "11-arhiv",
+    "12-otkaz",
+    "13-sever",
+    "14-sever-list",
+    "15-family",
+    "16-pered",
+    "17-kak",
+    "18-invite"
+  ]
+}

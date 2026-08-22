@@ -1303,6 +1303,70 @@ def site_reviews_set(
         raise typer.Exit(code=1)
 
 
+@app.command("max-channel-daily-tick")
+def max_channel_daily_tick(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Показать следующий id без отправки",
+    ),
+    mark_only: str | None = typer.Option(
+        None,
+        "--mark-sent",
+        help="Только отметить id как отправленный (без публикации), напр. после ручного review",
+    ),
+) -> None:
+    """Ежедневный полуавто: один пост из daily-queue → личка ops (кнопка Опубликовать).
+
+    Не публикует сразу в клиентский канал. Cron/systemd: раз в сутки.
+    """
+    import json
+
+    from sfrfr.integrations.max.channel_daily import (
+        load_post_by_id,
+        mark_sent,
+        peek_daily,
+    )
+    from sfrfr.integrations.max.channel_review import create_and_send_review
+
+    if mark_only:
+        state = mark_sent(mark_only.strip())
+        typer.echo(json.dumps({"ok": True, "marked": mark_only.strip(), "state": state}, ensure_ascii=False, indent=2))
+        return
+
+    peek = peek_daily()
+    next_id = peek.get("next_id")
+    if dry_run or not next_id:
+        typer.echo(json.dumps(peek, ensure_ascii=False, indent=2))
+        if not next_id:
+            raise typer.Exit(code=0)
+        return
+
+    post = load_post_by_id(str(next_id))
+    text = str(post.get("text") or "").strip()
+    if not text:
+        raise typer.BadParameter(f"пустой text у {next_id}")
+
+    out = create_and_send_review(
+        text=text,
+        cta_label=str(post.get("cta_label") or ""),
+        cta_kind=str(post.get("cta_kind") or ""),
+        cta_url=str(post.get("cta_url") or ""),
+        pin=bool(post.get("pin")),
+        source_id=str(next_id),
+        draft_id=str(next_id),
+        to_channel=False,
+    )
+    state = mark_sent(str(next_id))
+    typer.echo(
+        json.dumps(
+            {"ok": True, "sent_id": next_id, "review": out, "state": state},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 @app.command("finance-due-tick")
 def finance_due_tick() -> None:
     """Ежедневная проверка сроков оплаты: задача сотруднику и черновик напоминания.

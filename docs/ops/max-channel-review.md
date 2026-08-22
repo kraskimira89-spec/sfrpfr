@@ -43,6 +43,10 @@ sfrfr max-channel-post --review --to-channel -t "…"
 
 Также можно сразу вставить длинный текст поста в личку или написать `/draft …`.
 
+## Ежедневный cron (полуавто)
+
+См. [max-channel-daily-cron.md](max-channel-daily-cron.md): timer `sfrfr-max-channel-daily` в 10:00 МСК шлёт **один** пост в ops DM.
+
 ## Webhook
 
 Ops-бот: `message_callback` + `message_created` (`sfrfr max-ops-webhook-set`).
