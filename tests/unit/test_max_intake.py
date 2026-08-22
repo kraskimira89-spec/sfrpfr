@@ -1,4 +1,4 @@
-"""Приёмка ключевых сценариев ТЗ-20: диагностика MAX без дела на /start."""
+"""Приёмка ключевых сценариев ТЗ-20: диагностика MAX; дело с /start для ленты чата."""
 
 from __future__ import annotations
 
@@ -61,14 +61,16 @@ def _setup(tmp_path: Path, monkeypatch) -> _SilentBot:
     return _SilentBot()
 
 
-def test_start_shows_menu_without_case(tmp_path: Path, monkeypatch) -> None:
+def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
 
     result = handle_max_update(_msg(7, "/start"), bot=bot)
     assert result.action == "max_intake_started"
-    assert result.case_id is None
+    assert result.case_id
     assert result.reply == WELCOME_TEXT
-    assert get_case_store().find_by_max_user("7") is None
+    assert get_case_store().find_by_max_user("7") is not None
+    intake = get_intake_store().get_active("7")
+    assert intake is not None and intake.case_id == result.case_id
     get_settings.cache_clear()
 
 
@@ -243,7 +245,7 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
         bot=bot,
     )
     assert result.action == "max_intake_started"
-    assert result.case_id is None
+    assert result.case_id
     assert result.reply == format_welcome_text(display_name="Ирина")
     assert "Здравствуйте, Ирина!" in (result.reply or "")
     assert "Я бот сервиса" in (result.reply or "")

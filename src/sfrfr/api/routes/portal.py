@@ -1455,7 +1455,20 @@ def list_messages(
     principal: Principal = Depends(get_current_principal),
 ) -> list[dict]:
     """Полная лента: сообщения + события загрузки документов (как в переписке MAX)."""
-    _repo().require_case(principal, case_id)
+    case = _repo().require_case(principal, case_id)
+    # Досозданные в буфере реплики (до появления case_id) — слить при открытии карточки.
+    try:
+        client_row = case.get("clients") or {}
+        if isinstance(client_row, list):
+            client_row = client_row[0] if client_row else {}
+        max_uid = str((client_row or {}).get("max_user_id") or "").strip()
+        if max_uid:
+            from sfrfr.integrations.max.case_chat_log import flush_pending_case_chat
+
+            flush_pending_case_chat(max_user_id=max_uid, case_id=case_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("flush pending chat on list_messages skipped: %s", exc)
+
     client = get_supabase_client()
     messages = (
         client.table("case_messages")

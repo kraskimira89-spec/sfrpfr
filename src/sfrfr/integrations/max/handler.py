@@ -495,7 +495,7 @@ def _ensure_case_for_intake(
     intake,
     store,
 ) -> str:
-    """Создать или найти дело только при переходе в кабинет / вызове оператора."""
+    """Создать или найти дело: с /start для ленты чата; также кабинет / оператор."""
 
     def _finish(case_id: str) -> str:
         cid = str(case_id)
@@ -1223,13 +1223,17 @@ def _handle_bot_start(
     store,
     welcome_text: str | None = None,
 ) -> MaxHandleResult:
-    """Старт: меню диагностики без создания дела (ТЗ-20)."""
+    """Старт: меню диагностики и раннее дело — переписка сразу в карточке."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None:
         return resumed
 
     _ensure_supabase_max_client(user_id)
-    get_intake_store().upsert_started(user_id)
+    intake = get_intake_store().upsert_started(user_id)
+    # Дело с /start: сотрудник видит бота/кнопки до кабинета и «Позвать специалиста».
+    case_id = _ensure_case_for_intake(
+        user_id=user_id, chat_id=chat_id, intake=intake, store=store
+    )
     text = welcome_text or WELCOME_TEXT
     _reply(
         bot,
@@ -1237,11 +1241,12 @@ def _handle_bot_start(
         chat_id=chat_id,
         text=text,
         attachments=goal_keyboard(),
+        case_id=case_id,
     )
     return MaxHandleResult(
         ok=True,
         action="max_intake_started",
-        case_id=None,
+        case_id=case_id,
         reply=text,
     )
 
@@ -1928,8 +1933,8 @@ def handle_max_update(
     bot: MaxBotClient | None = None,
 ) -> MaxHandleResult:
     """
-    Сценарий ТЗ-20:
-    /start — диагностика без создания дела
+    Сценарий ТЗ-20 (+ лента чата с /start):
+    /start — диагностика и раннее дело для переписки в карточке
     intake:* — цели и вопросы
     /login — вход в веб-кабинет по коду
     /cabinet /status /documents /help — меню вернувшегося клиента
@@ -1979,6 +1984,23 @@ def handle_max_update(
 
     store = get_case_store()
     welcome_text = _welcome_for_update(update, user_id)
+
+    # Раннее дело для ленты: даже до кабинета / оператора переписка видна в карточке.
+    intake_early = get_intake_store().get_active(user_id)
+    if intake_early is None and (
+        callback or text or "bot_started" in update_type or start_hit
+    ):
+        intake_early = get_intake_store().upsert_started(user_id)
+    if intake_early is not None and not intake_early.case_id:
+        try:
+            _ensure_case_for_intake(
+                user_id=user_id,
+                chat_id=chat_id,
+                intake=intake_early,
+                store=store,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("early case for chat failed max=%s: %s", user_id, exc)
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
