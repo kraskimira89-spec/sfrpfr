@@ -1900,11 +1900,11 @@ export function AdminCabinet() {
                 )}
               </div>
               <div className="panel">
-                <h2>Черновик заявления (YandexGPT)</h2>
+                <h2>Проект обращения (DeepSeek)</h2>
                 {detail.draft ? (
                   <pre className="draft">{detail.draft.title}{"\n\n"}{detail.draft.body}</pre>
                 ) : (
-                  <p className="hint">Черновика нет</p>
+                  <p className="hint">Проекта обращения пока нет — запустите проверку до этапа «Черновик готов».</p>
                 )}
               </div>
             </>

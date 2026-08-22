@@ -2331,7 +2331,7 @@ export function ClientCabinet() {
 
           {detail.draft && (
             <div className="panel">
-              <h2>Черновик заявления</h2>
+              <h2>Проект обращения</h2>
               <p>
                 <strong>{detail.draft.title ?? "Черновик"}</strong>
                 {detail.draft.needs_human_review ? " · нужна проверка специалиста" : ""}

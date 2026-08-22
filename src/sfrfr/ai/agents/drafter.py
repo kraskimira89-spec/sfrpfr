@@ -39,7 +39,7 @@ def draft_application(
         if body:
             return ensure_needs_human_review(
                 DraftResult(
-                    title="Черновик заявления в СФР",
+                    title="Проект обращения в СФР (DeepSeek)",
                     body=body,
                     findings_used=[f.type for f in findings],
                     needs_human_review=True,
@@ -60,7 +60,7 @@ def draft_application(
 
     return ensure_needs_human_review(
         DraftResult(
-            title="Черновик заявления в СФР",
+            title="Проект обращения в СФР (DeepSeek)",
             body="\n".join(body_lines),
             findings_used=[f.type for f in findings],
             needs_human_review=True,
