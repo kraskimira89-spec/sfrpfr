@@ -1703,7 +1703,7 @@ export function AdminCabinet() {
 
       {view === "case" && detail && (
         <section className="case-page">
-          <div className="case-main stack">
+          <div className="case-main">
             <div className="case-page-top">
               <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
               <h1>
@@ -1713,7 +1713,8 @@ export function AdminCabinet() {
               <p className="warning inline">{detail.warning}</p>
             </div>
 
-          <div className="panel accent">
+          <div className="case-cards">
+          <div className="panel accent case-card--wide">
             <h2>Следующий шаг</h2>
             <div className="filters">
               <label>
@@ -1762,18 +1763,12 @@ export function AdminCabinet() {
             <h2>Каналы клиента (ТЗ-09)</h2>
             <p>
               Предпочтение: <strong>{CHANNEL_LABELS[detail.client.preferred_channel] ?? detail.client.preferred_channel}</strong>
-            </p>
-            <p>
-              MAX: {detail.client.max_linked ? "привязан" : "нет"}
-              {detail.client.max_user_id ? ` · user_id ${detail.client.max_user_id}` : ""}
-              {" · "}веб-кабинет: {detail.client.web_linked ? "привязан" : "нет"}
-            </p>
-            <p className="hint">
-              Веб-кабинет клиента и мини-приложение MAX — одно дело. Ответ клиенту в MAX — из этого кабинета
-              или MAX Business, не через ссылку на клиентского бота.
+              {" · "}MAX: {detail.client.max_linked ? "привязан" : "нет"}
+              {detail.client.max_user_id ? ` · ${detail.client.max_user_id}` : ""}
+              {" · "}веб: {detail.client.web_linked ? "да" : "нет"}
             </p>
             <div className="row-actions">
-              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет клиента</a>
+              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет</a>
               {detail.client.max_linked ? (
                 <button
                   type="button"
@@ -1786,7 +1781,7 @@ export function AdminCabinet() {
               ) : null}
               {detail.channels.max_business_url && (
                 <a href={detail.channels.max_business_url} target="_blank" rel="noreferrer">
-                  MAX Business → диалоги
+                  MAX Business
                 </a>
               )}
               {detail.crm_url && (
@@ -1796,25 +1791,22 @@ export function AdminCabinet() {
                 <a href={detail.meeting_url} target="_blank" rel="noreferrer">Телемост</a>
               )}
             </div>
-
             <div className="row-actions">
               <button type="button" onClick={() => void requestReview()} disabled={busy}>
                 Запустить проверку
               </button>
               <button type="button" onClick={() => void createTelemost()} disabled={busy}>
-                Создать Телемост
+                Телемост
               </button>
               <button type="button" onClick={() => void sendWorkspaceEmail()} disabled={busy}>
-                Письмо: запрос документов
+                Письмо: документы
               </button>
             </div>
           </div>
 
           <div className="panel">
             <h2>Законные представители</h2>
-            <p className="hint">
-              Доступ только к этому делу. У представителя должен быть вход в веб-кабинет (email).
-            </p>
+            <p className="hint">Доступ только к этому делу (email веб-кабинета).</p>
             <ul className="plain-list">
               {(detail.representatives ?? []).length === 0 && <li>Пока нет</li>}
               {(detail.representatives ?? []).map((rep) => (
@@ -1826,7 +1818,7 @@ export function AdminCabinet() {
                     className="linkish"
                     onClick={() => void removeRepresentative(rep.user_id)}
                   >
-                    Снять доступ
+                    Снять
                   </button>
                 </li>
               ))}
@@ -1862,10 +1854,11 @@ export function AdminCabinet() {
 
           {caps?.can_view_ocr && (
             <>
-              <div className="panel">
+              <div className="panel case-card--wide">
                 <h2>Распознавание / ИЛС / трудовая / замечания</h2>
-                <p className="hint">Фрагментов распознанного текста: {(detail.ocr_texts ?? []).length}</p>
-                <p className="hint">Периоды ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}</p>
+                <p className="hint">
+                  OCR: {(detail.ocr_texts ?? []).length} · ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}
+                </p>
                 <ul className="plain-list">
                   {(detail.findings ?? []).length === 0 && <li>Замечаний пока нет</li>}
                   {(detail.findings ?? []).map((f, idx) => (
@@ -1878,13 +1871,11 @@ export function AdminCabinet() {
               </div>
               <div className="panel">
                 <h2>Обоснование аналитика (DeepSeek)</h2>
-                <p className="hint">
-                  После детерминированной сверки ИЛС↔трудовая. Не заменяет проверку эксперта.
-                </p>
+                <p className="hint">Сверка ИЛС↔трудовая. Не заменяет эксперта.</p>
                 {detail.analysis_notes ? (
                   <pre className="draft">{detail.analysis_notes}</pre>
                 ) : (
-                  <p>Обоснования пока нет — запустите проверку до этапа «Сверка завершена» или «Черновик готов».</p>
+                  <p className="hint">Пока нет — запустите проверку.</p>
                 )}
               </div>
               <div className="panel">
@@ -1892,7 +1883,7 @@ export function AdminCabinet() {
                 {detail.draft ? (
                   <pre className="draft">{detail.draft.title}{"\n\n"}{detail.draft.body}</pre>
                 ) : (
-                  <p>Черновика нет</p>
+                  <p className="hint">Черновика нет</p>
                 )}
               </div>
             </>
@@ -1946,14 +1937,12 @@ export function AdminCabinet() {
             <div className="panel">
               <h2>Подтверждение результата</h2>
               <form className="stack-form" onSubmit={confirmResult}>
-                <label>Прежний размер выплаты по решению СФР, ₽<input value={beforeRub} onChange={(e) => setBeforeRub(e.target.value)} required /></label>
-                <label>Новый размер выплаты по решению СФР, ₽<input value={afterRub} onChange={(e) => setAfterRub(e.target.value)} required /></label>
-                <label>Единовременная выплата по решению СФР, ₽<input value={lumpRub} onChange={(e) => setLumpRub(e.target.value)} /></label>
+                <label>Прежний размер, ₽ (СФР)<input value={beforeRub} onChange={(e) => setBeforeRub(e.target.value)} required /></label>
+                <label>Новый размер, ₽ (СФР)<input value={afterRub} onChange={(e) => setAfterRub(e.target.value)} required /></label>
+                <label>Единовременно, ₽ (СФР)<input value={lumpRub} onChange={(e) => setLumpRub(e.target.value)} /></label>
                 <button type="submit">Зафиксировать решение СФР</button>
               </form>
-              <p className="hint">
-                Это факты из решения СФР для дела, не цена услуги и не обещание перерасчёта.
-              </p>
+              <p className="hint">Факты из решения СФР, не цена услуги.</p>
             </div>
           )}
 
@@ -1979,43 +1968,45 @@ export function AdminCabinet() {
                 <button type="submit">Создать</button>
               </form>
               <p className="hint">
-                Индивидуальное соглашение — фиксированная сумма по договору, не процент от пенсии.
-                SF_* только после фиксации решения СФР и окна 60+ дней.
+                Фиксированная сумма по договору. SF_* — после решения СФР и 60+ дней.
               </p>
             </div>
           )}
 
           {caps?.can_knowledge_feedback && (
-            <div className="panel">
+            <div className="panel case-card--wide">
               <h2>Обратная связь для базы знаний</h2>
               <form className="stack-form" onSubmit={sendFeedback}>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
                   placeholder="Что сработало / документы / итог СФР"
                   required
                 />
-                <select value={feedbackQuality} onChange={(e) => setFeedbackQuality(e.target.value)}>
-                  <option value="draft">{labelFeedbackQuality("draft")}</option>
-                  <option value="verified">{labelFeedbackQuality("verified")}</option>
-                  <option value="template">{labelFeedbackQuality("template")}</option>
-                  <option value="rejected">{labelFeedbackQuality("rejected")}</option>
-                </select>
-                <button type="submit">Сохранить в базу знаний</button>
+                <div className="inline-form">
+                  <select value={feedbackQuality} onChange={(e) => setFeedbackQuality(e.target.value)}>
+                    <option value="draft">{labelFeedbackQuality("draft")}</option>
+                    <option value="verified">{labelFeedbackQuality("verified")}</option>
+                    <option value="template">{labelFeedbackQuality("template")}</option>
+                    <option value="rejected">{labelFeedbackQuality("rejected")}</option>
+                  </select>
+                  <button type="submit">Сохранить в базу знаний</button>
+                </div>
               </form>
             </div>
           )}
 
-          <div className="panel">
+          <div className="panel case-card--wide">
             <h2>Журнал действий</h2>
-            <ul className="plain-list">
+            <ul className="plain-list case-audit-list">
               {detail.audit.slice(0, 40).map((row, idx) => (
                 <li key={`${row.at}-${idx}`}>
                   {row.action} · {new Date(row.at).toLocaleString("ru-RU")}
                 </li>
               ))}
             </ul>
+          </div>
           </div>
           </div>
 
