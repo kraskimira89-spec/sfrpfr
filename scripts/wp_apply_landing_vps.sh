@@ -194,4 +194,38 @@ else
   echo "MENU skip rebuild (set SFRFR_REBUILD_MENU=1 to force)"
 fi
 
+# «Партнёрам» непосредственно перед «Контакты» без полной пересборки меню.
+MENU_ID="$("${WP[@]}" menu list --format=json 2>/dev/null | php -r '
+$j=json_decode(stream_get_contents(STDIN), true);
+foreach ((array)$j as $m) { if (($m["name"] ?? "") === "SFRFR Primary") { echo (int)$m["term_id"]; exit; } }
+' || true)"
+if [ -n "${MENU_ID}" ]; then
+  "${WP[@]}" eval "
+\$menuId = (int) ${MENU_ID};
+\$items = wp_get_nav_menu_items(\$menuId) ?: [];
+\$partneramId = 0;
+\$kontaktyOrder = null;
+foreach (\$items as \$item) {
+  if ((int) (\$item->menu_item_parent ?? 0) !== 0) {
+    continue;
+  }
+  if ((string) \$item->title === 'Партнёрам') {
+    \$partneramId = (int) \$item->ID;
+  }
+  if ((string) \$item->title === 'Контакты') {
+    \$kontaktyOrder = (int) \$item->menu_order;
+  }
+}
+if (\$partneramId > 0 && \$kontaktyOrder !== null) {
+  wp_update_nav_menu_item(\$menuId, \$partneramId, [
+    'menu-item-title' => 'Партнёрам',
+    'menu-item-url' => home_url('/partneram/'),
+    'menu-item-status' => 'publish',
+    'menu-item-position' => max(1, \$kontaktyOrder - 1),
+  ]);
+  echo \"MENU Партнёрам before Контакты (id={\$partneramId})\\n\";
+}
+" || echo "WARN: menu partneram order fix failed"
+fi
+
 echo DONE
