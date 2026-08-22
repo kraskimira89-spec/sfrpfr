@@ -184,7 +184,13 @@ def format_document_event(*, filename: str, doc_type: str | None = None) -> str:
     return f"[Документ] {name}{suffix}"
 
 
-def _insert_case_message(*, case_id: str, author_kind: str, body: str, created_at: str | None = None) -> None:
+def _insert_case_message(
+    *,
+    case_id: str,
+    author_kind: str,
+    body: str,
+    created_at: str | None = None,
+) -> None:
     from sfrfr.db.session import get_supabase_client
 
     row: dict[str, Any] = {
