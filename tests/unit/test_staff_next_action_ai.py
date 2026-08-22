@@ -25,3 +25,5 @@ def test_suggest_falls_back_when_llm_unavailable(monkeypatch) -> None:
     assert out["next_action"]
     assert isinstance(out.get("chat_messages"), list)
     assert out["chat_messages"]
+    assert {m["kind"] for m in out["chat_messages"]} == {"full", "short", "cabinet_howto"}
+    assert all(m["text"] for m in out["chat_messages"])

@@ -71,7 +71,8 @@ type Detail = {
   draft?: { title?: string; body?: string } | null;
   channels: {
     cabinet_url: string;
-    max_business_url?: string | null;
+    max_ops_bot_url?: string | null;
+    max_reply_url?: string | null;
   };
   representatives?: {
     user_id: string;

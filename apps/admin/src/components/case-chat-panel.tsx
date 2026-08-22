@@ -126,6 +126,8 @@ function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] 
 export function CaseChatPanel({
   messages,
   maxLinked,
+  maxUserId,
+  maxBusinessUrl,
   body,
   onBodyChange,
   busy,
@@ -137,6 +139,8 @@ export function CaseChatPanel({
 }: {
   messages: CaseChatMessage[];
   maxLinked: boolean;
+  maxUserId: string | null;
+  maxBusinessUrl: string | null;
   body: string;
   onBodyChange: (value: string) => void;
   busy: boolean;
@@ -327,7 +331,12 @@ export function CaseChatPanel({
             {maxLinked ? "Только в ленту" : "Отправить"}
           </button>
         </div>
-        <p className="hint">Ctrl+Enter — отправить.</p>
+        <p className="hint">
+          Ctrl+Enter — отправить.
+          {maxBusinessUrl && maxUserId
+            ? ` MAX Business · user_id ${maxUserId}.`
+            : ""}
+        </p>
       </div>
     </aside>
   );

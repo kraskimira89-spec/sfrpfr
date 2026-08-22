@@ -1882,7 +1882,7 @@ export function AdminCabinet() {
             messages={messages}
             maxLinked={Boolean(detail.client.max_linked)}
             maxUserId={detail.client.max_user_id ?? null}
-            maxBusinessUrl={detail.channels.max_business_url ?? null}
+            maxBusinessUrl={detail.channels.max_ops_bot_url ?? detail.channels.max_reply_url ?? null}
             body={maxReplyBody}
             onBodyChange={setMaxReplyBody}
             busy={busy}
