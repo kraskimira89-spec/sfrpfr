@@ -3,6 +3,7 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
+import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 
 type CaseSummary = {
   id: string;
@@ -207,15 +208,8 @@ function chatUrlOnly(url: string): string {
   }
 }
 
-const PACKAGE_LABELS: Record<string, string> = {
-  DIAG: "Диагностика",
-  ACCOMP: "Сопровождение",
-  SF_LUMP: "Post-payment (ЕДВ)",
-  SF_MONTH: "Post-payment (ежемесячная прибавка)",
-};
-
 function packageLabel(code: string) {
-  return PACKAGE_LABELS[code] ?? code;
+  return labelPackage(code);
 }
 
 type HomeStepKey = "consent" | "upload" | "check";
@@ -2514,15 +2508,12 @@ export function ClientCabinet() {
                   <li key={order.id}>
                     <strong>{packageLabel(order.package_code)}</strong>
                     <span>
-                      {order.amount_rub} ₽ ·{" "}
-                      {order.status === "paid" || order.status === "succeeded"
-                        ? "оплачено"
-                        : "к оплате"}
+                      {order.amount_rub} ₽ · {labelOrderStatus(order.status)}
                       {isPost ? " · оплата после результата" : " · диагностика"}
                     </span>
                     {(order.payments ?? []).map((payment) => (
                       <span key={payment.id}>
-                        Платёж: {payment.status}
+                        Платёж: {labelPaymentStatus(payment.status)}
                         {payment.paid_at
                           ? ` · ${new Date(payment.paid_at).toLocaleDateString("ru-RU")}`
                           : ""}

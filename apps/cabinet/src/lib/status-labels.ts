@@ -40,7 +40,7 @@ const FALLBACK: StatusLabelsBundle = {
     consent_accepted: "Согласие принято",
     diagnostic_paid: "Диагностика оплачена",
     contract_accepted: "Заказ принят",
-    service_paid: "Сопровождение оплачено",
+    service_paid: "Услуга оплачена",
     package_delivered: "Пакет выдан",
     awaiting_client_submission: "Ожидаем вашу подачу",
     result_pending: "Ждём решение СФР",

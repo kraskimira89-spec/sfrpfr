@@ -1,6 +1,17 @@
 "use client";
 
 import { createClient, type Session } from "@supabase/supabase-js";
+import {
+  formatCaseStatuses,
+  labelAuthorKind,
+  labelChecklistOwner,
+  labelChecklistStatus,
+  labelFeedbackQuality,
+  labelOrderStatus,
+  labelPackage,
+  labelPipeline,
+  labelStaffRole,
+} from "@/lib/ui-labels";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -683,7 +694,7 @@ export function AdminCabinet() {
       }),
     });
     setFeedbackText("");
-    setNotice(`Обратная связь для RAG сохранена (${feedbackQuality}).`);
+    setNotice(`Обратная связь для базы знаний сохранена (${labelFeedbackQuality(feedbackQuality)}).`);
   }
 
   function focusMaxReplyPanel() {
@@ -945,7 +956,7 @@ export function AdminCabinet() {
         <section className="card auth-card">
           <h1>Нет доступа</h1>
           <p className="lead lead-compact">
-            Вход выполнен, но staff-роли нет. Попросите администратора добавить вас в разделе
+            Вход выполнен, но роли сотрудника нет. Попросите администратора добавить вас в разделе
             «Роли» — открытой регистрации нет.
           </p>
           <button type="button" className="max-action-btn" onClick={() => void supabase?.auth.signOut()}>
@@ -973,7 +984,7 @@ export function AdminCabinet() {
             <div>
               <strong>Проверка стажа</strong>
               <span>
-                Кабинет сотрудника · {me?.role ?? "…"} · {me?.email ?? ""}
+                Кабинет сотрудника · {me?.role ? labelStaffRole(me.role) : "…"} · {me?.email ?? ""}
               </span>
             </div>
           </BrandHomeLink>
@@ -984,7 +995,7 @@ export function AdminCabinet() {
       </header>
 
       <section className="warning" role="note">
-        Решение принимает СФР. Результат не гарантирован. Admin-функции не переносятся в MAX mini-app (ТЗ-09).
+        Решение принимает СФР. Результат не гарантирован. Функции кабинета сотрудника не переносятся в мини-приложение MAX (ТЗ-09).
       </section>
 
       <nav className="tabs" aria-label="Разделы">
@@ -1016,16 +1027,16 @@ export function AdminCabinet() {
           <h1>Дашборд</h1>
           <div className="metrics">
             <article><span>Новые заявки</span><strong>{dashboard.new_leads}</strong></article>
-            <article><span>Оплаты pending / paid</span><strong>{dashboard.payments_pending} / {dashboard.payments_paid}</strong></article>
+            <article><span>Оплаты: ожидают / оплачено</span><strong>{dashboard.payments_pending} / {dashboard.payments_paid}</strong></article>
             <article><span>Без ответа ≥30/90/150/180</span><strong>{dashboard.silent["30"]}/{dashboard.silent["90"]}/{dashboard.silent["150"]}/{dashboard.silent["180"]}</strong></article>
             <article><span>Конфликты каналов (ТЗ-09)</span><strong>{dashboard.channel_conflicts}</strong></article>
-            <article><span>Без MAX / без веб</span><strong>{dashboard.unlinked_max} / {dashboard.unlinked_web}</strong></article>
+            <article><span>Без MAX / без веб-кабинета</span><strong>{dashboard.unlinked_max} / {dashboard.unlinked_web}</strong></article>
           </div>
           <div className="panel">
-            <h2>Дела по этапам pipeline</h2>
+            <h2>Дела по этапам</h2>
             <ul className="plain-list">
               {Object.entries(dashboard.by_pipeline).map(([k, v]) => (
-                <li key={k}>{k}: {v}</li>
+                <li key={k}>{labelPipeline(k)}: {v}</li>
               ))}
             </ul>
           </div>
@@ -1050,7 +1061,7 @@ export function AdminCabinet() {
             <select value={filterPipeline} onChange={(e) => setFilterPipeline(e.target.value)}>
               <option value="">Все этапы</option>
               {["intake", "documents_received", "audited", "draft_ready", "human_review", "completed"].map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{labelPipeline(s)}</option>
               ))}
             </select>
             <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)}>
@@ -1063,8 +1074,8 @@ export function AdminCabinet() {
               <option value="">Все услуги</option>
               <option value="DIAG">Диагностика</option>
               <option value="ACCOMP">Сопровождение</option>
-              <option value="SF_LUMP">SF lump</option>
-              <option value="SF_MONTH">SF month</option>
+              <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
+              <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
             </select>
             <button type="submit">Применить</button>
           </form>
@@ -1076,7 +1087,7 @@ export function AdminCabinet() {
                     {item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}
                   </strong>
                   <span>
-                    {caseCatalogLabel(item.id)} · {item.pipeline_status} · {item.b2c_status}
+                    {formatCaseStatuses(item.pipeline_status, item.b2c_status)}
                   </span>
                   <span>
                     Канал: {CHANNEL_LABELS[item.preferred_channel] ?? item.preferred_channel}
@@ -1120,7 +1131,7 @@ export function AdminCabinet() {
           </h1>
           <p className="warning inline">{detail.warning}</p>
           <p>
-            {caseCatalogLabel(detail.id)} · {detail.pipeline_status} · {detail.b2c_status}
+            {formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}
             {detail.client.phone ? ` · ${detail.client.phone}` : ""}
             {detail.client.email ? ` · ${detail.client.email}` : ""}
           </p>
@@ -1136,7 +1147,7 @@ export function AdminCabinet() {
               {" · "}веб-кабинет: {detail.client.web_linked ? "привязан" : "нет"}
             </p>
             <p className="hint">
-              Кабинет клиента (веб) и MAX mini-app — один case_id. Ответ клиенту в MAX — из этого кабинета
+              Веб-кабинет клиента и мини-приложение MAX — одно дело. Ответ клиенту в MAX — из этого кабинета
               или MAX Business, не через ссылку на клиентского бота.
             </p>
             <div className="row-actions">
@@ -1195,7 +1206,7 @@ export function AdminCabinet() {
 
             <div className="row-actions">
               <button type="button" onClick={() => void requestReview()} disabled={busy}>
-                Запросить проверку / run
+                Запустить проверку
               </button>
               <button type="button" onClick={() => void createTelemost()} disabled={busy}>
                 Создать Телемост
@@ -1259,11 +1270,11 @@ export function AdminCabinet() {
           {caps?.can_view_ocr && (
             <>
               <div className="panel">
-                <h2>OCR / ИЛС / трудовая / findings</h2>
-                <p className="hint">OCR фрагментов: {(detail.ocr_texts ?? []).length}</p>
+                <h2>Распознавание / ИЛС / трудовая / замечания</h2>
+                <p className="hint">Фрагментов распознанного текста: {(detail.ocr_texts ?? []).length}</p>
                 <p className="hint">Периоды ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}</p>
                 <ul className="plain-list">
-                  {(detail.findings ?? []).length === 0 && <li>Findings пока нет</li>}
+                  {(detail.findings ?? []).length === 0 && <li>Замечаний пока нет</li>}
                   {(detail.findings ?? []).map((f, idx) => (
                     <li key={`${f.type}-${idx}`}>
                       <strong>{f.type}</strong>
@@ -1280,7 +1291,7 @@ export function AdminCabinet() {
                 {detail.analysis_notes ? (
                   <pre className="draft">{detail.analysis_notes}</pre>
                 ) : (
-                  <p>Обоснования пока нет — запустите пайплайн до этапа audited/draft.</p>
+                  <p>Обоснования пока нет — запустите проверку до этапа «Сверка завершена» или «Черновик готов».</p>
                 )}
               </div>
               <div className="panel">
@@ -1305,9 +1316,9 @@ export function AdminCabinet() {
                     disabled={!caps?.can_edit_checklist}
                     onClick={() => void toggleChecklist(item.id, item.status)}
                   >
-                    [{item.status}] {item.title}
+                    [{labelChecklistStatus(item.status)}] {item.title}
                   </button>
-                  <span className="hint"> · {item.owner}</span>
+                  <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
                 </li>
               ))}
             </ul>
@@ -1326,11 +1337,11 @@ export function AdminCabinet() {
 
           {caps?.can_edit_pipeline && (
             <div className="panel">
-              <h2>Этап pipeline</h2>
+              <h2>Этап дела</h2>
               <div className="inline-form">
                 <select value={pipelineStatus} onChange={(e) => setPipelineStatus(e.target.value)}>
                   {["intake", "documents_received", "ocr_done", "classified", "extracted", "audited", "draft_ready", "human_review", "completed", "failed"].map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{labelPipeline(s)}</option>
                   ))}
                 </select>
                 <button type="button" onClick={() => void savePipeline()}>Сохранить этап</button>
@@ -1349,7 +1360,7 @@ export function AdminCabinet() {
               </form>
               {detail.result?.success_fee && (
                 <p className="hint">
-                  SF: {detail.result.success_fee.sf_total} ₽ (lump {detail.result.success_fee.sf_lump} + month {detail.result.success_fee.sf_month})
+                  Вознаграждение: {detail.result.success_fee.sf_total} ₽ (ЕДВ {detail.result.success_fee.sf_lump} + прибавка {detail.result.success_fee.sf_month})
                 </p>
               )}
             </div>
@@ -1360,10 +1371,10 @@ export function AdminCabinet() {
               <h2>Создать счёт</h2>
               <form className="inline-form" onSubmit={createOrder}>
                 <select value={orderCode} onChange={(e) => setOrderCode(e.target.value as typeof orderCode)}>
-                  <option value="DIAG">DIAG</option>
-                  <option value="ACCOMP">ACCOMP</option>
-                  <option value="SF_LUMP">SF_LUMP</option>
-                  <option value="SF_MONTH">SF_MONTH</option>
+                  <option value="DIAG">{labelPackage("DIAG")}</option>
+                  <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
+                  <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
+                  <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
                 </select>
                 <input
                   type="number"
@@ -1376,7 +1387,7 @@ export function AdminCabinet() {
                 />
                 <button type="submit">Создать</button>
               </form>
-              <p className="hint">Post-payment (SF_*) — только после подтверждения и окна 60+ дней.</p>
+              <p className="hint">Счета за результат (SF_*) — только после подтверждения и окна 60+ дней.</p>
             </div>
           )}
 
@@ -1392,12 +1403,12 @@ export function AdminCabinet() {
                   required
                 />
                 <select value={feedbackQuality} onChange={(e) => setFeedbackQuality(e.target.value)}>
-                  <option value="draft">draft</option>
-                  <option value="verified">verified</option>
-                  <option value="template">template</option>
-                  <option value="rejected">rejected</option>
+                  <option value="draft">{labelFeedbackQuality("draft")}</option>
+                  <option value="verified">{labelFeedbackQuality("verified")}</option>
+                  <option value="template">{labelFeedbackQuality("template")}</option>
+                  <option value="rejected">{labelFeedbackQuality("rejected")}</option>
                 </select>
-                <button type="submit">Сохранить в feedback</button>
+                <button type="submit">Сохранить в базу знаний</button>
               </form>
             </div>
           )}
@@ -1407,7 +1418,7 @@ export function AdminCabinet() {
             <ul className="messages">
               {messages.map((m) => (
                 <li key={m.id}>
-                  <span className="meta">{m.author_kind} · {new Date(m.created_at).toLocaleString("ru-RU")}</span>
+                  <span className="meta">{labelAuthorKind(m.author_kind)} · {new Date(m.created_at).toLocaleString("ru-RU")}</span>
                   <p>{m.body}</p>
                 </li>
               ))}
@@ -1438,8 +1449,8 @@ export function AdminCabinet() {
           <ul className="case-list">
             {(finance.orders ?? []).map((order) => (
               <li key={order.id}>
-                <strong>{order.package_code}</strong>
-                <span>{order.amount_rub} ₽ · {order.status}</span>
+                <strong>{labelPackage(order.package_code)}</strong>
+                <span>{order.amount_rub} ₽ · {labelOrderStatus(order.status)}</span>
               </li>
             ))}
           </ul>
@@ -1456,7 +1467,7 @@ export function AdminCabinet() {
             type="button"
             onClick={() => {
               void navigator.clipboard.writeText(JSON.stringify(analytics.rows, null, 2));
-              setNotice("Whitelist-строки скопированы в буфер.");
+              setNotice("Обезличенные строки скопированы в буфер.");
             }}
           >
             Копировать обезличенный JSON
@@ -1469,20 +1480,20 @@ export function AdminCabinet() {
           <h1>Роли сотрудников</h1>
           <ul className="plain-list">
             {roles.map((row) => (
-              <li key={row.user_id}>{row.user_id} · {row.role}</li>
+              <li key={row.user_id}>{row.user_id} · {labelStaffRole(row.role)}</li>
             ))}
           </ul>
           <form className="inline-form" onSubmit={saveRole}>
             <input
-              placeholder="user_id (uuid auth.users)"
+              placeholder="ID пользователя (uuid)"
               value={newRoleUserId}
               onChange={(e) => setNewRoleUserId(e.target.value)}
               required
             />
             <select value={newRole} onChange={(e) => setNewRole(e.target.value as StaffRole)}>
-              <option value="operator">operator</option>
-              <option value="expert">expert</option>
-              <option value="admin">admin</option>
+              <option value="operator">{labelStaffRole("operator")}</option>
+              <option value="expert">{labelStaffRole("expert")}</option>
+              <option value="admin">{labelStaffRole("admin")}</option>
             </select>
             <button type="submit">Сохранить роль</button>
           </form>

@@ -81,10 +81,24 @@
 
   const PACKAGE_LABELS = {
     DIAG: "Диагностика",
-    ACCOMP: "Сопровождение",
-    SF_LUMP: "Post-payment (ЕДВ)",
-    SF_MONTH: "Post-payment (прибавка)",
+    ACCOMP: "Подготовка документов / сопровождение",
+    SF_LUMP: "Вознаграждение (ЕДВ)",
+    SF_MONTH: "Вознаграждение (прибавка × 3 мес.)",
   };
+
+  const ORDER_STATUS_LABELS = {
+    pending: "ожидает оплаты",
+    awaiting_payment: "к оплате",
+    paid: "оплачено",
+    succeeded: "оплачено",
+    cancelled: "отменён",
+    canceled: "отменён",
+    failed: "ошибка оплаты",
+  };
+
+  function orderStatusLabel(status) {
+    return ORDER_STATUS_LABELS[status] || status;
+  }
 
   let currentCase = null;
   let maxUserId = null;
@@ -454,7 +468,7 @@
           const payBtn = canPay
             ? `<button type="button" class="btn primary pay-btn" data-order="${escapeHtml(order.id)}">Оплатить онлайн</button>`
             : "";
-          return `<li><strong>${escapeHtml(title)}</strong><br>${escapeHtml(String(order.amount_rub))} ₽ · ${escapeHtml(order.status)}${payBtn}</li>`;
+          return `<li><strong>${escapeHtml(title)}</strong><br>${escapeHtml(String(order.amount_rub))} ₽ · ${escapeHtml(orderStatusLabel(order.status))}${payBtn}</li>`;
         })
         .join("");
       els.ordersList.querySelectorAll("button[data-order]").forEach((btn) => {
