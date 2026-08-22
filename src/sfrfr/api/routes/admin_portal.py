@@ -195,14 +195,13 @@ def _filter_staff_case(
         },
     }
     if principal.role in (StaffRole.EXPERT, StaffRole.ADMIN):
-        pipeline = (
+        pipeline = CaseRepository._one_or_none(
             get_supabase_client()
             .table("case_pipeline_data")
             .select("*")
             .eq("case_id", case["id"])
-            .maybe_single()
+            .limit(1)
             .execute()
-            .data
         )
         base["pipeline_data"] = pipeline
         base["ocr_texts"] = (pipeline or {}).get("ocr_texts") or []

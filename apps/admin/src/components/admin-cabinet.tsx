@@ -460,19 +460,31 @@ export function AdminCabinet() {
     }
     setBusy(true);
     try {
-      const [caseDetail, caseMessages] = await Promise.all([
-        apiFetch<StaffCaseDetail>(`/api/portal/admin/cases/${caseId}`, token),
-        apiFetch<{ id: string; author_kind: string; body: string; created_at: string }[]>(
+      const caseDetail = await apiFetch<StaffCaseDetail>(
+        `/api/portal/admin/cases/${caseId}`,
+        token,
+      );
+      let caseMessages: { id: string; author_kind: string; body: string; created_at: string }[] =
+        [];
+      try {
+        caseMessages = await apiFetch<typeof caseMessages>(
           `/api/portal/cases/${caseId}/messages`,
           token,
-        ),
-      ]);
+        );
+      } catch {
+        // Карточка дела важнее — переписка может быть пустой на intake.
+      }
       setDetail(caseDetail);
       setMessages(caseMessages);
       setPipelineStatus(caseDetail.pipeline_status);
       setView("case");
-    } catch {
-      setNotice("Дело недоступно для вашей роли.");
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "";
+      setNotice(
+        detail.includes("case not found") || detail.includes("404")
+          ? "Дело не найдено или недоступно для вашей роли."
+          : `Не удалось открыть дело: ${detail || "ошибка API"}`,
+      );
     } finally {
       setBusy(false);
     }
@@ -488,20 +500,32 @@ export function AdminCabinet() {
         if (!token) return;
         setBusy(true);
         try {
-          const [caseDetail, caseMessages] = await Promise.all([
-            apiFetch<StaffCaseDetail>(`/api/portal/admin/cases/${caseId}`, token),
-            apiFetch<{ id: string; author_kind: string; body: string; created_at: string }[]>(
+          const caseDetail = await apiFetch<StaffCaseDetail>(
+            `/api/portal/admin/cases/${caseId}`,
+            token,
+          );
+          let caseMessages: { id: string; author_kind: string; body: string; created_at: string }[] =
+            [];
+          try {
+            caseMessages = await apiFetch<typeof caseMessages>(
               `/api/portal/cases/${caseId}/messages`,
               token,
-            ),
-          ]);
+            );
+          } catch {
+            // см. openCase
+          }
           setDetail(caseDetail);
           setMessages(caseMessages);
           setPipelineStatus(caseDetail.pipeline_status);
           setView("case");
           if (focusMax) setMaxReplyFocus(true);
-        } catch {
-          setNotice("Дело недоступно для вашей роли.");
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : "";
+          setNotice(
+            detail.includes("case not found") || detail.includes("404")
+              ? "Дело не найдено или недоступно для вашей роли."
+              : `Не удалось открыть дело: ${detail || "ошибка API"}`,
+          );
         } finally {
           setBusy(false);
         }

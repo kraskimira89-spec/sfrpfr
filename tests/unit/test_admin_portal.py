@@ -68,10 +68,8 @@ def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch)
         "classifications": [],
     }
     fake_client = MagicMock()
-    chain = (
-        fake_client.table.return_value.select.return_value.eq.return_value.maybe_single.return_value
-    )
-    chain.execute.return_value = SimpleNamespace(data=pipeline)
+    chain = fake_client.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(data=[pipeline])
     monkeypatch.setattr(admin_portal, "get_supabase_client", lambda: fake_client)
 
     expert = Principal(user_id="ex", email="e@x", role=StaffRole.EXPERT)
@@ -86,3 +84,16 @@ def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch)
     assert payload["role_capabilities"]["can_edit_checklist"] is True
     assert payload["role_capabilities"]["can_confirm_result"] is True
     assert payload["role_capabilities"]["can_manage_orders"] is False
+
+
+def test_filter_staff_case_admin_without_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = MagicMock()
+    chain = fake_client.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(data=[])
+    monkeypatch.setattr(admin_portal, "get_supabase_client", lambda: fake_client)
+
+    admin = Principal(user_id="ad", email="ad@x", role=StaffRole.ADMIN)
+    payload = admin_portal._filter_staff_case(_base_case(), admin)
+    assert payload["findings"] == []
+    assert payload["ocr_texts"] == []
+    assert payload["draft"] is None
