@@ -129,6 +129,7 @@ export function CaseChatPanel({
                 type="button"
                 className="case-chat-btn-chip case-chat-btn-chip--clickable"
                 onClick={() => onBodyChange(item)}
+                title="Подставить этот вариант ответа в поле сообщения ниже"
               >
                 {item.length > 80 ? `${item.slice(0, 80)}…` : item}
               </button>
@@ -145,6 +146,11 @@ export function CaseChatPanel({
               ? "Сообщение клиенту (в MAX и в ленту дела)"
               : "Сообщение в ленту дела"
           }
+          title={
+            maxLinked
+              ? "Текст уйдёт клиенту в MAX и сохранится в ленте дела"
+              : "Текст сохранится только в ленте дела"
+          }
           disabled={busy}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -155,7 +161,13 @@ export function CaseChatPanel({
           }}
         />
         <div className="case-chat-actions">
-          <button type="button" className="ghost" disabled={busy} onClick={onSuggest}>
+          <button
+            type="button"
+            className="ghost"
+            disabled={busy}
+            onClick={onSuggest}
+            title="DeepSeek предложит 2–3 варианта ответа по истории чата. Не отправляет само — только варианты для выбора"
+          >
             Подсказать ответы (DeepSeek)
           </button>
           {maxLinked ? (
@@ -164,6 +176,7 @@ export function CaseChatPanel({
               className="max-action-btn max-action-btn--inline"
               disabled={busy || !body.trim()}
               onClick={onSendMax}
+              title="Отправить текст клиенту в MAX и записать в ленту дела"
             >
               Отправить в MAX
             </button>
@@ -173,6 +186,11 @@ export function CaseChatPanel({
             className={maxLinked ? "ghost" : undefined}
             disabled={busy || !body.trim()}
             onClick={onSendInternal}
+            title={
+              maxLinked
+                ? "Сохранить сообщение только в ленте дела, без отправки в MAX"
+                : "Сохранить сообщение в ленте дела"
+            }
           >
             {maxLinked ? "Только в ленту" : "Отправить"}
           </button>

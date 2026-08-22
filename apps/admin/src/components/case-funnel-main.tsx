@@ -284,7 +284,12 @@ export function CaseFunnelMain({
   return (
     <div className="case-main">
       <div className="case-page-top case-funnel-head">
-        <button type="button" className="ghost" onClick={onBack}>
+        <button
+          type="button"
+          className="ghost"
+          onClick={onBack}
+          title="Вернуться к списку дел в реестре"
+        >
           ← К реестру
         </button>
         <div className="case-funnel-title-row">
@@ -302,44 +307,84 @@ export function CaseFunnelMain({
         </p>
         <p className="warning inline">{detail.warning}</p>
         <div className="row-actions case-funnel-cta-row">
-          <button type="button" disabled={busy} onClick={runPrimaryCta}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={runPrimaryCta}
+            title="Главное действие для текущего этапа воронки"
+          >
             {cta}
           </button>
           {!detail.expert_user_id || detail.expert_user_id !== meUserId ? (
-            <button type="button" className="ghost" disabled={busy} onClick={onTake}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={onTake}
+              title="Назначить это дело на себя"
+            >
               Взять в работу
             </button>
           ) : null}
           <details className="case-funnel-more">
-            <summary className="ghost">⋮</summary>
+            <summary className="ghost" title="Служебные ссылки и дополнительные действия">
+              ⋮
+            </summary>
             <div className="case-funnel-more-menu">
               {detail.client.max_linked ? (
-                <button type="button" className="linkish" onClick={onFocusMax}>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={onFocusMax}
+                  title="Перейти к полю сообщения в чате справа"
+                >
                   Написать в MAX
                 </button>
               ) : null}
-              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
+              <a
+                href={detail.channels.cabinet_url}
+                target="_blank"
+                rel="noreferrer"
+                title="Открыть личный кабинет клиента для загрузки документов"
+              >
                 Кабинет клиента
               </a>
               {detail.channels.max_business_url ? (
-                <a href={detail.channels.max_business_url} target="_blank" rel="noreferrer">
+                <a
+                  href={detail.channels.max_business_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Открыть диалоги в MAX Business"
+                >
                   MAX Business
                 </a>
               ) : null}
               {detail.crm_url ? (
-                <a href={detail.crm_url} target="_blank" rel="noreferrer">
+                <a href={detail.crm_url} target="_blank" rel="noreferrer" title="Открыть сделку в amoCRM">
                   amoCRM
                 </a>
               ) : null}
               {detail.meeting_url ? (
-                <a href={detail.meeting_url} target="_blank" rel="noreferrer">
+                <a href={detail.meeting_url} target="_blank" rel="noreferrer" title="Открыть ссылку на Телемост">
                   Телемост
                 </a>
               ) : null}
-              <button type="button" className="linkish" disabled={busy} onClick={onCreateTelemost}>
+              <button
+                type="button"
+                className="linkish"
+                disabled={busy}
+                onClick={onCreateTelemost}
+                title="Создать видеовстречу Яндекс Телемост и сохранить ссылку в деле"
+              >
                 Создать Телемост
               </button>
-              <button type="button" className="linkish" disabled={busy} onClick={onSendEmail}>
+              <button
+                type="button"
+                className="linkish"
+                disabled={busy}
+                onClick={onSendEmail}
+                title="Отправить клиенту письмо с запросом документов на email"
+              >
                 Письмо: документы
               </button>
             </div>
@@ -378,10 +423,21 @@ export function CaseFunnelMain({
                 <option value="none">Не задано</option>
               </select>
             </label>
-            <button type="button" disabled={busy} onClick={onSaveNextAction}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onSaveNextAction}
+              title="Сохранить следующий шаг, срок и исполнителя в карточке дела"
+            >
               Сохранить
             </button>
-            <button type="button" className="ghost" disabled={busy} onClick={onSuggestStep}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={onSuggestStep}
+              title="DeepSeek предложит действие и черновики сообщений. В MAX не отправит — только подставит в чат после вашего выбора"
+            >
               {busy ? "DeepSeek думает…" : "Подсказать шаг (DeepSeek)"}
             </button>
           </div>
@@ -406,13 +462,19 @@ export function CaseFunnelMain({
                       type="button"
                       className="case-chat-btn-chip case-chat-btn-chip--clickable"
                       onClick={() => onApplyChatMessage(msg)}
+                      title="Подставить этот текст в поле чата справа. Отправка в MAX — отдельной кнопкой"
                     >
                       Подставить в чат: {msg.length > 70 ? `${msg.slice(0, 70)}…` : msg}
                     </button>
                   ))}
                 </div>
               ) : null}
-              <button type="button" className="linkish" onClick={onDismissHint}>
+              <button
+                type="button"
+                className="linkish"
+                onClick={onDismissHint}
+                title="Скрыть блок подсказки DeepSeek"
+              >
                 Скрыть подсказку
               </button>
             </div>
@@ -445,11 +507,21 @@ export function CaseFunnelMain({
           </p>
           <div className="row-actions">
             {detail.client.max_linked ? (
-              <button type="button" className="max-action-btn max-action-btn--inline" onClick={onFocusMax}>
+              <button
+                type="button"
+                className="max-action-btn max-action-btn--inline"
+                onClick={onFocusMax}
+                title="Перейти к полю сообщения в чате справа, чтобы написать клиенту в MAX"
+              >
                 Написать в MAX
               </button>
             ) : null}
-            <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
+            <a
+              href={detail.channels.cabinet_url}
+              target="_blank"
+              rel="noreferrer"
+              title="Открыть защищённый кабинет клиента"
+            >
               Открыть кабинет
             </a>
           </div>
@@ -459,7 +531,12 @@ export function CaseFunnelMain({
             {(detail.representatives ?? []).map((rep) => (
               <li key={rep.user_id}>
                 {rep.full_name || rep.email || rep.user_id.slice(0, 8)}{" "}
-                <button type="button" className="linkish" onClick={() => onRemoveRepresentative(rep.user_id)}>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => onRemoveRepresentative(rep.user_id)}
+                  title="Снять доступ представителя к этому делу"
+                >
                   Снять
                 </button>
               </li>
@@ -473,7 +550,7 @@ export function CaseFunnelMain({
               onChange={(e) => onRepEmail(e.target.value)}
               required
             />
-            <button type="submit" disabled={busy}>
+            <button type="submit" disabled={busy} title="Выдать доступ представителю по email веб-кабинета">
               Выдать доступ
             </button>
           </form>
@@ -487,17 +564,27 @@ export function CaseFunnelMain({
           <ul className="plain-list case-doc-checklist">
             <li>
               {funnel.hasIls ? "☑" : "☐"} Выписка ИЛС{" "}
-              <button type="button" className="linkish" onClick={() => onApplyChatMessage(
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => onApplyChatMessage(
                 "Здравствуйте! Для проверки нужна выписка ИЛС с Госуслуг. Загрузите файл только в личном кабинете — не в этот чат. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-              )}>
+              )}
+                title="Подставить в чат шаблон запроса выписки ИЛС (без автоотправки)"
+              >
                 Запросить в чат
               </button>
             </li>
             <li>
               {funnel.hasLabor ? "☑" : "☐"} Трудовая / сведения о стаже{" "}
-              <button type="button" className="linkish" onClick={() => onApplyChatMessage(
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => onApplyChatMessage(
                 "Здравствуйте! Подготовьте трудовую книжку или сведения о стаже и загрузите в личный кабинет (не в MAX). Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-              )}>
+              )}
+                title="Подставить в чат шаблон запроса трудовой (без автоотправки)"
+              >
                 Запросить в чат
               </button>
             </li>
@@ -507,7 +594,12 @@ export function CaseFunnelMain({
             {detail.documents.length === 0 && <li className="hint">Файлов в кабинете пока нет</li>}
             {detail.documents.map((doc) => (
               <li key={doc.id}>
-                <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => onOpenSigned(doc.id)}
+                  title="Открыть документ по защищённой временной ссылке"
+                >
                   {doc.storage_path.split("/").pop()}
                 </button>
                 {doc.doc_type ? ` · ${doc.doc_type}` : ""}
@@ -515,14 +607,30 @@ export function CaseFunnelMain({
             ))}
           </ul>
           <div className="row-actions">
-            <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
+            <a
+              href={detail.channels.cabinet_url}
+              target="_blank"
+              rel="noreferrer"
+              title="Открыть кабинет, куда клиент загружает сканы"
+            >
               Открыть защищённый кабинет
             </a>
-            <button type="button" className="ghost" disabled={busy} onClick={onFocusMax}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={onFocusMax}
+              title="Написать клиенту напоминание в чате справа"
+            >
               Напомнить клиенту
             </button>
             {funnel.docsReady || docCount > 0 ? (
-              <button type="button" disabled={busy} onClick={onRequestReview}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRequestReview}
+                title="Запустить OCR и сверку ИЛС↔трудовая по загруженным документам"
+              >
                 Запустить проверку
               </button>
             ) : null}
@@ -537,7 +645,12 @@ export function CaseFunnelMain({
               ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}
             </p>
             <div className="row-actions">
-              <button type="button" disabled={busy} onClick={onRequestReview}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRequestReview}
+                title="Запустить проверку документов: OCR, периоды, замечания"
+              >
                 Проверить документы
               </button>
             </div>
@@ -577,7 +690,12 @@ export function CaseFunnelMain({
             <p className="hint">Проекта пока нет — сначала диагностика.</p>
           )}
           <div className="row-actions">
-            <button type="button" disabled={busy || !caps.can_view_ocr} onClick={onRequestReview}>
+            <button
+              type="button"
+              disabled={busy || !caps.can_view_ocr}
+              onClick={onRequestReview}
+              title="Сформировать или обновить проект обращения (DeepSeek). Нужна проверка специалистом"
+            >
               Сформировать / обновить проект
             </button>
             {detail.draft?.body ? (
@@ -589,6 +707,7 @@ export function CaseFunnelMain({
                     "Подготовили проект обращения и план. Откройте личный кабинет — там текст и чек-лист. Мы расскажем по шагам, но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
                   )
                 }
+                title="Подставить в чат безопасное сообщение без ПДн и без вложений"
               >
                 Отправить клиенту в чат (без ПДн)
               </button>
@@ -629,7 +748,9 @@ export function CaseFunnelMain({
                   onChange={(e) => onOrderAmount(e.target.value)}
                   required
                 />
-                <button type="submit">Создать счёт</button>
+                <button type="submit" title="Создать счёт по выбранной услуге и сумме">
+                  Создать счёт
+                </button>
               </form>
               <p className="hint">Сумма по выбранной услуге / договору. Не путать с решением СФР.</p>
             </Panel>
@@ -652,7 +773,9 @@ export function CaseFunnelMain({
                   Единовременная выплата, ₽
                   <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
                 </label>
-                <button type="submit">Зафиксировать ответ СФР</button>
+                <button type="submit" title="Сохранить фактические суммы из решения СФР в деле">
+                  Зафиксировать ответ СФР
+                </button>
               </form>
               <p className="hint">Только факты из решения СФР, не цена услуги сервиса.</p>
             </Panel>
@@ -681,7 +804,9 @@ export function CaseFunnelMain({
                     <option value="template">{labelFeedbackQuality("template")}</option>
                     <option value="rejected">{labelFeedbackQuality("rejected")}</option>
                   </select>
-                  <button type="submit">Сохранить</button>
+                  <button type="submit" title="Сохранить обезличенный вывод в базу знаний (без ПДн)">
+                    Сохранить
+                  </button>
                 </div>
               </form>
             </Panel>
@@ -697,6 +822,7 @@ export function CaseFunnelMain({
                   className="linkish"
                   disabled={!caps.can_edit_checklist}
                   onClick={() => onToggleChecklist(item.id, item.status)}
+                  title="Переключить статус пункта чек-листа"
                 >
                   [{labelChecklistStatus(item.status)}] {item.title}
                 </button>
@@ -712,7 +838,9 @@ export function CaseFunnelMain({
                 placeholder="Новый пункт"
                 required
               />
-              <button type="submit">Добавить</button>
+              <button type="submit" title="Добавить новый пункт в чек-лист дела">
+                Добавить
+              </button>
             </form>
           ) : null}
         </Panel>
@@ -727,7 +855,11 @@ export function CaseFunnelMain({
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={onSavePipeline}>
+              <button
+                type="button"
+                onClick={onSavePipeline}
+                title="Сохранить технический код этапа пайплайна"
+              >
                 Сохранить этап
               </button>
             </div>
