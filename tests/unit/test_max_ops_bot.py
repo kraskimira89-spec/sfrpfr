@@ -67,12 +67,17 @@ def test_ops_start_welcome(monkeypatch) -> None:
 
 
 def test_ops_login_shows_pair_hint(monkeypatch) -> None:
+    from sfrfr.integrations.max.handler import MaxHandleResult
     from sfrfr.security.login_pending import create_pending
 
     monkeypatch.setenv("ADMIN_PUBLIC_URL", "https://admin.example")
     monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
     get_settings.cache_clear()
     pending = create_pending(audience="staff", staff_email="op@example.com")
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._complete_pc_login",
+        lambda *args, **kwargs: MaxHandleResult(ok=False, action="login_test_skip"),
+    )
     bot = _SilentBot()
     result = handle_ops_update(_msg(42, "/login"), bot=bot)
     assert result.action in {
