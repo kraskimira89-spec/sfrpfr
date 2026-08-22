@@ -470,9 +470,9 @@ header div { display: grid; gap: 3px; }
   box-shadow: 0 0 0 2px rgba(61, 125, 214, 0.2);
 }
 .funnel-item--done {
-  color: #2a5a3f;
-  background: #eef6f1;
-  border-color: #9ec3b0;
+  color: #1e4a32;
+  background: #e8f4ec;
+  border-color: #8fbea4;
 }
 .funnel-item--waiting {
   color: #6a4a12;
@@ -495,7 +495,7 @@ header div { display: grid; gap: 3px; }
   font-weight: 700;
   font-size: 1.05rem;
 }
-.funnel-mark--done { color: #2a5a3f; }
+.funnel-mark--done { color: #1e4a32; }
 .funnel-mark--current { color: #1a4d8c; }
 .funnel-mark--waiting { color: #8a6a20; }
 .funnel-mark--blocked { color: #8a3030; }
@@ -508,7 +508,7 @@ header div { display: grid; gap: 3px; }
   gap: 8px;
   margin-bottom: 8px;
 }
-.funnel-map-head h2 { margin: 0; }
+.funnel-map-head h2 { margin: 0; color: var(--ink); }
 .funnel-show-all {
   display: inline-flex;
   align-items: center;
@@ -517,6 +517,7 @@ header div { display: grid; gap: 3px; }
   color: var(--muted);
   font-weight: 600;
 }
+/* Глобальный button = белый текст; у тоггла этапа сбрасываем */
 .funnel-stage-toggle {
   display: flex;
   align-items: center;
@@ -524,16 +525,87 @@ header div { display: grid; gap: 3px; }
   width: 100%;
   border: 0;
   background: transparent;
+  color: var(--ink);
   padding: 0;
+  min-height: auto;
   cursor: pointer;
   text-align: left;
+  font-weight: 600;
 }
-.funnel-stage--done-compact {
+.funnel-stage-toggle:hover {
+  background: transparent;
+  color: var(--ink);
+}
+.funnel-stage-toggle strong {
+  color: inherit;
+  font-size: 1rem;
+}
+.funnel-stage-toggle .hint {
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0;
+}
+.funnel-stage {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+/* status > .panel.accent (иначе светло-зелёный + белый текст с кнопки) */
+.panel.funnel-stage--done,
+.panel.funnel-stage--done-compact {
   padding: 10px 14px;
-  background: #eef6f1;
-  border-color: #9ec3b0;
+  color: #1e4a32;
+  background: #e8f4ec;
+  border-color: #8fbea4;
 }
-.funnel-stage-body { margin-top: 10px; }
+.panel.funnel-stage--done .funnel-stage-toggle,
+.panel.funnel-stage--done-compact .funnel-stage-toggle {
+  color: #1e4a32;
+}
+.panel.funnel-stage--current {
+  color: #123;
+  background: #eef4fb;
+  border-color: #7aa2d4;
+  box-shadow: 0 0 0 1px rgba(61, 125, 214, 0.18);
+}
+.panel.funnel-stage--current .funnel-stage-toggle {
+  color: #123;
+}
+.panel.funnel-stage--waiting {
+  color: #6a4a12;
+  background: #fff8e8;
+  border-color: #e0c888;
+}
+.panel.funnel-stage--waiting .funnel-stage-toggle {
+  color: #6a4a12;
+}
+.panel.funnel-stage--blocked {
+  color: #6a2a2a;
+  background: #f8eeee;
+  border-color: #d8a0a0;
+}
+.panel.funnel-stage--blocked .funnel-stage-toggle {
+  color: #6a2a2a;
+}
+.panel.funnel-stage--overdue {
+  color: #7a1a1a;
+  background: #fdeeee;
+  border-color: #d07070;
+}
+.panel.funnel-stage--overdue .funnel-stage-toggle {
+  color: #7a1a1a;
+}
+.panel.funnel-stage.accent {
+  /* не даём .panel.accent перекрасить этап */
+  color: inherit;
+}
+.funnel-stage-body {
+  margin-top: 10px;
+  color: var(--ink);
+}
+.funnel-stage-body .hint {
+  color: var(--muted);
+}
 .case-action-bar-line { margin: 0 0 8px; font-size: 0.92rem; }
 .case-action-bar-fields { margin-bottom: 8px; }
 .case-docs-table {
