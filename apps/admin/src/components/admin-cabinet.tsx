@@ -41,6 +41,25 @@ type StaffCaseSummary = {
   web_linked: boolean;
   silent_days: number;
   package_codes: string[];
+  next_action?: string | null;
+  next_action_at?: string | null;
+  waiting_on?: string | null;
+  priority?: string | null;
+};
+
+type WorkQueueItem = {
+  case_id: string;
+  client_name: string | null;
+  priority: "urgent" | "today" | "standard";
+  pipeline_status: string;
+  b2c_status: string;
+  waiting_on: string;
+  last_event: string;
+  next_action: string;
+  next_action_at: string | null;
+  deadline_status: "overdue" | "soon" | "today" | "ok" | "waiting";
+  channel: string;
+  expert_user_id: string | null;
 };
 
 type Dashboard = {
@@ -53,6 +72,20 @@ type Dashboard = {
   channel_conflicts: number;
   unlinked_max: number;
   unlinked_web: number;
+  needs_reply: number;
+  needs_reply_over_30m: number;
+  deadline_today: number;
+  waiting_docs: number;
+  waiting_docs_max_days: number;
+  sla_risk: number;
+  greeting_priority_count: number;
+  payments_pending_amount: number;
+  payments_paid_today: number;
+  payments_paid_today_amount: number;
+  sla_control: Record<string, number>;
+  doc_status: Record<string, number>;
+  work_queue: WorkQueueItem[];
+  my_tasks_today: WorkQueueItem[];
 };
 
 type RoleCapabilities = {
@@ -107,6 +140,9 @@ type StaffCaseDetail = {
   }[];
   crm_url?: string | null;
   meeting_url?: string | null;
+  next_action?: string | null;
+  next_action_at?: string | null;
+  waiting_on?: string | null;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
   orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
@@ -164,6 +200,43 @@ const CHANNEL_LABELS: Record<string, string> = {
   web_cabinet: "Веб-кабинет",
   unset: "не выбран",
 };
+
+const WAITING_LABELS: Record<string, string> = {
+  staff: "Сотрудник",
+  client: "Клиент",
+  archive: "Архив",
+  sfr: "СФР",
+  payment: "Оплата",
+  none: "—",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  urgent: "Срочно",
+  today: "Сегодня",
+  standard: "Стандартно",
+};
+
+const DOC_STATUS_LABELS: Record<string, string> = {
+  consent_missing: "Нет согласия на ПДн",
+  ils_missing: "Не получена выписка ИЛС",
+  labor_missing: "Не получена трудовая",
+  archive_needed: "Ожидаем архивную справку",
+  discrepancy: "Расхождения ИЛС и трудовой",
+  extra_info: "Нужна информация от клиента",
+  project_ready: "Проект обращения готов",
+  sfr_reply: "Ответ СФР — нужен разбор",
+};
+
+function formatRub(value: number): string {
+  return `${new Intl.NumberFormat("ru-RU").format(Math.round(value || 0))} ₽`;
+}
+
+function formatWhen(value: string | null | undefined): string {
+  if (!value) return "—";
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return dt.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
 
 /** Короткий номер дела (совпадает с кабинетом / MAX «Дело №»). */
 function caseShortNumber(caseId: string): string {
@@ -231,6 +304,10 @@ export function AdminCabinet() {
   const [filterPipeline, setFilterPipeline] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
+  const [queueFilter, setQueueFilter] = useState("all");
+  const [nextActionText, setNextActionText] = useState("");
+  const [nextActionAt, setNextActionAt] = useState("");
+  const [waitingOn, setWaitingOn] = useState("staff");
 
   const [checklistTitle, setChecklistTitle] = useState("");
   const [pipelineStatus, setPipelineStatus] = useState("human_review");
@@ -479,6 +556,9 @@ export function AdminCabinet() {
       setDetail(caseDetail);
       setMessages(caseMessages);
       setPipelineStatus(caseDetail.pipeline_status);
+      setNextActionText(caseDetail.next_action ?? "");
+      setNextActionAt(caseDetail.next_action_at ? caseDetail.next_action_at.slice(0, 16) : "");
+      setWaitingOn(caseDetail.waiting_on ?? "staff");
       setView("case");
     } catch (err) {
       const detail = err instanceof Error ? err.message : "";

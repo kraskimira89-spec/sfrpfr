@@ -85,11 +85,25 @@ export const CHECKLIST_OWNER_LABELS: Record<string, string> = {
 };
 
 export const FEEDBACK_QUALITY_LABELS: Record<string, string> = {
-  draft: "черновик",
-  verified: "проверено",
-  template: "шаблон",
-  rejected: "отклонено",
+  draft: "Черновик",
+  verified: "Проверено",
+  template: "Шаблон",
+  rejected: "Отклонено",
 };
+
+export const FEEDBACK_QUALITY_STAGES: readonly string[] = [
+  "draft",
+  "verified",
+  "template",
+  "rejected",
+];
+
+export function feedbackQualityOptions(): Array<{ value: string; label: string }> {
+  return FEEDBACK_QUALITY_STAGES.map((value) => ({
+    value,
+    label: labelFeedbackQuality(value),
+  }));
+}
 
 export const PIPELINE_STAGES: readonly string[] = [
   "intake",

@@ -15,5 +15,7 @@ export {
   labelChecklistStatus,
   labelChecklistOwner,
   labelFeedbackQuality,
+  feedbackQualityOptions,
+  FEEDBACK_QUALITY_STAGES,
   formatCaseStatuses,
 } from "../../../../shared/ui-labels";
