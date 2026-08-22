@@ -98,12 +98,12 @@ def reply_to_free_text(
         return text, nudge_kb, "max_llm_blocked_pdn"
 
     if not llm_chat_enabled():
-        return nudge_text, nudge_kb, "max_llm_fallback_nudge"
+        return nudge_text, nudge_kb, "free_text_nudge"
 
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         logger.warning("max_llm_chat: DeepSeek unavailable model=%s", llm.model)
-        return nudge_text, nudge_kb, "max_llm_fallback_nudge"
+        return nudge_text, nudge_kb, "free_text_nudge"
 
     step = intake.step() if intake is not None else "whom"
     safe = redact_for_llm(user_text)[:1500]
@@ -115,11 +115,11 @@ def reply_to_free_text(
         raw = llm.chat(system=CLIENT_CHAT_SYSTEM, user=user, temperature=0.3)
     except Exception as exc:  # noqa: BLE001
         logger.warning("max_llm_chat failed: %s", exc)
-        return nudge_text, nudge_kb, "max_llm_fallback_nudge"
+        return nudge_text, nudge_kb, "free_text_nudge"
 
     reply, soft_labels = _parse_llm_payload(raw)
     if not reply:
-        return nudge_text, nudge_kb, "max_llm_fallback_nudge"
+        return nudge_text, nudge_kb, "free_text_nudge"
 
     text = f"{reply}\n\nМожно ответить кнопками ниже."
     attachments = list(nudge_kb)

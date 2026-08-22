@@ -24,7 +24,7 @@ def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:
 
     get_settings.cache_clear()
     text, kb, action = reply_to_free_text(user_text="подскажите", intake=None)
-    assert action == "max_llm_fallback_nudge"
+    assert action == "free_text_nudge"
     assert "кнопк" in text.lower() or "удобнее" in text.lower() or "проверк" in text.lower()
     assert kb
     get_settings.cache_clear()
