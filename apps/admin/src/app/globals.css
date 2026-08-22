@@ -387,6 +387,107 @@ header div { display: grid; gap: 3px; }
   gap: 10px;
   align-items: start;
 }
+.case-funnel-stack {
+  grid-template-columns: 1fr;
+}
+.case-funnel-head {
+  gap: 8px;
+}
+.case-funnel-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.case-funnel-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.case-funnel-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.case-funnel-cta-row {
+  align-items: center;
+}
+.case-funnel-more {
+  position: relative;
+}
+.case-funnel-more > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.case-funnel-more > summary::-webkit-details-marker { display: none; }
+.case-funnel-more-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 8;
+  min-width: 200px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+.funnel-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+.funnel-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.funnel-item--current {
+  color: #123;
+  font-weight: 600;
+}
+.funnel-item--done {
+  color: #2a5a3f;
+}
+.funnel-mark {
+  width: 1.2rem;
+  text-align: center;
+  font-weight: 700;
+}
+.funnel-mark--done { color: #2a5a3f; }
+.funnel-mark--current { color: #1a4d8c; }
+.case-subhead {
+  margin: 12px 0 6px;
+  font-size: 0.95rem;
+}
+.case-step-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f3f7fb;
+  border: 1px solid #c9dae8;
+}
+.case-step-hint-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.case-doc-checklist li {
+  margin-bottom: 6px;
+}
+@media (max-width: 960px) {
+  .funnel-grid { grid-template-columns: 1fr; }
+}
+
 .case-card--wide {
   grid-column: 1 / -1;
 }

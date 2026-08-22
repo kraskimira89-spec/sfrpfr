@@ -2,23 +2,18 @@
 
 import { createClient, type Session } from "@supabase/supabase-js";
 import {
-  formatCaseStatuses,
-  labelAuthorKind,
-  labelChecklistOwner,
-  labelChecklistStatus,
   labelFeedbackQuality,
-  labelOrderStatus,
   labelPackage,
   labelPipeline,
   pipelineStageOptions,
   PIPELINE_FILTER_STAGES,
   labelStaffRole,
-  humanCaseStage,
 } from "@/lib/ui-labels";
 import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-registry";
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
+import { CaseFunnelMain } from "@/components/case-funnel-main";
 import { StaffRolesPanel } from "@/components/staff-roles-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -155,6 +150,8 @@ type StaffCaseDetail = {
   }[];
   crm_url?: string | null;
   meeting_url?: string | null;
+  expert_user_id?: string | null;
+  consent_accepted?: boolean;
   next_action?: string | null;
   next_action_at?: string | null;
   waiting_on?: string | null;
@@ -216,15 +213,6 @@ const CHANNEL_LABELS: Record<string, string> = {
   unset: "не выбран",
 };
 
-const WAITING_LABELS: Record<string, string> = {
-  staff: "Сотрудник",
-  client: "Клиент",
-  archive: "Архив",
-  sfr: "СФР",
-  payment: "Оплата",
-  none: "—",
-};
-
 const PRIORITY_LABELS: Record<string, string> = {
   urgent: "Срочно",
   today: "Сегодня",
@@ -251,18 +239,6 @@ function formatWhen(value: string | null | undefined): string {
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return "—";
   return dt.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-}
-
-/** Короткий номер дела (совпадает с кабинетом / MAX «Дело №»). */
-function caseShortNumber(caseId: string): string {
-  const hex = String(caseId || "").replace(/-/g, "").slice(-5);
-  const n = Number.parseInt(hex, 16);
-  if (!Number.isFinite(n) || n <= 0) return "—";
-  return String(n).padStart(6, "0");
-}
-
-function caseCatalogLabel(caseId: string): string {
-  return `ПС-${caseShortNumber(caseId)}`;
 }
 
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
@@ -308,6 +284,12 @@ export function AdminCabinet() {
   const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_OPS_BOT);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  const [stepHint, setStepHint] = useState<{
+    action: string;
+    reason: string;
+    source: string;
+  } | null>(null);
+  const [stepMessages, setStepMessages] = useState<string[]>([]);
   const [maxReplyFocus, setMaxReplyFocus] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
@@ -854,18 +836,21 @@ export function AdminCabinet() {
     if (!token) return;
     setBusy(true);
     setNotice("DeepSeek думает над следующим шагом…");
+    setStepHint(null);
+    setStepMessages([]);
     try {
       const hint = await apiFetch<{
         next_action: string;
         waiting_on: string;
         reason?: string;
         source?: string;
+        chat_messages?: string[];
       }>(`/api/portal/admin/cases/${caseId}/suggest-next-action`, token, { method: "POST" });
+      // Сохраняем шаг в деле, но НЕ отправляем текст клиенту.
       await apiFetch(`/api/portal/admin/cases/${caseId}/next-action`, token, {
         method: "PATCH",
         body: JSON.stringify({ next_action: hint.next_action, waiting_on: hint.waiting_on }),
       });
-      // Сразу заполняем поля в открытой карточке (раньше UI не менялся).
       if (!detail || detail.id === caseId) {
         setNextActionText(hint.next_action);
         if (hint.waiting_on) setWaitingOn(hint.waiting_on);
@@ -877,12 +862,15 @@ export function AdminCabinet() {
           });
         }
       }
-      const src = hint.source === "deepseek" ? "DeepSeek" : "по этапу";
-      const reason = (hint.reason || "").trim();
+      const msgs = (hint.chat_messages || []).filter(Boolean);
+      setStepHint({
+        action: hint.next_action,
+        reason: (hint.reason || "").trim(),
+        source: hint.source || "heuristic",
+      });
+      setStepMessages(msgs);
       setNotice(
-        reason
-          ? `${src}: «${hint.next_action}». ${reason}`
-          : `${src}: «${hint.next_action}»`,
+        "Подсказка готова: выберите сообщение и нажмите «Подставить в чат», затем отправьте в MAX вручную.",
       );
       if (view !== "case") {
         await loadCases();
@@ -897,6 +885,13 @@ export function AdminCabinet() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function applyStepMessageToChat(text: string) {
+    setMaxReplyBody(text);
+    setReplySuggestions([]);
+    setMaxReplyFocus(true);
+    setNotice("Текст в поле чата справа. Проверьте и нажмите «Отправить в MAX».");
   }
 
   async function requestDocsFor(caseId: string) {
@@ -1447,8 +1442,6 @@ export function AdminCabinet() {
     );
   }
 
-  const caps = detail?.role_capabilities;
-
   return (
     <main className={`app-layout${view === "case" ? " app-layout--case" : ""}`}>
       <header className="app-header">
@@ -1748,312 +1741,61 @@ export function AdminCabinet() {
 
       {view === "case" && detail && (
         <section className="case-page">
-          <div className="case-main">
-            <div className="case-page-top">
-              <button type="button" className="ghost" onClick={() => setView("cases")}>← К реестру</button>
-              <h1>
-                {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
-              </h1>
-              <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
-              <p className="warning inline">{detail.warning}</p>
-            </div>
-
-          <div className="case-cards">
-          <div className="panel accent case-card--wide">
-            <h2>Следующий шаг</h2>
-            <div className="filters">
-              <label>
-                Что сделать
-                <input value={nextActionText} onChange={(e) => setNextActionText(e.target.value)} placeholder="Проверить ИЛС" />
-              </label>
-              <label>
-                Срок
-                <input type="datetime-local" value={nextActionAt} onChange={(e) => setNextActionAt(e.target.value)} />
-              </label>
-              <label>
-                Кто должен действовать
-                <select value={waitingOn} onChange={(e) => setWaitingOn(e.target.value)}>
-                  <option value="staff">Сотрудник</option>
-                  <option value="client">Клиент</option>
-                  <option value="archive">Архив</option>
-                  <option value="sfr">СФР</option>
-                  <option value="payment">Оплата</option>
-                  <option value="none">Не задано</option>
-                </select>
-              </label>
-              <button type="button" disabled={busy} onClick={() => void saveNextAction()}>Сохранить шаг</button>
-              <button type="button" className="ghost" disabled={busy} onClick={() => void suggestStep(detail.id)}>
-                {busy ? "DeepSeek думает…" : "Подсказать шаг (DeepSeek)"}
-              </button>
-            </div>
-            <p className="hint">
-              Сейчас: {WAITING_LABELS[waitingOn] ?? WAITING_LABELS[detail.waiting_on ?? ""] ?? detail.waiting_on ?? "считаем автоматически"}.
-              Ожидание архива или СФР не попадает в «без ответа».
-            </p>
-          </div>
-          <details className="panel service-details">
-            <summary>Служебные сведения</summary>
-            <p>{formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}</p>
-            <p>
-              {detail.client.phone ? `Телефон: ${detail.client.phone}` : "Телефон не указан"}
-              {detail.client.email ? ` · ${detail.client.email}` : ""}
-            </p>
-            {detail.crm_url && (
-              <p>amoCRM: <a href={detail.crm_url} target="_blank" rel="noreferrer">открыть</a></p>
-            )}
-            <p className="hint">Сырые коды этапа и интеграции нужны для сверки с amoCRM, не для ежедневной очереди.</p>
-          </details>
-
-          <div className="panel accent">
-            <h2>Каналы клиента (ТЗ-09)</h2>
-            <p>
-              Предпочтение: <strong>{CHANNEL_LABELS[detail.client.preferred_channel] ?? detail.client.preferred_channel}</strong>
-              {" · "}MAX: {detail.client.max_linked ? "привязан" : "нет"}
-              {detail.client.max_user_id ? ` · ${detail.client.max_user_id}` : ""}
-              {" · "}веб: {detail.client.web_linked ? "да" : "нет"}
-            </p>
-            <div className="row-actions">
-              <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">Веб-кабинет</a>
-              {detail.client.max_linked ? (
-                <button
-                  type="button"
-                  className="max-action-btn max-action-btn--inline"
-                  disabled={busy}
-                  onClick={focusMaxReplyPanel}
-                >
-                  Написать в MAX
-                </button>
-              ) : null}
-              {detail.channels.max_business_url && (
-                <a href={detail.channels.max_business_url} target="_blank" rel="noreferrer">
-                  MAX Business
-                </a>
-              )}
-              {detail.crm_url && (
-                <a href={detail.crm_url} target="_blank" rel="noreferrer">amoCRM</a>
-              )}
-              {detail.meeting_url && (
-                <a href={detail.meeting_url} target="_blank" rel="noreferrer">Телемост</a>
-              )}
-            </div>
-            <div className="row-actions">
-              <button type="button" onClick={() => void requestReview()} disabled={busy}>
-                Запустить проверку
-              </button>
-              <button type="button" onClick={() => void createTelemost()} disabled={busy}>
-                Телемост
-              </button>
-              <button type="button" onClick={() => void sendWorkspaceEmail()} disabled={busy}>
-                Письмо: документы
-              </button>
-            </div>
-          </div>
-
-          <div className="panel">
-            <h2>Законные представители</h2>
-            <p className="hint">Доступ только к этому делу (email веб-кабинета).</p>
-            <ul className="plain-list">
-              {(detail.representatives ?? []).length === 0 && <li>Пока нет</li>}
-              {(detail.representatives ?? []).map((rep) => (
-                <li key={rep.user_id}>
-                  {rep.full_name || rep.email || rep.user_id.slice(0, 8)}
-                  {" "}
-                  <button
-                    type="button"
-                    className="linkish"
-                    onClick={() => void removeRepresentative(rep.user_id)}
-                  >
-                    Снять
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <form className="row-actions" onSubmit={(e) => void addRepresentative(e)}>
-              <input
-                type="email"
-                placeholder="email представителя"
-                value={repEmail}
-                onChange={(e) => setRepEmail(e.target.value)}
-                required
-              />
-              <button type="submit" disabled={busy}>
-                Выдать доступ
-              </button>
-            </form>
-          </div>
-
-          <div className="panel">
-            <h2>Документы</h2>
-            <ul className="plain-list">
-              {detail.documents.length === 0 && <li>Документов нет</li>}
-              {detail.documents.map((doc) => (
-                <li key={doc.id}>
-                  <button type="button" className="linkish" onClick={() => void openSigned(doc.id)}>
-                    {doc.storage_path.split("/").pop()}
-                  </button>
-                  {doc.doc_type ? ` · ${doc.doc_type}` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {caps?.can_view_ocr && (
-            <>
-              <div className="panel case-card--wide">
-                <h2>Распознавание / ИЛС / трудовая / замечания</h2>
-                <p className="hint">
-                  OCR: {(detail.ocr_texts ?? []).length} · ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}
-                </p>
-                <ul className="plain-list">
-                  {(detail.findings ?? []).length === 0 && <li>Замечаний пока нет</li>}
-                  {(detail.findings ?? []).map((f, idx) => (
-                    <li key={`${f.type}-${idx}`}>
-                      <strong>{f.type}</strong>
-                      <span>{f.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="panel">
-                <h2>Обоснование аналитика (DeepSeek)</h2>
-                <p className="hint">Сверка ИЛС↔трудовая. Не заменяет эксперта.</p>
-                {detail.analysis_notes ? (
-                  <pre className="draft">{detail.analysis_notes}</pre>
-                ) : (
-                  <p className="hint">Пока нет — запустите проверку.</p>
-                )}
-              </div>
-              <div className="panel">
-                <h2>Проект обращения (DeepSeek)</h2>
-                {detail.draft ? (
-                  <pre className="draft">{detail.draft.title}{"\n\n"}{detail.draft.body}</pre>
-                ) : (
-                  <p className="hint">Проекта обращения пока нет — запустите проверку до этапа «Черновик готов».</p>
-                )}
-              </div>
-            </>
-          )}
-
-          <div className="panel">
-            <h2>Чек-лист</h2>
-            <ul className="plain-list">
-              {detail.checklist_items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="linkish"
-                    disabled={!caps?.can_edit_checklist}
-                    onClick={() => void toggleChecklist(item.id, item.status)}
-                  >
-                    [{labelChecklistStatus(item.status)}] {item.title}
-                  </button>
-                  <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
-                </li>
-              ))}
-            </ul>
-            {caps?.can_edit_checklist && (
-              <form className="inline-form" onSubmit={addChecklist}>
-                <input
-                  value={checklistTitle}
-                  onChange={(e) => setChecklistTitle(e.target.value)}
-                  placeholder="Новый пункт"
-                  required
-                />
-                <button type="submit">Добавить</button>
-              </form>
-            )}
-          </div>
-
-          {caps?.can_edit_pipeline && (
-            <div className="panel">
-              <h2>Этап дела</h2>
-              <div className="inline-form">
-                <select value={pipelineStatus} onChange={(e) => setPipelineStatus(e.target.value)}>
-                  {pipelineStageOptions().map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-                <button type="button" onClick={() => void savePipeline()}>Сохранить этап</button>
-              </div>
-            </div>
-          )}
-
-          {caps?.can_confirm_result && (
-            <div className="panel">
-              <h2>Подтверждение результата</h2>
-              <form className="stack-form" onSubmit={confirmResult}>
-                <label>Прежний размер, ₽ (СФР)<input value={beforeRub} onChange={(e) => setBeforeRub(e.target.value)} required /></label>
-                <label>Новый размер, ₽ (СФР)<input value={afterRub} onChange={(e) => setAfterRub(e.target.value)} required /></label>
-                <label>Единовременно, ₽ (СФР)<input value={lumpRub} onChange={(e) => setLumpRub(e.target.value)} /></label>
-                <button type="submit">Зафиксировать решение СФР</button>
-              </form>
-              <p className="hint">Факты из решения СФР, не цена услуги.</p>
-            </div>
-          )}
-
-          {caps?.can_manage_orders && (
-            <div className="panel">
-              <h2>Создать счёт</h2>
-              <form className="inline-form" onSubmit={createOrder}>
-                <select value={orderCode} onChange={(e) => setOrderCode(e.target.value as typeof orderCode)}>
-                  <option value="DIAG">{labelPackage("DIAG")}</option>
-                  <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
-                  <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
-                  <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
-                </select>
-                <input
-                  type="number"
-                  min={1}
-                  step="0.01"
-                  placeholder="Сумма ₽"
-                  value={orderAmount}
-                  onChange={(e) => setOrderAmount(e.target.value)}
-                  required
-                />
-                <button type="submit">Создать</button>
-              </form>
-              <p className="hint">
-                Фиксированная сумма по договору. SF_* — после решения СФР и 60+ дней.
-              </p>
-            </div>
-          )}
-
-          {caps?.can_knowledge_feedback && (
-            <div className="panel case-card--wide">
-              <h2>Обратная связь для базы знаний</h2>
-              <form className="stack-form" onSubmit={sendFeedback}>
-                <textarea
-                  rows={2}
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Что сработало / документы / итог СФР"
-                  required
-                />
-                <div className="inline-form">
-                  <select value={feedbackQuality} onChange={(e) => setFeedbackQuality(e.target.value)}>
-                    <option value="draft">{labelFeedbackQuality("draft")}</option>
-                    <option value="verified">{labelFeedbackQuality("verified")}</option>
-                    <option value="template">{labelFeedbackQuality("template")}</option>
-                    <option value="rejected">{labelFeedbackQuality("rejected")}</option>
-                  </select>
-                  <button type="submit">Сохранить в базу знаний</button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          <div className="panel case-card--wide">
-            <h2>Журнал действий</h2>
-            <ul className="plain-list case-audit-list">
-              {detail.audit.slice(0, 40).map((row, idx) => (
-                <li key={`${row.at}-${idx}`}>
-                  {row.action} · {new Date(row.at).toLocaleString("ru-RU")}
-                </li>
-              ))}
-            </ul>
-          </div>
-          </div>
-          </div>
+          <CaseFunnelMain
+            detail={detail}
+            meUserId={me?.user_id ?? null}
+            busy={busy}
+            nextActionText={nextActionText}
+            nextActionAt={nextActionAt}
+            waitingOn={waitingOn}
+            pipelineStatus={pipelineStatus}
+            checklistTitle={checklistTitle}
+            beforeRub={beforeRub}
+            afterRub={afterRub}
+            lumpRub={lumpRub}
+            orderCode={orderCode}
+            orderAmount={orderAmount}
+            feedbackText={feedbackText}
+            feedbackQuality={feedbackQuality}
+            repEmail={repEmail}
+            stepHint={stepHint}
+            stepMessages={stepMessages}
+            onBack={() => setView("cases")}
+            onNextActionText={setNextActionText}
+            onNextActionAt={setNextActionAt}
+            onWaitingOn={setWaitingOn}
+            onSaveNextAction={() => void saveNextAction()}
+            onSuggestStep={() => void suggestStep(detail.id)}
+            onApplyChatMessage={applyStepMessageToChat}
+            onDismissHint={() => {
+              setStepHint(null);
+              setStepMessages([]);
+            }}
+            onTake={() => void takeCase(detail.id)}
+            onFocusMax={focusMaxReplyPanel}
+            onRequestReview={() => void requestReview()}
+            onCreateTelemost={() => void createTelemost()}
+            onSendEmail={() => void sendWorkspaceEmail()}
+            onOpenSigned={(docId) => void openSigned(docId)}
+            onToggleChecklist={(id, status) => void toggleChecklist(id, status)}
+            onAddChecklist={(e) => void addChecklist(e)}
+            onChecklistTitle={setChecklistTitle}
+            onPipelineStatus={setPipelineStatus}
+            onSavePipeline={() => void savePipeline()}
+            onConfirmResult={(e) => void confirmResult(e)}
+            onBeforeRub={setBeforeRub}
+            onAfterRub={setAfterRub}
+            onLumpRub={setLumpRub}
+            onOrderCode={setOrderCode}
+            onOrderAmount={setOrderAmount}
+            onCreateOrder={(e) => void createOrder(e)}
+            onFeedbackText={setFeedbackText}
+            onFeedbackQuality={setFeedbackQuality}
+            onSendFeedback={(e) => void sendFeedback(e)}
+            onRepEmail={setRepEmail}
+            onAddRepresentative={(e) => void addRepresentative(e)}
+            onRemoveRepresentative={(userId) => void removeRepresentative(userId)}
+          />
 
           <CaseChatPanel
             messages={messages}

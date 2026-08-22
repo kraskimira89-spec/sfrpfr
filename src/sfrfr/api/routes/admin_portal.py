@@ -430,6 +430,7 @@ def admin_get_case(
             ),
         }
     payload["audit"] = repo.list_audit(case_id)
+    payload["consent_accepted"] = repo.has_consent(case_id)
     return payload
 
 

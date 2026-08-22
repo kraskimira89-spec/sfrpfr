@@ -13,9 +13,13 @@ _SYSTEM = (
     "Ты помощник сотрудника сервиса «Проверка стажа». "
     "Мы готовим документы и план, подаёт клиент, решение принимает только СФР. "
     "Не обещай перерасчёт и сумму. Не проси СНИЛС и сканы в чат. "
+    "Документы клиент загружает только в личном кабинете. "
     "Верни только JSON: "
-    '{"next_action":"...","waiting_on":"staff|client|archive|sfr|payment","reason":"..."} '
-    "next_action — одна короткая фраза на русском (до 80 символов)."
+    '{"next_action":"...","waiting_on":"staff|client|archive|sfr|payment",'
+    '"reason":"...","chat_messages":["...","..."]} '
+    "next_action — одна короткая фраза на русском (до 80 символов). "
+    "chat_messages — 1–3 готовых коротких сообщения клиенту в MAX "
+    "(без ПДн, без обещаний; можно напомнить про кабинет)."
 )
 
 
@@ -44,13 +48,23 @@ def _anon_case(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def suggest_next_action(case: dict[str, Any]) -> dict[str, str]:
+def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
     waiting = derive_waiting_on(case)
+    action = derive_next_action(case, waiting)
+    fallback_msgs = [
+        (
+            f"Здравствуйте! {action}. "
+            "Документы загружайте только в личном кабинете — не в этот чат. "
+            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+            "Решение принимает СФР."
+        )
+    ]
     fallback = {
-        "next_action": derive_next_action(case, waiting),
+        "next_action": action,
         "waiting_on": waiting,
         "reason": "Эвристика по этапу и чек-листу.",
         "source": "heuristic",
+        "chat_messages": fallback_msgs,
     }
     llm = LLMClient.for_analyze()
     if not llm.available:
@@ -67,15 +81,34 @@ def suggest_next_action(case: dict[str, Any]) -> dict[str, str]:
         data = json.loads(match.group(0))
     except json.JSONDecodeError:
         return fallback
-    action = str(data.get("next_action") or "").strip()[:80]
+    action_out = str(data.get("next_action") or "").strip()[:80]
     wait = str(data.get("waiting_on") or waiting).strip()
     if wait not in {"staff", "client", "archive", "sfr", "payment"}:
         wait = waiting
-    if not action:
+    if not action_out:
         return fallback
+    msgs_raw = data.get("chat_messages")
+    chat_messages: list[str] = []
+    if isinstance(msgs_raw, list):
+        for item in msgs_raw:
+            text = str(item or "").strip()
+            if text:
+                chat_messages.append(text[:500])
+            if len(chat_messages) >= 3:
+                break
+    if not chat_messages:
+        chat_messages = [
+            (
+                f"Здравствуйте! {action_out}. "
+                "Документы — только через личный кабинет. "
+                "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+                "Решение принимает СФР."
+            )
+        ]
     return {
-        "next_action": action,
+        "next_action": action_out,
         "waiting_on": wait,
         "reason": str(data.get("reason") or "")[:240],
         "source": "deepseek",
+        "chat_messages": chat_messages,
     }
