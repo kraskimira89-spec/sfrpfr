@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-22 — Яндекс Трекер с нуля + MCP (aikts)
+
+- Notion не мигрируем; задачи → очередь SFRFR, wiki → Яндекс Wiki + `docs/`, CRM → amo.
+- Ops: `docs/ops/yandex-tracker-ops.md`, MCP: `docs/ops/yandex-tracker-mcp.md`, чеклист greenfield.
+- Лаунчер `scripts/mcp-yandex-tracker.cmd`; plugin `notion-workspace` выключен.
+
 ## 2026-08-22 — сверка юр. документов с проектом
 
 - Пользователь: проверить изменения и при необходимости обновить юр. документы.

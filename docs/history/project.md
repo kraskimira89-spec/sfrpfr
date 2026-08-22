@@ -1,3 +1,8 @@
+## 2026-08-22 — Яндекс Трекер + MCP (greenfield)
+
+- Замена Notion: Трекер (SFRFR), Wiki, amo; без переноса Notion.
+- MCP aikts/yandex-tracker-mcp; docs/ops + `mcp-yandex-tracker.cmd`.
+
 ## 2026-08-22 — ПДн: DeepSeek в Yandex AI Studio
 
 - Редакции `pdn-policy-2026-08-22` / `pdn-consent-2026-08-22`: чат MAX, черновики, DeepSeek через YC.

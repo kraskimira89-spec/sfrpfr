@@ -27,6 +27,7 @@ htmlcov/
 *.pem
 *.key
 secrets/
+!secrets/yandex-tracker.env.example
 **/google-sheets-sa.json
 **/google*credentials*.json
 
@@ -124,6 +125,10 @@ apply.last.txt
 infra/yandex-cloud/apply.last.txt
 infra/yandex-cloud/plan.last.txt
 *.last.txt
+
+# Локальный клон aikts/yandex-tracker-mcp (см. tools/yandex-tracker-mcp/README.md)
+tools/yandex-tracker-mcp/*
+!tools/yandex-tracker-mcp/README.md
 
 lockbox.env
 secrets/supabase-staging.env
