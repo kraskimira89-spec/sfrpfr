@@ -9,12 +9,14 @@ export type FunnelStageId =
   | "result"
   | "feedback";
 
-export type FunnelStageState = "done" | "current" | "todo";
+export type FunnelStageState = "done" | "current" | "waiting" | "blocked" | "overdue" | "todo";
 
 export type FunnelStage = {
   id: FunnelStageId;
   label: string;
   state: FunnelStageState;
+  reason: string;
+  canAct: boolean;
 };
 
 function checklistDone(
@@ -36,26 +38,40 @@ function hasDocType(
   });
 }
 
+function isOverdue(nextActionAt?: string | null): boolean {
+  if (!nextActionAt) return false;
+  const due = new Date(nextActionAt);
+  if (Number.isNaN(due.getTime())) return false;
+  return due.getTime() < Date.now();
+}
+
 export function deriveFunnel(detail: {
   pipeline_status: string;
   b2c_status: string;
   consent_accepted?: boolean;
+  next_action_at?: string | null;
+  waiting_on?: string | null;
   client: { max_linked?: boolean; web_linked?: boolean };
-  documents: { doc_type?: string | null; storage_path?: string }[];
+  documents: { doc_type?: string | null; storage_path?: string; created_at?: string }[];
   checklist_items: { title?: string; status?: string; item_type?: string }[];
   findings?: unknown[];
   analysis_notes?: string | null;
   draft?: { title?: string; body?: string } | null;
   orders?: { status?: string }[];
   orders_summary?: { status?: string }[];
+  audit?: { action: string; at?: string }[];
 }): {
   stages: FunnelStage[];
   current: FunnelStageId;
   docsReady: boolean;
+  docsRequiredOk: boolean;
   hasIls: boolean;
   hasLabor: boolean;
   consentOk: boolean;
   channelOk: boolean;
+  diagnosticsDone: boolean;
+  serviceConsentOk: boolean;
+  missingDocs: string[];
 } {
   const consentOk = Boolean(detail.consent_accepted) || detail.b2c_status !== "lead";
   const channelOk = Boolean(detail.client.max_linked || detail.client.web_linked);
@@ -71,6 +87,11 @@ export function deriveFunnel(detail: {
     ["documents_received", "ocr_done", "classified", "extracted", "audited", "draft_ready", "human_review", "completed"].includes(
       detail.pipeline_status,
     );
+  const docsRequiredOk = hasIls && hasLabor;
+  const missingDocs: string[] = [];
+  if (!hasIls) missingDocs.push("выписка ИЛС");
+  if (!hasLabor) missingDocs.push("трудовая / сведения о стаже");
+
   const diagnosticsDone = Boolean(
     detail.analysis_notes ||
       (detail.findings && detail.findings.length > 0) ||
@@ -91,6 +112,11 @@ export function deriveFunnel(detail: {
     detail.b2c_status,
   );
   const feedbackDone = detail.b2c_status === "closed";
+
+  const audit = detail.audit || [];
+  const serviceConsentOk =
+    detail.b2c_status !== "lead" ||
+    audit.some((a) => a.action === "service_consent_recorded");
 
   let current: FunnelStageId = "contact";
   if (!channelOk || !consentOk) current = "contact";
@@ -128,31 +154,88 @@ export function deriveFunnel(detail: {
     result: "Ответ СФР",
     feedback: "База знаний",
   };
+
+  const wait = detail.waiting_on || "";
+  const overdue = isOverdue(detail.next_action_at);
+
   const stages: FunnelStage[] = order.map((id) => {
+    const idx = order.indexOf(id);
+    const curIdx = order.indexOf(current);
     let state: FunnelStageState = "todo";
-    if (id === current) state = "current";
-    else if (doneFlags[id]) state = "done";
-    else {
-      const idx = order.indexOf(id);
-      const curIdx = order.indexOf(current);
-      if (idx < curIdx) state = "done";
+    let reason = "";
+    let canAct = false;
+
+    if (id === current) {
+      state = overdue ? "overdue" : "current";
+      canAct = true;
+      if (id === "documents" && !docsRequiredOk) {
+        reason = `Не хватает: ${missingDocs.join(", ")}`;
+      } else if (id === "diagnostics" && !docsRequiredOk) {
+        state = "blocked";
+        canAct = false;
+        reason = `Для диагностики не хватает: ${missingDocs.join(", ")}`;
+      } else if (id === "plan" && !diagnosticsDone) {
+        state = "blocked";
+        canAct = false;
+        reason = "Сначала завершите диагностику";
+      } else if (id === "payment" && !serviceConsentOk) {
+        state = "blocked";
+        canAct = false;
+        reason = "Сначала зафиксируйте согласие клиента на услугу";
+      } else if (wait === "client" || wait === "archive" || wait === "sfr" || wait === "payment") {
+        state = overdue ? "overdue" : "waiting";
+        reason =
+          wait === "client"
+            ? "Ждём клиента"
+            : wait === "archive"
+              ? "Ждём архив"
+              : wait === "sfr"
+                ? "Ждём ответ СФР"
+                : "Ждём оплату";
+      } else {
+        reason = overdue ? "Срок просрочен" : "Текущий этап — можно действовать";
+      }
+    } else if (doneFlags[id] || idx < curIdx) {
+      state = "done";
+      reason = "Этап завершён";
+      canAct = false;
+    } else {
+      state = "todo";
+      canAct = false;
+      if (id === "plan" && !diagnosticsDone) {
+        state = "blocked";
+        reason = "Доступно после диагностики";
+      } else if (id === "payment" && !serviceConsentOk) {
+        state = "blocked";
+        reason = "Нужно согласие на услугу";
+      } else if (id === "diagnostics" && !docsRequiredOk) {
+        state = "blocked";
+        reason = `Не хватает: ${missingDocs.join(", ")}`;
+      } else {
+        reason = "Ещё не наступил";
+      }
     }
-    return { id, label: labels[id], state };
+
+    return { id, label: labels[id], state, reason, canAct };
   });
 
   return {
     stages,
     current,
     docsReady,
+    docsRequiredOk,
     hasIls,
     hasLabor,
     consentOk,
     channelOk,
+    diagnosticsDone,
+    serviceConsentOk,
+    missingDocs,
   };
 }
 
 export function primaryCtaLabel(current: FunnelStageId, docsReady: boolean): string {
-  if (current === "contact") return "Настроить контакт";
+  if (current === "contact") return "Настроить канал связи";
   if (current === "documents") return docsReady ? "Запустить проверку" : "Запросить документы";
   if (current === "diagnostics") return "Запустить проверку";
   if (current === "plan") return "Сформировать проект";
@@ -174,11 +257,25 @@ export function slaHint(detail: {
     const due = new Date(detail.next_action_at);
     if (!Number.isNaN(due.getTime())) {
       const diffH = (due.getTime() - Date.now()) / 36e5;
-      if (diffH < 0) return `Просрочено с ${due.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
-      if (diffH < 24) return `Срок сегодня ${due.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
+      if (diffH < 0)
+        return `Просрочено с ${due.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+      if (diffH < 24)
+        return `Срок сегодня ${due.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
       return `Срок ${due.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
     }
   }
   if (wait === "staff") return "Ответить в приоритете";
   return "Срок не задан";
 }
+
+export const DOC_REQUEST_ILS =
+  "Здравствуйте! Для проверки нужна выписка ИЛС с Госуслуг. Загрузите файл только в личном кабинете — не в этот чат. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.";
+
+export const DOC_REQUEST_LABOR =
+  "Здравствуйте! Подготовьте трудовую книжку или сведения о стаже и загрузите в личный кабинет (не в MAX). Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.";
+
+export const SERVICE_DESCRIPTION_CHAT =
+  "Здравствуйте! Кратко об услуге: мы готовим документы, проект обращения и понятный план. Подаёте через СФР, МФЦ или Госуслуги вы сами — решение принимает только СФР. Если согласны продолжить — напишите, и оформим следующий шаг.";
+
+export const PLAN_READY_CHAT =
+  "Подготовили проект обращения и план. Откройте личный кабинет — там текст и чек-лист. Мы расскажем по шагам, но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.";

@@ -360,13 +360,13 @@ header div { display: grid; gap: 3px; }
 
 .case-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) minmax(480px, 34vw);
   gap: 16px;
   align-items: start;
   width: 100%;
 }
 .app-layout--case {
-  width: min(1680px, calc(100% - 16px));
+  width: min(1760px, calc(100% - 16px));
 }
 .case-main {
   min-width: 0;
@@ -560,7 +560,7 @@ header div { display: grid; gap: 3px; }
   position: sticky;
   top: 72px;
   width: 100%;
-  max-width: 400px;
+  max-width: min(560px, 34vw);
   height: calc(100vh - 88px);
   max-height: calc(100vh - 88px);
   display: flex;
@@ -572,8 +572,33 @@ header div { display: grid; gap: 3px; }
   background: var(--surface);
   align-self: start;
 }
-.case-chat-head h2 { margin: 0 0 4px; font-size: 1.1rem; }
+.case-chat-head {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+}
+.case-chat-head h2 { margin: 0; font-size: 1.1rem; }
 .case-chat-head .hint { margin: 0; }
+.case-chat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.case-chat-filter {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+}
+.case-chat-filter.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
 .case-chat-feed {
   flex: 1 1 auto;
   min-height: 180px;
@@ -582,6 +607,29 @@ header div { display: grid; gap: 3px; }
   border-radius: 8px;
   background: #f7f9fc;
   padding: 10px;
+}
+.case-chat-day {
+  list-style: none;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 6px 0;
+  letter-spacing: 0.02em;
+}
+.case-chat-chunk + .case-chat-chunk {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+.case-chat-composer--flash textarea {
+  animation: composer-flash 2s ease;
+  border-color: #3d7dd6;
+  box-shadow: 0 0 0 3px rgba(61, 125, 214, 0.25);
+}
+@keyframes composer-flash {
+  0% { box-shadow: 0 0 0 4px rgba(61, 125, 214, 0.45); }
+  100% { box-shadow: none; }
 }
 .case-chat-empty { margin: 12px 4px; }
 .case-chat-list {
