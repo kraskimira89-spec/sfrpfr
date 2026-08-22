@@ -92,7 +92,31 @@ export function StaffRolesPanel({ token, meUserId, apiFetch, onNotice }: Props) 
   }
 
   useEffect(() => {
-    void reload();
+    let cancelled = false;
+    void (async () => {
+      try {
+        let data: StaffMember[];
+        try {
+          data = await apiFetch<StaffMember[]>("/api/portal/admin/staff", token);
+        } catch {
+          data = await apiFetch<StaffMember[]>("/api/portal/admin/staff-roles", token);
+        }
+        if (cancelled) return;
+        setRows(
+          data.map((row) => ({
+            ...row,
+            status: row.status || "active",
+          })),
+        );
+      } catch (err) {
+        if (!cancelled) {
+          onNotice(err instanceof Error ? err.message : "Не удалось загрузить сотрудников");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 

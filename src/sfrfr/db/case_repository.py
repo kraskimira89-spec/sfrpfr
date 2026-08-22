@@ -1105,17 +1105,31 @@ class CaseRepository:
 
     def list_analytics_cases(self, principal: Principal) -> list[dict[str, Any]]:
         """Дела для аналитики без ПДн клиента (только агрегаты на сервере)."""
-        query = self.client.table("cases").select(
+        # paid_at живёт в payments: embed orders.paid_at роняет PostgREST (колонки нет).
+        select_full = (
             "id, pipeline_status, b2c_status, segment, region_bucket, problem_type, "
             "created_at, first_contact_at, expert_user_id, "
             "clients(preferred_channel, max_user_id, user_id), "
             "checklist_items(id), documents(id), consents(id), "
-            "orders(package_code, status, amount_rub, created_at, paid_at), "
+            "orders(package_code, status, amount_rub, created_at), "
             "result_evidence(monthly_before_rub, monthly_after_rub, lump_sum_rub)"
         )
+        select_min = (
+            "id, pipeline_status, b2c_status, segment, region_bucket, problem_type, "
+            "created_at, first_contact_at, expert_user_id, "
+            "clients(preferred_channel, max_user_id, user_id), "
+            "orders(package_code, status, amount_rub, created_at)"
+        )
+        query = self.client.table("cases").select(select_full)
         if principal.role is StaffRole.EXPERT:
             query = query.eq("expert_user_id", principal.user_id)
-        return query.order("created_at", desc=True).execute().data or []
+        try:
+            return query.order("created_at", desc=True).execute().data or []
+        except Exception:  # noqa: BLE001 — запасной select без consents/result_evidence
+            query = self.client.table("cases").select(select_min)
+            if principal.role is StaffRole.EXPERT:
+                query = query.eq("expert_user_id", principal.user_id)
+            return query.order("created_at", desc=True).execute().data or []
 
     def anonymized_analytics_rows(self) -> list[dict[str, Any]]:
         """Legacy export rows (service role, все дела)."""
