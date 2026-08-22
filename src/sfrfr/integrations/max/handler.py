@@ -239,43 +239,20 @@ def _looks_like_channel_update(update: dict[str, Any]) -> bool:
     return False
 
 
-def _append_client_case_message(*, case_id: str | None, text: str) -> None:
-    """Сохранить текст клиента в ленту дела (без команд/колбэков)."""
-    cid = (case_id or "").strip()
-    body = (text or "").strip()
-    if not cid or not body or len(cid) < 32:
-        return
-    try:
-        from sfrfr.db.session import get_supabase_client
+def _append_client_case_message(
+    *,
+    case_id: str | None,
+    text: str,
+    max_user_id: str | None = None,
+) -> None:
+    """Сохранить текст клиента в ленту дела (или в буфер до появления дела)."""
+    from sfrfr.integrations.max.case_chat_log import append_client_case_message
 
-        get_supabase_client().table("case_messages").insert(
-            {
-                "case_id": cid,
-                "author_kind": "client",
-                "author_user_id": None,
-                "body": body[:4000],
-            }
-        ).execute()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("case_message client append failed case=%s: %s", cid[:8], exc)
-
-
-def _keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str]:
-    labels: list[str] = []
-    for att in attachments or []:
-        if not isinstance(att, dict):
-            continue
-        payload = att.get("payload") if isinstance(att.get("payload"), dict) else att
-        rows = payload.get("buttons") if isinstance(payload, dict) else None
-        if not isinstance(rows, list):
-            continue
-        for row in rows:
-            if not isinstance(row, list):
-                continue
-            for btn in row:
-                if isinstance(btn, dict) and btn.get("text"):
-                    labels.append(str(btn["text"]).strip())
-    return [x for x in labels if x]
+    append_client_case_message(
+        case_id=case_id,
+        max_user_id=max_user_id,
+        text=text,
+    )
 
 
 def _resolve_case_id_by_max_user(user_id: str | None) -> str | None:
@@ -323,28 +300,34 @@ def _append_bot_case_message(
     case_id: str | None,
     text: str,
     attachments: list[dict[str, Any]] | None = None,
+    max_user_id: str | None = None,
 ) -> None:
     """Сохранить ответ бота MAX (текст + подписи кнопок) в ленту дела."""
-    cid = (case_id or "").strip()
-    body = (text or "").strip()
-    if not cid or not body or len(cid) < 32:
-        return
-    labels = _keyboard_button_labels(attachments)
-    if labels:
-        body = f"{body}\n\n[Кнопки бота: {' · '.join(labels)}]"
-    try:
-        from sfrfr.db.session import get_supabase_client
+    from sfrfr.integrations.max.case_chat_log import append_bot_case_message
 
-        get_supabase_client().table("case_messages").insert(
-            {
-                "case_id": cid,
-                "author_kind": "system",
-                "author_user_id": None,
-                "body": body[:4000],
-            }
-        ).execute()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("case_message bot append failed case=%s: %s", cid[:8], exc)
+    append_bot_case_message(
+        case_id=case_id,
+        max_user_id=max_user_id,
+        text=text,
+        attachments=attachments,
+    )
+
+
+def _case_id_for_max_user(user_id: str | None) -> str | None:
+    """Дело по клиенту MAX или по активной диагностике."""
+    cid = _resolve_case_id_by_max_user(user_id)
+    if cid:
+        return cid
+    mid = str(user_id or "").strip()
+    if not mid:
+        return None
+    try:
+        intake = get_intake_store().get_active(mid)
+        if intake and intake.case_id and len(str(intake.case_id)) >= 32:
+            return str(intake.case_id)
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def _text(update: dict[str, Any]) -> str:
@@ -400,8 +383,13 @@ def _reply(
             chat_id=chat_id,
             attachments=attachments,
         )
-        cid = case_id or _resolve_case_id_by_max_user(user_id)
-        _append_bot_case_message(case_id=cid, text=text, attachments=attachments)
+        cid = case_id or _case_id_for_max_user(user_id)
+        _append_bot_case_message(
+            case_id=cid,
+            text=text,
+            attachments=attachments,
+            max_user_id=str(user_id) if user_id else None,
+        )
         return True
     except Exception as exc:  # noqa: BLE001
         import logging
@@ -508,15 +496,26 @@ def _ensure_case_for_intake(
     store,
 ) -> str:
     """Создать или найти дело только при переходе в кабинет / вызове оператора."""
+
+    def _finish(case_id: str) -> str:
+        cid = str(case_id)
+        try:
+            from sfrfr.integrations.max.case_chat_log import flush_pending_case_chat
+
+            flush_pending_case_chat(max_user_id=user_id, case_id=cid)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("flush pending chat failed max=%s: %s", user_id, exc)
+        return cid
+
     if intake.case_id:
-        return str(intake.case_id)
+        return _finish(str(intake.case_id))
 
     # Локальный store — быстрый путь (тесты / fallback).
     existing = store.find_by_max_user(user_id)
     if existing:
         intake.case_id = existing.case_id
         get_intake_store().save(intake)
-        return existing.case_id
+        return _finish(existing.case_id)
 
     supabase_case = _try_create_supabase_case(user_id=user_id, intake=intake)
     if supabase_case:
@@ -538,7 +537,7 @@ def _ensure_case_for_intake(
         # Предпочитаем supabase case_id в deep-link.
         intake.case_id = case_id
         get_intake_store().save(intake)
-        return case_id
+        return _finish(case_id)
 
     record = store.create(
         client_name=f"MAX user {user_id}",
@@ -552,7 +551,7 @@ def _ensure_case_for_intake(
     )
     intake.case_id = record.case_id
     get_intake_store().save(intake)
-    return record.case_id
+    return _finish(record.case_id)
 
 
 def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None:
@@ -1862,7 +1861,21 @@ def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
 
 def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
     path = save_upload(record.case_id, file_name, data)
-    return store.add_document(record.case_id, str(path))
+    fresh = store.add_document(record.case_id, str(path))
+    try:
+        from sfrfr.integrations.max.case_chat_log import (
+            append_case_chat_message,
+            format_document_event,
+        )
+
+        append_case_chat_message(
+            case_id=record.case_id,
+            author_kind="client",
+            body=format_document_event(filename=file_name),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("document case_message failed: %s", exc)
+    return fresh
 
 
 def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
@@ -1969,9 +1982,12 @@ def handle_max_update(
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
+        from sfrfr.integrations.max.case_chat_log import format_button_press
+
         _append_client_case_message(
-            case_id=_resolve_case_id_by_max_user(user_id),
-            text=f"Нажал кнопку: {callback}",
+            case_id=_case_id_for_max_user(user_id),
+            max_user_id=user_id,
+            text=format_button_press(callback),
         )
         # Soft-кнопки от DeepSeek → дальше как свободный текст
         if callback.startswith("llmsoft:"):
@@ -2209,6 +2225,16 @@ def handle_max_update(
         return receipt_handled
     if is_production and (isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)):
         case_id = record.case_id
+        names = []
+        if isinstance(file_name, str):
+            names.append(file_name)
+        names.extend(name for name, _url in downloads)
+        label = names[0] if names else "файл"
+        _append_client_case_message(
+            case_id=case_id or _case_id_for_max_user(user_id),
+            max_user_id=user_id,
+            text=f"[Документ] попытка отправить в чат: {label}",
+        )
         max_url, web_url = cabinet_urls_for_case(case_id)
         _reply(
             bot,
@@ -2216,6 +2242,7 @@ def handle_max_update(
             chat_id=chat_id,
             text=UPLOAD_BLOCKED_TEXT,
             attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+            case_id=case_id,
         )
         return MaxHandleResult(
             ok=False,
@@ -2254,8 +2281,13 @@ def handle_max_update(
         case_for_log = (
             (intake.case_id if intake else None)
             or (record.case_id if record else None)
+            or _case_id_for_max_user(user_id)
         )
-        _append_client_case_message(case_id=case_for_log, text=text)
+        _append_client_case_message(
+            case_id=case_for_log,
+            max_user_id=user_id,
+            text=text,
+        )
         from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
         reply, attachments, action = reply_to_free_text(user_text=text, intake=intake)

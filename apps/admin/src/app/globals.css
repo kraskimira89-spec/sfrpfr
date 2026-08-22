@@ -521,6 +521,10 @@ header div { display: grid; gap: 3px; }
   background: #eef6f1;
   border-color: #9ec3b0;
 }
+.case-chat-doc {
+  font-weight: 600;
+  color: #1a4d3a;
+}
 .case-chat-buttons {
   display: flex;
   flex-wrap: wrap;

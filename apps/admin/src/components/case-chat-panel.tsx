@@ -12,12 +12,14 @@ export type CaseChatMessage = {
 
 const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
 
-function splitBody(body: string): { text: string; buttons: string[] } {
+function splitBody(body: string): { text: string; buttons: string[]; isDocument: boolean } {
+  const isDocument = body.startsWith("[Документ] ");
   const match = body.match(BUTTONS_RE);
-  if (!match) return { text: body, buttons: [] };
+  if (!match) return { text: body, buttons: [], isDocument };
   return {
     text: body.slice(0, match.index).trimEnd(),
     buttons: match[1].split(" · ").map((x) => x.trim()).filter(Boolean),
+    isDocument,
   };
 }
 
@@ -72,7 +74,8 @@ export function CaseChatPanel({
       <div className="case-chat-head">
         <h2>Чат с клиентом</h2>
         <p className="hint">
-          Справа всегда: бот MAX, кнопки сценария и переписка сотрудника с клиентом.
+          Полная история как в MAX: ответы бота, кнопки, нажатия клиента, документы и переписка
+          сотрудника.
         </p>
       </div>
 
@@ -96,7 +99,11 @@ export function CaseChatPanel({
                       minute: "2-digit",
                     })}
                   </span>
-                  <p>{parsed.text}</p>
+                  {parsed.isDocument ? (
+                    <p className="case-chat-doc">{parsed.text}</p>
+                  ) : (
+                    <p>{parsed.text}</p>
+                  )}
                   {parsed.buttons.length > 0 ? (
                     <div className="case-chat-buttons" aria-label="Кнопки бота в MAX">
                       {parsed.buttons.map((label) => (

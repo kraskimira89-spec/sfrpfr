@@ -1361,6 +1361,19 @@ async def upload_case_document(
     response = client.table("documents").insert(insert_row).execute()
     action = "result_decision_uploaded" if doc_type == "sfr_decision" else "document_uploaded"
     repo.audit(case_id, principal.user_id, action)
+    try:
+        from sfrfr.integrations.max.case_chat_log import (
+            append_case_chat_message,
+            format_document_event,
+        )
+
+        append_case_chat_message(
+            case_id=case_id,
+            author_kind="staff" if principal.is_staff else "client",
+            body=format_document_event(filename=filename, doc_type=doc_type),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("document case_message skipped: %s", exc)
     if doc_type == "sfr_decision":
         client.table("cases").update({"b2c_status": "result_pending"}).eq("id", case_id).execute()
         existing = repo.get_result_evidence(case_id)
@@ -1441,10 +1454,11 @@ def list_messages(
     case_id: str,
     principal: Principal = Depends(get_current_principal),
 ) -> list[dict]:
+    """Полная лента: сообщения + события загрузки документов (как в переписке MAX)."""
     _repo().require_case(principal, case_id)
-    return (
-        get_supabase_client()
-        .table("case_messages")
+    client = get_supabase_client()
+    messages = (
+        client.table("case_messages")
         .select("*")
         .eq("case_id", case_id)
         .order("created_at")
@@ -1452,6 +1466,44 @@ def list_messages(
         .data
         or []
     )
+    docs = (
+        client.table("documents")
+        .select("id, storage_path, doc_type, created_at, uploaded_by")
+        .eq("case_id", case_id)
+        .order("created_at")
+        .execute()
+        .data
+        or []
+    )
+    # Уже записанные [Документ] … — не дублировать из таблицы documents.
+    covered: set[str] = set()
+    for row in messages:
+        body = str(row.get("body") or "")
+        if body.startswith("[Документ] "):
+            covered.add(body.split("\n", 1)[0].strip().lower())
+
+    timeline: list[dict] = list(messages)
+    for doc in docs:
+        path = str(doc.get("storage_path") or "")
+        name = Path(path).name or "файл"
+        doc_type = doc.get("doc_type")
+        from sfrfr.integrations.max.case_chat_log import format_document_event
+
+        body = format_document_event(filename=name, doc_type=str(doc_type) if doc_type else None)
+        if body.lower() in covered:
+            continue
+        timeline.append(
+            {
+                "id": f"doc:{doc.get('id')}",
+                "case_id": case_id,
+                "author_user_id": doc.get("uploaded_by"),
+                "author_kind": "client",
+                "body": body,
+                "created_at": doc.get("created_at"),
+            }
+        )
+    timeline.sort(key=lambda row: str(row.get("created_at") or ""))
+    return timeline
 
 
 @router.post("/cases/{case_id}/messages", status_code=status.HTTP_201_CREATED)
