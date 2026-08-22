@@ -557,9 +557,17 @@ class CaseRepository:
 
     def request_pipeline_run(self, case_id: str, actor_id: str) -> dict[str, Any]:
         """Клиент/сотрудник: запросить проверку (единая семантика ТЗ-09)."""
+        from sfrfr.services.message_dedupe import required_docs_missing
+
         case = self._case(case_id)
         if case is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        missing = required_docs_missing(case)
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Для диагностики не хватает: {', '.join(missing)}",
+            )
         docs = case.get("documents") or []
         status_now = case.get("pipeline_status") or "intake"
         message = "Проверка запрошена. Специалист и пайплайн уведомлены."

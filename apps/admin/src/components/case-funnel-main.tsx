@@ -1,10 +1,15 @@
 "use client";
 
 import {
+  DOC_REQUEST_ILS,
+  DOC_REQUEST_LABOR,
+  PLAN_READY_CHAT,
+  SERVICE_DESCRIPTION_CHAT,
   deriveFunnel,
   primaryCtaLabel,
   slaHint,
   type FunnelStageId,
+  type FunnelStageState,
 } from "@/lib/case-funnel";
 import {
   humanCaseStage,
@@ -15,7 +20,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
-import { FormEvent, type ReactNode } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 
 type Caps = {
   can_edit_pipeline: boolean;
@@ -45,7 +50,12 @@ type Detail = {
     web_linked: boolean;
     max_user_id?: string | null;
   };
-  documents: { id: string; storage_path: string; doc_type?: string | null }[];
+  documents: {
+    id: string;
+    storage_path: string;
+    doc_type?: string | null;
+    created_at?: string;
+  }[];
   checklist_items: {
     id: string;
     title: string;
@@ -61,6 +71,7 @@ type Detail = {
   draft?: { title?: string; body?: string } | null;
   channels: {
     cabinet_url: string;
+    max_business_url?: string | null;
   };
   representatives?: {
     user_id: string;
@@ -73,6 +84,11 @@ type Detail = {
   orders_summary?: { package_code: string; status: string }[];
   audit: { action: string; at: string }[];
   role_capabilities: Caps;
+};
+
+export type StepChatMessage = {
+  kind: "full" | "short" | "cabinet_howto";
+  text: string;
 };
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -90,37 +106,84 @@ const WAITING_LABELS: Record<string, string> = {
   none: "—",
 };
 
-function StageMark({ state }: { state: "done" | "current" | "todo" }) {
+const SHOW_ALL_KEY = "sfrfr.case.showAllStages";
+
+const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
+  full: "Полный запрос",
+  short: "Короткое напоминание",
+  cabinet_howto: "Инструкция по кабинету",
+};
+
+function StageMark({ state }: { state: FunnelStageState }) {
   if (state === "done") return <span className="funnel-mark funnel-mark--done">✓</span>;
   if (state === "current") return <span className="funnel-mark funnel-mark--current">→</span>;
+  if (state === "overdue") return <span className="funnel-mark funnel-mark--overdue">!</span>;
+  if (state === "waiting") return <span className="funnel-mark funnel-mark--waiting">…</span>;
+  if (state === "blocked") return <span className="funnel-mark funnel-mark--blocked">✕</span>;
   return <span className="funnel-mark">○</span>;
 }
 
-function Panel({
+function StageShell({
+  id,
   title,
+  state,
+  reason,
+  expanded,
+  forceShow,
+  onToggle,
   children,
   accent,
-  open,
 }: {
+  id: string;
   title: string;
+  state: FunnelStageState;
+  reason: string;
+  expanded: boolean;
+  forceShow: boolean;
+  onToggle: () => void;
   children: ReactNode;
   accent?: boolean;
-  open?: boolean;
 }) {
-  if (open === false) {
+  const showBody = expanded || forceShow;
+  if (state === "done" && !forceShow) {
     return (
-      <details className={`panel${accent ? " accent" : ""}`}>
-        <summary>{title}</summary>
-        {children}
-      </details>
+      <div id={id} className="panel funnel-stage funnel-stage--done-compact">
+        <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
+          <StageMark state="done" />
+          <strong>{title}</strong>
+          <span className="hint">готово</span>
+        </button>
+      </div>
+    );
+  }
+  if (!showBody) {
+    return (
+      <div id={id} className={`panel funnel-stage funnel-stage--${state}`}>
+        <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
+          <StageMark state={state} />
+          <strong>{title}</strong>
+          <span className="hint">{reason}</span>
+        </button>
+      </div>
     );
   }
   return (
-    <div className={`panel${accent ? " accent" : ""}`}>
-      <h2>{title}</h2>
-      {children}
+    <div id={id} className={`panel funnel-stage funnel-stage--${state}${accent ? " accent" : ""}`}>
+      <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
+        <StageMark state={state} />
+        <strong>{title}</strong>
+        {!expanded && forceShow ? <span className="hint">просмотр</span> : null}
+      </button>
+      <div className="funnel-stage-body">{children}</div>
     </div>
   );
+}
+
+function docSourceLabel(doc: Detail["documents"][0]): string {
+  const t = `${doc.doc_type || ""} ${doc.storage_path || ""}`.toLowerCase();
+  if (/ils|илс|сзи/.test(t)) return "ИЛС";
+  if (/labor|труд|employment/.test(t)) return "Трудовая";
+  return doc.doc_type || "файл";
 }
 
 export function CaseFunnelMain({
@@ -135,6 +198,7 @@ export function CaseFunnelMain({
   beforeRub,
   afterRub,
   lumpRub,
+  sfrReceived,
   orderCode,
   orderAmount,
   feedbackText,
@@ -165,9 +229,11 @@ export function CaseFunnelMain({
   onBeforeRub,
   onAfterRub,
   onLumpRub,
+  onSfrReceived,
   onOrderCode,
   onOrderAmount,
   onCreateOrder,
+  onRecordServiceConsent,
   onFeedbackText,
   onFeedbackQuality,
   onSendFeedback,
@@ -186,20 +252,21 @@ export function CaseFunnelMain({
   beforeRub: string;
   afterRub: string;
   lumpRub: string;
+  sfrReceived: boolean;
   orderCode: "DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH";
   orderAmount: string;
   feedbackText: string;
   feedbackQuality: string;
   repEmail: string;
   stepHint: { action: string; reason: string; source: string } | null;
-  stepMessages: string[];
+  stepMessages: StepChatMessage[];
   onBack: () => void;
   onNextActionText: (v: string) => void;
   onNextActionAt: (v: string) => void;
   onWaitingOn: (v: string) => void;
   onSaveNextAction: () => void;
   onSuggestStep: () => void;
-  onApplyChatMessage: (text: string) => void;
+  onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   onDismissHint: () => void;
   onTake: () => void;
   onFocusMax: () => void;
@@ -216,9 +283,11 @@ export function CaseFunnelMain({
   onBeforeRub: (v: string) => void;
   onAfterRub: (v: string) => void;
   onLumpRub: (v: string) => void;
+  onSfrReceived: (v: boolean) => void;
   onOrderCode: (v: "DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH") => void;
   onOrderAmount: (v: string) => void;
   onCreateOrder: (e: FormEvent) => void;
+  onRecordServiceConsent: () => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -229,6 +298,10 @@ export function CaseFunnelMain({
   const caps = detail.role_capabilities;
   const funnel = deriveFunnel(detail);
   const current = funnel.current;
+  const stageById = Object.fromEntries(funnel.stages.map((s) => [s.id, s])) as Record<
+    FunnelStageId,
+    (typeof funnel.stages)[0]
+  >;
   const stageLabel = humanCaseStage(detail.pipeline_status, detail.b2c_status);
   const assigned =
     detail.expert_user_id === meUserId
@@ -237,48 +310,83 @@ export function CaseFunnelMain({
         ? "Назначен"
         : "Не назначен";
   const cta = primaryCtaLabel(current, funnel.docsReady);
-  const showContactOpen = current === "contact" || !funnel.consentOk || !funnel.channelOk;
-  const showDocsOpen = current === "documents" || current === "diagnostics";
-  const showDiagOpen = current === "diagnostics" || current === "plan";
-  const showPlanOpen = current === "plan";
-  const showPayOpen = current === "payment";
-  const showResultOpen = current === "result";
-  const showFeedbackOpen = current === "feedback";
   const docCount = detail.documents.length;
-  const docNeed = 3;
   const auditPreview = detail.audit.slice(0, 5);
   const auditRest = detail.audit.slice(5);
 
+  const [showAll, setShowAll] = useState(false);
+  const [manualOpen, setManualOpen] = useState<FunnelStageId | null>(null);
+  const [repOpen, setRepOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      setShowAll(localStorage.getItem(SHOW_ALL_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    setManualOpen(null);
+  }, [detail.id, current]);
+
+  function setShowAllPersist(v: boolean) {
+    setShowAll(v);
+    try {
+      localStorage.setItem(SHOW_ALL_KEY, v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function isExpanded(id: FunnelStageId): boolean {
+    if (showAll) return true;
+    if (manualOpen === id) return true;
+    return id === current;
+  }
+
+  function scrollStage(id: FunnelStageId) {
+    setManualOpen(id);
+    requestAnimationFrame(() => {
+      document.getElementById(`funnel-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function canAct(id: FunnelStageId): boolean {
+    return Boolean(stageById[id]?.canAct);
+  }
+
+  function applyTemplate(text: string) {
+    if (!detail.expert_user_id && meUserId) {
+      onApplyChatMessage(text, { confirmAssign: true });
+      return;
+    }
+    onApplyChatMessage(text);
+  }
+
   function runPrimaryCta() {
+    if (!canAct(current)) return;
     if (current === "contact") {
       if (detail.client.max_linked) onFocusMax();
       else onSendEmail();
       return;
     }
     if (current === "documents") {
-      if (funnel.docsReady) onRequestReview();
+      if (funnel.docsRequiredOk) onRequestReview();
       else onFocusMax();
       return;
     }
-    if (current === "diagnostics") {
+    if (current === "diagnostics" || current === "plan") {
       onRequestReview();
       return;
     }
-    if (current === "plan") {
-      onRequestReview();
-      return;
-    }
-    if (current === "payment") {
-      /* фокус на блок оплаты */
-      document.getElementById("funnel-payment")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    if (current === "result") {
-      document.getElementById("funnel-result")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    document.getElementById("funnel-feedback")?.scrollIntoView({ behavior: "smooth" });
+    scrollStage(current);
   }
+
+  const docItems = detail.checklist_items.filter(
+    (i) => i.item_type === "document" || /илс|труд|справк|выписк|стаж/i.test(i.title),
+  );
+  const actionItems = detail.checklist_items.filter((i) => !docItems.includes(i));
 
   return (
     <div className="case-main">
@@ -305,86 +413,21 @@ export function CaseFunnelMain({
           {slaHint(detail)} · Ответственный: {assigned}
         </p>
         <p className="warning inline">{detail.warning}</p>
-        <div className="row-actions case-funnel-cta-row">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={runPrimaryCta}
-            title="Главное действие для текущего этапа воронки"
-          >
-            {cta}
-          </button>
-          {!detail.expert_user_id || detail.expert_user_id !== meUserId ? (
-            <button
-              type="button"
-              className="ghost"
-              disabled={busy}
-              onClick={onTake}
-              title="Назначить это дело на себя"
-            >
-              Взять в работу
-            </button>
-          ) : null}
-          <details className="case-funnel-more">
-            <summary className="ghost" title="Служебные ссылки и дополнительные действия">
-              ⋮
-            </summary>
-            <div className="case-funnel-more-menu">
-              {detail.client.max_linked ? (
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={onFocusMax}
-                  title="Перейти к полю сообщения в чате справа"
-                >
-                  Написать в MAX
-                </button>
-              ) : null}
-              <a
-                href={detail.channels.cabinet_url}
-                target="_blank"
-                rel="noreferrer"
-                title="Открыть личный кабинет клиента для загрузки документов"
-              >
-                Кабинет клиента
-              </a>
-              {detail.crm_url ? (
-                <a href={detail.crm_url} target="_blank" rel="noreferrer" title="Открыть сделку в amoCRM">
-                  amoCRM
-                </a>
-              ) : null}
-              {detail.meeting_url ? (
-                <a href={detail.meeting_url} target="_blank" rel="noreferrer" title="Открыть ссылку на Телемост">
-                  Телемост
-                </a>
-              ) : null}
-              <button
-                type="button"
-                className="linkish"
-                disabled={busy}
-                onClick={onCreateTelemost}
-                title="Создать видеовстречу Яндекс Телемост и сохранить ссылку в деле"
-              >
-                Создать Телемост
-              </button>
-              <button
-                type="button"
-                className="linkish"
-                disabled={busy}
-                onClick={onSendEmail}
-                title="Отправить клиенту письмо с запросом документов на email"
-              >
-                Письмо: документы
-              </button>
-            </div>
-          </details>
-        </div>
-      </div>
 
-      <div className="case-cards case-funnel-stack">
-        <div className="panel accent case-card--wide">
-          <h2>1. Текущий шаг</h2>
-          <div className="filters">
+        <div className="panel accent case-card--wide case-action-bar">
+          <p className="case-action-bar-line">
+            <strong>Текущий этап:</strong> {stageById[current]?.label}
+            {" · "}
+            <strong>Срок:</strong> {slaHint(detail)}
+            {" · "}
+            <strong>Следующее действие:</strong> {nextActionText || detail.next_action || "не задано"}
+            {" · "}
+            <strong>Ответственный:</strong> {assigned}
+          </p>
+          {!detail.expert_user_id ? (
+            <p className="hint">Назначьте ответственного, чтобы зафиксировать владение делом.</p>
+          ) : null}
+          <div className="filters case-action-bar-fields">
             <label>
               Что сделать
               <input
@@ -412,34 +455,80 @@ export function CaseFunnelMain({
                 <option value="none">Не задано</option>
               </select>
             </label>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onSaveNextAction}
-              title="Сохранить следующий шаг, срок и исполнителя в карточке дела"
-            >
-              Сохранить
-            </button>
+          </div>
+          <div className="row-actions case-funnel-cta-row">
+            {!detail.expert_user_id || detail.expert_user_id !== meUserId ? (
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onTake}
+                title="Назначить это дело на себя"
+              >
+                Назначить себя
+              </button>
+            ) : null}
             <button
               type="button"
               className="ghost"
               disabled={busy}
               onClick={onSuggestStep}
-              title="DeepSeek предложит действие и черновики сообщений. В MAX не отправит — только подставит в чат после вашего выбора"
+              title="DeepSeek предложит действие и черновики. В MAX не отправит"
             >
-              {busy ? "DeepSeek думает…" : "Подсказать шаг (DeepSeek)"}
+              {busy ? "DeepSeek думает…" : "Подставить шаблон"}
             </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onSaveNextAction}
+              title="Сохранить следующий шаг, срок и исполнителя"
+            >
+              Сохранить
+            </button>
+            <button
+              type="button"
+              disabled={busy || !canAct(current)}
+              onClick={runPrimaryCta}
+              title={stageById[current]?.reason || "Главное действие этапа"}
+            >
+              {cta}
+            </button>
+            <details className="case-funnel-more">
+              <summary className="ghost" title="Служебные ссылки">
+                ⋮
+              </summary>
+              <div className="case-funnel-more-menu">
+                {detail.client.max_linked ? (
+                  <button type="button" className="linkish" onClick={onFocusMax}>
+                    Написать в MAX
+                  </button>
+                ) : null}
+                <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
+                  Кабинет клиента
+                </a>
+                {detail.crm_url ? (
+                  <a href={detail.crm_url} target="_blank" rel="noreferrer">
+                    amoCRM
+                  </a>
+                ) : null}
+                {detail.meeting_url ? (
+                  <a href={detail.meeting_url} target="_blank" rel="noreferrer">
+                    Телемост
+                  </a>
+                ) : null}
+                <button type="button" className="linkish" disabled={busy} onClick={onCreateTelemost}>
+                  Создать Телемост
+                </button>
+                <button type="button" className="linkish" disabled={busy} onClick={onSendEmail}>
+                  Письмо: документы
+                </button>
+              </div>
+            </details>
           </div>
-          <p className="hint">
-            Сейчас: {WAITING_LABELS[waitingOn] ?? waitingOn}. Подсказка не отправляет сообщение
-            клиенту — только подставляет текст в чат справа.
-          </p>
           {stepHint ? (
             <div className="case-step-hint">
               <p>
-                <strong>
-                  {stepHint.source === "deepseek" ? "DeepSeek" : "По этапу"}:
-                </strong>{" "}
+                <strong>{stepHint.source === "deepseek" ? "DeepSeek" : "По этапу"}:</strong>{" "}
                 {stepHint.action}
               </p>
               {stepHint.reason ? <p className="hint">{stepHint.reason}</p> : null}
@@ -447,48 +536,76 @@ export function CaseFunnelMain({
                 <div className="case-step-hint-msgs">
                   {stepMessages.map((msg) => (
                     <button
-                      key={msg.slice(0, 40)}
+                      key={`${msg.kind}-${msg.text.slice(0, 40)}`}
                       type="button"
                       className="case-chat-btn-chip case-chat-btn-chip--clickable"
-                      onClick={() => onApplyChatMessage(msg)}
-                      title="Подставить этот текст в поле чата справа. Отправка в MAX — отдельной кнопкой"
+                      onClick={() => applyTemplate(msg.text)}
+                      title="Подставить в поле чата. Отправка в MAX — отдельно"
                     >
-                      Подставить в чат: {msg.length > 70 ? `${msg.slice(0, 70)}…` : msg}
+                      {KIND_LABEL[msg.kind]}:{" "}
+                      {msg.text.length > 60 ? `${msg.text.slice(0, 60)}…` : msg.text}
                     </button>
                   ))}
                 </div>
               ) : null}
-              <button
-                type="button"
-                className="linkish"
-                onClick={onDismissHint}
-                title="Скрыть блок подсказки DeepSeek"
-              >
+              <button type="button" className="linkish" onClick={onDismissHint}>
                 Скрыть подсказку
               </button>
             </div>
           ) : null}
+          <p className="hint">
+            Сейчас ждём: {WAITING_LABELS[waitingOn] ?? waitingOn}. Подсказка не отправляет в MAX.
+          </p>
         </div>
+      </div>
 
+      <div className="case-cards case-funnel-stack">
         <div className="panel case-card--wide case-funnel-map">
-          <h2>Воронка дела</h2>
-          <ul className="funnel-grid">
+          <div className="funnel-map-head">
+            <h2>Воронка дела</h2>
+            <label className="funnel-show-all">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAllPersist(e.target.checked)}
+              />
+              Показать все этапы
+            </label>
+          </div>
+          <ul className="funnel-grid funnel-stepper">
             {funnel.stages.map((s) => (
-              <li key={s.id} className={`funnel-item funnel-item--${s.state}`}>
-                <StageMark state={s.state} />
-                <span>{s.label}</span>
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={`funnel-item funnel-item--${s.state}`}
+                  title={s.reason}
+                  onClick={() => scrollStage(s.id)}
+                >
+                  <StageMark state={s.state} />
+                  <span>{s.label}</span>
+                </button>
               </li>
             ))}
           </ul>
         </div>
 
-        <Panel title="Контакт и доступ" accent={showContactOpen} open={showContactOpen}>
+        <StageShell
+          id="funnel-contact"
+          title="Контакт и доступ"
+          state={stageById.contact.state}
+          reason={stageById.contact.reason}
+          expanded={isExpanded("contact")}
+          forceShow={showAll}
+          onToggle={() => scrollStage("contact")}
+          accent={current === "contact"}
+        >
           <p>
             MAX: {detail.client.max_linked ? "привязан" : "нет"}
             {detail.client.max_user_id ? ` · ${detail.client.max_user_id}` : ""}
             {" · "}Кабинет: {detail.client.web_linked ? "активирован" : "не активирован"}
             {" · "}Согласие на ПДн: {funnel.consentOk ? "получено / не lead" : "нужно"}
-            {" · "}Канал: {CHANNEL_LABELS[detail.client.preferred_channel] ?? detail.client.preferred_channel}
+            {" · "}Канал:{" "}
+            {CHANNEL_LABELS[detail.client.preferred_channel] ?? detail.client.preferred_channel}
           </p>
           <p className="hint">
             Телефон: {detail.client.phone || "не указан"}
@@ -499,172 +616,254 @@ export function CaseFunnelMain({
               <button
                 type="button"
                 className="max-action-btn max-action-btn--inline"
+                disabled={!canAct("contact") && !showAll}
                 onClick={onFocusMax}
-                title="Перейти к полю сообщения в чате справа, чтобы написать клиенту в MAX"
+                title={stageById.contact.reason}
               >
                 Написать в MAX
               </button>
             ) : null}
-            <a
-              href={detail.channels.cabinet_url}
-              target="_blank"
-              rel="noreferrer"
-              title="Открыть защищённый кабинет клиента"
-            >
+            <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
               Открыть кабинет
             </a>
           </div>
-          <h3 className="case-subhead">Законные представители</h3>
-          <ul className="plain-list">
-            {(detail.representatives ?? []).length === 0 && <li>Нет</li>}
-            {(detail.representatives ?? []).map((rep) => (
-              <li key={rep.user_id}>
-                {rep.full_name || rep.email || rep.user_id.slice(0, 8)}{" "}
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => onRemoveRepresentative(rep.user_id)}
-                  title="Снять доступ представителя к этому делу"
-                >
-                  Снять
-                </button>
-              </li>
-            ))}
-          </ul>
-          <form className="row-actions" onSubmit={onAddRepresentative}>
-            <input
-              type="email"
-              placeholder="email представителя"
-              value={repEmail}
-              onChange={(e) => onRepEmail(e.target.value)}
-              required
-            />
-            <button type="submit" disabled={busy} title="Выдать доступ представителю по email веб-кабинета">
-              Выдать доступ
+          <div className="rep-block">
+            <button type="button" className="linkish" onClick={() => setRepOpen((v) => !v)}>
+              {repOpen ? "− Скрыть представителей" : "+ Добавить законного представителя"}
             </button>
-          </form>
-        </Panel>
+            {repOpen || (detail.representatives ?? []).length > 0 ? (
+              <>
+                <p className="hint warning-inline">
+                  Нужно основание полномочий (доверенность / законное представительство). Не запрашивайте
+                  СНИЛС и сканы в чат.
+                </p>
+                <ul className="plain-list">
+                  {(detail.representatives ?? []).length === 0 && <li>Нет</li>}
+                  {(detail.representatives ?? []).map((rep) => (
+                    <li key={rep.user_id}>
+                      {rep.full_name || rep.email || rep.user_id.slice(0, 8)}{" "}
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={() => onRemoveRepresentative(rep.user_id)}
+                      >
+                        Снять
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <form className="row-actions" onSubmit={onAddRepresentative}>
+                  <input
+                    type="email"
+                    placeholder="email представителя"
+                    value={repEmail}
+                    onChange={(e) => onRepEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy}>
+                    Выдать доступ
+                  </button>
+                </form>
+              </>
+            ) : null}
+          </div>
+        </StageShell>
 
-        <Panel
-          title={`Документы для диагностики · ${Math.min(docCount, docNeed)} из ${docNeed}`}
-          accent={showDocsOpen}
-          open={showDocsOpen}
+        <StageShell
+          id="funnel-documents"
+          title={`Документы · ${docCount}`}
+          state={stageById.documents.state}
+          reason={stageById.documents.reason}
+          expanded={isExpanded("documents")}
+          forceShow={showAll}
+          onToggle={() => scrollStage("documents")}
+          accent={current === "documents"}
         >
-          <ul className="plain-list case-doc-checklist">
-            <li>
-              {funnel.hasIls ? "☑" : "☐"} Выписка ИЛС{" "}
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => onApplyChatMessage(
-                "Здравствуйте! Для проверки нужна выписка ИЛС с Госуслуг. Загрузите файл только в личном кабинете — не в этот чат. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-              )}
-                title="Подставить в чат шаблон запроса выписки ИЛС (без автоотправки)"
-              >
-                Запросить в чат
-              </button>
-            </li>
-            <li>
-              {funnel.hasLabor ? "☑" : "☐"} Трудовая / сведения о стаже{" "}
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => onApplyChatMessage(
-                "Здравствуйте! Подготовьте трудовую книжку или сведения о стаже и загрузите в личный кабинет (не в MAX). Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-              )}
-                title="Подставить в чат шаблон запроса трудовой (без автоотправки)"
-              >
-                Запросить в чат
-              </button>
-            </li>
-            <li>☐ Справки — по необходимости после сверки</li>
-          </ul>
-          <ul className="plain-list">
-            {detail.documents.length === 0 && <li className="hint">Файлов в кабинете пока нет</li>}
-            {detail.documents.map((doc) => (
-              <li key={doc.id}>
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => onOpenSigned(doc.id)}
-                  title="Открыть документ по защищённой временной ссылке"
-                >
-                  {doc.storage_path.split("/").pop()}
-                </button>
-                {doc.doc_type ? ` · ${doc.doc_type}` : ""}
-              </li>
-            ))}
-          </ul>
+          <table className="case-docs-table">
+            <thead>
+              <tr>
+                <th>Документ</th>
+                <th>Состояние</th>
+                <th>Источник</th>
+                <th>Последнее действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Выписка ИЛС</td>
+                <td>{funnel.hasIls ? "есть" : "нет"}</td>
+                <td>кабинет / чек-лист</td>
+                <td>
+                  <button
+                    type="button"
+                    className="linkish"
+                    disabled={!canAct("documents") && current !== "documents" && !showAll}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "Подставить шаблон «Запросить ИЛС» в чат? Отправка в MAX — отдельно.",
+                        )
+                      )
+                        return;
+                      applyTemplate(DOC_REQUEST_ILS);
+                    }}
+                    title="Шаблон в composer, без автоотправки"
+                  >
+                    Отправить шаблон
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td>Трудовая / сведения о стаже</td>
+                <td>{funnel.hasLabor ? "есть" : "нет"}</td>
+                <td>кабинет / чек-лист</td>
+                <td>
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "Подставить шаблон «Запросить трудовую» в чат? Отправка в MAX — отдельно.",
+                        )
+                      )
+                        return;
+                      applyTemplate(DOC_REQUEST_LABOR);
+                    }}
+                  >
+                    Отправить шаблон
+                  </button>
+                </td>
+              </tr>
+              {detail.documents.map((doc) => (
+                <tr key={doc.id}>
+                  <td>
+                    <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
+                      {doc.storage_path.split("/").pop()}
+                    </button>
+                  </td>
+                  <td>загружен</td>
+                  <td>{docSourceLabel(doc)}</td>
+                  <td>
+                    {doc.created_at
+                      ? new Date(doc.created_at).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {docItems.length > 0 ? (
+            <ul className="plain-list case-doc-checklist">
+              {docItems.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="linkish"
+                    disabled={!caps.can_edit_checklist}
+                    onClick={() => onToggleChecklist(item.id, item.status)}
+                  >
+                    [{labelChecklistStatus(item.status)}] {item.title}
+                  </button>
+                  <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {caps.can_edit_checklist ? (
+            <form className="inline-form" onSubmit={onAddChecklist}>
+              <input
+                value={checklistTitle}
+                onChange={(e) => onChecklistTitle(e.target.value)}
+                placeholder="Пункт по документу"
+                required
+              />
+              <button type="submit">Добавить в чек-лист</button>
+            </form>
+          ) : null}
           <div className="row-actions">
-            <a
-              href={detail.channels.cabinet_url}
-              target="_blank"
-              rel="noreferrer"
-              title="Открыть кабинет, куда клиент загружает сканы"
-            >
+            <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
               Открыть защищённый кабинет
             </a>
             <button
               type="button"
-              className="ghost"
-              disabled={busy}
-              onClick={onFocusMax}
-              title="Написать клиенту напоминание в чате справа"
+              disabled={busy || !funnel.docsRequiredOk || (!canAct("documents") && !canAct("diagnostics"))}
+              onClick={onRequestReview}
+              title={
+                funnel.docsRequiredOk
+                  ? "Запустить проверку"
+                  : `Для диагностики не хватает: ${funnel.missingDocs.join(", ")}`
+              }
             >
-              Напомнить клиенту
+              Проверить документы
             </button>
-            {funnel.docsReady || docCount > 0 ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onRequestReview}
-                title="Запустить OCR и сверку ИЛС↔трудовая по загруженным документам"
-              >
-                Запустить проверку
-              </button>
-            ) : null}
           </div>
-        </Panel>
+        </StageShell>
 
         {caps.can_view_ocr ? (
-          <Panel title="Диагностика" accent={showDiagOpen} open={showDiagOpen}>
+          <StageShell
+            id="funnel-diagnostics"
+            title="Диагностика"
+            state={stageById.diagnostics.state}
+            reason={stageById.diagnostics.reason}
+            expanded={isExpanded("diagnostics")}
+            forceShow={showAll}
+            onToggle={() => scrollStage("diagnostics")}
+            accent={current === "diagnostics"}
+          >
             <p className="hint">
-              Статус: {stageLabel}. Документы: ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
-              {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length} · периоды
-              ИЛС: {(detail.ils_periods ?? []).length} · трудовая: {(detail.labor_periods ?? []).length}
+              Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
+              {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
             </p>
             <div className="row-actions">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || !funnel.docsRequiredOk || !canAct("diagnostics")}
                 onClick={onRequestReview}
-                title="Запустить проверку документов: OCR, периоды, замечания"
+                title={
+                  funnel.docsRequiredOk
+                    ? "Запустить проверку"
+                    : `Для диагностики не хватает: ${funnel.missingDocs.join(", ")}`
+                }
               >
                 Проверить документы
               </button>
             </div>
             <h3 className="case-subhead">Замечания / расхождения</h3>
             <ul className="plain-list">
-              {(detail.findings ?? []).length === 0 && <li className="hint">Пока нет — запустите проверку</li>}
+              {(detail.findings ?? []).length === 0 && (
+                <li className="hint">Пока нет — запустите проверку</li>
+              )}
               {(detail.findings ?? []).map((f, idx) => (
                 <li key={`${f.type}-${idx}`}>
                   <strong>{f.type}</strong> {f.detail}
                 </li>
               ))}
             </ul>
-            <h3 className="case-subhead">Обоснование аналитика (DeepSeek)</h3>
+            <h3 className="case-subhead">Помощь в анализе</h3>
+            <p className="hint">Сформировано ИИ, требует проверки</p>
             {detail.analysis_notes ? (
               <pre className="draft">{detail.analysis_notes}</pre>
             ) : (
-              <p className="hint">Появится после проверки. Не заменяет специалиста.</p>
+              <p className="hint">Появится после проверки.</p>
             )}
-          </Panel>
+          </StageShell>
         ) : null}
 
-        <Panel
+        <StageShell
+          id="funnel-plan"
           title="План действий и проект обращения"
-          accent={showPlanOpen}
-          open={showPlanOpen || Boolean(detail.draft)}
+          state={stageById.plan.state}
+          reason={stageById.plan.reason}
+          expanded={isExpanded("plan")}
+          forceShow={showAll}
+          onToggle={() => scrollStage("plan")}
+          accent={current === "plan"}
         >
           <p className="hint">
             Черновик требует проверки специалистом. Не является решением СФР. Клиент подаёт сам.
@@ -681,9 +880,9 @@ export function CaseFunnelMain({
           <div className="row-actions">
             <button
               type="button"
-              disabled={busy || !caps.can_view_ocr}
+              disabled={busy || !caps.can_view_ocr || !canAct("plan")}
               onClick={onRequestReview}
-              title="Сформировать или обновить проект обращения (DeepSeek). Нужна проверка специалистом"
+              title={stageById.plan.reason}
             >
               Сформировать / обновить проект
             </button>
@@ -691,64 +890,115 @@ export function CaseFunnelMain({
               <button
                 type="button"
                 className="ghost"
-                onClick={() =>
-                  onApplyChatMessage(
-                    "Подготовили проект обращения и план. Откройте личный кабинет — там текст и чек-лист. Мы расскажем по шагам, но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-                  )
-                }
-                title="Подставить в чат безопасное сообщение без ПДн и без вложений"
+                disabled={!canAct("plan") && !showAll}
+                onClick={() => applyTemplate(PLAN_READY_CHAT)}
               >
-                Отправить клиенту в чат (без ПДн)
+                Подставить сообщение клиенту
               </button>
             ) : null}
           </div>
-        </Panel>
+        </StageShell>
 
         {caps.can_manage_orders ? (
-          <div id="funnel-payment">
-            <Panel title="Услуга и оплата" accent={showPayOpen} open={showPayOpen}>
-              {(detail.orders ?? []).length > 0 ? (
-                <ul className="plain-list">
-                  {(detail.orders ?? []).map((o) => (
-                    <li key={o.id}>
-                      {labelPackage(o.package_code)} · {o.amount_rub} ₽ · {o.status}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="hint">Услуга ещё не согласована / счёт не создан.</p>
-              )}
-              <form className="inline-form" onSubmit={onCreateOrder}>
-                <select
-                  value={orderCode}
-                  onChange={(e) => onOrderCode(e.target.value as typeof orderCode)}
-                >
-                  <option value="DIAG">{labelPackage("DIAG")}</option>
-                  <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
-                  <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
-                  <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
-                </select>
-                <input
-                  type="number"
-                  min={1}
-                  step="0.01"
-                  placeholder="Сумма ₽"
-                  value={orderAmount}
-                  onChange={(e) => onOrderAmount(e.target.value)}
-                  required
-                />
-                <button type="submit" title="Создать счёт по выбранной услуге и сумме">
-                  Создать счёт
-                </button>
-              </form>
-              <p className="hint">Сумма по выбранной услуге / договору. Не путать с решением СФР.</p>
-            </Panel>
-          </div>
+          <StageShell
+            id="funnel-payment"
+            title="Услуга и оплата"
+            state={stageById.payment.state}
+            reason={stageById.payment.reason}
+            expanded={isExpanded("payment")}
+            forceShow={showAll}
+            onToggle={() => scrollStage("payment")}
+            accent={current === "payment"}
+          >
+            {(detail.orders ?? []).length > 0 ? (
+              <ul className="plain-list">
+                {(detail.orders ?? []).map((o) => (
+                  <li key={o.id}>
+                    {labelPackage(o.package_code)} · {o.amount_rub} ₽ · {o.status}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint">Услуга ещё не согласована / счёт не создан.</p>
+            )}
+            <div className="row-actions">
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onRecordServiceConsent}
+                title="Зафиксировать согласие клиента на услугу (audit)"
+              >
+                Зафиксировать согласие клиента
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => applyTemplate(SERVICE_DESCRIPTION_CHAT)}
+              >
+                Отправить описание услуги в чат
+              </button>
+            </div>
+            {!funnel.serviceConsentOk ? (
+              <p className="hint">Создать счёт можно после фиксации согласия (или если статус не lead).</p>
+            ) : null}
+            <form className="inline-form" onSubmit={onCreateOrder}>
+              <select
+                value={orderCode}
+                onChange={(e) => onOrderCode(e.target.value as typeof orderCode)}
+                disabled={!funnel.serviceConsentOk}
+              >
+                <option value="DIAG">{labelPackage("DIAG")}</option>
+                <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
+                <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
+                <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
+              </select>
+              <input
+                type="number"
+                min={1}
+                step="0.01"
+                placeholder="Сумма ₽"
+                value={orderAmount}
+                onChange={(e) => onOrderAmount(e.target.value)}
+                required
+                disabled={!funnel.serviceConsentOk}
+              />
+              <button
+                type="submit"
+                disabled={!funnel.serviceConsentOk || !canAct("payment")}
+                title={
+                  funnel.serviceConsentOk
+                    ? "Создать счёт"
+                    : "Сначала зафиксируйте согласие клиента на услугу"
+                }
+              >
+                Создать счёт
+              </button>
+            </form>
+            <p className="hint">Сумма по услуге / договору. Не путать с решением СФР.</p>
+          </StageShell>
         ) : null}
 
         {caps.can_confirm_result ? (
-          <div id="funnel-result">
-            <Panel title="Ответ СФР и итог по делу" accent={showResultOpen} open={showResultOpen}>
+          <StageShell
+            id="funnel-result"
+            title="Ответ СФР и итог по делу"
+            state={stageById.result.state}
+            reason={stageById.result.reason}
+            expanded={isExpanded("result")}
+            forceShow={showAll}
+            onToggle={() => scrollStage("result")}
+            accent={current === "result"}
+          >
+            <label className="funnel-show-all">
+              <input
+                type="checkbox"
+                checked={sfrReceived}
+                onChange={(e) => onSfrReceived(e.target.checked)}
+              />
+              Ответ СФР получен
+            </label>
+            {sfrReceived ? (
               <form className="stack-form" onSubmit={onConfirmResult}>
                 <label>
                   Прежний размер, ₽ (из решения СФР)
@@ -760,99 +1010,53 @@ export function CaseFunnelMain({
                 </label>
                 <label>
                   Единовременная выплата, ₽
-                  <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
+                  <input
+                    value={lumpRub}
+                    onChange={(e) => onLumpRub(e.target.value)}
+                    placeholder="Не указано — только по документу СФР"
+                  />
                 </label>
-                <button type="submit" title="Сохранить фактические суммы из решения СФР в деле">
+                <button type="submit" disabled={!canAct("result") && !showAll}>
                   Зафиксировать ответ СФР
                 </button>
               </form>
-              <p className="hint">Только факты из решения СФР, не цена услуги сервиса.</p>
-            </Panel>
-          </div>
+            ) : (
+              <p className="hint">Включите переключатель, когда решение СФР получено.</p>
+            )}
+            <p className="hint">Только факты из решения СФР, не цена услуги сервиса.</p>
+          </StageShell>
         ) : null}
 
         {caps.can_knowledge_feedback ? (
-          <div id="funnel-feedback">
-            <Panel
-              title="Обезличенный вывод в базу знаний"
-              accent={showFeedbackOpen}
-              open={showFeedbackOpen}
-            >
-              <form className="stack-form" onSubmit={onSendFeedback}>
-                <textarea
-                  rows={2}
-                  value={feedbackText}
-                  onChange={(e) => onFeedbackText(e.target.value)}
-                  placeholder="Что помогло (без ФИО, СНИЛС, номеров дел)"
-                  required
-                />
-                <div className="inline-form">
-                  <select value={feedbackQuality} onChange={(e) => onFeedbackQuality(e.target.value)}>
-                    <option value="draft">{labelFeedbackQuality("draft")}</option>
-                    <option value="verified">{labelFeedbackQuality("verified")}</option>
-                    <option value="template">{labelFeedbackQuality("template")}</option>
-                    <option value="rejected">{labelFeedbackQuality("rejected")}</option>
-                  </select>
-                  <button type="submit" title="Сохранить обезличенный вывод в базу знаний (без ПДн)">
-                    Сохранить
-                  </button>
-                </div>
-              </form>
-            </Panel>
-          </div>
-        ) : null}
-
-        <Panel title="Чек-лист" open={false}>
-          <ul className="plain-list">
-            {detail.checklist_items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="linkish"
-                  disabled={!caps.can_edit_checklist}
-                  onClick={() => onToggleChecklist(item.id, item.status)}
-                  title="Переключить статус пункта чек-листа"
-                >
-                  [{labelChecklistStatus(item.status)}] {item.title}
-                </button>
-                <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
-              </li>
-            ))}
-          </ul>
-          {caps.can_edit_checklist ? (
-            <form className="inline-form" onSubmit={onAddChecklist}>
-              <input
-                value={checklistTitle}
-                onChange={(e) => onChecklistTitle(e.target.value)}
-                placeholder="Новый пункт"
+          <StageShell
+            id="funnel-feedback"
+            title="Обезличенный вывод в базу знаний"
+            state={stageById.feedback.state}
+            reason={stageById.feedback.reason}
+            expanded={isExpanded("feedback")}
+            forceShow={showAll}
+            onToggle={() => scrollStage("feedback")}
+            accent={current === "feedback"}
+          >
+            <form className="stack-form" onSubmit={onSendFeedback}>
+              <textarea
+                rows={2}
+                value={feedbackText}
+                onChange={(e) => onFeedbackText(e.target.value)}
+                placeholder="Что помогло (без ФИО, СНИЛС, номеров дел)"
                 required
               />
-              <button type="submit" title="Добавить новый пункт в чек-лист дела">
-                Добавить
-              </button>
+              <div className="inline-form">
+                <select value={feedbackQuality} onChange={(e) => onFeedbackQuality(e.target.value)}>
+                  <option value="draft">{labelFeedbackQuality("draft")}</option>
+                  <option value="verified">{labelFeedbackQuality("verified")}</option>
+                  <option value="template">{labelFeedbackQuality("template")}</option>
+                  <option value="rejected">{labelFeedbackQuality("rejected")}</option>
+                </select>
+                <button type="submit">Сохранить</button>
+              </div>
             </form>
-          ) : null}
-        </Panel>
-
-        {caps.can_edit_pipeline ? (
-          <Panel title="Этап пайплайна (технический)" open={false}>
-            <div className="inline-form">
-              <select value={pipelineStatus} onChange={(e) => onPipelineStatus(e.target.value)}>
-                {pipelineStageOptions().map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={onSavePipeline}
-                title="Сохранить технический код этапа пайплайна"
-              >
-                Сохранить этап
-              </button>
-            </div>
-          </Panel>
+          </StageShell>
         ) : null}
 
         <details className="panel service-details case-card--wide">
@@ -861,6 +1065,39 @@ export function CaseFunnelMain({
           <p>
             pipeline={detail.pipeline_status} · b2c={detail.b2c_status}
           </p>
+          {actionItems.length > 0 ? (
+            <>
+              <h3 className="case-subhead">Чек-лист (действия)</h3>
+              <ul className="plain-list">
+                {actionItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={!caps.can_edit_checklist}
+                      onClick={() => onToggleChecklist(item.id, item.status)}
+                    >
+                      [{labelChecklistStatus(item.status)}] {item.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {caps.can_edit_pipeline ? (
+            <div className="inline-form">
+              <select value={pipelineStatus} onChange={(e) => onPipelineStatus(e.target.value)}>
+                {pipelineStageOptions().map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={onSavePipeline}>
+                Сохранить этап пайплайна
+              </button>
+            </div>
+          ) : null}
           {detail.crm_url ? (
             <p>
               amoCRM:{" "}
@@ -895,5 +1132,4 @@ export function CaseFunnelMain({
   );
 }
 
-// silence unused type export for eslint if FunnelStageId only used in derive
 export type { FunnelStageId };

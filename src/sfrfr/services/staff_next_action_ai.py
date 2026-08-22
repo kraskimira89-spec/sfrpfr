@@ -16,11 +16,17 @@ _SYSTEM = (
     "Документы клиент загружает только в личном кабинете. "
     "Верни только JSON: "
     '{"next_action":"...","waiting_on":"staff|client|archive|sfr|payment",'
-    '"reason":"...","chat_messages":["...","..."]} '
+    '"reason":"...","chat_messages":['
+    '{"kind":"full","text":"..."},'
+    '{"kind":"short","text":"..."},'
+    '{"kind":"cabinet_howto","text":"..."}'
+    "]} "
     "next_action — одна короткая фраза на русском (до 80 символов). "
-    "chat_messages — 1–3 готовых коротких сообщения клиенту в MAX "
-    "(без ПДн, без обещаний; можно напомнить про кабинет)."
+    "chat_messages — ровно 3 объекта: full (полный запрос), short (короткое напоминание), "
+    "cabinet_howto (как загрузить в кабинет). Без ПДн и обещаний."
 )
+
+_KINDS = ("full", "short", "cabinet_howto")
 
 
 def _anon_case(case: dict[str, Any]) -> dict[str, Any]:
@@ -48,23 +54,71 @@ def _anon_case(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _default_messages(action: str) -> list[dict[str, str]]:
+    return [
+        {
+            "kind": "full",
+            "text": (
+                f"Здравствуйте! {action}. "
+                "Документы загружайте только в личном кабинете — не в этот чат. "
+                "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+                "Решение принимает СФР."
+            )[:500],
+        },
+        {
+            "kind": "short",
+            "text": (
+                f"Напоминание: {action}. "
+                "Файлы — только в личном кабинете, не в MAX."
+            )[:500],
+        },
+        {
+            "kind": "cabinet_howto",
+            "text": (
+                "Как загрузить: откройте личный кабинет по ссылке из бота или письма → "
+                "раздел документов → выберите файл → отправьте. "
+                "В этот чат сканы не присылайте."
+            )[:500],
+        },
+    ]
+
+
+def _normalize_chat_messages(raw: Any, action: str) -> list[dict[str, str]]:
+    defaults = _default_messages(action)
+    if not isinstance(raw, list) or not raw:
+        return defaults
+    by_kind: dict[str, str] = {}
+    plain: list[str] = []
+    for item in raw:
+        if isinstance(item, dict):
+            kind = str(item.get("kind") or "").strip()
+            text = str(item.get("text") or "").strip()
+            if kind in _KINDS and text:
+                by_kind[kind] = text[:500]
+        else:
+            text = str(item or "").strip()
+            if text:
+                plain.append(text[:500])
+    out: list[dict[str, str]] = []
+    for i, kind in enumerate(_KINDS):
+        if kind in by_kind:
+            out.append({"kind": kind, "text": by_kind[kind]})
+        elif i < len(plain):
+            out.append({"kind": kind, "text": plain[i]})
+        else:
+            out.append(defaults[i])
+    return out
+
+
 def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
     waiting = derive_waiting_on(case)
     action = derive_next_action(case, waiting)
-    fallback_msgs = [
-        (
-            f"Здравствуйте! {action}. "
-            "Документы загружайте только в личном кабинете — не в этот чат. "
-            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
-            "Решение принимает СФР."
-        )
-    ]
     fallback = {
         "next_action": action,
         "waiting_on": waiting,
         "reason": "Эвристика по этапу и чек-листу.",
         "source": "heuristic",
-        "chat_messages": fallback_msgs,
+        "chat_messages": _default_messages(action),
     }
     llm = LLMClient.for_analyze()
     if not llm.available:
@@ -87,28 +141,10 @@ def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
         wait = waiting
     if not action_out:
         return fallback
-    msgs_raw = data.get("chat_messages")
-    chat_messages: list[str] = []
-    if isinstance(msgs_raw, list):
-        for item in msgs_raw:
-            text = str(item or "").strip()
-            if text:
-                chat_messages.append(text[:500])
-            if len(chat_messages) >= 3:
-                break
-    if not chat_messages:
-        chat_messages = [
-            (
-                f"Здравствуйте! {action_out}. "
-                "Документы — только через личный кабинет. "
-                "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
-                "Решение принимает СФР."
-            )
-        ]
     return {
         "next_action": action_out,
         "waiting_on": wait,
         "reason": str(data.get("reason") or "")[:240],
         "source": "deepseek",
-        "chat_messages": chat_messages,
+        "chat_messages": _normalize_chat_messages(data.get("chat_messages"), action_out),
     }

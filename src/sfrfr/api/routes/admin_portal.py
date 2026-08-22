@@ -652,6 +652,10 @@ def send_max_reply_to_client(
     if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
         raise HTTPException(status_code=403, detail="forbidden")
     from sfrfr.integrations.max.client import MaxBotClient
+    from sfrfr.services.message_dedupe import (
+        count_same_messages,
+        find_duplicate_staff_message,
+    )
 
     repo = _repo()
     case = repo.require_case(principal, case_id)
@@ -663,17 +667,70 @@ def send_max_reply_to_client(
     if not bot.available:
         raise HTTPException(status_code=503, detail="max_bot_not_configured")
     text = payload.message.strip()
+    store_body = text
+    if payload.template_code:
+        store_body = f"{text}\n\n[template:{payload.template_code.strip()}]"
+
+    sb = get_supabase_client()
+    recent = (
+        sb.table("case_messages")
+        .select("id, author_kind, body, created_at")
+        .eq("case_id", case_id)
+        .in_("author_kind", ["staff", "system"])
+        .order("created_at", desc=True)
+        .limit(80)
+        .execute()
+        .data
+        or []
+    )
+    same_48h = count_same_messages(
+        recent,
+        body=text,
+        template_code=payload.template_code,
+        within_hours=48.0,
+    )
+    if not payload.force:
+        if same_48h >= 3:
+            last = find_duplicate_staff_message(
+                recent, body=text, template_code=payload.template_code, within_hours=48.0
+            )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "duplicate_message_limit",
+                    "detail": "Одинаковое сообщение уже отправлялось 3 раза за 48 часов.",
+                    "last_at": (last or {}).get("created_at"),
+                    "last_body_preview": str((last or {}).get("body") or "")[:160],
+                    "count_48h": same_48h,
+                },
+            )
+        dup = find_duplicate_staff_message(
+            recent, body=text, template_code=payload.template_code, within_hours=24.0
+        )
+        if dup:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "duplicate_message",
+                    "detail": "Этот запрос уже отправлялся за последние 24 часа.",
+                    "last_at": dup.get("created_at"),
+                    "last_body_preview": str(dup.get("body") or "")[:160],
+                    "message_id": dup.get("id"),
+                    "count_48h": same_48h,
+                },
+            )
+
     try:
         result = bot.send_message(text=text, user_id=max_uid)
     except Exception as exc:  # noqa: BLE001
         detail = f"max_send_failed:{type(exc).__name__}"
         raise HTTPException(status_code=502, detail=detail) from exc
-    get_supabase_client().table("case_messages").insert(
+    sb.table("case_messages").insert(
         {
             "case_id": case_id,
             "author_user_id": principal.user_id,
             "author_kind": "staff",
-            "body": text,
+            "body": store_body,
         }
     ).execute()
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
@@ -797,8 +854,26 @@ def create_order(
     payload: OrderCreateRequest,
     principal: Principal = Depends(require_admin),
 ) -> dict:
+    from sfrfr.services.message_dedupe import has_service_consent
+
     repo = _repo()
-    repo.require_case(principal, case_id)
+    case = repo.require_case(principal, case_id)
+    audit_rows = (
+        get_supabase_client()
+        .table("access_audit")
+        .select("action, at")
+        .eq("case_id", case_id)
+        .eq("action", "service_consent_recorded")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not has_service_consent(case, audit_rows):
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала зафиксируйте согласие клиента на услугу",
+        )
     if payload.package_code in ("SF_LUMP", "SF_MONTH"):
         evidence = repo.get_result_evidence(case_id)
         if not evidence or not evidence.get("confirmed_at"):
@@ -831,6 +906,20 @@ def create_order(
     case = repo.require_case(principal, case_id)
     _push_case_crm(case, task=f"order:{payload.package_code}")
     return order
+
+
+@router.post("/admin/cases/{case_id}/service-consent")
+def record_service_consent(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Зафиксировать согласие клиента на услугу (для создания счёта)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    repo.audit(case_id, principal.audit_actor_id(), "service_consent_recorded")
+    return {"ok": True, "action": "service_consent_recorded"}
 
 
 @router.get("/admin/finance")
