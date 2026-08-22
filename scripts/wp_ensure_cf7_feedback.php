@@ -30,44 +30,49 @@ if (!$contact instanceof WPCF7_ContactForm) {
 }
 
 $form = <<<'FORM'
-<p class="sfrfr-cf7-field">
+<div class="sfrfr-cf7-grid">
+<div class="sfrfr-cf7-card">
+<div class="sfrfr-cf7-field">
 <label>Тема обращения *
-    [select* topic include_blank "Проверка стажа" "Северный стаж" "Стаж до 2002" "Перед пенсией" "Помочь родственнику" "Тарифы" "Не учли стаж" "Архивная справка" "Отказ СФР" "Как работаем" "Отзыв / качество сервиса" "Другой вопрос"]
+[select* topic include_blank "Проверка стажа" "Северный стаж" "Стаж до 2002" "Перед пенсией" "Помочь родственнику" "Тарифы" "Не учли стаж" "Архивная справка" "Отказ СФР" "Как работаем" "Отзыв / качество сервиса" "Другой вопрос"]
 </label>
-</p>
-<p class="sfrfr-cf7-field">
+</div>
+<div class="sfrfr-cf7-field">
 <label>ФИО *
-    [text* your-name autocomplete:name]
+[text* your-name autocomplete:name]
 </label>
-</p>
-<p class="sfrfr-cf7-field">
+</div>
+<div class="sfrfr-cf7-field">
 <label>Электронная почта *
-    [email* your-email autocomplete:email]
+[email* your-email autocomplete:email]
 </label>
-</p>
-<p class="sfrfr-cf7-field">
+</div>
+<div class="sfrfr-cf7-field">
 <label>Телефон *
-    [tel* your-phone autocomplete:tel]
+[tel* your-phone autocomplete:tel]
 </label>
-</p>
-<p class="sfrfr-cf7-field">
+</div>
+</div>
+<div class="sfrfr-cf7-card">
+<div class="sfrfr-cf7-field sfrfr-cf7-field--message">
 <label>Сообщение *
-    [textarea* your-message]
+[textarea* your-message]
 </label>
-</p>
-<p class="sfrfr-cf7-consent">
+</div>
+<div class="sfrfr-cf7-consent">
 [acceptance acceptance-consent] <a class="sfrfr-consent-link" href="/soglasie/" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных*</a> [/acceptance]
-</p>
-<p class="sfrfr-cf7-hp-wrap" aria-hidden="true">
+</div>
+<div class="sfrfr-cf7-hp-wrap" aria-hidden="true">
 <label>Сайт
-    [text sfrfr_hp class:sfrfr-cf7-hp tabindex:-1 autocomplete:off]
+[text sfrfr_hp class:sfrfr-cf7-hp tabindex:-1 autocomplete:off]
 </label>
-</p>
+</div>
 <div class="sfrfr-cf7-captcha" aria-live="polite"></div>
 [hidden smart-token]
 [hidden page-url]
-
-<p class="sfrfr-cf7-submit">[submit "Отправить"]</p>
+<div class="sfrfr-cf7-submit">[submit "Отправить"]</div>
+</div>
+</div>
 FORM;
 
 $mailBody = <<<'BODY'

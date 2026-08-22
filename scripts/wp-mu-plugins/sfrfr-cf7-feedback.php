@@ -91,7 +91,7 @@ function sfrfr_cf7_panel_html(string $topic): string
         : '<p class="sfrfr-note">Форма временно недоступна. Напишите на <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.</p>';
 
     return sprintf(
-        '<div class="sfrfr-cf7-feedback sfrfr-panel" id="obratnaya-svyaz" data-sfrfr-cf7-topic="%s">'
+        '<div class="sfrfr-cf7-feedback" id="obratnaya-svyaz" data-sfrfr-cf7-topic="%s">'
         . '<h2>Написать нам</h2>'
         . '<p class="sfrfr-section__lead">Короткий вопрос по теме страницы. Документы и сканы сюда не отправляйте — после диалога загрузите их в кабинет.</p>'
         . '%s'
@@ -239,4 +239,11 @@ add_filter('wpcf7_spam', static function ($spam, $submission = null) {
         return true;
     }
     return $spam;
+}, 10, 2);
+
+add_filter('wpcf7_autop_or_not', static function ($autop, $contact_form = null) {
+    if ($contact_form instanceof WPCF7_ContactForm && $contact_form->title() === SFRFR_CF7_FEEDBACK_TITLE) {
+        return false;
+    }
+    return $autop;
 }, 10, 2);
