@@ -53,6 +53,18 @@ function sfrfr_seo_is_noindex(): bool
     return has_category(['situacii', 'analitika'], $postId);
 }
 
+function sfrfr_seo_title_has_site_suffix(string $title, string $site): bool
+{
+    if ($site === '') {
+        return false;
+    }
+
+    return (bool) preg_match(
+        '/(?:\||—|–|-)\s*' . preg_quote($site, '/') . '\s*$/u',
+        $title
+    );
+}
+
 add_action('send_headers', static function (): void {
     if (sfrfr_seo_is_noindex() && !headers_sent()) {
         header('X-Robots-Tag: noindex, follow', true);
@@ -106,6 +118,12 @@ add_filter('document_title_parts', static function (array $parts): array {
     }
     if (!empty($parts['title']) && !empty($parts['site']) && $parts['title'] === $parts['site']) {
         unset($parts['site']);
+    } elseif (
+        !empty($parts['title'])
+        && !empty($parts['site'])
+        && sfrfr_seo_title_has_site_suffix((string) $parts['title'], (string) $parts['site'])
+    ) {
+        unset($parts['site']);
     }
     return $parts;
 }, 20);
@@ -129,6 +147,9 @@ add_filter('pre_get_document_title', static function ($title) {
     // Не режем по str_contains(site): SEO-title услуги начинается с «Проверка стажа».
     $site = trim(wp_check_invalid_utf8((string) get_bloginfo('name', 'display'), true));
     if ($site !== '' && $fromMeta !== $site) {
+        if (sfrfr_seo_title_has_site_suffix($fromMeta, $site)) {
+            return $fromMeta;
+        }
         return $fromMeta . ' — ' . $site;
     }
     return $fromMeta;
