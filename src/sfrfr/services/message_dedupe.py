@@ -115,7 +115,10 @@ def required_docs_missing(case: dict[str, Any]) -> list[str]:
     return missing
 
 
-def has_service_consent(case: dict[str, Any], audit_rows: list[dict[str, Any]] | None = None) -> bool:
+def has_service_consent(
+    case: dict[str, Any],
+    audit_rows: list[dict[str, Any]] | None = None,
+) -> bool:
     if str(case.get("b2c_status") or "") != "lead":
         return True
     rows = audit_rows if audit_rows is not None else (case.get("audit") or [])

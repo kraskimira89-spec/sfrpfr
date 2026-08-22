@@ -20,7 +20,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useState, type ReactNode } from "react";
 
 type Caps = {
   can_edit_pipeline: boolean;
@@ -315,21 +315,22 @@ export function CaseFunnelMain({
   const auditPreview = detail.audit.slice(0, 5);
   const auditRest = detail.audit.slice(5);
 
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(() => {
+    try {
+      return typeof window !== "undefined" && localStorage.getItem(SHOW_ALL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [manualOpen, setManualOpen] = useState<FunnelStageId | null>(null);
+  const [focusKey, setFocusKey] = useState(`${detail.id}:${current}`);
   const [repOpen, setRepOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      setShowAll(localStorage.getItem(SHOW_ALL_KEY) === "1");
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
+  const nextFocusKey = `${detail.id}:${current}`;
+  if (focusKey !== nextFocusKey) {
+    setFocusKey(nextFocusKey);
     setManualOpen(null);
-  }, [detail.id, current]);
+  }
 
   function setShowAllPersist(v: boolean) {
     setShowAll(v);
