@@ -480,13 +480,7 @@ if ($menu) {
         }
     }
     if ($partneramId > 0 && $kontaktyOrder !== null) {
-        wp_update_nav_menu_item($menuId, $partneramId, [
-            'menu-item-title' => 'Партнёрам',
-            'menu-item-url' => home_url('/partneram/'),
-            'menu-item-status' => 'publish',
-            'menu-item-position' => max(1, $kontaktyOrder - 1),
-        ]);
-        echo "MENU Партнёрам order before Контакты\n";
+        require dirname(__DIR__) . '/wp_fix_partneram_menu_order.php';
     }
 }
 
