@@ -33,7 +33,25 @@ psql "$DATABASE_URL_LIBPQ" -v ON_ERROR_STOP=1 -f /opt/sfrfr/supabase/migrations/
 
 Без миграции реестр всё равно строится из `orders.status` (`pending`/`paid`); сохранение ссылки, срока и аудита заработает после колонок.
 
-## Роли
+## Автоматизация (без авторассылки клиенту)
+
+- После принятия заказа (`contract_accepted`) создаётся **черновик счёта**: диагностика 3 000 ₽ или, если диагностика уже оплачена, подготовка документов 5 000 ₽.
+- Ссылка в MAX / ЮKassa **не** создаётся сама — сотрудник нажимает «Ссылка».
+- После полной оплаты DIAG: `next_action` «Провести диагностику», этап `intake`/`new` → `documents_received`; если соглашение уже было — черновик счёта на подготовку документов (5 000 ₽).
+- После полной оплаты ACCOMP: `next_action` «Готовить документы и проект обращения», pipeline не прыгает через OCR.
+- Частичная оплата: задача сотруднику, этап не стартует.
+- Каждое утро (07:00 МСК) `sfrfr finance-due-tick`:
+  - за 24 часа до срока — задача «Проверить оплату»;
+  - 1–3 дня после срока — черновик вежливого напоминания (без отправки).
+
+Включить таймер на VPS:
+
+```bash
+sudo cp /opt/sfrfr/docs/systemd/sfrfr-finance-due.service /etc/systemd/system/
+sudo cp /opt/sfrfr/docs/systemd/sfrfr-finance-due.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now sfrfr-finance-due.timer
+```
 
 - operator — нет вкладки.
 - expert — свои дела, ссылка и напоминание.

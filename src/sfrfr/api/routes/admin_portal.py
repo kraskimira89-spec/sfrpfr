@@ -976,6 +976,17 @@ def admin_order_mark_paid(
                 "reference": payload.reference,
             },
         )
+        from sfrfr.services.finance_automation import PARTIAL_TITLE, ensure_staff_task
+
+        ensure_staff_task(
+            repo,
+            str(order.get("case_id")),
+            title=PARTIAL_TITLE,
+            item_type="payment",
+            due_at=None,
+            actor_id=principal.user_id,
+            note="Полный этап не запускаем до полной оплаты.",
+        )
         return {"order": serialize_order(updated, case), "partial": True}
     provider_payment_id = f"manual:{order_id}:{payload.reference[:40]}"
     repo.create_payment_record(

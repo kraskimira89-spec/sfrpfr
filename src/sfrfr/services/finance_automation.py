@@ -21,6 +21,13 @@ CHECK_PAYMENT_TITLE = "Проверить оплату"
 PARTIAL_TITLE = "Частичная оплата — решить вручную"
 
 
+def _load_case(repo: Any, case_id: str) -> dict[str, Any] | None:
+    getter = getattr(repo, "get_case_row", None) or getattr(repo, "_case", None)
+    if getter is None:
+        return None
+    return getter(case_id)
+
+
 def _pkg_state(orders: list[dict[str, Any]], code: str) -> str:
     """paid | open | none."""
     rows = [o for o in orders if str(o.get("package_code") or "").upper() == code]
@@ -50,10 +57,10 @@ def suggest_agreement_draft(
             "amount_rub": float(tariff.get("amount_rub") or 3000),
             "service_label": str(tariff.get("name") or "Диагностика"),
         }
+    # После webhook оплаты DIAG b2c уже diagnostic_paid, не contract_accepted.
     if diag == "paid" and accomp == "none" and b2c in {
         "contract_accepted",
         "diagnostic_paid",
-        "service_paid",
     }:
         tariff = public_tariff("DOCS") or {}
         return {
@@ -75,8 +82,9 @@ def ensure_agreement_draft_invoice(
     actor_id: str | None,
     *,
     now: datetime | None = None,
+    update_queue: bool = True,
 ) -> dict[str, Any] | None:
-    case = repo._case(case_id) if hasattr(repo, "_case") else None
+    case = _load_case(repo, case_id)
     if not case:
         return None
     orders = repo.list_orders(case_id)
@@ -88,20 +96,21 @@ def ensure_agreement_draft_invoice(
         package_code=draft["package_code"],
         amount_rub=draft["amount_rub"],
         status_value="draft",
-        actor_id=actor_id or "",
+        actor_id=actor_id,
         due_at=_due_iso(now),
         service_label=draft["service_label"],
         invoice_status="draft",
     )
-    try:
-        repo.update_next_action(
-            case_id,
-            actor_id,
-            next_action="Выставить счёт",
-            waiting_on="payment",
-        )
-    except Exception:  # noqa: BLE001
-        pass
+    if update_queue:
+        try:
+            repo.update_next_action(
+                case_id,
+                actor_id,
+                next_action="Выставить счёт",
+                waiting_on="payment",
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return order
 
 
@@ -134,17 +143,19 @@ def on_order_fully_paid(
         pass
     if pipeline:
         try:
-            case = repo._case(case_id)
+            case = _load_case(repo, case_id)
             current = str((case or {}).get("pipeline_status") or "")
             if current in {"", "intake", "new"}:
                 repo.update_case_status(
-                    case_id, pipeline, actor_id or "", notify=False
+                    case_id, pipeline, actor_id, notify=False
                 )
         except Exception:  # noqa: BLE001
             pass
     if code == "DIAG":
         try:
-            ensure_agreement_draft_invoice(repo, case_id, actor_id)
+            ensure_agreement_draft_invoice(
+                repo, case_id, actor_id, update_queue=False
+            )
         except Exception:  # noqa: BLE001
             pass
 
@@ -159,7 +170,7 @@ def ensure_staff_task(
     actor_id: str | None,
     note: str | None = None,
 ) -> bool:
-    case = repo._case(case_id) if hasattr(repo, "_case") else None
+    case = _load_case(repo, case_id)
     items = (case or {}).get("checklist_items") or []
     for item in items:
         if item.get("status") in {"done", "cancelled"}:
@@ -171,7 +182,7 @@ def ensure_staff_task(
         title=title,
         item_type=item_type,
         owner="expert",
-        actor_id=actor_id or "",
+        actor_id=actor_id,
         due_at=due_at,
         note=note,
     )
@@ -205,7 +216,7 @@ def run_due_tick(repo: Any, *, now: datetime | None = None) -> dict[str, int]:
             stats["skipped"] += 1
             continue
         try:
-            case = repo._case(case_id)
+            case = _load_case(repo, case_id)
         except Exception:  # noqa: BLE001
             stats["errors"] += 1
             continue
@@ -239,7 +250,7 @@ def run_due_tick(repo: Any, *, now: datetime | None = None) -> dict[str, int]:
                 repo.update_order_fields(
                     oid,
                     case_id=case_id,
-                    actor_id="",
+                    actor_id=None,
                     action="due_check_task",
                     fields={"next_action": "Проверить оплату"},
                     audit_payload={"hours_left": round(hours, 1)},
@@ -265,7 +276,7 @@ def run_due_tick(repo: Any, *, now: datetime | None = None) -> dict[str, int]:
                 repo.update_order_fields(
                     oid,
                     case_id=case_id,
-                    actor_id="",
+                    actor_id=None,
                     action="overdue_reminder_draft",
                     fields={
                         "reminder_draft": draft,

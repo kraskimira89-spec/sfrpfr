@@ -1303,5 +1303,20 @@ def site_reviews_set(
         raise typer.Exit(code=1)
 
 
+@app.command("finance-due-tick")
+def finance_due_tick() -> None:
+    """Ежедневная проверка сроков оплаты: задача сотруднику и черновик напоминания.
+
+    Не отправляет сообщения клиенту в MAX и не создаёт платежи ЮKassa.
+    """
+    import json
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.finance_automation import run_due_tick
+
+    stats = run_due_tick(CaseRepository())
+    typer.echo(json.dumps(stats, ensure_ascii=False))
+
+
 if __name__ == "__main__":
     app()

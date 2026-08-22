@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SFRFR finance due tick every morning
+
+[Timer]
+OnCalendar=*-*-* 07:00:00 Europe/Moscow
+Persistent=true
+AccuracySec=1min
+Unit=sfrfr-finance-due.service
+
+[Install]
+WantedBy=timers.target

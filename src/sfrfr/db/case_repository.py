@@ -148,11 +148,14 @@ class CaseRepository:
         by_id = {str(row["id"]): row for row in [*own, *represented_cases]}
         return list(by_id.values())
 
+    def get_case_row(self, case_id: str) -> dict[str, Any] | None:
+        return self._case(case_id)
+
     def update_case_status(
         self,
         case_id: str,
         status_value: str,
-        actor_id: str,
+        actor_id: str | None,
         *,
         notify: bool = True,
     ) -> dict[str, Any]:

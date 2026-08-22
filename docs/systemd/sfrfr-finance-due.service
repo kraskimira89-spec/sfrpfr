@@ -1,0 +1,15 @@
+[Unit]
+Description=SFRFR finance due tick (check payment deadlines)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/sfrfr/.venv/bin/python
+
+[Service]
+Type=oneshot
+User=sfrfr
+Group=sfrfr
+WorkingDirectory=/opt/sfrfr
+EnvironmentFile=/opt/sfrfr/.env
+ExecStart=/opt/sfrfr/.venv/bin/python -m sfrfr finance-due-tick
+TimeoutStartSec=10min
+Nice=10
