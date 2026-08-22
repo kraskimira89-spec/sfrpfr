@@ -91,6 +91,38 @@ export const FEEDBACK_QUALITY_LABELS: Record<string, string> = {
   rejected: "отклонено",
 };
 
+export const PIPELINE_STAGES: readonly string[] = [
+  "intake",
+  "documents_received",
+  "ocr_done",
+  "classified",
+  "extracted",
+  "audited",
+  "draft_ready",
+  "human_review",
+  "completed",
+  "failed",
+];
+
+export const PIPELINE_FILTER_STAGES: readonly string[] = [
+  "intake",
+  "documents_received",
+  "ocr_done",
+  "classified",
+  "extracted",
+  "audited",
+  "draft_ready",
+  "human_review",
+  "completed",
+  "failed",
+];
+
+export function pipelineStageOptions(
+  stages: readonly string[] = PIPELINE_STAGES,
+): Array<{ value: string; label: string }> {
+  return stages.map((value) => ({ value, label: labelPipeline(value) }));
+}
+
 export function labelPipeline(value: string): string {
   return PIPELINE_LABELS[value] ?? value;
 }

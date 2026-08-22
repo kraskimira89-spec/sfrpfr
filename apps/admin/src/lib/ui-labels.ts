@@ -4,6 +4,8 @@ export {
   PACKAGE_LABELS,
   ORDER_STATUS_LABELS,
   labelPipeline,
+  pipelineStageOptions,
+  PIPELINE_FILTER_STAGES,
   labelB2c,
   labelPackage,
   labelOrderStatus,

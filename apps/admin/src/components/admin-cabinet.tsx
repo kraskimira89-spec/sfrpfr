@@ -10,6 +10,8 @@ import {
   labelOrderStatus,
   labelPackage,
   labelPipeline,
+  pipelineStageOptions,
+  PIPELINE_FILTER_STAGES,
   labelStaffRole,
 } from "@/lib/ui-labels";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -1084,8 +1086,8 @@ export function AdminCabinet() {
             />
             <select value={filterPipeline} onChange={(e) => setFilterPipeline(e.target.value)}>
               <option value="">Все этапы</option>
-              {["intake", "documents_received", "audited", "draft_ready", "human_review", "completed"].map((s) => (
-                <option key={s} value={s}>{labelPipeline(s)}</option>
+              {pipelineStageOptions(PIPELINE_FILTER_STAGES).map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </select>
             <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)}>
@@ -1364,8 +1366,8 @@ export function AdminCabinet() {
               <h2>Этап дела</h2>
               <div className="inline-form">
                 <select value={pipelineStatus} onChange={(e) => setPipelineStatus(e.target.value)}>
-                  {["intake", "documents_received", "ocr_done", "classified", "extracted", "audited", "draft_ready", "human_review", "completed", "failed"].map((s) => (
-                    <option key={s} value={s}>{labelPipeline(s)}</option>
+                  {pipelineStageOptions().map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
                 <button type="button" onClick={() => void savePipeline()}>Сохранить этап</button>
