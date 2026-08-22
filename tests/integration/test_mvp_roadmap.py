@@ -261,6 +261,7 @@ def test_public_leads_route_registered() -> None:
     assert "/api/public/site-reviews" in paths
     assert "/api/portal/cases/{case_id}/orders/{order_id}/pay" in paths
     assert "/api/integrations/payments/yookassa/webhook" in paths
+    assert "/api/public/pay/{order_id}/qr.png" in paths
 
 
 def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:

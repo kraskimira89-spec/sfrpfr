@@ -1006,21 +1006,36 @@ export function AdminCabinet() {
     if (!token) return;
     setBusy(true);
     try {
-      let url = order.pay_url || "";
-      if (!url) {
-        const result = await apiFetch<{ pay_url?: string }>(
-          `/api/portal/admin/orders/${order.id}/pay-link`,
-          token,
-          { method: "POST" },
-        );
-        url = result.pay_url || "";
-      }
+      const result = await apiFetch<{ pay_url?: string }>(
+        `/api/portal/admin/orders/${order.id}/pay-link`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: false }) },
+      );
+      const url = result.pay_url || "";
       if (!url) throw new Error("Нет ссылки");
       await navigator.clipboard.writeText(url);
-      setNotice("Ссылка на оплату скопирована.");
+      setNotice("Короткая ссылка ЮKassa скопирована. QR — в карточке счёта.");
       await loadFinance(financeQueue);
     } catch {
       setNotice("Не удалось получить ссылку на оплату.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendPayLink(order: FinanceOrder) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ sent?: boolean; pay_url?: string }>(
+        `/api/portal/admin/orders/${order.id}/pay-link`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: true }) },
+      );
+      setNotice(result.sent ? "Ссылка и QR отправлены клиенту в MAX." : "Ссылка создана, MAX не отправлен.");
+      await loadFinance(financeQueue);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить ссылку в MAX.");
     } finally {
       setBusy(false);
     }
@@ -2054,6 +2069,7 @@ export function AdminCabinet() {
             onCreate={() => setCreateInvoiceOpen(true)}
             onOpenCase={(caseId) => void openCase(caseId)}
             onCopyLink={(order) => void copyPayLink(order)}
+            onSendLink={(order) => void sendPayLink(order)}
             onRemind={(order, sendMax) => void remindPayment(order, sendMax)}
             onMarkPaid={(order) => {
               setMarkPaidOrder(order);

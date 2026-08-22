@@ -133,6 +133,10 @@ class CancelOrderRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=500)
 
 
+class FinancePayLinkRequest(BaseModel):
+    send_max: bool = False
+
+
 class FinanceRemindRequest(BaseModel):
     send_max: bool = False
     channel: Literal["max", "email", "web"] = "max"

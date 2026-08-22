@@ -58,6 +58,46 @@ class YooKassaClient:
             "error": data.get("description") or data.get("message"),
         }
 
+    def _receipt(
+        self,
+        *,
+        amount_rub: float,
+        description: str,
+        customer_email: str | None,
+        vat_code: int,
+    ) -> dict[str, Any] | None:
+        settings = get_settings()
+        if not (settings.yookassa_send_receipt and customer_email):
+            return None
+        return {
+            "customer": {"email": customer_email},
+            "items": [
+                {
+                    "description": description[:128],
+                    "quantity": "1.00",
+                    "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                    "vat_code": vat_code,
+                    "payment_mode": "full_payment",
+                    "payment_subject": "service",
+                }
+            ],
+        }
+
+    def _post(self, path: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        headers = {
+            "Idempotence-Key": str(uuid.uuid4()),
+            "Content-Type": "application/json",
+        }
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{self.api_base}{path}",
+                json=payload,
+                headers=headers,
+                auth=(self.shop_id, self.secret_key),
+            )
+        data = response.json() if response.content else {}
+        return response.status_code, data if isinstance(data, dict) else {}
+
     def create_payment(
         self,
         *,
@@ -79,39 +119,80 @@ class YooKassaClient:
             "description": description[:128],
             "metadata": metadata or {},
         }
-        settings = get_settings()
-        if settings.yookassa_send_receipt and customer_email:
-            payload["receipt"] = {
-                "customer": {"email": customer_email},
-                "items": [
-                    {
-                        "description": description[:128],
-                        "quantity": "1.00",
-                        "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
-                        "vat_code": vat_code,
-                        "payment_mode": "full_payment",
-                        "payment_subject": "service",
-                    }
-                ],
-            }
-        headers = {
-            "Idempotence-Key": str(uuid.uuid4()),
-            "Content-Type": "application/json",
-        }
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{self.api_base}/payments",
-                json=payload,
-                headers=headers,
-                auth=(self.shop_id, self.secret_key),
-            )
-        data = response.json() if response.content else {}
+        receipt = self._receipt(
+            amount_rub=amount_rub,
+            description=description,
+            customer_email=customer_email,
+            vat_code=vat_code,
+        )
+        if receipt:
+            payload["receipt"] = receipt
+        status_code, data = self._post("/payments", payload)
+        raw_conf = data.get("confirmation")
+        confirmation = raw_conf if isinstance(raw_conf, dict) else {}
         return {
-            "ok": response.status_code < 300,
-            "status_code": response.status_code,
+            "ok": status_code < 300,
+            "status_code": status_code,
             "payment": data,
             "payment_id": data.get("id"),
-            "confirmation_url": (data.get("confirmation") or {}).get("confirmation_url"),
+            "confirmation_url": confirmation.get("confirmation_url"),
+            "status": data.get("status"),
+            "error": data.get("description") or data.get("message"),
+        }
+
+    def create_invoice(
+        self,
+        *,
+        amount_rub: float,
+        description: str,
+        metadata: dict[str, Any] | None = None,
+        expires_at: str,
+        customer_email: str | None = None,
+        vat_code: int = 1,
+        capture: bool = True,
+    ) -> dict[str, Any]:
+        """Счёт ЮKassa: короткая ссылка delivery_method.url (self, без SMS/email)."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
+        meta = metadata or {}
+        payment_data: dict[str, Any] = {
+            "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+            "capture": capture,
+            "description": description[:128],
+            "metadata": meta,
+        }
+        receipt = self._receipt(
+            amount_rub=amount_rub,
+            description=description,
+            customer_email=customer_email,
+            vat_code=vat_code,
+        )
+        if receipt:
+            payment_data["receipt"] = receipt
+        payload: dict[str, Any] = {
+            "payment_data": payment_data,
+            "cart": [
+                {
+                    "description": description[:128],
+                    "price": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                    "quantity": 1.0,
+                }
+            ],
+            "delivery_method_data": {"type": "self"},
+            "locale": "ru_RU",
+            "expires_at": expires_at,
+            "description": description[:128],
+            "metadata": meta,
+        }
+        status_code, data = self._post("/invoices", payload)
+        raw_delivery = data.get("delivery_method")
+        delivery = raw_delivery if isinstance(raw_delivery, dict) else {}
+        return {
+            "ok": status_code < 300,
+            "status_code": status_code,
+            "invoice": data,
+            "invoice_id": data.get("id"),
+            "pay_url": delivery.get("url"),
             "status": data.get("status"),
             "error": data.get("description") or data.get("message"),
         }
@@ -171,11 +252,30 @@ def parse_yookassa_event(payload: dict[str, Any]) -> dict[str, Any]:
     metadata: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
     amount = obj.get("amount") if isinstance(obj.get("amount"), dict) else {}
     receipt = obj.get("receipt") if isinstance(obj.get("receipt"), dict) else None
+    event = str(payload.get("event") or "")
+    payment_id = obj.get("id")
+    status_value = obj.get("status")
+    paid = bool(obj.get("paid"))
+    if event.startswith("invoice."):
+        raw_details = obj.get("payment_details")
+        details: dict[str, Any] = raw_details if isinstance(raw_details, dict) else {}
+        payment_id = details.get("id") or payment_id
+        status_value = details.get("status") or status_value
+        paid = str(status_value or "") == "succeeded" or paid
+        raw_payment = obj.get("payment_data")
+        payment_data = raw_payment if isinstance(raw_payment, dict) else {}
+        raw_nested_meta = payment_data.get("metadata")
+        nested_meta = raw_nested_meta if isinstance(raw_nested_meta, dict) else {}
+        metadata = {**nested_meta, **metadata}
+        raw_nested_amount = payment_data.get("amount")
+        nested_amount = raw_nested_amount if isinstance(raw_nested_amount, dict) else {}
+        if nested_amount and not amount:
+            amount = nested_amount
     return {
-        "event": payload.get("event"),
-        "provider_payment_id": obj.get("id"),
-        "status": obj.get("status"),
-        "paid": bool(obj.get("paid")),
+        "event": event or payload.get("event"),
+        "provider_payment_id": payment_id,
+        "status": status_value,
+        "paid": paid,
         "order_id": metadata.get("order_id"),
         "case_id": metadata.get("case_id"),
         "package_code": metadata.get("package_code"),

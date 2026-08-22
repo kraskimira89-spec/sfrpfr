@@ -72,6 +72,11 @@ def create_app() -> FastAPI:
         tags=["supabase-auth"],
     )
     app.include_router(
+        payments.public_router,
+        prefix="/api/public",
+        tags=["public-pay"],
+    )
+    app.include_router(
         payments.webhook_router,
         prefix="/api/integrations/payments",
         tags=["payments"],

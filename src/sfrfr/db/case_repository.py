@@ -850,6 +850,19 @@ class CaseRepository:
         if order_id:
             query = query.eq("order_id", order_id)
         rows = query.limit(1).execute().data or []
+        if not rows and order_id:
+            order_row = self.get_order_by_id(order_id)
+            if order_row:
+                resolved = str(case_id or order_row.get("case_id") or "")
+                self.create_payment_record(
+                    order_id=order_id,
+                    case_id=resolved,
+                    provider="yookassa",
+                    provider_payment_id=provider_payment_id,
+                    status_value="pending",
+                    actor_id=None,
+                )
+                rows = query.limit(1).execute().data or []
         if not rows:
             raise HTTPException(status_code=404, detail="payment not found")
         row = rows[0]

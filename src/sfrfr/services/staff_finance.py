@@ -162,8 +162,14 @@ def serialize_order(
             )
     amount = float(order.get("amount_rub") or 0)
     service = staff_package_label(str(order.get("package_code") or ""), order.get("service_label"))
+    qr_url = None
+    oid = str(order.get("id") or "")
+    if oid and order.get("pay_url"):
+        from sfrfr.services.pay_link import public_qr_url
+
+        qr_url = public_qr_url(oid)
     return {
-        "id": str(order.get("id") or ""),
+        "id": oid,
         "case_id": str(order.get("case_id") or ""),
         "invoice_number": order.get("invoice_number")
         or invoice_number_from_id(str(order.get("id") or "")),
@@ -175,6 +181,7 @@ def serialize_order(
         "due_at": order.get("due_at"),
         "created_at": order.get("created_at"),
         "pay_url": order.get("pay_url"),
+        "qr_url": qr_url,
         "sent_channel": order.get("sent_channel"),
         "next_action": derive_finance_next_action(order, status),
         "client_name": client.get("full_name"),

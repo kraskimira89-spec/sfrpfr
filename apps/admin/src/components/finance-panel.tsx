@@ -18,6 +18,7 @@ export type FinanceOrder = {
   due_at?: string | null;
   created_at?: string | null;
   pay_url?: string | null;
+  qr_url?: string | null;
   sent_channel?: string | null;
   next_action?: string | null;
   client_name?: string | null;
@@ -107,6 +108,7 @@ export function FinancePanel({
   onCreate,
   onOpenCase,
   onCopyLink,
+  onSendLink,
   onRemind,
   onMarkPaid,
   onCancel,
@@ -130,6 +132,7 @@ export function FinancePanel({
   onCreate: () => void;
   onOpenCase: (caseId: string) => void;
   onCopyLink: (order: FinanceOrder) => void;
+  onSendLink: (order: FinanceOrder) => void;
   onRemind: (order: FinanceOrder, sendMax: boolean) => void;
   onMarkPaid: (order: FinanceOrder) => void;
   onCancel: (order: FinanceOrder) => void;
@@ -298,7 +301,12 @@ export function FinancePanel({
                           <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                             <button type="button" className="ghost" onClick={() => onOpenCase(row.case_id)}>Открыть</button>
                             {row.finance_status !== "paid" && row.finance_status !== "cancelled" && (
-                              <button type="button" className="ghost" disabled={busy} onClick={() => onCopyLink(row)}>Ссылка</button>
+                              <>
+                                <button type="button" className="ghost" disabled={busy} onClick={() => onCopyLink(row)}>Ссылка</button>
+                                {row.max_linked && (
+                                  <button type="button" className="ghost" disabled={busy} onClick={() => onSendLink(row)}>В MAX</button>
+                                )}
+                              </>
                             )}
                             {row.finance_status === "overdue" && (
                               <button type="button" className="ghost" disabled={busy} onClick={() => onRemind(row, Boolean(row.max_linked))}>Напомнить</button>
@@ -321,7 +329,12 @@ export function FinancePanel({
                     <div className="row-actions">
                       <button type="button" onClick={() => onOpenCase(row.case_id)}>Открыть дело</button>
                       {row.finance_status !== "paid" && (
-                        <button type="button" className="ghost" onClick={() => onCopyLink(row)}>Ссылка</button>
+                        <>
+                          <button type="button" className="ghost" onClick={() => onCopyLink(row)}>Ссылка</button>
+                          {row.max_linked && (
+                            <button type="button" className="ghost" disabled={busy} onClick={() => onSendLink(row)}>В MAX</button>
+                          )}
+                        </>
                       )}
                     </div>
                   </li>
@@ -340,10 +353,27 @@ export function FinancePanel({
               <p>{formatRub(preview.amount_rub)} · {labelFinanceStatus(preview.finance_status)}</p>
               <p className="hint">{preview.payment_purpose}</p>
               <p className="hint">Срок: {formatWhen(preview.due_at)}</p>
+              {preview.qr_url && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
+                <img
+                  className="pay-qr"
+                  src={preview.qr_url}
+                  alt="QR на оплату ЮKassa"
+                  width={180}
+                  height={180}
+                />
+              )}
+              {preview.pay_url && (
+                <p className="hint"><a href={preview.pay_url} target="_blank" rel="noreferrer">Открыть ссылку оплаты</a></p>
+              )}
               <div className="row-actions">
                 <button type="button" className="ghost" onClick={() => onOpenCase(preview.case_id)}>Открыть дело</button>
                 {preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
                   <button type="button" disabled={busy} onClick={() => onCopyLink(preview)}>Скопировать ссылку</button>
+                )}
+                {preview.max_linked && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
+                  <button type="button" disabled={busy} onClick={() => onSendLink(preview)}>
+                    Отправить в MAX
+                  </button>
                 )}
                 {preview.max_linked && preview.finance_status !== "paid" && (
                   <button type="button" className="ghost" disabled={busy} onClick={() => onRemind(preview, true)}>

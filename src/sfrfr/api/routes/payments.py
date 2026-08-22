@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from sfrfr.core.config import get_settings
@@ -16,6 +16,7 @@ from sfrfr.services.public_tariffs import PAYMENT_PURPOSE
 
 router = APIRouter()
 webhook_router = APIRouter()
+public_router = APIRouter()
 logger = logging.getLogger("sfrfr.payments")
 
 ReturnChannel = Literal["web_cabinet", "max_miniapp"]
@@ -127,6 +128,8 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
     parsed = parse_yookassa_event(payload)
     provider_id = parsed.get("provider_payment_id")
     if not provider_id:
+        if str(parsed.get("event") or "").startswith("invoice."):
+            return {"ok": "ignored"}
         raise HTTPException(status_code=400, detail="payment id missing")
 
     status_value = str(parsed.get("status") or "unknown")
@@ -163,3 +166,26 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
                 exc,
             )
     return {"ok": "processed"}
+
+
+@public_router.get("/pay/{order_id}/qr.png")
+def public_pay_qr(order_id: str, s: str = Query(default="")) -> Response:
+    """PNG QR по короткой ссылке ЮKassa. Без ПДн, только подпись."""
+    import hmac as hmac_lib
+
+    from sfrfr.services.pay_link import pay_qr_signature, qr_png_bytes
+
+    expected = pay_qr_signature(order_id)
+    if not s or not hmac_lib.compare_digest(s, expected):
+        raise HTTPException(status_code=404, detail="not found")
+    order = _repo().get_order_by_id(order_id)
+    pay_url = str((order or {}).get("pay_url") or "")
+    status_value = str((order or {}).get("status") or "")
+    if not pay_url or status_value in {"cancelled", "canceled"}:
+        raise HTTPException(status_code=404, detail="not found")
+    return Response(
+        content=qr_png_bytes(pay_url),
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+

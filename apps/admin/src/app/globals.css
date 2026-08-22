@@ -501,6 +501,14 @@ header div { display: grid; gap: 3px; }
   flex-wrap: wrap;
 }
 .finance-kpis { margin: 4px 0 8px; }
+.pay-qr {
+  width: 180px;
+  height: 180px;
+  image-rendering: pixelated;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
 .metric-card.is-active {
   border-color: #1e4e79;
   box-shadow: 0 8px 24px rgba(30, 78, 121, 0.08);

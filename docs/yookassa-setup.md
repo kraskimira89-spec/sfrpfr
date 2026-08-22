@@ -2,7 +2,20 @@
 
 Официальная база: [Документация API ЮKassa](https://yookassa.ru/developers), быстрый старт: [Приём первого платежа](https://yookassa.ru/developers/payment-acceptance/getting-started/quick-start).
 
-В SFRFR уже реализован сценарий **Умный платёж (Redirect)**:
+В SFRFR уже реализован сценарий **Умный платёж (Redirect)** в кабинете клиента и **счёт с короткой ссылкой** для сотрудника:
+
+```text
+Сотрудник → «Ссылка» / «В MAX»
+      → POST /v3/invoices (delivery self)
+      → короткая ссылка https://yookassa.ru/my/i/…
+      → QR PNG + кнопка в MAX (только если нажали «В MAX»)
+      → webhook payment.succeeded / invoice.paid → paid
+```
+
+Документация счетов: [выставление счетов](https://yookassa.ru/developers/payment-acceptance/scenario-extensions/invoices/basics).
+SMS и email ЮKassa не включаем — клиенту пишем в MAX.
+
+Клиентский кабинет (как было):
 
 ```text
 Клиент → POST /api/portal/cases/{case_id}/orders/{order_id}/pay
@@ -19,7 +32,8 @@
 | Клиент API | `src/sfrfr/integrations/payments/__init__.py` |
 | Pay + webhook | `src/sfrfr/api/routes/payments.py` |
 | Webhook URL | `POST /api/integrations/payments/yookassa/webhook` |
-| Оплата в UI | cabinet «Оплатить онлайн», mini-app вкладка «Оплаты» |
+| Оплата в UI | cabinet «Оплатить онлайн»; admin «Ссылка» / «В MAX» + QR |
+| Счета API | `YooKassaClient.create_invoice` + `src/sfrfr/services/pay_link.py` |
 | Env | `YOOKASSA_*` в `.env.example` |
 
 ## Шаг 1. Личный кабинет ЮKassa
@@ -69,7 +83,7 @@ https://api.proverkastaza.ru/api/integrations/payments/yookassa/webhook
 https://api.proverkastaza.ru/api/integrations/payments/yookassa
 ```
 
-События минимум: `payment.succeeded`; желательно `payment.canceled`, `payment.waiting_for_capture`.
+События минимум: `payment.succeeded`; желательно `payment.canceled`, `payment.waiting_for_capture`, `invoice.paid`.
 `refund.succeeded` / `payment.method.active` можно оставить включёнными — лишние события без payment id будут `ignored`/400 без падения оплаты.
 
 Без webhook статус в кабинете обновится только вручную / при повторной проверке; клиент после оплаты увидит `return_url`, но «оплачено» надёжно ставит webhook.
