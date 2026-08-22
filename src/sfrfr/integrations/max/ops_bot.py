@@ -378,6 +378,8 @@ def handle_ops_update(
     if confirm_ticket is not None:
         from sfrfr.integrations.max.handler import _complete_pc_login
 
+        if not user_id:
+            return MaxHandleResult(ok=False, action="ignore", detail="confirm no user")
         return _complete_pc_login(
             bot,
             user_id=user_id,
