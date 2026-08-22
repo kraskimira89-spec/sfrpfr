@@ -480,7 +480,7 @@ def build_admin_analytics(
         "funnel": funnel_raw,
         "channels": channel_rows,
         "topics": topic_rows,
-        "risks": [r for r in risks if r["count"] > 0],
+        "risks": [r for r in risks if r.get("count")],
         "finance": finance,
         "export_row_count": len(rows),
         "suppress_small_groups": total < 5,
