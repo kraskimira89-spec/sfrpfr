@@ -1347,12 +1347,25 @@ export function ClientCabinet() {
       const form = new FormData();
       form.append("file", file);
       if (docType) form.append("doc_type", docType);
-      await apiFetch(`/api/portal/cases/${selectedId}/documents`, token, {
+      const payload = await apiFetch<{
+        payment_receipt?: { status?: string; message?: string };
+      }>(`/api/portal/cases/${selectedId}/documents`, token, {
         method: "POST",
         body: form,
       });
-      setNotice("Файл загружен. Список и краткое содержание — ниже.");
-      await openCase(selectedId, docType === "sfr_decision" ? "result" : "case");
+      const receipt = payload.payment_receipt;
+      if (receipt?.status === "confirmed") {
+        setNotice(receipt.message || "Оплата подтверждена по чеку.");
+        await loadPayments(selectedId);
+        setView("payments");
+        await openCase(selectedId, "payments");
+      } else if (receipt?.message) {
+        setNotice(receipt.message);
+        await openCase(selectedId, docType === "payment_receipt" ? "payments" : "case");
+      } else {
+        setNotice("Файл загружен. Список и краткое содержание — ниже.");
+        await openCase(selectedId, docType === "sfr_decision" ? "result" : "case");
+      }
       if (docType === "sfr_decision") await loadResult(selectedId);
     } catch (error) {
       const text = error instanceof Error ? error.message : "";
@@ -2503,7 +2516,10 @@ export function ClientCabinet() {
             <ul className="case-list">
               {orders.map((order) => {
                 const isPost = order.package_code.startsWith("SF_");
-                const canPay = order.status === "pending" || order.status === "awaiting_payment";
+                const canPay =
+                  order.status === "pending" ||
+                  order.status === "awaiting_payment" ||
+                  order.status === "draft";
                 return (
                   <li key={order.id}>
                     <strong>{packageLabel(order.package_code)}</strong>
@@ -2520,14 +2536,29 @@ export function ClientCabinet() {
                       </span>
                     ))}
                     {canPay ? (
-                      <button
-                        type="button"
-                        className="secondary"
-                        disabled={payingOrderId === order.id}
-                        onClick={() => void startPayment(order.id)}
-                      >
-                        {payingOrderId === order.id ? "Создаём платёж…" : "Оплатить онлайн"}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={payingOrderId === order.id}
+                          onClick={() => void startPayment(order.id)}
+                        >
+                          {payingOrderId === order.id ? "Создаём платёж…" : "Оплатить онлайн"}
+                        </button>
+                        <label className="file-label">
+                          Или прикрепить чек (PDF / JPG / PNG)
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                            disabled={busy || !detail?.consent_accepted}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) void uploadDocument(file, "payment_receipt");
+                              event.target.value = "";
+                            }}
+                          />
+                        </label>
+                      </>
                     ) : null}
                   </li>
                 );
@@ -2535,7 +2566,8 @@ export function ClientCabinet() {
             </ul>
           )}
           <p className="hint">
-            Если онлайн-оплата недоступна, специалист отметит оплату вручную — статус обновится здесь.
+            Если оплатите по ссылке ЮKassa, чек присылать не нужно — статус обновится сам.
+            Если переводом, прикрепите чек: сверим реквизиты и откроем следующий шаг.
           </p>
         </section>
       )}

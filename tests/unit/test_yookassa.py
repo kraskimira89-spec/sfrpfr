@@ -59,6 +59,7 @@ def test_format_payment_succeeded_message_mentions_receipt_and_cabinet() -> None
     assert "Оплата получена" in text
     assert "диагностика" in text
     assert "client@example.com" in text
+    assert "Чек присылать не нужно" in text
     assert "/cases/11111111-2222-3333-4444-555555555555?view=payments" in text
 
 

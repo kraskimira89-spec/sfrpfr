@@ -36,6 +36,7 @@ def test_pay_message_no_recalculation_promise() -> None:
     assert "3000" in text
     assert "yookassa.ru" in text
     assert "результат не гарантирован" in text.lower()
+    assert "чек" in text.lower()
     assert "увеличим" not in text.lower()
 
 
