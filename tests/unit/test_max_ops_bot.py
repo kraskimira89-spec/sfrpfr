@@ -75,7 +75,11 @@ def test_ops_login_shows_pair_hint(monkeypatch) -> None:
     pending = create_pending(audience="staff", staff_email="op@example.com")
     bot = _SilentBot()
     result = handle_ops_update(_msg(42, "/login"), bot=bot)
-    assert result.action in {"ops_staff_pair_hint", "login_pending_manager", "login_approved_trusted"}
+    assert result.action in {
+        "ops_staff_pair_hint",
+        "login_pending_manager",
+        "login_approved_trusted",
+    }
     assert bot.sent
     texts = " ".join(str(m.get("text") or "") for m in bot.sent)
     assert pending.pair_code in texts or "6 цифр" in texts or "Готово" in texts
