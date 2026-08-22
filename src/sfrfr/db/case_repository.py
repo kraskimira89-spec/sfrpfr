@@ -861,6 +861,24 @@ class CaseRepository:
         self.audit(case_id, actor_id, "next_action_updated")
         return response.data[0]
 
+    def update_case_flags(
+        self,
+        case_id: str,
+        actor_id: str,
+        *,
+        is_test: bool,
+    ) -> dict[str, Any]:
+        response = (
+            self.client.table("cases")
+            .update({"is_test": is_test})
+            .eq("id", case_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        self.audit(case_id, actor_id, f"is_test:{is_test}")
+        return response.data[0]
+
     def assign_expert(
         self, case_id: str, expert_user_id: str | None, actor_id: str
     ) -> dict[str, Any]:

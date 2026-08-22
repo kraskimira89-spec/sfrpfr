@@ -180,3 +180,19 @@ export function labelFeedbackQuality(value: string): string {
 export function formatCaseStatuses(pipeline: string, b2c: string): string {
   return `${labelPipeline(pipeline)} · ${labelB2c(b2c)}`;
 }
+
+/** Короткий рабочий статус для очереди сотрудника (не сырые коды). */
+export function humanCaseStage(pipeline: string, b2c: string): string {
+  const p = (pipeline || "").toLowerCase();
+  const b = (b2c || "").toLowerCase();
+  if (p === "intake" && (b === "lead" || b === "")) return "Новая заявка";
+  if (b === "lead") return "Новая заявка";
+  if (p === "documents_received") return "Документы";
+  if (p === "audited") return "Расхождения";
+  if (p === "draft_ready" || p === "human_review") return "Проект обращения";
+  if (b === "awaiting_client_submission") return "Ожидаем подачу";
+  if (b === "result_pending") return "Ждём СФР";
+  if (b === "success_fee_due") return "Ожидаем оплату";
+  if (p === "completed" || b === "closed") return "Завершено";
+  return labelPipeline(p);
+}

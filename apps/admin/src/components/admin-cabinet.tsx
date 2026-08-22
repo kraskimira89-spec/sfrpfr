@@ -13,7 +13,9 @@ import {
   pipelineStageOptions,
   PIPELINE_FILTER_STAGES,
   labelStaffRole,
+  humanCaseStage,
 } from "@/lib/ui-labels";
+import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-registry";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -45,6 +47,9 @@ type StaffCaseSummary = {
   next_action_at?: string | null;
   waiting_on?: string | null;
   priority?: string | null;
+  deadline_status?: string | null;
+  is_test?: boolean;
+  last_event?: string | null;
 };
 
 type WorkQueueItem = {
@@ -306,6 +311,9 @@ export function AdminCabinet() {
   const [filterChannel, setFilterChannel] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
   const [queueFilter, setQueueFilter] = useState("all");
+  const [registryQueue, setRegistryQueue] = useState("active");
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [nextActionText, setNextActionText] = useState("");
   const [nextActionAt, setNextActionAt] = useState("");
   const [waitingOn, setWaitingOn] = useState("staff");
@@ -348,19 +356,25 @@ export function AdminCabinet() {
 
   const loadCases = useCallback(async () => {
     if (!token) return;
+    setCasesLoading(true);
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (filterPipeline) params.set("pipeline_status", filterPipeline);
     if (filterChannel) params.set("preferred_channel", filterChannel);
     if (filterPackage) params.set("package_code", filterPackage);
+    params.set("queue", registryQueue);
     const qs = params.toString();
-    setCases(
-      await apiFetch<StaffCaseSummary[]>(
-        `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
-        token,
-      ),
-    );
-  }, [token, q, filterPipeline, filterChannel, filterPackage]);
+    try {
+      setCases(
+        await apiFetch<StaffCaseSummary[]>(
+          `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
+          token,
+        ),
+      );
+    } finally {
+      setCasesLoading(false);
+    }
+  }, [token, q, filterPipeline, filterChannel, filterPackage, registryQueue]);
 
   useEffect(() => {
     if (!token) return;
@@ -721,6 +735,86 @@ export function AdminCabinet() {
       else setNotice(`Почта: ${result.error || "ошибка"}`);
     } catch {
       setNotice("Не удалось отправить письмо.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function takeCase(caseId: string) {
+    if (!token || !me) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${caseId}/assign-expert`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ expert_user_id: me.user_id }),
+      });
+      setNotice("Дело взято в работу.");
+      await loadCases();
+    } catch {
+      setNotice("Не удалось взять дело в работу.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function suggestStep(caseId: string) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const hint = await apiFetch<{ next_action: string; waiting_on: string; reason?: string; source?: string }>(
+        `/api/portal/admin/cases/${caseId}/suggest-next-action`,
+        token,
+        { method: "POST" },
+      );
+      await apiFetch(`/api/portal/admin/cases/${caseId}/next-action`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ next_action: hint.next_action, waiting_on: hint.waiting_on }),
+      });
+      setNotice(
+        hint.source === "deepseek"
+          ? `DeepSeek: ${hint.next_action}`
+          : `Шаг по этапу: ${hint.next_action}`,
+      );
+      await loadCases();
+      await loadDashboard();
+    } catch {
+      setNotice("Не удалось получить подсказку шага.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestDocsFor(caseId: string) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ ok?: boolean; skipped?: boolean; error?: string }>(
+        `/api/portal/admin/cases/${caseId}/email`,
+        token,
+        { method: "POST", body: JSON.stringify({ template: "request_docs" }) },
+      );
+      if (result.ok) setNotice("Письмо «запрос документов» отправлено.");
+      else if (result.skipped) setNotice("Почта пропущена (нет токена / выключена).");
+      else setNotice(`Почта: ${result.error || "ошибка"}`);
+    } catch {
+      setNotice("Не удалось отправить запрос документов.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markTest(caseId: string, isTest: boolean) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${caseId}/flags`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ is_test: isTest }),
+      });
+      setNotice(isTest ? "Помечено как тестовое." : "Убрано из тестовых.");
+      await loadCases();
+    } catch {
+      setNotice("Не удалось обновить флаг. Нужна роль администратора и миграция is_test.");
     } finally {
       setBusy(false);
     }
@@ -1100,7 +1194,7 @@ export function AdminCabinet() {
 
   return (
     <main className="app-layout">
-      <header>
+      <header className="app-header">
         <div className="brand-block">
           <BrandHomeLink className="brand-home-link--header">
             <img
@@ -1345,83 +1439,52 @@ export function AdminCabinet() {
       )}
 
       {view === "cases" && (
-        <section className="stack">
-          <h1>Реестр дел</h1>
-          <form
-            className="filters"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void loadCases();
-            }}
-          >
-            <input
-              placeholder="Поиск: case_id, имя, телефон"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <select value={filterPipeline} onChange={(e) => setFilterPipeline(e.target.value)}>
-              <option value="">Все этапы</option>
-              {pipelineStageOptions(PIPELINE_FILTER_STAGES).map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-            <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)}>
-              <option value="">Все каналы</option>
-              <option value="max_miniapp">MAX</option>
-              <option value="web_cabinet">Веб</option>
-              <option value="unset">Не выбран</option>
-            </select>
-            <select value={filterPackage} onChange={(e) => setFilterPackage(e.target.value)}>
-              <option value="">Все услуги</option>
-              <option value="DIAG">Диагностика</option>
-              <option value="ACCOMP">Сопровождение</option>
-              <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
-              <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
-            </select>
-            <button type="submit">Применить</button>
-          </form>
-          <ul className="case-list">
-            {cases.map((item) => (
-              <li key={item.id}>
-                <button type="button" className="case-card-button" onClick={() => void openCase(item.id)}>
-                  <strong>
-                    {item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}
-                  </strong>
-                  <span>
-                    {formatCaseStatuses(item.pipeline_status, item.b2c_status)}
-                  </span>
-                  <span>
-                    Канал: {CHANNEL_LABELS[item.preferred_channel] ?? item.preferred_channel}
-                    {" · "}MAX {item.max_linked ? "✓" : "—"} · веб {item.web_linked ? "✓" : "—"}
-                  </span>
-                  <span>
-                    Тишина: {item.silent_days} дн. · чек-лист открыт: {item.checklist_open_count}
-                    {item.client_phone ? ` · ${item.client_phone}` : ""}
-                  </span>
-                  {item.crm_url && (
-                    <span>
-                      amoCRM: <a href={item.crm_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>открыть</a>
-                    </span>
-                  )}
-                  {item.max_linked && (
-                    <span>
-                      <button
-                        type="button"
-                        className="linkish"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void openCase(item.id, { focusMaxReply: true });
-                        }}
-                      >
-                        Написать в MAX
-                      </button>
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <CasesRegistry
+          cases={cases}
+          meUserId={me?.user_id ?? ""}
+          meRole={me?.role ?? null}
+          q={q}
+          onQ={setQ}
+          filterPipeline={filterPipeline}
+          onFilterPipeline={setFilterPipeline}
+          filterChannel={filterChannel}
+          onFilterChannel={setFilterChannel}
+          filterPackage={filterPackage}
+          onFilterPackage={setFilterPackage}
+          packageOptions={[
+            { value: "DIAG", label: "Диагностика" },
+            { value: "ACCOMP", label: "Сопровождение" },
+            { value: "SF_LUMP", label: labelPackage("SF_LUMP") },
+            { value: "SF_MONTH", label: labelPackage("SF_MONTH") },
+          ]}
+          pipelineOptions={pipelineStageOptions(PIPELINE_FILTER_STAGES)}
+          queue={registryQueue}
+          onQueue={(next) => {
+            setRegistryQueue(next);
+          }}
+          busy={busy}
+          loading={casesLoading}
+          onSearch={() => void loadCases()}
+          onPreview={setPreviewId}
+          onOpen={(id) => void openCase(id)}
+          onWriteMax={(id) => void openCase(id, { focusMaxReply: true })}
+          onTake={(id) => void takeCase(id)}
+          onSuggest={(id) => void suggestStep(id)}
+          onRequestDocs={(id) => void requestDocsFor(id)}
+          onMarkTest={(id, isTest) => void markTest(id, isTest)}
+          preview={previewId ? buildPreviewFromSummary(cases.find((c) => c.id === previewId) ?? {
+            id: previewId,
+            pipeline_status: "",
+            b2c_status: "",
+            client_name: null,
+            client_phone: null,
+            expert_user_id: null,
+            preferred_channel: "unset",
+            max_linked: false,
+            web_linked: false,
+          }) : null}
+          previewLoading={false}
+        />
       )}
 
       {view === "case" && detail && (
@@ -1430,6 +1493,7 @@ export function AdminCabinet() {
           <h1>
             {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
           </h1>
+          <p className="hint">{humanCaseStage(detail.pipeline_status, detail.b2c_status)}</p>
           <p className="warning inline">{detail.warning}</p>
           <div className="panel accent">
             <h2>Следующий шаг</h2>
@@ -1454,17 +1518,27 @@ export function AdminCabinet() {
                 </select>
               </label>
               <button type="button" disabled={busy} onClick={() => void saveNextAction()}>Сохранить шаг</button>
+              <button type="button" className="ghost" disabled={busy} onClick={() => void suggestStep(detail.id)}>
+                Подсказать шаг (DeepSeek)
+              </button>
             </div>
             <p className="hint">
               Сейчас: {WAITING_LABELS[detail.waiting_on ?? ""] ?? detail.waiting_on ?? "считаем автоматически"}.
               Ожидание архива или СФР не попадает в «без ответа».
             </p>
           </div>
-          <p>
-            {formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}
-            {detail.client.phone ? ` · ${detail.client.phone}` : ""}
-            {detail.client.email ? ` · ${detail.client.email}` : ""}
-          </p>
+          <details className="panel service-details">
+            <summary>Служебные сведения</summary>
+            <p>{formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}</p>
+            <p>
+              {detail.client.phone ? `Телефон: ${detail.client.phone}` : "Телефон не указан"}
+              {detail.client.email ? ` · ${detail.client.email}` : ""}
+            </p>
+            {detail.crm_url && (
+              <p>amoCRM: <a href={detail.crm_url} target="_blank" rel="noreferrer">открыть</a></p>
+            )}
+            <p className="hint">Сырые коды этапа и интеграции нужны для сверки с amoCRM, не для ежедневной очереди.</p>
+          </details>
 
           <div className="panel accent">
             <h2>Каналы клиента (ТЗ-09)</h2>

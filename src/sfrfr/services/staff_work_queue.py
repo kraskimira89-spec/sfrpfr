@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+
+_TEST_NAME = re.compile(r"тест|test|amo token|e2e|recheck", re.IGNORECASE)
 
 WAITING_ON = ("staff", "client", "archive", "sfr", "payment", "none")
 CLOSED_PIPELINE = {"completed", "failed"}
@@ -40,6 +43,13 @@ def human_age(delta: timedelta) -> str:
     if hours < 48:
         return f"{hours} ч"
     return f"{hours // 24} дн."
+
+
+def is_test_case(case: dict[str, Any]) -> bool:
+    if case.get("is_test") is True:
+        return True
+    name = str((case.get("clients") or {}).get("full_name") or "")
+    return bool(_TEST_NAME.search(name))
 
 
 def is_closed(case: dict[str, Any]) -> bool:
@@ -285,7 +295,8 @@ def build_dashboard_snapshot(
     items = [
         item
         for case in cases
-        if (item := build_work_item(case, now=now, show_contact=show_contact))
+        if not is_test_case(case)
+        and (item := build_work_item(case, now=now, show_contact=show_contact))
     ]
     items.sort(key=_sort_key)
 
@@ -346,6 +357,8 @@ def build_dashboard_snapshot(
     by_pipeline: dict[str, int] = {}
     by_b2c: dict[str, int] = {}
     for case in cases:
+        if is_test_case(case):
+            continue
         by_pipeline[str(case.get("pipeline_status"))] = by_pipeline.get(
             str(case.get("pipeline_status")), 0
         ) + 1

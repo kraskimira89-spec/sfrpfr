@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
+    CaseFlagsUpdate,
     CaseNextActionUpdate,
     ChecklistItemCreate,
     ChecklistItemUpdate,
@@ -43,11 +44,13 @@ from sfrfr.security.auth import (
     require_admin,
     require_staff,
 )
+from sfrfr.services.staff_next_action_ai import suggest_next_action
 from sfrfr.services.staff_work_queue import (
     build_dashboard_snapshot,
     build_work_item,
     derive_next_action,
     derive_waiting_on,
+    is_test_case,
 )
 
 router = APIRouter()
@@ -131,6 +134,9 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         next_action_at=(work or {}).get("next_action_at") or case.get("next_action_at"),
         waiting_on=(work or {}).get("waiting_on") or derive_waiting_on(case),
         priority=(work or {}).get("priority"),
+        deadline_status=(work or {}).get("deadline_status"),
+        is_test=is_test_case(case),
+        last_event=(work or {}).get("last_event"),
     )
 
 
@@ -156,6 +162,7 @@ def _filter_staff_case(
         "next_action": case.get("next_action"),
         "next_action_at": case.get("next_action_at"),
         "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
+        "is_test": is_test_case(case),
         "segment": case.get("segment"),
         "region_bucket": case.get("region_bucket"),
         "problem_type": case.get("problem_type"),
@@ -296,12 +303,20 @@ def admin_list_cases(
     package_code: str | None = None,
     payment_status: str | None = None,
     preferred_channel: str | None = None,
+    queue: str | None = Query(default=None, max_length=32),
+    include_test: bool = False,
     principal: Principal = Depends(require_staff),
 ) -> list[StaffCaseSummary]:
     cases = _repo().list_cases(principal)
     needle = (q or "").strip().lower()
     result: list[StaffCaseSummary] = []
     for case in cases:
+        test = is_test_case(case)
+        if queue == "test":
+            if not test:
+                continue
+        elif not include_test and test:
+            continue
         if pipeline_status and case.get("pipeline_status") != pipeline_status:
             continue
         if expert_user_id and str(case.get("expert_user_id") or "") != expert_user_id:
@@ -326,8 +341,40 @@ def admin_list_cases(
             ).lower()
             if needle not in hay:
                 continue
-        result.append(_staff_summary(case, role=principal.role))
+        summary = _staff_summary(case, role=principal.role)
+        if queue and queue != "test" and not _queue_match(summary, queue, principal):
+            continue
+        result.append(summary)
     return result
+
+
+def _queue_match(item: StaffCaseSummary, queue: str, principal: Principal) -> bool:
+    if queue in {"all", "active"}:
+        return item.pipeline_status not in {"completed", "failed"} and item.b2c_status != "closed"
+    if queue == "mine":
+        return bool(item.expert_user_id and item.expert_user_id == principal.user_id)
+    if queue == "new":
+        return item.pipeline_status == "intake" or item.b2c_status == "lead"
+    if queue == "reply":
+        return item.waiting_on == "staff"
+    if queue == "today":
+        return item.priority == "today" or item.deadline_status == "today"
+    if queue == "overdue":
+        return item.deadline_status == "overdue"
+    if queue == "docs":
+        return item.waiting_on in {"client", "archive"}
+    if queue == "payment":
+        return item.waiting_on == "payment"
+    if queue == "noconsent":
+        return item.b2c_status == "lead"
+    if queue == "conflicts":
+        pref = item.preferred_channel
+        if pref == "max_miniapp" and not item.max_linked:
+            return True
+        if pref == "web_cabinet" and not item.web_linked:
+            return True
+        return False
+    return True
 
 
 @router.get("/admin/cases/{case_id}")
@@ -416,13 +463,41 @@ def update_next_action(
     }
 
 
+@router.post("/admin/cases/{case_id}/suggest-next-action")
+def suggest_case_next_action(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """DeepSeek (Yandex AI Studio) предлагает следующий шаг без ПДн."""
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    return suggest_next_action(case)
+
+
+@router.patch("/admin/cases/{case_id}/flags")
+def update_case_flags(
+    case_id: str,
+    payload: CaseFlagsUpdate,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    if principal.role is not StaffRole.ADMIN:
+        raise HTTPException(status_code=403, detail="admin role required")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    updated = repo.update_case_flags(case_id, principal.user_id, is_test=payload.is_test)
+    return {"id": str(updated.get("id") or case_id), "is_test": bool(updated.get("is_test"))}
+
+
 @router.patch("/admin/cases/{case_id}/assign-expert")
 def assign_expert(
     case_id: str,
     payload: AssignExpertRequest,
     principal: Principal = Depends(require_staff),
 ) -> dict:
-    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN):
+    if principal.role is StaffRole.EXPERT:
+        if payload.expert_user_id != principal.user_id:
+            raise HTTPException(status_code=403, detail="expert can only take own case")
+    elif principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN):
         raise HTTPException(status_code=403, detail="operator or admin role required")
     repo = _repo()
     repo.require_case(principal, case_id)

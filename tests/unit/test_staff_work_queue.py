@@ -11,6 +11,25 @@ from sfrfr.services.staff_work_queue import (
 NOW = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
 
 
+def test_test_name_is_excluded_from_snapshot() -> None:
+    from sfrfr.services.staff_work_queue import is_test_case
+
+    case = {
+        "id": "t1",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "is_test": False,
+        "created_at": NOW.isoformat(),
+        "clients": {"full_name": "Тест Клиент AMO", "preferred_channel": "unset"},
+        "checklist_items": [],
+        "orders": [],
+    }
+    assert is_test_case(case) is True
+    snap = build_dashboard_snapshot([case], [], now=NOW)
+    assert snap["work_queue"] == []
+    assert snap["new_leads"] == 0
+
+
 def test_archive_wait_is_not_staff_sla() -> None:
     case = {
         "id": "c1",

@@ -30,9 +30,19 @@ button { cursor: pointer; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .auth-layout, .app-layout {
-  width: min(1280px, calc(100% - 32px));
+  width: min(1100px, calc(100% - 32px));
   margin: 0 auto;
   padding-bottom: 48px;
+}
+.app-layout {
+  width: min(1440px, calc(100% - 24px));
+}
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, #f5f7fb, rgba(245, 247, 251, 0.94));
+  padding-top: 16px;
 }
 .auth-layout {
   min-height: 100vh;
@@ -232,6 +242,77 @@ header div { display: grid; gap: 3px; }
 .sla-list { font-weight: 600; }
 @media (max-width: 900px) {
   .dashboard-split { grid-template-columns: 1fr; }
+}
+
+.registry-filters,
+.registry-queues,
+.registry-stats {
+  position: sticky;
+  top: 72px;
+  z-index: 15;
+  background: #eef2f7;
+  padding: 6px 0;
+}
+.registry-stats { top: auto; position: static; }
+.registry-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+  align-items: start;
+}
+.registry-table tbody tr { cursor: pointer; }
+.registry-table tbody tr:hover { background: #f7fafc; }
+.registry-table tbody tr.is-selected { background: #eef6f1; }
+.prio-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.prio-dot--overdue { background: #c0392b; }
+.prio-dot--today { background: #d4a017; }
+.prio-dot--waiting { background: #2f6fed; }
+.prio-dot--ok { background: #9aa7b8; }
+.prio-text { font-size: 0.8rem; color: var(--muted); }
+.channel-badges { display: flex; gap: 4px; }
+.badge {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.badge.on { background: #e7f6ee; color: #1a5c3a; border-color: #b7deca; }
+.row-menu {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.registry-cards { display: none; list-style: none; padding: 0; gap: 10px; }
+.registry-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.registry-card p { margin: 4px 0; font-size: 0.9rem; color: var(--muted); }
+.skeleton-stack { display: grid; gap: 8px; }
+.skeleton {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8edf3, #f7fafc, #e8edf3);
+}
+.service-details summary { cursor: pointer; font-weight: 700; }
+@media (max-width: 960px) {
+  .registry-layout { grid-template-columns: 1fr; }
+  .registry-table-wrap { display: none; }
+  .registry-cards { display: grid; }
 }
 
 .case-list { list-style: none; padding: 0; display: grid; gap: 10px; }

@@ -32,6 +32,9 @@ class StaffCaseSummary(BaseModel):
     next_action_at: str | None = None
     waiting_on: str | None = None
     priority: str | None = None
+    deadline_status: str | None = None
+    is_test: bool = False
+    last_event: str | None = None
 
 
 class WorkQueueItem(BaseModel):
@@ -48,6 +51,10 @@ class WorkQueueItem(BaseModel):
     channel: str = "unset"
     expert_user_id: str | None = None
     doc_flags: dict[str, bool] = Field(default_factory=dict)
+
+
+class CaseFlagsUpdate(BaseModel):
+    is_test: bool
 
 
 class CaseNextActionUpdate(BaseModel):
