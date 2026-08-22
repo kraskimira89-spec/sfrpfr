@@ -123,6 +123,9 @@ chmod 640 "$LEAD_CFG" 2>/dev/null || true
 echo "MU site-footer + lead OK (clientKey len=${#SMART_CK})"
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_ensure_lead_form.php" || true
 echo
+if [[ -f "${APP_DIR}/scripts/wp_ensure_cf7_feedback.sh" ]]; then
+  bash "${APP_DIR}/scripts/wp_ensure_cf7_feedback.sh" || echo "WARN: CF7 feedback ensure failed"
+fi
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 

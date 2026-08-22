@@ -26,6 +26,11 @@ chown www-data:www-data "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js" 2>/d
 echo "==> Ensure partner B2B form"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_ensure_partner_form.php" || echo "WARN: partner form ensure failed"
 
+if [[ -f "${SCRIPT_DIR}/wp_ensure_cf7_feedback.sh" ]]; then
+  echo "==> Ensure CF7 feedback"
+  bash "${SCRIPT_DIR}/wp_ensure_cf7_feedback.sh" || echo "WARN: CF7 feedback ensure failed"
+fi
+
 echo "==> Seed trust/commerce pages"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_trust_pages_tz18.php"
 
@@ -43,6 +48,7 @@ cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-meta.php" "${MU}/sfrfr-seo-meta.php
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${MU}/sfrfr-site-footer.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-feedback.php" "${MU}/sfrfr-cf7-feedback.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-metrika.php" "${MU}/sfrfr-yandex-metrika.php"
 
 "${WP[@]}" cache flush || true

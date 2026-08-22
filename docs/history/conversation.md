@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-22 — Contact Form 7
+
+- Одна форма с темой-списком; дефолт темы от страницы (не плодить формы).
+- CF7 + Flamingo; не трогали заявку на главной, `/partneram/`, отзывы.
+- Playbook: `docs/marketing-sales/playbook-site-feedback-cf7.md`.
+
 ## 2026-08-17 — Postgres :5433 на YC ВМ
 
 - Override уже был в COMPOSE_FILE, но `supabase-db` не публиковал `:5433`.
