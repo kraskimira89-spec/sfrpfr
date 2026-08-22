@@ -12,7 +12,12 @@ from sfrfr.security.auth import StaffRole
 
 
 # #region agent log
-def _dbg(hypothesis_id: str, location: str, message: str, data: dict[str, Any] | None = None) -> None:
+def _dbg(
+    hypothesis_id: str,
+    location: str,
+    message: str,
+    data: dict[str, Any] | None = None,
+) -> None:
     try:
         from pathlib import Path
 
@@ -75,7 +80,9 @@ def _staff_row_by_email(email: str) -> dict[str, Any] | None:
     if rows:
         return rows[0]
     try:
-        all_rows = client.table("staff_roles").select("user_id, role, staff_email").execute().data or []
+        all_rows = (
+            client.table("staff_roles").select("user_id, role, staff_email").execute().data or []
+        )
     except Exception as exc:  # noqa: BLE001
         if "staff_email" in str(exc).lower():
             all_rows = client.table("staff_roles").select("user_id, role").execute().data or []
@@ -107,7 +114,12 @@ def _bootstrap_user_id_for_ops_email(normalized: str) -> str | None:
         return None
     client = get_supabase_client()
     rows = (
-        client.table("staff_roles").select("user_id").eq("role", StaffRole.ADMIN.value).limit(2).execute().data
+        client.table("staff_roles")
+        .select("user_id")
+        .eq("role", StaffRole.ADMIN.value)
+        .limit(2)
+        .execute()
+        .data
         or []
     )
     if len(rows) == 1:
@@ -121,7 +133,12 @@ def find_user_by_email(email: str) -> Any | None:
     row = _staff_row_by_email(normalized)
     if row:
         # #region agent log
-        _dbg("A", "staff_roles.find_user_by_email", "staff_email row hit", {"has_user_id": bool(row.get("user_id"))})
+        _dbg(
+            "A",
+            "staff_roles.find_user_by_email",
+            "staff_email row hit",
+            {"has_user_id": bool(row.get("user_id"))},
+        )
         # #endregion
         return _StaffUserStub(str(row["user_id"]), normalized)
 
@@ -146,7 +163,12 @@ def find_user_by_email(email: str) -> Any | None:
             page += 1
     except Exception as exc:  # noqa: BLE001
         # #region agent log
-        _dbg("A", "staff_roles.find_user_by_email", "list_users failed", {"error": type(exc).__name__})
+        _dbg(
+            "A",
+            "staff_roles.find_user_by_email",
+            "list_users failed",
+            {"error": type(exc).__name__},
+        )
         # #endregion
         return None
 
@@ -238,7 +260,12 @@ def get_staff_role_by_email(email: str) -> StaffRole | None:
         try:
             role = StaffRole(str(row["role"]))
             # #region agent log
-            _dbg("A", "staff_roles.get_staff_role_by_email", "resolved via staff_email", {"role": role.value})
+            _dbg(
+                "A",
+                "staff_roles.get_staff_role_by_email",
+                "resolved via staff_email",
+                {"role": role.value},
+            )
             # #endregion
             return role
         except ValueError:

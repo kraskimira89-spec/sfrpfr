@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import tempfile
-import time
 from pathlib import Path
 from typing import Any, NoReturn
 from uuid import uuid4
