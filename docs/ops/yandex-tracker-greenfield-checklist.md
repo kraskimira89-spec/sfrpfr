@@ -5,8 +5,8 @@ Notion **не** переносим — только новый контур.
 
 ## Подготовка
 
-- [ ] OAuth-токен Tracker → `secrets/yandex-tracker.env` (из [yandex-tracker.env.example](../../secrets/yandex-tracker.env.example))
-- [ ] `TRACKER_CLOUD_ORG_ID` (и при 360 — `TRACKER_ORG_ID`) заполнены
+- [ ] `.\scripts\bootstrap_yandex_tracker_mcp.ps1` (клон aikts + pip install)
+- [ ] OAuth **Tracker** (не Workspace) + org id → `secrets/yandex-tracker.env`
 - [ ] В `%USERPROFILE%\.cursor\mcp.json` — command на `scripts/mcp-yandex-tracker.cmd`
 - [ ] Cursor MCP Reload → `yandex-tracker` Connected
 

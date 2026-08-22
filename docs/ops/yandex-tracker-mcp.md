@@ -14,16 +14,25 @@
 
 ## Ключи и OAuth
 
-1. OAuth-токен: https://oauth.yandex.ru (права на Tracker API).
-2. Org id:
-   - **Yandex Cloud:** `TRACKER_CLOUD_ORG_ID` (каталог/организация Cloud)
-   - **Yandex 360:** при необходимости также `TRACKER_ORG_ID`
-3. Создайте `secrets/yandex-tracker.env`:
+1. **Отдельный OAuth для Tracker** (токен Workspace mail/disk **не** подходит — будет HTTP 422).
+2. https://oauth.yandex.ru — приложение с правами **Yandex Tracker**.
+3. Org id — https://admin.yandex.ru или `tracker.yandex.ru/admin/orgs`:
+   - **Яндекс 360 (proverkastaza.ru):** только `TRACKER_ORG_ID`
+   - **Yandex Cloud:** только `TRACKER_CLOUD_ORG_ID`  
+   Задавайте **одну** переменную, не обе.
+4. Бootstrap (клон + pip + шаблон env):
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+.\scripts\bootstrap_yandex_tracker_mcp.ps1
+```
+
+5. Заполните `secrets/yandex-tracker.env`:
 
 ```env
-TRACKER_TOKEN=your_oauth_token
-TRACKER_CLOUD_ORG_ID=your_cloud_org_id
-# TRACKER_ORG_ID=your_org_id
+TRACKER_TOKEN=oauth_token_tracker
+TRACKER_ORG_ID=your_360_org_id
+# TRACKER_CLOUD_ORG_ID=  # только для Cloud org
 ```
 
 Не коммитить реальный `.env`.
@@ -53,8 +62,9 @@ TRACKER_CLOUD_ORG_ID=your_cloud_org_id
 
 ## Зависимости лаунчера
 
-- **uvx** (рекомендуется): [uv](https://github.com/astral-sh/uv) → `uvx yandex-tracker-mcp@latest`
-- Если `uvx` нет — установите uv или клонируйте репо в `tools/yandex-tracker-mcp` (см. README там).
+1. **Рекомендуется:** `pip install -e tools/yandex-tracker-mcp` в `.venv` (делает `bootstrap_yandex_tracker_mcp.ps1`).
+2. Лаунчер: `.venv\Scripts\python.exe -m mcp_tracker`.
+3. Fallback: `uvx yandex-tracker-mcp@latest` ([uv](https://github.com/astral-sh/uv)).
 
 ## Ошибки
 

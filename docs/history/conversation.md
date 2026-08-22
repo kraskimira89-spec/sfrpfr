@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-22 — Яндекс Трекер: клон aikts + bootstrap
+
+- `gh repo clone aikts/yandex-tracker-mcp` → `tools/yandex-tracker-mcp`; `pip install -e` в `.venv`.
+- `scripts/bootstrap_yandex_tracker_mcp.ps1`; MCP в `%USERPROFILE%\.cursor\mcp.json`; Notion MCP убран.
+- OAuth Tracker отдельно от Workspace; очередь SFRFR — в UI.
+
 ## 2026-08-22 — Яндекс Трекер с нуля + MCP (aikts)
 
 - Notion не мигрируем; задачи → очередь SFRFR, wiki → Яндекс Wiki + `docs/`, CRM → amo.

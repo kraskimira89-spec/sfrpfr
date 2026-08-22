@@ -1,12 +1,12 @@
 @echo off
 setlocal EnableExtensions
 REM Stdio-safe launcher for Cursor MCP (aikts/yandex-tracker-mcp).
-REM Читает secrets\yandex-tracker.env рядом с репозиторием.
+REM Секреты: secrets\yandex-tracker.env
 
 set "ROOT=%~dp0.."
 set "ENVFILE=%ROOT%\secrets\yandex-tracker.env"
 if not exist "%ENVFILE%" (
-  echo Missing %ENVFILE% — copy from secrets\yandex-tracker.env.example 1>&2
+  echo Missing %ENVFILE% — run scripts\bootstrap_yandex_tracker_mcp.ps1 1>&2
   exit /b 1
 )
 
@@ -21,6 +21,12 @@ if not defined TRACKER_TOKEN (
 if not defined TRACKER_CLOUD_ORG_ID if not defined TRACKER_ORG_ID (
   echo TRACKER_CLOUD_ORG_ID or TRACKER_ORG_ID required in yandex-tracker.env 1>&2
   exit /b 1
+)
+
+set "VPY=%ROOT%\.venv\Scripts\python.exe"
+if exist "%VPY%" (
+  "%VPY%" -m mcp_tracker 2>nul
+  if %ERRORLEVEL% equ 0 exit /b 0
 )
 
 where uvx >nul 2>&1
@@ -38,12 +44,14 @@ if %ERRORLEVEL% equ 0 (
 set "LOCAL=%ROOT%\tools\yandex-tracker-mcp"
 if exist "%LOCAL%\pyproject.toml" (
   pushd "%LOCAL%"
-  python -m yandex_tracker_mcp 2>nul
-  if %ERRORLEVEL% neq 0 python -m server 2>nul
-  set "EC=%ERRORLEVEL%"
+  if exist "%VPY%" (
+    "%VPY%" -m mcp_tracker
+    set "EC=%ERRORLEVEL%"
+    popd
+    exit /b %EC%
+  )
   popd
-  exit /b %EC%
 )
 
-echo Install uv (https://github.com/astral-sh/uv) or clone aikts/yandex-tracker-mcp to tools\yandex-tracker-mcp 1>&2
+echo Install: .venv\Scripts\pip install -e tools\yandex-tracker-mcp 1>&2
 exit /b 1

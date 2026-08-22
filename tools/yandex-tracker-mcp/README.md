@@ -1,15 +1,17 @@
-# yandex-tracker-mcp (локальный клон, опционально)
+# yandex-tracker-mcp (локальный клон upstream)
 
-Upstream: https://github.com/aikts/yandex-tracker-mcp
-
-Каталог **не коммитится** (см. `.gitignore`). Лаунчер [`scripts/mcp-yandex-tracker.cmd`](../../scripts/mcp-yandex-tracker.cmd) по умолчанию использует `uvx yandex-tracker-mcp@latest`.
-
-## Клон для отладки
+Каталог клонируется bootstrap-скриптом и **не коммитится** (кроме этого файла).
 
 ```powershell
 gh repo clone aikts/yandex-tracker-mcp tools/yandex-tracker-mcp
+# или
+.\scripts\bootstrap_yandex_tracker_mcp.ps1
 ```
 
-Секреты — в `secrets/yandex-tracker.env` (не здесь).
+Upstream: https://github.com/aikts/yandex-tracker-mcp
 
-Документация: [`docs/ops/yandex-tracker-mcp.md`](../../docs/ops/yandex-tracker-mcp.md).
+- Секреты: `secrets/yandex-tracker.env`
+- Лаунчер MCP: `scripts/mcp-yandex-tracker.cmd`
+- Документация SFRFR: [docs/ops/yandex-tracker-mcp.md](../../docs/ops/yandex-tracker-mcp.md)
+
+Greenfield без Notion: [yandex-tracker-greenfield-checklist.md](../../docs/ops/yandex-tracker-greenfield-checklist.md)
