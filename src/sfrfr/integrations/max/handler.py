@@ -1166,7 +1166,11 @@ def _token_hash_for_email(email: str) -> str | None:
     """hashed_token magic link для указанного email (без list_users)."""
     try:
         from sfrfr.db.session import get_supabase_client
-        from sfrfr.db.staff_roles import find_user_by_email, sync_staff_role_auth_user_id, user_id_of
+        from sfrfr.db.staff_roles import (
+            find_user_by_email,
+            sync_staff_role_auth_user_id,
+            user_id_of,
+        )
 
         normalized = email.strip().lower()
         if "@" not in normalized:

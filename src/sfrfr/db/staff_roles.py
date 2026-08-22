@@ -151,7 +151,9 @@ def sync_staff_role_auth_user_id(*, email: str, auth_user_id: str) -> bool:
     except Exception as exc:  # noqa: BLE001
         if "staff_email" not in str(exc).lower():
             raise
-        client.table("staff_roles").update({"user_id": auth_uid}).eq("user_id", stored_uid).execute()
+        client.table("staff_roles").update({"user_id": auth_uid}).eq(
+            "user_id", stored_uid
+        ).execute()
     return True
 
 
