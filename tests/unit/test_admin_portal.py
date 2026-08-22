@@ -97,3 +97,18 @@ def test_filter_staff_case_admin_without_pipeline(monkeypatch: pytest.MonkeyPatc
     assert payload["findings"] == []
     assert payload["ocr_texts"] == []
     assert payload["draft"] is None
+
+
+def test_staff_role_capabilities_admin_gets_analytics_and_roles() -> None:
+    from sfrfr.security.auth import staff_role_capabilities
+
+    caps = staff_role_capabilities(StaffRole.ADMIN)
+    assert caps["can_view_analytics"] is True
+    assert caps["can_manage_roles"] is True
+    assert caps["can_manage_finance"] is True
+    expert = staff_role_capabilities(StaffRole.EXPERT)
+    assert expert["can_view_analytics"] is True
+    assert expert["can_manage_roles"] is False
+    operator = staff_role_capabilities(StaffRole.OPERATOR)
+    assert operator["can_view_analytics"] is False
+    assert operator["can_manage_roles"] is False

@@ -185,3 +185,22 @@ def test_admin_analytics_export_logs_audit(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.media_type == "application/json; charset=utf-8"
     repo.audit.assert_called_once()
     assert "analytics_export:json:7d" in repo.audit.call_args[0][2]
+
+
+def test_list_analytics_cases_does_not_embed_orders_paid_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from sfrfr.db.case_repository import CaseRepository
+
+    client = MagicMock()
+    select_chain = client.table.return_value.select.return_value
+    select_chain.order.return_value.execute.return_value = SimpleNamespace(data=[])
+    monkeypatch.setattr("sfrfr.db.case_repository.get_supabase_client", lambda: client)
+
+    repo = CaseRepository()
+    repo.list_analytics_cases(Principal(user_id="ad", email="ad@x", role=StaffRole.ADMIN))
+    select_sql = str(client.table.return_value.select.call_args[0][0])
+    assert "paid_at" not in select_sql
+    assert "orders(package_code, status, amount_rub, created_at)" in select_sql
