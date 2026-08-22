@@ -19,6 +19,7 @@ import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-regis
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
+import { StaffRolesPanel } from "@/components/staff-roles-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -28,6 +29,11 @@ type Me = {
   email: string | null;
   role: StaffRole | null;
   is_staff: boolean;
+  role_capabilities?: {
+    can_view_analytics?: boolean;
+    can_manage_roles?: boolean;
+    can_manage_finance?: boolean;
+  };
 };
 
 type StaffCaseSummary = {
@@ -271,7 +277,17 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
     },
   });
   if (!response.ok) {
-    throw new Error((await response.text()) || `HTTP ${response.status}`);
+    const raw = (await response.text()) || `HTTP ${response.status}`;
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        detail = parsed.detail;
+      }
+    } catch {
+      /* оставить сырой текст */
+    }
+    throw new Error(detail);
   }
   return response.json() as Promise<T>;
 }
@@ -329,7 +345,6 @@ export function AdminCabinet() {
     packageCode: "",
     pipelineStatus: "",
   });
-  const [roles, setRoles] = useState<{ user_id: string; role: string }[]>([]);
   const [busy, setBusy] = useState(false);
 
   const [q, setQ] = useState("");
@@ -351,8 +366,6 @@ export function AdminCabinet() {
   const [lumpRub, setLumpRub] = useState("0");
   const [feedbackQuality, setFeedbackQuality] = useState("verified");
   const [feedbackText, setFeedbackText] = useState("");
-  const [newRoleUserId, setNewRoleUserId] = useState("");
-  const [newRole, setNewRole] = useState<StaffRole>("operator");
   const [orderAmount, setOrderAmount] = useState("");
   const [repEmail, setRepEmail] = useState("");
   const [orderCode, setOrderCode] = useState<"DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH">("DIAG");
@@ -728,8 +741,13 @@ export function AdminCabinet() {
         ),
       );
       setView("analytics");
-    } catch {
-      setNotice("Аналитика недоступна для роли оператора.");
+    } catch (error) {
+      const hint = error instanceof Error ? error.message : "";
+      setNotice(
+        hint && !/operator/i.test(hint)
+          ? `Аналитика недоступна: ${hint}`
+          : "Аналитика недоступна. Для администратора и специалиста раздел должен открываться.",
+      );
     } finally {
       setBusy(false);
     }
@@ -749,15 +767,7 @@ export function AdminCabinet() {
 
   async function loadRoles() {
     if (!token) return;
-    setBusy(true);
-    try {
-      setRoles(await apiFetch("/api/portal/admin/staff-roles", token));
-      setView("roles");
-    } catch {
-      setNotice("Управление ролями только у администратора.");
-    } finally {
-      setBusy(false);
-    }
+    setView("roles");
   }
 
   async function requestReview() {
@@ -1211,17 +1221,6 @@ export function AdminCabinet() {
     setNotice(`Signed URL: ${signed.expires_in} сек.`);
   }
 
-  async function saveRole(event: FormEvent) {
-    event.preventDefault();
-    if (!token || !newRoleUserId.trim()) return;
-    await apiFetch(`/api/portal/admin/staff-roles/${newRoleUserId.trim()}`, token, {
-      method: "PUT",
-      body: JSON.stringify({ role: newRole }),
-    });
-    await loadRoles();
-    setNotice("Роль сохранена.");
-  }
-
   if (!session) {
     return (
       <main className="auth-layout">
@@ -1448,12 +1447,12 @@ export function AdminCabinet() {
             Финансы
           </button>
         )}
-        {me?.role !== "operator" && (
+        {(me?.role === "admin" || me?.role === "expert" || me?.role_capabilities?.can_view_analytics) && (
           <button type="button" className={view === "analytics" ? "tab active" : "tab"} onClick={() => void loadAnalytics()}>
             Аналитика
           </button>
         )}
-        {me?.role === "admin" && (
+        {(me?.role === "admin" || me?.role_capabilities?.can_manage_roles) && (
           <button type="button" className={view === "roles" ? "tab active" : "tab"} onClick={() => void loadRoles()}>
             Роли
           </button>
@@ -2182,29 +2181,13 @@ export function AdminCabinet() {
         />
       )}
 
-      {view === "roles" && (
-        <section className="stack">
-          <h1>Роли сотрудников</h1>
-          <ul className="plain-list">
-            {roles.map((row) => (
-              <li key={row.user_id}>{row.user_id} · {labelStaffRole(row.role)}</li>
-            ))}
-          </ul>
-          <form className="inline-form" onSubmit={saveRole}>
-            <input
-              placeholder="ID пользователя (uuid)"
-              value={newRoleUserId}
-              onChange={(e) => setNewRoleUserId(e.target.value)}
-              required
-            />
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value as StaffRole)}>
-              <option value="operator">{labelStaffRole("operator")}</option>
-              <option value="expert">{labelStaffRole("expert")}</option>
-              <option value="admin">{labelStaffRole("admin")}</option>
-            </select>
-            <button type="submit">Сохранить роль</button>
-          </form>
-        </section>
+      {view === "roles" && token && (
+        <StaffRolesPanel
+          token={token}
+          meUserId={me?.user_id ?? ""}
+          apiFetch={apiFetch}
+          onNotice={setNotice}
+        />
       )}
 
       {notice && <p className="notice">{notice}</p>}

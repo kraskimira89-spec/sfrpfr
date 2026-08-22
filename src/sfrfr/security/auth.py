@@ -61,7 +61,7 @@ def _lookup_role(user_id: str, email: str | None = None) -> StaffRole | None:
     response = (
         get_supabase_client()
         .table("staff_roles")
-        .select("role")
+        .select("*")
         .eq("user_id", user_id)
         .limit(1)
         .execute()
@@ -69,10 +69,21 @@ def _lookup_role(user_id: str, email: str | None = None) -> StaffRole | None:
     rows = response.data or []
     row: dict[str, Any] | None = rows[0] if rows else None
     if row:
+        status_value = str(row.get("status") or "active")
+        if status_value in {"suspended", "archived"}:
+            return None
         try:
-            return StaffRole(str(row["role"]))
+            role = StaffRole(str(row["role"]))
         except (KeyError, ValueError):
-            pass
+            role = None
+        if role is not None:
+            try:
+                from sfrfr.db.staff_access import mark_staff_signed_in
+
+                mark_staff_signed_in(user_id)
+            except Exception:  # noqa: BLE001 — login must not fail on audit side-effects
+                pass
+            return role
 
     normalized = (email or "").strip().lower()
     if not normalized or "@" not in normalized:
@@ -83,6 +94,16 @@ def _lookup_role(user_id: str, email: str | None = None) -> StaffRole | None:
     role = get_staff_role_by_email(normalized)
     if role is not None:
         sync_staff_role_auth_user_id(email=normalized, auth_user_id=user_id)
+        try:
+            from sfrfr.db.staff_access import assert_staff_status_allows_login, mark_staff_signed_in
+
+            # после sync user_id мог обновиться
+            assert_staff_status_allows_login(user_id)
+            mark_staff_signed_in(user_id)
+        except HTTPException:
+            return None
+        except Exception:  # noqa: BLE001
+            pass
     return role
 
 
@@ -178,3 +199,16 @@ def require_admin(
     if principal.role is not StaffRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin role required")
     return principal
+
+
+def staff_role_capabilities(role: StaffRole | None) -> dict[str, bool]:
+    """Матрица вкладок кабинета: админ видит аналитику и роли."""
+    admin = role is StaffRole.ADMIN
+    expert = role is StaffRole.EXPERT
+    return {
+        "can_view_analytics": admin or expert,
+        "can_manage_finance": admin or expert,
+        "can_manage_roles": admin,
+        "can_manage_orders": admin,
+        "can_edit_pipeline": admin or expert,
+    }

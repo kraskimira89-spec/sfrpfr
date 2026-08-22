@@ -66,6 +66,7 @@ class PortalMeResponse(BaseModel):
     cabinet_url: str
     max_bot_url: str
     max_miniapp_url: str
+    role_capabilities: dict[str, bool] = Field(default_factory=dict)
 
 
 class PreferencesUpdateRequest(BaseModel):

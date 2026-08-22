@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
@@ -23,6 +23,8 @@ from sfrfr.api.schemas.admin import (
     OrderCreateRequest,
     ResultConfirmRequest,
     StaffCaseSummary,
+    StaffInviteRequest,
+    StaffPatchRequest,
     StaffRoleUpsert,
     WorkQueueItem,
     YandexMailRequest,
@@ -1263,13 +1265,105 @@ def list_knowledge_cases(
 
 @router.get("/admin/staff-roles")
 def list_staff_roles(principal: Principal = Depends(require_admin)) -> list[dict]:
-    return _repo().list_staff_roles()
+    """Совместимость: обёртка над GET /admin/staff."""
+    from sfrfr.db.staff_access import list_staff_members
+
+    return list_staff_members()
+
+
+@router.get("/admin/staff")
+def list_staff(principal: Principal = Depends(require_admin)) -> list[dict]:
+    from sfrfr.db.staff_access import list_staff_members
+
+    return list_staff_members()
+
+
+@router.post("/admin/staff/invites")
+def invite_staff(
+    payload: StaffInviteRequest,
+    request: Request,
+    principal: Principal = Depends(require_admin),
+) -> dict:
+    from sfrfr.db.staff_access import invite_staff_member
+
+    return invite_staff_member(
+        actor_id=principal.user_id,
+        email=payload.email,
+        display_name=payload.display_name,
+        role=payload.role.value,
+        confirm_admin_grant=payload.confirm_admin_grant,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.post("/admin/staff/invites/{user_id}/revoke")
+def revoke_staff_invite(
+    user_id: str,
+    request: Request,
+    principal: Principal = Depends(require_admin),
+) -> dict:
+    from sfrfr.db.staff_access import revoke_invite
+
+    return revoke_invite(
+        actor_id=principal.user_id,
+        target_user_id=user_id,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.patch("/admin/staff/{user_id}")
+def patch_staff(
+    user_id: str,
+    payload: StaffPatchRequest,
+    request: Request,
+    principal: Principal = Depends(require_admin),
+) -> dict:
+    from sfrfr.db.staff_access import patch_staff_member
+
+    return patch_staff_member(
+        actor_id=principal.user_id,
+        target_user_id=user_id,
+        role=payload.role.value if payload.role is not None else None,
+        status_value=payload.status,
+        display_name=payload.display_name,
+        confirm_admin_grant=payload.confirm_admin_grant,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.get("/admin/staff/{user_id}/audit")
+def staff_member_audit(
+    user_id: str,
+    principal: Principal = Depends(require_admin),
+) -> list[dict]:
+    from sfrfr.db.staff_access import list_staff_audit
+
+    return list_staff_audit(user_id)
 
 
 @router.put("/admin/staff-roles/{user_id}")
 def upsert_staff_role(
     user_id: str,
     payload: StaffRoleUpsert,
+    request: Request,
     principal: Principal = Depends(require_admin),
 ) -> dict:
-    return _repo().upsert_staff_role(user_id, payload.role.value, principal.user_id)
+    """Legacy upsert по UUID — только смена роли существующего сотрудника."""
+    from sfrfr.db.staff_access import get_staff_row, patch_staff_member
+
+    if get_staff_row(user_id) is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Создание роли по UUID отключено. Используйте POST /admin/staff/invites",
+        )
+    return patch_staff_member(
+        actor_id=principal.user_id,
+        target_user_id=user_id,
+        role=payload.role.value,
+        confirm_admin_grant=payload.confirm_admin_grant,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )

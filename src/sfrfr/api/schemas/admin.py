@@ -162,6 +162,21 @@ class KnowledgeFeedbackRequest(BaseModel):
 
 class StaffRoleUpsert(BaseModel):
     role: StaffRole
+    confirm_admin_grant: bool = False
+
+
+class StaffInviteRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    display_name: str = Field(min_length=1, max_length=200)
+    role: StaffRole
+    confirm_admin_grant: bool = False
+
+
+class StaffPatchRequest(BaseModel):
+    role: StaffRole | None = None
+    status: Literal["active", "invited", "suspended", "archived"] | None = None
+    display_name: str | None = Field(default=None, max_length=200)
+    confirm_admin_grant: bool = False
 
 
 class AssignExpertRequest(BaseModel):

@@ -11,6 +11,7 @@ export {
   labelOrderStatus,
   labelPaymentStatus,
   labelStaffRole,
+  labelStaffStatus,
   labelAuthorKind,
   labelChecklistStatus,
   labelChecklistOwner,

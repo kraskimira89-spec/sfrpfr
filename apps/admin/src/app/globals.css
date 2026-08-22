@@ -628,3 +628,65 @@ header div { display: grid; gap: 3px; }
   .analytics-filters { grid-template-columns: 1fr; }
   .funnel-grid { grid-template-columns: 1fr 1fr; }
 }
+
+.staff-roles-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.staff-filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+}
+.staff-table button { margin-right: 6px; }
+.staff-drawer { margin-top: 12px; }
+.staff-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.staff-roles .checkbox-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+}
+.staff-roles .linkish {
+  background: none;
+  border: none;
+  color: var(--brand);
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+.staff-roles .mono {
+  display: block;
+  word-break: break-all;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+.staff-roles .empty-state {
+  text-align: center;
+  padding: 24px;
+}
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.data-table th { color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 720px) {
+  .staff-filters { grid-template-columns: 1fr; }
+}

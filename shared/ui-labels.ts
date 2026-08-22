@@ -75,9 +75,16 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const STAFF_ROLE_LABELS: Record<string, string> = {
-  operator: "Оператор",
-  expert: "Эксперт",
+  operator: "Оператор приёма",
+  expert: "Специалист",
   admin: "Администратор",
+};
+
+export const STAFF_STATUS_LABELS: Record<string, string> = {
+  active: "Активен",
+  invited: "Приглашён",
+  suspended: "Приостановлен",
+  archived: "Архив",
 };
 
 export const AUTHOR_KIND_LABELS: Record<string, string> = {
@@ -179,6 +186,10 @@ export function labelPaymentStatus(value: string): string {
 
 export function labelStaffRole(value: string): string {
   return STAFF_ROLE_LABELS[value] ?? value;
+}
+
+export function labelStaffStatus(value: string): string {
+  return STAFF_STATUS_LABELS[value] ?? value;
 }
 
 export function labelAuthorKind(value: string): string {

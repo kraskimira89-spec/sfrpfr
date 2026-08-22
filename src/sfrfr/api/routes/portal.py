@@ -42,7 +42,7 @@ from sfrfr.db.client_channels import ClientChannelRepository
 from sfrfr.db.session import get_supabase_client
 from sfrfr.models.case_status import STATUS_HINTS_RU, STATUS_LABELS_RU, CaseStatus, status_label_ru
 from sfrfr.ops.auth_log import auth_event
-from sfrfr.security.auth import Principal, get_current_principal
+from sfrfr.security.auth import Principal, get_current_principal, staff_role_capabilities
 from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
 
@@ -312,6 +312,7 @@ def get_me(principal: Principal = Depends(get_current_principal)) -> PortalMeRes
             cabinet_url=settings.cabinet_public_url.rstrip("/"),
             max_bot_url=settings.max_chat_url,
             max_miniapp_url=settings.max_miniapp_url,
+            role_capabilities=staff_role_capabilities(principal.role),
         )
     row = _ensure_client_row(principal)
     return _me_response(principal, row)
