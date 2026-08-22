@@ -853,25 +853,47 @@ export function AdminCabinet() {
   async function suggestStep(caseId: string) {
     if (!token) return;
     setBusy(true);
+    setNotice("DeepSeek думает над следующим шагом…");
     try {
-      const hint = await apiFetch<{ next_action: string; waiting_on: string; reason?: string; source?: string }>(
-        `/api/portal/admin/cases/${caseId}/suggest-next-action`,
-        token,
-        { method: "POST" },
-      );
+      const hint = await apiFetch<{
+        next_action: string;
+        waiting_on: string;
+        reason?: string;
+        source?: string;
+      }>(`/api/portal/admin/cases/${caseId}/suggest-next-action`, token, { method: "POST" });
       await apiFetch(`/api/portal/admin/cases/${caseId}/next-action`, token, {
         method: "PATCH",
         body: JSON.stringify({ next_action: hint.next_action, waiting_on: hint.waiting_on }),
       });
+      // Сразу заполняем поля в открытой карточке (раньше UI не менялся).
+      if (!detail || detail.id === caseId) {
+        setNextActionText(hint.next_action);
+        if (hint.waiting_on) setWaitingOn(hint.waiting_on);
+        if (detail?.id === caseId) {
+          setDetail({
+            ...detail,
+            next_action: hint.next_action,
+            waiting_on: hint.waiting_on,
+          });
+        }
+      }
+      const src = hint.source === "deepseek" ? "DeepSeek" : "по этапу";
+      const reason = (hint.reason || "").trim();
       setNotice(
-        hint.source === "deepseek"
-          ? `DeepSeek: ${hint.next_action}`
-          : `Шаг по этапу: ${hint.next_action}`,
+        reason
+          ? `${src}: «${hint.next_action}». ${reason}`
+          : `${src}: «${hint.next_action}»`,
       );
-      await loadCases();
-      await loadDashboard();
-    } catch {
-      setNotice("Не удалось получить подсказку шага.");
+      if (view !== "case") {
+        await loadCases();
+        await loadDashboard();
+      }
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? `Не удалось получить подсказку шага: ${error.message}`
+          : "Не удалось получить подсказку шага.",
+      );
     } finally {
       setBusy(false);
     }
@@ -1480,6 +1502,8 @@ export function AdminCabinet() {
         )}
       </nav>
 
+      {notice && <p className="notice notice--sticky" role="status">{notice}</p>}
+
       {view === "dashboard" && dashboard && (
         <section className="stack">
           <h1>Дашборд</h1>
@@ -1759,11 +1783,11 @@ export function AdminCabinet() {
               </label>
               <button type="button" disabled={busy} onClick={() => void saveNextAction()}>Сохранить шаг</button>
               <button type="button" className="ghost" disabled={busy} onClick={() => void suggestStep(detail.id)}>
-                Подсказать шаг (DeepSeek)
+                {busy ? "DeepSeek думает…" : "Подсказать шаг (DeepSeek)"}
               </button>
             </div>
             <p className="hint">
-              Сейчас: {WAITING_LABELS[detail.waiting_on ?? ""] ?? detail.waiting_on ?? "считаем автоматически"}.
+              Сейчас: {WAITING_LABELS[waitingOn] ?? WAITING_LABELS[detail.waiting_on ?? ""] ?? detail.waiting_on ?? "считаем автоматически"}.
               Ожидание архива или СФР не попадает в «без ответа».
             </p>
           </div>
@@ -2202,7 +2226,6 @@ export function AdminCabinet() {
         />
       )}
 
-      {notice && <p className="notice">{notice}</p>}
       {busy && <p className="hint">Загрузка…</p>}
     </main>
   );

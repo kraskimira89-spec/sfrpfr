@@ -591,6 +591,17 @@ header div { display: grid; gap: 3px; }
   }
 }
 .notice { margin-top: 16px; }
+.notice--sticky {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eef4fb;
+  border: 1px solid #c5d6eb;
+  color: #1a3352;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
 .lead-compact {
   margin: 0 0 1.25rem;
   font-size: 1.1rem;
