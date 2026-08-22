@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, NoReturn
 from uuid import uuid4
@@ -479,7 +480,6 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         # #region agent log
         try:
             import json
-            import time
             from pathlib import Path
 
             Path("debug-4304ae.log").open("a", encoding="utf-8").write(
