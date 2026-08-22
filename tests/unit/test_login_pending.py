@@ -8,6 +8,7 @@ from sfrfr.security.login_pending import (
     callback_payload_for,
     create_pending,
     get_pending,
+    latest_unbound_staff_pending,
     manager_callback_payload_for,
     mark_pending_manager,
     parse_confirm_callback,
@@ -39,6 +40,24 @@ def test_create_and_pair_then_approve() -> None:
     polled = get_pending(pending.ticket_id)
     assert polled is not None
     assert polled.token_hash == "hash123"
+
+
+def test_staff_bind_uses_staff_email() -> None:
+    pending = create_pending(audience="staff", staff_email="op@example.com")
+    bound = bind_max_by_code(
+        pair_code=pending.pair_code,
+        max_user_id="111",
+        contact="ignored@example.com",
+    )
+    assert bound is not None
+    assert bound.contact == "op@example.com"
+
+
+def test_latest_unbound_staff_pending() -> None:
+    create_pending(audience="staff", staff_email="a@example.com")
+    latest = latest_unbound_staff_pending()
+    assert latest is not None
+    assert latest.staff_email == "a@example.com"
 
 
 def test_staff_needs_manager_before_approve() -> None:

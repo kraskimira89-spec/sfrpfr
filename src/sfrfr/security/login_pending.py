@@ -122,7 +122,10 @@ def bind_max_by_code(*, pair_code: str, max_user_id: str, contact: str) -> Pendi
         if p.status not in {"pending_pair", "pending_confirm", "code_sent"}:
             return None
         p.max_user_id = str(max_user_id)
-        p.contact = contact.strip().lower()
+        if p.audience == "staff" and p.staff_email:
+            p.contact = p.staff_email.strip().lower()
+        else:
+            p.contact = contact.strip().lower()
         p.status = "pending_confirm"
         _BY_MAX[str(max_user_id)] = tid
         return p
@@ -259,6 +262,24 @@ def ensure_pending_for_max(
         _BY_CODE[pair_code] = ticket_id
         _BY_MAX[mid] = ticket_id
         return pending
+
+
+def latest_unbound_staff_pending() -> PendingLogin | None:
+    """Самый свежий staff-вход без привязки к MAX (код ещё на admin)."""
+    with _lock:
+        _purge_locked()
+        candidates = [
+            p
+            for p in _BY_TICKET.values()
+            if p.audience == "staff"
+            and p.status == "pending_pair"
+            and not p.max_user_id
+            and p.expires_at >= time.time()
+        ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda x: x.created_at, reverse=True)
+        return candidates[0]
 
 
 def latest_for_max(max_user_id: str) -> PendingLogin | None:

@@ -493,6 +493,28 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             ticket=pending.ticket_id,
             status="pending_pair",
         )
+        from sfrfr.db.staff_roles import trusted_login_max_user_id
+        from sfrfr.integrations.max.ops_bot import get_ops_bot, ops_bot_configured
+
+        trusted_mid = trusted_login_max_user_id(staff_email)
+        if trusted_mid and ops_bot_configured():
+            try:
+                ops = get_ops_bot()
+                if ops.available:
+                    from sfrfr.integrations.max.client import inline_get_login_code_keyboard
+                    from sfrfr.security.login_otp import GET_CODE_IN_BROWSER_LABEL
+
+                    ops.send_message(
+                        user_id=trusted_mid,
+                        text=(
+                            "Запрос входа в кабинет сотрудника.\n"
+                            f"Код на странице admin: {pending.pair_code}\n\n"
+                            f"Или нажмите «{GET_CODE_IN_BROWSER_LABEL}»."
+                        ),
+                        attachments=inline_get_login_code_keyboard(),
+                    )
+            except Exception:  # noqa: BLE001
+                logger.exception("ops staff login notify failed email=%s", staff_email)
         return MaxOtpRequestResponse(
             ok=True,
             ticket=pending.ticket_id,

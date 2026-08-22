@@ -16,6 +16,13 @@ def inline_callback_keyboard(text: str, payload: str) -> list[dict[str, Any]]:
     )
 
 
+def inline_get_login_code_keyboard() -> list[dict[str, Any]]:
+    """Кнопка «Получить код для входа» в чате MAX."""
+    from sfrfr.security.login_otp import GET_CODE_CALLBACK, GET_CODE_IN_BROWSER_LABEL
+
+    return inline_callback_keyboard(GET_CODE_IN_BROWSER_LABEL, GET_CODE_CALLBACK)
+
+
 def inline_buttons_keyboard(rows: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Произвольная inline-клавиатура (callback / link)."""
     return [

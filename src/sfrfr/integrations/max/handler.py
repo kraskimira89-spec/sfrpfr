@@ -1307,12 +1307,19 @@ def _complete_pc_login(
 
     if pending.status == "pending_pair" or not pending.max_user_id:
         # ещё не ввели код — привяжем текущего пользователя и сразу завершим вход
-        row = _ensure_client_row(user_id)
-        if not row:
-            reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
-            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
-        contact = _auth_email_for_row(row, user_id)
+        if pending.audience == "staff":
+            contact = (pending.staff_email or "").strip().lower()
+            if not contact:
+                reply = "Сессия устарела. Начните вход снова на admin."
+                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+                return MaxHandleResult(ok=False, action="login_staff_no_email", reply=reply)
+        else:
+            row = _ensure_client_row(user_id)
+            if not row:
+                reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
+                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+                return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
+            contact = _auth_email_for_row(row, user_id)
         pending = (
             bind_max_by_code(
                 pair_code=pending.pair_code,
@@ -1328,6 +1335,34 @@ def _complete_pc_login(
 
     # Staff: первый вход — руководитель; дальше тот же MAX входит сам
     if pending.audience == "staff":
+        # #region agent log
+        try:
+            import json
+            import time as _time
+
+            with open("debug-4304ae.log", "a", encoding="utf-8") as _f:
+                _f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "4304ae",
+                            "location": "handler.py:_complete_pc_login",
+                            "message": "staff login complete",
+                            "data": {
+                                "user_id": user_id,
+                                "ticket": pending.ticket_id,
+                                "status": pending.status,
+                                "staff_email": pending.staff_email,
+                            },
+                            "hypothesisId": "B",
+                            "timestamp": int(_time.time() * 1000),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except OSError:
+            pass
+        # #endregion
         from sfrfr.db.staff_roles import (
             get_staff_role_by_email,
             is_staff_login_trusted,

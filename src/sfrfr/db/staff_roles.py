@@ -252,9 +252,15 @@ def _staff_user_id_for_email(email: str) -> str | None:
 
 def is_staff_login_trusted(*, email: str, max_user_id: str) -> bool:
     """True, если этот MAX уже одобрен руководителем для email (повторный вход)."""
+    trusted = trusted_login_max_user_id(email)
+    return bool(trusted) and trusted == str(max_user_id).strip()
+
+
+def trusted_login_max_user_id(email: str) -> str | None:
+    """MAX user_id для повторного входа сотрудника или None."""
     user_id = _staff_user_id_for_email(email)
     if not user_id:
-        return False
+        return None
     client = get_supabase_client()
     rows = (
         client.table("staff_roles")
@@ -266,9 +272,9 @@ def is_staff_login_trusted(*, email: str, max_user_id: str) -> bool:
         or []
     )
     if not rows:
-        return False
+        return None
     trusted = str(rows[0].get("trusted_login_max_user_id") or "").strip()
-    return bool(trusted) and trusted == str(max_user_id).strip()
+    return trusted or None
 
 
 def trust_staff_login(*, email: str, max_user_id: str) -> dict[str, Any] | None:

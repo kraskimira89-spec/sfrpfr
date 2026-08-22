@@ -2,17 +2,56 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 from typing import Any
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.channel_ids import remember_chat_id
-from sfrfr.integrations.max.client import MaxBotClient
+from sfrfr.integrations.max.client import MaxBotClient, inline_get_login_code_keyboard
 from sfrfr.integrations.max.handler import MaxHandleResult
+from sfrfr.security.login_otp import GET_CODE_CALLBACK, GET_CODE_IN_BROWSER_LABEL
 
 logger = logging.getLogger(__name__)
 
 OPS_BOT_DISPLAY_NAME = "Проверка стажа-Ops"
+
+_OPS_LOGIN_TRIGGERS = frozenset(
+    {
+        "/login",
+        "войти",
+        "вход",
+        GET_CODE_IN_BROWSER_LABEL.lower(),
+        "получить код",
+        "получить код для входа",
+        GET_CODE_CALLBACK,
+        "get_login_code",
+    }
+)
+
+
+def _dbg_log(location: str, message: str, data: dict[str, Any], *, hypothesis_id: str = "") -> None:
+    # #region agent log
+    try:
+        with open("debug-4304ae.log", "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "4304ae",
+                        "location": location,
+                        "message": message,
+                        "data": data,
+                        "hypothesisId": hypothesis_id,
+                        "timestamp": int(time.time() * 1000),
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    except OSError:
+        pass
+    # #endregion
 
 
 def get_ops_bot() -> MaxBotClient:
@@ -37,17 +76,102 @@ def _ops_welcome_text() -> str:
         "• черновики постов клиентского канала — в эту личку "
         "(одобрить / скопировать / прислать правку);",
         "",
+        "Вход в кабинет сотрудника:",
+        f"1) На {admin or 'admin'} нажмите «Войти через MAX».",
+        f"2) Здесь нажмите «{GET_CODE_IN_BROWSER_LABEL}».",
+        "3) Отправьте 6 цифр со страницы входа этим сообщением.",
+        "",
         "Можете задать вопрос по процессу или стажу — ответит ИИ с опорой на базу знаний.",
         "Черновик поста: вставьте текст сюда или `/draft …`.",
         "В канале команды: упомяните бота или напишите /ask …",
-        "",
-        "Диагностику клиента и вход в кабинет ведите в боте «Стаж и пенсия».",
     ]
     if admin:
         lines.extend(["", f"Кабинет сотрудников: {admin}"])
     if client_bot:
         lines.extend(["", f"Бот для клиентов: {client_bot}"])
     return "\n".join(lines)
+
+
+def _ops_start_attachments() -> list[dict[str, Any]]:
+    return inline_get_login_code_keyboard()
+
+
+def _handle_ops_staff_login(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+) -> MaxHandleResult:
+    """Вход сотрудника: подсказка кода или авто-привязка pending с admin."""
+    from sfrfr.integrations.max.handler import _complete_pc_login, _reply
+    from sfrfr.security.login_pending import latest_for_max, latest_unbound_staff_pending
+
+    _dbg_log(
+        "ops_bot.py:_handle_ops_staff_login",
+        "ops login triggered",
+        {"user_id": user_id},
+        hypothesis_id="A",
+    )
+
+    pending = latest_for_max(user_id)
+    if pending and pending.audience == "staff":
+        _dbg_log(
+            "ops_bot.py:_handle_ops_staff_login",
+            "found pending for max user",
+            {"ticket": pending.ticket_id, "status": pending.status},
+            hypothesis_id="E",
+        )
+        return _complete_pc_login(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=pending.ticket_id,
+        )
+
+    unbound = latest_unbound_staff_pending()
+    if unbound:
+        _dbg_log(
+            "ops_bot.py:_handle_ops_staff_login",
+            "unbound staff pending",
+            {"ticket": unbound.ticket_id, "status": unbound.status},
+            hypothesis_id="D",
+        )
+        bound = _complete_pc_login(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=unbound.ticket_id,
+        )
+        if bound.ok:
+            return bound
+        reply = (
+            f"Вход в кабинет сотрудника.\n\n"
+            f"Код на странице admin: {unbound.pair_code}\n\n"
+            "Отправьте эти 6 цифр следующим сообщением в этот чат."
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=_ops_start_attachments(),
+        )
+        return MaxHandleResult(ok=True, action="ops_staff_pair_hint", reply=reply)
+
+    settings = get_settings()
+    admin = (settings.admin_public_url or "admin.proverkastaza.ru").rstrip("/")
+    reply = (
+        f"Сначала нажмите «Войти через MAX» на {admin} и укажите рабочий email.\n"
+        f"Затем снова нажмите «{GET_CODE_IN_BROWSER_LABEL}» здесь."
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=_ops_start_attachments(),
+    )
+    return MaxHandleResult(ok=True, action="ops_staff_login_hint", reply=reply)
 
 
 def _handle_channel_draft_callback(
@@ -296,13 +420,29 @@ def handle_ops_update(
 
     if lower in {"/start", "start", "начать"} or lower.startswith("/start"):
         reply = _ops_welcome_text()
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=_ops_start_attachments(),
+        )
         return MaxHandleResult(ok=True, action="ops_start", reply=reply)
 
     if lower.startswith("/help") or lower in {"help", "помощь"}:
         reply = _ops_welcome_text()
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=_ops_start_attachments(),
+        )
         return MaxHandleResult(ok=True, action="ops_help", reply=reply)
+
+    login_hit = callback == GET_CODE_CALLBACK or lower in _OPS_LOGIN_TRIGGERS
+    if login_hit:
+        return _handle_ops_staff_login(bot, user_id=user_id, chat_id=chat_id)
 
     # Приветствия — то же служебное меню, без англицизмов.
     greetings = {
@@ -316,7 +456,13 @@ def handle_ops_update(
     }
     if lower in greetings:
         reply = _ops_welcome_text()
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=_ops_start_attachments(),
+        )
         return MaxHandleResult(ok=True, action="ops_greeting", reply=reply)
 
     from sfrfr.integrations.max.handler import _handle_pair_code

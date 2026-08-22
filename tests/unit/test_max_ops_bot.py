@@ -62,15 +62,32 @@ def test_ops_start_welcome(monkeypatch) -> None:
     assert "Служебный бот" in bot.sent[0]["text"]
     assert "Проверка стажа-Ops" in bot.sent[0]["text"]
     assert "admin.example" in bot.sent[0]["text"]
+    assert bot.sent[0].get("attachments")
     get_settings.cache_clear()
 
 
-def test_ops_redirects_client_commands(monkeypatch) -> None:
+def test_ops_login_shows_pair_hint(monkeypatch) -> None:
+    from sfrfr.security.login_pending import create_pending
+
+    monkeypatch.setenv("ADMIN_PUBLIC_URL", "https://admin.example")
+    monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
+    get_settings.cache_clear()
+    pending = create_pending(audience="staff", staff_email="op@example.com")
+    bot = _SilentBot()
+    result = handle_ops_update(_msg(42, "/login"), bot=bot)
+    assert result.action in {"ops_staff_pair_hint", "login_pending_manager", "login_approved_trusted"}
+    assert bot.sent
+    texts = " ".join(str(m.get("text") or "") for m in bot.sent)
+    assert pending.pair_code in texts or "6 цифр" in texts or "Готово" in texts
+    get_settings.cache_clear()
+
+
+def test_ops_redirects_unknown_message(monkeypatch) -> None:
     monkeypatch.setenv("MAX_CHAT_URL", "https://max.ru/client_bot")
     monkeypatch.setenv("MAX_OPS_LLM_ENABLED", "0")
     get_settings.cache_clear()
     bot = _SilentBot()
-    result = handle_ops_update(_msg(42, "/login"), bot=bot)
+    result = handle_ops_update(_msg(42, "случайный текст без смысла для бота"), bot=bot)
     assert result.action == "ops_redirect_client"
     assert "Стаж и пенсия" in bot.sent[0]["text"]
     assert "служебный" in bot.sent[0]["text"].lower()
