@@ -55,7 +55,7 @@ def _unauthorized(detail: str = "authentication required") -> HTTPException:
     )
 
 
-def _lookup_role(user_id: str) -> StaffRole | None:
+def _lookup_role(user_id: str, email: str | None = None) -> StaffRole | None:
     """Роли читаются только server-side service client, не из user_metadata."""
     # limit(1), не maybe_single: пустой результат не должен давать response=None
     response = (
@@ -68,12 +68,49 @@ def _lookup_role(user_id: str) -> StaffRole | None:
     )
     rows = response.data or []
     row: dict[str, Any] | None = rows[0] if rows else None
-    if not row:
+    if row:
+        try:
+            return StaffRole(str(row["role"]))
+        except (KeyError, ValueError):
+            pass
+
+    normalized = (email or "").strip().lower()
+    if not normalized or "@" not in normalized:
         return None
-    try:
-        return StaffRole(str(row["role"]))
-    except (KeyError, ValueError):
-        return None
+
+    from sfrfr.db.staff_roles import get_staff_role_by_email, sync_staff_role_auth_user_id
+
+    role = get_staff_role_by_email(normalized)
+    if role is not None:
+        # #region agent log
+        try:
+            import json
+            import time as _time
+
+            with open("debug-4304ae.log", "a", encoding="utf-8") as _f:
+                _f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "4304ae",
+                            "location": "auth.py:_lookup_role",
+                            "message": "staff role by email fallback",
+                            "data": {
+                                "jwt_user_id": user_id,
+                                "email": normalized,
+                                "role": role.value,
+                            },
+                            "hypothesisId": "F",
+                            "timestamp": int(_time.time() * 1000),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except OSError:
+            pass
+        # #endregion
+        sync_staff_role_auth_user_id(email=normalized, auth_user_id=user_id)
+    return role
 
 
 def _principal_from_max(max_user_id: str) -> Principal:
@@ -127,7 +164,7 @@ def get_current_principal(
         return Principal(
             user_id=str(user.id),
             email=getattr(user, "email", None),
-            role=_lookup_role(str(user.id)),
+            role=_lookup_role(str(user.id), getattr(user, "email", None)),
             auth_via="jwt",
         )
 

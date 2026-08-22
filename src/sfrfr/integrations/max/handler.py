@@ -1166,21 +1166,34 @@ def _token_hash_for_email(email: str) -> str | None:
     """hashed_token magic link для указанного email (без list_users)."""
     try:
         from sfrfr.db.session import get_supabase_client
+        from sfrfr.db.staff_roles import find_user_by_email, sync_staff_role_auth_user_id, user_id_of
 
         normalized = email.strip().lower()
         if "@" not in normalized:
             return None
         client = get_supabase_client()
+        existing = find_user_by_email(normalized)
+        if existing is None:
+            try:
+                client.auth.admin.create_user(
+                    {
+                        "email": normalized,
+                        "email_confirm": True,
+                        "app_metadata": {"role_source": "staff_max_login"},
+                    }
+                )
+            except Exception as exc:
+                err = str(exc).lower()
+                if "already" not in err and "registered" not in err:
+                    raise
+                existing = find_user_by_email(normalized)
         try:
             link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
         except Exception:
-            client.auth.admin.create_user(
-                {
-                    "email": normalized,
-                    "email_confirm": True,
-                    "app_metadata": {"role_source": "staff_max_login"},
-                }
-            )
+            if existing is None:
+                existing = find_user_by_email(normalized)
+            if existing is None:
+                return None
             link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
         props = getattr(link, "properties", None)
         if props is None and isinstance(link, dict):
@@ -1190,6 +1203,9 @@ def _token_hash_for_email(email: str) -> str | None:
             hashed = getattr(props, "hashed_token", None) or (
                 props.get("hashed_token") if isinstance(props, dict) else None
             )
+        auth_user = existing or find_user_by_email(normalized)
+        if auth_user is not None:
+            sync_staff_role_auth_user_id(email=normalized, auth_user_id=user_id_of(auth_user))
         return str(hashed) if hashed else None
     except Exception:
         return None

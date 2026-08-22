@@ -98,14 +98,22 @@ def find_user_by_email(email: str) -> Any | None:
     """Найти пользователя Auth по email; staff_email в staff_roles — без list_users."""
     normalized = email.strip().lower()
     row = _staff_row_by_email(normalized)
+    client = get_supabase_client()
     if row:
-        return _StaffUserStub(str(row["user_id"]), normalized)
+        uid = str(row["user_id"])
+        try:
+            client.auth.admin.get_user_by_id(uid)
+            return _StaffUserStub(uid, normalized)
+        except Exception:  # noqa: BLE001 — устаревший user_id в staff_roles
+            pass
 
     boot_uid = _bootstrap_user_id_for_ops_email(normalized)
     if boot_uid:
-        return _StaffUserStub(boot_uid, normalized)
-
-    client = get_supabase_client()
+        try:
+            client.auth.admin.get_user_by_id(boot_uid)
+            return _StaffUserStub(boot_uid, normalized)
+        except Exception:  # noqa: BLE001
+            pass
     page = 1
     per_page = 200
     try:
@@ -122,6 +130,29 @@ def find_user_by_email(email: str) -> Any | None:
             page += 1
     except Exception:  # noqa: BLE001
         return None
+
+
+def sync_staff_role_auth_user_id(*, email: str, auth_user_id: str) -> bool:
+    """Привязать staff_roles.user_id к реальному UUID Supabase Auth (после MAX/OTP входа)."""
+    normalized = email.strip().lower()
+    auth_uid = str(auth_user_id).strip()
+    if not normalized or "@" not in normalized or not auth_uid:
+        return False
+    row = _staff_row_by_email(normalized)
+    if not row:
+        return False
+    stored_uid = str(row.get("user_id") or "").strip()
+    if stored_uid == auth_uid:
+        return False
+    client = get_supabase_client()
+    payload: dict[str, Any] = {"user_id": auth_uid, "staff_email": normalized}
+    try:
+        client.table("staff_roles").update(payload).eq("user_id", stored_uid).execute()
+    except Exception as exc:  # noqa: BLE001
+        if "staff_email" not in str(exc).lower():
+            raise
+        client.table("staff_roles").update({"user_id": auth_uid}).eq("user_id", stored_uid).execute()
+    return True
 
 
 def ensure_user(email: str, *, invite: bool) -> Any:
