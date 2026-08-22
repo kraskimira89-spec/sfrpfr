@@ -54,7 +54,8 @@ def _parse_llm_payload(raw: str) -> tuple[str, list[str]]:
         if reply_m:
             reply = reply_m.group(1).strip()
         if buttons_m:
-            buttons = [b.strip() for b in buttons_m.group(1).replace("\n", " ").split("|") if b.strip()]
+            raw_buttons = buttons_m.group(1).replace("\n", " ").split("|")
+            buttons = [b.strip() for b in raw_buttons if b.strip()]
     else:
         reply = text
     reply = reply[:700].strip()
