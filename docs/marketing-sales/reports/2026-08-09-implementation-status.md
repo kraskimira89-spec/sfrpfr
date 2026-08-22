@@ -12,6 +12,7 @@
 | Этап 2 (сегментные страницы, MAX §10.1) | PARTIAL → in-repo |
 | Этап 3–4 (реклама, B2B discovery) | NOT DONE / BLOCKED (владелец) |
 | Success fee на публичных тарифах | DONE (не публикуется; опция только в Заказе по решению 14.08.2026) |
+| Стек автоматизации (без Make/Albato) | DONE (docs) | [automation-stack-ru.md](../../ops/automation-stack-ru.md) |
 
 ## P0 — Управление и измерение
 

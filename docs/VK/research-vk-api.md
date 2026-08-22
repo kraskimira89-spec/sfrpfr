@@ -38,11 +38,13 @@
 
 ```text
 VK Ads lead form
-  → webhook / poll (сервис или Make/n8n — TBD)
+  → webhook / poll → FastAPI (предпочт.) или n8n self-hosted P2
   → amoCRM lead (source=vk, UTM_*)
   → оператор пишет в MAX / звонит
   → кабинет SFRFR (согласие, документы)
 ```
+
+Канон интеграций: [automation-stack-ru.md](../ops/automation-stack-ru.md). Make.com / Albato **не** используем.
 
 Не класть в amo и не логировать: СНИЛС, ИЛС, сканы, текст решения СФР.
 

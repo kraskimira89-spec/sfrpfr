@@ -134,17 +134,20 @@ SFRFR — истина по делу и документам. amo — прода
 
 ## Автоматизация
 
-| P | Что | Где |
-|---|-----|-----|
-| P0 | Лид → сделка «Новый лид» + поля | код `public_leads` |
-| P0 | Задача «Первый контакт» при создании сделки | API tasks в `AmoCrmClient` |
-| P0 | `LOSS_REASON` обязателен на этапе отказа | поле amo `required_statuses` |
-| P1 | Смена колонки по b2c / pipeline / task | `pipeline_stages` + sync PATCH `status_id` |
-| P1 | Задача «Документы» при входе в diag_paid | задача при sync с task `paid:diagnostic*` |
-| P1 | `completed` → MAX отзыв → этап «Отзыв запрошен» | notifications + push amo `review_ask` |
-| P2 | Напоминание отзыва | задача amo / ручной чеклист |
-| P2 | Дашборд конверсий | DataLens / выгрузка |
-| — | Webhook amo → SFRFR | вне MVP |
+Канон стека (без Make/Albato): [automation-stack-ru.md](../ops/automation-stack-ru.md).
+
+| P | Что | Где | Статус |
+|---|-----|-----|--------|
+| P0 | Лид → сделка «Новый лид» + поля | код `public_leads` | **код DONE** |
+| P0 | Задача «Первый контакт» при создании сделки | API tasks в `AmoCrmClient` | **код DONE** |
+| P0 | `LOSS_REASON` обязателен на этапе отказа | поле amo `required_statuses` | **UI amo** — [ops-amocrm-setup](ops-amocrm-setup.md) §4а |
+| P1 | Смена колонки по b2c / pipeline / task | `pipeline_stages` + sync PATCH `status_id` | **код DONE** |
+| P1 | Задача «Документы» при входе в diag_paid | задача при sync с task `paid:diagnostic*` | **код DONE** |
+| P1 | `completed` → MAX отзыв → этап «Отзыв запрошен» | notifications + push amo `review_ask` | **код DONE** |
+| P1 | Задачи «Квалификация» / «Оффер диагностики» | amo Digital Pipeline | **UI amo** — [ops-amocrm-task-templates](ops-amocrm-task-templates.md) |
+| P2 | Напоминание отзыва | задача amo / ручной чеклист | **код DONE** (задача при review_ask); напоминание — оператор |
+| P2 | Дашборд конверсий | DataLens / выгрузка | TBD |
+| — | Webhook amo → SFRFR | вне MVP | не делаем |
 
 Скрипт этапов: `scripts/amocrm_ensure_pipeline_stages.py` (создаёт недостающие статусы по именам).
 

@@ -27,6 +27,7 @@
 | [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) | **Виджет MAX в amo** — клиентский бот, чаты, инструкция оператору |
 | [vendor-user-docs.md](vendor-user-docs.md) | Оглавление пользовательской доки amo |
 | [vendor-dev-docs.md](vendor-dev-docs.md) | Оглавление доки разработчика amo |
+| [../ops/automation-stack-ru.md](../ops/automation-stack-ru.md) | **Стек автоматизации** (без Make/Albato): матрица P0/P1/P2 |
 
 ## Канон в репозитории (не ломать ссылки)
 
