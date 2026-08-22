@@ -133,7 +133,6 @@ function StageShell({
   forceShow,
   onToggle,
   children,
-  accent,
 }: {
   id: string;
   title: string;
@@ -143,7 +142,6 @@ function StageShell({
   forceShow: boolean;
   onToggle: () => void;
   children: ReactNode;
-  accent?: boolean;
 }) {
   const showBody = expanded || forceShow;
   if (state === "done" && !forceShow) {
@@ -169,7 +167,7 @@ function StageShell({
     );
   }
   return (
-    <div id={id} className={`panel funnel-stage funnel-stage--${state}${accent ? " accent" : ""}`}>
+    <div id={id} className={`panel funnel-stage funnel-stage--${state}`}>
       <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
         <StageMark state={state} />
         <strong>{title}</strong>
@@ -599,7 +597,6 @@ export function CaseFunnelMain({
           expanded={isExpanded("contact")}
           forceShow={showAll}
           onToggle={() => scrollStage("contact")}
-          accent={current === "contact"}
         >
           <p>
             MAX: {detail.client.max_linked ? "привязан" : "нет"}
@@ -679,7 +676,6 @@ export function CaseFunnelMain({
           expanded={isExpanded("documents")}
           forceShow={showAll}
           onToggle={() => scrollStage("documents")}
-          accent={current === "documents"}
         >
           <table className="case-docs-table">
             <thead>
@@ -816,7 +812,6 @@ export function CaseFunnelMain({
             expanded={isExpanded("diagnostics")}
             forceShow={showAll}
             onToggle={() => scrollStage("diagnostics")}
-            accent={current === "diagnostics"}
           >
             <p className="hint">
               Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
@@ -865,7 +860,6 @@ export function CaseFunnelMain({
           expanded={isExpanded("plan")}
           forceShow={showAll}
           onToggle={() => scrollStage("plan")}
-          accent={current === "plan"}
         >
           <p className="hint">
             Черновик требует проверки специалистом. Не является решением СФР. Клиент подаёт сам.
@@ -910,7 +904,6 @@ export function CaseFunnelMain({
             expanded={isExpanded("payment")}
             forceShow={showAll}
             onToggle={() => scrollStage("payment")}
-            accent={current === "payment"}
           >
             {(detail.orders ?? []).length > 0 ? (
               <ul className="plain-list">
@@ -990,7 +983,6 @@ export function CaseFunnelMain({
             expanded={isExpanded("result")}
             forceShow={showAll}
             onToggle={() => scrollStage("result")}
-            accent={current === "result"}
           >
             <label className="funnel-show-all">
               <input
@@ -1038,7 +1030,6 @@ export function CaseFunnelMain({
             expanded={isExpanded("feedback")}
             forceShow={showAll}
             onToggle={() => scrollStage("feedback")}
-            accent={current === "feedback"}
           >
             <form className="stack-form" onSubmit={onSendFeedback}>
               <textarea

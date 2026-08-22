@@ -146,16 +146,28 @@ button.ghost {
   color: var(--brand);
   border: 1px solid var(--line);
 }
+button.ghost:hover {
+  background: #f3f6fa;
+  color: var(--brand);
+}
 button.tab {
   background: transparent;
   color: var(--muted);
   border: 1px solid transparent;
   min-height: 40px;
 }
+button.tab:hover {
+  background: #f3f6fa;
+  color: var(--ink);
+}
 button.tab.active {
   color: var(--brand);
   border-color: var(--line);
   background: #fff;
+}
+button.tab.active:hover {
+  background: #fff;
+  color: var(--brand);
 }
 button.linkish {
   background: none;
@@ -164,6 +176,10 @@ button.linkish {
   min-height: auto;
   text-decoration: underline;
   text-align: left;
+}
+button.linkish:hover {
+  background: none;
+  color: var(--brand-deep);
 }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px; }
@@ -222,7 +238,12 @@ header div { display: grid; gap: 3px; }
   padding: 6px 10px;
   font-size: 0.88rem;
 }
+.chip:hover {
+  background: #e8edf5;
+  color: var(--ink);
+}
 .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.chip.active:hover { background: var(--brand-deep); color: #fff; }
 .queue-wrap { overflow-x: auto; }
 .queue-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .queue-table th, .queue-table td {
@@ -463,31 +484,55 @@ header div { display: grid; gap: 3px; }
   cursor: pointer;
   font-weight: 600;
 }
+.funnel-item:hover {
+  background: #f7fafc;
+  color: var(--ink);
+}
 .funnel-item--current {
   color: #123;
   border-color: #7aa2d4;
   background: #eef4fb;
   box-shadow: 0 0 0 2px rgba(61, 125, 214, 0.2);
 }
+.funnel-item--current:hover {
+  color: #123;
+  background: #e4eef9;
+}
 .funnel-item--done {
   color: #1e4a32;
   background: #e8f4ec;
   border-color: #8fbea4;
+}
+.funnel-item--done:hover {
+  color: #1e4a32;
+  background: #dff0e6;
 }
 .funnel-item--waiting {
   color: #6a4a12;
   background: #fff8e8;
   border-color: #e0c888;
 }
+.funnel-item--waiting:hover {
+  color: #6a4a12;
+  background: #fff3d6;
+}
 .funnel-item--blocked {
   color: #6a2a2a;
   background: #f8eeee;
   border-color: #d8a0a0;
 }
+.funnel-item--blocked:hover {
+  color: #6a2a2a;
+  background: #f3e0e0;
+}
 .funnel-item--overdue {
   color: #7a1a1a;
   background: #fdeeee;
   border-color: #d07070;
+}
+.funnel-item--overdue:hover {
+  color: #7a1a1a;
+  background: #f8d8d8;
 }
 .funnel-mark {
   width: 1.2rem;
@@ -525,7 +570,7 @@ header div { display: grid; gap: 3px; }
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--ink);
+  color: inherit;
   padding: 0;
   min-height: auto;
   cursor: pointer;
@@ -534,14 +579,15 @@ header div { display: grid; gap: 3px; }
 }
 .funnel-stage-toggle:hover {
   background: transparent;
-  color: var(--ink);
+  color: inherit;
 }
 .funnel-stage-toggle strong {
   color: inherit;
   font-size: 1rem;
 }
 .funnel-stage-toggle .hint {
-  color: var(--muted);
+  color: inherit;
+  opacity: 0.75;
   font-weight: 500;
   margin: 0;
 }
@@ -558,46 +604,26 @@ header div { display: grid; gap: 3px; }
   background: #e8f4ec;
   border-color: #8fbea4;
 }
-.panel.funnel-stage--done .funnel-stage-toggle,
-.panel.funnel-stage--done-compact .funnel-stage-toggle {
-  color: #1e4a32;
-}
 .panel.funnel-stage--current {
   color: #123;
   background: #eef4fb;
   border-color: #7aa2d4;
   box-shadow: 0 0 0 1px rgba(61, 125, 214, 0.18);
 }
-.panel.funnel-stage--current .funnel-stage-toggle {
-  color: #123;
-}
 .panel.funnel-stage--waiting {
   color: #6a4a12;
   background: #fff8e8;
   border-color: #e0c888;
-}
-.panel.funnel-stage--waiting .funnel-stage-toggle {
-  color: #6a4a12;
 }
 .panel.funnel-stage--blocked {
   color: #6a2a2a;
   background: #f8eeee;
   border-color: #d8a0a0;
 }
-.panel.funnel-stage--blocked .funnel-stage-toggle {
-  color: #6a2a2a;
-}
 .panel.funnel-stage--overdue {
   color: #7a1a1a;
   background: #fdeeee;
   border-color: #d07070;
-}
-.panel.funnel-stage--overdue .funnel-stage-toggle {
-  color: #7a1a1a;
-}
-.panel.funnel-stage.accent {
-  /* не даём .panel.accent перекрасить этап */
-  color: inherit;
 }
 .funnel-stage-body {
   margin-top: 10px;
@@ -777,10 +803,19 @@ header div { display: grid; gap: 3px; }
   font-weight: 600;
   cursor: pointer;
   color: var(--muted);
+  min-height: auto;
+}
+.case-chat-filter:hover {
+  background: #f3f6fa;
+  color: var(--ink);
 }
 .case-chat-filter.on {
   background: var(--brand);
   border-color: var(--brand);
+  color: #fff;
+}
+.case-chat-filter.on:hover {
+  background: var(--brand-deep);
   color: #fff;
 }
 .case-chat-feed {
@@ -874,6 +909,7 @@ header div { display: grid; gap: 3px; }
   color: var(--brand);
   font-size: 0.8rem;
   font-weight: 700;
+  min-height: auto;
 }
 .case-chat-btn-chip--clickable {
   cursor: pointer;
@@ -884,6 +920,7 @@ header div { display: grid; gap: 3px; }
 }
 .case-chat-btn-chip--clickable:hover {
   background: #eef6f1;
+  color: var(--brand);
 }
 /* Быстрые подсказки при наведении на кнопки карточки и чата */
 .row-actions > button[title],
