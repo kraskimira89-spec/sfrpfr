@@ -61,7 +61,6 @@ type Detail = {
   draft?: { title?: string; body?: string } | null;
   channels: {
     cabinet_url: string;
-    max_business_url?: string | null;
   };
   representatives?: {
     user_id: string;
@@ -349,16 +348,6 @@ export function CaseFunnelMain({
               >
                 Кабинет клиента
               </a>
-              {detail.channels.max_business_url ? (
-                <a
-                  href={detail.channels.max_business_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Открыть диалоги в MAX Business"
-                >
-                  MAX Business
-                </a>
-              ) : null}
               {detail.crm_url ? (
                 <a href={detail.crm_url} target="_blank" rel="noreferrer" title="Открыть сделку в amoCRM">
                   amoCRM

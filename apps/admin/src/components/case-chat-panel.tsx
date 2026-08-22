@@ -1,7 +1,7 @@
 "use client";
 
 import { labelAuthorKind } from "@/lib/ui-labels";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type CaseChatMessage = {
   id: string;
@@ -9,6 +9,8 @@ export type CaseChatMessage = {
   body: string;
   created_at: string;
 };
+
+type ChatFilter = "all" | "staff" | "client" | "system";
 
 const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
 
@@ -36,11 +38,94 @@ function authorLabel(authorKind: string): string {
   return labelAuthorKind(authorKind);
 }
 
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "unknown";
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date();
+  const yday = new Date();
+  yday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (sameDay(d, today)) return "Сегодня";
+  if (sameDay(d, yday)) return "Вчера";
+  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function filterKind(authorKind: string, filter: ChatFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "staff") return authorKind === "staff";
+  if (filter === "client") return authorKind === "client" || authorKind === "representative";
+  return authorKind === "system";
+}
+
+type FeedItem =
+  | { type: "day"; key: string; label: string }
+  | {
+      type: "group";
+      key: string;
+      author_kind: string;
+      created_at: string;
+      messages: CaseChatMessage[];
+      collapsedExtra: number;
+    };
+
+function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] {
+  const filtered = messages.filter((m) => filterKind(m.author_kind, filter));
+  const out: FeedItem[] = [];
+  let lastDay = "";
+  let i = 0;
+  while (i < filtered.length) {
+    const m = filtered[i];
+    const dk = dayKey(m.created_at);
+    if (dk !== lastDay) {
+      out.push({ type: "day", key: `day-${dk}`, label: dayLabel(m.created_at) });
+      lastDay = dk;
+    }
+    const group: CaseChatMessage[] = [m];
+    let j = i + 1;
+    while (
+      j < filtered.length &&
+      filtered[j].author_kind === m.author_kind &&
+      dayKey(filtered[j].created_at) === dk
+    ) {
+      group.push(filtered[j]);
+      j += 1;
+    }
+    // Схлопнуть точные дубли подряд в группе
+    const unique: CaseChatMessage[] = [];
+    let collapsed = 0;
+    for (const row of group) {
+      const prev = unique[unique.length - 1];
+      if (prev && prev.body.trim() === row.body.trim()) {
+        collapsed += 1;
+        continue;
+      }
+      unique.push(row);
+    }
+    out.push({
+      type: "group",
+      key: `g-${m.id}`,
+      author_kind: m.author_kind,
+      created_at: m.created_at,
+      messages: unique,
+      collapsedExtra: collapsed,
+    });
+    i = j;
+  }
+  return out;
+}
+
 export function CaseChatPanel({
   messages,
   maxLinked,
-  maxUserId,
-  maxBusinessUrl,
   body,
   onBodyChange,
   busy,
@@ -48,11 +133,10 @@ export function CaseChatPanel({
   onSendInternal,
   suggestions,
   onSuggest,
+  composerHighlight = false,
 }: {
   messages: CaseChatMessage[];
   maxLinked: boolean;
-  maxUserId: string | null;
-  maxBusinessUrl: string | null;
   body: string;
   onBodyChange: (value: string) => void;
   busy: boolean;
@@ -60,58 +144,106 @@ export function CaseChatPanel({
   onSendInternal: () => void;
   suggestions: string[];
   onSuggest: () => void;
+  composerHighlight?: boolean;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
+  const [filter, setFilter] = useState<ChatFilter>("all");
+  const [expandedDup, setExpandedDup] = useState<Record<string, boolean>>({});
+
+  const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
 
   useEffect(() => {
     const el = feedRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, filter, body]);
 
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
       <div className="case-chat-head">
         <h2>Чат с клиентом</h2>
-        <p className="hint">
-          Полная история с первого сообщения в MAX: бот, кнопки, нажатия, документы.
-          Дело создаётся сразу при /start — переписка видна до кабинета.
-        </p>
+        <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
+          {(
+            [
+              ["all", "Все"],
+              ["staff", "Сотрудник"],
+              ["client", "Клиент"],
+              ["system", "Система"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={filter === id ? "case-chat-filter on" : "case-chat-filter"}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="case-chat-feed" ref={feedRef}>
-        {messages.length === 0 ? (
+        {feed.length === 0 ? (
           <p className="hint case-chat-empty">
             Пока пусто. Здесь появятся сообщения бота, нажатия клиента и ответы сотрудника.
           </p>
         ) : (
           <ul className="case-chat-list">
-            {messages.map((m) => {
-              const parsed = splitBody(m.body);
+            {feed.map((item) => {
+              if (item.type === "day") {
+                return (
+                  <li key={item.key} className="case-chat-day">
+                    {item.label}
+                  </li>
+                );
+              }
+              const showAll = expandedDup[item.key];
+              const visible = showAll
+                ? item.messages
+                : item.messages.length > 1 && item.collapsedExtra > 0
+                  ? item.messages
+                  : item.messages;
               return (
-                <li key={m.id} className={bubbleClass(m.author_kind)}>
+                <li key={item.key} className={bubbleClass(item.author_kind)}>
                   <span className="meta">
-                    {authorLabel(m.author_kind)} ·{" "}
-                    {new Date(m.created_at).toLocaleString("ru-RU", {
+                    {authorLabel(item.author_kind)} ·{" "}
+                    {new Date(item.created_at).toLocaleString("ru-RU", {
                       day: "2-digit",
                       month: "2-digit",
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
                   </span>
-                  {parsed.isDocument ? (
-                    <p className="case-chat-doc">{parsed.text}</p>
-                  ) : (
-                    <p>{parsed.text}</p>
-                  )}
-                  {parsed.buttons.length > 0 ? (
-                    <div className="case-chat-buttons" aria-label="Кнопки бота в MAX">
-                      {parsed.buttons.map((label) => (
-                        <span key={`${m.id}-${label}`} className="case-chat-btn-chip">
-                          {label}
-                        </span>
-                      ))}
-                    </div>
+                  {visible.map((m) => {
+                    const parsed = splitBody(m.body);
+                    return (
+                      <div key={m.id} className="case-chat-chunk">
+                        {parsed.isDocument ? (
+                          <p className="case-chat-doc">{parsed.text}</p>
+                        ) : (
+                          <p>{parsed.text}</p>
+                        )}
+                        {parsed.buttons.length > 0 ? (
+                          <div className="case-chat-buttons" aria-label="Кнопки бота в MAX">
+                            {parsed.buttons.map((label) => (
+                              <span key={`${m.id}-${label}`} className="case-chat-btn-chip">
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {item.collapsedExtra > 0 && !showAll ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => setExpandedDup((s) => ({ ...s, [item.key]: true }))}
+                    >
+                      Показать ещё {item.collapsedExtra}
+                    </button>
                   ) : null}
                 </li>
               );
@@ -120,7 +252,7 @@ export function CaseChatPanel({
         )}
       </div>
 
-      <div className="case-chat-composer">
+      <div className={`case-chat-composer${composerHighlight ? " case-chat-composer--flash" : ""}`}>
         {suggestions.length > 0 ? (
           <div className="case-chat-buttons" aria-label="Варианты ответа DeepSeek">
             {suggestions.map((item) => (
@@ -195,12 +327,7 @@ export function CaseChatPanel({
             {maxLinked ? "Только в ленту" : "Отправить"}
           </button>
         </div>
-        <p className="hint">
-          Ctrl+Enter — отправить.
-          {maxBusinessUrl && maxUserId
-            ? ` MAX Business · user_id ${maxUserId}.`
-            : ""}
-        </p>
+        <p className="hint">Ctrl+Enter — отправить.</p>
       </div>
     </aside>
   );
