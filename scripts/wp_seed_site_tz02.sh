@@ -235,6 +235,7 @@ if [ -n "${MENU_ID}" ]; then
     "${WP[@]}" menu item add-custom "$MENU_ID" "Богдановский С. В." "/expert/bogdanovskiy-sergey/" --parent-id="$EXPERT_ID" >/dev/null
   fi
 
+  "${WP[@]}" menu item add-custom "$MENU_ID" "Партнёрам" "/partneram/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true

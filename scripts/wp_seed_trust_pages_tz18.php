@@ -104,6 +104,13 @@ $pages = [
         'seo_description' => 'Отзывы о сервисе «Проверка стажа»: форма на сайте после модерации и рейтинг на Яндекс Картах. Без обещания перерасчёта.',
     ],
     [
+        'slug' => 'partneram',
+        'title' => 'Партнёрам',
+        'file' => 'partneram.html',
+        'seo_title' => 'Партнёрам: проверка стажа, ИЛС и подготовка обращения в СФР',
+        'seo_description' => 'Информационно-документарная поддержка по пенсионному стажу, выписке ИЛС и проекту обращения в СФР. Для общественных приёмных, НКО и социальных партнёров.',
+    ],
+    [
         'slug' => 'anketa-otzyv',
         'title' => 'Сформулировать отзыв',
         'file' => 'anketa-otzyv.html',
@@ -134,7 +141,62 @@ function sfrfr_trust_load(string $assets, string $file, string $maxUrl): string
         throw new RuntimeException("Missing trust page: {$path}");
     }
     $html = (string) file_get_contents($path);
-    return str_replace('{{MAX_BTN_URL}}', $maxUrl, $html);
+    $replacements = [
+        '{{MAX_BTN_URL}}' => $maxUrl,
+        '{{PHONE}}' => '+7&nbsp;909&nbsp;195‑04‑08',
+        '{{EMAIL}}' => 'info@proverkastaza.ru',
+    ];
+    return str_replace(array_keys($replacements), array_values($replacements), $html);
+}
+
+function sfrfr_trust_seed_presentation(int $pageId, string $repoRoot): void
+{
+    if ($pageId <= 0) {
+        return;
+    }
+    if ((int) get_post_meta($pageId, '_sfrfr_presentation_file', true) > 0) {
+        echo "PRESENTATION partneram=skip (meta exists)\n";
+        return;
+    }
+
+    $candidates = [
+        $repoRoot . '/docs/proverkastaza_presentation_for_deputy.pptx',
+        dirname(__DIR__) . '/docs/proverkastaza_presentation_for_deputy.pptx',
+    ];
+    $pptxPath = '';
+    foreach ($candidates as $candidate) {
+        if (is_readable($candidate)) {
+            $pptxPath = $candidate;
+            break;
+        }
+    }
+    if ($pptxPath === '') {
+        echo "PRESENTATION partneram=skip (file missing)\n";
+        return;
+    }
+
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+
+    $filename = 'proverkastaza-presentation-for-partners.pptx';
+    $tmp = wp_tempnam($filename);
+    if (!$tmp || !copy($pptxPath, $tmp)) {
+        echo "PRESENTATION partneram=fail (copy)\n";
+        return;
+    }
+    $fileArray = [
+        'name' => $filename,
+        'tmp_name' => $tmp,
+    ];
+    $attachId = media_handle_sideload($fileArray, $pageId, 'Презентация сервиса для партнёров');
+    if (is_wp_error($attachId)) {
+        @unlink($tmp);
+        echo 'PRESENTATION partneram=fail ' . $attachId->get_error_message() . "\n";
+        return;
+    }
+    update_post_meta($pageId, '_sfrfr_presentation_file', (int) $attachId);
+    echo 'PRESENTATION partneram=' . (int) $attachId . "\n";
 }
 
 function sfrfr_trust_upsert_page(array $args): int
@@ -215,6 +277,11 @@ foreach ($pages as $page) {
     echo "PAGE {$page['slug']}={$id}\n";
 }
 
+if (!empty($created['partneram'])) {
+    $repoRoot = getenv('SFRFR_REPO_ROOT') ?: dirname(__DIR__);
+    sfrfr_trust_seed_presentation((int) $created['partneram'], $repoRoot);
+}
+
 // Хаб /expert/ — список профилей (без отдельной категории блога).
 $expertParent = get_page_by_path('expert');
 if ($expertParent instanceof WP_Post) {
@@ -293,6 +360,7 @@ if ($menu) {
     }
     $ensure = [
         'Отзывы' => !empty($created['otzyvy']) ? home_url('/otzyvy/') : home_url('/otzyvy/'),
+        'Партнёрам' => home_url('/partneram/'),
         'Контакты' => !empty($created['kontakty']) ? home_url('/kontakty/') : null,
         'Эксперты' => home_url('/expert/'),
         'Личный кабинет' => rtrim(
@@ -390,6 +458,28 @@ if ($menu) {
             'menu_order' => max(0, $statiOrder - 1),
         ]);
         echo "MENU Отзывы order before Статьи\n";
+    }
+
+    $items = wp_get_nav_menu_items($menuId) ?: [];
+    $partneramId = 0;
+    $kontaktyOrder = null;
+    foreach ($items as $item) {
+        if ((int) ($item->menu_item_parent ?? 0) !== 0) {
+            continue;
+        }
+        if ((string) $item->title === 'Партнёрам') {
+            $partneramId = (int) $item->ID;
+        }
+        if ((string) $item->title === 'Контакты') {
+            $kontaktyOrder = (int) $item->menu_order;
+        }
+    }
+    if ($partneramId > 0 && $kontaktyOrder !== null) {
+        wp_update_post([
+            'ID' => $partneramId,
+            'menu_order' => max(0, $kontaktyOrder - 1),
+        ]);
+        echo "MENU Партнёрам order before Контакты\n";
     }
 }
 

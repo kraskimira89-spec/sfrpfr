@@ -72,6 +72,8 @@
 | URL | Решение |
 |---|---|
 | `/glavnaya/` | **301** → `/` |
+| `/prezentaciya-dlya-deputata/` | **301** → `/partneram/` (канон посадочной для партнёров) |
+| `/partneram/` | **index** — посадочная для приёмных, НКО и партнёров |
 | `/app/` | **noindex,nofollow,noarchive** |
 | рубрики `situacii`, `analitika` | noindex + вне sitemap |
 

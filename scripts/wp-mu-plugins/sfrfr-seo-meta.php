@@ -75,6 +75,7 @@ add_filter('document_title_parts', static function (array $parts): array {
         'kontakty' => 'Контакты',
         'proverka-stazha' => 'Проверка стажа, а не калькулятор пенсии',
         'stazh-do-2002' => 'Как подтвердить стаж до 2002 года',
+        'partneram' => 'Партнёрам: проверка стажа, ИЛС и подготовка обращения в СФР',
         'blog' => 'Статьи',
     ];
     if (is_front_page()) {

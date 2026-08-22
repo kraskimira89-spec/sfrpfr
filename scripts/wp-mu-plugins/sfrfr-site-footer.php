@@ -112,6 +112,7 @@ function sfrfr_site_footer_html(): string
         <a href="{$home}tarify/">Тарифы</a><br>
         <a href="{$home}kak-rabotaem/">Как мы работаем</a><br>
         <a href="{$home}otzyvy/">Отзывы</a><br>
+        <a href="{$home}partneram/">Партнёрам</a><br>
         <a href="{$home}kontakty/">Контакты и реквизиты</a><br>
         <a href="{$home}expert/">Кто оказывает</a><br>
         <a href="{$home}oferta/">Оферта</a><br>

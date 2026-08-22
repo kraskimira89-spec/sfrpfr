@@ -184,6 +184,7 @@ if [ "${SFRFR_REBUILD_MENU:-0}" = "1" ]; then
       "${WP[@]}" menu item add-custom "$MENU_ID" "Богдановский С. В." "/expert/bogdanovskiy-sergey/" --parent-id="$EXPERT_ID" >/dev/null
     fi
 
+    "${WP[@]}" menu item add-custom "$MENU_ID" "Партнёрам" "/partneram/" >/dev/null
     "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
     CABINET_URL="${CABINET_URL:-https://cabinet.proverkastaza.ru}"
     "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL%/}/" >/dev/null

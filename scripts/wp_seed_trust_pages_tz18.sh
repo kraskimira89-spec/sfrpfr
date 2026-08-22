@@ -38,6 +38,8 @@ MU="${SITE_DIR}/wp-content/mu-plugins"
 mkdir -p "${MU}"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-meta.php" "${MU}/sfrfr-seo-meta.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${MU}/sfrfr-site-footer.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-metrika.php" "${MU}/sfrfr-yandex-metrika.php"
 
 "${WP[@]}" cache flush || true

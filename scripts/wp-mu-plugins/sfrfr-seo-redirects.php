@@ -85,6 +85,11 @@ add_action('template_redirect', static function (): void {
         exit;
     }
 
+    if ($path === '/prezentaciya-dlya-deputata') {
+        wp_safe_redirect(home_url('/partneram/'), 301);
+        exit;
+    }
+
     $map = sfrfr_seo_thin_redirect_map();
     if (!isset($map[$path])) {
         return;
