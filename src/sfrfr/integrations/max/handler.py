@@ -2225,11 +2225,11 @@ def handle_max_update(
         return receipt_handled
     if is_production and (isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)):
         case_id = record.case_id
-        names = []
+        attempt_names: list[str] = []
         if isinstance(file_name, str):
-            names.append(file_name)
-        names.extend(name for name, _url in downloads)
-        label = names[0] if names else "файл"
+            attempt_names.append(file_name)
+        attempt_names.extend(name for name, _url in downloads)
+        label = attempt_names[0] if attempt_names else "файл"
         _append_client_case_message(
             case_id=case_id or _case_id_for_max_user(user_id),
             max_user_id=user_id,
