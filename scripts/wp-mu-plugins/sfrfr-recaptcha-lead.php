@@ -193,7 +193,7 @@ add_action('wp_enqueue_scripts', function () {
         return;
     }
 
-    if (!is_front_page()) {
+    if (!is_front_page() && !is_page('partneram')) {
         return;
     }
     $mu_js = WPMU_PLUGIN_DIR . '/sfrfr-recaptcha-lead.js';
@@ -244,7 +244,7 @@ add_action('wp_head', function () {
 }, 4);
 
 add_action('wp_head', function () {
-    if (!is_front_page()) {
+    if (!is_front_page() && !is_page('partneram')) {
         return;
     }
     echo '<style id="sfrfr-captcha-hide">.wpforms-field.sfrfr-recaptcha-token,.wpforms-field-recaptcha_token,.wpforms-field-smartcaptcha_token{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important;}</style>' . "\n";

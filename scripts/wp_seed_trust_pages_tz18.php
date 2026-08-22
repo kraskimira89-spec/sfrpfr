@@ -107,8 +107,8 @@ $pages = [
         'slug' => 'partneram',
         'title' => 'Партнёрам',
         'file' => 'partneram.html',
-        'seo_title' => 'Партнёрам: проверка стажа, ИЛС и подготовка обращения в СФР',
-        'seo_description' => 'Информационно-документарная поддержка по пенсионному стажу, выписке ИЛС и проекту обращения в СФР. Для общественных приёмных, НКО и социальных партнёров.',
+        'seo_title' => 'Партнёрам — навигация по пенсионным документам | Проверка стажа',
+        'seo_description' => 'Партнёрский формат информационно-документарной помощи: выписка ИЛС, пенсионный стаж, трудовые документы, подготовка обращений в СФР.',
     ],
     [
         'slug' => 'anketa-otzyv',
@@ -280,6 +280,11 @@ foreach ($pages as $page) {
 if (!empty($created['partneram'])) {
     $repoRoot = getenv('SFRFR_REPO_ROOT') ?: dirname(__DIR__);
     sfrfr_trust_seed_presentation((int) $created['partneram'], $repoRoot);
+    $partnerFormScript = dirname(__DIR__) . '/wp_ensure_partner_form.php';
+    if (is_readable($partnerFormScript)) {
+        require $partnerFormScript;
+        echo "PARTNER_FORM ensured\n";
+    }
 }
 
 // Хаб /expert/ — список профилей (без отдельной категории блога).

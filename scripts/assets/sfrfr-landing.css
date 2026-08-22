@@ -4133,6 +4133,15 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   color: var(--sfrfr-muted);
 }
 
+#sfrfr-partneram-page .sfrfr-partner-form {
+  max-width: 42rem;
+  margin-top: 1.5rem;
+}
+
+#sfrfr-partneram-page .sfrfr-partner-form .wpforms-field-label {
+  font-weight: 600;
+}
+
 @media (max-width: 767px) {
   #sfrfr-partneram-page .sfrfr-partneram-cta-row {
     flex-direction: column;

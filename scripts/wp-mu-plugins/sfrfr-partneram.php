@@ -10,6 +10,8 @@ if (!defined('ABSPATH')) {
 
 const SFRFR_PARTNERAM_META_FILE = '_sfrfr_presentation_file';
 const SFRFR_PARTNERAM_CTA_MARKER = '<!-- SFRFR_PRESENTATION_CTA -->';
+const SFRFR_PARTNER_FORM_MARKER = '<!-- SFRFR_PARTNER_FORM -->';
+const SFRFR_PARTNER_FORM_TITLE = 'Партнёрство';
 
 function sfrfr_partneram_page_id(): int
 {
@@ -59,20 +61,81 @@ function sfrfr_partneram_cta_html(int $pageId = 0): string
     $meta = $metaParts ? '<span class="sfrfr-partneram-presentation-meta">' . esc_html(implode(' · ', $metaParts)) . '</span>' : '';
 
     return sprintf(
-        '<a class="sfrfr-btn sfrfr-btn--primary" href="%s" download>%s</a>%s',
+        '<a class="sfrfr-btn sfrfr-btn--primary" href="%s" download data-sfrfr-goal="partner_pptx_download">%s</a>%s',
         esc_url($url),
         esc_html('Скачать презентацию'),
         $meta
     );
 }
 
+function sfrfr_partner_form_id(): int
+{
+    static $id = null;
+    if ($id !== null) {
+        return $id;
+    }
+    $id = 0;
+    if (!function_exists('wpforms')) {
+        return 0;
+    }
+    $forms = wpforms()->form->get('', ['post_type' => 'wpforms']);
+    if (!is_array($forms)) {
+        return 0;
+    }
+    foreach ($forms as $form) {
+        if (isset($form->post_title) && (string) $form->post_title === SFRFR_PARTNER_FORM_TITLE) {
+            $id = (int) $form->ID;
+            break;
+        }
+    }
+    return $id;
+}
+
+function sfrfr_partner_form_html(): string
+{
+    $formId = sfrfr_partner_form_id();
+    if ($formId <= 0) {
+        return '<p class="sfrfr-note sfrfr-partner-form-fallback">Форма партнёрского обращения временно недоступна. Напишите на <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.</p>';
+    }
+    return '<div class="sfrfr-partner-form">' . do_shortcode('[wpforms id="' . $formId . '"]') . '</div>';
+}
+
 add_filter('the_content', static function (string $content): string {
-    if (!is_page('partneram') || !str_contains($content, SFRFR_PARTNERAM_CTA_MARKER)) {
+    if (!is_page('partneram')) {
         return $content;
     }
-    $cta = sfrfr_partneram_cta_html((int) get_the_ID());
-    return str_replace(SFRFR_PARTNERAM_CTA_MARKER, $cta, $content);
+    if (str_contains($content, SFRFR_PARTNERAM_CTA_MARKER)) {
+        $cta = sfrfr_partneram_cta_html((int) get_the_ID());
+        $content = str_replace(SFRFR_PARTNERAM_CTA_MARKER, $cta, $content);
+    }
+    if (str_contains($content, SFRFR_PARTNER_FORM_MARKER)) {
+        $content = str_replace(SFRFR_PARTNER_FORM_MARKER, sfrfr_partner_form_html(), $content);
+    }
+    return $content;
 }, 20);
+
+add_action('wp_footer', static function (): void {
+    if (!is_page('partneram')) {
+        return;
+    }
+    $formId = sfrfr_partner_form_id();
+    ?>
+<script>
+(function () {
+  if (typeof window.sfrfrMetrikaGoal !== "function") return;
+  window.sfrfrMetrikaGoal("partner_page_view");
+  var partnerFormId = <?php echo (int) $formId; ?>;
+  document.addEventListener("wpformsAjaxSubmitSuccess", function (ev) {
+    var detail = ev && ev.detail ? ev.detail : {};
+    var fid = detail.formId || (detail.form && detail.form.id);
+    if (partnerFormId > 0 && String(fid) === String(partnerFormId)) {
+      window.sfrfrMetrikaGoal("partner_lead_ok");
+    }
+  });
+})();
+</script>
+    <?php
+}, 30);
 
 add_action('add_meta_boxes', static function (): void {
     $pageId = sfrfr_partneram_page_id();

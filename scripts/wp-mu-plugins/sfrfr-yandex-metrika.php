@@ -401,6 +401,20 @@ add_action('wp_footer', static function (): void {
         });
       });
     });
+    document.querySelectorAll('a[data-sfrfr-goal="partner_cta_click"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaPartnerCta", function (el) {
+        el.addEventListener("click", function () {
+          window.sfrfrMetrikaGoal("partner_cta_click");
+        });
+      });
+    });
+    document.querySelectorAll('#sfrfr-partneram-page a[download], a[data-sfrfr-goal="partner_pptx_download"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaPartnerPptx", function (el) {
+        el.addEventListener("click", function () {
+          window.sfrfrMetrikaGoal("partner_pptx_download");
+        });
+      });
+    });
     var form = document.querySelector("#zayavka form, .wpforms-form, form.wpforms-form");
     if (form) {
       once(form, "sfrfrMetrikaLeadStartF", function (el) {

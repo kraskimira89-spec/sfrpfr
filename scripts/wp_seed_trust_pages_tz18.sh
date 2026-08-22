@@ -23,6 +23,9 @@ cp -f "${SCRIPT_DIR}/assets/sfrfr-awards.js" "${SITE_DIR}/wp-content/mu-plugins/
 chown -R www-data:www-data "${UPLOADS}" 2>/dev/null || true
 chown www-data:www-data "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js" 2>/dev/null || true
 
+echo "==> Ensure partner B2B form"
+"${WP[@]}" eval-file "${SCRIPT_DIR}/wp_ensure_partner_form.php" || echo "WARN: partner form ensure failed"
+
 echo "==> Seed trust/commerce pages"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_trust_pages_tz18.php"
 
