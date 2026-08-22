@@ -1339,34 +1339,6 @@ def _complete_pc_login(
 
     # Staff: первый вход — руководитель; дальше тот же MAX входит сам
     if pending.audience == "staff":
-        # #region agent log
-        try:
-            import json
-            import time as _time
-
-            with open("debug-4304ae.log", "a", encoding="utf-8") as _f:
-                _f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "4304ae",
-                            "location": "handler.py:_complete_pc_login",
-                            "message": "staff login complete",
-                            "data": {
-                                "user_id": user_id,
-                                "ticket": pending.ticket_id,
-                                "status": pending.status,
-                                "staff_email": pending.staff_email,
-                            },
-                            "hypothesisId": "B",
-                            "timestamp": int(_time.time() * 1000),
-                        },
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
-        except OSError:
-            pass
-        # #endregion
         from sfrfr.db.staff_roles import (
             get_staff_role_by_email,
             is_staff_login_trusted,

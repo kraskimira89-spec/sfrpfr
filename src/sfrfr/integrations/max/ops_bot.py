@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import time
 from typing import Any
 
 from sfrfr.core.config import get_settings
@@ -29,29 +27,6 @@ _OPS_LOGIN_TRIGGERS = frozenset(
         "get_login_code",
     }
 )
-
-
-def _dbg_log(location: str, message: str, data: dict[str, Any], *, hypothesis_id: str = "") -> None:
-    # #region agent log
-    try:
-        with open("debug-4304ae.log", "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "sessionId": "4304ae",
-                        "location": location,
-                        "message": message,
-                        "data": data,
-                        "hypothesisId": hypothesis_id,
-                        "timestamp": int(time.time() * 1000),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
-    except OSError:
-        pass
-    # #endregion
 
 
 def get_ops_bot() -> MaxBotClient:
@@ -106,21 +81,8 @@ def _handle_ops_staff_login(
     from sfrfr.integrations.max.handler import _complete_pc_login, _reply
     from sfrfr.security.login_pending import latest_for_max, latest_unbound_staff_pending
 
-    _dbg_log(
-        "ops_bot.py:_handle_ops_staff_login",
-        "ops login triggered",
-        {"user_id": user_id},
-        hypothesis_id="A",
-    )
-
     pending = latest_for_max(user_id)
     if pending and pending.audience == "staff":
-        _dbg_log(
-            "ops_bot.py:_handle_ops_staff_login",
-            "found pending for max user",
-            {"ticket": pending.ticket_id, "status": pending.status},
-            hypothesis_id="E",
-        )
         return _complete_pc_login(
             bot,
             user_id=user_id,
@@ -130,12 +92,6 @@ def _handle_ops_staff_login(
 
     unbound = latest_unbound_staff_pending()
     if unbound:
-        _dbg_log(
-            "ops_bot.py:_handle_ops_staff_login",
-            "unbound staff pending",
-            {"ticket": unbound.ticket_id, "status": unbound.status},
-            hypothesis_id="D",
-        )
         bound = _complete_pc_login(
             bot,
             user_id=user_id,
