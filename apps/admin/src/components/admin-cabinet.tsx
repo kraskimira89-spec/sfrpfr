@@ -295,21 +295,26 @@ export function AdminCabinet() {
       options: { shouldCreateUser: false },
     });
     if (error) {
-      setNotice("Не удалось отправить код.");
+      const msg =
+        error.message?.toLowerCase().includes("signups not allowed") ||
+        error.message?.toLowerCase().includes("user not found")
+          ? "Почта не зарегистрирована для входа. Попросите администратора выдать роль (staff-grant) или войдите через MAX."
+          : `Не удалось отправить код: ${error.message}`;
+      setNotice(msg);
       return;
     }
     setOtpSent(true);
     setNotice("Код отправлен на рабочий email.");
   }
 
-  async function requestMaxLogin() {
+  async function requestMaxLogin(): Promise<boolean> {
     if (!apiBase) {
       setNotice("API не настроен.");
-      return;
+      return false;
     }
     if (!email.trim() || !email.includes("@")) {
       setNotice("Укажите рабочий email — роль должна быть уже выдана администратором.");
-      return;
+      return false;
     }
     setBusy(true);
     setNotice("");
@@ -337,9 +342,14 @@ export function AdminCabinet() {
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
       setOtpSent(true);
-      setNotice("");
+      setNotice(
+        body.message ||
+          "Код появился ниже — отправьте его в ops-бот MAX. Код не приходит в бот автоматически.",
+      );
+      return true;
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Не удалось начать вход через MAX.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -354,8 +364,10 @@ export function AdminCabinet() {
       setNotice("Сначала укажите рабочий email.");
       return;
     }
-    openMaxChat();
-    await requestMaxLogin();
+    const ok = await requestMaxLogin();
+    if (ok) {
+      openMaxChat();
+    }
   }
 
   function resetMaxWizard() {

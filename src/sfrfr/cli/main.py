@@ -752,7 +752,7 @@ def staff_grant(
         raise typer.BadParameter(str(exc)) from exc
 
     uid = user_id_of(user)
-    row = grant_staff_role(uid, staff_role)
+    row = grant_staff_role(uid, staff_role, staff_email=email.strip().lower())
     typer.echo(f"ok\t{email.strip().lower()}\t{uid}\t{row['role']}")
 
 

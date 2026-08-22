@@ -1163,16 +1163,17 @@ def _auth_email_for_row(row: dict[str, Any], max_user_id: str) -> str:
 
 
 def _token_hash_for_email(email: str) -> str | None:
-    """hashed_token magic link для указанного email (без создания клиента)."""
+    """hashed_token magic link для указанного email (без list_users)."""
     try:
         from sfrfr.db.session import get_supabase_client
-        from sfrfr.db.staff_roles import find_user_by_email
 
         normalized = email.strip().lower()
         if "@" not in normalized:
             return None
         client = get_supabase_client()
-        if find_user_by_email(normalized) is None:
+        try:
+            link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
+        except Exception:
             client.auth.admin.create_user(
                 {
                     "email": normalized,
@@ -1180,7 +1181,7 @@ def _token_hash_for_email(email: str) -> str | None:
                     "app_metadata": {"role_source": "staff_max_login"},
                 }
             )
-        link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
+            link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
         props = getattr(link, "properties", None)
         if props is None and isinstance(link, dict):
             props = link.get("properties") or link
