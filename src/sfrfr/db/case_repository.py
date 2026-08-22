@@ -423,6 +423,12 @@ class CaseRepository:
             "id", case_id
         ).execute()
         self.audit(case_id, actor_id, "contract_accepted")
+        try:
+            from sfrfr.services.finance_automation import ensure_agreement_draft_invoice
+
+            ensure_agreement_draft_invoice(self, case_id, actor_id)
+        except Exception:  # noqa: BLE001 — соглашение важнее черновика счёта
+            pass
         return response.data[0]
 
     def list_orders(self, case_id: str) -> list[dict[str, Any]]:
@@ -664,7 +670,7 @@ class CaseRepository:
         package_code: str,
         amount_rub: float,
         status_value: str,
-        actor_id: str,
+        actor_id: str | None = None,
         due_at: str | None = None,
         service_label: str | None = None,
         invoice_status: str | None = None,
@@ -734,7 +740,7 @@ class CaseRepository:
         order_id: str,
         *,
         case_id: str,
-        actor_id: str,
+        actor_id: str | None,
         action: str,
         fields: dict[str, Any],
         audit_payload: dict[str, Any] | None = None,
@@ -875,6 +881,14 @@ class CaseRepository:
                     self.client.table("cases").update({"b2c_status": b2c}).eq(
                         "id", resolved_case_id
                     ).execute()
+                try:
+                    from sfrfr.services.finance_automation import on_order_fully_paid
+
+                    on_order_fully_paid(
+                        self, resolved_case_id, code, actor_id=None
+                    )
+                except Exception:  # noqa: BLE001 — оплата уже учтена
+                    pass
         payment_out = response.data[0] if response.data else row
         return {
             "payment": payment_out,
@@ -892,7 +906,7 @@ class CaseRepository:
         title: str,
         item_type: str,
         owner: str,
-        actor_id: str,
+        actor_id: str | None = None,
         due_at: str | None = None,
         note: str | None = None,
         sort_order: int = 0,
@@ -936,7 +950,7 @@ class CaseRepository:
     def update_next_action(
         self,
         case_id: str,
-        actor_id: str,
+        actor_id: str | None,
         *,
         next_action: str | None = None,
         next_action_at: str | None = None,

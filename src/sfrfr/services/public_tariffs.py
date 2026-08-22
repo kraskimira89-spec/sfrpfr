@@ -71,3 +71,10 @@ def staff_package_label(package_code: str, service_label: str | None = None) -> 
     if service_label and service_label.strip():
         return service_label.strip()
     return STAFF_PACKAGE_LABELS.get((package_code or "").upper(), package_code or "Услуга")
+
+
+def public_tariff(code: str) -> dict[str, Any] | None:
+    for row in PUBLIC_TARIFFS:
+        if row.get("code") == code:
+            return row
+    return None
