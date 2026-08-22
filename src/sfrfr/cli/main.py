@@ -1331,7 +1331,13 @@ def max_channel_daily_tick(
 
     if mark_only:
         state = mark_sent(mark_only.strip())
-        typer.echo(json.dumps({"ok": True, "marked": mark_only.strip(), "state": state}, ensure_ascii=False, indent=2))
+        typer.echo(
+            json.dumps(
+                {"ok": True, "marked": mark_only.strip(), "state": state},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
 
     peek = peek_daily()
