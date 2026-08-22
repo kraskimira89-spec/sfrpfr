@@ -144,6 +144,7 @@ _DOC_TYPE_LABELS_RU = {
     "sfr_decision": "Решение СФР",
     "ils": "Выписка ИЛС",
     "workbook": "Трудовая книжка",
+    "payment_receipt": "Чек оплаты",
 }
 
 
@@ -1370,7 +1371,36 @@ async def upload_case_document(
             client.table("result_evidence").insert(
                 {"case_id": case_id, "document_id": document_id}
             ).execute()
-    return response.data[0]
+    payment_receipt = None
+    try:
+        from sfrfr.ocr import extract_text_from_bytes
+        from sfrfr.services.payment_receipt import handle_uploaded_receipt
+
+        ocr_text = extract_text_from_bytes(data, filename)
+        payment_receipt = handle_uploaded_receipt(
+            repo,
+            case_id=case_id,
+            ocr_text=ocr_text,
+            document_id=document_id,
+            actor_id=principal.user_id,
+            doc_type=doc_type,
+        )
+        if payment_receipt and payment_receipt.get("status") == "confirmed":
+            action = "payment_receipt_confirmed"
+            repo.audit(case_id, principal.user_id, action)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("payment receipt check skipped: %s", exc)
+    row = response.data[0] if response.data else {"id": document_id}
+    if payment_receipt:
+        row = {
+            **row,
+            "payment_receipt": {
+                "status": payment_receipt.get("status"),
+                "ask_receipt": payment_receipt.get("ask_receipt"),
+                "message": payment_receipt.get("client_message"),
+            },
+        }
+    return row
 
 
 @router.post(

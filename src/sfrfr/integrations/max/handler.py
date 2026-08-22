@@ -1775,6 +1775,50 @@ def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
     return store.add_document(record.case_id, str(path))
 
 
+def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
+    files: list[tuple[str, bytes]] = []
+    file_name = update.get("file_name")
+    file_bytes = update.get("file_bytes")
+    if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
+        files.append((file_name, bytes(file_bytes)))
+    for name, url in extract_downloadable_files(update):
+        try:
+            files.append((name, download_file(url)))
+        except Exception:  # noqa: BLE001
+            continue
+    return files
+
+
+def _try_max_payment_receipt(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    files: list[tuple[str, bytes]],
+) -> MaxHandleResult | None:
+    if not files:
+        return None
+    try:
+        from sfrfr.services.payment_receipt import ingest_max_receipt
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        result = ingest_max_receipt(max_user_id=str(user_id), files=files)
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).info("max payment receipt skipped", exc_info=True)
+        return None
+    if not result:
+        return None
+    reply = str(result.get("client_message") or "Чек получили.")
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    return MaxHandleResult(
+        ok=result.get("status") in {"confirmed", "already_paid"},
+        action=f"payment_receipt_{result.get('status')}",
+        case_id=result.get("case_id"),
+        reply=reply,
+    )
+
+
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -2052,6 +2096,12 @@ def handle_max_update(
     file_bytes = update.get("file_bytes")
     downloads = extract_downloadable_files(update)
     is_production = get_settings().app_env.strip().lower() == "production"
+    max_files = _collect_max_files(update)
+    receipt_handled = _try_max_payment_receipt(
+        bot, user_id=user_id, chat_id=chat_id, files=max_files
+    )
+    if receipt_handled is not None:
+        return receipt_handled
     if is_production and (isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)):
         case_id = record.case_id
         max_url, web_url = cabinet_urls_for_case(case_id)

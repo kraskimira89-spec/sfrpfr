@@ -29,22 +29,33 @@ def format_payment_succeeded_message(
     amount_value: str | None = None,
     customer_email: str | None = None,
     receipt_via_yookassa: bool = True,
+    source: str = "yookassa",
 ) -> str:
     """Текст клиенту: оплата + где чек + ссылка в кабинет."""
     pkg = _PACKAGE_LABELS.get((package_code or "").upper(), package_code or "услуга")
-    lines = [
-        "Оплата получена.",
-        f"Услуга: {pkg}.",
-    ]
-    if amount_value:
-        lines.append(f"Сумма: {amount_value} ₽.")
-    if receipt_via_yookassa:
-        if customer_email:
-            lines.append(f"Фискальный чек отправлен на email {customer_email}.")
-        else:
-            lines.append(
-                "Фискальный чек формирует ЮKassa (ОФД); проверьте email из профиля оплаты."
-            )
+    if source == "receipt":
+        lines = [
+            "Оплата подтверждена по чеку: реквизиты совпали.",
+            f"Услуга: {pkg}.",
+        ]
+        if amount_value:
+            lines.append(f"Сумма: {amount_value} ₽.")
+        lines.append("Чек сохранён в деле. Присылать ещё один не нужно.")
+    else:
+        lines = [
+            "Оплата получена.",
+            f"Услуга: {pkg}.",
+        ]
+        if amount_value:
+            lines.append(f"Сумма: {amount_value} ₽.")
+        lines.append("Чек присылать не нужно — уведомление об оплате уже пришло.")
+        if receipt_via_yookassa:
+            if customer_email:
+                lines.append(f"Фискальный чек отправлен на email {customer_email}.")
+            else:
+                lines.append(
+                    "Фискальный чек формирует ЮKassa (ОФД); проверьте email из профиля оплаты."
+                )
     lines.extend(
         [
             "",
@@ -86,6 +97,7 @@ def notify_payment_succeeded(
     amount_value: str | None = None,
     provider_payment_id: str | None = None,
     customer_email: str | None = None,
+    source: str = "yookassa",
 ) -> dict[str, Any]:
     """
     После payment.succeeded: сообщение в деле, MAX (если linked), заметка/sync amoCRM.
@@ -136,6 +148,7 @@ def notify_payment_succeeded(
         amount_value=amount_value,
         customer_email=email,
         receipt_via_yookassa=bool(settings.yookassa_send_receipt),
+        source=source,
     )
     result["text"] = text
 

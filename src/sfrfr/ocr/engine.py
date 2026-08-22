@@ -84,6 +84,24 @@ def _extract_image(path: Path) -> str:
     return text or f"[ocr_empty] изображение без текста: {path.name}"
 
 
+def extract_text_from_bytes(data: bytes, filename: str) -> str:
+    """OCR из байтов (чек из MAX/кабинета) через временный файл."""
+    import tempfile
+
+    suffix = Path(filename or "document.bin").suffix.lower() or ".bin"
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+        return extract_text(tmp_path)
+    except Exception as exc:  # noqa: BLE001
+        return f"[ocr_error] bytes: {exc}"
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
 def _ocr_pil(image: object) -> str:
     settings = get_settings()
     try:
