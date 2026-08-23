@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sfrfr.db.supabase_client import get_supabase_client
+from sfrfr.db.session import get_supabase_client
 from sfrfr.services.marketing_consent import (
     Channel,
     ConsentStatus,

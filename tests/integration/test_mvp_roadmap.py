@@ -127,7 +127,9 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "'type' => 'file'" not in form
     assert "'label' => 'ФИО'" in form
     assert "sfrfr-lead-channel" in form
-    assert "Даю согласие на обработку персональных данных*" in form
+    assert "Принимаю Политику обработки персональных данных" in form
+    assert "Не является согласием на рекламу" in form
+    assert "sfrfr-lead-marketing-consent" in form
     assert "Документ:" not in form
     assert "channel=max" not in form
     assert "mode=register" in form
