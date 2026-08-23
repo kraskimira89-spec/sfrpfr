@@ -41,11 +41,30 @@ weavix debug
 
 При необходимости publish: `weavix login` (OAuth + org id). Секреты только локально / `secrets/`, не в git.
 
-## Сборка / публикация
+## Сборка / публикация (каталог организации)
+
+По [доке](https://yandex.ru/support/tracker/ru/plugins/publish.md): ассеты → `weavix login` → `weavix submit` → модерация → одобрение админом org.
+
+| Поле | Значение |
+|------|----------|
+| Version | `0.1.6` |
+| Visibility (ожидаемо) | `ORGANIZATION` |
+| Marketplace | `marketplace/index.md`, `marketplace/header-image.jpg`, `public/logo.svg` |
+| Справка | `docs/index.md` + `docs/toc.yaml` |
 
 ```powershell
+cd plugins\tracker\sfrfr-issue-wizard
+npm install
+weavix doctor --publish
 weavix build
-# later: weavix login && weavix submit
+# токен уже в Credential Store после weavix login
+weavix submit
+weavix list
+weavix info
 ```
 
-См. также: [README плагинов](../../plugins/tracker/README.md), [playbook PUB](playbook-publish-queue.md), [playbook FUNNEL](playbook-funnel-ops.md).
+После `IN_REVIEW` → каталог: **Настройки → Плагины**. Админ одобряет запрос на подключение. В общий публичный каталог Трекера — только через [поддержку](https://yandex.ru/support/tracker/ru/feedback.md) + архив исходников.
+
+Секреты / OAuth не коммитить. `paths-ignore`: пуш плагина не деплоит VPS.
+
+См. также: [README плагинов](../../plugins/tracker/README.md), соседний [stazh-quality-wizard](plugin-stazh-quality-wizard.md) (уже `DRAFT` / submit).

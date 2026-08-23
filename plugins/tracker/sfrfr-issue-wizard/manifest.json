@@ -12,8 +12,8 @@
     "en": "SFRFR Issue Wizard"
   },
   "description": {
-    "ru": "Мастер создания задач в очередях SFRFR, PUB и FUNNEL с тегами и проверкой ПДн.",
-    "en": "Create issues in SFRFR, PUB and FUNNEL with required tags and PII warnings."
+    "ru": "Создание задач SFRFR, PUB, FUNNEL с тегами и проверкой ПДн",
+    "en": "Create SFRFR, PUB, FUNNEL issues with tags and PII checks"
   },
   "categories": [
     "productivity"
