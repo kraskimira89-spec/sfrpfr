@@ -145,6 +145,7 @@ _DOC_TYPE_LABELS_RU = {
     "ils": "Выписка ИЛС",
     "workbook": "Трудовая книжка",
     "payment_receipt": "Чек оплаты",
+    "diagnosis_report": "Результат диагностики",
 }
 
 

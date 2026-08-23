@@ -2294,6 +2294,44 @@ export function ClientCabinet() {
             </a>
           </div>
 
+          {(detail.documents ?? []).some((d) =>
+            `${d.doc_type || ""}`.toLowerCase().includes("diagnosis_report"),
+          ) && (
+            <div className="panel">
+              <h2>Результат диагностики</h2>
+              <p className="hint">
+                Информационно-документарный разбор. Не является решением СФР и не гарантирует
+                перерасчёт. Скачайте PDF и при необходимости покажите родственнику.
+              </p>
+              <ul className="doc-list">
+                {(detail.documents ?? [])
+                  .filter((d) =>
+                    `${d.doc_type || ""}`.toLowerCase().includes("diagnosis_report"),
+                  )
+                  .map((doc) => {
+                    const name =
+                      (doc.filename || "").trim() ||
+                      doc.storage_path.split("/").pop() ||
+                      doc.id;
+                    return (
+                      <li key={doc.id} className="doc-list-item">
+                        <button
+                          type="button"
+                          className="linkish doc-list-name"
+                          onClick={() => void openSignedUrl(doc.id)}
+                        >
+                          {name}
+                        </button>
+                        <p className="doc-list-meta">
+                          {doc.doc_type_label || "Результат диагностики"}
+                        </p>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          )}
+
           {(detail.findings?.length ?? 0) > 0 && (
             <div className="panel">
               <h2>Что нашли в документах</h2>

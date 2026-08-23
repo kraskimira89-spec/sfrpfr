@@ -147,3 +147,6 @@ plugins/tracker/**/dist/
 
 # Weavix marketplace covers (required by weavix submit)
 !plugins/tracker/**/marketplace/header-image.jpg
+
+# Сборка PDF диагностики (локальные артефакты)
+scripts/assets/templates/out/

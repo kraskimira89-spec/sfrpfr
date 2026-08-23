@@ -230,6 +230,7 @@ export function CaseFunnelMain({
   onSendEmail,
   onOpenTrackerModal,
   onOpenSigned,
+  onUploadDiagnosisReport,
   onToggleChecklist,
   onAddChecklist,
   onChecklistTitle,
@@ -285,6 +286,7 @@ export function CaseFunnelMain({
   onSendEmail: () => void;
   onOpenTrackerModal: () => void;
   onOpenSigned: (docId: string) => void;
+  onUploadDiagnosisReport: (file: File) => void;
   onToggleChecklist: (id: string, status: string) => void;
   onAddChecklist: (e: FormEvent) => void;
   onChecklistTitle: (v: string) => void;
@@ -869,6 +871,65 @@ export function CaseFunnelMain({
             ) : (
               <p className="hint">Появится после проверки.</p>
             )}
+            <h3 className="case-subhead">PDF результата клиенту</h3>
+            <p className="hint">
+              Канон: «Диагностика сведений о стаже…». Шаблон → PDF → загрузка сюда (
+              <code>diagnosis_report</code>). Без PDF в кабинете не считать выданным.
+            </p>
+            {detail.documents.filter((d) =>
+              `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+            ).length > 0 ? (
+              <ul className="plain-list">
+                {detail.documents
+                  .filter((d) =>
+                    `${d.doc_type || ""} ${d.storage_path || ""}`
+                      .toLowerCase()
+                      .includes("diagnosis"),
+                  )
+                  .map((doc) => (
+                    <li key={doc.id}>
+                      <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
+                        {doc.storage_path.split("/").pop()}
+                      </button>
+                      <span className="hint"> · Результат диагностики</span>
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="hint">PDF ещё не загружен.</p>
+            )}
+            <div className="row-actions">
+              <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
+                Загрузить PDF результата
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  hidden
+                  disabled={busy || !caps.can_view_ocr}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onUploadDiagnosisReport(file);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="linkish"
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "Подставить шаблон «Диагностика готова» в чат? Отправка в MAX — отдельно.",
+                    )
+                  )
+                    return;
+                  applyTemplate(PLAN_READY_CHAT);
+                }}
+              >
+                Шаблон MAX: результат готов
+              </button>
+            </div>
           </StageShell>
         ) : null}
 

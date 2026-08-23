@@ -92,8 +92,10 @@ export function deriveFunnel(detail: {
   if (!hasIls) missingDocs.push("выписка ИЛС");
   if (!hasLabor) missingDocs.push("трудовая / сведения о стаже");
 
+  const hasDiagnosisReport = hasDocType(docs, ["diagnosis_report", "диагностик"]);
   const diagnosticsDone = Boolean(
-    detail.analysis_notes ||
+    hasDiagnosisReport ||
+      detail.analysis_notes ||
       (detail.findings && detail.findings.length > 0) ||
       ["audited", "draft_ready", "human_review", "completed"].includes(detail.pipeline_status),
   );
@@ -278,4 +280,4 @@ export const SERVICE_DESCRIPTION_CHAT =
   "Здравствуйте! Кратко об услуге: мы готовим документы, проект обращения и понятный план. Подаёте через СФР, МФЦ или Госуслуги вы сами — решение принимает только СФР. Если согласны продолжить — напишите, и оформим следующий шаг.";
 
 export const PLAN_READY_CHAT =
-  "Подготовили проект обращения и план. Откройте личный кабинет — там текст и чек-лист. Мы расскажем по шагам, но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.";
+  "Диагностика готова. Перечень проверенных документов, вопросы по возможным расхождениям и план — в защищённом кабинете. В чат подробности и сканы не отправляем. Если появятся вопросы, напишите: «Нужен следующий шаг». Решение о пенсии принимает СФР; обращение подаёте вы сами.";

@@ -1458,6 +1458,30 @@ export function AdminCabinet() {
     setNotice(`Signed URL: ${signed.expires_in} сек.`);
   }
 
+  async function uploadDiagnosisReport(file: File) {
+    if (!token || !detail) return;
+    if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+      setNotice("Нужен PDF результата диагностики.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("doc_type", "diagnosis_report");
+      await apiFetch(`/api/portal/cases/${detail.id}/documents`, token, {
+        method: "POST",
+        body: form,
+      });
+      setNotice("PDF результата диагностики загружен в кабинет.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить PDF.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!session) {
     return (
       <main className="auth-layout">
@@ -1983,6 +2007,7 @@ export function AdminCabinet() {
               setTrackerForceNew(false);
             }}
             onOpenSigned={(docId) => void openSigned(docId)}
+            onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
             onToggleChecklist={(id, status) => void toggleChecklist(id, status)}
             onAddChecklist={(e) => void addChecklist(e)}
             onChecklistTitle={setChecklistTitle}

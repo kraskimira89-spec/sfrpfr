@@ -917,3 +917,8 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Канон clarity-funnel §4в; ассет diagnosis-result-delivery.md.
 - Подтверждение ≤15 мин; SLA 3 р.д.; каркас результата; оффер 5k/8k / отказ от оффера.
 - AMO: SLA, чеклисты этапов 4–7, задачи, шпаргалка, prompt.
+
+## 2026-08-23 — стандарт PDF диагностики (продукт)
+- playbook-diagnosis-result-standard.md: название, структура PDF, A–D, QA.
+- Шаблон + example + build_diagnosis_report_pdf.py; doc_type diagnosis_report.
+- Admin: загрузка PDF; cabinet: блок «Результат диагностики».
