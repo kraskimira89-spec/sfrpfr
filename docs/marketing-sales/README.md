@@ -20,6 +20,7 @@
 - [Тест Ноябрьск × север × Директ](research-test-noyabrsk-north-direct-2026-08.md) — одностраничный план (бюджет TBD).
 - [**Директ: копипаст объявлений + минус-слова**](spec-yandex-direct-copypaste.md) — 2 кампании (север волна 1 + 5 кластеров РФ), UTM, гео ID.
 - [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
+- [**Лид-магнит «Папка пенсионных документов»**](strategy-leadmagnet-pension-folder-2026-08.md) — PDF 6–8 стр. + `/chek-list-dokumentov/` + воронка ИЛС → диагностика (PUB-6).
 - [SEO: запросы «калькулятор/расчёт пенсии/стаж»](research-seo-pension-queries-2026-08.md) — кластеры, интенты, внедрение ключей без фейкового калькулятора выплат; [частоты 8_calc](reports/wordstat-8-calc-2026-08-14.md).
 - [SEO: 7 проблемных кластеров Wordstat](research-seo-problem-clusters-wordstat-2026-08.md) — не учли ИЛС, до 2002, архив, север, отказ, СЗИ-ИЛС, перед пенсией; маппинг URL/Title/H1/CTA; [CSV](reports/wordstat-7-clusters-template.csv), [playbook](reports/playbook-wordstat-7-clusters.md), [Wordstat API](../ops/yandex-wordstat-setup.md).
 - [Wordstat: север × пенсионеры × АЗРФ/КС](reports/wordstat-north-pensioners-2026-08-14.md) — обход регионов Арктики, Крайнего Севера и приравненных; [JSON регионов](reports/wordstat-north-regions.json).
