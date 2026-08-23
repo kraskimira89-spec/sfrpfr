@@ -6,7 +6,7 @@
 
 | Каталог | Plugin ID | Слот | Назначение |
 |---------|-----------|------|------------|
-| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` | `navigation` | Мастер задач STAZH / SFRFR / PUB / FUNNEL |
+| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` | `navigation` | Мастер создания задач SFRFR / PUB / FUNNEL |
 
 Подробнее: [docs/TRACKER/plugin-sfrfr-issue-wizard.md](../../docs/TRACKER/plugin-sfrfr-issue-wizard.md).
 
@@ -18,13 +18,15 @@ npm install
 weavix debug
 ```
 
-1. Дождаться URL/порта в консоли (обычно Vite на `http://localhost:5173`).
+1. Дождаться старта (Vite обычно на `http://localhost:5173`, в `config.json` будет `downloadUrl`).
 2. В Трекере: **Настройки → Эксперименты → Отладка плагинов** — подключить локальный плагин.
 3. Открыть слот **navigation** (боковое меню / навигация).
 
-Если `weavix debug` просит `weavix login` / OAuth — выполнить login один раз (токен не коммитить).
+⚠️ Не открывайте localhost в браузере — плагин грузится только из интерфейса Трекера.
+
+Если CLI просит согласие с условиями — один раз `y`. Для publish/submit: `weavix login` (токен не коммитить).
 
 ## Важно
 
-- Не коммитить `node_modules/`, секреты, OAuth-токены.
+- Не коммитить `node_modules/`, `config.json` (генерирует debug), `.yaweavix-debug.lock`, секреты, OAuth-токены.
 - Пуш только `plugins/tracker/**` не должен запускать `deploy-vps` (`paths-ignore`).

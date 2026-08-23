@@ -1,4 +1,4 @@
-export type QueueKey = 'STAZH' | 'SFRFR' | 'PUB' | 'FUNNEL';
+export type QueueKey = 'SFRFR' | 'PUB' | 'FUNNEL';
 
 export type QueueOption = {
     key: QueueKey;
@@ -7,11 +7,6 @@ export type QueueOption = {
 };
 
 export const QUEUE_OPTIONS: QueueOption[] = [
-    {
-        key: 'STAZH',
-        title: 'STAZH',
-        hint: 'Качество, SLA, улучшения, контент, безопасность (без ПДн)',
-    },
     {
         key: 'SFRFR',
         title: 'SFRFR',
@@ -28,18 +23,6 @@ export const QUEUE_OPTIONS: QueueOption[] = [
         hint: 'Ops воронки клиентов (без ПДн в тексте)',
     },
 ];
-
-export const STAZH_TAGS = [
-    'type:bug',
-    'type:sla_incident',
-    'type:channel_conflict',
-    'type:process_improvement',
-    'type:development',
-    'type:content',
-    'type:security_privacy',
-    'type:analytics_hypothesis',
-    'type:partner_request',
-] as const;
 
 export const PUB_TAGS = [
     'publish-max',

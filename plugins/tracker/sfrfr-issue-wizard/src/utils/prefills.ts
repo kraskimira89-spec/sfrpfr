@@ -6,22 +6,6 @@ export type Prefill = {
 };
 
 const PREFILLS: Record<QueueKey, Prefill> = {
-    STAZH: {
-        summary: '[Качество] ',
-        description: [
-            '## Тип проблемы',
-            '',
-            '## Обезличенное описание',
-            '',
-            '## Метаданные',
-            '- case_ref: (если из кабинета — не UUID)',
-            '- channel / funnel_stage:',
-            '',
-            '## Ограничения',
-            '- Без ФИО, телефонов, email, СНИЛС, файлов, текста ИЛС, ссылок в кабинет',
-            '',
-        ].join('\n'),
-    },
     SFRFR: {
         summary: '[SFRFR] ',
         description: [

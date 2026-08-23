@@ -139,3 +139,8 @@ secrets/smartcaptcha.env
 
 .tmp-pytest/
 
+# Weavix Tracker plugin: локальный debug (не в git)
+plugins/tracker/**/config.json
+plugins/tracker/**/.yaweavix-debug.lock
+plugins/tracker/**/dist/
+

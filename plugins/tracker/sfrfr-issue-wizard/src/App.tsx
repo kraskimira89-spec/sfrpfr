@@ -8,7 +8,6 @@ import {
     PUB_TAGS,
     QUEUE_OPTIONS,
     SFRFR_OPTIONAL_TAGS,
-    STAZH_TAGS,
     type QueueKey,
 } from './types/queues';
 import {detectPii, formatPiiWarning} from './utils/pii';
@@ -17,22 +16,21 @@ import {getPrefill} from './utils/prefills';
 import './App.scss';
 
 function tagChoices(queue: QueueKey): string[] {
-    if (queue === 'STAZH') return [...STAZH_TAGS];
     if (queue === 'PUB') return [...PUB_TAGS];
     if (queue === 'FUNNEL') return [...FUNNEL_TAGS];
     return [...SFRFR_OPTIONAL_TAGS];
 }
 
 function isTagRequired(queue: QueueKey): boolean {
-    return queue === 'PUB' || queue === 'FUNNEL' || queue === 'STAZH';
+    return queue === 'PUB' || queue === 'FUNNEL';
 }
 
 const App = () => {
     const {theme} = useTrackerPluginContext<'navigation'>();
-    const [queue, setQueue] = useState<QueueKey>('STAZH');
+    const [queue, setQueue] = useState<QueueKey>('SFRFR');
     const [tag, setTag] = useState<string | undefined>();
-    const [summary, setSummary] = useState(() => getPrefill('STAZH').summary);
-    const [description, setDescription] = useState(() => getPrefill('STAZH').description);
+    const [summary, setSummary] = useState(() => getPrefill('SFRFR').summary);
+    const [description, setDescription] = useState(() => getPrefill('SFRFR').description);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +42,7 @@ const App = () => {
     const tagRequired = isTagRequired(queue);
 
     const onQueueChange = useCallback((next: string[]) => {
-        const key = (next[0] as QueueKey) || 'STAZH';
+        const key = (next[0] as QueueKey) || 'SFRFR';
         const prefill = getPrefill(key);
         setQueue(key);
         setTag(undefined);
@@ -56,7 +54,6 @@ const App = () => {
     const validate = useCallback((): string | null => {
         if (!summary.trim()) return 'Укажите название задачи';
         if (tagRequired && !tag) {
-            if (queue === 'STAZH') return 'Для STAZH обязателен тег type:*';
             return queue === 'PUB'
                 ? 'Для PUB обязателен тег publish-*'
                 : 'Для FUNNEL обязателен тег funnel-*';
@@ -136,7 +133,7 @@ const App = () => {
             <div className="wizard">
                 <Text variant="header-1">Мастер задач SFRFR</Text>
                 <p className="wizard__hint">
-                    STAZH — качество и продукт; SFRFR / PUB / FUNNEL — ops. ПДн в текст не вставлять.
+                    Очереди продукта / публикаций / воронки. ПДн и секреты в текст не вставлять.
                 </p>
 
                 <div className="wizard__field">

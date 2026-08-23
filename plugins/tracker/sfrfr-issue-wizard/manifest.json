@@ -10,8 +10,8 @@
     "en": "SFRFR Issue Wizard"
   },
   "description": {
-    "ru": "Мастер задач STAZH (качество), SFRFR, PUB и FUNNEL с проверкой ПДн.",
-    "en": "Create issues in STAZH, SFRFR, PUB and FUNNEL with PII warnings."
+    "ru": "Мастер создания задач в очередях SFRFR, PUB и FUNNEL с тегами и проверкой ПДн.",
+    "en": "Create issues in SFRFR, PUB and FUNNEL with required tags and PII warnings."
   },
   "categories": ["productivity"],
   "permissions": {
@@ -39,8 +39,8 @@
           },
           "contextLevel": "basic",
           "description": {
-            "ru": "Быстрое создание задач STAZH / SFRFR / PUB / FUNNEL",
-            "en": "Quick issue creation for STAZH / SFRFR / PUB / FUNNEL"
+            "ru": "Быстрое создание задач по очередям SFRFR / PUB / FUNNEL",
+            "en": "Quick issue creation for SFRFR / PUB / FUNNEL queues"
           }
         }
       ]
