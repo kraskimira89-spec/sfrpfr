@@ -172,6 +172,23 @@ class MaxBotClient:
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}
 
+    def send_chat_action(
+        self,
+        *,
+        chat_id: int | str,
+        action: str = "typing_on",
+    ) -> dict[str, Any]:
+        """POST /chats/{chatId}/actions — индикатор «печатает» в диалоге."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        endpoint = f"{self.api_base}/chats/{chat_id}/actions"
+        body = {"action": action}
+        with self._client() as client:
+            resp = client.post(endpoint, headers=self._headers(), json=body)
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            return data if isinstance(data, dict) else {"raw": data}
+
     def answer_callback(
         self,
         callback_id: str,

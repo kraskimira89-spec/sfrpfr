@@ -325,6 +325,26 @@ header span { color: var(--muted); font-size: 1rem; }
   background: #f8fafc;
 }
 .messages .meta { color: var(--muted); font-size: 0.95rem; }
+.message-typing .meta { color: var(--muted); }
+.message-typing-dots {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.message-typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: message-typing-bounce 1.2s ease-in-out infinite;
+}
+.message-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.message-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes message-typing-bounce {
+  0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
 .plain-list { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
 .case-nav {

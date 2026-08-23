@@ -367,6 +367,34 @@ def _callback_id(update: dict[str, Any]) -> str:
     return ""
 
 
+def _signal_bot_typing(
+    bot: MaxBotClient,
+    *,
+    chat_id: int | str | None,
+) -> None:
+    """Показать в MAX, что бот набирает ответ (до отправки сообщения)."""
+    if chat_id is None:
+        return
+    try:
+        bot.send_chat_action(chat_id=chat_id, action="typing_on")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("max_typing_on failed chat_id=%s err=%s", chat_id, exc)
+
+
+def _ack_message_callback(
+    bot: MaxBotClient,
+    update: dict[str, Any],
+) -> None:
+    """Быстрый ACK нажатия inline-кнопки — MAX перестаёт «ждать» ответ."""
+    cid = _callback_id(update)
+    if not cid:
+        return
+    try:
+        bot.answer_callback(cid)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("max_answer_callback failed id=%s err=%s", cid, exc)
+
+
 def _reply(
     bot: MaxBotClient,
     *,
@@ -1229,6 +1257,7 @@ def _handle_bot_start(
         return resumed
 
     _ensure_supabase_max_client(user_id)
+    _signal_bot_typing(bot, chat_id=chat_id)
     intake = get_intake_store().upsert_started(user_id)
     # Дело с /start: сотрудник видит бота/кнопки до кабинета и «Позвать специалиста».
     case_id = _ensure_case_for_intake(
@@ -2104,6 +2133,9 @@ def handle_max_update(
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
+        _ack_message_callback(bot, update)
+        _signal_bot_typing(bot, chat_id=chat_id)
+
         from sfrfr.integrations.max.case_chat_log import format_button_press
 
         _append_client_case_message(

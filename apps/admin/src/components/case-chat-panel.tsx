@@ -1,7 +1,7 @@
 "use client";
 
 import { labelAuthorKind } from "@/lib/ui-labels";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type CaseChatMessage = {
   id: string;
@@ -161,11 +161,26 @@ export function CaseChatPanel({
 
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
 
-  useEffect(() => {
+  const showBotTyping = useMemo(() => {
+    const last = messages[messages.length - 1];
+    if (!last) return false;
+    if (last.author_kind === "client" || last.author_kind === "representative") {
+      return last.body.startsWith("Нажал кнопку:");
+    }
+    return false;
+  }, [messages]);
+
+  const scrollFeedToEnd = useCallback(() => {
     const el = feedRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, filter, body]);
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollFeedToEnd();
+  }, [messages, filter, showBotTyping, scrollFeedToEnd]);
 
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
@@ -257,6 +272,14 @@ export function CaseChatPanel({
                 </li>
               );
             })}
+            {showBotTyping ? (
+              <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
+                <span className="meta">Бот MAX · печатает…</span>
+                <p className="case-chat-typing-dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </p>
+              </li>
+            ) : null}
           </ul>
         )}
       </div>

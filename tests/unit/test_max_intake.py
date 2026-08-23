@@ -30,6 +30,12 @@ class _SilentBot:
         self.attachments.append(attachments)
         return {"ok": True}
 
+    def send_chat_action(self, *, chat_id, action="typing_on"):  # noqa: ANN001
+        return {"ok": True}
+
+    def answer_callback(self, callback_id: str, **kwargs):  # noqa: ANN003
+        return {"ok": True}
+
 
 def _cb(user_id: int, payload: str, chat_id: int = 1) -> dict:
     return {

@@ -727,7 +727,7 @@ export function AdminCabinet() {
       void apiFetch<typeof messages>(`/api/portal/cases/${caseId}/messages`, token)
         .then(setMessages)
         .catch(() => undefined);
-    }, 8000);
+    }, 4000);
     return () => window.clearInterval(timer);
   }, [view, detail?.id, token]);
 

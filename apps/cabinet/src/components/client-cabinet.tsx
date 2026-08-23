@@ -320,6 +320,24 @@ export function ClientCabinet() {
     { user_id: string; email?: string | null; full_name?: string | null }[]
   >([]);
   const ensureCaseRef = useRef(false);
+  const messagesPanelRef = useRef<HTMLDivElement | null>(null);
+
+  const showBotTyping = useMemo(() => {
+    const last = messages[messages.length - 1];
+    if (!last) return false;
+    if (last.author_kind === "client" || last.author_kind === "representative") {
+      return last.body.startsWith("Нажал кнопку:");
+    }
+    return false;
+  }, [messages]);
+
+  const scrollMessagesToEnd = useCallback(() => {
+    const el = messagesPanelRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }, []);
 
   useEffect(() => {
     if (!apiBase) return;
@@ -616,6 +634,21 @@ export function ClientCabinet() {
     },
     [token, loadCases],
   );
+
+  useEffect(() => {
+    if (view !== "case" || !selectedId || !token) return;
+    const timer = window.setInterval(() => {
+      void apiFetch<CaseMessage[]>(`/api/portal/cases/${selectedId}/messages`, token)
+        .then(setMessages)
+        .catch(() => undefined);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [view, selectedId, token]);
+
+  useEffect(() => {
+    if (view !== "case") return;
+    scrollMessagesToEnd();
+  }, [messages, showBotTyping, view, scrollMessagesToEnd]);
 
   // P0: после пароля сразу создать и открыть дело, если списка нет
   useEffect(() => {
@@ -2385,10 +2418,10 @@ export function ClientCabinet() {
             </div>
           )}
 
-          <div className="panel" id="messages">
+          <div className="panel" id="messages" ref={messagesPanelRef}>
             <h2>Написать специалисту</h2>
             <ul className="messages">
-              {messages.length === 0 && <li>Сообщений пока нет.</li>}
+              {messages.length === 0 && !showBotTyping && <li>Сообщений пока нет.</li>}
               {messages.map((message) => (
                 <li key={message.id} className={message.author_kind === "client" ? "mine" : ""}>
                   <span className="meta">
@@ -2398,6 +2431,14 @@ export function ClientCabinet() {
                   <p>{message.body}</p>
                 </li>
               ))}
+              {showBotTyping ? (
+                <li className="message-typing" aria-live="polite">
+                  <span className="meta">Бот MAX · печатает…</span>
+                  <p className="message-typing-dots" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                  </p>
+                </li>
+              ) : null}
             </ul>
             <form className="message-form" onSubmit={sendMessage}>
               <label htmlFor="message">Ваше сообщение</label>
