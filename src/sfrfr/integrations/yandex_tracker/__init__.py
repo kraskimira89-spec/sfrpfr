@@ -72,8 +72,11 @@ _STORAGE_URL_RE = re.compile(r"https?://[^\s]*(storage|supabase|document)[^\s]*"
 def case_ref_for(case_id: str, *, secret: str | None = None) -> str:
     """Псевдоним дела: sha256(case_id + salt)[:12]."""
     settings = get_settings()
-    salt = (secret if secret is not None else settings.tracker_case_ref_secret or settings.app_secret_key).strip()
-    digest = hashlib.sha256(f"{case_id}:{salt}".encode("utf-8")).hexdigest()
+    if secret is not None:
+        salt = secret.strip()
+    else:
+        salt = (settings.tracker_case_ref_secret or settings.app_secret_key).strip()
+    digest = hashlib.sha256(f"{case_id}:{salt}".encode()).hexdigest()
     return digest[:12]
 
 

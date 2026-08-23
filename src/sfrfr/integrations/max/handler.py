@@ -1,4 +1,4 @@
-"""╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░ ╨░╨┐╨┤╨╡╨╣╤В╨╛╨▓ MAX тЖТ ╨║╨╡╨╣╤Б SFRFR."""
+"""Обработка апдейтов MAX → кейс SFRFR."""
 
 from __future__ import annotations
 
@@ -104,13 +104,13 @@ class MaxHandleResult:
 _LOGIN_TRIGGERS = frozenset(
     {
         "/login",
-        "╨▓╨╛╨╣╤В╨╕",
-        "╨▓╤Е╨╛╨┤",
+        "войти",
+        "вход",
         CONFIRM_WEB_LOGIN_LABEL.lower(),
         GET_CODE_IN_BROWSER_LABEL.lower(),
-        "╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨║╨╛╨┤",
-        "╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨║╨╛╨┤ ╨┤╨╗╤П ╨▓╤Е╨╛╨┤╨░",
-        "╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨▓╤Е╨╛╨┤",
+        "получить код",
+        "получить код для входа",
+        "подтвердить вход",
         CONFIRM_WEB_LOGIN_CALLBACK,
         GET_CODE_CALLBACK,
         "confirm_web_login",
@@ -121,8 +121,8 @@ _LOGIN_TRIGGERS = frozenset(
 _START_TRIGGERS = frozenset(
     {
         "/start",
-        "╤Б╤В╨░╤А╤В",
-        "╨╜╨░╤З╨░╤В╤М",
+        "старт",
+        "начать",
         START_DIALOG_LABEL.lower(),
         START_DIALOG_CALLBACK,
     }
@@ -224,7 +224,7 @@ def _chat_id(update: dict[str, Any]) -> int | str | None:
 
 
 def _looks_like_channel_update(update: dict[str, Any]) -> bool:
-    """╨н╨▓╤А╨╕╤Б╤В╨╕╨║╨░: ╤Б╨╛╨▒╤Л╤В╨╕╨╡ ╨╕╨╖ ╨║╨░╨╜╨░╨╗╨░ (╨╜╨╡ ╨╗╨╕╤З╨╜╤Л╨╣ ╨┤╨╕╨░╨╗╨╛╨│)."""
+    """Эвристика: событие из канала (не личный диалог)."""
     for key in ("chat", "recipient", "message"):
         block = update.get(key)
         if isinstance(block, dict):
@@ -245,7 +245,7 @@ def _append_client_case_message(
     text: str,
     max_user_id: str | None = None,
 ) -> None:
-    """╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤В╨╡╨║╤Б╤В ╨║╨╗╨╕╨╡╨╜╤В╨░ ╨▓ ╨╗╨╡╨╜╤В╤Г ╨┤╨╡╨╗╨░ (╨╕╨╗╨╕ ╨▓ ╨▒╤Г╤Д╨╡╤А ╨┤╨╛ ╨┐╨╛╤П╨▓╨╗╨╡╨╜╨╕╤П ╨┤╨╡╨╗╨░)."""
+    """Сохранить текст клиента в ленту дела (или в буфер до появления дела)."""
     from sfrfr.integrations.max.case_chat_log import append_client_case_message
 
     append_client_case_message(
@@ -302,7 +302,7 @@ def _append_bot_case_message(
     attachments: list[dict[str, Any]] | None = None,
     max_user_id: str | None = None,
 ) -> None:
-    """╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╨╛╤В╨▓╨╡╤В ╨▒╨╛╤В╨░ MAX (╤В╨╡╨║╤Б╤В + ╨┐╨╛╨┤╨┐╨╕╤Б╨╕ ╨║╨╜╨╛╨┐╨╛╨║) ╨▓ ╨╗╨╡╨╜╤В╤Г ╨┤╨╡╨╗╨░."""
+    """Сохранить ответ бота MAX (текст + подписи кнопок) в ленту дела."""
     from sfrfr.integrations.max.case_chat_log import append_bot_case_message
 
     append_bot_case_message(
@@ -314,7 +314,7 @@ def _append_bot_case_message(
 
 
 def _case_id_for_max_user(user_id: str | None) -> str | None:
-    """╨Ф╨╡╨╗╨╛ ╨┐╨╛ ╨║╨╗╨╕╨╡╨╜╤В╤Г MAX ╨╕╨╗╨╕ ╨┐╨╛ ╨░╨║╤В╨╕╨▓╨╜╨╛╨╣ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╡."""
+    """Дело по клиенту MAX или по активной диагностике."""
     cid = _resolve_case_id_by_max_user(user_id)
     if cid:
         return cid
@@ -341,7 +341,7 @@ def _text(update: dict[str, Any]) -> str:
 
 
 def _callback_payload(update: dict[str, Any]) -> str:
-    """payload/data ╨╕╨╖ message_callback."""
+    """payload/data из message_callback."""
     update_type = str(update.get("update_type") or update.get("type") or "")
     for key in ("callback", "message_callback"):
         block = update.get(key)
@@ -357,7 +357,7 @@ def _callback_payload(update: dict[str, Any]) -> str:
 
 
 def _callback_id(update: dict[str, Any]) -> str:
-    """callback_id ╨┤╨╗╤П POST /answers."""
+    """callback_id для POST /answers."""
     for key in ("callback", "message_callback"):
         block = update.get(key)
         if isinstance(block, dict) and block.get("callback_id") is not None:
@@ -404,7 +404,7 @@ def _reply(
 
 
 def _login_menu_keyboard() -> list[dict[str, Any]]:
-    # ╨С╨╡╨╖ ticket тАФ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В ╨┐╨╛╤Б╨╗╨╡╨┤╨╜╤О╤О ╤Б╨╡╤Б╤Б╨╕╤О ╤Б ╨Я╨Ъ ╨┤╨╗╤П ╤Н╤В╨╛╨│╨╛ max_user_id
+    # Без ticket — подтвердит последнюю сессию с ПК для этого max_user_id
     return inline_callback_keyboard(CONFIRM_WEB_LOGIN_LABEL, CONFIRM_WEB_LOGIN_CALLBACK)
 
 
@@ -423,7 +423,7 @@ def _reply_need_start(
     chat_id: int | str | None,
     welcome_text: str | None = None,
 ) -> MaxHandleResult:
-    """╨Я╤А╨╛╤Б╤М╨▒╨░ ╨╜╨░╤З╨░╤В╤М ╨┤╨╕╨░╨╗╨╛╨│ тАФ ╤Б╤В╨░╤А╤В╨╛╨▓╨╛╨╡ ╨╝╨╡╨╜╤О ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╕."""
+    """Просьба начать диалог — стартовое меню диагностики."""
     return _handle_bot_start(
         bot,
         user_id=user_id,
@@ -434,7 +434,7 @@ def _reply_need_start(
 
 
 def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
-    """╨У╨░╤А╨░╨╜╤В╨╕╤А╨╛╨▓╨░╨╜╨╜╨╛ ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М/╤Б╨╛╨╖╨┤╨░╤В╤М ╤Б╤В╤А╨╛╨║╤Г clients ╨┤╨╗╤П max_user_id."""
+    """Гарантированно получить/создать строку clients для max_user_id."""
     import logging
 
     log = logging.getLogger(__name__)
@@ -448,7 +448,7 @@ def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
 
 
 def _ensure_supabase_max_client(max_user_id: str) -> None:
-    """╨Э╨╡╨▒╨╗╨╛╨║╨╕╤А╤Г╤О╤Й╨░╤П ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╤П ╨║╨╗╨╕╨╡╨╜╤В╨░ MAX ╨▓ Supabase (╨╡╨┤╨╕╨╜╤Л╨╣ ╨┐╤А╨╛╤Д╨╕╨╗╤М ╨в╨Ч-09)."""
+    """Неблокирующая регистрация клиента MAX в Supabase (единый профиль ТЗ-09)."""
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_service_role_key:
         return
@@ -476,7 +476,7 @@ def _resume_pending_confirm_if_any(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult | None:
-    """╨Х╤Б╨╗╨╕ ╨▓╤Е╨╛╨┤ ╤Г╨╢╨╡ ╨╢╨┤╤С╤В ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П тАФ ╤Б╤А╨░╨╖╤Г ╨╖╨░╨▓╨╡╤А╤И╨╕╤В╤М (╨▒╨╡╨╖ ╨╗╨╕╤И╨╜╨╡╨╣ ╨║╨╜╨╛╨┐╨║╨╕)."""
+    """Если вход уже ждёт подтверждения — сразу завершить (без лишней кнопки)."""
     pending = latest_for_max(user_id)
     if pending is None or pending.status != "pending_confirm":
         return None
@@ -495,7 +495,7 @@ def _ensure_case_for_intake(
     intake,
     store,
 ) -> str:
-    """╨б╨╛╨╖╨┤╨░╤В╤М ╨╕╨╗╨╕ ╨╜╨░╨╣╤В╨╕ ╨┤╨╡╨╗╨╛: ╤Б /start ╨┤╨╗╤П ╨╗╨╡╨╜╤В╤Л ╤З╨░╤В╨░; ╤В╨░╨║╨╢╨╡ ╨║╨░╨▒╨╕╨╜╨╡╤В / ╨╛╨┐╨╡╤А╨░╤В╨╛╤А."""
+    """Создать или найти дело: с /start для ленты чата; также кабинет / оператор."""
 
     def _finish(case_id: str) -> str:
         cid = str(case_id)
@@ -510,7 +510,7 @@ def _ensure_case_for_intake(
     if intake.case_id:
         return _finish(str(intake.case_id))
 
-    # ╨Ы╨╛╨║╨░╨╗╤М╨╜╤Л╨╣ store тАФ ╨▒╤Л╤Б╤В╤А╤Л╨╣ ╨┐╤Г╤В╤М (╤В╨╡╤Б╤В╤Л / fallback).
+    # Локальный store — быстрый путь (тесты / fallback).
     existing = store.find_by_max_user(user_id)
     if existing:
         intake.case_id = existing.case_id
@@ -528,13 +528,13 @@ def _ensure_case_for_intake(
             snils_masked="***-***-*** **",
             consent_given=False,
         )
-        # ╨б╨╛╤Е╤А╨░╨╜╤П╨╡╨╝ ╨╗╨╛╨║╨░╨╗╤М╨╜╤Г╤О ╨┐╤А╨╕╨▓╤П╨╖╨║╤Г; id ╨╝╨╛╨╢╨╡╤В ╨╛╤В╨╗╨╕╤З╨░╤В╤М╤Б╤П тАФ ╨┤╨╗╤П ╨▒╨╛╤В╨░ ╨▓╨░╨╢╨╡╨╜ bind_max.
+        # Сохраняем локальную привязку; id может отличаться — для бота важен bind_max.
         store.bind_max(
             record.case_id,
             max_user_id=user_id,
             max_chat_id=str(chat_id) if chat_id is not None else None,
         )
-        # ╨Я╤А╨╡╨┤╨┐╨╛╤З╨╕╤В╨░╨╡╨╝ supabase case_id ╨▓ deep-link.
+        # Предпочитаем supabase case_id в deep-link.
         intake.case_id = case_id
         get_intake_store().save(intake)
         return _finish(case_id)
@@ -555,7 +555,7 @@ def _ensure_case_for_intake(
 
 
 def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None:
-    """Best-effort ╤Б╨╛╨╖╨┤╨░╨╜╨╕╨╡ ╨┤╨╡╨╗╨░ ╨▓ Postgres ╤Б ╨║╨╛╤А╨╛╤В╨║╨╕╨╝ ╤В╨░╨╣╨╝╨░╤Г╤В╨╛╨╝."""
+    """Best-effort создание дела в Postgres с коротким таймаутом."""
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_service_role_key:
         return None
@@ -637,7 +637,7 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
 
 
 def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None) -> None:
-    """Ops-╨▒╨╛╤В: ╨║╨╗╨╕╨╡╨╜╤В ╨╢╨┤╤С╤В ╨╛╤В╨▓╨╡╤В╨░ ╨▓ MAX (╨╜╨╡ ╤Б╤Б╤Л╨╗╨║╨░ ╨╜╨░ ╨▒╨╛╤В╨░)."""
+    """Ops-бот: клиент ждёт ответа в MAX (не ссылка на бота)."""
     try:
         from sfrfr.core.config import get_settings
         from sfrfr.db.staff_roles import list_manager_max_user_ids
@@ -653,9 +653,9 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
             return
         admin = admin_case_max_reply_url(case_id) or ""
         text = (
-            "╨Ъ╨╗╨╕╨╡╨╜╤В ╨╢╨┤╤С╤В ╨╛╤В╨▓╨╡╤В╨░ ╨▓ MAX\n"
+            "Клиент ждёт ответа в MAX\n"
             f"MAX user_id: {user_id}\n"
-            f"╨Ю╤В╨▓╨╡╤В╨╕╤В╤М: {admin}\n"
+            f"Ответить: {admin}\n"
             f"{max_operator_reply_hint(user_id)}\n"
         )
         if crm_url:
@@ -808,9 +808,9 @@ def _continue_after_ils(
     store,
     intake,
 ) -> MaxHandleResult:
-    """╨б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╤И╨░╨│ ╨┐╨╛╤Б╨╗╨╡ ╨╛╤В╨▓╨╡╤В╨░ ╨┐╤А╨╛ ╨Ш╨Ы╨б (╨╕╨╗╨╕ ╨┐╨╛╤Б╨╗╨╡ ╨╕╨╜╤Б╤В╤А╤Г╨║╤Ж╨╕╨╕ ╨У╨╛╤Б╤Г╤Б╨╗╤Г╨│)."""
+    """Следующий шаг после ответа про ИЛС (или после инструкции Госуслуг)."""
     intake_store = get_intake_store()
-    # ╨Э╨╛╨▓╤Л╨╣ ╨┐╨╛╤В╨╛╨║ ┬з10.1: ╨┐╨╛╤Б╨╗╨╡ ╨Ш╨Ы╨б ╤Б╤А╨░╨╖╤Г ╤Г╤Б╤В╤А╨╛╨╣╤Б╤В╨▓╨╛ (╨▒╨╡╨╖ employment)
+    # Новый поток §10.1: после ИЛС сразу устройство (без employment)
     if intake.for_whom is not None or intake.problem_type is not None:
         _reply(
             bot,
@@ -963,7 +963,7 @@ def _handle_intake_callback(
             return MaxHandleResult(ok=True, action="intake_back", reply=employment_question())
         if step == "device":
             intake.device_preference = None
-            # ╨Э╨╛╨▓╤Л╨╣ ╨┐╨╛╤В╨╛╨║: ╨╜╨░╨╖╨░╨┤ ╨║ ╨╕╨╜╤Б╤В╤А╤Г╨║╤Ж╨╕╨╕ ╨Ш╨Ы╨б ╨╕╨╗╨╕ ╨║ ╨▓╨╛╨┐╤А╨╛╤Б╤Г ╨┐╤А╨╛ ╨Ш╨Ы╨б
+            # Новый поток: назад к инструкции ИЛС или к вопросу про ИЛС
             if intake.for_whom is not None or intake.problem_type is not None:
                 if intake.ils_available in {"need", "no", "unknown"}:
                     intake.ils_howto_done = False
@@ -980,7 +980,7 @@ def _handle_intake_callback(
                     attachments=ils_keyboard(),
                 )
                 return MaxHandleResult(ok=True, action="intake_back", reply=ils_question())
-            # Legacy: ╨╜╨░╨╖╨░╨┤ ╨║ ╤В╤А╤Г╨┤╨╛╨▓╤Л╨╝ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╨╝ / howto
+            # Legacy: назад к трудовым документам / howto
             if intake.employment_records_available == "no":
                 intake.emp_howto_done = False
                 intake_store.save(intake)
@@ -1133,7 +1133,7 @@ def _handle_intake_callback(
             detail=str(intake.problem_type),
         )
 
-    # Legacy goal payloads (╤Б╤В╨░╤А╤Л╨╡ ╨║╨╜╨╛╨┐╨║╨╕ / ╤В╨╡╤Б╤В╤Л)
+    # Legacy goal payloads (старые кнопки / тесты)
     if kind == "goal" and value in {
         "check_experience",
         "missing_period",
@@ -1223,14 +1223,14 @@ def _handle_bot_start(
     store,
     welcome_text: str | None = None,
 ) -> MaxHandleResult:
-    """╨б╤В╨░╤А╤В: ╨╝╨╡╨╜╤О ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╕ ╨╕ ╤А╨░╨╜╨╜╨╡╨╡ ╨┤╨╡╨╗╨╛ тАФ ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨║╨░ ╤Б╤А╨░╨╖╤Г ╨▓ ╨║╨░╤А╤В╨╛╤З╨║╨╡."""
+    """Старт: меню диагностики и раннее дело — переписка сразу в карточке."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None:
         return resumed
 
     _ensure_supabase_max_client(user_id)
     intake = get_intake_store().upsert_started(user_id)
-    # ╨Ф╨╡╨╗╨╛ ╤Б /start: ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║ ╨▓╨╕╨┤╨╕╤В ╨▒╨╛╤В╨░/╨║╨╜╨╛╨┐╨║╨╕ ╨┤╨╛ ╨║╨░╨▒╨╕╨╜╨╡╤В╨░ ╨╕ ┬л╨Я╨╛╨╖╨▓╨░╤В╤М ╤Б╨┐╨╡╤Ж╨╕╨░╨╗╨╕╤Б╤В╨░┬╗.
+    # Дело с /start: сотрудник видит бота/кнопки до кабинета и «Позвать специалиста».
     case_id = _ensure_case_for_intake(
         user_id=user_id, chat_id=chat_id, intake=intake, store=store
     )
@@ -1278,7 +1278,7 @@ def _auth_email_for_row(row: dict[str, Any], max_user_id: str) -> str:
 
 
 def _token_hash_for_email(email: str) -> str | None:
-    """hashed_token magic link ╨┤╨╗╤П ╤Г╨║╨░╨╖╨░╨╜╨╜╨╛╨│╨╛ email (╨▒╨╡╨╖ list_users)."""
+    """hashed_token magic link для указанного email (без list_users)."""
     try:
         from sfrfr.db.session import get_supabase_client
         from sfrfr.db.staff_roles import (
@@ -1331,7 +1331,7 @@ def _token_hash_for_email(email: str) -> str | None:
 
 
 def _token_hash_for_max(max_user_id: str) -> tuple[str, str] | None:
-    """(email, token_hash) ╨┤╨╗╤П Supabase session ╨╜╨░ ╨Я╨Ъ."""
+    """(email, token_hash) для Supabase session на ПК."""
     try:
         from sfrfr.db.session import get_supabase_client
         from sfrfr.db.staff_roles import find_user_by_email
@@ -1364,12 +1364,12 @@ def _notify_managers_staff_login(
     *,
     pending,
 ) -> int:
-    """╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П╨╝ ╨║╨╜╨╛╨┐╨║╤Г ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╤П ╤З╨╡╤А╨╡╨╖ ops-╨▒╨╛╤В (╨в╨Ч-25)."""
+    """Отправить руководителям кнопку одобрения через ops-бот (ТЗ-25)."""
     from sfrfr.db.staff_roles import list_manager_max_user_ids
     from sfrfr.integrations.max.ops_bot import get_ops_bot
     from sfrfr.security.login_otp import APPROVE_STAFF_LOGIN_LABEL
 
-    # ╨б╨╗╤Г╨╢╨╡╨▒╨╜╤Л╨╡ ╨║╨╜╨╛╨┐╨║╨╕ тАФ ╨▓╤Б╨╡╨│╨┤╨░ ops (fallback ╨╜╨░ ╨║╨╗╨╕╨╡╨╜╤В╤Б╨║╨╕╨╣ ╤В╨╛╨║╨╡╨╜, ╨╡╤Б╨╗╨╕ ops ╨╜╨╡ ╨╖╨░╨┤╨░╨╜).
+    # Служебные кнопки — всегда ops (fallback на клиентский токен, если ops не задан).
     _ = bot
     notify_bot = get_ops_bot()
     settings = get_settings()
@@ -1383,11 +1383,11 @@ def _notify_managers_staff_login(
     ]
     if not manager_ids and not chat_ids:
         return 0
-    email = pending.staff_email or pending.contact or "╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║"
+    email = pending.staff_email or pending.contact or "сотрудник"
     text = (
-        f"╨Ч╨░╨┐╤А╨╛╤Б ╨╜╨░ ╨▓╤Е╨╛╨┤ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨▓ ╨║╨░╨▒╨╕╨╜╨╡╤В.\n"
-        f"╨Я╨╛╤З╤В╨░: {email}\n\n"
-        f"╨Э╨░╨╢╨╝╨╕╤В╨╡ ╨║╨╜╨╛╨┐╨║╤Г, ╤З╤В╨╛╨▒╤Л ╤А╨░╨╖╤А╨╡╤И╨╕╤В╤М ╨▓╤Е╨╛╨┤."
+        f"Запрос на вход сотрудника в кабинет.\n"
+        f"Почта: {email}\n\n"
+        f"Нажмите кнопку, чтобы разрешить вход."
     )
     attachments = inline_callback_keyboard(
         APPROVE_STAFF_LOGIN_LABEL,
@@ -1406,7 +1406,7 @@ def _notify_managers_staff_login(
             )
             sent += 1
         except Exception:
-            # fallback: ╤В╨╛╨╗╤М╨║╨╛ chat_id
+            # fallback: только chat_id
             if cid and mid:
                 try:
                     notify_bot.send_message(
@@ -1428,8 +1428,8 @@ def _complete_pc_login(
     chat_id: int | str | None,
     ticket_id: str | None,
 ) -> MaxHandleResult:
-    """╨Я╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╨╡ ╤Б ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░ тЖТ ╤Б╨╡╤Б╤Б╨╕╤П ╨┤╨╗╤П poll ╨╜╨░ ╨Я╨Ъ
-    (╨║╨╗╨╕╨╡╨╜╤В) ╨╕╨╗╨╕ ╨╛╨╢╨╕╨┤╨░╨╜╨╕╨╡ ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П (staff)."""
+    """Подтверждение с телефона → сессия для poll на ПК
+    (клиент) или ожидание руководителя (staff)."""
     pending = None
     if ticket_id:
         pending = get_pending(ticket_id)
@@ -1445,17 +1445,17 @@ def _complete_pc_login(
         return MaxHandleResult(ok=False, action="login_no_pending", reply=reply)
 
     if pending.status == "pending_pair" or not pending.max_user_id:
-        # ╨╡╤Й╤С ╨╜╨╡ ╨▓╨▓╨╡╨╗╨╕ ╨║╨╛╨┤ тАФ ╨┐╤А╨╕╨▓╤П╨╢╨╡╨╝ ╤В╨╡╨║╤Г╤Й╨╡╨│╨╛ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П ╨╕ ╤Б╤А╨░╨╖╤Г ╨╖╨░╨▓╨╡╤А╤И╨╕╨╝ ╨▓╤Е╨╛╨┤
+        # ещё не ввели код — привяжем текущего пользователя и сразу завершим вход
         if pending.audience == "staff":
             contact = (pending.staff_email or "").strip().lower()
             if not contact:
-                reply = "╨б╨╡╤Б╤Б╨╕╤П ╤Г╤Б╤В╨░╤А╨╡╨╗╨░. ╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╤Б╨╜╨╛╨▓╨░ ╨╜╨░ admin."
+                reply = "Сессия устарела. Начните вход снова на admin."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_staff_no_email", reply=reply)
         else:
             row = _ensure_client_row(user_id)
             if not row:
-                reply = "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨▓╤П╨╖╨░╤В╤М ╨░╨║╨║╨░╤Г╨╜╤В. ╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ 6-╨╖╨╜╨░╤З╨╜╤Л╨╣ ╨║╨╛╨┤ ╤Б╨╛ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Л ╨▓╤Е╨╛╨┤╨░."
+                reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
             contact = _auth_email_for_row(row, user_id)
@@ -1472,7 +1472,7 @@ def _complete_pc_login(
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_need_code", reply=reply)
 
-    # Staff: ╨┐╨╡╤А╨▓╤Л╨╣ ╨▓╤Е╨╛╨┤ тАФ ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤М; ╨┤╨░╨╗╤М╤И╨╡ ╤В╨╛╤В ╨╢╨╡ MAX ╨▓╤Е╨╛╨┤╨╕╤В ╤Б╨░╨╝
+    # Staff: первый вход — руководитель; дальше тот же MAX входит сам
     if pending.audience == "staff":
         from sfrfr.db.staff_roles import (
             get_staff_role_by_email,
@@ -1481,14 +1481,14 @@ def _complete_pc_login(
 
         staff_email = (pending.staff_email or "").strip().lower()
         if not staff_email or get_staff_role_by_email(staff_email) is None:
-            reply = "╨Э╨╡╤В ╨┤╨╛╤Б╤В╤Г╨┐╨░. ╨Ю╨▒╤А╨░╤В╨╕╤В╨╡╤Б╤М ╨║ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╤Г."
+            reply = "Нет доступа. Обратитесь к администратору."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_not_staff", reply=reply)
 
         if is_staff_login_trusted(email=staff_email, max_user_id=user_id):
             token_hash = _token_hash_for_email(staff_email)
             if not token_hash:
-                reply = "╨Ю╤И╨╕╨▒╨║╨░ ╨▓╤Е╨╛╨┤╨░. ╨Я╨╛╨┐╤А╨╛╨▒╤Г╨╣╤В╨╡ ╨┐╨╛╨╖╨╢╨╡."
+                reply = "Ошибка входа. Попробуйте позже."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
             approved = approve(
@@ -1497,28 +1497,28 @@ def _complete_pc_login(
                 email=staff_email,
             )
             if not approved:
-                reply = "╨б╨╡╤Б╤Б╨╕╤П ╤Г╤Б╤В╨░╤А╨╡╨╗╨░. ╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╤Б╨╜╨╛╨▓╨░ ╨╜╨░ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨╡."
+                reply = "Сессия устарела. Начните вход снова на компьютере."
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_expired", reply=reply)
-            reply = "╨У╨╛╤В╨╛╨▓╨╛. ╨б╨╝╨╛╤В╤А╨╕╤В╨╡ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А."
+            reply = "Готово. Смотрите компьютер."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=True, action="login_approved_trusted", reply=reply)
 
         waiting = mark_pending_manager(ticket_id=pending.ticket_id)
         if not waiting:
-            reply = "╨б╨╡╤Б╤Б╨╕╤П ╤Г╤Б╤В╨░╤А╨╡╨╗╨░. ╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╤Б╨╜╨╛╨▓╨░ ╨╜╨░ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨╡."
+            reply = "Сессия устарела. Начните вход снова на компьютере."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(ok=False, action="login_expired", reply=reply)
         sent = _notify_managers_staff_login(bot, pending=waiting)
         if sent == 0:
-            reply = "╨Э╨╡╤В ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П ╨▓ ╤Б╨╕╤Б╤В╨╡╨╝╨╡. ╨Ю╨▒╤А╨░╤В╨╕╤В╨╡╤Б╤М ╨║ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╤Г."
+            reply = "Нет руководителя в системе. Обратитесь к администратору."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=True,
                 action="login_pending_manager_no_approvers",
                 reply=reply,
             )
-        reply = "╨Ц╨┤╨╕╤В╨╡ ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П."
+        reply = "Ждите руководителя."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="login_pending_manager", reply=reply)
 
@@ -1531,7 +1531,7 @@ def _complete_pc_login(
             ticket=pending.ticket_id,
             reason="login_token_failed",
         )
-        reply = "╨Ю╤И╨╕╨▒╨║╨░ ╨▓╤Е╨╛╨┤╨░. ╨Я╨╛╨┐╤А╨╛╨▒╤Г╨╣╤В╨╡ ╨┐╨╛╨╖╨╢╨╡."
+        reply = "Ошибка входа. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_token_failed", reply=reply)
     email, token_hash = tokens
@@ -1544,7 +1544,7 @@ def _complete_pc_login(
             ticket=pending.ticket_id,
             reason="login_expired",
         )
-        reply = "╨б╨╡╤Б╤Б╨╕╤П ╤Г╤Б╤В╨░╤А╨╡╨╗╨░. ╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╤Б╨╜╨╛╨▓╨░ ╨╜╨░ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨╡."
+        reply = "Сессия устарела. Начните вход снова на компьютере."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_expired", reply=reply)
 
@@ -1567,7 +1567,7 @@ def _approve_staff_by_manager(
     chat_id: int | str | None,
     ticket_id: str,
 ) -> MaxHandleResult:
-    """╨а╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤М ╤А╨░╨╖╤А╨╡╤И╨╕╨╗ ╨▓╤Е╨╛╨┤ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨╜╨░ ╨Я╨Ъ."""
+    """Руководитель разрешил вход сотрудника на ПК."""
     from sfrfr.db.staff_roles import (
         get_staff_role_by_email,
         list_manager_max_user_ids,
@@ -1579,35 +1579,35 @@ def _approve_staff_by_manager(
         extra_ids=settings.staff_login_approver_max_user_ids,
     )
     if str(user_id) not in {str(m) for m in manager_ids}:
-        reply = "╨Э╨╡╤В ╨┐╤А╨░╨▓╨░ ╨╜╨░ ╤Н╤В╨╛ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡."
+        reply = "Нет права на это действие."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_forbidden", reply=reply)
 
     pending = get_pending(ticket_id)
     if pending is None or pending.status != "pending_manager":
-        reply = "╨Ч╨░╤П╨▓╨║╨░ ╤Г╨╢╨╡ ╨╛╨▒╤А╨░╨▒╨╛╤В╨░╨╜╨░ ╨╕╨╗╨╕ ╤Г╤Б╤В╨░╤А╨╡╨╗╨░."
+        reply = "Заявка уже обработана или устарела."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_no_pending", reply=reply)
 
     staff_email = (pending.staff_email or "").strip().lower()
     if not staff_email or get_staff_role_by_email(staff_email) is None:
-        reply = "╨б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜."
+        reply = "Сотрудник не найден."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_not_staff", reply=reply)
 
     token_hash = _token_hash_for_email(staff_email)
     if not token_hash:
-        reply = "╨Ю╤И╨╕╨▒╨║╨░ ╨▓╤Е╨╛╨┤╨░. ╨Я╨╛╨┐╤А╨╛╨▒╤Г╨╣╤В╨╡ ╨┐╨╛╨╖╨╢╨╡."
+        reply = "Ошибка входа. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_token_failed", reply=reply)
 
     approved = approve(ticket_id=pending.ticket_id, token_hash=token_hash, email=staff_email)
     if not approved:
-        reply = "╨б╨╡╤Б╤Б╨╕╤П ╤Г╤Б╤В╨░╤А╨╡╨╗╨░."
+        reply = "Сессия устарела."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="manager_expired", reply=reply)
 
-    # ╨Ч╨░╨┐╨╛╨╝╨╜╨╕╤В╤М MAX ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ тАФ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╡ ╨▓╤Е╨╛╨┤╤Л ╨▒╨╡╨╖ ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П
+    # Запомнить MAX сотрудника — следующие входы без руководителя
     employee_max = str(pending.max_user_id or "").strip()
     if employee_max:
         try:
@@ -1615,13 +1615,13 @@ def _approve_staff_by_manager(
         except Exception:
             pass
 
-    reply = "╨Т╤Е╨╛╨┤ ╤А╨░╨╖╤А╨╡╤И╤С╨╜."
+    reply = "Вход разрешён."
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-    # ╤Г╨▓╨╡╨┤╨╛╨╝╨╕╤В╤М ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨▓ MAX, ╨╡╤Б╨╗╨╕ ╨╕╨╖╨▓╨╡╤Б╤В╨╡╨╜
+    # уведомить сотрудника в MAX, если известен
     if pending.max_user_id and str(pending.max_user_id) != str(user_id):
         try:
             bot.send_message(
-                text="╨Т╤Е╨╛╨┤ ╤А╨░╨╖╤А╨╡╤И╤С╨╜. ╨б╨╝╨╛╤В╤А╨╕╤В╨╡ ╤Н╨║╤А╨░╨╜ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨░.",
+                text="Вход разрешён. Смотрите экран компьютера.",
                 user_id=str(pending.max_user_id),
             )
         except Exception:
@@ -1636,7 +1636,7 @@ def _send_confirm_button(
     chat_id: int | str | None,
     ticket_id: str,
 ) -> None:
-    """╨Ъ╨╜╨╛╨┐╨║╨░ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П: callback + link (╨╡╤Б╨╗╨╕ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨▓╤Л╨┐╤Г╤Б╤В╨╕╤В╤М URL)."""
+    """Кнопка подтверждения: callback + link (если удалось выпустить URL)."""
     login_url: str | None = None
     try:
         _ensure_supabase_max_client(user_id)
@@ -1662,7 +1662,7 @@ def _send_confirm_button(
     )
     ok = _reply(bot, user_id=user_id, chat_id=chat_id, text=text, attachments=attachments)
     if not ok:
-        # ╨╖╨░╨┐╨░╤Б: ╤В╨╛╨╗╤М╨║╨╛ callback ╨▒╨╡╨╖ link
+        # запас: только callback без link
         _reply(
             bot,
             user_id=user_id,
@@ -1704,12 +1704,12 @@ def _issue_login_code_to_max(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult:
-    """╨Т╤Л╨┤╨░╤В╤М ╨║╨╛╨┤ ╨▓ MAX ╨┤╨╗╤П ╨▓╨▓╨╛╨┤╨░ ╨╜╨░ ╤Б╤В╤А╨░╨╜╨╕╤Ж╨╡ ╨▓╤Е╨╛╨┤╨░ ╨║╨░╨▒╨╕╨╜╨╡╤В╨░."""
+    """Выдать код в MAX для ввода на странице входа кабинета."""
     from sfrfr.integrations.max.client import inline_link_keyboard
 
     row = _ensure_client_row(user_id)
     if not row:
-        reply = "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨┤╨│╨╛╤В╨╛╨▓╨╕╤В╤М ╨▓╤Е╨╛╨┤. ╨Я╨╛╨┐╤А╨╛╨▒╤Г╨╣╤В╨╡ ╨╡╤Й╤С ╤А╨░╨╖ ╤З╨╡╤А╨╡╨╖ ╨╝╨╕╨╜╤Г╤В╤Г."
+        reply = "Не удалось подготовить вход. Попробуйте ещё раз через минуту."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
 
@@ -1719,7 +1719,7 @@ def _issue_login_code_to_max(
         issued = issue_login_link(contact=contact, max_user_id=user_id)
     except Exception as exc:  # noqa: BLE001
         logger.exception("issue_login_link failed max=%s: %s", user_id, exc)
-        reply = "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╨╖╨┤╨░╤В╤М ╨║╨╛╨┤. ╨Я╨╛╨┐╤А╨╛╨▒╤Г╨╣╤В╨╡ ╨┐╨╛╨╖╨╢╨╡."
+        reply = "Не удалось создать код. Попробуйте позже."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=False, action="login_code_failed", reply=reply)
 
@@ -1761,7 +1761,7 @@ def _handle_pair_code(
     chat_id: int | str | None,
     code: str,
 ) -> MaxHandleResult:
-    """Legacy/staff: ╨║╨╛╨┤ ╤Б ╤Н╨║╤А╨░╨╜╨░ ╨Я╨Ъ. ╨Ъ╨╗╨╕╨╡╨╜╤В╤Г тАФ ╨▓╤Л╨┤╨░╤В╤М ╨║╨╛╨┤ ╨┤╨╗╤П ╨▓╨▓╨╛╨┤╨░ ╨╜╨░ ╤Б╨░╨╣╤В╨╡."""
+    """Legacy/staff: код с экрана ПК. Клиенту — выдать код для ввода на сайте."""
     row = _ensure_client_row(user_id)
     contact = (
         _auth_email_for_row(row, user_id)
@@ -1783,9 +1783,9 @@ def _handle_pair_code(
             from sfrfr.security.login_otp import CONFIRM_STAFF_CABINET_LOGIN_LABEL
 
             reply = (
-                "╨Ъ╨╛╨┤ ╨┐╤А╨╕╨╜╤П╤В.\n"
-                f"╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л{CONFIRM_STAFF_CABINET_LOGIN_LABEL}┬╗ тАФ "
-                "╨╜╨░ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨╡ ╨╛╤В╨║╤А╨╛╨╡╤В╤Б╤П ╨║╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░."
+                "Код принят.\n"
+                f"Нажмите «{CONFIRM_STAFF_CABINET_LOGIN_LABEL}» — "
+                "на компьютере откроется кабинет сотрудника."
             )
             _reply(
                 bot,
@@ -1814,7 +1814,7 @@ def _send_confirm_web_login(
     chat_id: int | str | None,
     callback_payload: str = "",
 ) -> MaxHandleResult:
-    """╨Ъ╨╗╨╕╨╡╨╜╤В ╨▓ ╤Б╨╕╤Б╤В╨╡╨╝╨╡: ╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨▓╤Е╨╛╨┤ ╨╜╨░ ╨Я╨Ъ. ╨Э╨╛╨▓╤Л╨╣ MAX тАФ ╨║╨╛╨┤ ╨┤╨╗╤П ╨▓╨▓╨╛╨┤╨░ ╨╜╨░ ╤Б╨░╨╣╤В╨╡."""
+    """Клиент в системе: подтвердить вход на ПК. Новый MAX — код для ввода на сайте."""
     ticket_from_cb = parse_confirm_callback(callback_payload)
     if ticket_from_cb is not None:
         return _complete_pc_login(
@@ -1846,21 +1846,21 @@ def _send_confirm_web_login(
 def _docs_request_text(*, has_docs: bool) -> str:
     if get_settings().app_env.strip().lower() == "production":
         return (
-            "╨Ч╨░╨│╤А╤Г╨╖╨╕╤В╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л ╨▓ ╨╖╨░╤Й╨╕╤Й╤С╨╜╨╜╨╛╨╝ ╨║╨░╨▒╨╕╨╜╨╡╤В╨╡ ╨┐╨╛╤Б╨╗╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П ╤Б╨╛╨│╨╗╨░╤Б╨╕╤П. "
-            "╨з╨╡╤А╨╡╨╖ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П MAX ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л ╨╜╨╡ ╨┐╤А╨╕╨╜╨╕╨╝╨░╤О╤В╤Б╤П."
+            "Загрузите документы в защищённом кабинете после подтверждения согласия. "
+            "Через сообщения MAX документы не принимаются."
         )
     if has_docs:
-        return "╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В (PDF/JPG/PNG) ╨╕╨╗╨╕ /run."
-    return "╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ ╨▓╤Л╨┐╨╕╤Б╨║╤Г ╨Ш╨Ы╨б (PDF/JPG/PNG)."
+        return "Пришлите следующий документ (PDF/JPG/PNG) или /run."
+    return "Пришлите выписку ИЛС (PDF/JPG/PNG)."
 
 
 def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
     draft = record.ctx.draft
     if not draft:
-        return "╨з╨╡╤А╨╜╨╛╨▓╨╕╨║ ╨╡╤Й╤С ╨╜╨╡ ╨│╨╛╤В╨╛╨▓. ╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л, ╨╖╨░╤В╨╡╨╝ /run."
+        return "Черновик ещё не готов. Пришлите документы, затем /run."
     body = (draft.body or "").strip()
-    preview = body[:1500] + ("тАж" if len(body) > 1500 else "")
-    title = draft.title or "╨з╨╡╤А╨╜╨╛╨▓╨╕╨║ ╨╖╨░╤П╨▓╨╗╨╡╨╜╨╕╤П"
+    preview = body[:1500] + ("…" if len(body) > 1500 else "")
+    title = draft.title or "Черновик заявления"
     return f"{title}\n\n{preview}"
 
 
@@ -1917,7 +1917,7 @@ def _try_max_payment_receipt(
         return None
     if not result:
         return None
-    reply = str(result.get("client_message") or "╨з╨╡╨║ ╨┐╨╛╨╗╤Г╤З╨╕╨╗╨╕.")
+    reply = str(result.get("client_message") or "Чек получили.")
     _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
     return MaxHandleResult(
         ok=result.get("status") in {"confirmed", "already_paid"},
@@ -1933,12 +1933,12 @@ def handle_max_update(
     bot: MaxBotClient | None = None,
 ) -> MaxHandleResult:
     """
-    ╨б╤Ж╨╡╨╜╨░╤А╨╕╨╣ ╨в╨Ч-20 (+ ╨╗╨╡╨╜╤В╨░ ╤З╨░╤В╨░ ╤Б /start):
-    /start тАФ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░ ╨╕ ╤А╨░╨╜╨╜╨╡╨╡ ╨┤╨╡╨╗╨╛ ╨┤╨╗╤П ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨║╨╕ ╨▓ ╨║╨░╤А╤В╨╛╤З╨║╨╡
-    intake:* тАФ ╤Ж╨╡╨╗╨╕ ╨╕ ╨▓╨╛╨┐╤А╨╛╤Б╤Л
-    /login тАФ ╨▓╤Е╨╛╨┤ ╨▓ ╨▓╨╡╨▒-╨║╨░╨▒╨╕╨╜╨╡╤В ╨┐╨╛ ╨║╨╛╨┤╤Г
-    /cabinet /status /documents /help тАФ ╨╝╨╡╨╜╤О ╨▓╨╡╤А╨╜╤Г╨▓╤И╨╡╨│╨╛╤Б╤П ╨║╨╗╨╕╨╡╨╜╤В╨░
-    ╨▓╨╗╨╛╨╢╨╡╨╜╨╕╤П ╨▓ production тАФ ╨╛╤В╨║╨░╨╖ + CTA ╨║╨░╨▒╨╕╨╜╨╡╤В╨░
+    Сценарий ТЗ-20 (+ лента чата с /start):
+    /start — диагностика и раннее дело для переписки в карточке
+    intake:* — цели и вопросы
+    /login — вход в веб-кабинет по коду
+    /cabinet /status /documents /help — меню вернувшегося клиента
+    вложения в production — отказ + CTA кабинета
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -1959,7 +1959,7 @@ def handle_max_update(
         or CONFIRM_WEB_LOGIN_LABEL.lower() in lower
     )
 
-    # ╨Ъ╨░╨╜╨░╨╗/╨│╤А╤Г╨┐╨┐╨░: chat_id ╨╕╨╖ bot_added (GET /chats ╤Б╨╜╤П╤В ╤Б ╨╕╤О╨╜╤П 2026).
+    # Канал/группа: chat_id из bot_added (GET /chats снят с июня 2026).
     if "bot_added" in update_type or update_type.endswith("bot_added"):
         entry = remember_chat_id(
             chat_id,
@@ -1985,7 +1985,7 @@ def handle_max_update(
     store = get_case_store()
     welcome_text = _welcome_for_update(update, user_id)
 
-    # ╨а╨░╨╜╨╜╨╡╨╡ ╨┤╨╡╨╗╨╛ ╨┤╨╗╤П ╨╗╨╡╨╜╤В╤Л: ╨┤╨░╨╢╨╡ ╨┤╨╛ ╨║╨░╨▒╨╕╨╜╨╡╤В╨░ / ╨╛╨┐╨╡╤А╨░╤В╨╛╤А╨░ ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨║╨░ ╨▓╨╕╨┤╨╜╨░ ╨▓ ╨║╨░╤А╤В╨╛╤З╨║╨╡.
+    # Раннее дело для ленты: даже до кабинета / оператора переписка видна в карточке.
     intake_early = get_intake_store().get_active(user_id)
     if intake_early is None and (
         callback or text or "bot_started" in update_type or start_hit
@@ -2002,7 +2002,7 @@ def handle_max_update(
         except Exception as exc:  # noqa: BLE001
             logger.warning("early case for chat failed max=%s: %s", user_id, exc)
 
-    # ╨Э╨░╨╢╨░╤В╨╕╨╡ ╨║╨╜╨╛╨┐╨║╨╕ ╨▓ MAX тАФ ╨▓ ╨╗╨╡╨╜╤В╤Г ╨┤╨╡╨╗╨░ (╨╕╤Б╤В╨╛╤А╨╕╤П ╨┤╨╗╤П ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░).
+    # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
         from sfrfr.integrations.max.case_chat_log import format_button_press
 
@@ -2011,7 +2011,7 @@ def handle_max_update(
             max_user_id=user_id,
             text=format_button_press(callback),
         )
-        # Soft-╨║╨╜╨╛╨┐╨║╨╕ ╨╛╤В DeepSeek тЖТ ╨┤╨░╨╗╤М╤И╨╡ ╨║╨░╨║ ╤Б╨▓╨╛╨▒╨╛╨┤╨╜╤Л╨╣ ╤В╨╡╨║╤Б╤В
+        # Soft-кнопки от DeepSeek → дальше как свободный текст
         if callback.startswith("llmsoft:"):
             parts = callback.split(":", 2)
             soft = parts[2].strip() if len(parts) > 2 else ""
@@ -2020,7 +2020,7 @@ def handle_max_update(
                 callback = ""
                 lower = text.lower()
 
-    # ╨Э╨░╨╢╨░╤В╨╕╨╡ ┬л╨Э╨░╤З╨░╤В╤М┬╗ ╨▓ MAX ╨┐╤А╨╕╤Е╨╛╨┤╨╕╤В ╨║╨░╨║ bot_started тАФ ╤А╨░╨╜╤М╤И╨╡ ╨┐╨░╨┤╨░╨╗╨╛ ╨▓ ╤Б╤Г╤Е╨╛╨╣ fallback.
+    # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:
         return _handle_bot_start(
             bot,
@@ -2072,7 +2072,7 @@ def handle_max_update(
             )
             return MaxHandleResult(ok=True, action="review_flow", reply=text)
 
-    if lower in {CALL_OPERATOR_LABEL.lower(), "╨┐╨╛╨╖╨▓╨░╤В╤М ╤Б╨┐╨╡╤Ж╨╕╨░╨╗╨╕╤Б╤В╨░", "╨╛╨┐╨╡╤А╨░╤В╨╛╤А"}:
+    if lower in {CALL_OPERATOR_LABEL.lower(), "позвать специалиста", "оператор"}:
         return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store)
 
     if login_hit:
@@ -2083,7 +2083,7 @@ def handle_max_update(
             callback_payload=callback,
         )
 
-    # ╨Ъ╨╛╨┤ ╤Б ╤Н╨║╤А╨░╨╜╨░ ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨░ (6 ╤Ж╨╕╤Д╤А), ╨┤╨╛╨┐╤Г╤Б╨║╨░╨╡╨╝ ╨║╨╛╤А╨╛╤В╨║╨╕╨╡ ╤Д╤А╨░╨╖╤Л ╨▓╨╛╨║╤А╤Г╨│
+    # Код с экрана компьютера (6 цифр), допускаем короткие фразы вокруг
     digits_only = "".join(ch for ch in text if ch.isdigit())
     compact = "".join(ch for ch in text if not ch.isspace())
     if len(digits_only) == 6 and len(compact) <= 24:
@@ -2092,12 +2092,12 @@ def handle_max_update(
     intake = get_intake_store().get_active(user_id)
     record = store.find_by_max_user(user_id)
 
-    # ╨Х╤Б╨╗╨╕ ╤Г╨╢╨╡ ╨╢╨┤╤С╨╝ ╨║╨╜╨╛╨┐╨║╤Г ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П тАФ ╨╜╨╡ ╤В╨╡╤А╤П╨╡╨╝ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П
+    # Если уже ждём кнопку подтверждения — не теряем пользователя
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None and not lower.startswith("/"):
         return resumed
 
-    if lower.startswith("/help") or lower in {"╨┐╨╛╨╝╨╛╤Й╤М", "╨║╨░╨╜╨░╨╗"}:
+    if lower.startswith("/help") or lower in {"помощь", "канал"}:
         pending = latest_for_max(user_id)
         if pending is not None and pending.status == "pending_confirm":
             return _complete_pc_login(
@@ -2107,9 +2107,9 @@ def handle_max_update(
                 ticket_id=pending.ticket_id,
             )
         reply = (
-            "╨Ъ╨╛╨╝╨░╨╜╨┤╤Л: /start тАФ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░, /cabinet тАФ ╨║╨░╨▒╨╕╨╜╨╡╤В, "
-            "/documents тАФ ╨║╨░╨║╨╕╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л ╨╜╤Г╨╢╨╜╤Л, /status тАФ ╤Б╤В╨░╤В╤Г╤Б ╨┤╨╡╨╗╨░, "
-            f"/login тАФ ╨▓╤Е╨╛╨┤ ╤Б ╨║╨╛╨╝╨┐╤М╤О╤В╨╡╤А╨░. ╨Т╤Б╨╡╨│╨┤╨░ ╨╝╨╛╨╢╨╜╨╛ ╨┐╨╛╨╖╨▓╨░╤В╤М ╤Б╨┐╨╡╤Ж╨╕╨░╨╗╨╕╤Б╤В╨░. {POSITION_SHORT}"
+            "Команды: /start — диагностика, /cabinet — кабинет, "
+            "/documents — какие документы нужны, /status — статус дела, "
+            f"/login — вход с компьютера. Всегда можно позвать специалиста. {POSITION_SHORT}"
         )
         _reply(
             bot,
@@ -2133,8 +2133,8 @@ def handle_max_update(
         )
         max_url, web_url = cabinet_urls_for_case(case_id)
         reply = (
-            "╨Ю╤В╨║╤А╨╛╨╣╤В╨╡ ╨╗╨╕╤З╨╜╤Л╨╣ ╨║╨░╨▒╨╕╨╜╨╡╤В ╨┤╨╗╤П ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓. "
-            "╨Т ╨╗╨╕╤З╨╜╨╛╨╝ ╨║╨░╨▒╨╕╨╜╨╡╤В╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л ╨┐╨╡╤А╨╡╨┤╨░╤О╤В╤Б╤П ╨╖╨░╤Й╨╕╤Й╤С╨╜╨╜╨╛. ╨н╤В╨╛ ╨╖╨░╨╣╨╝╤С╤В 2тАУ3 ╨╝╨╕╨╜╤Г╤В╤Л. "
+            "Откройте личный кабинет для документов. "
+            "В личном кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
             f"{POSITION_SHORT}"
         )
         _reply(
@@ -2149,7 +2149,7 @@ def handle_max_update(
     if (
         lower.startswith("/docs")
         or lower.startswith("/documents")
-        or lower in {"╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л", "╤З╤В╨╛ ╨┐╤А╨╕╤Б╨╗╨░╤В╤М"}
+        or lower in {"документы", "что прислать"}
     ):
         if intake is None:
             intake = get_intake_store().upsert_started(user_id)
@@ -2176,7 +2176,7 @@ def handle_max_update(
         )
 
     if record is None:
-        # ╨г╨╢╨╡ ╨▒╤Л╨╗ /start, ╨╜╨╛ ╨┤╨╡╨╗╨╛ ╨╡╤Й╤С ╨╜╨╡ ╤Б╨╛╨╖╨┤╨░╨╜╨╛ тАФ ╨╜╨╡ ╨│╨╛╨╜╤П╨╡╨╝ ╨┐╨╛╨╗╨╜╤Л╨╣ welcome ╤Б╨╜╨╛╨▓╨░.
+        # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
         if text and intake is not None:
             reply, attachments = free_text_nudge(intake=intake)
             _reply(
@@ -2209,8 +2209,8 @@ def handle_max_update(
     if lower.startswith("/status"):
         reply = (
             f"{status_label_ru(record.ctx.status)}. "
-            f"╨Ф╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓: {len(record.ctx.document_paths)}. "
-            f"╨Ф╨░╨╗╤М╤И╨╡: /documents ╨╕╨╗╨╕ /cabinet. {POSITION_SHORT}"
+            f"Документов: {len(record.ctx.document_paths)}. "
+            f"Дальше: /documents или /cabinet. {POSITION_SHORT}"
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
@@ -2218,9 +2218,9 @@ def handle_max_update(
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = (
-                "╨б╨╜╨░╤З╨░╨╗╨░ ╨╖╨░╨│╤А╤Г╨╖╨╕╤В╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В ╨▓ ╨╖╨░╤Й╨╕╤Й╤С╨╜╨╜╨╛╨╝ ╨║╨░╨▒╨╕╨╜╨╡╤В╨╡."
+                "Сначала загрузите документ в защищённом кабинете."
                 if get_settings().app_env.strip().lower() == "production"
-                else "╨б╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╕╤И╨╗╨╕╤В╨╡ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В."
+                else "Сначала пришлите документ."
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
@@ -2230,8 +2230,8 @@ def handle_max_update(
                 reply=reply,
             )
         updated = store.run_until(record.case_id, stop_at=CaseStatus.HUMAN_REVIEW)
-        draft_note = " ╨Ю╤В╨║╤А╨╛╨╣╤В╨╡ /draft." if updated.ctx.draft else ""
-        reply = f"╨У╨╛╤В╨╛╨▓╨╛: {status_label_ru(updated.ctx.status)}.{draft_note}"
+        draft_note = " Откройте /draft." if updated.ctx.draft else ""
+        reply = f"Готово: {status_label_ru(updated.ctx.status)}.{draft_note}"
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
@@ -2251,11 +2251,11 @@ def handle_max_update(
         if isinstance(file_name, str):
             attempt_names.append(file_name)
         attempt_names.extend(name for name, _url in downloads)
-        label = attempt_names[0] if attempt_names else "╤Д╨░╨╣╨╗"
+        label = attempt_names[0] if attempt_names else "файл"
         _append_client_case_message(
             case_id=case_id or _case_id_for_max_user(user_id),
             max_user_id=user_id,
-            text=f"[╨Ф╨╛╨║╤Г╨╝╨╡╨╜╤В] ╨┐╨╛╨┐╤Л╤В╨║╨░ ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨▓ ╤З╨░╤В: {label}",
+            text=f"[Документ] попытка отправить в чат: {label}",
         )
         max_url, web_url = cabinet_urls_for_case(case_id)
         _reply(
@@ -2274,7 +2274,7 @@ def handle_max_update(
         )
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
-        reply = f"╨д╨░╨╣╨╗ ╨┐╤А╨╕╨╜╤П╤В ({len(fresh.ctx.document_paths)}). ╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ ╨╡╤Й╤С ╨╕╨╗╨╕ /run."
+        reply = f"Файл принят ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
 
@@ -2289,13 +2289,13 @@ def handle_max_update(
             except Exception:
                 continue
         if names:
-            reply = f"╨д╨░╨╣╨╗╤Л ╨┐╤А╨╕╨╜╤П╤В╤Л ({len(fresh.ctx.document_paths)}). ╨Я╤А╨╕╤И╨╗╨╕╤В╨╡ ╨╡╤Й╤С ╨╕╨╗╨╕ /run."
+            reply = f"Файлы приняты ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=True, action="upload_url", case_id=record.case_id, reply=reply
             )
 
-    # ╨б╨▓╨╛╨▒╨╛╨┤╨╜╤Л╨╣ ╤В╨╡╨║╤Б╤В: DeepSeek (Yandex AI Studio) + ╨║╨╜╨╛╨┐╨║╨╕ ╤И╨░╨│╨░ / fallback nudge (╨в╨Ч-26).
+    # Свободный текст: DeepSeek (Yandex AI Studio) + кнопки шага / fallback nudge (ТЗ-26).
     if text:
         if intake is None:
             get_intake_store().upsert_started(user_id)

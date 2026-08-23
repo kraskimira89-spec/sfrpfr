@@ -8,7 +8,6 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from sfrfr.core.config import get_settings
 from sfrfr.db.session import get_supabase_client
 from sfrfr.integrations.yandex_tracker import (
     ISSUE_TYPES,
