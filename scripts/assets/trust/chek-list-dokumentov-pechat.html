@@ -1,87 +1,561 @@
 <!-- wp:html -->
-<div class="sfrfr-landing sfrfr-checklist-print" id="sfrfr-checklist-print">
-  <section class="sfrfr-section">
-    <div class="sfrfr-wrap">
-      <p class="sfrfr-note"><a href="/chek-list-dokumentov/">← К странице выдачи</a> · Для печати используйте Ctrl+P (Cmd+P на Mac).</p>
+<div class="sfrfr-workbook" id="sfrfr-checklist-print" lang="ru">
+  <div class="wb-toolbar no-print">
+    <p>
+      <a href="/chek-list-dokumentov/">← К странице выдачи</a>
+      ·
+      <button type="button" class="wb-toolbar__btn" id="wb-print-all">Печать всей тетради</button>
+      ·
+      <a href="#kartochka-perioda" id="wb-print-card-link">Карточка периода</a>
+    </p>
+    <p class="wb-toolbar__hint">Ctrl+P (Cmd+P). Масштаб 100%. Для ч/б печати цвета не обязательны — статусы подписаны словами.</p>
+  </div>
 
-      <h2 style="font-size:1.75rem;margin-top:1.5rem">Папка пенсионных документов</h2>
-      <p class="sfrfr-section__lead">Как собрать и проверить документы вручную — для себя или родителей. Без передачи сканов в открытые чаты.</p>
-      <p class="sfrfr-note">Материал помогает организовать документы. Решение о пенсии и перерасчёте принимает только СФР. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.</p>
-
-      <h3>Как пользоваться</h3>
-      <ul>
-        <li>□ Папка или 4 файла</li>
-        <li>□ Ручка</li>
-        <li>□ Госуслуги / СФР / МФЦ</li>
-        <li>□ Трудовая и имеющиеся справки</li>
+  <!-- 1. Обложка -->
+  <article class="wb-page" aria-label="Страница 1 из 8 — Обложка">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа</span>
+      <span class="wb-badge">Рабочая тетрадь</span>
+    </header>
+    <div class="wb-cover">
+      <p class="wb-kicker">Домашний чек-лист</p>
+      <h1>Папка пенсионных документов</h1>
+      <p class="wb-lead">Как собрать и проверить документы вручную<br>для себя или родителей</p>
+      <ul class="wb-bullets" role="list">
+        <li>Без передачи сканов в открытые чаты</li>
+        <li>Понятный порядок папок и документов</li>
+        <li>Карточка для фиксации спорного периода</li>
       </ul>
-      <p><strong>Правило:</strong> оригиналы храните у себя. Не отправляйте паспорт, СНИЛС, трудовую, ИЛС и архивные справки в открытые чаты.</p>
-
-      <h3>Базовая папка: 4 раздела</h3>
-      <ol>
-        <li><strong>Личные</strong> — паспорт, СНИЛС, смена ФИО (у себя).</li>
-        <li><strong>Работа</strong> — трудовая, сведения о трудовой, договоры, приказы, справки.</li>
-        <li><strong>Пенсионные сведения</strong> — выписка ИЛС, ответы СФР, заявления.</li>
-        <li><strong>Доп. подтверждения</strong> — архив, служба, уход, учёба, особые периоды — если относятся к ситуации.</li>
-      </ol>
-
-      <h3>Получить выписку ИЛС</h3>
-      <ol>
-        <li>Госуслуги → поиск «Выписка из лицевого счёта в СФР».</li>
-        <li>«Получить выписку» → сохранить в раздел 3.</li>
-        <li>Дата получения: __.__.____</li>
-      </ol>
-      <p>Если Госуслуги недоступны — клиентская служба СФР или МФЦ.</p>
-
-      <h3>Ручная сверка</h3>
-      <table class="sfrfr-checklist-table">
-        <thead>
-          <tr><th>Проверить</th><th>Да</th><th>Нет</th><th>Не знаю</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Все места работы есть в ИЛС?</td><td>□</td><td>□</td><td>□</td></tr>
-          <tr><td>Совпадают даты начала и окончания?</td><td>□</td><td>□</td><td>□</td></tr>
-          <tr><td>Нет ли пропусков между периодами?</td><td>□</td><td>□</td><td>□</td></tr>
-          <tr><td>Совпадают ли ФИО в документах?</td><td>□</td><td>□</td><td>□</td></tr>
-          <tr><td>Есть документы на спорные периоды?</td><td>□</td><td>□</td><td>□</td></tr>
-          <tr><td>Есть ответ СФР, который нужно понять?</td><td>□</td><td>□</td><td>□</td></tr>
-        </tbody>
-      </table>
-      <p>Если есть «Нет» или «Не знаю» — заполните карточку ниже.</p>
-
-      <h3>Карточка спорного периода</h3>
-      <p>Период: с __.__.____ по __.__.____<br>
-      Организация: _______________________________<br>
-      Город / район: _____________________________<br>
-      Должность: _________________________________<br>
-      В трудовой: да / нет / не знаю · В ИЛС: да / нет / не знаю<br>
-      Документы: _________________________________<br>
-      Что уточнить: ______________________________</p>
-
-      <h3>Если документов нет</h3>
-      <ul>
-        <li>□ Организация действует?</li>
-        <li>□ Есть правопреемник?</li>
-        <li>□ Известны город, район, ведомство?</li>
-        <li>□ Есть трудовая / договор / приказ / расчётный листок?</li>
-        <li>□ Нужен запрос в архив?</li>
-      </ul>
-      <p class="sfrfr-note">Архив может дать справку, если располагает документами. Наличие документов и решение СФР не гарантируются.</p>
-
-      <h3>Следующий шаг</h3>
-      <p>Всё совпадает — сохраните папку. Есть расхождение — не шлите сканы в чат; напишите в MAX: <strong>ИЛС получил(а)</strong>, <strong>Есть расхождение</strong> или <strong>Нужна проверка документов</strong>.</p>
-      <p>Диагностика документов — 3&nbsp;000&nbsp;₽. Решение принимает СФР. <a href="https://proverkastaza.ru/">proverkastaza.ru</a></p>
+      <div class="wb-info">
+        <p>Материал помогает организовать документы. Решение о назначении или перерасчёте пенсии принимает СФР.</p>
+        <p>Мы готовим документы, проект обращения и план — подаёте через СФР или Госуслуги вы сами.</p>
+      </div>
     </div>
-  </section>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>1 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 2. Как пользоваться -->
+  <article class="wb-page" aria-label="Страница 2 из 8 — Как пользоваться">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">2 из 8</span>
+    </header>
+    <h2>Как пользоваться</h2>
+    <p class="wb-sub">Вам понадобятся:</p>
+    <ul class="wb-check" role="list">
+      <li><span class="wb-box" aria-hidden="true"></span> Папка или 4 отдельных файла</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Ручка</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Телефон или компьютер с Госуслугами</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Трудовая книжка и имеющиеся справки</li>
+    </ul>
+    <div class="wb-warn">
+      <p><strong>Правило безопасности.</strong> Оригиналы храните у себя. Не отправляйте паспорт, СНИЛС, трудовую, выписку ИЛС и архивные справки в открытые чаты.</p>
+    </div>
+    <div class="wb-info">
+      <p><strong>За сколько времени.</strong> Обычно 30–40 минут на первую раскладку. Получение выписки ИЛС — отдельно (срок зависит от Госуслуг / СФР).</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>2 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 3. Четыре раздела -->
+  <article class="wb-page" aria-label="Страница 3 из 8 — Базовая папка">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">3 из 8</span>
+    </header>
+    <h2>Шаг 1. Подготовьте одну папку</h2>
+    <p class="wb-sub">Домашняя структура — не список «что прислать сервису».</p>
+    <div class="wb-cards4">
+      <div class="wb-card">
+        <h3>1. Личные документы</h3>
+        <p>Паспорт, СНИЛС, документы о смене ФИО — хранить у себя.</p>
+      </div>
+      <div class="wb-card">
+        <h3>2. Работа</h3>
+        <p>Трудовая, сведения о трудовой деятельности, договоры, приказы, справки.</p>
+      </div>
+      <div class="wb-card">
+        <h3>3. Пенсионные сведения</h3>
+        <p>Выписка ИЛС, ответы СФР, уведомления, заявления.</p>
+      </div>
+      <div class="wb-card">
+        <h3>4. Доп. подтверждения</h3>
+        <p>Архивные справки, служба, уход, учёба, особые периоды — если относятся к ситуации.</p>
+      </div>
+    </div>
+    <p class="wb-sub" style="margin-top:1rem">Отметьте, что уже есть:</p>
+    <ul class="wb-check" role="list">
+      <li><span class="wb-box" aria-hidden="true"></span> Раздел 1 собран</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Раздел 2 собран</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Раздел 3: выписка ИЛС ещё нужна / уже есть</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Раздел 4: пока пусто / есть спорные периоды</li>
+    </ul>
+    <div class="wb-warn">
+      <p>Оригиналы храните у себя. В чаты и незнакомым людям документы не пересылайте.</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>3 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 4. ИЛС -->
+  <article class="wb-page" aria-label="Страница 4 из 8 — Выписка ИЛС">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">4 из 8</span>
+    </header>
+    <h2>Шаг 2. Получите выписку ИЛС</h2>
+    <p class="wb-sub">Выписка из индивидуального лицевого счёта помогает увидеть, какие периоды учтены.</p>
+    <div class="wb-card wb-card--step">
+      <ol class="wb-steps">
+        <li>Откройте Госуслуги.</li>
+        <li>Введите в поиске: «Выписка из лицевого счёта в СФР».</li>
+        <li>Нажмите «Получить выписку».</li>
+        <li>Сохраните файл в папку «Пенсионные сведения».</li>
+      </ol>
+      <p class="wb-field">Дата получения выписки: <span class="wb-line">__.__.____</span></p>
+      <p class="wb-check-inline"><span class="wb-box" aria-hidden="true"></span> Выписка получена и лежит в разделе 3</p>
+    </div>
+    <div class="wb-info">
+      <p>Если Госуслуги недоступны — клиентская служба СФР или МФЦ.</p>
+      <p>Официальная справка Госуслуг: gosuslugi.ru → помощь → проверка ИЛС (без персональных QR).</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>4 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 5. Сверка -->
+  <article class="wb-page" aria-label="Страница 5 из 8 — Сверка">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">5 из 8</span>
+    </header>
+    <h2>Сверьте выписку ИЛС с документами</h2>
+    <p class="wb-sub">Сравните с трудовой и имеющимися справками. Отметьте ручкой.</p>
+    <ul class="wb-check wb-check--lg" role="list">
+      <li><span class="wb-box" aria-hidden="true"></span> Все ли работодатели отражены?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Совпадают ли даты начала и окончания работы?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Есть ли пропуски между периодами?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Совпадают ли ФИО в документах?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Есть ли документы на спорные периоды?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Есть ли ответ СФР, который нужно понять?</li>
+    </ul>
+    <div class="wb-fork">
+      <p><strong>Если на всё «да»</strong> — сохраните папку.</p>
+      <p><strong>Если есть «нет» или «не знаю»</strong> — заполните карточку периода на следующей странице.</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>5 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 6. Карточка -->
+  <article class="wb-page wb-page--card" id="kartochka-perioda" aria-label="Страница 6 из 8 — Карточка спорного периода">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">6 из 8</span>
+    </header>
+    <h2>Период, который нужно уточнить</h2>
+    <p class="wb-sub">Заполните ручкой. Сканы в открытый чат не отправляйте.</p>
+    <div class="wb-form">
+      <p>Период: с <span class="wb-line">__.__.____</span> по <span class="wb-line">__.__.____</span></p>
+      <p>Организация: <span class="wb-uline"></span></p>
+      <p>Город / район: <span class="wb-uline"></span></p>
+      <p>Должность: <span class="wb-uline"></span></p>
+      <p>Есть запись в трудовой:
+        <span class="wb-opt"><span class="wb-box"></span> да</span>
+        <span class="wb-opt"><span class="wb-box"></span> нет</span>
+        <span class="wb-opt"><span class="wb-box"></span> не знаю</span>
+      </p>
+      <p>Есть в ИЛС:
+        <span class="wb-opt"><span class="wb-box"></span> да</span>
+        <span class="wb-opt"><span class="wb-box"></span> нет</span>
+        <span class="wb-opt"><span class="wb-box"></span> не знаю</span>
+      </p>
+      <p>Какие документы есть:</p>
+      <p class="wb-uline wb-uline--tall"></p>
+      <p>Что нужно уточнить:</p>
+      <p class="wb-uline wb-uline--tall"></p>
+    </div>
+    <div class="wb-warn">
+      <p>Не отправляйте сканы в открытый чат. Карточку заполняйте для себя или близких.</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>6 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 7. Нет документов + вторая карточка кратко -->
+  <article class="wb-page" aria-label="Страница 7 из 8 — Если документов нет">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">7 из 8</span>
+    </header>
+    <h2>Шаг 3. Если документов нет</h2>
+    <p class="wb-sub">Не торопитесь — сначала соберите ориентиры.</p>
+    <ul class="wb-check" role="list">
+      <li><span class="wb-box" aria-hidden="true"></span> Известно точное название организации?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Известен город или район работы?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Есть запись в трудовой?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Известны даты и должность?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Организация действует или был правопреемник?</li>
+      <li><span class="wb-box" aria-hidden="true"></span> Может потребоваться запрос в архив?</li>
+    </ul>
+    <div class="wb-warn">
+      <p>Архив может выдать справку, если располагает документами. Заранее нельзя гарантировать, что документы сохранились или что СФР примет конкретное решение.</p>
+    </div>
+    <h3 class="wb-h3">Второй период (при необходимости)</h3>
+    <div class="wb-form wb-form--compact">
+      <p>Период: с <span class="wb-line">__.__.____</span> по <span class="wb-line">__.__.____</span></p>
+      <p>Организация: <span class="wb-uline"></span></p>
+      <p>Что уточнить: <span class="wb-uline"></span></p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>7 из 8</span>
+    </footer>
+  </article>
+
+  <!-- 8. Следующий шаг -->
+  <article class="wb-page" aria-label="Страница 8 из 8 — Следующий шаг">
+    <header class="wb-top">
+      <span class="wb-brand">Проверка стажа · Папка документов</span>
+      <span class="wb-page-num">8 из 8</span>
+    </header>
+    <h2>Следующий шаг</h2>
+    <div class="wb-split">
+      <div class="wb-card">
+        <h3>Всё совпадает</h3>
+        <ul class="wb-plain">
+          <li>Сохраните папку</li>
+          <li>Периодически заказывайте актуальную выписку ИЛС</li>
+          <li>Храните ответы СФР и подтверждения подачи</li>
+        </ul>
+      </div>
+      <div class="wb-card">
+        <h3>Есть расхождение</h3>
+        <ul class="wb-plain">
+          <li>Не отправляйте сканы в открытый чат</li>
+          <li>Заполните карточку периода</li>
+          <li>Подготовьте перечень имеющихся документов</li>
+          <li>Получите понятный план действий</li>
+        </ul>
+      </div>
+    </div>
+    <div class="wb-cta">
+      <p><strong>Нужна помощь с разбором выписки ИЛС и документов?</strong></p>
+      <p>Напишите в MAX: <strong>«Нужна проверка документов»</strong></p>
+      <p>или <strong>«ИЛС получил(а)»</strong> / <strong>«Есть расхождение»</strong>.</p>
+      <p>Мы объясним порядок диагностики и стоимость до начала работы. Диагностика — 3&nbsp;000&nbsp;₽.</p>
+    </div>
+    <div class="wb-info">
+      <p>Мы готовим документы, проект обращения и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.</p>
+      <p><strong>Мини-словарь:</strong> ИЛС — индивидуальный лицевой счёт в СФР. СФР — Социальный фонд России. Архивная справка — документ архива с подтверждаемыми сведениями.</p>
+      <p>Сайт: proverkastaza.ru · Политика ПДн: /politika-pdn/</p>
+    </div>
+    <footer class="wb-foot">
+      <span>proverkastaza.ru</span>
+      <span>8 из 8</span>
+    </footer>
+  </article>
 </div>
+
 <style>
-@media print {
-  .sfrfr-note a[href="/chek-list-dokumentov/"],
-  .sfrfr-note .sfrfr-btn { display: none !important; }
-  .sfrfr-checklist-table { width: 100%; border-collapse: collapse; }
-  .sfrfr-checklist-table th, .sfrfr-checklist-table td { border: 1px solid #333; padding: 0.4rem; }
+.sfrfr-workbook {
+  --wb-ink: #1F2933;
+  --wb-brand: #1B486C;
+  --wb-ok: #1D6B4A;
+  --wb-warn: #7A4D00;
+  --wb-warn-bg: #FFF8E8;
+  --wb-info-bg: #EFF6FB;
+  --wb-line: #B7C6D2;
+  --wb-muted: #3d4f66;
+  color: var(--wb-ink);
+  font-family: Arial, "PT Sans", "Noto Sans", "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  max-width: 210mm;
+  margin: 0 auto 2rem;
 }
-.sfrfr-checklist-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-.sfrfr-checklist-table th, .sfrfr-checklist-table td { border: 1px solid #c5d0dc; padding: 0.5rem; text-align: left; }
+.wb-toolbar {
+  background: #f5f7fb;
+  border: 1px solid var(--wb-line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 1rem 0 1.5rem;
+  font-size: 15px;
+}
+.wb-toolbar__btn {
+  font: inherit;
+  cursor: pointer;
+  background: var(--wb-brand);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-height: 44px;
+}
+.wb-toolbar__hint { margin: 0.5rem 0 0; color: var(--wb-muted); font-size: 14px; }
+.wb-page {
+  background: #fff;
+  border: 1px solid var(--wb-line);
+  border-radius: 12px;
+  padding: 18mm 16mm;
+  margin: 0 0 1.25rem;
+  box-sizing: border-box;
+  min-height: 260mm;
+  display: flex;
+  flex-direction: column;
+}
+.wb-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12pt;
+  color: var(--wb-muted);
+  border-bottom: 1px solid var(--wb-line);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+.wb-brand { font-weight: 700; color: var(--wb-brand); }
+.wb-badge {
+  border: 1px solid var(--wb-line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11pt;
+}
+.wb-cover { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.wb-kicker { margin: 0; font-size: 14pt; color: var(--wb-brand); font-weight: 700; letter-spacing: 0.02em; }
+.wb-page h1 {
+  margin: 0;
+  font-size: 32pt;
+  line-height: 1.15;
+  color: var(--wb-brand);
+  font-weight: 700;
+}
+.wb-page h2 {
+  margin: 0 0 8px;
+  font-size: 22pt;
+  line-height: 1.2;
+  color: var(--wb-brand);
+  font-weight: 700;
+}
+.wb-h3, .wb-page h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 16pt;
+  color: var(--wb-brand);
+  font-weight: 700;
+}
+.wb-lead { margin: 0; font-size: 16pt; line-height: 1.4; }
+.wb-sub { margin: 0 0 12px; font-size: 14pt; color: var(--wb-ink); }
+.wb-bullets { margin: 8px 0; padding-left: 1.2em; font-size: 14pt; }
+.wb-bullets li { margin: 6px 0; }
+.wb-check { list-style: none; margin: 0; padding: 0; }
+.wb-check li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 12mm;
+  font-size: 14pt;
+  margin: 0 0 8px;
+  padding: 4px 0;
+}
+.wb-check--lg li { min-height: 14mm; font-size: 15pt; }
+.wb-box {
+  flex: 0 0 6mm;
+  width: 6mm;
+  height: 6mm;
+  margin-top: 3px;
+  border: 2px solid var(--wb-ink);
+  border-radius: 2px;
+  background: #fff;
+}
+.wb-card {
+  border: 1px solid var(--wb-line);
+  border-left: 5px solid var(--wb-brand);
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px 16px;
+  margin: 0 0 10px;
+}
+.wb-card--step { background: var(--wb-info-bg); }
+.wb-cards4 { display: grid; gap: 10px; }
+.wb-card h3 { margin: 0 0 6px; font-size: 15pt; }
+.wb-card p { margin: 0; font-size: 13pt; }
+.wb-steps { margin: 0 0 12px; padding-left: 1.3em; font-size: 14pt; }
+.wb-steps li { margin: 8px 0; }
+.wb-field, .wb-check-inline { font-size: 14pt; margin: 10px 0 0; }
+.wb-line {
+  display: inline-block;
+  min-width: 4.5em;
+  border-bottom: 1.5px solid var(--wb-ink);
+  padding: 0 4px;
+  letter-spacing: 0.08em;
+}
+.wb-uline {
+  display: block;
+  border-bottom: 1.5px solid var(--wb-ink);
+  min-height: 1.4em;
+  margin: 4px 0 12px;
+}
+.wb-uline--tall { min-height: 2.8em; }
+.wb-form { font-size: 14pt; }
+.wb-form p { margin: 0 0 10px; }
+.wb-form--compact p { margin: 0 0 8px; }
+.wb-opt { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; }
+.wb-opt .wb-box { margin-top: 0; }
+.wb-info {
+  background: var(--wb-info-bg);
+  border: 1px solid var(--wb-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: 12.5pt;
+}
+.wb-info p { margin: 0 0 6px; }
+.wb-info p:last-child { margin: 0; }
+.wb-warn {
+  background: var(--wb-warn-bg);
+  border: 1px solid #e0c888;
+  border-left: 5px solid var(--wb-warn);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  color: var(--wb-warn);
+  font-size: 13pt;
+}
+.wb-warn p { margin: 0; }
+.wb-fork {
+  background: #e8f4ec;
+  border: 1px solid #8fbea4;
+  border-left: 5px solid var(--wb-ok);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 16px;
+  font-size: 14pt;
+  color: #1e4a32;
+}
+.wb-fork p { margin: 0 0 8px; }
+.wb-fork p:last-child { margin: 0; }
+.wb-split { display: grid; gap: 12px; }
+@media (min-width: 700px) {
+  .wb-split { grid-template-columns: 1fr 1fr; }
+}
+.wb-plain { margin: 0; padding-left: 1.1em; font-size: 13pt; }
+.wb-plain li { margin: 6px 0; }
+.wb-cta {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--wb-brand);
+  background: #fff;
+  font-size: 14pt;
+}
+.wb-cta p { margin: 0 0 8px; }
+.wb-cta p:last-child { margin: 0; }
+.wb-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11pt;
+  color: var(--wb-muted);
+  border-top: 1px solid var(--wb-line);
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+  .no-print,
+  .wb-toolbar,
+  header.site-header,
+  footer.site-footer,
+  .site-header,
+  .site-footer,
+  #wpadminbar,
+  .wp-block-navigation,
+  nav,
+  .sfrfr-site-header,
+  .sfrfr-site-footer {
+    display: none !important;
+  }
+  html, body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .sfrfr-workbook {
+    max-width: none;
+    margin: 0;
+    font-size: 14pt;
+  }
+  .wb-page {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    min-height: auto;
+    height: auto;
+    page-break-after: always;
+    break-after: page;
+    box-shadow: none;
+  }
+  .wb-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .wb-page h1 { font-size: 30pt; }
+  .wb-page h2 { font-size: 20pt; }
+  a { color: inherit; text-decoration: none; }
+  .wb-split { grid-template-columns: 1fr 1fr; }
+  body.wb-print-card-only .wb-page:not(.wb-page--card) {
+    display: none !important;
+  }
+  body.wb-print-card-only .wb-page--card {
+    page-break-after: auto;
+  }
+}
 </style>
+<script>
+(function () {
+  var btn = document.getElementById("wb-print-all");
+  if (btn) {
+    btn.addEventListener("click", function () {
+      document.body.classList.remove("wb-print-card-only");
+      window.print();
+    });
+  }
+  var cardLink = document.getElementById("wb-print-card-link");
+  if (cardLink) {
+    cardLink.addEventListener("click", function (e) {
+      e.preventDefault();
+      var el = document.getElementById("kartochka-perioda");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.body.classList.add("wb-print-card-only");
+      window.setTimeout(function () {
+        window.print();
+        document.body.classList.remove("wb-print-card-only");
+      }, 200);
+    });
+  }
+  if (location.hash === "#kartochka-perioda") {
+    var card = document.getElementById("kartochka-perioda");
+    if (card) card.scrollIntoView();
+  }
+})();
+</script>
 <!-- /wp:html -->

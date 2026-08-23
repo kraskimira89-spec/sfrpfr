@@ -219,7 +219,7 @@ PDF **не** советует отправлять эти документы с�
 - [x] [playbook-pdf-print-readability-2026-08.md](playbook-pdf-print-readability-2026-08.md) — типографика A4 под печать без zoom  
 - [x] Посадочная WP `/chek-list-dokumentov/` + `/pechat/` (trust HTML + сид ТЗ-18)  
 - [x] [playbook-leadmagnet-pension-folder.md](playbook-leadmagnet-pension-folder.md) — URL, сид, оператор, метрика  
-- [ ] PDF-файл вёрстки (Canva → статика сайта, без ПДн в имени)  
+- [ ] PDF-файл вёрстки (Canva → статика сайта, без ПДн в имени) — опционально; канон печати: HTML `/chek-list-dokumentov/pechat/`  
 - [ ] Форма выдачи с согласиями (маркер `<!-- SFRFR_CHECKLIST_FORM -->`) + шаблоны MAX/email  
 - [ ] Теги / тип лида в amo + кабинет  
 - [ ] Метрика: цели `checklist_*` в Метрике  

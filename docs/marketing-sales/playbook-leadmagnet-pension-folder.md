@@ -52,7 +52,8 @@ bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
 
 ## Что ещё сделать
 
-- [ ] Сверстать PDF из markdown (дизайн)  
+- [x] Сверстать печатную HTML-тетрадь A4 (`chek-list-dokumentov-pechat.html`, 8 стр.)  
+- [ ] Отдельный PDF-файл из Canva (опционально; сейчас «Печать → PDF» из браузера)  
 - [ ] WPForms / выдача по e-mail с раздельными согласиями  
 - [ ] Теги leadmagnet в amo / кабинете  
 - [ ] 2–3 статьи-проводника со ссылкой на страницу  

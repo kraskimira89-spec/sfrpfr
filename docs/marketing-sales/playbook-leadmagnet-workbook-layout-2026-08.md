@@ -163,10 +163,18 @@ QR на стр. 8 — на `/chek-list-dokumentov/` или `proverkastaza.ru`.
 
 ---
 
-## Что разместить на лендинге `/chek-list-dokumentov/`
+## Печать (HTML A4) и лендинг
+
+Канон вёрстки: `scripts/assets/trust/chek-list-dokumentov-pechat.html`  
+URL: https://proverkastaza.ru/chek-list-dokumentov/pechat/  
+Карточка периода: `#kartochka-perioda` (кнопка печатает только эту страницу).
+
+Параметры: [playbook-pdf-print-readability-2026-08.md](playbook-pdf-print-readability-2026-08.md).
+
+### Что разместить на лендинге `/chek-list-dokumentov/`
 
 ```text
-[ Скачать PDF ]
+[ Скачать PDF ]  — позже / Печать → PDF из браузера
 [ Открыть веб-версию ]
 [ Распечатать карточку спорного периода ]
 ```
