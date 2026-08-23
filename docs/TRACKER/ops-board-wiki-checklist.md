@@ -1,31 +1,42 @@
-# Чеклист UI: доска и Wiki SFRFR
+# Чеклист UI: доски и Wiki
 
-MCP **не** создаёт доски и страницы Wiki. Выполняет владелец (или агент с доступом к UI).
+MCP **не** создаёт доски и Wiki.
 
 ## Доска SFRFR
 
-1. Открыть https://tracker.yandex.ru/SFRFR → Доски.
-2. Создать / проверить доску **SFRFR**.
-3. Колонки минимум: **Open → In Progress → Done**.
-4. (Опционально) фильтры / отдельные представления:
-   - **Publish** — теги `publish-max` OR `publish-vk` OR `publish-blog` OR `publish-seo` OR `publish-direct`
-   - **Funnel** — теги `funnel-*` / компонент funnel
-5. Типы задач: Task, Bug (Story по желанию) — уже скопированы с TRACKER при создании очереди.
+1. https://tracker.yandex.ru/SFRFR → Доски.
+2. Колонки: **Open → In Progress → Done**.
+3. Задачи продукта, infra, agents.
+
+## Доска PUB
+
+1. https://tracker.yandex.ru/PUB → Доски.
+2. Колонки: **Backlog → Draft → Ready → Published** (или Open/In Progress/Done).
+3. Фильтр по тегам `publish-*` при необходимости.
+
+## Доска FUNNEL
+
+1. https://tracker.yandex.ru/FUNNEL → Доски.
+2. Колонки Open/In Progress/Done или по этапам + теги `funnel-*`.
 
 ## Wiki SFRFR
 
-1. Создать раздел **SFRFR** в Яндекс Wiki.
-2. Оглавление (страница-индекс) со ссылками:
-   - git: `docs/TRACKER/README.md` (пакет агента)
-   - git: `docs/ops/yandex-tracker-ops.md`
-   - git: `docs/AMO/README.md`
-   - git: `docs/marketing-sales/README.md`
-   - git: `docs/VK/README.md`
-3. Не импортировать Notion.
-4. Не размещать ПДн, токены, полные `.env`.
+1. Раздел **SFRFR** в Яндекс Wiki.
+2. Индекс: `docs/TRACKER/`, `docs/ops/`, `docs/AMO/`, `docs/marketing-sales/`, `docs/VK/`.
+3. Без Notion, без ПДн.
 
-## Критерий Done для seed-задач
+## Seed-задачи на доски
 
-- Доска видна команде; колонки работают.
-- Wiki-индекс открывается; ссылки ведут на актуальные docs.
-- В Трекере issues «Доска…» и «Wiki…» закрыты с комментарием «UI выполнен».
+- SFRFR-3 — доска SFRFR
+- PUB-5 — доска PUB
+- FUNNEL-4 — доска FUNNEL
+- SFRFR-5 — Wiki
+
+## Создание очередей PUB/FUNNEL
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python scripts/create_yandex_tracker_queues.py
+```
+
+Идемпотентно: создаёт PUB/FUNNEL при отсутствии; переносит seed из SFRFR.

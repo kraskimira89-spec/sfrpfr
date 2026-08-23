@@ -1,66 +1,56 @@
 # Playbook: очередь публикаций
 
-**Логическая очередь:** теги `publish-*` в `SFRFR` (отдельная очередь Трекера не нужна).
+**Очередь Трекера:** **`PUB`** → https://tracker.yandex.ru/PUB
 
 ## Назначение
 
-Планировать и закрывать слоты контента: MAX, VK, блог, SEO, черновики под Директ — с каноном подачи и без ПДн.
+Планировать и закрывать слоты контента: MAX, VK, блог, SEO, Директ — с каноном подачи и без ПДн.
 
 ## Теги каналов (обязателен один)
 
 | Тег | Канал |
 |-----|--------|
-| `publish-max` | канал / посты MAX |
+| `publish-max` | MAX |
 | `publish-vk` | ВКонтакте |
 | `publish-blog` | блог proverkastaza.ru |
-| `publish-seo` | SEO-страницы / семантика |
-| `publish-direct` | черновики под Директ (без секретов кабинета) |
+| `publish-seo` | SEO / семантика |
+| `publish-direct` | черновики Директ (без секретов кабинета) |
 
-Дополнительно: `publish`, `marketing`.
+Дополнительно: `marketing`.
 
-## Статусы (логика доски)
+## Статусы доски PUB
 
-Фильтр доски «Publish»: **Backlog / Draft / Ready / Published**  
-(если в очереди только Open/In Progress/Done — маппинг: Open=Backlog/Draft, In Progress=Ready, Done=Published; уточнять тегом `ready-to-publish`).
+**Backlog / Draft / Ready / Published** — или Open / In Progress / Done + тег `ready-to-publish`.
 
 ## Шаблон задачи
 
-**Summary:** `[PUB] <канал>: <тема> (слот YYYY-MM-DD)`
+**Summary:** `MAX: тема (слот YYYY-MM-DD)` — префикс `[PUB]` не обязателен (очередь уже PUB).
 
-**Description:**
+**queue:** `PUB`
 
 ```markdown
 ## Цель
 …
 
 ## Канал и слот
-- канал: MAX | VK | blog | seo | direct
-- дата/время слота: …
+- тег: publish-max | publish-vk | …
+- дата слота: …
 
 ## Черновик
-- путь в git: `docs/…` или `scripts/assets/…`
-- CTA: уточнить ситуацию в MAX / на сайте (канон подачи)
+- git: `docs/…` / `scripts/assets/…`
 
 ## Чеклист
-- [ ] лексика people-first (Wordstat)
-- [ ] без обещания перерасчёта / калькулятора
-- [ ] без приёма сканов/СНИЛС в посте
-- [ ] UTM при необходимости
-- [ ] опубликовано / ссылка в комментарии (без ПДн)
+- [ ] people-first
+- [ ] без перерасчёта / калькулятора
+- [ ] без сканов в посте
+- [ ] CTA канон подачи
 
 ## Done
-Пост/статья вышли; ссылка в комментарии issue; статус Done.
+Ссылка в комментарии; статус Done.
 ```
 
-## Ритм
+## Канон
 
-1. На неделю — N задач `[PUB]` с датами слотов.
-2. Агент готовит черновик в git → комментарий в issue → тег/статус Ready.
-3. Публикация (человек или разрешённый канал) → комментарий со ссылкой → Done.
-
-## Канон (не дублировать длинно)
-
-- Подача: `scripts/assets/copy/submission-position.md`
-- VK: `docs/VK/playbook-vk-community.md`
-- MAX / маркетинг: `docs/marketing-sales/`
-- Цены публичные: 3 000 / 5 000 / 8 000 ₽ поэтапно
+- `scripts/assets/copy/submission-position.md`
+- `docs/VK/playbook-vk-community.md`
+- `docs/marketing-sales/`

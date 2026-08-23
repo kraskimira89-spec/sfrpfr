@@ -7,7 +7,9 @@
 
 | Задача | SoT | MCP / доступ |
 |--------|-----|----------------|
-| Задачи, спринты, баги | **Яндекс Трекер** (очередь `SFRFR`) | [yandex-tracker-mcp.md](./yandex-tracker-mcp.md) |
+| Продукт, infra, баги, agents | **SFRFR** | [yandex-tracker-mcp.md](./yandex-tracker-mcp.md) |
+| Публикации контента | **PUB** | то же |
+| Ops воронки (без ПДн) | **FUNNEL** | то же |
 | Wiki, playbooks, оглавление | **Яндекс Wiki** (раздел SFRFR) | UI; критичное дублируем в `docs/` git |
 | CRM-заметки по лиду/сделке | **amoCRM** | [`docs/AMO/`](../AMO/README.md) |
 | Код, ТЗ, контракты | **git** `docs/` | Cursor + репозиторий |
@@ -22,11 +24,14 @@
 ## Трекер: минимальная настройка (UI, один раз)
 
 1. Организация: Яндекс 360 или Yandex Cloud (org id — в `secrets/yandex-tracker.env`).
-2. Очередь **`SFRFR`** — основная для продукта и ops (создана 2026-08-23; https://tracker.yandex.ru/SFRFR).
-   Через API нужны `lead` (trackerUid) и `issueTypesConfig` — скопировать с `TRACKER?expand=issueTypesConfig`.
-3. Типы задач: минимум **Task**, **Bug** (при необходимости **Story**).
-4. Доска **SFRFR** — колонки по умолчанию (Open → In Progress → Done).
-5. Компоненты/метки по необходимости: `marketing`, `ops`, `legal`, `infra`.
+2. Очереди (2026-08-23):
+   - **`SFRFR`** — продукт и ops: https://tracker.yandex.ru/SFRFR
+   - **`PUB`** — публикации: https://tracker.yandex.ru/PUB
+   - **`FUNNEL`** — воронка ops: https://tracker.yandex.ru/FUNNEL  
+   Создание: `python scripts/create_yandex_tracker_queues.py` (клон `issueTypesConfig` с SFRFR).
+3. Типы **Task**, **Веха** (workflow quickStartV2PresetWorkflow).
+4. Доски **SFRFR**, **PUB**, **FUNNEL** — Open → In Progress → Done (PUB: можно Backlog/Draft/Ready/Published).
+5. Компоненты/метки: `marketing`, `ops`, `legal`, `infra`; в PUB — `publish-*`; в FUNNEL — `funnel-*`.
 
 ## Wiki
 

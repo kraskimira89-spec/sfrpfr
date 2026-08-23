@@ -5,26 +5,22 @@ alwaysApply: true
 
 # Папка TRACKER (Яндекс Трекер)
 
-Пакет агента, ТЗ и playbook’и про Яндекс Трекер / очередь `SFRFR`:
+Пакет агента, ТЗ и playbook’и про Яндекс Трекер:
 
 `docs/TRACKER/`
 
-- `README.md` — индекс;
-- `prompt-agent-tracker.md` — промпт нового чата;
-- `tz-tracker-agents.md` — полное ТЗ для агентов;
-- `playbook-agent-task-lifecycle.md` — цикл create → comment → Done;
-- `playbook-publish-queue.md` — очередь публикаций (`publish-*`);
-- `playbook-funnel-ops.md` — ops по воронке (`funnel-*`, без ПДн);
-- `ops-board-wiki-checklist.md` — доска и Wiki (UI);
-- `mcp-tools-map.md` — карта MCP.
+Очереди (не путать с org. `TRACKER`):
 
-Канон ops: `docs/ops/yandex-tracker-ops.md`, `docs/ops/yandex-tracker-mcp.md`,
-`docs/ops/yandex-tracker-greenfield-checklist.md`.
+| Очередь | Назначение |
+|---------|------------|
+| **SFRFR** | продукт, infra, agents |
+| **PUB** | публикации |
+| **FUNNEL** | ops воронки без ПДн |
 
-Рабочая очередь агентов — **`SFRFR`**. Очередь `TRACKER` (орг.) не использовать для продукта.
+Скрипт: `scripts/create_yandex_tracker_queues.py`.
 
-При завершении фичи/фикса/публикации: создать или обновить issue в `SFRFR`, комментарий с итогами, переход статуса.
-Контент — теги `publish-*`; воронка ops — `funnel-*` без ПДн; CRM — amo (`docs/AMO/`).
+При завершении работы — issue в **нужной** очереди + комментарий + статус.
+Публикации → **PUB**; воронка ops → **FUNNEL**; код/деплой → **SFRFR**.
+CRM по клиенту — amo (`docs/AMO/`).
 
-Не хранить токены Tracker, ПДн клиентов и сканы в этой папке.
 Секреты только `secrets/yandex-tracker.env`.

@@ -12,9 +12,9 @@ Notion **не** переносим — только новый контур.
 
 ## Трекер (UI)
 
-- [x] Очередь **`SFRFR`** создана (2026-08-23, API; UI: https://tracker.yandex.ru/SFRFR)
-- [ ] Доска **SFRFR** (Open / In Progress / Done) — при необходимости настроить в UI
-- [x] Типы **Task**, **Bug** (и при необходимости Story) — скопированы с очереди TRACKER
+- [x] Очередь **`SFRFR`** (https://tracker.yandex.ru/SFRFR)
+- [x] Очереди **`PUB`**, **`FUNNEL`** (`scripts/create_yandex_tracker_queues.py`)
+- [ ] Доски **SFRFR**, **PUB**, **FUNNEL** (Open / In Progress / Done)
 - [x] Smoke-задача **SFRFR-1** создана; из Cursor: «Создай задачу SFRFR: smoke MCP»
 
 ## Wiki
@@ -41,4 +41,4 @@ Notion **не** переносим — только новый контур.
 ## Критерий «готово»
 
 Задачи ведутся в Трекере; Cursor создаёт issues через MCP; wiki/ТЗ — Wiki + git; CRM — amo; Notion вне процесса.
-Пакет `docs/TRACKER/` — канон для агентов (очередь `SFRFR`, теги `publish-*` / `funnel-*`).
+Пакет `docs/TRACKER/` — канон: **SFRFR** + **PUB** + **FUNNEL**.

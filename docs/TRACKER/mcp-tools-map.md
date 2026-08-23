@@ -1,66 +1,45 @@
 # Карта MCP Яндекс Трекер ↔ действия агента
 
-**Namespace:** `user-yandex-tracker`  
-**Очередь по умолчанию:** `SFRFR`
+**Namespace:** `user-yandex-tracker`
 
-Перед вызовом уточнять схему через GetDynamicTools при сомнении в параметрах.
+## Очереди
 
-## Issues
+| Очередь | Когда |
+|---------|--------|
+| `SFRFR` | продукт, infra, agents |
+| `PUB` | публикации |
+| `FUNNEL` | ops воронки |
 
-| Действие агента | Инструмент |
-|-----------------|------------|
-| Найти задачи (YQL / очередь) | `issues_find`, `issues_count` |
-| Прочитать задачу | `issue_get` |
-| Создать задачу | `issue_create` (`queue=SFRFR`, `summary`, `description`, `tags`, `type`, `priority`, `parent`) |
-| Обновить поля | `issue_update` |
-| Комментарий | `issue_add_comment`, `issue_update_comment`, `issue_delete_comment` |
-| Список комментариев | `issue_get_comments` |
-| Вложения / чеклист / worklog | `issue_get_attachments`, `issue_get_checklist`, `issue_get_worklogs`, `issue_add_worklog`, … |
-| Связи | `issue_get_links`, `issue_add_link`, `issue_delete_link` |
-| История | `issue_get_changelog` |
-| URL задачи | `issue_get_url` |
-| Закрыть / сменить статус | `issue_get_transitions` → `issue_execute_transition`; либо `issue_close` |
-| Переместить | `issue_move` |
+Поиск: `issues_find` с `"Queue": "PUB"` (YQL).
 
-## Очередь и справочники
+Создание очередей PUB/FUNNEL: `scripts/create_yandex_tracker_queues.py`.
+
+## Issues (ключевое)
 
 | Действие | Инструмент |
 |----------|------------|
-| Список очередей | `queues_get_all` |
-| Метаданные / компоненты / версии | `queue_get_metadata`, `queue_get_tags`, `queue_get_versions`, `queue_get_fields` |
-| Типы / приоритеты / статусы / резолюции | `get_issue_types`, `get_priorities`, `get_statuses`, `get_resolutions` |
-| Шаблоны issues | `issue_templates_get_all`, `issue_template_get` |
-| Глобальные поля | `get_global_fields` |
+| Найти | `issues_find`, `issues_count` |
+| Создать | `issue_create` (`queue` = SFRFR \| PUB \| FUNNEL) |
+| Комментарий / статус | `issue_add_comment`, `issue_execute_transition`, `issue_close` |
+| Перенос | `issue_move` (редко; лучше сразу в нужную очередь) |
 
-## Пользователи
+## Не умеет MCP
 
-| Действие | Инструмент |
-|----------|------------|
-| Текущий | `user_get_current` |
-| Поиск | `users_search`, `users_get_all`, `user_get` |
+- Доски и Wiki → [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md)
+- Создать очередь → скрипт `create_yandex_tracker_queues.py` или API UI
 
-## Не умеет MCP (делать в UI)
-
-- Создать **доску** и колонки → [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md)
-- Создать страницы **Wiki** → тот же чеклист
-- OAuth / org id → `secrets/yandex-tracker.env` + [../ops/yandex-tracker-mcp.md](../ops/yandex-tracker-mcp.md)
-
-## Рекомендуемый минимальный сценарий
-
-1. `issues_find` — дубли?
-2. `issue_create` с тегами (`ops` / `publish-*` / `funnel-*`)
-3. `issue_get_transitions` + `issue_execute_transition` → In Progress
-4. Работа в репо / UI
-5. `issue_add_comment` + переход в Done
-6. Для smoke: комментарий в SFRFR-2
-
-## Пример create (логика)
+## Примеры create
 
 ```text
+# Публикация
+queue: PUB
+tags: ["publish-max", "marketing"]
+
+# Воронка ops
+queue: FUNNEL
+tags: ["funnel-qualify", "ops"]
+
+# Продукт
 queue: SFRFR
-summary: [OPS] …
-description: markdown, без ПДн
-type: task
-priority: normal
-tags: ["ops", "tracker"]
+tags: ["ops", "infra"]
 ```
