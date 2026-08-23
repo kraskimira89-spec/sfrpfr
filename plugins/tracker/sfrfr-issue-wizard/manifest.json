@@ -5,7 +5,7 @@
         "tracker"
     ],
     "slug": "sfrfr-issue-wizard",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "name": {
         "ru": "Мастер задач SFRFR",
         "en": "SFRFR Issue Wizard"
@@ -22,7 +22,9 @@
             "tracker:queues:read",
             "tracker:issues:read",
             "tracker:issues:write",
-            "tracker:tags:read"
+            "tracker:tags:read",
+            "tracker.v2.read",
+            "tracker.v2.write"
         ],
         "ui": [
             "toaster",
