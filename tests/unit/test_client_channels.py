@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from sfrfr.integrations.client_channels.notifications import notification_channel_links
 from sfrfr.security.auth import Principal
 from sfrfr.security.max_link_token import make_max_link_token, verify_max_link_token
@@ -53,6 +55,27 @@ def test_principal_max_only_audit_actor() -> None:
     )
     assert p.is_max_only is True
     assert p.audit_actor_id() is None
+
+
+def test_production_rejects_x_max_user_id_header(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import HTTPException
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.security.auth import get_current_principal
+
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(HTTPException) as exc:
+            get_current_principal(
+                credentials=None,
+                x_max_init_data=None,
+                x_max_user_id="12345",
+            )
+        assert exc.value.status_code == 401
+        assert "initData" in str(exc.value.detail)
+    finally:
+        get_settings.cache_clear()
 
 
 def test_extract_user_and_openapi_routes() -> None:

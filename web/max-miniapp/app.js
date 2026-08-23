@@ -322,11 +322,75 @@
     if (els.fileInputDocs) els.fileInputDocs.disabled = busy;
   }
 
+  function isMaxWebApp() {
+    return Boolean(window.WebApp);
+  }
+
+  function isDevPreview() {
+    const host = location.hostname;
+    return !isMaxWebApp() && (host === "localhost" || host === "127.0.0.1");
+  }
+
+  function extractMaxUserIdFromInitData(initData) {
+    if (!initData) return null;
+    try {
+      const params = new URLSearchParams(initData);
+      const rawUser = params.get("user");
+      if (rawUser) {
+        const user = JSON.parse(rawUser);
+        if (user?.id != null) return String(user.id);
+      }
+      const uid = params.get("user_id");
+      if (uid) return uid;
+    } catch {
+      /* ignore malformed initData */
+    }
+    return null;
+  }
+
+  async function ensureInitData(timeoutMs = 4000) {
+    const wa = window.WebApp;
+    if (!wa) return null;
+    try {
+      if (typeof wa.ready === "function") wa.ready();
+      if (typeof wa.expand === "function") wa.expand();
+    } catch (err) {
+      console.warn("WebApp bridge init failed", err);
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const raw = wa.initData || "";
+      if (raw.trim()) return raw;
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    }
+    return wa.initData?.trim() ? wa.initData : null;
+  }
+
+  function friendlyApiError(detail) {
+    const text = String(detail || "").trim();
+    const low = text.toLowerCase();
+    if (low.includes("x-max-user-id not allowed") || low.includes("use initdata")) {
+      return "Не удалось подтвердить вход из MAX. Закройте мини-приложение и откройте его снова из чата бота.";
+    }
+    if (low.includes("invalid max init_data") || low.includes("initdata without user")) {
+      return "Сессия MAX устарела. Закройте мини-приложение и откройте его снова из чата.";
+    }
+    if (low.includes("authentication required") || low.includes("not authenticated")) {
+      return isMaxWebApp()
+        ? "Вход не подтверждён. Откройте кабинет из чата MAX, не из браузера."
+        : "Откройте кабинет из приложения MAX через чат бота «Проверка стажа».";
+    }
+    return text || "Ошибка связи с сервером.";
+  }
+
   function authHeaders(extra = {}) {
     const headers = { ...extra };
     const initData = window.WebApp?.initData || "";
-    if (initData) headers["X-MAX-InitData"] = initData;
-    else if (maxUserId) headers["X-MAX-User-Id"] = maxUserId;
+    if (initData.trim()) {
+      headers["X-MAX-InitData"] = initData;
+    } else if (!isMaxWebApp() && maxUserId && isDevPreview()) {
+      headers["X-MAX-User-Id"] = maxUserId;
+    }
     return headers;
   }
 
@@ -356,7 +420,8 @@
     }
     if (!res.ok) {
       const detail = body?.detail || body?.message || res.statusText;
-      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      const raw = typeof detail === "string" ? detail : JSON.stringify(detail);
+      throw new Error(friendlyApiError(raw));
     }
     return body;
   }
@@ -388,15 +453,47 @@
 
   function resolveMaxUserId() {
     const wa = window.WebApp;
+    const initData = wa?.initData || "";
+    const fromInitData = extractMaxUserIdFromInitData(initData);
+    if (fromInitData) return fromInitData;
     const fromBridge = wa?.initDataUnsafe?.user?.id;
     if (fromBridge != null) return String(fromBridge);
     const q = new URLSearchParams(location.search).get("uid");
     if (q) return q;
-    const saved = localStorage.getItem("sfrfr_demo_uid");
-    if (saved) return saved;
-    const demo = `demo-${Date.now()}`;
-    localStorage.setItem("sfrfr_demo_uid", demo);
-    return demo;
+    if (isDevPreview()) {
+      const saved = localStorage.getItem("sfrfr_demo_uid");
+      if (saved) return saved;
+      const demo = `demo-${Date.now()}`;
+      localStorage.setItem("sfrfr_demo_uid", demo);
+      return demo;
+    }
+    return null;
+  }
+
+  async function requireMaxAuth() {
+    if (!isMaxWebApp()) {
+      throw new Error("Откройте кабинет из приложения MAX через чат бота «Проверка стажа».");
+    }
+    const initData = await ensureInitData();
+    if (!initData) {
+      throw new Error(
+        "Не удалось получить данные входа из MAX. Закройте мини-приложение и откройте его снова из чата.",
+      );
+    }
+    maxUserId = extractMaxUserIdFromInitData(initData) || resolveMaxUserId();
+    return initData;
+  }
+
+  function showAuthHint(message) {
+    const hint = document.getElementById("auth-hint");
+    if (!hint) return;
+    if (message) {
+      hint.textContent = message;
+      hint.classList.remove("hidden");
+    } else {
+      hint.textContent = "";
+      hint.classList.add("hidden");
+    }
   }
 
   function mapDetail(c) {
@@ -801,8 +898,6 @@
     const wa = window.WebApp;
     if (!wa) return;
     try {
-      if (typeof wa.ready === "function") wa.ready();
-      if (typeof wa.expand === "function") wa.expand();
       const user = wa.initDataUnsafe?.user;
       if (user?.first_name && els.nameInput) {
         els.nameInput.value = [user.first_name, user.last_name].filter(Boolean).join(" ");
@@ -814,9 +909,9 @@
 
   async function bootstrap() {
     initBridge();
-    maxUserId = resolveMaxUserId();
     try {
       setBusy(true);
+      await requireMaxAuth();
       await loadLabels();
       me = await api("/api/portal/me");
       await api("/api/portal/me/preferences", {
@@ -824,11 +919,14 @@
         body: JSON.stringify({ preferred_channel: "max_miniapp" }),
       }).catch(() => null);
       await createOrOpenCase({ client_name: els.nameInput?.value?.trim() });
+      showAuthHint("");
     } catch (err) {
       console.error(err);
       els.boot.classList.add("hidden");
       show(els.form);
-      toast(`API: ${err.message}`);
+      const message = err instanceof Error ? err.message : "Не удалось открыть кабинет.";
+      showAuthHint(message);
+      toast(message);
     } finally {
       setBusy(false);
     }
@@ -846,10 +944,15 @@
     }
     try {
       setBusy(true);
+      showAuthHint("");
+      await requireMaxAuth();
       await createOrOpenCase({ client_name: name });
+      showAuthHint("");
       toast("Кабинет открыт");
     } catch (err) {
-      toast(err.message);
+      const message = err instanceof Error ? err.message : "Не удалось открыть кабинет.";
+      showAuthHint(message);
+      toast(message);
     } finally {
       setBusy(false);
     }

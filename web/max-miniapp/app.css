@@ -368,16 +368,49 @@ h1 {
   display: grid;
   gap: 6px;
   margin: 10px 0;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .field input {
   width: 100%;
-  border: 1px solid var(--line);
+  min-height: 48px;
+  border: 2px solid #7f9989;
   border-radius: 12px;
-  padding: 11px 12px;
+  padding: 12px 14px;
   font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--ink);
   background: #fff;
+  box-shadow: inset 0 1px 2px rgba(26, 36, 32, 0.06);
+}
+
+.field input::placeholder {
+  color: #6b7d73;
+  opacity: 1;
+}
+
+.field input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(31, 107, 74, 0.22);
+}
+
+#panel-form .field span {
+  font-size: 0.92rem;
+}
+
+#auth-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #f0c9bc;
+  background: #fff4f0;
+  color: var(--warn);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .check {
