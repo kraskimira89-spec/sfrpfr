@@ -2,7 +2,9 @@
   "$schema": "./manifest.schema.json",
   "manifest_version": 1,
   "id": "sfrfr-issue-wizard",
-  "supported_services": ["tracker"],
+  "supported_services": [
+    "tracker"
+  ],
   "slug": "sfrfr-issue-wizard",
   "version": "0.1.2",
   "name": {
@@ -13,17 +15,20 @@
     "ru": "Мастер создания задач в очередях SFRFR, PUB и FUNNEL с тегами и проверкой ПДн.",
     "en": "Create issues in SFRFR, PUB and FUNNEL with required tags and PII warnings."
   },
-  "categories": ["productivity"],
+  "categories": [
+    "productivity"
+  ],
   "permissions": {
     "data": [
       "tracker:queues:read",
       "tracker:issues:read",
       "tracker:issues:write",
-      "tracker:tags:read",
-      "tracker.v2.read",
-      "tracker.v2.write"
+      "tracker:tags:read"
     ],
-    "ui": ["toaster", "confirm"]
+    "ui": [
+      "toaster",
+      "confirm"
+    ]
   },
   "support": [
     {
