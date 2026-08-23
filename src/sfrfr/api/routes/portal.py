@@ -1386,6 +1386,13 @@ async def upload_case_document(
             client.table("result_evidence").insert(
                 {"case_id": case_id, "document_id": document_id}
             ).execute()
+    if (doc_type or "").strip().lower() == "diagnosis_report" and principal.is_staff:
+        try:
+            from sfrfr.db.diagnosis_feedback_repository import DiagnosisFeedbackRepository
+
+            DiagnosisFeedbackRepository().mark_pdf_issued(case_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("diagnosis_feedback pdf_issued skipped: %s", exc)
     payment_receipt = None
     try:
         from sfrfr.ocr import extract_text_from_bytes

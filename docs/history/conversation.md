@@ -922,3 +922,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - playbook-diagnosis-result-standard.md: название, структура PDF, A–D, QA.
 - Шаблон + example + build_diagnosis_report_pdf.py; doc_type diagnosis_report.
 - Admin: загрузка PDF; cabinet: блок «Результат диагностики».
+
+## 2026-08-23 — обратная связь после PDF (ТЗ-27)
+- Playbook + тексты; миграция diagnosis_feedback; pdf_issued_at при upload.
+- Навигация 1/2/3 вместо отзыва при выдаче; FUNNEL-6.

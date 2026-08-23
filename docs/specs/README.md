@@ -33,6 +33,7 @@
 25. [25-max-ops-bot.md](25-max-ops-bot.md) — Ops-бот MAX «Проверка стажа-Ops» (`id8905998693_3_bot`, `MAX_OPS_BOT_TOKEN`) для лидов и approve staff.  
     Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
 26. [26-max-llm-chat.md](26-max-llm-chat.md) — черновик: ограниченный LLM-ответ на свободный текст в личном чате MAX (пока не к реализации).
+27. [27-diagnosis-pdf-feedback.md](27-diagnosis-pdf-feedback.md) — обратная связь после PDF-диагностики: понятность и первый шаг, отдельно от публичного отзыва.
 
 ## Принцип
 

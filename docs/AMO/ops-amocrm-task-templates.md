@@ -105,9 +105,10 @@
 | Счёт отправлен | Контроль оплаты ≤ SLA |
 | Оплачено | **≤ 15 мин:** подтверждение + кабинет; затем список документов |
 | Документы в кабинете (полный комплект) | Срок диагностики: **3 рабочих дня**; дата в карточке |
-| Диагностика выдана | Сообщение MAX + кабинет; CTA `Нужен следующий шаг`; оффер 5k/8k только при объёме |
+| Диагностика выдана | PDF + навигация 1/2/3; `pdf_issued_at`; черновик касания +2–3 дн. |
 
-Шаблоны после оплаты / результата: [`diagnosis-result-delivery.md`](../../scripts/assets/copy/diagnosis-result-delivery.md) (§4в).
+Шаблоны после оплаты / результата: [`diagnosis-result-delivery.md`](../../scripts/assets/copy/diagnosis-result-delivery.md) (§4в).  
+Обратная связь: [`diagnosis-feedback-messages.md`](../../scripts/assets/copy/diagnosis-feedback-messages.md) (ТЗ-27).
 
 ---
 
