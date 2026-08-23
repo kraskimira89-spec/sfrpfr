@@ -926,3 +926,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 ## 2026-08-23 — обратная связь после PDF (ТЗ-27)
 - Playbook + тексты; миграция diagnosis_feedback; pdf_issued_at при upload.
 - Навигация 1/2/3 вместо отзыва при выдаче; FUNNEL-6.
+
+## 2026-08-23 — ТЗ-28: безопасная выдача PDF
+- publish → draft notification_jobs; secure link token_hash; approve staff.
+- Admin кнопка публикации; diag-share без case_id; тесты.

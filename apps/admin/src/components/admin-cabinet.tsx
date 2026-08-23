@@ -1482,6 +1482,36 @@ export function AdminCabinet() {
     }
   }
 
+  async function publishDiagnosis(documentId: string) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const out = await apiFetch<{
+        share_url_once?: string;
+        jobs?: { id: string; job_type: string; channel: string; status: string }[];
+      }>(`/api/portal/admin/cases/${detail.id}/diagnosis/publish`, token, {
+        method: "POST",
+        body: JSON.stringify({ document_id: documentId, channels: ["email", "max"] }),
+      });
+      const n = out.jobs?.length ?? 0;
+      let msg = `Опубликовано. Черновиков уведомлений: ${n}.`;
+      if (out.share_url_once) {
+        try {
+          await navigator.clipboard.writeText(out.share_url_once);
+          msg += " Ссылка скопирована в буфер (один раз).";
+        } catch {
+          msg += " Ссылка в ответе API (один раз).";
+        }
+      }
+      setNotice(msg);
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось опубликовать.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!session) {
     return (
       <main className="auth-layout">
@@ -2008,6 +2038,7 @@ export function AdminCabinet() {
             }}
             onOpenSigned={(docId) => void openSigned(docId)}
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
+            onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
             onToggleChecklist={(id, status) => void toggleChecklist(id, status)}
             onAddChecklist={(e) => void addChecklist(e)}
             onChecklistTitle={setChecklistTitle}

@@ -103,10 +103,11 @@
 | Этап | Содержание | Статус |
 |------|------------|--------|
 | A | Playbook + тексты MAX + поля в заметке amo | **DONE** |
-| B | Миграция `diagnosis_feedback` + запись `pdf_issued_at` при upload | **DONE** (этот релиз) |
-| C | Admin UI полей + черновики касаний 2–3 / 10–14 дн. | P1 |
+| B | Миграция `diagnosis_feedback` + запись `pdf_issued_at` при upload | **DONE** |
+| B2 | Безопасная выдача PDF + draft notify (ТЗ-28) | **DONE** (publish/approve/share) |
+| C | Admin UI списка jobs + approve e-mail в карточке | P1 |
 | D | Кнопки MAX / цифры → запись статуса | P1 |
-| E | `pdf_opened_at` по signed-URL / событию кабинета | P2 |
+| E | `pdf_opened_at` по signed-URL / событию кабинета | частично через diag-share |
 | F | Дашборд аналитики без ПДн | P2 |
 
 Тексты: [`diagnosis-feedback-messages.md`](../../scripts/assets/copy/diagnosis-feedback-messages.md).

@@ -10,6 +10,7 @@ from typing import Any, NoReturn
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import RedirectResponse
 
 from sfrfr.api.schemas.portal import (
     CaseMessageCreate,
@@ -1455,6 +1456,53 @@ def create_document_signed_url(
     )
     repo.audit(case_id, principal.user_id, "document_download_url_created")
     return SignedDocumentResponse(url=signed["signedURL"], expires_in=expires_in)
+
+
+@router.get("/diag-share/{token}")
+def open_diagnosis_share(token: str) -> RedirectResponse:
+    """Одноразовая/короткоживущая ссылка на PDF диагностики (ТЗ-28).
+
+    Без case_id в URL. PDF не отдаём вложением — только временный signed Storage URL.
+    """
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    raw = (token or "").strip()
+    if len(raw) < 20:
+        raise HTTPException(status_code=404, detail="not found")
+    try:
+        resolved = DiagnosisDeliveryService().resolve_share_token(raw)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="not found") from None
+    except PermissionError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+    document_id = resolved.get("document_id")
+    case_id = resolved.get("case_id")
+    if not document_id or not case_id:
+        raise HTTPException(status_code=404, detail="document missing")
+    row = CaseRepository._one_or_none(
+        get_supabase_client()
+        .table("documents")
+        .select("storage_path")
+        .eq("id", document_id)
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    expires_in = SIGNED_URL_TTL_SECONDS
+    signed = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).create_signed_url(
+        row["storage_path"], expires_in
+    )
+    url = signed.get("signedURL") or signed.get("signedUrl")
+    if not url:
+        raise HTTPException(status_code=502, detail="signed url failed")
+    try:
+        CaseRepository().audit(str(case_id), None, "diagnosis_share_viewed")
+    except Exception as exc:  # noqa: BLE001
+        logger.info("diagnosis share audit skipped: %s", exc)
+    return RedirectResponse(url=str(url), status_code=302)
 
 
 @router.get("/cases/{case_id}/messages")

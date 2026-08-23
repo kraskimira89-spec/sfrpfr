@@ -231,6 +231,7 @@ export function CaseFunnelMain({
   onOpenTrackerModal,
   onOpenSigned,
   onUploadDiagnosisReport,
+  onPublishDiagnosis,
   onToggleChecklist,
   onAddChecklist,
   onChecklistTitle,
@@ -287,6 +288,7 @@ export function CaseFunnelMain({
   onOpenTrackerModal: () => void;
   onOpenSigned: (docId: string) => void;
   onUploadDiagnosisReport: (file: File) => void;
+  onPublishDiagnosis: (documentId: string) => void;
   onToggleChecklist: (id: string, status: string) => void;
   onAddChecklist: (e: FormEvent) => void;
   onChecklistTitle: (v: string) => void;
@@ -913,6 +915,31 @@ export function CaseFunnelMain({
                   }}
                 />
               </label>
+              {detail.documents
+                .filter((d) =>
+                  `${d.doc_type || ""} ${d.storage_path || ""}`
+                    .toLowerCase()
+                    .includes("diagnosis"),
+                )
+                .slice(0, 1)
+                .map((doc) => (
+                  <button
+                    key={`pub-${doc.id}`}
+                    type="button"
+                    disabled={busy || !caps.can_view_ocr}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "Опубликовать PDF и создать черновики уведомлений (e-mail/MAX)? Отправка — только после подтверждения.",
+                        )
+                      )
+                        return;
+                      onPublishDiagnosis(doc.id);
+                    }}
+                  >
+                    Опубликовать → черновики уведомлений
+                  </button>
+                ))}
               <button
                 type="button"
                 className="linkish"
@@ -930,6 +957,10 @@ export function CaseFunnelMain({
                 Шаблон MAX: результат готов
               </button>
             </div>
+            <p className="hint">
+              ТЗ-28: PDF не вложением. Система готовит draft → сотрудник подтверждает отправку.
+              Jobs: GET/approve в API notification-jobs.
+            </p>
           </StageShell>
         ) : null}
 

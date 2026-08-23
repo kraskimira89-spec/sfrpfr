@@ -29,6 +29,8 @@ from sfrfr.api.schemas.admin import (
     TrackerQualityIssueRequest,
     WorkQueueItem,
     YandexMailRequest,
+    DiagnosisPublishRequest,
+    NotificationJobApproveRequest,
 )
 from sfrfr.api.schemas.portal import CaseStatusUpdate, CaseSummary
 from sfrfr.core.config import get_settings
@@ -931,6 +933,124 @@ def send_case_email(
     if result.get("ok"):
         repo.audit(case_id, principal.audit_actor_id(), f"yandex_mail_send:{payload.template}")
     return result
+
+
+@router.post("/admin/cases/{case_id}/diagnosis/publish")
+def publish_diagnosis_result(
+    case_id: str,
+    payload: DiagnosisPublishRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Опубликовать PDF диагностики → secure link + draft notification jobs (ТЗ-28)."""
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    # Документ должен принадлежать делу.
+    doc = CaseRepository._one_or_none(
+        get_supabase_client()
+        .table("documents")
+        .select("id, doc_type")
+        .eq("id", payload.document_id)
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="document not found")
+    try:
+        out = DiagnosisDeliveryService().publish(
+            case_id=case_id,
+            document_id=payload.document_id,
+            actor_id=principal.user_id,
+            channels=list(payload.channels),
+            checksum=payload.checksum,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "diagnosis_published")
+    # share_token_once — только в этом ответе; не писать в audit.
+    return out
+
+
+@router.get("/admin/cases/{case_id}/notification-jobs")
+def list_notification_jobs(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+
+    _repo().require_case(principal, case_id)
+    jobs = DiagnosisDeliveryRepository().list_jobs(case_id)
+    return {"jobs": jobs}
+
+
+@router.post("/admin/cases/{case_id}/notification-jobs/{job_id}/approve")
+def approve_notification_job(
+    case_id: str,
+    job_id: str,
+    payload: NotificationJobApproveRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Подтвердить отправку draft: email — SMTP; max — текст для чата."""
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    job = DiagnosisDeliveryRepository().get_job(job_id)
+    if not job or str(job.get("case_id")) != case_id:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    client = case.get("clients") or {}
+    if isinstance(client, list):
+        client = client[0] if client else {}
+    do_not = bool(case.get("do_not_contact"))  # если поля нет — False
+    svc = DiagnosisDeliveryService()
+    try:
+        if job.get("channel") == "email":
+            to_addr = (payload.to or client.get("email") or "").strip()
+            if not to_addr:
+                raise HTTPException(status_code=400, detail="client email required")
+            out = svc.approve_and_send_email(
+                job_id=job_id,
+                actor_id=principal.user_id,
+                to_email=to_addr,
+                do_not_contact=do_not,
+            )
+        else:
+            out = svc.approve_max_draft(
+                job_id=job_id,
+                actor_id=principal.user_id,
+                do_not_contact=do_not,
+            )
+            if payload.mark_max_sent and out.get("ok"):
+                svc.mark_max_sent(job_id)
+                out["marked_sent"] = True
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), f"notification_job_approve:{job_id}")
+    return out
+
+
+@router.post("/admin/cases/{case_id}/notification-jobs/{job_id}/cancel")
+def cancel_notification_job(
+    case_id: str,
+    job_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    _repo().require_case(principal, case_id)
+    job = DiagnosisDeliveryRepository().get_job(job_id)
+    if not job or str(job.get("case_id")) != case_id:
+        raise HTTPException(status_code=404, detail="job not found")
+    out = DiagnosisDeliveryService().cancel_job(job_id)
+    _repo().audit(case_id, principal.audit_actor_id(), f"notification_job_cancel:{job_id}")
+    return out
 
 
 @router.get("/admin/mail/inbox")

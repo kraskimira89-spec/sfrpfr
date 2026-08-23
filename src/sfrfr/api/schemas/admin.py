@@ -149,6 +149,17 @@ class YandexMailRequest(BaseModel):
     body: str | None = Field(default=None, max_length=4000)
 
 
+class DiagnosisPublishRequest(BaseModel):
+    document_id: str = Field(min_length=8, max_length=64)
+    channels: list[Literal["email", "max"]] = Field(default_factory=lambda: ["email", "max"])
+    checksum: str | None = Field(default=None, max_length=128)
+
+
+class NotificationJobApproveRequest(BaseModel):
+    to: str | None = Field(default=None, max_length=200)
+    mark_max_sent: bool = False
+
+
 class MaxReplyRequest(BaseModel):
     message: str = Field(min_length=1, max_length=3500)
     force: bool = False

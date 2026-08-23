@@ -31,6 +31,7 @@
 - После оплаты → результат: [`scripts/assets/copy/diagnosis-result-delivery.md`](../../scripts/assets/copy/diagnosis-result-delivery.md) — §4в.
 - **Стандарт PDF диагностики:** [playbook-diagnosis-result-standard.md](playbook-diagnosis-result-standard.md) · шаблон [`diagnosis-stazh-report.md`](../../scripts/assets/templates/diagnosis-stazh-report.md).
 - **Обратная связь после PDF:** [playbook-diagnosis-feedback.md](playbook-diagnosis-feedback.md) · [ТЗ-27](../specs/27-diagnosis-pdf-feedback.md) · [`diagnosis-feedback-messages.md`](../../scripts/assets/copy/diagnosis-feedback-messages.md).
+- **Безопасная выдача PDF:** [ТЗ-28](../specs/28-diagnosis-secure-delivery.md) · [`diagnosis-secure-delivery-messages.md`](../../scripts/assets/copy/diagnosis-secure-delivery-messages.md) — draft → approve, без вложений.
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
 - **Задачи и wiki (Notion не используем):** Яндекс Трекер (очередь `SFRFR`) + MCP [yandex-tracker-mcp](../ops/yandex-tracker-mcp.md); Wiki SFRFR; SoT — [yandex-tracker-ops.md](../ops/yandex-tracker-ops.md).
 - **Стек автоматизации (без Make/Albato):** [`docs/ops/automation-stack-ru.md`](../ops/automation-stack-ru.md) — лиды, amo, AI, n8n P2.

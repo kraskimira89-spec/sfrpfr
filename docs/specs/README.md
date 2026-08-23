@@ -34,6 +34,7 @@
     Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
 26. [26-max-llm-chat.md](26-max-llm-chat.md) — черновик: ограниченный LLM-ответ на свободный текст в личном чате MAX (пока не к реализации).
 27. [27-diagnosis-pdf-feedback.md](27-diagnosis-pdf-feedback.md) — обратная связь после PDF-диагностики: понятность и первый шаг, отдельно от публичного отзыва.
+28. [28-diagnosis-secure-delivery.md](28-diagnosis-secure-delivery.md) — безопасная выдача PDF: draft-уведомления, сотрудник подтверждает, без вложений.
 
 ## Принцип
 
