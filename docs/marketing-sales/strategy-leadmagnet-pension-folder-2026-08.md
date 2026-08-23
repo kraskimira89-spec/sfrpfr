@@ -216,6 +216,7 @@ PDF **не** советует отправлять эти документы с�
 - [x] `scripts/assets/leadmagnets/pension-folder-checklist.md` — исходник текста PDF  
 - [x] [playbook-leadmagnet-workbook-layout-2026-08.md](playbook-leadmagnet-workbook-layout-2026-08.md) — макет A4, Canva, цвета, компоненты, QA  
 - [x] [playbook-ux-trust-seniors-2026-08.md](playbook-ux-trust-seniors-2026-08.md) — антипаттерны доверия / читаемости / форм / PDF  
+- [x] [playbook-pdf-print-readability-2026-08.md](playbook-pdf-print-readability-2026-08.md) — типографика A4 под печать без zoom  
 - [x] Посадочная WP `/chek-list-dokumentov/` + `/pechat/` (trust HTML + сид ТЗ-18)  
 - [x] [playbook-leadmagnet-pension-folder.md](playbook-leadmagnet-pension-folder.md) — URL, сид, оператор, метрика  
 - [ ] PDF-файл вёрстки (Canva → статика сайта, без ПДн в имени)  
