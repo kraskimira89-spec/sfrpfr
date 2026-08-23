@@ -151,7 +151,7 @@ class YandexMailRequest(BaseModel):
 
 class DiagnosisPublishRequest(BaseModel):
     document_id: str = Field(min_length=8, max_length=64)
-    channels: list[Literal["email", "max"]] = Field(default_factory=lambda: ["email", "max"])
+    channels: list[Literal["email", "max"]] = ["email", "max"]
     checksum: str | None = Field(default=None, max_length=128)
 
 
