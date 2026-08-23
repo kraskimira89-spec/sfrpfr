@@ -23,7 +23,7 @@ Weavix-плагин для Яндекс Трекера: быстрое созд�
 - Теги: **PUB** → обязательный `publish-*`; **FUNNEL** → обязательный `funnel-*`; **SFRFR** → опционально `ops` / `infra` / `agents`.
 - Prefill summary + description под очередь.
 - Перед созданием: detect ПДн (телефон / email / СНИЛС) → `uiApi.confirm` + warn.
-- Создание через `trackerApi.v3.post['/v2/issues']`, toast + `uiApi.navigate` на задачу.
+- Создание через `trackerApi.v3.post['/issues']` (как в [примерах](https://yandex.ru/support/tracker/ru/plugins/examples.md); путь `/v2/issues` даёт ошибку scope `tracker:v2:write`), toast + `uiApi.navigate` на задачу.
 
 ## Отладка
 
@@ -36,6 +36,8 @@ weavix debug
 В Трекере: **Настройки → Эксперименты → Отладка плагинов**. Плагин появляется в слоте navigation.
 
 `downloadUrl` в локальном `config.json` (не в git) обычно `http://localhost:5173`.
+
+Если видите `missing required scope: tracker:v2:write` — в коде должен быть путь **`/issues`**, не `/v2/issues`. Разрешение в манифесте: `tracker:issues:write` ([common.md §permissions](https://yandex.ru/support/tracker/ru/plugins/common.md#permissions)).
 
 При необходимости publish: `weavix login` (OAuth + org id). Секреты только локально / `secrets/`, не в git.
 

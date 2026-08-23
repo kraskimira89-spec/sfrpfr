@@ -77,16 +77,19 @@ const App = () => {
             tags,
         };
 
-        const { data: created } = await trackerApi.v3.post['/v2/issues']({
-            bodyParams: bodyParams as {
-                queue: { key: string };
-                summary: string;
-            },
-        });
+        // Доки плагинов: путь `/issues`, не `/v2/issues` (иначе scope tracker:v2:write).
+        type CreateIssueFn = (payload: {
+            bodyParams: Record<string, unknown>;
+        }) => Promise<{ data: { key?: string } }>;
+        const postIssues = (
+            trackerApi.v3.post as unknown as Record<string, CreateIssueFn>
+        )['/issues'];
+
+        const { data: created } = await postIssues({ bodyParams });
 
         const key =
             typeof created === 'object' && created && 'key' in created
-                ? String((created as { key: string }).key)
+                ? String(created.key)
                 : undefined;
 
         await uiApi.toaster.add({

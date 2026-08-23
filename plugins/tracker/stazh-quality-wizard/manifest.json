@@ -17,19 +17,17 @@
     "categories": [
         "productivity"
     ],
-    "permissions": {
-        "data": [
-            "tracker:queues:read",
-            "tracker:issues:read",
-            "tracker:issues:write",
-            "tracker.v2.read",
-            "tracker.v2.write"
-        ],
-        "ui": [
-            "toaster",
-            "confirm"
-        ]
-    },
+  "permissions": {
+    "data": [
+      "tracker:queues:read",
+      "tracker:issues:read",
+      "tracker:issues:write"
+    ],
+    "ui": [
+      "toaster",
+      "confirm"
+    ]
+  },
     "support": [
         {
             "type": "email",

@@ -62,7 +62,9 @@ const App = () => {
     }, [queue, summary, tag, tagRequired]);
 
     const createIssue = useCallback(async () => {
-        // Tracker Public API принимает description/tags; типы Weavix IssueCreateBody их пока не содержат.
+        // По докам плагинов путь без /v2: trackerApi.v3.post['/issues']
+        // (https://yandex.ru/support/tracker/ru/plugins/examples.md).
+        // Вызов '/v2/issues' требует scope tracker:v2:write, которого нет в permissions.data.
         const bodyParams = {
             queue: {key: queue},
             summary: summary.trim(),
@@ -70,16 +72,24 @@ const App = () => {
             ...(tag ? {tags: [tag]} : {}),
         };
 
-        const {data: created} = await trackerApi.v3.post['/v2/issues']({
-            bodyParams: bodyParams as {
+        type CreateIssueFn = (payload: {
+            bodyParams: {
                 queue: {key: string};
                 summary: string;
-            },
-        });
+                description?: string;
+                tags?: string[];
+            };
+        }) => Promise<{data: {key?: string}}>;
+
+        const postIssues = (
+            trackerApi.v3.post as unknown as Record<string, CreateIssueFn>
+        )['/issues'];
+
+        const {data: created} = await postIssues({bodyParams});
 
         const key =
             typeof created === 'object' && created && 'key' in created
-                ? String((created as {key: string}).key)
+                ? String(created.key)
                 : undefined;
 
         await uiApi.toaster.add({
