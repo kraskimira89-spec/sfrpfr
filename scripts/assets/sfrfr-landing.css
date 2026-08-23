@@ -4302,3 +4302,309 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   font-size: 0.9rem;
   margin: 0.6rem 0 0 !important;
 }
+
+
+/* === Лид-магнит /chek-list-dokumentov/ (scoped, стили сайта) === */
+.page-chek-list-dokumentov .entry-header .entry-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#sfrfr-checklist-page .ps-lead {
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+#sfrfr-checklist-page .ps-lead__h1 {
+  max-width: 760px;
+  margin: 0 0 1rem;
+  color: var(--sfrfr-primary);
+  font-size: clamp(1.85rem, 4.5vw, 2.75rem);
+  line-height: 1.12;
+  font-weight: 700;
+}
+
+#sfrfr-checklist-page .ps-lead__eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--sfrfr-accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+#sfrfr-checklist-page .ps-lead__eyebrow--on-dark {
+  color: #c8e6d6;
+}
+
+#sfrfr-checklist-page .ps-lead__lead {
+  max-width: 740px;
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.1rem, 2.2vw, 1.3rem);
+  color: var(--sfrfr-ink);
+}
+
+#sfrfr-checklist-page .ps-lead__benefits {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 710px;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+#sfrfr-checklist-page .ps-lead__benefits li {
+  position: relative;
+  padding-left: 2.1rem;
+}
+
+#sfrfr-checklist-page .ps-lead__benefits li::before {
+  position: absolute;
+  top: 0.15rem;
+  left: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--sfrfr-accent);
+  content: "✓";
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
+#sfrfr-checklist-page .ps-lead__trust-note {
+  max-width: 720px;
+  margin: 0;
+  border-left: 5px solid var(--sfrfr-warn);
+}
+
+#sfrfr-checklist-page .ps-lead__hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: clamp(1.5rem, 4vw, 2.75rem);
+  align-items: start;
+}
+
+#sfrfr-checklist-page .ps-lead__form-card {
+  padding: 1.5rem;
+  border: 1px solid #c5d0dc;
+  border-radius: var(--sfrfr-radius);
+  background: var(--sfrfr-surface);
+  box-shadow: var(--sfrfr-shadow);
+}
+
+#sfrfr-checklist-page .ps-lead__form-card h2 {
+  margin: 0 0 0.4rem;
+  color: var(--sfrfr-primary);
+  font-size: 1.5rem;
+}
+
+#sfrfr-checklist-page .ps-lead__form-intro,
+#sfrfr-checklist-page .ps-lead__form-help,
+#sfrfr-checklist-page .ps-lead__small,
+#sfrfr-checklist-page .ps-lead__alt {
+  color: var(--sfrfr-muted);
+  font-size: 0.95rem;
+}
+
+#sfrfr-checklist-page .ps-lead__form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.15rem;
+}
+
+#sfrfr-checklist-page .ps-lead__field,
+#sfrfr-checklist-page .ps-lead__fieldset {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+#sfrfr-checklist-page .ps-lead__field label,
+#sfrfr-checklist-page .ps-lead__fieldset legend {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sfrfr-ink);
+}
+
+#sfrfr-checklist-page .ps-lead__field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid #8aa4b6;
+  border-radius: 9px;
+  color: var(--sfrfr-ink);
+  background: #fff;
+  font: inherit;
+}
+
+#sfrfr-checklist-page .ps-lead__radio,
+#sfrfr-checklist-page .ps-lead__checkbox {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+#sfrfr-checklist-page .ps-lead__radio input,
+#sfrfr-checklist-page .ps-lead__checkbox input {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  accent-color: var(--sfrfr-accent);
+}
+
+#sfrfr-checklist-page .ps-lead__button {
+  min-height: 52px;
+  width: 100%;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
+#sfrfr-checklist-page .ps-lead a:focus-visible,
+#sfrfr-checklist-page .ps-lead button:focus-visible,
+#sfrfr-checklist-page .ps-lead input:focus-visible,
+#sfrfr-checklist-page .ps-lead summary:focus-visible {
+  outline: 3px solid #e18a00;
+  outline-offset: 3px;
+}
+
+#sfrfr-checklist-page .ps-lead__honeypot,
+#sfrfr-checklist-page .ps-lead .is-hidden {
+  display: none !important;
+}
+
+#sfrfr-checklist-page .ps-lead__form-status {
+  min-height: 1.4rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--sfrfr-primary);
+}
+
+#sfrfr-checklist-page .ps-lead__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+#sfrfr-checklist-page .ps-lead__steps {
+  display: grid;
+  gap: 0.9rem;
+  margin: 1rem 0 0;
+  padding-left: 1.4rem;
+}
+
+#sfrfr-checklist-page .ps-lead__safety {
+  padding: 1.35rem;
+  border-left: 6px solid var(--sfrfr-warn);
+}
+
+#sfrfr-checklist-page .ps-lead__timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+#sfrfr-checklist-page .ps-lead__timeline-item {
+  position: relative;
+  padding: 0 0.4rem 0 3.6rem;
+}
+
+#sfrfr-checklist-page .ps-lead__timeline-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--sfrfr-accent);
+  font-weight: 700;
+}
+
+#sfrfr-checklist-page .ps-lead__section--accent {
+  color: #fff;
+  background: var(--sfrfr-primary);
+}
+
+#sfrfr-checklist-page .ps-lead__section--accent h2,
+#sfrfr-checklist-page .ps-lead__section--accent p {
+  color: #fff;
+}
+
+#sfrfr-checklist-page .ps-lead__cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+#sfrfr-checklist-page .ps-lead__button-light {
+  background: #fff !important;
+  color: var(--sfrfr-primary) !important;
+  border-color: #fff !important;
+  min-height: 52px;
+  padding: 0.75rem 1.25rem;
+  white-space: nowrap;
+}
+
+#sfrfr-checklist-page .ps-lead__faq {
+  max-width: 900px;
+}
+
+#sfrfr-checklist-page .ps-lead__faq details {
+  margin-top: 0.75rem;
+  padding: 0 1rem;
+  border: 1px solid #c5d0dc;
+  border-radius: 10px;
+  background: var(--sfrfr-surface);
+}
+
+#sfrfr-checklist-page .ps-lead__faq summary {
+  min-height: 56px;
+  padding: 1rem 2rem 1rem 0;
+  cursor: pointer;
+  color: var(--sfrfr-primary);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+#sfrfr-checklist-page .ps-lead__faq details p {
+  padding-bottom: 1rem;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  #sfrfr-checklist-page .ps-lead__hero-grid,
+  #sfrfr-checklist-page .ps-lead__split,
+  #sfrfr-checklist-page .ps-lead__cta,
+  #sfrfr-checklist-page .ps-lead__timeline {
+    grid-template-columns: 1fr;
+  }
+
+  #sfrfr-checklist-page .ps-lead__button-light {
+    width: 100%;
+    white-space: normal;
+  }
+}

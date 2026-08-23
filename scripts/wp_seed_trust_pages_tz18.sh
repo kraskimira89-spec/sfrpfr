@@ -49,6 +49,7 @@ cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${MU}/sfrfr-site-foot
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-feedback.php" "${MU}/sfrfr-cf7-feedback.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-lead-magnet.php" "${MU}/sfrfr-lead-magnet.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-metrika.php" "${MU}/sfrfr-yandex-metrika.php"
 
 "${WP[@]}" cache flush || true
