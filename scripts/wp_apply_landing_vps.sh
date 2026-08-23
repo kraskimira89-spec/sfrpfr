@@ -49,9 +49,11 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-footer.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-site-search.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-search.php"
+cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-nav-mobile.php" \
+  "${SITE_DIR}/wp-content/mu-plugins/sfrfr-nav-mobile.php"
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-lead-magnet.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-lead-magnet.php"
-echo "MU lead-magnet OK"
+echo "MU nav-mobile OK"
 # Copy awards gallery into WP uploads on landing apply too
 AWARDS_SRC="${APP_DIR}/scripts/assets/awards"
 AWARDS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/awards"

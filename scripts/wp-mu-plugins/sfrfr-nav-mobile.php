@@ -16,13 +16,23 @@ if (!defined('ABSPATH')) {
  * @return array<string, mixed>
  */
 add_filter('wp_nav_menu_args', static function (array $args): array {
-    if (($args['theme_location'] ?? '') !== 'mobile_menu') {
+    $location = (string) ($args['theme_location'] ?? '');
+    $menuId = (string) ($args['menu_id'] ?? '');
+    $isMobileDrawer = $location === 'mobile_menu' || $menuId === 'ast-hf-mobile-menu';
+
+    if (!$isMobileDrawer) {
         return $args;
     }
 
     $locations = get_nav_menu_locations();
     if (!empty($locations['primary'])) {
         $args['menu'] = (int) $locations['primary'];
+        return $args;
+    }
+
+    $menu = wp_get_nav_menu_object('SFRFR Primary');
+    if ($menu instanceof WP_Term) {
+        $args['menu'] = (int) $menu->term_id;
     }
 
     return $args;

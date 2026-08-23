@@ -54,6 +54,7 @@ cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/mu-
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-verification.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-yandex-verification.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-footer.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-search.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-site-search.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-nav-mobile.php" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-nav-mobile.php"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-awards.js" "${SITE_DIR}/wp-content/mu-plugins/sfrfr-awards.js"
 mkdir -p "${SITE_DIR}/wp-content/uploads/sfrfr"
 cp -f "${SCRIPT_DIR}/assets/sfrfr-recaptcha-lead.js" "${SITE_DIR}/wp-content/uploads/sfrfr/sfrfr-recaptcha-lead.js"
