@@ -41,6 +41,11 @@ type Detail = {
   next_action?: string | null;
   next_action_at?: string | null;
   waiting_on?: string | null;
+  archive_prep_status?: string | null;
+  archive_tariff?: string | null;
+  archive_successor?: string | null;
+  archive_target?: string | null;
+  archive_followup_at?: string | null;
   client: {
     full_name?: string;
     phone?: string;
@@ -220,6 +225,7 @@ export function CaseFunnelMain({
   onNextActionAt,
   onWaitingOn,
   onSaveNextAction,
+  onSaveArchivePrep,
   onSuggestStep,
   onApplyChatMessage,
   onDismissHint,
@@ -277,6 +283,13 @@ export function CaseFunnelMain({
   onNextActionAt: (v: string) => void;
   onWaitingOn: (v: string) => void;
   onSaveNextAction: () => void;
+  onSaveArchivePrep: (payload: {
+    archive_prep_status: string | null;
+    archive_tariff: string | null;
+    archive_successor: string | null;
+    archive_target: string | null;
+    archive_followup_at: string | null;
+  }) => void;
   onSuggestStep: () => void;
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   onDismissHint: () => void;
@@ -674,6 +687,8 @@ export function CaseFunnelMain({
           </p>
         </div>
       </div>
+
+      <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
 
       <div className="case-cards case-funnel-stack">
         <div className="panel case-card--wide case-funnel-map">
@@ -1345,6 +1360,112 @@ export function CaseFunnelMain({
           ) : null}
         </details>
       </div>
+    </div>
+  );
+}
+
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function ArchivePrepBlock({
+  detail,
+  busy,
+  onSave,
+}: {
+  detail: Detail;
+  busy: boolean;
+  onSave: (payload: {
+    archive_prep_status: string | null;
+    archive_tariff: string | null;
+    archive_successor: string | null;
+    archive_target: string | null;
+    archive_followup_at: string | null;
+  }) => void;
+}) {
+  const [status, setStatus] = useState(detail.archive_prep_status || "");
+  const [tariff, setTariff] = useState(detail.archive_tariff || "");
+  const [successor, setSuccessor] = useState(detail.archive_successor || "");
+  const [target, setTarget] = useState(detail.archive_target || "");
+  const [followup, setFollowup] = useState(toLocalInput(detail.archive_followup_at));
+
+  return (
+    <div className="panel case-card--wide" style={{ marginTop: "0.75rem" }}>
+      <h2 className="case-subhead">Архивный комплект</h2>
+      <p className="hint">
+        Без ПДн и сканов. Тариф: 5000 (подготовка) / 8000 (до подачи). Исполнитель «Архив» —
+        в блоке следующего шага.
+      </p>
+      <div className="filters case-action-bar-fields">
+        <label>
+          Статус
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">—</option>
+            <option value="diagnosis_ready">Диагностика готова</option>
+            <option value="period_collected">Сведения о периоде</option>
+            <option value="route_agreed">Маршрут согласован</option>
+            <option value="request_drafted">Проект запроса</option>
+            <option value="client_review">Проверка клиентом</option>
+            <option value="pack_issued">Комплект выдан</option>
+            <option value="awaiting_archive">Ожидаем ответ архива</option>
+            <option value="archive_reply">Ответ получен</option>
+            <option value="next_step">Нужен следующий шаг</option>
+            <option value="closed">Закрыто</option>
+          </select>
+        </label>
+        <label>
+          Тариф
+          <select value={tariff} onChange={(e) => setTariff(e.target.value)}>
+            <option value="">—</option>
+            <option value="5000">5 000</option>
+            <option value="8000">8 000</option>
+          </select>
+        </label>
+        <label>
+          Правопреемник
+          <select value={successor} onChange={(e) => setSuccessor(e.target.value)}>
+            <option value="">—</option>
+            <option value="известен">известен</option>
+            <option value="неизвестен">неизвестен</option>
+            <option value="проверить">проверить</option>
+          </select>
+        </label>
+        <label>
+          Адресат
+          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="">—</option>
+            <option value="предполагаемый">предполагаемый</option>
+            <option value="подтверждённый">подтверждённый</option>
+          </select>
+        </label>
+        <label>
+          Контрольная дата
+          <input
+            type="datetime-local"
+            value={followup}
+            onChange={(e) => setFollowup(e.target.value)}
+          />
+        </label>
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() =>
+          onSave({
+            archive_prep_status: status || null,
+            archive_tariff: tariff || null,
+            archive_successor: successor || null,
+            archive_target: target || null,
+            archive_followup_at: followup ? new Date(followup).toISOString() : null,
+          })
+        }
+      >
+        Сохранить архивный блок
+      </button>
     </div>
   );
 }

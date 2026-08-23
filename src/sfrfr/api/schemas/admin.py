@@ -63,6 +63,14 @@ class CaseNextActionUpdate(BaseModel):
     waiting_on: Literal["staff", "client", "archive", "sfr", "payment", "none"] | None = None
 
 
+class CaseArchivePrepUpdate(BaseModel):
+    archive_prep_status: str | None = Field(default=None, max_length=40)
+    archive_tariff: Literal["5000", "8000"] | None = None
+    archive_successor: str | None = Field(default=None, max_length=40)
+    archive_target: str | None = Field(default=None, max_length=40)
+    archive_followup_at: str | None = None
+
+
 class DashboardResponse(BaseModel):
     new_leads: int
     by_pipeline: dict[str, int]

@@ -111,7 +111,10 @@ class DiagnosisDeliveryRepository:
     def list_failed_jobs(self, *, limit: int = 50) -> list[dict[str, Any]]:
         resp = (
             self.client.table("notification_jobs")
-            .select("id, case_id, job_type, channel, status, failure_reason, updated_at")
+            .select(
+                "id, case_id, job_type, channel, status, failure_reason, "
+                "updated_at, failed_at, retry_count"
+            )
             .eq("status", "failed")
             .order("updated_at", desc=True)
             .limit(min(max(limit, 1), 100))

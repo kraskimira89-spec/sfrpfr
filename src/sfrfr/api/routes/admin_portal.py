@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
     CancelOrderRequest,
+    CaseArchivePrepUpdate,
     CaseFlagsUpdate,
     CaseNextActionUpdate,
     ChecklistItemCreate,
@@ -191,6 +192,11 @@ def _filter_staff_case(
         "next_action": case.get("next_action"),
         "next_action_at": case.get("next_action_at"),
         "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
+        "archive_prep_status": case.get("archive_prep_status"),
+        "archive_tariff": case.get("archive_tariff"),
+        "archive_successor": case.get("archive_successor"),
+        "archive_target": case.get("archive_target"),
+        "archive_followup_at": case.get("archive_followup_at"),
         "is_test": is_test_case(case),
         "segment": case.get("segment"),
         "region_bucket": case.get("region_bucket"),
@@ -496,6 +502,34 @@ def update_next_action(
         "next_action": updated.get("next_action"),
         "next_action_at": updated.get("next_action_at"),
         "waiting_on": updated.get("waiting_on"),
+    }
+
+
+@router.patch("/admin/cases/{case_id}/archive-prep")
+def update_archive_prep(
+    case_id: str,
+    payload: CaseArchivePrepUpdate,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Операционные поля подготовки архивного комплекта (без ПДн)."""
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    updated = repo.update_archive_prep(
+        case_id,
+        principal.user_id,
+        archive_prep_status=payload.archive_prep_status,
+        archive_tariff=payload.archive_tariff,
+        archive_successor=payload.archive_successor,
+        archive_target=payload.archive_target,
+        archive_followup_at=payload.archive_followup_at,
+    )
+    return {
+        "id": str(updated.get("id") or case_id),
+        "archive_prep_status": updated.get("archive_prep_status"),
+        "archive_tariff": updated.get("archive_tariff"),
+        "archive_successor": updated.get("archive_successor"),
+        "archive_target": updated.get("archive_target"),
+        "archive_followup_at": updated.get("archive_followup_at"),
     }
 
 
@@ -1072,6 +1106,48 @@ def list_failed_notification_jobs(
     _ = principal
     jobs = DiagnosisDeliveryRepository().list_failed_jobs(limit=limit)
     return {"jobs": jobs}
+
+
+@router.post("/admin/notification-jobs/smtp-retry")
+def run_smtp_retry_tick(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """P1: backoff-retry failed email через Yandex SMTP (без авто-ESP API)."""
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    _ = principal
+    failed = DiagnosisDeliveryRepository().list_failed_jobs(limit=30)
+    email_by_case: dict[str, str] = {}
+    cases = CaseRepository()
+    for job in failed:
+        cid = str(job.get("case_id") or "")
+        if not cid or cid in email_by_case:
+            continue
+        case = cases.get_case_row(cid)
+        client = (case or {}).get("clients") or {}
+        if isinstance(client, list):
+            client = client[0] if client else {}
+        # get_case_row may not embed clients — fetch email via client_id
+        email = str(client.get("email") or "").strip()
+        if not email and case and case.get("client_id"):
+            try:
+                crow = (
+                    cases.client.table("clients")
+                    .select("email")
+                    .eq("id", case["client_id"])
+                    .limit(1)
+                    .execute()
+                )
+                rows = crow.data or []
+                email = str((rows[0] if rows else {}).get("email") or "").strip()
+            except Exception:  # noqa: BLE001
+                email = ""
+        if email:
+            email_by_case[cid] = email
+    stats = DiagnosisDeliveryService().retry_smtp_failures(email_by_case=email_by_case)
+    return {"ok": True, **stats}
 
 
 @router.get("/admin/email-delivery/dashboard")

@@ -1022,7 +1022,7 @@ def yookassa_status(
 
 @app.command("amocrm-ensure-fields")
 def amocrm_ensure_fields() -> None:
-    """Создать/обновить custom fields сделки: русские названия, скрыть черновики."""
+    """Создать/обновить custom fields сделки: русские названия, ARCHIVE_*, скрыть черновики."""
     import json
 
     from sfrfr.integrations.amocrm import ensure_amocrm_lead_fields
@@ -1033,6 +1033,47 @@ def amocrm_ensure_fields() -> None:
         raise typer.Exit(code=0)
     if not result.get("ok"):
         raise typer.Exit(code=1)
+
+
+@app.command("diagnosis-survey-due-tick")
+def diagnosis_survey_due_tick() -> None:
+    """scheduled surveys → draft (без автоотправки)."""
+    from sfrfr.services.diagnosis_survey import DiagnosisSurveyService
+
+    stats = DiagnosisSurveyService().run_due_tick()
+    typer.echo(stats)
+
+
+@app.command("notification-smtp-retry")
+def notification_smtp_retry() -> None:
+    """Retry failed Yandex SMTP notification_jobs (backoff)."""
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    failed = DiagnosisDeliveryRepository().list_failed_jobs(limit=30)
+    cases = CaseRepository()
+    email_by_case: dict[str, str] = {}
+    for job in failed:
+        cid = str(job.get("case_id") or "")
+        if not cid or cid in email_by_case:
+            continue
+        case = cases.get_case_row(cid)
+        if not case or not case.get("client_id"):
+            continue
+        crow = (
+            cases.client.table("clients")
+            .select("email")
+            .eq("id", case["client_id"])
+            .limit(1)
+            .execute()
+        )
+        rows = crow.data or []
+        email = str((rows[0] if rows else {}).get("email") or "").strip()
+        if email:
+            email_by_case[cid] = email
+    stats = DiagnosisDeliveryService().retry_smtp_failures(email_by_case=email_by_case)
+    typer.echo(stats)
 
 
 @app.command("amocrm-sync")

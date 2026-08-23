@@ -1000,6 +1000,41 @@ class CaseRepository:
         self.audit(case_id, actor_id, "next_action_updated")
         return response.data[0]
 
+    def update_archive_prep(
+        self,
+        case_id: str,
+        actor_id: str | None,
+        *,
+        archive_prep_status: str | None = None,
+        archive_tariff: str | None = None,
+        archive_successor: str | None = None,
+        archive_target: str | None = None,
+        archive_followup_at: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if archive_prep_status is not None:
+            payload["archive_prep_status"] = archive_prep_status.strip() or None
+        if archive_tariff is not None:
+            payload["archive_tariff"] = archive_tariff.strip() or None
+        if archive_successor is not None:
+            payload["archive_successor"] = archive_successor.strip() or None
+        if archive_target is not None:
+            payload["archive_target"] = archive_target.strip() or None
+        if archive_followup_at is not None:
+            payload["archive_followup_at"] = archive_followup_at or None
+        if not payload:
+            case = self._case(case_id)
+            if case is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+            return case
+        response = (
+            self.client.table("cases").update(payload).eq("id", case_id).execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        self.audit(case_id, actor_id, "archive_prep_updated")
+        return response.data[0]
+
     def update_case_flags(
         self,
         case_id: str,

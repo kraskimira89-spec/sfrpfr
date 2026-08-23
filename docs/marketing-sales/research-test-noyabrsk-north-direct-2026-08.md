@@ -1,8 +1,9 @@
 # План теста: север × Яндекс Директ (волна 1)
 
-**Дата:** 2026-08-15 (обновление по полной матрице Wordstat)  
-**Статус:** черновик (запуск рекламы — BLOCKED до бюджета владельца)  
+**Дата:** 2026-08-15 (обновление по полной матрице Wordstat); статус подтверждён 2026-08-23  
+**Статус:** BLOCKED до бюджета владельца (запуск рекламы не делать)  
 **Сегмент:** `north_or_preferential`  
+**Чеклист владельца:** [checklist-max-direct-owner-tails.md](../ops/checklist-max-direct-owner-tails.md)  
 **Данные:** [reports/wordstat-north-geo-matrix.csv](reports/wordstat-north-geo-matrix.csv), [reports/wordstat-north-actions-2026-08-15.md](reports/wordstat-north-actions-2026-08-15.md)  
 **Посадочная:** https://proverkastaza.ru/proverka-severnogo-stazha/
 

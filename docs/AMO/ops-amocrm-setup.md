@@ -186,6 +186,11 @@ curl -sS -H "Authorization: Bearer ВАШ_ТОКЕН" \
 | `REFERRAL_CODE` | Текст | Реферальный код | видно |
 | `PROBLEM_TYPE` | Текст | Тип проблемы | видно |
 | `LOSS_REASON` | Текст | Причина потери | видно |
+| `ARCHIVE_PREP_STATUS` | Текст | Архив: статус комплекта | видно |
+| `ARCHIVE_TARIFF` | Текст | Архив: 5000/8000 | видно |
+| `ARCHIVE_SUCCESSOR` | Текст | Архив: правопреемник | видно |
+| `ARCHIVE_TARGET` | Текст | Архив: адресат | видно |
+| `ARCHIVE_FOLLOWUP_AT` | Текст | Архив: контрольная дата | видно |
 | `DIAGNOSTIC_PAID_AT` … `SUCCESS_FEE_*` | Текст | Черновик (оплаты / success fee) | **скрыто** (`is_api_only`) |
 
 `sfrfr amocrm-ensure-fields` создаёт недостающие поля и **синхронизирует** русские названия + скрытие черновиков. UTM-поля amo (`tracking_data`) переименовать нельзя — уже скрыты системой.

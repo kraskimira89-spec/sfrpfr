@@ -26,6 +26,11 @@ REGION_BUCKET = "REGION_BUCKET"
 REFERRAL_CODE = "REFERRAL_CODE"
 PROBLEM_TYPE = "PROBLEM_TYPE"
 LOSS_REASON = "LOSS_REASON"
+ARCHIVE_PREP_STATUS = "ARCHIVE_PREP_STATUS"
+ARCHIVE_TARIFF = "ARCHIVE_TARIFF"
+ARCHIVE_SUCCESSOR = "ARCHIVE_SUCCESSOR"
+ARCHIVE_TARGET = "ARCHIVE_TARGET"
+ARCHIVE_FOLLOWUP_AT = "ARCHIVE_FOLLOWUP_AT"
 # Черновик: код не пишет значения до юр. модели / оплаты в sync — скрыты в UI (is_api_only)
 DIAGNOSTIC_PAID_AT = "DIAGNOSTIC_PAID_AT"
 SERVICE_PAID_AT = "SERVICE_PAID_AT"
@@ -99,6 +104,27 @@ LEAD_FIELD_SPECS: tuple[dict[str, Any], ...] = (
     {"code": PROBLEM_TYPE, "name": "Тип проблемы", "type": "text"},
     {"code": LOSS_REASON, "name": "Причина потери", "type": "text"},
     {
+        "code": ARCHIVE_PREP_STATUS,
+        "name": "Архив: статус комплекта",
+        "type": "text",
+    },
+    {"code": ARCHIVE_TARIFF, "name": "Архив: тариф 5000/8000", "type": "text"},
+    {
+        "code": ARCHIVE_SUCCESSOR,
+        "name": "Архив: правопреемник",
+        "type": "text",
+    },
+    {
+        "code": ARCHIVE_TARGET,
+        "name": "Архив: адресат (предп./подтв.)",
+        "type": "text",
+    },
+    {
+        "code": ARCHIVE_FOLLOWUP_AT,
+        "name": "Архив: контрольная дата",
+        "type": "text",
+    },
+    {
         "code": DIAGNOSTIC_PAID_AT,
         "name": "Дата оплаты диагностики (черновик)",
         "type": "text",
@@ -166,6 +192,11 @@ def build_lead_custom_fields(
     referral_code: str | None = None,
     problem_type: str | None = None,
     loss_reason: str | None = None,
+    archive_prep_status: str | None = None,
+    archive_tariff: str | None = None,
+    archive_successor: str | None = None,
+    archive_target: str | None = None,
+    archive_followup_at: str | None = None,
 ) -> list[dict[str, Any]]:
     """Собрать custom_fields_values для сделки (без ПДн-сканов)."""
     out: list[dict[str, Any]] = [cf_text(CASE_ID, case_id)]
@@ -194,6 +225,11 @@ def build_lead_custom_fields(
         (REFERRAL_CODE, referral_code),
         (PROBLEM_TYPE, problem_type),
         (LOSS_REASON, loss_reason),
+        (ARCHIVE_PREP_STATUS, archive_prep_status),
+        (ARCHIVE_TARIFF, archive_tariff),
+        (ARCHIVE_SUCCESSOR, archive_successor),
+        (ARCHIVE_TARGET, archive_target),
+        (ARCHIVE_FOLLOWUP_AT, archive_followup_at),
     )
     for code, value in pairs:
         if value:

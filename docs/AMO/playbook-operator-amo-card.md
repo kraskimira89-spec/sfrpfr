@@ -79,6 +79,20 @@ PDF открыт: …
 Не беспокоить: да | нет
 ```
 
+### После оффера архивного комплекта
+
+Канон: [playbook-archive-request-prep.md](../marketing-sales/playbook-archive-request-prep.md).  
+Custom fields (ensure): `ARCHIVE_PREP_STATUS`, `ARCHIVE_TARIFF` (5000/8000), `ARCHIVE_SUCCESSOR`, `ARCHIVE_TARGET`, `ARCHIVE_FOLLOWUP_AT`.  
+В admin — блок «Архивный комплект» + `waiting_on=archive`. Сканы/ПДн только в кабинете.
+
+```text
+Архив статус: diagnosis_ready → … → pack_issued → awaiting_archive → …
+Тариф: 5000 | 8000
+Правопреемник: известен | неизвестен | проверить
+Адресат: предполагаемый | подтверждённый
+Контрольная дата ответа: …
+```
+
 ### Не показывать / не трогать оператору
 
 | Что | Почему |

@@ -343,10 +343,81 @@ class DiagnosisDeliveryService:
                 "failure_reason": str(
                     result.get("error") or result.get("reason") or "send_failed"
                 ),
+                "failed_at": _now(),
+                "retry_count": int(job.get("retry_count") or 0),
                 "updated_at": _now(),
             },
         )
         return {"ok": False, "send": result, "job_id": job_id}
+
+    def retry_smtp_failures(
+        self,
+        *,
+        email_by_case: dict[str, str],
+        max_jobs: int = 20,
+        max_retries: int = 3,
+    ) -> dict[str, int]:
+        """P1 Yandex SMTP: переотправить failed email с backoff 15/60/240 мин."""
+        backoff_min = (15, 60, 240)
+        stats = {"checked": 0, "retried": 0, "ok": 0, "failed": 0, "skipped": 0}
+        now = datetime.now(UTC)
+        for job in self.repo.list_failed_jobs(limit=max_jobs):
+            stats["checked"] += 1
+            if job.get("channel") != "email":
+                stats["skipped"] += 1
+                continue
+            count = int(job.get("retry_count") or 0)
+            if count >= max_retries:
+                stats["skipped"] += 1
+                continue
+            updated_raw = str(job.get("updated_at") or job.get("failed_at") or "")
+            try:
+                updated = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
+                if updated.tzinfo is None:
+                    updated = updated.replace(tzinfo=UTC)
+            except ValueError:
+                updated = now - timedelta(hours=1)
+            wait = backoff_min[min(count, len(backoff_min) - 1)]
+            if now < updated + timedelta(minutes=wait):
+                stats["skipped"] += 1
+                continue
+            case_id = str(job["case_id"])
+            to_email = (email_by_case.get(case_id) or "").strip()
+            if not to_email:
+                stats["skipped"] += 1
+                continue
+            job_id = str(job["id"])
+            # Вернуть в draft для approve_and_send_email
+            self.repo.update_job(
+                job_id,
+                {
+                    "status": "draft",
+                    "retry_count": count + 1,
+                    "failure_reason": None,
+                    "updated_at": _now(),
+                },
+            )
+            stats["retried"] += 1
+            out = self.approve_and_send_email(
+                job_id=job_id,
+                actor_id="smtp_retry_worker",
+                to_email=to_email,
+            )
+            if out.get("ok"):
+                stats["ok"] += 1
+            else:
+                stats["failed"] += 1
+                # сохранить retry_count после повторного fail
+                failed_job = self.repo.get_job(job_id)
+                if failed_job and failed_job.get("status") == "failed":
+                    self.repo.update_job(
+                        job_id,
+                        {
+                            "retry_count": count + 1,
+                            "updated_at": _now(),
+                        },
+                    )
+        return stats
 
     def approve_max_draft(
         self,

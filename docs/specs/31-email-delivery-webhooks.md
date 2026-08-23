@@ -23,9 +23,13 @@
 
 | Провайдер | Auth | Endpoint |
 |-----------|------|----------|
+| **Yandex SMTP** (исходящая диагностика) | OAuth2 XOAUTH2 | исходящий `send_mail` → Message-ID в job |
 | **Postmark** | HTTP Basic | `POST /api/webhooks/email/postmark` |
 | **Mailgun** | HMAC-SHA256(`timestamp`+`token`) + freshness ±5 мин | `POST /api/webhooks/email/mailgun` |
 | **SendGrid** | ECDSA по **raw body** + headers Signature/Timestamp | `POST /api/webhooks/email/sendgrid` |
+
+Исходящий канон MVP: **Yandex SMTP**. Webhooks ESP — optional (если письмо ушло через этот ESP).  
+Retry SMTP: `POST /api/portal/admin/notification-jobs/smtp-retry` (backoff 15/60/240 мин, max 3).
 
 Не применять один алгоритм ко всем. Health: `GET /api/webhooks/email/health`.
 
@@ -107,4 +111,6 @@ Email job: draft → approved → queued → sent/accepted → delivered
 - [x] hard/soft bounce различие  
 - [x] unmatched message_id  
 - [x] redaction e-mail/UUID из payload  
-- [ ] P1: отправка через API провайдера + retry worker  
+- [x] P1 (Yandex): SMTP retry worker (`smtp-retry`, backoff)  
+- [ ] P2: IMAP DSN → delivery_events (optional)  
+- [ ] P2: отправка через API ESP (если сменим исходящий канал)  

@@ -1137,6 +1137,29 @@ export function AdminCabinet() {
     }
   }
 
+  async function saveArchivePrep(payload: {
+    archive_prep_status: string | null;
+    archive_tariff: string | null;
+    archive_successor: string | null;
+    archive_target: string | null;
+    archive_followup_at: string | null;
+  }) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/archive-prep`, token, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setNotice("Архивный блок сохранён.");
+      await openCase(detail.id);
+    } catch {
+      setNotice("Не удалось сохранить архивный блок. Нужна миграция cases_archive_prep.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function savePipeline() {
     if (!token || !detail) return;
     await apiFetch(`/api/portal/admin/cases/${detail.id}/pipeline-status`, token, {
@@ -2028,6 +2051,7 @@ export function AdminCabinet() {
             onNextActionAt={setNextActionAt}
             onWaitingOn={setWaitingOn}
             onSaveNextAction={() => void saveNextAction()}
+            onSaveArchivePrep={(p) => void saveArchivePrep(p)}
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
             onDismissHint={() => {
