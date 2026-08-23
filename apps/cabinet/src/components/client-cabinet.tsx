@@ -325,10 +325,7 @@ export function ClientCabinet() {
   const showBotTyping = useMemo(() => {
     const last = messages[messages.length - 1];
     if (!last) return false;
-    if (last.author_kind === "client" || last.author_kind === "representative") {
-      return last.body.startsWith("Нажал кнопку:");
-    }
-    return false;
+    return last.author_kind === "client" || last.author_kind === "representative";
   }, [messages]);
 
   const scrollMessagesToEnd = useCallback(() => {

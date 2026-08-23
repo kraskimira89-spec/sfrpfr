@@ -580,6 +580,27 @@ h1 {
 
 .message-form .field { margin-top: 0; }
 
+.message-typing .hint { color: var(--muted, #667085); }
+.message-typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.message-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted, #667085);
+  animation: message-typing-bounce 1.2s ease-in-out infinite;
+}
+.message-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.message-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes message-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
 body.menu-open {
   overflow: hidden;
 }

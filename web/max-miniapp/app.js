@@ -106,6 +106,25 @@
   let statusLabels = {};
   let statusHints = {};
   let currentView = "overview";
+  let messagesPollTimer = null;
+
+  function shouldShowBotTyping(rows) {
+    if (!rows?.length) return false;
+    const last = rows[rows.length - 1];
+    const kind = last?.author_kind || "";
+    return kind === "client" || kind === "representative";
+  }
+
+  function scrollMessagesToEnd() {
+    const viewChat = document.getElementById("view-chat");
+    if (!viewChat) return;
+    requestAnimationFrame(() => {
+      viewChat.scrollIntoView({ behavior: "smooth", block: "end" });
+      if (els.messagesList?.lastElementChild) {
+        els.messagesList.lastElementChild.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+    });
+  }
 
   function show(el) {
     [els.boot, els.form, els.list, els.panel].forEach((p) => p && p.classList.add("hidden"));
@@ -233,7 +252,16 @@
     setMenuOpen(false);
     if (view === "pay") void loadOrders();
     if (view === "result") void loadResult();
-    if (view === "chat") void loadMessages();
+    if (view === "chat") {
+      void loadMessages();
+      if (messagesPollTimer) window.clearInterval(messagesPollTimer);
+      messagesPollTimer = window.setInterval(() => {
+        if (currentView === "chat") void loadMessages();
+      }, 4000);
+    } else if (messagesPollTimer) {
+      window.clearInterval(messagesPollTimer);
+      messagesPollTimer = null;
+    }
   }
 
   function toast(msg) {
@@ -537,20 +565,25 @@
     if (!currentCase?.id || !els.messagesList) return;
     try {
       const rows = await api(`/api/portal/cases/${encodeURIComponent(currentCase.id)}/messages`);
-      if (!rows?.length) {
+      const showTyping = shouldShowBotTyping(rows);
+      if (!rows?.length && !showTyping) {
         els.messagesList.innerHTML = "";
         if (els.messagesEmpty) els.messagesEmpty.classList.remove("hidden");
         return;
       }
       if (els.messagesEmpty) els.messagesEmpty.classList.add("hidden");
-      els.messagesList.innerHTML = rows
-        .slice(-20)
-        .map((m) => {
-          const who = escapeHtml(m.author_kind || "system");
-          const body = escapeHtml(m.body || "");
-          return `<li><span class="hint">${who}</span><br>${body}</li>`;
-        })
-        .join("");
+      const items = (rows || []).slice(-20).map((m) => {
+        const who = escapeHtml(m.author_kind || "system");
+        const body = escapeHtml(m.body || "");
+        return `<li><span class="hint">${who}</span><br>${body}</li>`;
+      });
+      if (showTyping) {
+        items.push(
+          '<li class="message-typing" aria-live="polite"><span class="hint">Бот MAX · печатает…</span><p class="message-typing-dots" aria-hidden="true"><span></span><span></span><span></span></p></li>',
+        );
+      }
+      els.messagesList.innerHTML = items.join("");
+      scrollMessagesToEnd();
     } catch (err) {
       if (els.messagesEmpty) {
         els.messagesEmpty.textContent = err.message || "Сообщения недоступны";

@@ -20,6 +20,7 @@ class _SilentBot:
     def __init__(self) -> None:
         self.sent: list[tuple[object, str]] = []
         self.attachments: list[object] = []
+        self.typing: list[tuple[object, str]] = []
 
     @property
     def available(self) -> bool:
@@ -31,6 +32,7 @@ class _SilentBot:
         return {"ok": True}
 
     def send_chat_action(self, *, chat_id, action="typing_on"):  # noqa: ANN001
+        self.typing.append((chat_id, action))
         return {"ok": True}
 
     def answer_callback(self, callback_id: str, **kwargs):  # noqa: ANN003
@@ -287,6 +289,16 @@ def test_free_text_after_start_nudges_without_full_welcome(
     assert "кнопками" in (result.reply or "").lower()
     assert "Для кого проверка" in (result.reply or "")
     assert result.reply != WELCOME_TEXT
+    get_settings.cache_clear()
+
+
+def test_typing_on_before_callback_reply(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(24, "/start"), bot=bot)
+    bot.typing.clear()
+    handle_max_update(_cb(24, "intake:whom:self"), bot=bot)
+    assert bot.typing
+    assert bot.typing[-1] == (1, "typing_on")
     get_settings.cache_clear()
 
 

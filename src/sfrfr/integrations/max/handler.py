@@ -381,6 +381,28 @@ def _signal_bot_typing(
         logger.debug("max_typing_on failed chat_id=%s err=%s", chat_id, exc)
 
 
+def _update_expects_bot_reply(
+    *,
+    update_type: str,
+    text: str,
+    callback: str,
+    start_hit: bool,
+    login_hit: bool,
+    update: dict[str, Any],
+) -> bool:
+    """Эвристика: входящий апдейт, на который бот ответит (не служебные события)."""
+    if "bot_added" in update_type or "bot_removed" in update_type:
+        return False
+    if callback or start_hit or login_hit or "bot_started" in update_type:
+        return True
+    if text.strip():
+        return True
+    file_bytes = update.get("file_bytes")
+    if isinstance(file_bytes, (bytes, bytearray)):
+        return True
+    return bool(extract_downloadable_files(update))
+
+
 def _ack_message_callback(
     bot: MaxBotClient,
     update: dict[str, Any],
@@ -1257,7 +1279,6 @@ def _handle_bot_start(
         return resumed
 
     _ensure_supabase_max_client(user_id)
-    _signal_bot_typing(bot, chat_id=chat_id)
     intake = get_intake_store().upsert_started(user_id)
     # Дело с /start: сотрудник видит бота/кнопки до кабинета и «Позвать специалиста».
     case_id = _ensure_case_for_intake(
@@ -1958,6 +1979,7 @@ def _handle_marketing_consent(
     if not (stop or grant or deny):
         return None
 
+    _signal_bot_typing(bot, chat_id=chat_id)
     case_id = _case_id_for_max_user(user_id)
     client_id: str | None = None
     try:
@@ -2134,7 +2156,6 @@ def handle_max_update(
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
         _ack_message_callback(bot, update)
-        _signal_bot_typing(bot, chat_id=chat_id)
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
 
@@ -2162,6 +2183,16 @@ def handle_max_update(
     )
     if mkt is not None:
         return mkt
+
+    if _update_expects_bot_reply(
+        update_type=update_type,
+        text=text,
+        callback=callback,
+        start_hit=start_hit,
+        login_hit=login_hit,
+        update=update,
+    ):
+        _signal_bot_typing(bot, chat_id=chat_id)
 
     # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:
