@@ -787,7 +787,10 @@ def send_max_reply_to_client(
     try:
         result = bot.send_message(text=text, user_id=max_uid)
     except Exception as exc:  # noqa: BLE001
-        detail = f"max_send_failed:{type(exc).__name__}"
+        detail = (
+            "Не удалось отправить сообщение в MAX. "
+            "Проверьте связь клиента с ботом и повторите."
+        )
         raise HTTPException(status_code=502, detail=detail) from exc
     sb.table("case_messages").insert(
         {
@@ -1416,7 +1419,11 @@ def request_marketing_consent_max(
         bot.send_message(text=text, user_id=max_uid, attachments=attachments)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
-            status_code=502, detail=f"max_send_failed:{type(exc).__name__}"
+            status_code=502,
+            detail=(
+                "Не удалось отправить сообщение в MAX. "
+                "Проверьте связь клиента с ботом и повторите."
+            ),
         ) from exc
     repo.audit(case_id, principal.audit_actor_id(), "marketing_consent_requested")
     return {"ok": True, "action": "marketing_consent_requested", "channel": "max"}
@@ -1546,7 +1553,11 @@ def admin_order_pay_link(
             raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
-                status_code=502, detail=f"max_send_failed:{type(exc).__name__}"
+                status_code=502,
+                detail=(
+                    "Не удалось отправить сообщение в MAX. "
+                    "Проверьте связь клиента с ботом и повторите."
+                ),
             ) from exc
         repo.append_finance_audit(
             order_id=order_id,
@@ -1594,7 +1605,11 @@ def admin_order_remind(
             bot.send_message(text=text, user_id=max_uid)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
-                status_code=502, detail=f"max_send_failed:{type(exc).__name__}"
+                status_code=502,
+                detail=(
+                    "Не удалось отправить сообщение в MAX. "
+                    "Проверьте связь клиента с ботом и повторите."
+                ),
             ) from exc
         sent = True
     repo.update_order_fields(

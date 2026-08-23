@@ -1003,6 +1003,11 @@ header div { display: grid; gap: 3px; }
   top: 0;
   z-index: 5;
 }
+.notice--error {
+  background: #fdeeee;
+  border-color: #e8b4b4;
+  color: #7a1f1f;
+}
 .lead-compact {
   margin: 0 0 1.25rem;
   font-size: 1.1rem;

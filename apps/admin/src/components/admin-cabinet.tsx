@@ -15,6 +15,7 @@ import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-
 import { CaseChatPanel } from "@/components/case-chat-panel";
 import { CaseFunnelMain, type StepChatMessage } from "@/components/case-funnel-main";
 import { StaffRolesPanel } from "@/components/staff-roles-panel";
+import { humanizeStaffApiError } from "@/lib/staff-api-errors";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -274,12 +275,13 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
     } catch {
       /* оставить сырой текст */
     }
-    const message =
+    const rawMessage =
       typeof detail === "string"
         ? detail
         : typeof detail.detail === "string"
           ? detail.detail
           : `HTTP ${response.status}`;
+    const message = humanizeStaffApiError(rawMessage);
     const err = new Error(message) as Error & {
       status?: number;
       payload?: Record<string, unknown>;
@@ -1748,7 +1750,14 @@ export function AdminCabinet() {
         )}
       </nav>
 
-      {notice && <p className="notice notice--sticky" role="status">{notice}</p>}
+      {notice && (
+        <p
+          className={`notice notice--sticky${/не удалось|ошибк/i.test(notice) ? " notice--error" : ""}`}
+          role="status"
+        >
+          {notice}
+        </p>
+      )}
 
       {view === "dashboard" && dashboard && (
         <section className="stack">

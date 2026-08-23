@@ -420,21 +420,52 @@ export function CaseFunnelMain({
             {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
           </h1>
           <div className="case-funnel-badges">
-            <span className="badge on">{stageLabel}</span>
-            {detail.client.max_linked ? <span className="badge on">MAX</span> : <span className="badge">MAX нет</span>}
-            {docCount === 0 ? <span className="badge">Нет документов</span> : <span className="badge on">Док. {docCount}</span>}
+            <span className="badge on" title="Текущий этап воронки — здесь идёт работа">
+              Этап: {stageById[current]?.label ?? stageLabel}
+            </span>
+            <span
+              className="badge"
+              title="Статус в реестре дел (может отличаться от этапа воронки, пока не обновлён вручную)"
+            >
+              В реестре: {stageLabel}
+            </span>
+            <span className="badge on" title="Кто должен сделать следующий шаг">
+              {slaHint(detail)}
+            </span>
+            {detail.client.max_linked ? (
+              <span className="badge on" title="Клиент связан с ботом MAX — можно писать в чат">
+                MAX
+              </span>
+            ) : (
+              <span className="badge" title="Клиент ещё не связан с MAX — сначала настройте канал">
+                MAX нет
+              </span>
+            )}
+            {docCount === 0 ? (
+              <span className="badge" title="В деле пока нет загруженных файлов">
+                Нет документов
+              </span>
+            ) : (
+              <span className="badge on" title="Число загруженных файлов в деле">
+                Док. {docCount}
+              </span>
+            )}
           </div>
         </div>
         <p className="case-funnel-meta">
-          {slaHint(detail)} · Ответственный: {assigned}
+          Ответственный: {assigned}
+          {stageById[current]?.reason ? ` · ${stageById[current].reason}` : ""}
         </p>
-        <p className="warning inline">{detail.warning}</p>
+        {detail.warning ? (
+          <p className="warning inline" title="Постоянное предупреждение сервиса">
+            {detail.warning}
+          </p>
+        ) : null}
 
         <div className="panel accent case-card--wide case-action-bar">
           <p className="case-action-bar-line">
-            <strong>Текущий этап:</strong> {stageById[current]?.label}
-            {" · "}
-            <strong>Срок:</strong> {slaHint(detail)}
+            <strong>Сейчас:</strong> {stageById[current]?.label}
+            {stageById[current]?.reason ? ` (${stageById[current].reason})` : ""}
             {" · "}
             <strong>Следующее действие:</strong> {nextActionText || detail.next_action || "не задано"}
             {" · "}
@@ -444,25 +475,31 @@ export function CaseFunnelMain({
             <p className="hint">Назначьте ответственного, чтобы зафиксировать владение делом.</p>
           ) : null}
           <div className="filters case-action-bar-fields">
-            <label>
+            <label title="Что сотрудник или клиент должен сделать дальше">
               Что сделать
               <input
                 value={nextActionText}
                 onChange={(e) => onNextActionText(e.target.value)}
                 placeholder="Запросить трудовую книжку"
+                title="Кратко: следующий шаг по делу"
               />
             </label>
-            <label>
+            <label title="Когда проверить выполнение по этому шагу">
               Срок
               <input
                 type="datetime-local"
                 value={nextActionAt}
                 onChange={(e) => onNextActionAt(e.target.value)}
+                title="Дедлайн следующего действия"
               />
             </label>
-            <label>
+            <label title="Кто должен действовать: сотрудник, клиент, СФР и т.д.">
               Исполнитель
-              <select value={waitingOn} onChange={(e) => onWaitingOn(e.target.value)}>
+              <select
+                value={waitingOn}
+                onChange={(e) => onWaitingOn(e.target.value)}
+                title="От кого ждём следующий шаг"
+              >
                 <option value="staff">Сотрудник</option>
                 <option value="client">Клиент</option>
                 <option value="archive">Архив</option>
@@ -479,7 +516,8 @@ export function CaseFunnelMain({
                 className="ghost"
                 disabled={busy}
                 onClick={onTake}
-                title="Назначить это дело на себя"
+                title="Назначить это дело на себя: вы станете ответственным сотрудником"
+                aria-label="Назначить дело на себя"
               >
                 Назначить себя
               </button>
@@ -489,7 +527,8 @@ export function CaseFunnelMain({
               className="ghost"
               disabled={busy}
               onClick={onSuggestStep}
-              title="DeepSeek предложит действие и черновики. В MAX не отправит"
+              title="DeepSeek предложит следующий шаг и черновики сообщений. В MAX ничего не отправит — только подставит текст"
+              aria-label="Подставить шаблон через DeepSeek"
             >
               {busy ? "DeepSeek думает…" : "Подставить шаблон"}
             </button>
@@ -497,7 +536,8 @@ export function CaseFunnelMain({
               type="button"
               disabled={busy}
               onClick={onSaveNextAction}
-              title="Сохранить следующий шаг, срок и исполнителя"
+              title="Сохранить поля «Что сделать», «Срок» и «Исполнитель» в карточке дела"
+              aria-label="Сохранить следующий шаг"
             >
               Сохранить
             </button>
@@ -505,45 +545,97 @@ export function CaseFunnelMain({
               type="button"
               disabled={busy || !canAct(current)}
               onClick={runPrimaryCta}
-              title={stageById[current]?.reason || "Главное действие этапа"}
+              title={
+                stageById[current]?.reason
+                  ? `${cta}: ${stageById[current].reason}`
+                  : `Главное действие текущего этапа «${stageById[current]?.label ?? ""}»`
+              }
+              aria-label={cta}
             >
               {cta}
             </button>
             <details className="case-funnel-more">
-              <summary className="ghost" title="Служебные ссылки">
+              <summary
+                className="ghost"
+                title="Дополнительно: MAX, кабинет клиента, amoCRM, Телемост, Tracker, письмо"
+                aria-label="Ещё действия"
+              >
                 ⋮
               </summary>
               <div className="case-funnel-more-menu">
                 {detail.client.max_linked ? (
-                  <button type="button" className="linkish" onClick={onFocusMax}>
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={onFocusMax}
+                    title="Перейти к полю ответа в чате MAX справа"
+                  >
                     Написать в MAX
                   </button>
                 ) : null}
-                <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
+                <a
+                  href={detail.channels.cabinet_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Открыть личный кабинет клиента в новой вкладке"
+                >
                   Кабинет клиента
                 </a>
                 {detail.crm_url ? (
-                  <a href={detail.crm_url} target="_blank" rel="noreferrer">
+                  <a
+                    href={detail.crm_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Открыть карточку лида в amoCRM"
+                  >
                     amoCRM
                   </a>
                 ) : null}
                 {detail.meeting_url ? (
-                  <a href={detail.meeting_url} target="_blank" rel="noreferrer">
+                  <a
+                    href={detail.meeting_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Открыть ссылку на встречу Телемост"
+                  >
                     Телемост
                   </a>
                 ) : null}
                 {detail.tracker_issue_url && detail.tracker_last_issue_key ? (
-                  <a href={detail.tracker_issue_url} target="_blank" rel="noreferrer">
+                  <a
+                    href={detail.tracker_issue_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Открыть связанную задачу в Яндекс Трекере"
+                  >
                     Трекер {detail.tracker_last_issue_key}
                   </a>
                 ) : null}
-                <button type="button" className="linkish" disabled={busy} onClick={onCreateTelemost}>
+                <button
+                  type="button"
+                  className="linkish"
+                  disabled={busy}
+                  onClick={onCreateTelemost}
+                  title="Создать новую встречу Яндекс Телемост и сохранить ссылку в деле"
+                >
                   Создать Телемост
                 </button>
-                <button type="button" className="linkish" disabled={busy} onClick={onOpenTrackerModal}>
+                <button
+                  type="button"
+                  className="linkish"
+                  disabled={busy}
+                  onClick={onOpenTrackerModal}
+                  title="Создать обезличенную задачу качества в Трекере (без ПДн клиента)"
+                >
                   Создать задачу в Tracker
                 </button>
-                <button type="button" className="linkish" disabled={busy} onClick={onSendEmail}>
+                <button
+                  type="button"
+                  className="linkish"
+                  disabled={busy}
+                  onClick={onSendEmail}
+                  title="Отправить клиенту письмо с запросом документов на его e-mail"
+                >
                   Письмо: документы
                 </button>
               </div>
