@@ -240,6 +240,7 @@ if [ -n "${MENU_ID}" ]; then
   "${WP[@]}" menu item add-custom "$MENU_ID" "Контакты" "/kontakty/" >/dev/null
   "${WP[@]}" menu item add-custom "$MENU_ID" "Личный кабинет" "${CABINET_URL:-https://cabinet.proverkastaza.ru}/" >/dev/null
   "${WP[@]}" menu location assign "$MENU_ID" primary >/dev/null 2>&1 || true
+  "${WP[@]}" menu location assign "$MENU_ID" mobile_menu >/dev/null 2>&1 || true
   "${WP[@]}" menu location unset secondary_menu >/dev/null 2>&1 || true
 fi
 

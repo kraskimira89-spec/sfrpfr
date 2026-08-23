@@ -93,6 +93,11 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert '@font-face' in css
     assert "/wp-content/uploads/sfrfr/fonts/manrope/" in css
     assert any((REPO / "scripts/assets/fonts/manrope").glob("manrope-*-400-normal.woff2"))
+    nav_mobile = (REPO / "scripts/wp-mu-plugins/sfrfr-nav-mobile.php").read_text(encoding="utf-8")
+    assert "mobile_menu" in nav_mobile
+    assert "locations['primary']" in nav_mobile
+    assert "sfrfr-mobile-nav-v1" in css
+    assert "z-index: 1100" in css
     assert "sfrfr-sticky-cta" in home
     assert 'id="stati"' in home  # 3 карточки блога (§13.3)
     assert "Полезные статьи" in home

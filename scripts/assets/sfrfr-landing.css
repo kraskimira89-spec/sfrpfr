@@ -3034,11 +3034,12 @@ header .custom-logo-link img {
   Выпадающие меню (Главная / Услуги / Статьи / Эксперты — один стиль):
   — белая панель + левый контур;
   — hover: синеватая подложка + зелёная полоска справа с отступом от края.
+  Только desktop: на mobile drawer position:absolute ломает stack-on-mobile.
 */
+@media (min-width: 922px) {
 .main-header-menu .sub-menu,
 .ast-builder-menu-1 .main-header-menu .sub-menu,
 .ast-desktop .main-header-menu .sub-menu,
-.ast-header-break-point .main-header-menu .sub-menu,
 .ast-builder-menu .main-header-menu .sub-menu,
 nav .main-header-menu .sub-menu {
   position: absolute !important;
@@ -3056,6 +3057,7 @@ nav .main-header-menu .sub-menu {
     0 14px 36px rgba(26, 35, 48, 0.16),
     0 4px 12px rgba(30, 78, 121, 0.08) !important;
   z-index: 10050 !important;
+}
 }
 
 .main-header-menu .sub-menu .menu-item,
@@ -3128,11 +3130,13 @@ nav .main-header-menu .sub-menu .menu-item:hover > .menu-link::before {
 }
 
 /* Скрыть стрелки Astra внутри пунктов submenu — единый вид */
+@media (min-width: 922px) {
 .main-header-menu .sub-menu .menu-link .ast-icon,
 .main-header-menu .sub-menu .menu-link .dropdown-menu-toggle,
 .ast-builder-menu-1 .main-header-menu .sub-menu .menu-link .ast-icon,
 .ast-builder-menu-1 .main-header-menu .sub-menu .ast-menu-toggle {
   display: none !important;
+}
 }
 
 /* Сброс «кнопочного» стиля для якорей в выпадающем меню */
@@ -3248,7 +3252,8 @@ nav .main-header-menu .sub-menu .menu-item:hover > .menu-link::before {
   opacity: 1 !important;
 }
 
-/* Поиск по сайту в шапке — единый компактный control в ряду меню */
+/* Поиск по сайту в шапке — единый компактный control в ряду меню (desktop) */
+@media (min-width: 922px) {
 .main-header-menu,
 .ast-builder-menu-1 .main-header-menu,
 .ast-builder-menu .main-header-menu {
@@ -3276,6 +3281,7 @@ nav .main-header-menu .sub-menu .menu-item:hover > .menu-link::before {
   max-width: none !important;
   min-width: 0 !important;
   position: relative !important;
+}
 }
 
 .sfrfr-menu-search.menu-item {
@@ -3654,15 +3660,6 @@ mark.sfrfr-search-hit,
 }
 
 @media (max-width: 921px) {
-  .main-header-menu,
-  .ast-builder-menu-1 .main-header-menu {
-    flex-wrap: wrap !important;
-  }
-
-  .main-header-menu > .menu-item:not(.sfrfr-menu-search) > .menu-link {
-    white-space: normal !important;
-  }
-
   .sfrfr-menu-search.menu-item {
     margin: 0.75rem 0 0.35rem !important;
     width: 100% !important;
@@ -3740,6 +3737,100 @@ mark.sfrfr-search-hit,
 .home .ast-page-title-wrapper,
 .home .ast-archive-description {
   display: none !important;
+}
+
+/*
+  sfrfr-mobile-nav-v1
+  Бургер и drawer: primary-меню видно на всех страницах;
+  z-index 1100 — выше контента и sticky CTA (900), ниже cookie (10050).
+*/
+@media (max-width: 921px) {
+  #masthead,
+  .ast-mobile-header-wrap {
+    position: relative;
+    z-index: 1100;
+  }
+
+  .ast-mobile-header-wrap .site-header-primary-section-left,
+  .ast-mobile-header-wrap .ast-site-identity,
+  .ast-mobile-header-wrap .site-branding {
+    min-width: 0 !important;
+    max-width: calc(100% - 3.25rem) !important;
+    flex: 1 1 auto !important;
+  }
+
+  .ast-mobile-header-wrap .site-title,
+  .ast-mobile-header-wrap .site-title a {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  [data-section="section-header-mobile-trigger"],
+  .ast-mobile-header-wrap .site-header-primary-section-right {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+  }
+
+  .ast-mobile-menu-trigger-minimal,
+  .main-header-menu-toggle {
+    position: relative;
+    z-index: 1101;
+    flex-shrink: 0 !important;
+  }
+
+  .ast-mobile-header-content {
+    z-index: 1099;
+    background: #ffffff !important;
+    box-shadow: 0 12px 32px rgba(26, 35, 48, 0.14);
+    max-height: min(78vh, calc(100vh - 5.5rem));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ast-mobile-header-content .main-header-menu,
+  .ast-builder-menu-mobile .main-header-menu,
+  #ast-hf-mobile-menu .main-header-menu {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu > .menu-item,
+  .ast-builder-menu-mobile .main-header-menu > .menu-item {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu > .menu-item > .menu-link,
+  .ast-builder-menu-mobile .main-header-menu > .menu-item > .menu-link {
+    white-space: normal !important;
+    justify-content: flex-start !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu .sub-menu,
+  .ast-builder-menu-mobile .main-header-menu .sub-menu {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 0 0 0.65rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    z-index: auto !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle {
+    display: inline-flex !important;
+  }
 }
 
 /* ——— Мобильный акцент ——— */
