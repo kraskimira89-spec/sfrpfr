@@ -26,6 +26,7 @@
 - [Рекомендации сайт + продвижение по северной матрице](reports/wordstat-north-actions-2026-08-15.md) — P0/P1 после полного обхода 13×22.
 - [Статус реализации](reports/2026-08-09-implementation-status.md) — что сделано в коде и что BLOCKED у владельца.
 - Playbook’и: [**ясность / воронка / возражения**](playbook-sales-clarity-funnel.md), [квалификация](playbook-sales-qualification.md), [редактура](playbook-editorial-standard.md), [партнёры](playbook-partner-onepager.md), [посадочная `/partneram/`](playbook-partneram-page.md), [обратная связь CF7](playbook-site-feedback-cf7.md), [Простой старт Директ](playbook-yandex-direct-simple-start.md), [трудовая → таблица Word](playbook-trudovaya-word-table.md), [карточка Яндекс Бизнес](playbook-yandex-business-card.md), [Яндекс Форма к отзыву](playbook-yandex-form-review-prompts.md).
+- Чек-лист самопомощи ИЛС (MAX): [`scripts/assets/copy/ils-self-check-checklist.md`](../../scripts/assets/copy/ils-self-check-checklist.md) — первый безопасный шаг, не утешительный приз.
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
 - **Задачи и wiki (Notion не используем):** Яндекс Трекер (очередь `SFRFR`) + MCP [yandex-tracker-mcp](../ops/yandex-tracker-mcp.md); Wiki SFRFR; SoT — [yandex-tracker-ops.md](../ops/yandex-tracker-ops.md).
 - **Стек автоматизации (без Make/Albato):** [`docs/ops/automation-stack-ru.md`](../ops/automation-stack-ru.md) — лиды, amo, AI, n8n P2.
