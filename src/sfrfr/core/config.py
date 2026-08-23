@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     yandex_telemost_enabled: bool = True
     yandex_mail_enabled: bool = True
     yandex_mail_imap_enabled: bool = False
+    # ТЗ-31: Postmark webhooks (Basic Auth). Отправка пока может идти через Yandex SMTP.
+    postmark_webhook_user: str = ""
+    postmark_webhook_password: str = ""
+    postmark_server_token: str = ""  # опционально, для будущей отправки через Postmark
+    email_delivery_hash_salt: str = ""  # пусто = app_secret_key
     yandex_calendar_enabled: bool = True
     yandex_disk_enabled: bool = False
     # Алиасы из раздела «Аналитика» / docs (часто заполнены вместо YANDEX_*)

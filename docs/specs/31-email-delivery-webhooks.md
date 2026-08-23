@@ -1,0 +1,106 @@
+# ТЗ-31: webhook-доставка e-mail ≠ открытие PDF
+
+**Версия:** 1.0  
+**Дата:** 2026-08-23  
+**Статус:** MVP — Postmark webhooks + журнал `delivery_events`  
+**Связано:** [ТЗ-28](28-diagnosis-secure-delivery.md) · [ТЗ-30](30-diagnosis-delivery-triggers.md) · [Postmark webhooks](https://postmarkapp.com/developer/webhooks/webhooks-overview)
+
+---
+
+## 1. Принцип
+
+| Событие | Значение |
+|--------|----------|
+| `email delivered` | Письмо принято **почтовым сервером** получателя |
+| `email opened` | Tracking-пиксель (ненадёжно) — **только аналитика** |
+| `diagnostic_result opened` | Клиент открыл PDF в кабинете / secure link |
+
+`delivered` **не** переводит PDF в `opened`.
+
+---
+
+## 2. Провайдер MVP: Postmark
+
+Исходящая почта диагностики пока может идти через **Yandex SMTP** (`Message-ID` сохраняется в `notification_jobs.provider_message_id`).  
+Webhook-инфраструктура рассчитана на **Postmark** (официальная схема: HTTPS + **HTTP Basic Auth**, без HMAC).
+
+Endpoint:
+
+```text
+POST https://api.proverkastaza.ru/api/webhooks/email/postmark
+```
+
+Env:
+
+```text
+POSTMARK_WEBHOOK_USER=…
+POSTMARK_WEBHOOK_PASSWORD=…
+# опционально позже:
+POSTMARK_SERVER_TOKEN=…
+EMAIL_DELIVERY_HASH_SALT=…   # иначе APP_SECRET_KEY
+```
+
+В Postmark: URL с Basic Auth, триггеры Delivery / Bounce / SpamComplaint / Open / Click / SubscriptionChange.  
+`Include content` = **выкл**.
+
+---
+
+## 3. Статусы
+
+```text
+PDF:  published → link_issued → opened → …
+Email job: draft → approved → queued → sent/accepted → delivered
+           ↘ deferred / soft_bounce (retry)
+           ↘ hard_bounce / failed / cancelled
+```
+
+---
+
+## 4. Таблицы
+
+- `delivery_events` — fingerprint, redacted JSON, без полного e-mail/PDF/ПДн  
+- `contact_delivery_status` — техстоп канала (≠ отзыв ПДн)  
+- поля `notification_jobs`: provider, provider_message_id, recipient_domain, *_at, error_*
+
+---
+
+## 5. Переходы
+
+| Webhook | Действие |
+|--------|----------|
+| accepted/processed | job → accepted |
+| delivered | job → delivered (**не** PDF opened) |
+| deferred / soft bounce | temporary_problem; retry-метка |
+| hard bounce | block channel; cancel pending email; задача сотруднику |
+| complaint | block; cancel; security-задача |
+| unsubscribe | marketing consent revoked (email only) |
+| open / click | только запись в journal |
+
+Идемпотентность: `event_fingerprint` SHA-256.
+
+---
+
+## 6. Dashboard
+
+`GET /api/portal/admin/email-delivery/dashboard` — counts + unmatched (staff).
+
+---
+
+## 7. Rollout / rollback
+
+1. Миграция `20260823230000_email_delivery_webhooks.sql` (SFRFR).  
+2. Задать Basic Auth env на VPS.  
+3. Создать webhook в Postmark → проверить `/api/webhooks/email/postmark/health`.  
+4. Rollback: отключить webhook в Postmark; таблицы оставить.
+
+---
+
+## 8. Приёмка
+
+- [x] Basic Auth до разбора payload  
+- [x] Идемпотентность fingerprint  
+- [x] delivered ≠ PDF opened  
+- [x] hard/soft bounce различие  
+- [x] unmatched message_id  
+- [x] redaction e-mail/UUID из payload  
+- [ ] P1: отправка через Postmark API + retry worker  

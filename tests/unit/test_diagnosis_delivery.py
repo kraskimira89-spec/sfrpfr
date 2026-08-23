@@ -72,6 +72,7 @@ class _MemRepo:
     def get_published_for_case(self, case_id: str) -> dict[str, Any] | None:
         for st in (
             "published",
+            "link_issued",
             "delivered",
             "opened",
             "feedback_pending",
@@ -151,7 +152,7 @@ class _MemRepo:
         rows = [
             r
             for r in self.results.values()
-            if r.get("status") in ("published", "delivered")
+            if r.get("status") in ("published", "link_issued", "delivered")
         ]
         return rows[:limit]
 

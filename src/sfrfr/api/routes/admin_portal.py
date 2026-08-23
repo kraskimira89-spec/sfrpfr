@@ -1071,6 +1071,22 @@ def list_failed_notification_jobs(
     return {"jobs": jobs}
 
 
+@router.get("/admin/email-delivery/dashboard")
+def email_delivery_dashboard(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Агрегаты webhook-доставки: delivered/bounce/complaint/unmatched (без ПДн)."""
+    from sfrfr.db.email_delivery_repository import EmailDeliveryRepository
+
+    _ = principal
+    repo = EmailDeliveryRepository()
+    return {
+        "counts": repo.dashboard_counts(),
+        "unmatched": repo.list_unmatched(limit=30),
+        "note": "email delivered ≠ PDF opened; open/click — только аналитика",
+    }
+
+
 @router.post("/admin/diagnosis-delivery/unread-tick")
 def run_unread_reminder_tick(
     principal: Principal = Depends(require_staff),

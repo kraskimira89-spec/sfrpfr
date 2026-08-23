@@ -39,6 +39,7 @@ class DiagnosisDeliveryRepository:
         """Активный результат (ещё не closed/revoked)."""
         for status in (
             "published",
+            "link_issued",
             "delivered",
             "opened",
             "feedback_pending",
@@ -147,7 +148,7 @@ class DiagnosisDeliveryRepository:
         resp = (
             self.client.table("diagnostic_results")
             .select("*")
-            .in_("status", ["published", "delivered"])
+            .in_("status", ["published", "link_issued", "delivered"])
             .order("published_at", desc=True)
             .limit(min(max(limit, 1), 100))
             .execute()

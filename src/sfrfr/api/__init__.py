@@ -5,6 +5,7 @@ from sfrfr.api.routes import (
     admin_portal,
     cases,
     documents,
+    email_webhooks,
     health,
     max_webhook,
     payments,
@@ -80,6 +81,11 @@ def create_app() -> FastAPI:
         payments.webhook_router,
         prefix="/api/integrations/payments",
         tags=["payments"],
+    )
+    app.include_router(
+        email_webhooks.router,
+        prefix="/api/webhooks",
+        tags=["email-webhooks"],
     )
     app.include_router(
         payments.router,

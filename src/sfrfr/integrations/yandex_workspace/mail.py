@@ -6,7 +6,7 @@ import base64
 import smtplib
 import ssl
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, make_msgid
 from typing import Any
 
 from sfrfr.core.config import get_settings
@@ -96,6 +96,9 @@ def send_mail(
     msg["From"] = from_header
     msg["To"] = to_addr
     msg["Subject"] = final_subject
+    # Стабильный Message-ID для сопоставления с webhook (если провайдер его сохранит)
+    message_id = make_msgid(domain="proverkastaza.ru")
+    msg["Message-ID"] = message_id
     msg.set_content(final_body)
     html_body = (html or "").strip()
     if html_body:
@@ -114,6 +117,8 @@ def send_mail(
             "from": from_header,
             "template": tpl_key,
             "subject": final_subject,
+            "message_id": message_id.strip("<>"),
+            "provider": "yandex_smtp",
         }
     except smtplib.SMTPAuthenticationError as exc:
         detail = (

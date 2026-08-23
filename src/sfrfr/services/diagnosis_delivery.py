@@ -288,15 +288,22 @@ class DiagnosisDeliveryService:
             raise ValueError("not_email_job")
 
         assert_safe_notify_text(str(job.get("body") or ""))
+        now = _now()
         self.repo.update_job(
             job_id,
             {
                 "status": "queued",
                 "approved_by": actor_id,
-                "updated_at": _now(),
+                "approved_at": now,
+                "queued_at": now,
+                "updated_at": now,
             },
         )
         from sfrfr.integrations.yandex_workspace import send_mail
+        from sfrfr.services.email_delivery_normalize import (
+            contact_key_for_email,
+            recipient_domain,
+        )
 
         result = send_mail(
             to=to_email,
@@ -306,19 +313,25 @@ class DiagnosisDeliveryService:
             body=str(job.get("body") or ""),
         )
         if result.get("ok"):
+            mid = str(result.get("message_id") or result.get("id") or "").strip() or None
             self.repo.update_job(
                 job_id,
                 {
                     "status": "sent",
                     "sent_at": _now(),
-                    "provider_message_id": result.get("message_id") or result.get("id"),
+                    "accepted_at": _now(),
+                    "provider": str(result.get("provider") or "yandex_smtp"),
+                    "provider_message_id": mid,
+                    "recipient_contact_key": contact_key_for_email(to_email),
+                    "recipient_domain": recipient_domain(to_email),
                     "updated_at": _now(),
                 },
             )
             if job.get("job_type") == "result_ready" and job.get("diagnostic_result_id"):
+                # PDF: ссылка выдана / уведомление ушло — НЕ email delivered и НЕ opened
                 self.repo.update_result(
                     str(job["diagnostic_result_id"]),
-                    {"status": "delivered", "updated_at": _now()},
+                    {"status": "link_issued", "updated_at": _now()},
                 )
                 self.feedback.patch(case_id, {"feedback_status": "nav_sent"})
             return {"ok": True, "send": result, "job_id": job_id, "audit": "notification_sent"}
@@ -384,7 +397,7 @@ class DiagnosisDeliveryService:
         if job.get("job_type") == "result_ready" and job.get("diagnostic_result_id"):
             self.repo.update_result(
                 str(job["diagnostic_result_id"]),
-                {"status": "delivered", "updated_at": _now()},
+                {"status": "link_issued", "updated_at": _now()},
             )
             self.feedback.patch(str(job["case_id"]), {"feedback_status": "nav_sent"})
         return {"ok": True, "audit": "notification_sent"}
@@ -444,7 +457,12 @@ class DiagnosisDeliveryService:
         if record_open:
             self.feedback.patch(case_id, {"pdf_opened_at": now})
             self.repo.cancel_jobs(case_id, job_types=["result_unread"])
-            if result and result.get("status") in ("published", "delivered", "opened"):
+            if result and result.get("status") in (
+                "published",
+                "link_issued",
+                "delivered",
+                "opened",
+            ):
                 self.repo.update_result(
                     result_id,
                     {"status": "opened", "updated_at": now},
@@ -486,7 +504,7 @@ class DiagnosisDeliveryService:
     ) -> dict[str, Any] | None:
         """Триггер 4: result_ready sent >72h, не открыт → один draft result_unread."""
         result = self.repo.get_result(result_id)
-        if not result or result.get("status") not in ("published", "delivered"):
+        if not result or result.get("status") not in ("published", "link_issued", "delivered"):
             return None
         case_id = str(result["case_id"])
         link = self.repo.get_active_link_for_result(result_id)
