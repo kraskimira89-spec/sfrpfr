@@ -71,7 +71,8 @@ def parse_postmark_payload(body: dict[str, Any]) -> list[NormalizedDeliveryEvent
 
     # Trace id для дедупа, если есть
     event_id = None
-    meta = body.get("Metadata") if isinstance(body.get("Metadata"), dict) else {}
+    raw_meta = body.get("Metadata")
+    meta: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
     # X-PM-Webhook-Trace-Id приходит в заголовке — передаётся снаружи через body["_trace_id"]
     if body.get("_trace_id"):
         event_id = str(body["_trace_id"])
