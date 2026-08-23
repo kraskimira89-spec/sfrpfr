@@ -3747,6 +3747,10 @@ mark.sfrfr-search-hit,
   Одна строка: logo | «Проверка стажа» (ellipsis) | бургер.
   Бургер и drawer: primary-меню на всех страницах;
   z-index 1100 — выше контента и sticky CTA (900), ниже cookie (10050).
+
+  sfrfr-mobile-nav-v3 (внутри блока ≤921px)
+  Drawer: flex-row у пунктов с подменю — текст слева, toggle 44×44 справа;
+  плавающий BVI (z-index 100050) скрываем при открытом меню.
 */
 @media (max-width: 921px) {
   #masthead,
@@ -3867,6 +3871,14 @@ mark.sfrfr-search-hit,
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding-right: 0.35rem;
+  }
+
+  /* Плавающий BVI (100050) перекрывал toggle справа — прячем, пока drawer открыт */
+  body.ast-main-header-nav-open .sfrfr-edge-floats,
+  body.ast-popup-nav-open .sfrfr-edge-floats {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   .ast-mobile-header-content .main-header-menu,
@@ -3883,32 +3895,114 @@ mark.sfrfr-search-hit,
     display: block !important;
     width: 100% !important;
     max-width: none !important;
+    border-bottom: 1px solid rgba(30, 78, 121, 0.1);
   }
 
   .ast-mobile-header-content .main-header-menu > .menu-item > .menu-link,
   .ast-builder-menu-mobile .main-header-menu > .menu-item > .menu-link {
     white-space: normal !important;
     justify-content: flex-start !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    padding: 0.65rem 1rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Пункт с подменю: строка «ссылка | toggle», sub-menu — на всю ширину ниже */
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    position: relative !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .menu-link,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .menu-link,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .menu-link {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: calc(100% - 44px) !important;
+    padding-right: 0.35rem !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .menu-link .dropdown-menu-toggle,
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .menu-link .ast-header-navigation-arrow,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .menu-link .dropdown-menu-toggle,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .menu-link .ast-header-navigation-arrow,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .menu-link .dropdown-menu-toggle,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .menu-link .ast-header-navigation-arrow {
+    display: none !important;
+  }
+
+  .ast-mobile-header-content.content-align-flex-start .main-header-bar-navigation .menu-item-has-children > .ast-menu-toggle,
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .ast-menu-toggle {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    height: auto !important;
+    margin: 0 0 0 auto !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: stretch !important;
+    border: 0 !important;
+    border-left: 1px solid rgba(30, 78, 121, 0.12) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    z-index: 2 !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(30, 78, 121, 0.12);
+  }
+
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle .ast-icon svg,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle .ast-icon svg,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .ast-menu-toggle .ast-icon svg {
+    width: 0.85em !important;
+    height: 0.85em !important;
   }
 
   .ast-mobile-header-content .main-header-menu .sub-menu,
-  .ast-builder-menu-mobile .main-header-menu .sub-menu {
+  .ast-builder-menu-mobile .main-header-menu .sub-menu,
+  #ast-hf-mobile-menu .main-header-menu .sub-menu {
     position: static !important;
     left: auto !important;
     top: auto !important;
+    flex: 1 1 100% !important;
+    order: 3;
     min-width: 0 !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 0 0 0 0.65rem !important;
+    padding: 0 0 0.35rem 0.85rem !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     z-index: auto !important;
+    background: rgba(30, 78, 121, 0.04) !important;
   }
 
-  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle,
-  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle {
-    display: inline-flex !important;
+  .ast-mobile-header-content .main-header-menu .sub-menu .menu-link,
+  .ast-builder-menu-mobile .main-header-menu .sub-menu .menu-link,
+  #ast-hf-mobile-menu .main-header-menu .sub-menu .menu-link {
+    min-height: 44px !important;
+    padding: 0.55rem 0.75rem 0.55rem 0.35rem !important;
+  }
+
+  .ast-mobile-header-content .main-header-menu .sub-menu .menu-link .ast-icon,
+  .ast-builder-menu-mobile .main-header-menu .sub-menu .menu-link .ast-icon,
+  #ast-hf-mobile-menu .main-header-menu .sub-menu .menu-link .ast-icon {
+    display: none !important;
   }
 }
 
