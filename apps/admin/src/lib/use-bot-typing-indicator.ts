@@ -6,7 +6,7 @@ import {
   awaitingBotReplyKey,
   isAwaitingBotReply,
   type BotTypingMessage,
-} from "./bot-typing";
+} from "../../../../shared/bot-typing";
 
 export function useBotTypingIndicator(messages: BotTypingMessage[]) {
   const awaiting = useMemo(() => isAwaitingBotReply(messages), [messages]);

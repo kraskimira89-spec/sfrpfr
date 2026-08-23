@@ -3,7 +3,7 @@
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
-import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
+import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
 export type CaseChatMessage = {
   id: string;

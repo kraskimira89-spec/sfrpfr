@@ -4,7 +4,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
-import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
+import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 
 type CaseSummary = {
