@@ -1,0 +1,296 @@
+<!-- wp:html -->
+<div class="sfrfr-a4-sheet" id="sfrfr-checklist-a4" lang="ru">
+  <div class="a4-toolbar no-print">
+    <p>
+      <a href="/chek-list-dokumentov/">← К странице выдачи</a>
+      ·
+      <button type="button" class="a4-toolbar__btn" id="a4-print">Печать листа A4</button>
+      ·
+      <a href="/chek-list-dokumentov/pechat/">Полная тетрадь (8 стр.)</a>
+    </p>
+    <p class="a4-toolbar__hint">Ctrl+P · масштаб 100% · «Сохранить как PDF»</p>
+  </div>
+
+  <article class="a4-page" aria-label="Чек-лист A4 — одна страница">
+    <header class="a4-top">
+      <span class="a4-brand">Проверка стажа</span>
+      <span class="a4-badge">Бесплатный чек-лист</span>
+    </header>
+
+    <h1>Как собрать документы<br>для проверки пенсионного стажа</h1>
+    <p class="a4-sub">
+      Краткий чек-лист для себя или родителей: выписка ИЛС, трудовая история
+      и документы по спорным периодам. Без спешки и без передачи сканов в открытые чаты.
+    </p>
+
+    <section class="a4-block">
+      <h2>1. Соберите документы в одну папку</h2>
+      <ul class="a4-check" role="list">
+        <li><span class="a4-box" aria-hidden="true"></span> Выписка ИЛС из СФР</li>
+        <li><span class="a4-box" aria-hidden="true"></span> Трудовая книжка или сведения о трудовой деятельности</li>
+        <li><span class="a4-box" aria-hidden="true"></span> Справки, договоры, приказы, архивные ответы — если есть</li>
+        <li><span class="a4-box" aria-hidden="true"></span> Документы о смене ФИО — если фамилия менялась</li>
+      </ul>
+    </section>
+
+    <section class="a4-block">
+      <h2>2. Сверьте выписку ИЛС с трудовой</h2>
+      <ul class="a4-check" role="list">
+        <li><span class="a4-box" aria-hidden="true"></span> Все места работы отражены?</li>
+        <li><span class="a4-box" aria-hidden="true"></span> Совпадают даты начала и окончания работы?</li>
+        <li><span class="a4-box" aria-hidden="true"></span> Нет ли пропусков или непонятных периодов?</li>
+      </ul>
+    </section>
+
+    <section class="a4-card" aria-label="Карточка спорного периода">
+      <h2 class="a4-card__title">Если есть расхождение — отметьте один период</h2>
+      <p>Период: с <span class="a4-line">__.__.____</span> по <span class="a4-line">__.__.____</span></p>
+      <p>Организация / работодатель: <span class="a4-uline"></span></p>
+      <p>Город / район: <span class="a4-uline"></span></p>
+      <p>Должность: <span class="a4-uline"></span></p>
+      <p>Есть в трудовой:
+        <span class="a4-opt"><span class="a4-box"></span> да</span>
+        <span class="a4-opt"><span class="a4-box"></span> нет</span>
+        <span class="a4-opt"><span class="a4-box"></span> не знаю</span>
+      </p>
+      <p>Есть в ИЛС:
+        <span class="a4-opt"><span class="a4-box"></span> да</span>
+        <span class="a4-opt"><span class="a4-box"></span> нет</span>
+        <span class="a4-opt"><span class="a4-box"></span> не знаю</span>
+      </p>
+      <p>Какие документы есть: <span class="a4-uline a4-uline--short"></span></p>
+    </section>
+
+    <section class="a4-warn" aria-label="Важно">
+      <h2>Важно</h2>
+      <p>
+        Не отправляйте в открытые чаты паспорт, СНИЛС, трудовую книжку,
+        выписку ИЛС или архивные справки. Оригиналы храните у себя.
+      </p>
+    </section>
+
+    <section class="a4-cta">
+      <p><strong>Есть пропуск, расхождение или непонятный период?</strong></p>
+      <p>
+        Диагностика документов помогает сверить ИЛС, трудовую историю и справки,
+        отметить возможные расхождения и подготовить план действий.
+      </p>
+      <p class="a4-cta__action">Напишите в MAX: <strong>«Нужна проверка документов»</strong></p>
+    </section>
+
+    <footer class="a4-foot">
+      <div class="a4-foot__left">
+        <p class="a4-foot__site">proverkastaza.ru</p>
+        <p class="a4-foot__legal">
+          Решение о назначении или перерасчёте пенсии принимает СФР.
+          Сервис не гарантирует размер выплат или результат обращения.
+          Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.
+        </p>
+      </div>
+      <div class="a4-foot__qr" aria-label="Ссылка на страницу чек-листа">
+        <p class="a4-foot__qr-label">Страница на сайте</p>
+        <p class="a4-foot__qr-url">/chek-list-dokumentov/</p>
+      </div>
+    </footer>
+  </article>
+</div>
+
+<style>
+.sfrfr-a4-sheet {
+  --a4-ink: #1f2933;
+  --a4-navy: #1b486c;
+  --a4-green: #1d6b4a;
+  --a4-warn: #7a4d00;
+  --a4-warn-bg: #fff8e8;
+  --a4-soft: #eff6fb;
+  --a4-line: #b7c6d2;
+  color: var(--a4-ink);
+  font-family: Arial, "PT Sans", "Noto Sans", sans-serif;
+  font-size: 14pt;
+  line-height: 1.4;
+  max-width: 210mm;
+  margin: 0 auto 1.5rem;
+}
+.a4-toolbar {
+  background: #f5f7fb;
+  border: 1px solid var(--a4-line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 1rem 0;
+  font-size: 15px;
+}
+.a4-toolbar__btn {
+  font: inherit;
+  cursor: pointer;
+  background: var(--a4-navy);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-height: 44px;
+}
+.a4-toolbar__hint { margin: 0.5rem 0 0; color: #52616d; font-size: 13px; }
+.a4-page {
+  background: #fff;
+  border: 1px solid var(--a4-line);
+  border-radius: 12px;
+  padding: 18mm 16mm;
+  box-sizing: border-box;
+}
+.a4-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--a4-line);
+  font-size: 11pt;
+}
+.a4-brand { font-weight: 700; color: var(--a4-navy); }
+.a4-badge {
+  border: 1px solid var(--a4-line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 10pt;
+}
+.a4-page h1 {
+  margin: 0 0 8px;
+  color: var(--a4-navy);
+  font-size: 26pt;
+  line-height: 1.12;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.a4-sub {
+  margin: 0 0 14px;
+  font-size: 13pt;
+  max-width: 95%;
+}
+.a4-block { margin-bottom: 12px; }
+.a4-block h2,
+.a4-warn h2 {
+  margin: 0 0 6px;
+  color: var(--a4-navy);
+  font-size: 17pt;
+  font-weight: 700;
+}
+.a4-check { list-style: none; margin: 0; padding: 0; }
+.a4-check li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 10mm;
+  margin: 0 0 4px;
+  font-size: 13.5pt;
+}
+.a4-box {
+  flex: 0 0 5.5mm;
+  width: 5.5mm;
+  height: 5.5mm;
+  margin-top: 2px;
+  border: 2px solid var(--a4-ink);
+  border-radius: 2px;
+  background: #fff;
+}
+.a4-card {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--a4-line);
+  border-left: 5px solid var(--a4-navy);
+  border-radius: 10px;
+  background: var(--a4-soft);
+  font-size: 12.5pt;
+}
+.a4-card__title {
+  margin: 0 0 8px;
+  font-size: 14pt;
+  color: var(--a4-navy);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.a4-card p { margin: 0 0 6px; }
+.a4-line {
+  display: inline-block;
+  min-width: 4em;
+  border-bottom: 1.5px solid var(--a4-ink);
+  padding: 0 3px;
+}
+.a4-uline {
+  display: inline-block;
+  min-width: 55%;
+  border-bottom: 1.5px solid var(--a4-ink);
+  min-height: 1.2em;
+}
+.a4-uline--short { min-width: 70%; display: block; margin-top: 2px; }
+.a4-opt { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; }
+.a4-opt .a4-box { margin-top: 0; }
+.a4-warn {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-left: 5px solid #b77b16;
+  border-radius: 8px;
+  background: var(--a4-warn-bg);
+  color: var(--a4-warn);
+  font-size: 12.5pt;
+}
+.a4-warn p { margin: 0; }
+.a4-cta {
+  margin: 10px 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--a4-line);
+  font-size: 13pt;
+}
+.a4-cta p { margin: 0 0 6px; }
+.a4-cta__action { color: var(--a4-navy); font-size: 14pt; }
+.a4-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--a4-line);
+}
+.a4-foot__site {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: var(--a4-navy);
+  font-size: 12pt;
+}
+.a4-foot__legal {
+  margin: 0;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: #52616d;
+  max-width: 140mm;
+}
+.a4-foot__qr {
+  flex: 0 0 auto;
+  text-align: center;
+  border: 1px dashed var(--a4-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 42mm;
+}
+.a4-foot__qr-label { margin: 0; font-size: 9pt; color: #52616d; }
+.a4-foot__qr-url { margin: 4px 0 0; font-size: 10pt; font-weight: 700; color: var(--a4-navy); }
+
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  .no-print, .a4-toolbar { display: none !important; }
+  html, body { margin: 0; padding: 0; background: #fff !important; }
+  .sfrfr-a4-sheet { max-width: none; margin: 0; }
+  .a4-page { border: 0; border-radius: 0; padding: 0; }
+  .a4-page h1 { font-size: 24pt; }
+}
+</style>
+<script>
+(function () {
+  var btn = document.getElementById("a4-print");
+  if (btn) btn.addEventListener("click", function () { window.print(); });
+})();
+</script>
+<!-- /wp:html -->

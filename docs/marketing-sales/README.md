@@ -22,7 +22,8 @@
 - [Лид-магнит «4 проверки»](research-leadmagnet-4-proverki-stazha-2026-08.md) — пост/карточка без обещания денег.
 - [Лид-магнит «Папка пенсионных документов»](strategy-leadmagnet-pension-folder-2026-08.md) — PDF 6–8 стр. + `/chek-list-dokumentov/` + воронка ИЛС → диагностика (PUB-6).
 - [Playbook выдачи чек-листа](playbook-leadmagnet-pension-folder.md) — URL, сид WP, оператор, метрика.
-- [**Макет рабочей тетради (Canva/PDF)**](playbook-leadmagnet-workbook-layout-2026-08.md) — A4, цвета, компоненты, QA; текст: [`pension-folder-checklist.md`](../../scripts/assets/leadmagnets/pension-folder-checklist.md).
+- [**Макет рабочей тетради (Canva/PDF)**](playbook-leadmagnet-workbook-layout-2026-08.md) — A4, 8 стр.; текст: [`pension-folder-checklist.md`](../../scripts/assets/leadmagnets/pension-folder-checklist.md).
+- [**ТЗ: лид-магнит A4 (1 стр.)**](spec-leadmagnet-a4-one-page-2026-08.md) — компактный лист; текст: [`pension-checklist-a4-one-page.md`](../../scripts/assets/leadmagnets/pension-checklist-a4-one-page.md); HTML: `/chek-list-dokumentov/a4/`.
 - [**UX: не отпугнуть 55+**](playbook-ux-trust-seniors-2026-08.md) — доверие, контраст, один CTA, безопасные формы, тест на трёх людях.
 - [**PDF: печать без увеличения**](playbook-pdf-print-readability-2026-08.md) — 14 pt, одна колонка, поля 18–22 мм, 4 теста (телефон / ПК / печать / 60+).
 - [SEO: запросы «калькулятор/расчёт пенсии/стаж»](research-seo-pension-queries-2026-08.md) — кластеры, интенты, внедрение ключей без фейкового калькулятора выплат; [частоты 8_calc](reports/wordstat-8-calc-2026-08-14.md).

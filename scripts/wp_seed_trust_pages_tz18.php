@@ -126,6 +126,14 @@ $pages = [
         'noindex' => true,
     ],
     [
+        'slug' => 'chek-list-dokumentov/a4',
+        'title' => 'Чек-лист A4 — одна страница',
+        'file' => 'chek-list-dokumentov-a4.html',
+        'seo_title' => 'Чек-лист документов A4 — одна страница',
+        'seo_description' => 'Компактный чек-лист на одном листе: ИЛС, трудовая, карточка спорного периода. Без обещания перерасчёта — решает СФР.',
+        'noindex' => true,
+    ],
+    [
         'slug' => 'anketa-otzyv',
         'title' => 'Сформулировать отзыв',
         'file' => 'anketa-otzyv.html',

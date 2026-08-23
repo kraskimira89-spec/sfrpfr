@@ -7,15 +7,19 @@
 | URL | Назначение |
 |-----|------------|
 | https://proverkastaza.ru/chek-list-dokumentov/ | Посадочная выдача |
-| https://proverkastaza.ru/chek-list-dokumentov/pechat/ | Версия для печати / чтения (noindex) |
+| https://proverkastaza.ru/chek-list-dokumentov/a4/ | Компактный лист A4 (1 стр., noindex) |
+| https://proverkastaza.ru/chek-list-dokumentov/pechat/ | Рабочая тетрадь 8 стр. (noindex) |
 
 ## Исходники
 
 | Файл | Назначение |
 |------|------------|
-| `scripts/assets/leadmagnets/pension-folder-checklist.md` | Текст PDF (канон) |
+| `scripts/assets/leadmagnets/pension-folder-checklist.md` | Текст тетради 8 стр. |
+| `scripts/assets/leadmagnets/pension-checklist-a4-one-page.md` | Текст листа A4 (1 стр.) |
+| `docs/marketing-sales/spec-leadmagnet-a4-one-page-2026-08.md` | ТЗ для дизайнера / Canva |
 | `scripts/assets/trust/chek-list-dokumentov.html` | Посадочная |
-| `scripts/assets/trust/chek-list-dokumentov-pechat.html` | Печать |
+| `scripts/assets/trust/chek-list-dokumentov-a4.html` | Печать A4 (1 стр.) |
+| `scripts/assets/trust/chek-list-dokumentov-pechat.html` | Печать тетради (8 стр.) |
 | Сид | `scripts/wp_seed_trust_pages_tz18.php` |
 
 После деплоя на VPS:
