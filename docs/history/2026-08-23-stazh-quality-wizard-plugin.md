@@ -14,3 +14,10 @@
 
 - `docs/TRACKER/plugin-stazh-quality-wizard.md`
 - `plugins/tracker/README.md`
+
+## Publish 0.1.1 (follow-up)
+
+- Platform ID `654059d7-7712-44fa-bbab-62dc0d132acb`
+- Status: plugin `DRAFT`, version `IN_REVIEW`, visibility `ORGANIZATION`
+- Submit commits: `1626e42`, `2adeaf0`; Tracker: [STAZH-2](https://tracker.yandex.ru/STAZH-2)
+- Debug port: `5174`; команды: `weavix build` / `weavix submit`
