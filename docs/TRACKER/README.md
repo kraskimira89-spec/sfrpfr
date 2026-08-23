@@ -34,6 +34,7 @@ MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/ya
 | [mcp-tools-map.md](mcp-tools-map.md) | Карта MCP |
 | [plugin-sfrfr-issue-wizard.md](plugin-sfrfr-issue-wizard.md) | Weavix: мастер SFRFR / PUB / FUNNEL |
 | [plugin-stazh-quality-wizard.md](plugin-stazh-quality-wizard.md) | Weavix: качество → **STAZH** |
+| [reports/report-customer-tracker-plugins-2026-08-23.md](reports/report-customer-tracker-plugins-2026-08-23.md) | Отчёт заказчику по плагинам (23.08.2026) |
 
 Скрипт очередей: `scripts/create_yandex_tracker_queues.py`.
 
