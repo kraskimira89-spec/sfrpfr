@@ -3751,6 +3751,10 @@ mark.sfrfr-search-hit,
   sfrfr-mobile-nav-v3 (внутри блока ≤921px)
   Drawer: flex-row у пунктов с подменю — текст слева, toggle 44×44 справа;
   плавающий BVI (z-index 100050) скрываем при открытом меню.
+
+  sfrfr-mobile-nav-v3.1
+  Link flex-basis calc(100%−44px) — toggle не уезжает на вторую строку;
+  toggle: brand-blue bg + white chevron; sub-menu: #f5f7fa + border-left.
 */
 @media (max-width: 921px) {
   #masthead,
@@ -3913,18 +3917,21 @@ mark.sfrfr-search-hit,
   .ast-builder-menu-mobile .main-header-menu .menu-item-has-children,
   #ast-hf-mobile-menu .main-header-menu .menu-item-has-children {
     display: flex !important;
+    flex-direction: row !important;
     flex-wrap: wrap !important;
-    align-items: stretch !important;
+    align-items: center !important;
     position: relative !important;
   }
 
   .ast-mobile-header-content .main-header-menu .menu-item-has-children > .menu-link,
   .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .menu-link,
   #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .menu-link {
-    flex: 1 1 auto !important;
+    flex: 1 1 calc(100% - 44px) !important;
+    flex-shrink: 1 !important;
     min-width: 0 !important;
     width: auto !important;
     max-width: calc(100% - 44px) !important;
+    order: 1 !important;
     padding-right: 0.35rem !important;
   }
 
@@ -3946,24 +3953,37 @@ mark.sfrfr-search-hit,
     left: auto !important;
     right: auto !important;
     flex: 0 0 44px !important;
+    flex-shrink: 0 !important;
     width: 44px !important;
     min-width: 44px !important;
     min-height: 44px !important;
-    height: auto !important;
+    height: 44px !important;
     margin: 0 0 0 auto !important;
     padding: 0 !important;
+    order: 2 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    align-self: stretch !important;
+    align-self: center !important;
     border: 0 !important;
-    border-left: 1px solid rgba(30, 78, 121, 0.12) !important;
     border-radius: 0 !important;
-    background: transparent !important;
+    background: var(--sfrfr-primary, #1e4e79) !important;
+    color: #ffffff !important;
     box-shadow: none !important;
     z-index: 2 !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: rgba(30, 78, 121, 0.12);
+    -webkit-tap-highlight-color: rgba(30, 78, 121, 0.35);
+  }
+
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle:hover,
+  .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle:focus-visible,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle:hover,
+  .ast-builder-menu-mobile .main-header-menu .menu-item-has-children > .ast-menu-toggle:focus-visible,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .ast-menu-toggle:hover,
+  #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .ast-menu-toggle:focus-visible {
+    background: var(--sfrfr-primary-dark, #163a5c) !important;
+    outline: 2px solid rgba(30, 78, 121, 0.35) !important;
+    outline-offset: -2px !important;
   }
 
   .ast-mobile-header-content .main-header-menu .menu-item-has-children > .ast-menu-toggle .ast-icon svg,
@@ -3971,6 +3991,7 @@ mark.sfrfr-search-hit,
   #ast-hf-mobile-menu .main-header-menu .menu-item-has-children > .ast-menu-toggle .ast-icon svg {
     width: 0.85em !important;
     height: 0.85em !important;
+    fill: currentColor !important;
   }
 
   .ast-mobile-header-content .main-header-menu .sub-menu,
@@ -3979,17 +4000,18 @@ mark.sfrfr-search-hit,
     position: static !important;
     left: auto !important;
     top: auto !important;
-    flex: 1 1 100% !important;
-    order: 3;
+    flex: 0 0 100% !important;
+    order: 3 !important;
     min-width: 0 !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 0 0.35rem 0.85rem !important;
     border: 0 !important;
+    border-left: 3px solid rgba(30, 78, 121, 0.2) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     z-index: auto !important;
-    background: rgba(30, 78, 121, 0.04) !important;
+    background: #f5f7fa !important;
   }
 
   .ast-mobile-header-content .main-header-menu .sub-menu .menu-link,

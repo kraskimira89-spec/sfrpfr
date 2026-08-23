@@ -18,3 +18,10 @@
 - min-height 44px для touch targets.
 
 Проверка: `/` mobile — «Главная» / «Услуги» раскрываются по стрелке справа, BVI не перехватывает тап.
+
+## v3.1 (2026-08-23)
+
+- **Wrap toggle вниз:** у `.menu-link` был `flex: 1 1 auto` — implicit flex-basis ≈100%, с `flex-wrap: wrap` toggle уезжал на вторую строку.
+- **Фикс:** `flex: 1 1 calc(100% - 44px)`, `order: 1/2/3`, `align-items: center`, toggle `flex-shrink: 0`.
+- **Контраст toggle:** `background: var(--sfrfr-primary)`, белая chevron, hover `#163a5c`.
+- **Sub-menu:** `#f5f7fa`, `border-left: 3px solid rgba(30, 78, 121, 0.2)`.
