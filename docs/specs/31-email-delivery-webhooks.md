@@ -2,8 +2,8 @@
 
 **Версия:** 1.0  
 **Дата:** 2026-08-23  
-**Статус:** MVP — Postmark webhooks + журнал `delivery_events`  
-**Связано:** [ТЗ-28](28-diagnosis-secure-delivery.md) · [ТЗ-30](30-diagnosis-delivery-triggers.md) · [Postmark webhooks](https://postmarkapp.com/developer/webhooks/webhooks-overview)
+**Статус:** MVP — Postmark / Mailgun / SendGrid webhooks + журнал `delivery_events`  
+**Связано:** [ТЗ-28](28-diagnosis-secure-delivery.md) · [ТЗ-30](30-diagnosis-delivery-triggers.md) · [Mailgun securing](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/securing-webhooks) · [SendGrid Event Webhook security](https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features)
 
 ---
 
@@ -91,18 +91,20 @@ Email job: draft → approved → queued → sent/accepted → delivered
 ## 7. Rollout / rollback
 
 1. Миграция `20260823230000_email_delivery_webhooks.sql` (SFRFR).  
-2. Задать Basic Auth env на VPS.  
-3. Создать webhook в Postmark → проверить `/api/webhooks/email/postmark/health`.  
-4. Rollback: отключить webhook в Postmark; таблицы оставить.
+2. Env на VPS: ключи выбранного провайдера (`POSTMARK_*` / `MAILGUN_*` / `SENDGRID_*`).  
+3. Webhook в кабинете провайдера → `GET /api/webhooks/email/health`.  
+4. Rollback: отключить webhook у провайдера; таблицы оставить.
 
 ---
 
 ## 8. Приёмка
 
-- [x] Basic Auth до разбора payload  
+- [x] Postmark: Basic Auth до разбора payload  
+- [x] Mailgun: HMAC-SHA256(timestamp+token) + freshness ±5 мин  
+- [x] SendGrid: ECDSA по raw body + Signature/Timestamp headers  
 - [x] Идемпотентность fingerprint  
 - [x] delivered ≠ PDF opened  
 - [x] hard/soft bounce различие  
 - [x] unmatched message_id  
 - [x] redaction e-mail/UUID из payload  
-- [ ] P1: отправка через Postmark API + retry worker  
+- [ ] P1: отправка через API провайдера + retry worker  
