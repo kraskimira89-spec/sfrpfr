@@ -2993,27 +2993,30 @@ header .custom-logo-link img {
 
 /*
   sfrfr-header-layout-v1
-  Бренд не сжимать: иначе «Проверка стажа» складывается в столбик букв
-  (особенно при zoom 110–125% / узком окне), а меню «разъезжается».
+  Бренд не сжимать на desktop: иначе «Проверка стажа» складывается в столбик
+  букв (zoom 110–125% / узкое окно), а меню «разъезжается».
+  На mobile (≤921px) — отдельный блок sfrfr-mobile-nav-v1 ниже.
 */
-.site-header .ast-site-identity,
-.site-header .site-branding,
-.ast-primary-header-bar .ast-builder-layout-element[data-section="title_tagline"],
-.ast-primary-header-bar .site-header-primary-section-left {
-  flex: 0 0 auto !important;
-  flex-shrink: 0 !important;
-  min-width: max-content !important;
-  max-width: none !important;
-}
+@media (min-width: 922px) {
+  .site-header .ast-site-identity,
+  .site-header .site-branding,
+  .ast-primary-header-bar .ast-builder-layout-element[data-section="title_tagline"],
+  .ast-primary-header-bar .site-header-primary-section-left {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+    max-width: none !important;
+  }
 
-.site-header .site-title,
-.site-header .site-title a,
-.ast-site-identity .site-title,
-.ast-site-identity .site-title a {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
-  overflow-wrap: normal !important;
-  hyphens: none !important;
+  .site-header .site-title,
+  .site-header .site-title a,
+  .ast-site-identity .site-title,
+  .ast-site-identity .site-title a {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
 }
 
 /* Меню: жирнее; без переносов по буквам (иначе «Главна / я») */
@@ -3740,44 +3743,92 @@ mark.sfrfr-search-hit,
 }
 
 /*
-  sfrfr-mobile-nav-v1
-  Бургер и drawer: primary-меню видно на всех страницах;
+  sfrfr-mobile-nav-v2
+  Одна строка: logo | «Проверка стажа» (ellipsis) | бургер.
+  Бургер и drawer: primary-меню на всех страницах;
   z-index 1100 — выше контента и sticky CTA (900), ниже cookie (10050).
 */
 @media (max-width: 921px) {
   #masthead,
-  .ast-mobile-header-wrap {
+  #ast-mobile-header.ast-mobile-header-wrap {
     position: relative;
     z-index: 1100;
   }
 
-  .ast-mobile-header-wrap .site-header-primary-section-left,
-  .ast-mobile-header-wrap .ast-site-identity,
-  .ast-mobile-header-wrap .site-branding {
-    min-width: 0 !important;
-    max-width: calc(100% - 3.25rem) !important;
-    flex: 1 1 auto !important;
+  #ast-mobile-header .ast-primary-header-bar .ast-builder-grid-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.35rem !important;
+    width: 100% !important;
+    overflow: hidden !important;
   }
 
-  .ast-mobile-header-wrap .site-title,
-  .ast-mobile-header-wrap .site-title a {
+  #ast-mobile-header .site-header-primary-section-left,
+  #ast-mobile-header .site-header-primary-section-right,
+  #ast-mobile-header .ast-builder-layout-element[data-section="title_tagline"],
+  #ast-mobile-header .ast-site-identity,
+  #ast-mobile-header .site-branding,
+  #ast-mobile-header .ast-site-title-wrap {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  #ast-mobile-header .site-header-primary-section-left {
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+  }
+
+  #ast-mobile-header .site-branding.ast-site-identity {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #ast-mobile-header .site-logo-img,
+  #ast-mobile-header .custom-logo-link {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  #ast-mobile-header .ast-site-title-wrap {
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+  }
+
+  #ast-mobile-header .site-title,
+  #ast-mobile-header .site-title a {
     display: block !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
+    max-width: 100% !important;
   }
 
-  [data-section="section-header-mobile-trigger"],
-  .ast-mobile-header-wrap .site-header-primary-section-right {
+  #ast-mobile-header [data-section="section-header-mobile-trigger"],
+  #ast-mobile-header .site-header-primary-section-right {
     flex: 0 0 auto !important;
-    margin-left: auto !important;
+    flex-shrink: 0 !important;
+    margin-left: 0 !important;
   }
 
-  .ast-mobile-menu-trigger-minimal,
-  .main-header-menu-toggle {
+  #ast-mobile-header .ast-mobile-menu-trigger-minimal,
+  #ast-mobile-header .main-header-menu-toggle {
     position: relative;
     z-index: 1101;
     flex-shrink: 0 !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .ast-mobile-header-content {
