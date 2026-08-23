@@ -192,6 +192,10 @@
             "enum": [
               "tracker:issues:read",
               "tracker:issues:write",
+              "tracker.v2.read",
+              "tracker.v2.write",
+              
+              
               "tracker:issuetypes:read",
               "tracker:statuses:read",
               "tracker:queues:read",
