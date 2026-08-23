@@ -944,7 +944,7 @@ def publish_diagnosis_result(
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
     """Триггер 1: publish → draft result_ready + задача сотруднику (ТЗ-28/30)."""
-    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService, STAFF_TASK_PUBLISH
+    from sfrfr.services.diagnosis_delivery import STAFF_TASK_PUBLISH, DiagnosisDeliveryService
     from sfrfr.services.finance_automation import ensure_staff_task
 
     repo = _repo()

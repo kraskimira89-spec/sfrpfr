@@ -277,7 +277,7 @@ def test_do_not_contact_cancels_on_approve() -> None:
     repo = _MemRepo()
     fb = _MemFeedback()
     svc = DiagnosisDeliveryService(repo=repo, feedback=fb)  # type: ignore[arg-type]
-    out = svc.publish(case_id="c5", document_id="d5", actor_id="u1", channels=["max"])
+    svc.publish(case_id="c5", document_id="d5", actor_id="u1", channels=["max"])
     job = [j for j in repo.list_jobs("c5") if j["channel"] == "max"][0]
     res = svc.approve_max_draft(job_id=job["id"], actor_id="s", do_not_contact=True)
     assert res.get("cancelled")
