@@ -24,4 +24,5 @@
 
 ## Трекер
 
-[FUNNEL-5](https://tracker.yandex.ru/FUNNEL-5) (комментарий) или отдельная задача SFRFR по миграции на VPS.
+- [SFRFR-17](https://tracker.yandex.ru/SFRFR-17) — накатить миграцию на prod  
+- [FUNNEL-5](https://tracker.yandex.ru/FUNNEL-5) — комментарий по канону
