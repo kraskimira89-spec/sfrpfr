@@ -4,7 +4,7 @@
   "id": "sfrfr-issue-wizard",
   "supported_services": ["tracker"],
   "slug": "sfrfr-issue-wizard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": {
     "ru": "Мастер задач SFRFR",
     "en": "SFRFR Issue Wizard"
@@ -18,7 +18,8 @@
     "data": [
       "tracker:queues:read",
       "tracker:issues:read",
-      "tracker:issues:write"
+      "tracker:issues:write",
+      "tracker:tags:read"
     ],
     "ui": ["toaster", "confirm"]
   },
