@@ -136,6 +136,8 @@
               Или сразу:
               <a href="/chek-list-dokumentov/pechat/" data-sfrfr-goal="checklist_print_open">открыть рабочую тетрадь</a>
               ·
+              <a href="/chek-list-dokumentov/pechat/#kartochka-perioda" data-sfrfr-goal="checklist_print_open">карточку периода</a>
+              ·
               <a href="{{MAX_BTN_URL}}" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="checklist_max_click">написать в MAX</a>
             </p>
             <p class="ps-lead__form-status" id="lead-form-status" role="status" aria-live="polite"></p>
@@ -343,6 +345,13 @@
           ' <a href="' +
           pechatUrl +
           '">Открыть рабочую тетрадь</a>';
+      }
+      if (typeof window.sfrfrMetrikaGoal === "function") {
+        window.sfrfrMetrikaGoal("checklist_form_submit", {
+          channel: payload.delivery_channel || "",
+          marketing: payload.marketing_consent ? "1" : "0",
+        });
+        window.sfrfrMetrikaGoal("checklist_download");
       }
       form.reset();
       updateChannelFields();

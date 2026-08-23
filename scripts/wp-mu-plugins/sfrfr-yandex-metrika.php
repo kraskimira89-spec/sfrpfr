@@ -401,6 +401,33 @@ add_action('wp_footer', static function (): void {
         });
       });
     });
+    document.querySelectorAll('a[data-sfrfr-goal="checklist_print_open"], a[href*="/chek-list-dokumentov/pechat"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaChecklistPrint", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("checklist_print_open", el);
+        });
+      });
+    });
+    document.querySelectorAll('a[data-sfrfr-goal="checklist_cta_click"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaChecklistCta", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("checklist_cta_click", el);
+        });
+      });
+    });
+    document.querySelectorAll('a[data-sfrfr-goal="checklist_max_click"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaChecklistMax", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("checklist_max_click", el);
+        });
+      });
+    });
+    var checklistPage = document.getElementById("sfrfr-checklist-page");
+    if (checklistPage) {
+      once(checklistPage, "sfrfrMetrikaChecklistView", function () {
+        window.sfrfrMetrikaGoal("checklist_view");
+      });
+    }
     document.querySelectorAll('a[data-sfrfr-goal="partner_cta_click"]').forEach(function (a) {
       once(a, "sfrfrMetrikaPartnerCta", function (el) {
         el.addEventListener("click", function () {

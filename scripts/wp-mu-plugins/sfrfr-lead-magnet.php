@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 
 const SFRFR_LEAD_MAGNET_CONSENT_VERSION = 'pdn-leadmagnet-2026-08-23';
 const SFRFR_LEAD_MAGNET_RATE_KEY = 'sfrfr_lm_rl_';
+const SFRFR_LEAD_MAGNET_AUDIT_OPTION = 'sfrfr_lead_magnet_audit';
 
 add_action('rest_api_init', static function (): void {
     register_rest_route('proverkastaza/v1', '/lead-magnet/bootstrap', [
@@ -26,10 +27,51 @@ add_action('rest_api_init', static function (): void {
 
     register_rest_route('proverkastaza/v1', '/lead-magnet', [
         'methods' => 'POST',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'sfrfr_lead_magnet_permission',
         'callback' => 'sfrfr_lead_magnet_handle',
     ]);
 });
+
+/**
+ * @param WP_REST_Request $request
+ */
+function sfrfr_lead_magnet_permission(WP_REST_Request $request): bool
+{
+    $nonce = $request->get_header('X-WP-Nonce');
+    if (!is_string($nonce) || $nonce === '') {
+        return false;
+    }
+
+    return (bool) wp_verify_nonce($nonce, 'wp_rest');
+}
+
+/**
+ * Хеш контакта для журнала (без хранения e-mail/MAX в option).
+ */
+function sfrfr_lead_magnet_contact_hash(string $value): string
+{
+    $salt = defined('AUTH_SALT') ? AUTH_SALT : 'sfrfr-lead-magnet';
+
+    return hash_hmac('sha256', strtolower(trim($value)), $salt);
+}
+
+/**
+ * Append-only журнал согласий / выдач (без сырых ПДн).
+ *
+ * @param array<string, mixed> $row
+ */
+function sfrfr_lead_magnet_audit_append(array $row): void
+{
+    $log = get_option(SFRFR_LEAD_MAGNET_AUDIT_OPTION, []);
+    if (!is_array($log)) {
+        $log = [];
+    }
+    $log[] = $row;
+    if (count($log) > 300) {
+        $log = array_slice($log, -300);
+    }
+    update_option(SFRFR_LEAD_MAGNET_AUDIT_OPTION, $log, false);
+}
 
 /**
  * @param WP_REST_Request $request
@@ -57,6 +99,7 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
             'ok' => true,
             'message' => 'Готово.',
             'deliver_url' => home_url('/chek-list-dokumentov/pechat/'),
+            'status' => 'checklist_sent',
         ], 200);
     }
 
@@ -70,8 +113,10 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
     }
 
     $name = sanitize_text_field((string) ($params['name'] ?? ''));
-    if (mb_strlen($name) > 80) {
+    if (function_exists('mb_strlen') && mb_strlen($name) > 80) {
         $name = mb_substr($name, 0, 80);
+    } elseif (strlen($name) > 80) {
+        $name = substr($name, 0, 80);
     }
 
     $channel = sanitize_key((string) ($params['delivery_channel'] ?? 'email'));
@@ -81,8 +126,10 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
 
     $email = sanitize_email((string) ($params['email'] ?? ''));
     $maxContact = sanitize_text_field((string) ($params['max_contact'] ?? ''));
-    if (mb_strlen($maxContact) > 120) {
+    if (function_exists('mb_strlen') && mb_strlen($maxContact) > 120) {
         $maxContact = mb_substr($maxContact, 0, 120);
+    } elseif (strlen($maxContact) > 120) {
+        $maxContact = substr($maxContact, 0, 120);
     }
 
     if ($channel === 'email') {
@@ -104,8 +151,23 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
 
     $deliverUrl = home_url('/chek-list-dokumentov/pechat/');
     $now = gmdate('c');
+    $contactRaw = $channel === 'email' ? $email : $maxContact;
 
-    // Уведомление оператору без лишних ПДн в subject; контакт только в теле письма.
+    sfrfr_lead_magnet_audit_append([
+        'at' => $now,
+        'source' => $source,
+        'form_version' => $formVersion,
+        'channel' => $channel,
+        'contact_hash' => sfrfr_lead_magnet_contact_hash($contactRaw),
+        'has_name' => $name !== '',
+        'pdn_consent' => true,
+        'marketing_consent' => $marketing,
+        'consent_version' => $consentVersion,
+        'status' => 'checklist_sent',
+        'ip_hash' => hash('sha256', $ip . (defined('AUTH_SALT') ? AUTH_SALT : '')),
+    ]);
+
+    // Уведомление оператору: контакт только в теле письма, не в subject.
     $to = 'info@proverkastaza.ru';
     $subject = '[SFRFR] Чек-лист документов: заявка';
     $lines = [

@@ -55,8 +55,20 @@ bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
 ## Что ещё сделать
 
 - [x] Сверстать печатную HTML-тетрадь A4 (`chek-list-dokumentov-pechat.html`, 8 стр.)  
+- [x] Посадочная + форма + REST `lead-magnet` (ПДн / маркетинг раздельно, honeypot, rate limit, nonce)  
 - [ ] Отдельный PDF-файл из Canva (опционально; сейчас «Печать → PDF» из браузера)  
-- [ ] WPForms / выдача по e-mail с раздельными согласиями  
 - [ ] Теги leadmagnet в amo / кабинете  
 - [ ] 2–3 статьи-проводника со ссылкой на страницу  
-- [ ] Ссылка с главной / релевантных trust-страниц (по согласованию)
+- [ ] Ссылка с главной / релевантных trust-страниц (по согласованию)  
+- [ ] A/B H1 после 30–50 выдач  
+
+### Backend (канон MU)
+
+`scripts/wp-mu-plugins/sfrfr-lead-magnet.php`:
+
+- nonce `X-WP-Nonce` + bootstrap;
+- honeypot `company`;
+- rate limit 8 / 15 мин по IP;
+- отдельные флаги ПДн (обязательно) и маркетинг;
+- журнал `sfrfr_lead_magnet_audit` — хеши контакта/IP, без сырых ПДн в option;
+- письмо оператору + e-mail со ссылкой на тетрадь (без рекламы, если нет marketing_consent).

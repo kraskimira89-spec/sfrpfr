@@ -4318,14 +4318,24 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 }
 
 #sfrfr-checklist-page .ps-lead {
+  --ps-navy: #1b486c;
+  --ps-green: #1d6b4a;
+  --ps-focus: #e18a00;
+  --ps-soft: #eff6fb;
+  --ps-warm: #fff8e8;
+  --ps-line: #b7c6d2;
   font-size: 1.125rem;
   line-height: 1.55;
+}
+
+#sfrfr-checklist-page .ps-lead__hero {
+  background: linear-gradient(110deg, #eff6fb 0%, #f8fbfd 56%, #ffffff 100%);
 }
 
 #sfrfr-checklist-page .ps-lead__h1 {
   max-width: 760px;
   margin: 0 0 1rem;
-  color: var(--sfrfr-primary);
+  color: var(--ps-navy, var(--sfrfr-primary));
   font-size: clamp(1.85rem, 4.5vw, 2.75rem);
   line-height: 1.12;
   font-weight: 700;
@@ -4333,7 +4343,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 
 #sfrfr-checklist-page .ps-lead__eyebrow {
   margin: 0 0 0.5rem;
-  color: var(--sfrfr-accent);
+  color: var(--ps-green, var(--sfrfr-accent));
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -4373,7 +4383,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   height: 1.4rem;
   border-radius: 50%;
   color: #fff;
-  background: var(--sfrfr-accent);
+  background: var(--ps-green, var(--sfrfr-accent));
   content: "✓";
   font-size: 0.85rem;
   font-weight: 700;
@@ -4384,7 +4394,8 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 #sfrfr-checklist-page .ps-lead__trust-note {
   max-width: 720px;
   margin: 0;
-  border-left: 5px solid var(--sfrfr-warn);
+  border-left: 5px solid #b77b16;
+  background: var(--ps-warm);
 }
 
 #sfrfr-checklist-page .ps-lead__hero-grid {
@@ -4396,15 +4407,15 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 
 #sfrfr-checklist-page .ps-lead__form-card {
   padding: 1.5rem;
-  border: 1px solid #c5d0dc;
-  border-radius: var(--sfrfr-radius);
+  border: 1px solid var(--ps-line);
+  border-radius: 16px;
   background: var(--sfrfr-surface);
-  box-shadow: var(--sfrfr-shadow);
+  box-shadow: 0 8px 26px rgb(27 72 108 / 0.08);
 }
 
 #sfrfr-checklist-page .ps-lead__form-card h2 {
   margin: 0 0 0.4rem;
-  color: var(--sfrfr-primary);
+  color: var(--ps-navy, var(--sfrfr-primary));
   font-size: 1.5rem;
 }
 
@@ -4467,7 +4478,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   min-height: 22px;
   flex: 0 0 auto;
   margin-top: 0.15rem;
-  accent-color: var(--sfrfr-accent);
+  accent-color: var(--ps-green, var(--sfrfr-accent));
 }
 
 #sfrfr-checklist-page .ps-lead__button {
@@ -4481,7 +4492,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 #sfrfr-checklist-page .ps-lead button:focus-visible,
 #sfrfr-checklist-page .ps-lead input:focus-visible,
 #sfrfr-checklist-page .ps-lead summary:focus-visible {
-  outline: 3px solid #e18a00;
+  outline: 3px solid var(--ps-focus);
   outline-offset: 3px;
 }
 
@@ -4495,7 +4506,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--sfrfr-primary);
+  color: var(--ps-navy, var(--sfrfr-primary));
 }
 
 #sfrfr-checklist-page .ps-lead__split {
@@ -4514,7 +4525,10 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 
 #sfrfr-checklist-page .ps-lead__safety {
   padding: 1.35rem;
-  border-left: 6px solid var(--sfrfr-warn);
+  border: 1px solid var(--ps-line);
+  border-radius: 16px;
+  border-left: 6px solid #b77b16;
+  background: #fff;
 }
 
 #sfrfr-checklist-page .ps-lead__timeline {
@@ -4539,13 +4553,13 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: var(--sfrfr-accent);
+  background: var(--ps-green, var(--sfrfr-accent));
   font-weight: 700;
 }
 
 #sfrfr-checklist-page .ps-lead__section--accent {
   color: #fff;
-  background: var(--sfrfr-primary);
+  background: var(--ps-navy, var(--sfrfr-primary));
 }
 
 #sfrfr-checklist-page .ps-lead__section--accent h2,
@@ -4562,7 +4576,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 
 #sfrfr-checklist-page .ps-lead__button-light {
   background: #fff !important;
-  color: var(--sfrfr-primary) !important;
+  color: var(--ps-navy, var(--sfrfr-primary)) !important;
   border-color: #fff !important;
   min-height: 52px;
   padding: 0.75rem 1.25rem;
@@ -4576,7 +4590,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 #sfrfr-checklist-page .ps-lead__faq details {
   margin-top: 0.75rem;
   padding: 0 1rem;
-  border: 1px solid #c5d0dc;
+  border: 1px solid var(--ps-line);
   border-radius: 10px;
   background: var(--sfrfr-surface);
 }
@@ -4585,7 +4599,7 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
   min-height: 56px;
   padding: 1rem 2rem 1rem 0;
   cursor: pointer;
-  color: var(--sfrfr-primary);
+  color: var(--ps-navy, var(--sfrfr-primary));
   font-weight: 700;
   font-size: 1.05rem;
 }
