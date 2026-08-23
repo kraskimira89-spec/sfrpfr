@@ -39,6 +39,12 @@ class _MemSurveyRepo:
         self.responses: dict[str, dict[str, Any]] = {}
         self.suppressions: set[str] = set()
 
+    def get_campaign_by_idempotency(self, key: str) -> dict[str, Any] | None:
+        for c in self.campaigns.values():
+            if c.get("idempotency_key") == key:
+                return c
+        return None
+
     def insert_campaign(self, row: dict[str, Any]) -> dict[str, Any]:
         self.campaigns[row["id"]] = dict(row)
         return self.campaigns[row["id"]]
@@ -131,7 +137,7 @@ def test_schedule_clarity_draft_once() -> None:
     b = svc.schedule_clarity_after_open(case_id="c1", diagnostic_result_id="r1", delay_hours=48)
     assert a is not None and b is not None
     assert a["id"] == b["id"]
-    assert a["status"] == "draft"
+    assert a["status"] == "scheduled"
     assert a["survey_type"] == "clarity"
     assert len(repo.list_campaigns("c1")) == 1
 
@@ -211,7 +217,7 @@ def test_not_viewed_one_retry() -> None:
     clarity = [c for c in repo.list_campaigns("c5") if c["survey_type"] == "clarity"]
     assert len(clarity) == 2
     retry = [c for c in clarity if c["id"] != cid][0]
-    assert retry["status"] == "draft"
+    assert retry["status"] == "scheduled"
     assert retry["touch_index"] == 2
 
 

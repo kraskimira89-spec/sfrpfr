@@ -7,10 +7,14 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 from sfrfr.db.diagnosis_feedback_repository import DiagnosisFeedbackRepository
 from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
+from sfrfr.services.contact_policy import (
+    idempotency_survey,
+    is_quiet_hours,
+    next_daytime_window,
+)
 
 TEMPLATE_VERSION = "survey-clarity-v1"
 CLARITY_DELAY_HOURS = 48
@@ -19,7 +23,6 @@ FIRST_STEP_DELAY_DAYS = 10
 TOKEN_TTL_DAYS = 14
 MAX_SURVEY_TOUCHES = 2
 MIN_HOURS_BETWEEN_SERVICE = 48
-MSK = ZoneInfo("Europe/Moscow")
 
 CLARITY_ANSWERS = {
     "clear": "Всё понятно",
@@ -42,19 +45,13 @@ def new_action_token() -> str:
     return secrets.token_urlsafe(16)
 
 
+# Совместимость со старыми тестами / импортами
 def is_night_msk(now: datetime | None = None) -> bool:
-    local = (now or datetime.now(UTC)).astimezone(MSK)
-    return local.hour >= 22 or local.hour < 8
+    return is_quiet_hours(now)
 
 
 def next_daytime_msk(after: datetime | None = None) -> datetime:
-    """Сдвинуть на 10:00 MSK, если сейчас ночь."""
-    local = (after or datetime.now(UTC)).astimezone(MSK)
-    if local.hour >= 22:
-        local = (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-    elif local.hour < 8:
-        local = local.replace(hour=10, minute=0, second=0, microsecond=0)
-    return local.astimezone(UTC)
+    return next_daytime_window(after)
 
 
 class DiagnosisSurveyService:
@@ -73,9 +70,16 @@ class DiagnosisSurveyService:
         diagnostic_result_id: str | None,
         delay_hours: int = CLARITY_DELAY_HOURS,
     ) -> dict[str, Any] | None:
-        """После открытия PDF — draft опроса понятности (+48ч, не ночью)."""
+        """Триггер 3/5: после открытия — survey clarity scheduled (+48ч)."""
         if self.repo.has_suppression(case_id):
             return None
+        if diagnostic_result_id:
+            idem = idempotency_survey(diagnostic_result_id, "clarity")
+            prior = self.repo.get_campaign_by_idempotency(idem)
+            if prior and prior.get("status") not in ("cancelled", "expired"):
+                return prior
+        else:
+            idem = None
         existing = [
             c
             for c in self.repo.list_campaigns(case_id)
@@ -88,7 +92,7 @@ class DiagnosisSurveyService:
             return None
 
         when = datetime.now(UTC) + timedelta(hours=delay_hours)
-        when = next_daytime_msk(when)
+        when = next_daytime_window(when)
         row = self.repo.insert_campaign(
             {
                 "id": str(uuid4()),
@@ -96,12 +100,13 @@ class DiagnosisSurveyService:
                 "diagnostic_result_id": diagnostic_result_id,
                 "survey_type": "clarity",
                 "channel": "max",
-                "status": "draft",
+                "status": "scheduled",
                 "scheduled_at": when.isoformat(),
                 "expires_at": (when + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
                 "template_version": TEMPLATE_VERSION,
                 "body": CLARITY_BODY,
                 "touch_index": 1,
+                "idempotency_key": idem,
                 "updated_at": _now(),
             }
         )
@@ -255,7 +260,7 @@ class DiagnosisSurveyService:
             )
             # first_step draft через 10 дней (ещё не шлём)
             when = datetime.now(UTC) + timedelta(days=FIRST_STEP_DELAY_DAYS)
-            when = next_daytime_msk(when)
+            when = next_daytime_window(when)
             self.repo.insert_campaign(
                 {
                     "id": str(uuid4()),
@@ -263,11 +268,16 @@ class DiagnosisSurveyService:
                     "diagnostic_result_id": diagnostic_result_id,
                     "survey_type": "first_step",
                     "channel": "max",
-                    "status": "draft",
+                    "status": "scheduled",
                     "scheduled_at": when.isoformat(),
                     "template_version": "survey-first-step-v1",
                     "body": "Получилось ли выполнить первый шаг из плана действий?",
                     "touch_index": 1,
+                    "idempotency_key": (
+                        idempotency_survey(str(diagnostic_result_id), "first_step")
+                        if diagnostic_result_id
+                        else None
+                    ),
                     "updated_at": _now(),
                 }
             )
@@ -293,7 +303,7 @@ class DiagnosisSurveyService:
                 effects["no_more_retries"] = True
             else:
                 when = datetime.now(UTC) + timedelta(days=NOT_VIEWED_RETRY_DAYS)
-                when = next_daytime_msk(when)
+                when = next_daytime_window(when)
                 self.repo.insert_campaign(
                     {
                         "id": str(uuid4()),
@@ -301,7 +311,7 @@ class DiagnosisSurveyService:
                         "diagnostic_result_id": diagnostic_result_id,
                         "survey_type": "clarity",
                         "channel": "max",
-                        "status": "draft",
+                        "status": "scheduled",
                         "scheduled_at": when.isoformat(),
                         "template_version": TEMPLATE_VERSION,
                         "body": CLARITY_BODY,

@@ -36,16 +36,26 @@ class DiagnosisDeliveryRepository:
         return rows[0] if rows else None
 
     def get_published_for_case(self, case_id: str) -> dict[str, Any] | None:
-        resp = (
-            self.client.table("diagnostic_results")
-            .select("*")
-            .eq("case_id", case_id)
-            .eq("status", "published")
-            .limit(1)
-            .execute()
-        )
-        rows = resp.data or []
-        return rows[0] if rows else None
+        """Активный результат (ещё не closed/revoked)."""
+        for status in (
+            "published",
+            "delivered",
+            "opened",
+            "feedback_pending",
+            "feedback_received",
+        ):
+            resp = (
+                self.client.table("diagnostic_results")
+                .select("*")
+                .eq("case_id", case_id)
+                .eq("status", status)
+                .limit(1)
+                .execute()
+            )
+            rows = resp.data or []
+            if rows:
+                return rows[0]
+        return None
 
     def insert_link(self, row: dict[str, Any]) -> dict[str, Any]:
         resp = self.client.table("secure_share_links").insert(row).execute()
@@ -75,6 +85,17 @@ class DiagnosisDeliveryRepository:
         resp = self.client.table("notification_jobs").insert(row).execute()
         return (resp.data or [row])[0]
 
+    def get_job_by_idempotency(self, key: str) -> dict[str, Any] | None:
+        resp = (
+            self.client.table("notification_jobs")
+            .select("*")
+            .eq("idempotency_key", key)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0] if rows else None
+
     def list_jobs(self, case_id: str) -> list[dict[str, Any]]:
         resp = (
             self.client.table("notification_jobs")
@@ -82,6 +103,53 @@ class DiagnosisDeliveryRepository:
             .eq("case_id", case_id)
             .order("created_at", desc=True)
             .limit(40)
+            .execute()
+        )
+        return list(resp.data or [])
+
+    def list_failed_jobs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        resp = (
+            self.client.table("notification_jobs")
+            .select("id, case_id, job_type, channel, status, failure_reason, updated_at")
+            .eq("status", "failed")
+            .order("updated_at", desc=True)
+            .limit(min(max(limit, 1), 100))
+            .execute()
+        )
+        return list(resp.data or [])
+
+    def count_service_sent_since(self, case_id: str, since_iso: str) -> int:
+        jobs = self.list_jobs(case_id)
+        n = 0
+        for job in jobs:
+            if job.get("status") not in ("sent", "delivered", "queued", "approved"):
+                continue
+            sent = job.get("sent_at") or job.get("updated_at") or ""
+            if str(sent) >= since_iso:
+                n += 1
+        return n
+
+    def get_active_link_for_result(self, result_id: str) -> dict[str, Any] | None:
+        resp = (
+            self.client.table("secure_share_links")
+            .select("*")
+            .eq("diagnostic_result_id", result_id)
+            .is_("revoked_at", "null")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0] if rows else None
+
+    def list_results_needing_unread_check(self, *, limit: int = 40) -> list[dict[str, Any]]:
+        """Published/delivered без opened — кандидаты на reminder."""
+        resp = (
+            self.client.table("diagnostic_results")
+            .select("*")
+            .in_("status", ["published", "delivered"])
+            .order("published_at", desc=True)
+            .limit(min(max(limit, 1), 100))
             .execute()
         )
         return list(resp.data or [])

@@ -36,6 +36,7 @@
 27. [27-diagnosis-pdf-feedback.md](27-diagnosis-pdf-feedback.md) — обратная связь после PDF-диагностики: понятность и первый шаг, отдельно от публичного отзыва.
 28. [28-diagnosis-secure-delivery.md](28-diagnosis-secure-delivery.md) — безопасная выдача PDF: draft-уведомления, сотрудник подтверждает, без вложений.
 29. [29-diagnosis-surveys.md](29-diagnosis-surveys.md) — сервисные опросы после PDF (MAX clarity MVP; не маркетинг).
+30. [30-diagnosis-delivery-triggers.md](30-diagnosis-delivery-triggers.md) — машина состояний и триггеры 1–4 (publish / approve / open / unread).
 
 ## Принцип
 

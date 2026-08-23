@@ -3,7 +3,7 @@
 **Версия:** 1.0  
 **Дата:** 2026-08-23  
 **Статус:** MVP в коде (publish + draft + approve); напоминания/опрос — P1  
-**Связано:** [ТЗ-27](27-diagnosis-pdf-feedback.md) · [стандарт PDF](../marketing-sales/playbook-diagnosis-result-standard.md) · [feedback playbook](../marketing-sales/playbook-diagnosis-feedback.md) · [marketing consent](../marketing-sales/playbook-marketing-consent.md)
+**Связано:** [ТЗ-27](27-diagnosis-pdf-feedback.md) · [ТЗ-30 триггеры](30-diagnosis-delivery-triggers.md) · [стандарт PDF](../marketing-sales/playbook-diagnosis-result-standard.md) · [feedback playbook](../marketing-sales/playbook-diagnosis-feedback.md) · [marketing consent](../marketing-sales/playbook-marketing-consent.md)
 
 ---
 

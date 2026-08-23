@@ -1459,22 +1459,28 @@ def create_document_signed_url(
 
 
 @router.get("/diag-share/{token}")
-def open_diagnosis_share(token: str) -> RedirectResponse:
-    """Одноразовая/короткоживущая ссылка на PDF диагностики (ТЗ-28).
+def open_diagnosis_share(token: str, request: Request) -> RedirectResponse:
+    """Одноразовая/короткоживущая ссылка на PDF диагностики (ТЗ-28/30).
 
-    Без case_id в URL. PDF не отдаём вложением — только временный signed Storage URL.
+    Без case_id в URL. Prefetch/боты не считаются открытием.
     """
     from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
 
     raw = (token or "").strip()
     if len(raw) < 20:
         raise HTTPException(status_code=404, detail="not found")
+    ua = request.headers.get("user-agent")
     try:
-        resolved = DiagnosisDeliveryService().resolve_share_token(raw)
+        resolved = DiagnosisDeliveryService().resolve_share_token(raw, user_agent=ua)
     except LookupError:
         raise HTTPException(status_code=404, detail="not found") from None
     except PermissionError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+    if resolved.get("bot_skipped"):
+        from fastapi.responses import Response
+
+        return Response(status_code=204)  # type: ignore[return-value]
 
     document_id = resolved.get("document_id")
     case_id = resolved.get("case_id")

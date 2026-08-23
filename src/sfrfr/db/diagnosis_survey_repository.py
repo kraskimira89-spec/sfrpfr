@@ -15,6 +15,17 @@ class DiagnosisSurveyRepository:
         resp = self.client.table("survey_campaigns").insert(row).execute()
         return (resp.data or [row])[0]
 
+    def get_campaign_by_idempotency(self, key: str) -> dict[str, Any] | None:
+        resp = (
+            self.client.table("survey_campaigns")
+            .select("*")
+            .eq("idempotency_key", key)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0] if rows else None
+
     def get_campaign(self, campaign_id: str) -> dict[str, Any] | None:
         resp = (
             self.client.table("survey_campaigns")

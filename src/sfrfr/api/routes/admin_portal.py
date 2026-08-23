@@ -943,12 +943,12 @@ def publish_diagnosis_result(
     payload: DiagnosisPublishRequest,
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
-    """Опубликовать PDF диагностики → secure link + draft notification jobs (ТЗ-28)."""
-    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+    """Триггер 1: publish → draft result_ready + задача сотруднику (ТЗ-28/30)."""
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService, STAFF_TASK_PUBLISH
+    from sfrfr.services.finance_automation import ensure_staff_task
 
     repo = _repo()
-    repo.require_case(principal, case_id)
-    # Документ должен принадлежать делу.
+    case = repo.require_case(principal, case_id)
     doc = CaseRepository._one_or_none(
         get_supabase_client()
         .table("documents")
@@ -967,11 +967,32 @@ def publish_diagnosis_result(
             actor_id=principal.user_id,
             channels=list(payload.channels),
             checksum=payload.checksum,
+            do_not_contact=bool(case.get("do_not_contact")),
+            case_archived=str(case.get("status") or "") == "archived",
         )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    repo.audit(case_id, principal.audit_actor_id(), "diagnosis_published")
-    # share_token_once — только в этом ответе; не писать в audit.
+    repo.audit(case_id, principal.audit_actor_id(), "diagnostic_result_published")
+    try:
+        ensure_staff_task(
+            repo,
+            case_id,
+            title=STAFF_TASK_PUBLISH,
+            item_type="task",
+            due_at=None,
+            actor_id=principal.user_id,
+            note="Черновик уведомления result_ready — проверить и отправить",
+        )
+        repo.update_next_action(
+            case_id,
+            principal.user_id,
+            next_action=STAFF_TASK_PUBLISH,
+            waiting_on="staff",
+        )
+    except Exception:  # noqa: BLE001
+        pass
     return out
 
 
@@ -1035,6 +1056,31 @@ def approve_notification_job(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     repo.audit(case_id, principal.audit_actor_id(), f"notification_job_approve:{job_id}")
     return out
+
+
+@router.get("/admin/notification-jobs/failed")
+def list_failed_notification_jobs(
+    limit: int = 50,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Дашборд failed jobs (без ПДн в теле)."""
+    from sfrfr.db.diagnosis_delivery_repository import DiagnosisDeliveryRepository
+
+    _ = principal
+    jobs = DiagnosisDeliveryRepository().list_failed_jobs(limit=limit)
+    return {"jobs": jobs}
+
+
+@router.post("/admin/diagnosis-delivery/unread-tick")
+def run_unread_reminder_tick(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Scheduler-тик: создать draft result_unread (макс. 1), без автоотправки."""
+    from sfrfr.services.diagnosis_delivery import DiagnosisDeliveryService
+
+    _ = principal
+    stats = DiagnosisDeliveryService().run_unread_tick()
+    return {"ok": True, **stats}
 
 
 @router.post("/admin/cases/{case_id}/notification-jobs/{job_id}/cancel")
