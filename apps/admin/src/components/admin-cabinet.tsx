@@ -403,25 +403,25 @@ export function AdminCabinet() {
       preferred_channel?: string;
       pipeline_status?: string;
     }) => {
-      if (!token) return;
+    if (!token) return;
       setCasesLoading(true);
-      const params = new URLSearchParams();
-      if (q.trim()) params.set("q", q.trim());
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
       const pipeline = overrides?.pipeline_status ?? filterPipeline;
       const channel = overrides?.preferred_channel ?? filterChannel;
       const queue = overrides?.queue ?? registryQueue;
       if (pipeline) params.set("pipeline_status", pipeline);
       if (channel) params.set("preferred_channel", channel);
-      if (filterPackage) params.set("package_code", filterPackage);
+    if (filterPackage) params.set("package_code", filterPackage);
       params.set("queue", queue);
-      const qs = params.toString();
+    const qs = params.toString();
       try {
-        setCases(
-          await apiFetch<StaffCaseSummary[]>(
-            `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
-            token,
-          ),
-        );
+    setCases(
+      await apiFetch<StaffCaseSummary[]>(
+        `/api/portal/admin/cases${qs ? `?${qs}` : ""}`,
+        token,
+      ),
+    );
       } finally {
         setCasesLoading(false);
       }
@@ -519,7 +519,7 @@ export function AdminCabinet() {
       return;
     }
     await requestMaxLogin();
-  }
+    }
 
   function openMaxChat() {
     window.open(chatUrlOnly(maxBotUrl), "_blank", "noopener,noreferrer");
@@ -778,7 +778,7 @@ export function AdminCabinet() {
 
   async function loadRoles() {
     if (!token) return;
-    setView("roles");
+      setView("roles");
   }
 
   async function requestReview() {
@@ -1280,13 +1280,13 @@ export function AdminCabinet() {
     if (!token || !detail || !maxReplyBody.trim()) return;
     setBusy(true);
     try {
-      await apiFetch(`/api/portal/cases/${detail.id}/messages`, token, {
-        method: "POST",
+    await apiFetch(`/api/portal/cases/${detail.id}/messages`, token, {
+      method: "POST",
         body: JSON.stringify({ body: maxReplyBody.trim() }),
-      });
+    });
       setMaxReplyBody("");
-      const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
-      setMessages(next);
+    const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+    setMessages(next);
       setNotice("Сообщение сохранено в ленту дела.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось сохранить сообщение.");
@@ -1640,10 +1640,10 @@ export function AdminCabinet() {
                         <strong>{formatWhen(item.next_action_at)}</strong>
                         {" · "}
                         {item.client_name ?? "Клиент"} — {item.next_action}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                </button>
+              </li>
+            ))}
+          </ul>
               )}
             </div>
             <div className="panel">
@@ -1665,14 +1665,14 @@ export function AdminCabinet() {
               {Object.entries(DOC_STATUS_LABELS).map(([key, label]) => {
                 const count = dashboard.doc_status[key] ?? 0;
                 return (
-                  <button
+                <button
                     key={key}
-                    type="button"
+                  type="button"
                     className={queueFilter === `doc:${key}` ? "chip active" : "chip"}
                     onClick={() => setQueueFilter(`doc:${key}`)}
-                  >
+                >
                     {label} — {count}
-                  </button>
+                </button>
                 );
               })}
             </div>
@@ -1690,16 +1690,16 @@ export function AdminCabinet() {
                 ["payment", "Оплата"],
                 ["sla", "Риск SLA"],
               ].map(([id, label]) => (
-                <button
+                  <button
                   key={id}
-                  type="button"
+                    type="button"
                   className={queueFilter === id ? "chip active" : "chip"}
                   onClick={() => setQueueFilter(id)}
-                >
+                  >
                   {label}
-                </button>
+                  </button>
               ))}
-            </div>
+          </div>
             <div className="queue-wrap">
               <table className="queue-table">
                 <thead>
@@ -1748,23 +1748,23 @@ export function AdminCabinet() {
                         <td>
                           <button type="button" className="ghost" onClick={() => void openCase(item.case_id)}>
                             Открыть
-                          </button>
+                  </button>
                         </td>
                       </tr>
-                    ))}
+              ))}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div className="panel">
+              <div className="panel">
             <h2>Дела по этапам</h2>
-            <ul className="plain-list">
+                <ul className="plain-list">
               {Object.entries(dashboard.by_pipeline).map(([k, v]) => (
                 <li key={k}>{labelPipeline(k)}: {v}</li>
-              ))}
-            </ul>
-          </div>
+                  ))}
+                </ul>
+              </div>
         </section>
       )}
 
@@ -1948,7 +1948,7 @@ export function AdminCabinet() {
                   <button type="button" className="ghost" onClick={() => setDupDialog(null)}>
                     Отменить
                   </button>
-                </div>
+          </div>
               </div>
             </div>
           ) : null}
@@ -2006,7 +2006,7 @@ export function AdminCabinet() {
                     {cases.filter((c) => !c.is_test).map((c) => (
                       <option key={c.id} value={c.id}>{c.client_name ?? "Клиент"} · {c.id.slice(0, 8)}</option>
                     ))}
-                  </select>
+                </select>
                 </label>
                 <label>
                   Услуга с /tarify/
@@ -2030,7 +2030,7 @@ export function AdminCabinet() {
                 <div className="inline-form">
                   <button type="submit">Сохранить черновик</button>
                   <button type="button" className="ghost" onClick={() => setCreateInvoiceOpen(false)}>Отмена</button>
-                </div>
+            </div>
               </form>
             </section>
           )}
@@ -2049,17 +2049,17 @@ export function AdminCabinet() {
                     <option value="yookassa">ЮKassa</option>
                     <option value="cash">Наличные</option>
                     <option value="other">Другое</option>
-                  </select>
+                </select>
                 </label>
                 <label>Номер операции / комментарий<input value={paidRef} onChange={(e) => setPaidRef(e.target.value)} required /></label>
                 <p className="hint">Сотрудник и время попадут в журнал аудита. Удалить запись через интерфейс нельзя.</p>
                 <div className="inline-form">
                   <button type="submit">Записать оплату</button>
                   <button type="button" className="ghost" onClick={() => setMarkPaidOrder(null)}>Отмена</button>
-                </div>
-              </form>
-            </section>
-          )}
+            </div>
+            </form>
+        </section>
+      )}
 
           {cancelOrder && (
             <section className="panel stack finance-modal">
@@ -2081,7 +2081,7 @@ export function AdminCabinet() {
                   <button type="button" className="ghost" onClick={() => setCancelOrder(null)}>Закрыть</button>
                 </div>
               </form>
-            </section>
+        </section>
           )}
         </>
       )}
