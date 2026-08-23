@@ -73,7 +73,7 @@ TRACKER_ORG_ID=your_360_org_id
 | `Missing secrets/yandex-tracker.env` | скопировать из `.example`, заполнить токен |
 | `Connection closed` | не использовать PowerShell-лаунчер; только `.cmd` |
 | 401 / org | проверить `TRACKER_CLOUD_ORG_ID` и scope OAuth |
-| Очередь не найдена | создать очередь `SFRFR` в UI Трекера |
+| Очередь не найдена | создать `SFRFR` в UI или POST `/v3/queues` с `lead` + `issueTypesConfig` (см. [yandex-tracker-ops.md](./yandex-tracker-ops.md)) |
 
 ## Не делать
 

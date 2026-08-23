@@ -12,10 +12,10 @@ Notion **не** переносим — только новый контур.
 
 ## Трекер (UI)
 
-- [ ] Очередь **`SFRFR`** создана
-- [ ] Доска **SFRFR** (Open / In Progress / Done)
-- [ ] Типы **Task**, **Bug** (и при необходимости Story)
-- [ ] Smoke-задача из Cursor: «Создай задачу SFRFR: smoke MCP» — видна в UI
+- [x] Очередь **`SFRFR`** создана (2026-08-23, API; UI: https://tracker.yandex.ru/SFRFR)
+- [ ] Доска **SFRFR** (Open / In Progress / Done) — при необходимости настроить в UI
+- [x] Типы **Task**, **Bug** (и при необходимости Story) — скопированы с очереди TRACKER
+- [x] Smoke-задача **SFRFR-1** создана; из Cursor: «Создай задачу SFRFR: smoke MCP»
 
 ## Wiki
 

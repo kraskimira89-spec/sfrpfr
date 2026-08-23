@@ -22,7 +22,8 @@
 ## Трекер: минимальная настройка (UI, один раз)
 
 1. Организация: Яндекс 360 или Yandex Cloud (org id — в `secrets/yandex-tracker.env`).
-2. Очередь **`SFRFR`** — основная для продукта и ops.
+2. Очередь **`SFRFR`** — основная для продукта и ops (создана 2026-08-23; https://tracker.yandex.ru/SFRFR).
+   Через API нужны `lead` (trackerUid) и `issueTypesConfig` — скопировать с `TRACKER?expand=issueTypesConfig`.
 3. Типы задач: минимум **Task**, **Bug** (при необходимости **Story**).
 4. Доска **SFRFR** — колонки по умолчанию (Open → In Progress → Done).
 5. Компоненты/метки по необходимости: `marketing`, `ops`, `legal`, `infra`.
