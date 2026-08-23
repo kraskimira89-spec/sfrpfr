@@ -5,7 +5,8 @@
 **Исходник текста:** [`scripts/assets/leadmagnets/pension-folder-checklist.md`](../../scripts/assets/leadmagnets/pension-folder-checklist.md)  
 **Позиция сервиса:** [`scripts/assets/copy/submission-position.md`](../../scripts/assets/copy/submission-position.md)  
 **Учёт:** PUB-6  
-**Доступность:** [WCAG 2.1](https://www.w3.org/TR/WCAG21/) — контраст обычного текста ≥ 4,5:1, структурные заголовки, логичный порядок чтения в PDF.
+**Доступность:** [WCAG 2.1](https://www.w3.org/TR/WCAG21/) — контраст обычного текста ≥ 4,5:1, структурные заголовки, логичный порядок чтения в PDF.  
+**Доверие аудитории:** [playbook-ux-trust-seniors-2026-08.md](playbook-ux-trust-seniors-2026-08.md) — «непонятно / мелко / страшно / небезопасно».
 
 ---
 
