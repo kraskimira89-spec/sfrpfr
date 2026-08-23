@@ -20,7 +20,9 @@
 | `funnel-review` | отзыв |
 | `funnel-loss` | отказ / LOSS |
 
-Канон этапов amo: [../AMO/playbook-funnel-checklists-automation.md](../AMO/playbook-funnel-checklists-automation.md).
+Канон этапов и смысла продаж: [../AMO/playbook-funnel-checklists-automation.md](../AMO/playbook-funnel-checklists-automation.md), [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md).
+
+Ops-фокус FUNNEL: SLA первого ответа (цель 30–60 мин в рабочие часы), обязательность next step в процессе, LOSS_REASON, узкие места «не прислали ИЛС / боятся цену / не дошли до оплаты».
 
 ## Шаблон
 

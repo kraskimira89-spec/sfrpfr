@@ -7,7 +7,8 @@
 **Фундамент (крупные этапы):** [spec-marketing-sales-foundation.md](spec-marketing-sales-foundation.md)  
 **Статус:** [reports/2026-08-09-implementation-status.md](reports/2026-08-09-implementation-status.md)  
 **Бренд (голос):** [`docs/brand/brand-platform-v2.md`](../brand/brand-platform-v2.md)  
-**Позиция о подаче:** `scripts/assets/copy/submission-position.md`
+**Позиция о подаче:** `scripts/assets/copy/submission-position.md`  
+**Воронка и оффер:** [playbook-sales-clarity-funnel.md](playbook-sales-clarity-funnel.md) · [playbook-sales-qualification.md](playbook-sales-qualification.md)
 
 Это ТЗ **не заменяет** foundation: там — большая программа P0–P3. Здесь — как агент ведёт **текущую** маркетинговую работу в отдельном чате.
 
@@ -23,7 +24,8 @@
 - не раздувать сайт и документы маркетинговым шумом.
 
 Главный розничный вход: **сайт объясняет → MAX квалифицирует → кабинет принимает документы**.  
-Не продавать «перерасчёт» и не обещать суммы.
+Канон продаж: [playbook-sales-clarity-funnel.md](playbook-sales-clarity-funnel.md) — продаём ясность, порядок в документах и подготовку обращения, не надежду на прибавку.  
+Первый оффер — **диагностика 3 000 ₽**; не продавать «перерасчёт» и не обещать суммы.
 
 ---
 

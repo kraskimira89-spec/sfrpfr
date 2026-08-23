@@ -22,11 +22,12 @@
 3. `docs/TRACKER/playbook-agent-task-lifecycle.md`
 4. `docs/TRACKER/playbook-publish-queue.md`
 5. `docs/TRACKER/playbook-funnel-ops.md`
-6. `docs/TRACKER/ops-board-wiki-checklist.md`
-7. `docs/TRACKER/mcp-tools-map.md`
-8. `docs/ops/yandex-tracker-ops.md`
-9. `docs/ops/yandex-tracker-mcp.md`
-10. `scripts/assets/copy/submission-position.md`
+6. `docs/marketing-sales/playbook-sales-clarity-funnel.md` — смысл воронки (ясность, диагностика первой)
+7. `docs/TRACKER/ops-board-wiki-checklist.md`
+8. `docs/TRACKER/mcp-tools-map.md`
+9. `docs/ops/yandex-tracker-ops.md`
+10. `docs/ops/yandex-tracker-mcp.md`
+11. `scripts/assets/copy/submission-position.md`
 
 Канон: три очереди SFRFR / PUB / FUNNEL (см. tz-tracker-agents.md). Очередь TRACKER (орг.) не использовать.
 

@@ -20,8 +20,10 @@
 
 ## Канон
 - Подача: scripts/assets/copy/submission-position.md
+- Оффер и воронка: docs/marketing-sales/playbook-sales-clarity-funnel.md — ясность и план, не прибавка; первый оффер диагностика 3000 ₽
 - Нет калькулятора выплат / обещания перерасчёта: scripts/assets/copy/no-calculator-no-recalculation.md
 - Цены поэтапно: диагностика 3000 ₽, подготовка документов 5000 ₽, сопровождение до подачи 8000 ₽; Word 100 ₽/разворот. Не использовать 10000/25000 и «Под ключ» как публичный тариф.
+- ICP приоритет: родственники 40–60 → предпенсия → проблемный кейс
 - Голос: docs/brand/brand-platform-v2.md
 - Один CTA на пост. Primary: «Уточнить ситуацию в MAX» + блок «что будет после кнопки».
 - UTM: utm_source=vk; organic_social | paid_social; campaign/content по playbook.

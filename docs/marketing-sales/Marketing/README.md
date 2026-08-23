@@ -22,6 +22,8 @@
 ## Канон вне этой папки (читать, не дублировать)
 
 - Операционное ТЗ чата: [`../spec-marketing-agent-chat.md`](../spec-marketing-agent-chat.md)
+- **Воронка / оффер / возражения:** [`../playbook-sales-clarity-funnel.md`](../playbook-sales-clarity-funnel.md)
+- Квалификация: [`../playbook-sales-qualification.md`](../playbook-sales-qualification.md)
 - Индекс маркетинга: [`../README.md`](../README.md)
 - Стратегия: [`../strategy-2026-2028.md`](../strategy-2026-2028.md)
 - Foundation: [`../spec-marketing-sales-foundation.md`](../spec-marketing-sales-foundation.md)

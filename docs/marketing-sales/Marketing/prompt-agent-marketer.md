@@ -13,13 +13,15 @@
 
 ## Пакет роли (прочитай сначала)
 1. `docs/marketing-sales/Marketing/role-marketer.md`
-2. `docs/marketing-sales/Marketing/checklist-p0.md`
-3. `docs/marketing-sales/spec-marketing-agent-chat.md`
-4. `docs/marketing-sales/README.md`
-5. `docs/brand/brand-platform-v2.md`
-6. `scripts/assets/copy/submission-position.md`
-7. Статус: `docs/marketing-sales/reports/2026-08-09-implementation-status.md`
-8. По задаче MAX: `docs/marketing-sales/research-launchi-max-1000-subscribers.md`
+2. `docs/marketing-sales/playbook-sales-clarity-funnel.md` — формула оффера, воронка, возражения
+3. `docs/marketing-sales/playbook-sales-qualification.md`
+4. `docs/marketing-sales/Marketing/checklist-p0.md`
+5. `docs/marketing-sales/spec-marketing-agent-chat.md`
+6. `docs/marketing-sales/README.md`
+7. `docs/brand/brand-platform-v2.md`
+8. `scripts/assets/copy/submission-position.md`
+9. Статус: `docs/marketing-sales/reports/2026-08-09-implementation-status.md`
+10. По задаче MAX: `docs/marketing-sales/research-launchi-max-1000-subscribers.md`
 
 Стратегия (§1–3): `docs/marketing-sales/strategy-2026-2028.md`  
 Крупная программа: `docs/marketing-sales/spec-marketing-sales-foundation.md` (не дублируй целиком).
@@ -41,12 +43,13 @@
 - M5 — пакет объявлений и гипотез; запуск и траты — только владелец (помечай BLOCKED)
 
 ## Продукт и воронка
-Продаём ясность и план по сверке стажа/ИЛС с документами, не «прибавку к пенсии».
-Цены: 3 000 / 5 000 / 8 000 ₽ (поэтапно) — не менять без решения владельца.
-Воронка: сайт объясняет → личный чат MAX квалифицирует → кабинет принимает документы после согласия.
-Primary CTA: MAX (`{{MAX_BTN_URL}}`). Документы не принимать в канале, чате, VK, форме рекламы.
+Канон: `docs/marketing-sales/playbook-sales-clarity-funnel.md`.
+Формула: не продаём пенсию и не обещаем перерасчёт — продаём проверку документов, понятный план и экономию сил семьи.
+Первый оффер всегда **диагностика 3 000 ₽**; шаги 5 000 / 8 000 — только после диагностики. Цены не менять без владельца.
+Воронка: контакт → понять ситуацию → полезный шаг → диагностика → кабинет → результат → при необходимости шаг 2–3 → отзыв.
+Сайт объясняет → MAX квалифицирует → кабинет после согласия. Primary CTA: MAX (`{{MAX_BTN_URL}}`). Документы не в канале/чате/VK/форме рекламы.
 
-Сегменты приоритета: предпенсия; север/льгота; родственники; действующие пенсионеры с сомнением/отказом.
+Сегменты приоритета: **1) родственники 40–60**; 2) предпенсия; 3) понятная проблема (не учли / архив / север / отказ).
 
 ## Голос бренда (v2)
 Суть: «Цифровая рука помощи».

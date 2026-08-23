@@ -19,7 +19,11 @@
 5. `docs/AMO/ops-amocrm-setup.md`
 6. `docs/AMO/qa-lead-amocrm-e2e.md`
 7. `docs/AMO/sales-pipeline-amocrm.md`
-8. `scripts/assets/copy/submission-position.md`
+8. `docs/AMO/playbook-funnel-checklists-automation.md`
+9. `docs/AMO/playbook-operator-first-message-max.md`
+10. `docs/marketing-sales/playbook-sales-clarity-funnel.md` — формула оффера, возражения, next step
+11. `docs/marketing-sales/playbook-sales-qualification.md`
+12. `scripts/assets/copy/submission-position.md`
 
 Код: `src/sfrfr/integrations/amocrm/`  
 Канон в репо (при правках ТЗ синхронизируй): `docs/specs/12-amocrm.md`, `docs/ops/amocrm-setup.md`, `docs/qa/lead-amocrm-e2e.md`.
@@ -37,6 +41,13 @@
 - A3 — код интеграции и тесты (`tests/unit/test_amocrm_fields.py` и связанные)
 - A4 — E2E лид WP → API → amo (по qa-чеклисту)
 - A5 — воронка продаж / LOSS / атрибуция полей (с marketing-sales, без запуска рекламы)
+
+## Продажи в amo (не ломать)
+- Продукт: ясность и план, не «прибавка к пенсии» (`playbook-sales-clarity-funnel.md`).
+- Первый оффер — диагностика **3 000 ₽**; шаги 5 000 / 8 000 — после выдачи диагностики.
+- В каждом деле: **следующий шаг + дата + ответственный**.
+- Возражения — по таблице clarity-funnel / first-message-max.
+- LOSS всегда с причиной; желательно «слова клиента» без ПДн.
 
 ## Жёсткие правила
 1. Отвечай на русском.

@@ -59,13 +59,13 @@
 ## Как работать день за днём
 
 1. **Лид пришёл** → в amo появляется сделка на этапе «Новый лид» с `CASE_ID`.
-2. **Квалификация** — по playbook продаж (сегмент, ИЛС, трудовая; тяжёлый Word → отдельный счёт 100 ₽/разворот после осмотра сканов).
+2. **Квалификация** — [playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) + [playbook-sales-qualification.md](../marketing-sales/playbook-sales-qualification.md): сегмент (родственник → предпенсия → проблема), ИЛС, трудовая; оффер только диагностики 3 000 ₽; next step + дата; тяжёлый Word → отдельный счёт 100 ₽/разворот после осмотра сканов.
 3. **Документы** — направляете в кабинет; в amo только статус/задача, не файлы.
-4. **Продажа тарифа** — этапы и задачи в amo; факт оплаты и дело — в SFRFR.
-5. **Потеря** — причина LOSS в amo (для разбора воронки).
+4. **Продажа тарифа** — диагностика первой; шаги 5k/8k после выдачи результата; этапы и задачи в amo; факт оплаты и дело — в SFRFR.
+5. **Потеря** — причина LOSS в amo (+ какие слова клиента, без ПДн).
 6. **Маркетинг** — UTM/сегмент должны доезжать до полей сделки.
 
-См. также: [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md), [playbook-operator-amo-card.md](playbook-operator-amo-card.md), `docs/marketing-sales/playbook-sales-qualification.md`.
+См. также: [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md), [playbook-operator-amo-card.md](playbook-operator-amo-card.md), [playbook-operator-first-message-max.md](playbook-operator-first-message-max.md).
 
 ---
 

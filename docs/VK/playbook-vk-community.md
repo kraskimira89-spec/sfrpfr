@@ -53,9 +53,12 @@
 ```text
 пост / клип / лид-форма
   → /tarify/ или сегментная страница или MAX-чат
-  → квалификация
+  → понять ситуацию → полезный шаг
+  → квалификация → оффер диагностики 3 000 ₽
   → кабинет
 ```
+
+Канон смысла продаж: [`docs/marketing-sales/playbook-sales-clarity-funnel.md`](../marketing-sales/playbook-sales-clarity-funnel.md).
 
 Paid VK — **после** baseline и лимита владельца; органика — можно сразу.
 
