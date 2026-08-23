@@ -49,6 +49,7 @@
 
 ## Связанные документы
 
+- Пакет агента: [../TRACKER/README.md](../TRACKER/README.md) · [../TRACKER/tz-tracker-agents.md](../TRACKER/tz-tracker-agents.md)
 - MCP: [yandex-tracker-mcp.md](./yandex-tracker-mcp.md)
 - Чеклист: [yandex-tracker-greenfield-checklist.md](./yandex-tracker-greenfield-checklist.md)
 - amo: [../AMO/README.md](../AMO/README.md)

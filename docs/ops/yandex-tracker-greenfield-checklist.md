@@ -34,8 +34,11 @@ Notion **не** переносим — только новый контур.
 
 ## Документация в репо
 
+- [x] Пакет агента Трекера: [`docs/TRACKER/`](../TRACKER/README.md) (ТЗ, промпт, playbook’и публикаций и воронки)
+- [x] Правило Cursor: `.cursor/rules/tracker-folder.mdc`
 - [ ] SoT инструментов отражён в [`docs/marketing-sales/README.md`](../marketing-sales/README.md)
 
 ## Критерий «готово»
 
 Задачи ведутся в Трекере; Cursor создаёт issues через MCP; wiki/ТЗ — Wiki + git; CRM — amo; Notion вне процесса.
+Пакет `docs/TRACKER/` — канон для агентов (очередь `SFRFR`, теги `publish-*` / `funnel-*`).

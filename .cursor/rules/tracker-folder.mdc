@@ -1,0 +1,30 @@
+---
+description: Материалы и чат агента по Яндекс Трекеру хранить в docs/TRACKER
+alwaysApply: true
+---
+
+# Папка TRACKER (Яндекс Трекер)
+
+Пакет агента, ТЗ и playbook’и про Яндекс Трекер / очередь `SFRFR`:
+
+`docs/TRACKER/`
+
+- `README.md` — индекс;
+- `prompt-agent-tracker.md` — промпт нового чата;
+- `tz-tracker-agents.md` — полное ТЗ для агентов;
+- `playbook-agent-task-lifecycle.md` — цикл create → comment → Done;
+- `playbook-publish-queue.md` — очередь публикаций (`publish-*`);
+- `playbook-funnel-ops.md` — ops по воронке (`funnel-*`, без ПДн);
+- `ops-board-wiki-checklist.md` — доска и Wiki (UI);
+- `mcp-tools-map.md` — карта MCP.
+
+Канон ops: `docs/ops/yandex-tracker-ops.md`, `docs/ops/yandex-tracker-mcp.md`,
+`docs/ops/yandex-tracker-greenfield-checklist.md`.
+
+Рабочая очередь агентов — **`SFRFR`**. Очередь `TRACKER` (орг.) не использовать для продукта.
+
+При завершении фичи/фикса/публикации: создать или обновить issue в `SFRFR`, комментарий с итогами, переход статуса.
+Контент — теги `publish-*`; воронка ops — `funnel-*` без ПДн; CRM — amo (`docs/AMO/`).
+
+Не хранить токены Tracker, ПДн клиентов и сканы в этой папке.
+Секреты только `secrets/yandex-tracker.env`.
