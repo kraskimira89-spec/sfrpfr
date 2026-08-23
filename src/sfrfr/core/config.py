@@ -160,6 +160,15 @@ class Settings(BaseSettings):
     ops_monitor_token: str = ""
     ops_failed_alert_threshold: int = 1
 
+    # Яндекс Трекер — внутренние задачи качества (очередь STAZH)
+    tracker_enabled: bool = True
+    tracker_token: str = ""  # TRACKER_TOKEN
+    tracker_oauth_token: str = ""  # YANDEX_TRACKER_OAUTH_TOKEN (alias)
+    tracker_org_id: str = ""  # TRACKER_ORG_ID / YANDEX_TRACKER_ORG_ID
+    tracker_cloud_org_id: str = ""
+    tracker_queue: str = "STAZH"
+    tracker_case_ref_secret: str = ""  # TRACKER_CASE_REF_SECRET
+
 
 @lru_cache
 def get_settings() -> Settings:

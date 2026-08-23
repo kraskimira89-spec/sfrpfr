@@ -149,6 +149,16 @@ type StaffCaseDetail = {
   }[];
   crm_url?: string | null;
   meeting_url?: string | null;
+  tracker_last_issue_key?: string | null;
+  tracker_issue_url?: string | null;
+  tracker_issues?: {
+    id: string;
+    tracker_issue_key: string;
+    tracker_issue_url?: string | null;
+    issue_type: string;
+    is_open?: boolean;
+    created_at?: string;
+  }[];
   expert_user_id?: string | null;
   consent_accepted?: boolean;
   next_action?: string | null;
@@ -327,6 +337,14 @@ export function AdminCabinet() {
   const [financeIncludeTest, setFinanceIncludeTest] = useState(false);
   const [financeLoading, setFinanceLoading] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [trackerModalOpen, setTrackerModalOpen] = useState(false);
+  const [trackerIssueType, setTrackerIssueType] = useState("process_improvement");
+  const [trackerPriority, setTrackerPriority] = useState("normal");
+  const [trackerDirection, setTrackerDirection] = useState("ops");
+  const [trackerRepeat, setTrackerRepeat] = useState("once");
+  const [trackerDesc, setTrackerDesc] = useState("");
+  const [trackerTitle, setTrackerTitle] = useState("");
+  const [trackerForceNew, setTrackerForceNew] = useState(false);
   const [invoiceCaseId, setInvoiceCaseId] = useState("");
   const [invoiceCode, setInvoiceCode] = useState<"DIAG" | "ACCOMP">("DIAG");
   const [invoiceLabel, setInvoiceLabel] = useState("Диагностика");
@@ -812,6 +830,69 @@ export function AdminCabinet() {
       }
     } catch {
       setNotice("Не удалось создать Телемост.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createTrackerIssue() {
+    if (!token || !detail) return;
+    if (trackerDesc.trim().length < 10) {
+      setNotice("Описание задачи: минимум 10 символов (без ПДн).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await apiFetch<{
+        ok?: boolean;
+        duplicate?: boolean;
+        tracker_issue_key?: string;
+        tracker_issue_url?: string;
+        message?: string;
+        detail?: { error?: string; fields?: string[] } | string;
+      }>(`/api/portal/admin/cases/${detail.id}/tracker`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          issue_type: trackerIssueType,
+          priority: trackerPriority,
+          direction: trackerDirection,
+          source: "cabinet",
+          description: trackerDesc.trim(),
+          title_hint: trackerTitle.trim() || null,
+          funnel_stage: detail.pipeline_status,
+          channel:
+            detail.client.preferred_channel === "max_miniapp"
+              ? "max"
+              : detail.client.preferred_channel === "web_cabinet"
+                ? "web"
+                : "unknown",
+          repeatability: trackerRepeat,
+          force_new: trackerForceNew,
+        }),
+      });
+      if (result.ok && result.tracker_issue_key) {
+        const msg = result.duplicate
+          ? `Уже есть открытая задача: ${result.tracker_issue_key}`
+          : `Создано в Tracker: ${result.tracker_issue_key}`;
+        setNotice(msg);
+        setTrackerModalOpen(false);
+        setTrackerDesc("");
+        setTrackerTitle("");
+        setTrackerForceNew(false);
+        await openCase(detail.id);
+      } else {
+        const d = result.detail;
+        const fields =
+          d && typeof d === "object" && Array.isArray(d.fields) ? d.fields.join(", ") : "";
+        setNotice(
+          `Tracker: ${(d && typeof d === "object" && d.error) || "ошибка"}${
+            fields ? ` (${fields})` : ""
+          }`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "не удалось создать";
+      setNotice(`Tracker: ${msg}`);
     } finally {
       setBusy(false);
     }
@@ -1855,6 +1936,12 @@ export function AdminCabinet() {
             onRequestReview={() => void requestReview()}
             onCreateTelemost={() => void createTelemost()}
             onSendEmail={() => void sendWorkspaceEmail()}
+            onOpenTrackerModal={() => {
+              setTrackerModalOpen(true);
+              setTrackerDesc("");
+              setTrackerTitle("");
+              setTrackerForceNew(false);
+            }}
             onOpenSigned={(docId) => void openSigned(docId)}
             onToggleChecklist={(id, status) => void toggleChecklist(id, status)}
             onAddChecklist={(e) => void addChecklist(e)}
@@ -1892,6 +1979,109 @@ export function AdminCabinet() {
             onSuggest={() => void suggestReplies()}
             composerHighlight={composerFlash || maxReplyFocus}
           />
+          {trackerModalOpen && detail ? (
+            <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">
+              <div className="dup-dialog" style={{ maxWidth: 520 }}>
+                <h3>Создать задачу в Tracker</h3>
+                <p className="hint" style={{ color: "#b91c1c" }}>
+                  Не указывайте ФИО, телефон, e-mail, СНИЛС, номера документов, ссылки на кабинет,
+                  файлы, текст переписки или содержание ИЛС.
+                </p>
+                <div className="stack-form">
+                  <label>
+                    Тип
+                    <select
+                      value={trackerIssueType}
+                      onChange={(e) => setTrackerIssueType(e.target.value)}
+                    >
+                      <option value="bug">Ошибка</option>
+                      <option value="sla_incident">Инцидент SLA</option>
+                      <option value="channel_conflict">Конфликт каналов</option>
+                      <option value="process_improvement">Улучшение процесса</option>
+                      <option value="development">Разработка</option>
+                      <option value="content">Контент</option>
+                      <option value="security_privacy">Безопасность / ПДн</option>
+                      <option value="analytics_hypothesis">Аналитическая гипотеза</option>
+                      <option value="partner_request">Партнёрский запрос</option>
+                    </select>
+                  </label>
+                  <label>
+                    Приоритет
+                    <select
+                      value={trackerPriority}
+                      onChange={(e) => setTrackerPriority(e.target.value)}
+                    >
+                      <option value="critical">Критический</option>
+                      <option value="high">Высокий</option>
+                      <option value="normal">Обычный</option>
+                      <option value="low">Низкий</option>
+                    </select>
+                  </label>
+                  <label>
+                    Направление
+                    <select
+                      value={trackerDirection}
+                      onChange={(e) => setTrackerDirection(e.target.value)}
+                    >
+                      <option value="ops">Операции</option>
+                      <option value="product">Продукт</option>
+                      <option value="dev">Разработка</option>
+                      <option value="content">Контент</option>
+                      <option value="security">Безопасность</option>
+                      <option value="partners">Партнёры</option>
+                    </select>
+                  </label>
+                  <label>
+                    Повторяемость
+                    <select value={trackerRepeat} onChange={(e) => setTrackerRepeat(e.target.value)}>
+                      <option value="once">Единично</option>
+                      <option value="recurring">Повторяется</option>
+                      <option value="systemic">Системно</option>
+                    </select>
+                  </label>
+                  <label>
+                    Краткий заголовок (опционально)
+                    <input
+                      value={trackerTitle}
+                      onChange={(e) => setTrackerTitle(e.target.value)}
+                      placeholder="Без ПДн"
+                      maxLength={120}
+                    />
+                  </label>
+                  <label>
+                    Обезличенное описание
+                    <textarea
+                      rows={5}
+                      value={trackerDesc}
+                      onChange={(e) => setTrackerDesc(e.target.value)}
+                      placeholder="Что не так / что улучшить — без персональных данных"
+                      required
+                    />
+                  </label>
+                  <label className="inline-form">
+                    <input
+                      type="checkbox"
+                      checked={trackerForceNew}
+                      onChange={(e) => setTrackerForceNew(e.target.checked)}
+                    />
+                    Создать новую, даже если есть открытая того же типа
+                  </label>
+                  <p className="hint">
+                    В Tracker уйдёт псевдоним дела (case_ref), этап {detail.pipeline_status}, тип и
+                    описание. Очередь STAZH.
+                  </p>
+                </div>
+                <div className="dup-dialog-actions">
+                  <button type="button" className="ghost" onClick={() => setTrackerModalOpen(false)}>
+                    Отмена
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => void createTrackerIssue()}>
+                    Создать в Tracker
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {dupDialog ? (
             <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">
               <div className="dup-dialog">

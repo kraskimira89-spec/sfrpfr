@@ -6,11 +6,14 @@
 
 | Очередь | Назначение |
 |---------|------------|
+| **STAZH** | https://tracker.yandex.ru/STAZH — качество, SLA, улучшения (из admin) |
 | **SFRFR** | https://tracker.yandex.ru/SFRFR — продукт, infra, agents |
 | **PUB** | https://tracker.yandex.ru/PUB — публикации |
 | **FUNNEL** | https://tracker.yandex.ru/FUNNEL — ops воронки (без ПДн) |
 
 Очередь org. `TRACKER` — **не** для продукта.
+
+MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/yandex-tracker-stazh-quality.md)
 
 ## Быстрый старт
 
@@ -29,6 +32,7 @@
 | [playbook-funnel-ops.md](playbook-funnel-ops.md) | Очередь **FUNNEL** |
 | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) | Доски + Wiki (UI) |
 | [mcp-tools-map.md](mcp-tools-map.md) | Карта MCP |
+| [plugin-sfrfr-issue-wizard.md](plugin-sfrfr-issue-wizard.md) | Weavix-плагин «Мастер задач» |
 
 Скрипт очередей: `scripts/create_yandex_tracker_queues.py`.
 

@@ -183,3 +183,31 @@ class StaffPatchRequest(BaseModel):
 
 class AssignExpertRequest(BaseModel):
     expert_user_id: str | None = None
+
+
+class TrackerQualityIssueRequest(BaseModel):
+    """Создание обезличенной задачи в Яндекс Трекер (STAZH)."""
+
+    issue_type: Literal[
+        "bug",
+        "sla_incident",
+        "channel_conflict",
+        "process_improvement",
+        "development",
+        "content",
+        "security_privacy",
+        "analytics_hypothesis",
+        "partner_request",
+    ]
+    priority: Literal["critical", "high", "normal", "low"] = "normal"
+    direction: Literal["ops", "product", "dev", "content", "security", "partners"] = "ops"
+    source: Literal["cabinet", "max", "web", "amocrm", "staff", "analytics", "partner"] = "cabinet"
+    description: str = Field(min_length=10, max_length=3500)
+    component: str | None = Field(default=None, max_length=120)
+    funnel_stage: str | None = Field(default=None, max_length=64)
+    channel: Literal["max", "web", "phone", "email", "unknown"] | None = None
+    age_bucket: Literal["30m", "1d", "3d", "7d_plus"] | None = None
+    repeatability: Literal["once", "recurring", "systemic"] = "once"
+    correlation_id: str | None = Field(default=None, max_length=120)
+    title_hint: str | None = Field(default=None, max_length=120)
+    force_new: bool = False

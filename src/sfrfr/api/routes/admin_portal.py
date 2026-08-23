@@ -26,6 +26,7 @@ from sfrfr.api.schemas.admin import (
     StaffInviteRequest,
     StaffPatchRequest,
     StaffRoleUpsert,
+    TrackerQualityIssueRequest,
     WorkQueueItem,
     YandexMailRequest,
 )
@@ -177,6 +178,12 @@ def _filter_staff_case(
         "crm_external_id": case.get("crm_external_id"),
         "crm_url": _crm_url(case.get("crm_external_id")),
         "meeting_url": case.get("meeting_url"),
+        "tracker_last_issue_key": case.get("tracker_last_issue_key"),
+        "tracker_issue_url": (
+            f"https://tracker.yandex.ru/{case['tracker_last_issue_key']}"
+            if case.get("tracker_last_issue_key")
+            else None
+        ),
         "next_action": case.get("next_action"),
         "next_action_at": case.get("next_action_at"),
         "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
@@ -431,6 +438,12 @@ def admin_get_case(
         }
     payload["audit"] = repo.list_audit(case_id)
     payload["consent_accepted"] = repo.has_consent(case_id)
+    try:
+        from sfrfr.integrations.yandex_tracker.quality_issues import list_case_tracker_issues
+
+        payload["tracker_issues"] = list_case_tracker_issues(case_id)
+    except Exception:  # noqa: BLE001
+        payload["tracker_issues"] = []
     return payload
 
 
@@ -762,6 +775,85 @@ def create_case_telemost(
         except Exception as exc:  # noqa: BLE001
             result["persist_error"] = type(exc).__name__
             result["persist_detail"] = str(exc)[:200]
+    return result
+
+
+@router.get("/admin/tracker/health")
+def tracker_integration_health(
+    principal: Principal = Depends(require_admin),
+) -> dict[str, Any]:
+    """Health-check интеграции Трекер (только admin). Без токенов в ответе."""
+    from sfrfr.integrations.yandex_tracker import health_check
+
+    return health_check()
+
+
+@router.get("/admin/cases/{case_id}/tracker-issues")
+def list_case_tracker_issues_endpoint(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.integrations.yandex_tracker.quality_issues import list_case_tracker_issues
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    return {"items": list_case_tracker_issues(case_id)}
+
+
+@router.post("/admin/cases/{case_id}/tracker")
+def create_case_tracker_issue(
+    case_id: str,
+    payload: TrackerQualityIssueRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Создать обезличенную задачу в очереди STAZH (качество / продукт)."""
+    from sfrfr.integrations.yandex_tracker.quality_issues import create_quality_issue_from_case
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    funnel = payload.funnel_stage or str(case.get("pipeline_status") or "")
+    channel = payload.channel
+    if channel is None:
+        client = case.get("clients") or {}
+        pref = str(client.get("preferred_channel") or "unset")
+        channel = "max" if pref == "max" else ("web" if pref == "web" else "unknown")
+
+    result = create_quality_issue_from_case(
+        case_id=case_id,
+        actor_id=principal.user_id,
+        issue_type=payload.issue_type,
+        priority=payload.priority,
+        direction=payload.direction,
+        source=payload.source,
+        description=payload.description,
+        component=payload.component,
+        funnel_stage=funnel or None,
+        channel=channel,
+        age_bucket=payload.age_bucket,
+        repeatability=payload.repeatability,
+        correlation_id=payload.correlation_id,
+        title_hint=payload.title_hint,
+        force_new=payload.force_new,
+    )
+    key = result.get("tracker_issue_key")
+    if key and result.get("ok") and not result.get("duplicate"):
+        try:
+            get_supabase_client().table("cases").update(
+                {"tracker_last_issue_key": str(key)}
+            ).eq("id", case_id).execute()
+        except Exception:  # noqa: BLE001
+            pass
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"yandex_tracker_create:{key}:{payload.issue_type}",
+        )
+    elif result.get("duplicate") and key:
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"yandex_tracker_duplicate:{key}:{payload.issue_type}",
+        )
     return result
 
 

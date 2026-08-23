@@ -13,14 +13,16 @@ alwaysApply: true
 
 | Очередь | Назначение |
 |---------|------------|
+| **STAZH** | качество, SLA, улучшения из admin |
 | **SFRFR** | продукт, infra, agents |
 | **PUB** | публикации |
 | **FUNNEL** | ops воронки без ПДн |
 
 Скрипт: `scripts/create_yandex_tracker_queues.py`.
+Кабинет → STAZH: `docs/ops/yandex-tracker-stazh-quality.md`.
 
 При завершении работы — issue в **нужной** очереди + комментарий + статус.
-Публикации → **PUB**; воронка ops → **FUNNEL**; код/деплой → **SFRFR**.
+Качество/инциденты из дела → **STAZH**; публикации → **PUB**; воронка ops → **FUNNEL**; код/деплой → **SFRFR**.
 CRM по клиенту — amo (`docs/AMO/`).
 
-Секреты только `secrets/yandex-tracker.env`.
+Секреты только `secrets/yandex-tracker.env` / VPS `.env` (`TRACKER_*`).

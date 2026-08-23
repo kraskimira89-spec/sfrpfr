@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths-ignore:
       - "docs/marketing-sales/reports/webmaster-diagnostics-*.md"
+      - "plugins/tracker/**"
+      - "docs/TRACKER/plugin-*.md"
   workflow_dispatch:
 
 # Очередь: параллельные push в main не отменяют друг друга (нужен cancel-in-progress: false).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Создать очереди PUB и FUNNEL в Яндекс Трекере (клон конфига SFRFR)."""
+"""Создать очереди STAZH, PUB и FUNNEL в Яндекс Трекере (клон конфига SFRFR)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,14 @@ ENV_PATH = ROOT / "secrets" / "yandex-tracker.env"
 API = "https://api.tracker.yandex.net/v3"
 
 QUEUES = [
+    {
+        "key": "STAZH",
+        "name": "Проверка стажа — продукт и качество",
+        "description": (
+            "Внутренние задачи качества, SLA, контент, разработка. "
+            "Без ПДн. Канон: docs/ops/yandex-tracker-stazh-quality.md"
+        ),
+    },
     {
         "key": "PUB",
         "name": "Публикации",

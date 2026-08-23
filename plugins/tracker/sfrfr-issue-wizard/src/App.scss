@@ -1,0 +1,31 @@
+.wizard {
+    box-sizing: border-box;
+    max-width: 560px;
+    padding: 16px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.wizard__hint {
+    margin: 0;
+    color: var(--g-color-text-secondary);
+}
+
+.wizard__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wizard__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.wizard__error {
+    margin: 0;
+    color: var(--g-color-text-danger);
+}

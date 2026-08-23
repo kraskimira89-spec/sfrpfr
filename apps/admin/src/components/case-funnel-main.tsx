@@ -81,6 +81,16 @@ type Detail = {
   }[];
   crm_url?: string | null;
   meeting_url?: string | null;
+  tracker_last_issue_key?: string | null;
+  tracker_issue_url?: string | null;
+  tracker_issues?: {
+    id: string;
+    tracker_issue_key: string;
+    tracker_issue_url?: string | null;
+    issue_type: string;
+    is_open?: boolean;
+    created_at?: string;
+  }[];
   orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
   orders_summary?: { package_code: string; status: string }[];
   audit: { action: string; at: string }[];
@@ -218,6 +228,7 @@ export function CaseFunnelMain({
   onRequestReview,
   onCreateTelemost,
   onSendEmail,
+  onOpenTrackerModal,
   onOpenSigned,
   onToggleChecklist,
   onAddChecklist,
@@ -272,6 +283,7 @@ export function CaseFunnelMain({
   onRequestReview: () => void;
   onCreateTelemost: () => void;
   onSendEmail: () => void;
+  onOpenTrackerModal: () => void;
   onOpenSigned: (docId: string) => void;
   onToggleChecklist: (id: string, status: string) => void;
   onAddChecklist: (e: FormEvent) => void;
@@ -516,8 +528,16 @@ export function CaseFunnelMain({
                     Телемост
                   </a>
                 ) : null}
+                {detail.tracker_issue_url && detail.tracker_last_issue_key ? (
+                  <a href={detail.tracker_issue_url} target="_blank" rel="noreferrer">
+                    Трекер {detail.tracker_last_issue_key}
+                  </a>
+                ) : null}
                 <button type="button" className="linkish" disabled={busy} onClick={onCreateTelemost}>
                   Создать Телемост
+                </button>
+                <button type="button" className="linkish" disabled={busy} onClick={onOpenTrackerModal}>
+                  Создать задачу в Tracker
                 </button>
                 <button type="button" className="linkish" disabled={busy} onClick={onSendEmail}>
                   Письмо: документы
@@ -1055,6 +1075,26 @@ export function CaseFunnelMain({
         <details className="panel service-details case-card--wide">
           <summary>Служебное · журнал</summary>
           <p className="hint">ID: {detail.id}</p>
+          {detail.tracker_issues && detail.tracker_issues.length > 0 ? (
+            <>
+              <h3 className="case-subhead">Внутренние задачи Tracker</h3>
+              <ul className="plain-list">
+                {detail.tracker_issues.map((ti) => (
+                  <li key={ti.id}>
+                    {ti.tracker_issue_url ? (
+                      <a href={ti.tracker_issue_url} target="_blank" rel="noreferrer">
+                        {ti.tracker_issue_key}
+                      </a>
+                    ) : (
+                      ti.tracker_issue_key
+                    )}{" "}
+                    · {ti.issue_type}
+                    {ti.is_open === false ? " · закрыта" : ""}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
           <p>
             pipeline={detail.pipeline_status} · b2c={detail.b2c_status}
           </p>

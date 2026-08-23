@@ -1,0 +1,49 @@
+{
+  "$schema": "./manifest.schema.json",
+  "manifest_version": 1,
+  "id": "sfrfr-issue-wizard",
+  "supported_services": ["tracker"],
+  "slug": "sfrfr-issue-wizard",
+  "version": "0.1.0",
+  "name": {
+    "ru": "Мастер задач SFRFR",
+    "en": "SFRFR Issue Wizard"
+  },
+  "description": {
+    "ru": "Мастер задач STAZH (качество), SFRFR, PUB и FUNNEL с проверкой ПДн.",
+    "en": "Create issues in STAZH, SFRFR, PUB and FUNNEL with PII warnings."
+  },
+  "categories": ["productivity"],
+  "permissions": {
+    "data": [
+      "tracker:queues:read",
+      "tracker:issues:read",
+      "tracker:issues:write"
+    ],
+    "ui": ["toaster", "confirm"]
+  },
+  "support": [
+    {
+      "type": "email",
+      "value": "bogdanchik2@yandex.ru"
+    }
+  ],
+  "slots": {
+    "tracker": {
+      "navigation": [
+        {
+          "entrypoint": "index.html",
+          "title": {
+            "ru": "Мастер задач SFRFR",
+            "en": "SFRFR Issue Wizard"
+          },
+          "contextLevel": "basic",
+          "description": {
+            "ru": "Быстрое создание задач STAZH / SFRFR / PUB / FUNNEL",
+            "en": "Quick issue creation for STAZH / SFRFR / PUB / FUNNEL"
+          }
+        }
+      ]
+    }
+  }
+}

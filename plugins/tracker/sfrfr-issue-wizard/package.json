@@ -11,7 +11,7 @@
     "uikit",
     "sass"
   ],
-  "description": "Plugin template",
+  "description": "Мастер задач SFRFR для Яндекс Трекера (Weavix)",
   "engines": {
     "node": ">=22.12.0"
   },
