@@ -47,17 +47,19 @@ class EmailDeliveryRepository:
 
     def cancel_pending_email_jobs(self, *, contact_key: str | None, case_id: str | None) -> int:
         n = 0
-        query = self.client.table("notification_jobs").select("id, status, channel, recipient_contact_key, case_id")
+        cols = "id, status, channel, recipient_contact_key, case_id"
+        query = self.client.table("notification_jobs").select(cols)
         if case_id:
             query = query.eq("case_id", case_id)
         resp = query.limit(80).execute()
+        open_statuses = ("draft", "approved", "queued", "accepted", "deferred", "sent")
         for job in resp.data or []:
             if job.get("channel") != "email":
                 continue
             if contact_key and job.get("recipient_contact_key") not in (None, contact_key):
                 if job.get("recipient_contact_key") != contact_key:
                     continue
-            if job.get("status") not in ("draft", "approved", "queued", "accepted", "deferred", "sent"):
+            if job.get("status") not in open_statuses:
                 continue
             self.update_job(str(job["id"]), {"status": "cancelled", "updated_at": _now()})
             n += 1
