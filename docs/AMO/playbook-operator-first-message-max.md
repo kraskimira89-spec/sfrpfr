@@ -8,7 +8,10 @@
 **Правило:** сначала человек и ситуация → польза → **канон цены** → пауза → выбор.  
 Не «продавить» сопровождение, не обещать прибавку, не оправдывать цену и не давать скидку «на эмоциях».
 
-Канон цены: [playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) §4 / §4а.
+Канон цены: [playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) §4 / §4а / **§4б**.  
+Шаблоны оплаты: [`diagnosis-offer-to-payment.md`](../../scripts/assets/copy/diagnosis-offer-to-payment.md).
+
+**После согласия:** подтверждение → ссылка на оплату → кабинет. Ссылку **до** явного «да» на услугу и цену — не слать.
 
 ---
 

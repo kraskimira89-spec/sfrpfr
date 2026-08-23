@@ -907,3 +907,8 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Скрипты в ils-self-check-checklist.md; заметка/микроворонка в AMO task templates + карточка оператора.
 - CI: marketing_consent_repository → sfrfr.db.session; тест формы под новое согласие ПДн.
 - Tracker: комментарий FUNNEL-5.
+
+## 2026-08-23 — §4б: интерес → оплата без давления
+- Канон: playbook-sales-clarity-funnel §4б; ассет diagnosis-offer-to-payment.md.
+- Триггеры оффера, выбор действия, шаблоны после «да», «подумаю», доверие, самопроверка.
+- AMO: чеклист оффера, шпаргалка, first-message, task templates, prompt.
