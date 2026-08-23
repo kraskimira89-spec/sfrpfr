@@ -215,11 +215,12 @@ PDF **не** советует отправлять эти документы с�
 
 - [x] `scripts/assets/leadmagnets/pension-folder-checklist.md` — исходник текста PDF  
 - [x] [playbook-leadmagnet-workbook-layout-2026-08.md](playbook-leadmagnet-workbook-layout-2026-08.md) — макет A4, Canva, цвета, компоненты, QA  
-- [ ] PDF в `scripts/assets/` / статике сайта (без ПДн в имени файла) — вёрстка в Canva  
-- [ ] Посадочная WP `/chek-list-dokumentov/` (или Next — по решению деплоя)  
-- [ ] Шаблоны MAX/email выдачи + микродействия  
+- [x] [playbook-ux-trust-seniors-2026-08.md](playbook-ux-trust-seniors-2026-08.md) — антипаттерны доверия / читаемости / форм / PDF  
+- [x] Посадочная WP `/chek-list-dokumentov/` + `/pechat/` (trust HTML + сид ТЗ-18)  
+- [x] [playbook-leadmagnet-pension-folder.md](playbook-leadmagnet-pension-folder.md) — URL, сид, оператор, метрика  
+- [ ] PDF-файл вёрстки (Canva → статика сайта, без ПДн в имени)  
+- [ ] Форма выдачи с согласиями (маркер `<!-- SFRFR_CHECKLIST_FORM -->`) + шаблоны MAX/email  
 - [ ] Теги / тип лида в amo + кабинет  
-- [ ] Метрика: цель `checklist_download` (см. ops Метрики)  
-- [ ] Playbook оператора: чек-лист → микродействие → диагностика  
+- [ ] Метрика: цели `checklist_*` в Метрике  
 
-Старт: исходник текста и playbook макета готовы → вёрстка Canva → страница выдачи. После 30–50 получателей — править разделы по факту использования.
+Старт: исходник текста и посадочная в репо → после deploy сид trust-страниц на VPS → Canva PDF → форма. После 30–50 получателей — править разделы по факту использования.
