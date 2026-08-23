@@ -86,8 +86,9 @@ class DiagnosisFeedbackRepository:
             "touch3_sent_at",
         }
         payload = {k: v for k, v in fields.items() if k in allowed}
-        if "review_publication_consent" in payload and payload["review_publication_consent"] == "granted":
-            # Публикация без granted запрещена на уровне процесса; version/at — по желанию caller.
+        consent = payload.get("review_publication_consent")
+        if consent == "granted":
+            # Публикация без granted запрещена на уровне процесса.
             pass
         payload["updated_at"] = _now()
         resp = (

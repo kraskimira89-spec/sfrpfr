@@ -280,7 +280,9 @@ class DiagnosisDeliveryService:
                 job_id,
                 {
                     "status": "failed",
-                    "failure_reason": str(result.get("error") or result.get("reason") or "send_failed"),
+                    "failure_reason": str(
+                        result.get("error") or result.get("reason") or "send_failed"
+                    ),
                     "updated_at": _now(),
                 },
             )

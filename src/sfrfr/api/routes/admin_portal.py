@@ -15,11 +15,13 @@ from sfrfr.api.schemas.admin import (
     ChecklistItemCreate,
     ChecklistItemUpdate,
     DashboardResponse,
+    DiagnosisPublishRequest,
     FinancePayLinkRequest,
     FinanceRemindRequest,
     KnowledgeFeedbackRequest,
     ManualPaymentRequest,
     MaxReplyRequest,
+    NotificationJobApproveRequest,
     OrderCreateRequest,
     ResultConfirmRequest,
     StaffCaseSummary,
@@ -29,8 +31,6 @@ from sfrfr.api.schemas.admin import (
     TrackerQualityIssueRequest,
     WorkQueueItem,
     YandexMailRequest,
-    DiagnosisPublishRequest,
-    NotificationJobApproveRequest,
 )
 from sfrfr.api.schemas.portal import CaseStatusUpdate, CaseSummary
 from sfrfr.core.config import get_settings
