@@ -1897,6 +1897,106 @@ def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
     return files
 
 
+def _handle_marketing_consent(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    callback: str,
+    text: str,
+) -> MaxHandleResult | None:
+    """Кнопки согласия на рекламу в MAX и команда СТОП."""
+    from sfrfr.db.marketing_consent_repository import MarketingConsentRepository
+    from sfrfr.integrations.max.marketing_consent_flow import (
+        MARKETING_CONSENT_NO,
+        MARKETING_CONSENT_UNSUB,
+        MARKETING_CONSENT_YES,
+        REVOKED_TEXT,
+        THANKS_DENIED_TEXT,
+        THANKS_GRANTED_TEXT,
+        consent_version,
+        marketing_unsub_keyboard,
+    )
+    from sfrfr.services.marketing_consent import (
+        contact_key_for_max,
+        is_stop_command,
+    )
+
+    cb = (callback or "").strip()
+    stop = is_stop_command(text) or cb == MARKETING_CONSENT_UNSUB
+    grant = cb == MARKETING_CONSENT_YES
+    deny = cb == MARKETING_CONSENT_NO
+    if not (stop or grant or deny):
+        return None
+
+    case_id = _case_id_for_max_user(user_id)
+    client_id: str | None = None
+    try:
+        from sfrfr.db.supabase_client import get_supabase_client
+
+        row = (
+            get_supabase_client()
+            .table("clients")
+            .select("id")
+            .eq("max_user_id", str(user_id))
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if row:
+            client_id = str(row[0].get("id") or "") or None
+    except Exception:  # noqa: BLE001
+        client_id = None
+
+    repo = MarketingConsentRepository()
+    key = contact_key_for_max(str(user_id))
+    if grant:
+        status = "granted"
+        source = "max_bot_button"
+        reply = THANKS_GRANTED_TEXT
+        attachments = marketing_unsub_keyboard()
+        action = "marketing_consent_granted"
+    elif deny:
+        status = "denied"
+        source = "max_bot_button"
+        reply = THANKS_DENIED_TEXT
+        attachments = None
+        action = "marketing_consent_denied"
+    else:
+        status = "revoked"
+        source = "stop_command" if is_stop_command(text) else "max_bot_button"
+        reply = REVOKED_TEXT
+        attachments = None
+        action = "marketing_consent_revoked"
+
+    try:
+        repo.record_event(
+            contact_key=key,
+            channel="max",
+            status=status,  # type: ignore[arg-type]
+            source=source,
+            consent_text_version=consent_version(),
+            proof_id=cb or "STOP",
+            case_id=case_id,
+            client_id=client_id,
+            suppression_reason="user_stop" if status == "revoked" else None,
+            metadata={"max_user_id": str(user_id)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("marketing_consent_record_failed: %s", exc)
+
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=attachments,
+        case_id=case_id,
+    )
+    return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
+
+
 def _try_max_payment_receipt(
     bot: MaxBotClient,
     *,
@@ -2019,6 +2119,17 @@ def handle_max_update(
                 text = soft
                 callback = ""
                 lower = text.lower()
+
+    # Marketing consent: кнопки + команда СТОП (отдельно от ПДн).
+    mkt = _handle_marketing_consent(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        callback=callback,
+        text=text,
+    )
+    if mkt is not None:
+        return mkt
 
     # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:

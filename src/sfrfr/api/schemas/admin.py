@@ -153,6 +153,8 @@ class MaxReplyRequest(BaseModel):
     message: str = Field(min_length=1, max_length=3500)
     force: bool = False
     template_code: str | None = Field(default=None, max_length=64)
+    # service | marketing | mixed — если не задано, выводится из prefix template_code
+    message_kind: Literal["service", "marketing", "mixed"] | None = None
 
 
 class KnowledgeFeedbackRequest(BaseModel):

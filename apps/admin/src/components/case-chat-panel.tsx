@@ -136,6 +136,8 @@ export function CaseChatPanel({
   suggestions,
   onSuggest,
   composerHighlight = false,
+  marketingConsentLabel = null,
+  onRequestMarketingConsent,
 }: {
   messages: CaseChatMessage[];
   maxLinked: boolean;
@@ -149,6 +151,9 @@ export function CaseChatPanel({
   suggestions: string[];
   onSuggest: () => void;
   composerHighlight?: boolean;
+  /** Краткий статус marketing consent по MAX (не ПДн). */
+  marketingConsentLabel?: string | null;
+  onRequestMarketingConsent?: () => void;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const [filter, setFilter] = useState<ChatFilter>("all");
@@ -337,6 +342,25 @@ export function CaseChatPanel({
             ? ` MAX Business · user_id ${maxUserId}.`
             : ""}
         </p>
+        {maxLinked ? (
+          <div className="case-chat-marketing" style={{ marginTop: "0.75rem" }}>
+            <p className="hint" style={{ marginBottom: "0.35rem" }}>
+              Маркетинг MAX: {marketingConsentLabel || "нет данных / нет согласия"}. Не путать с
+              согласием на ПДн. Promo-шаблоны (`marketing_*`) без согласия не уйдут.
+            </p>
+            {onRequestMarketingConsent ? (
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onRequestMarketingConsent}
+                title="Отправить в MAX кнопки «Да, согласен» / «Нет»"
+              >
+                Запросить согласие на рассылку в MAX
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </aside>
   );

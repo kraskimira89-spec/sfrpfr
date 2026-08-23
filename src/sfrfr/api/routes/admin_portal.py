@@ -684,6 +684,53 @@ def send_max_reply_to_client(
     if payload.template_code:
         store_body = f"{text}\n\n[template:{payload.template_code.strip()}]"
 
+    from sfrfr.db.marketing_consent_repository import MarketingConsentRepository
+    from sfrfr.integrations.max.marketing_consent_flow import append_unsub_footer
+    from sfrfr.services.marketing_consent import classify_template, gate_outbound_message
+
+    kind = classify_template(payload.template_code, kind=payload.message_kind)
+    try:
+        mkt_rows = MarketingConsentRepository().list_for_contact(
+            max_user_id=max_uid,
+            email=str(client.get("email") or "") or None,
+            client_id=str(client.get("id") or "") or None,
+        )
+        gate = gate_outbound_message(
+            mkt_rows,
+            channel="max",
+            template_code=payload.template_code,
+            message_kind=payload.message_kind,
+        )
+    except Exception as exc:  # noqa: BLE001 — таблица ещё не накатана
+        if kind == "marketing":
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "marketing_consent_store_unavailable",
+                    "detail": f"Журнал согласий недоступен: {type(exc).__name__}",
+                },
+            ) from exc
+        gate = None
+    if gate is not None and not gate.allowed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": gate.reason,
+                "detail": (
+                    "Нельзя отправить: согласие на рекламные сообщения в MAX не получено "
+                    "или сообщение помечено как mixed. Сервисные сообщения по делу — "
+                    "без marketing_*; шаблоны promo_/marketing_ требуют согласие."
+                ),
+                "channel": gate.channel,
+                "consent_status": gate.status,
+            },
+        )
+    if kind == "marketing":
+        text = append_unsub_footer(text)
+        store_body = text
+        if payload.template_code:
+            store_body = f"{text}\n\n[template:{payload.template_code.strip()}]"
+
     sb = get_supabase_client()
     recent = (
         sb.table("case_messages")
@@ -1012,6 +1059,65 @@ def record_service_consent(
     repo.require_case(principal, case_id)
     repo.audit(case_id, principal.audit_actor_id(), "service_consent_recorded")
     return {"ok": True, "action": "service_consent_recorded"}
+
+
+@router.get("/admin/cases/{case_id}/marketing-consent")
+def get_marketing_consent(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Статус marketing consent по каналам (не путать с ПДн)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.db.marketing_consent_repository import MarketingConsentRepository
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    client = case.get("clients") or {}
+    try:
+        summary = MarketingConsentRepository().status_summary(
+            max_user_id=str(client.get("max_user_id") or "") or None,
+            email=str(client.get("email") or "") or None,
+            client_id=str(client.get("id") or "") or None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "channels": {}}
+    return {"ok": True, **summary}
+
+
+@router.post("/admin/cases/{case_id}/marketing-consent/request")
+def request_marketing_consent_max(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Отправить в MAX запрос согласия на рекламу (кнопки Да/Нет)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.integrations.max.client import MaxBotClient
+    from sfrfr.integrations.max.marketing_consent_flow import (
+        ASK_MARKETING_CONSENT_TEXT,
+        marketing_consent_ask_keyboard,
+    )
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    client = case.get("clients") or {}
+    max_uid = str(client.get("max_user_id") or "").strip()
+    if not max_uid:
+        raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
+    bot = MaxBotClient()
+    if not bot.available:
+        raise HTTPException(status_code=503, detail="max_bot_not_configured")
+    text = ASK_MARKETING_CONSENT_TEXT
+    attachments = marketing_consent_ask_keyboard()
+    try:
+        bot.send_message(text=text, user_id=max_uid, attachments=attachments)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=502, detail=f"max_send_failed:{type(exc).__name__}"
+        ) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "marketing_consent_requested")
+    return {"ok": True, "action": "marketing_consent_requested", "channel": "max"}
 
 
 @router.get("/admin/finance")
