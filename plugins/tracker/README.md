@@ -4,23 +4,34 @@
 
 ## Плагины
 
-| Каталог | Plugin ID | Слот | Назначение |
-|---------|-----------|------|------------|
-| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` | `navigation` | Мастер создания задач SFRFR / PUB / FUNNEL |
+| Каталог | Plugin ID | Слот | Порт debug | Назначение |
+|---------|-----------|------|------------|------------|
+| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` | `navigation` | 5173 | Мастер SFRFR / PUB / FUNNEL |
+| [stazh-quality-wizard](./stazh-quality-wizard/) | `stazh-quality-wizard` | `navigation` | 5174 | Качество / улучшения → **STAZH** (без ПДн) |
 
-Подробнее: [docs/TRACKER/plugin-sfrfr-issue-wizard.md](../../docs/TRACKER/plugin-sfrfr-issue-wizard.md).
+Документация:
+
+- [docs/TRACKER/plugin-sfrfr-issue-wizard.md](../../docs/TRACKER/plugin-sfrfr-issue-wizard.md)
+- [docs/TRACKER/plugin-stazh-quality-wizard.md](../../docs/TRACKER/plugin-stazh-quality-wizard.md)
+- Ops MVP кабинет → STAZH: [docs/ops/yandex-tracker-stazh-quality.md](../../docs/ops/yandex-tracker-stazh-quality.md)
 
 ## Быстрый старт (debug)
 
 ```powershell
+# Продукт / публикации / воронка
 cd plugins\tracker\sfrfr-issue-wizard
+npm install
+weavix debug
+
+# Качество STAZH (другой порт)
+cd plugins\tracker\stazh-quality-wizard
 npm install
 weavix debug
 ```
 
-1. Дождаться старта (Vite обычно на `http://localhost:5173`, в `config.json` будет `downloadUrl`).
+1. Дождаться старта Vite (`5173` или `5174`, в `config.json` будет `downloadUrl`).
 2. В Трекере: **Настройки → Эксперименты → Отладка плагинов** — подключить локальный плагин.
-3. Открыть слот **navigation** (боковое меню / навигация).
+3. Открыть слот **navigation**.
 
 ⚠️ Не открывайте localhost в браузере — плагин грузится только из интерфейса Трекера.
 

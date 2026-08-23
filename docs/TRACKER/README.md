@@ -32,7 +32,8 @@ MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/ya
 | [playbook-funnel-ops.md](playbook-funnel-ops.md) | Очередь **FUNNEL** |
 | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) | Доски + Wiki (UI) |
 | [mcp-tools-map.md](mcp-tools-map.md) | Карта MCP |
-| [plugin-sfrfr-issue-wizard.md](plugin-sfrfr-issue-wizard.md) | Weavix-плагин «Мастер задач» |
+| [plugin-sfrfr-issue-wizard.md](plugin-sfrfr-issue-wizard.md) | Weavix: мастер SFRFR / PUB / FUNNEL |
+| [plugin-stazh-quality-wizard.md](plugin-stazh-quality-wizard.md) | Weavix: качество → **STAZH** |
 
 Скрипт очередей: `scripts/create_yandex_tracker_queues.py`.
 

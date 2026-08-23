@@ -20,6 +20,7 @@ alwaysApply: true
 
 Скрипт: `scripts/create_yandex_tracker_queues.py`.
 Кабинет → STAZH: `docs/ops/yandex-tracker-stazh-quality.md`.
+Weavix-плагин качества: `plugins/tracker/stazh-quality-wizard/` (`docs/TRACKER/plugin-stazh-quality-wizard.md`).
 
 При завершении работы — issue в **нужной** очереди + комментарий + статус.
 Качество/инциденты из дела → **STAZH**; публикации → **PUB**; воронка ops → **FUNNEL**; код/деплой → **SFRFR**.

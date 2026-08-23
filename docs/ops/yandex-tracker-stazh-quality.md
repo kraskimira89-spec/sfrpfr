@@ -14,8 +14,9 @@
 6. Санитар: phone / email / СНИЛС / UUID / cabinet URL → 400.
 7. Health: `GET /api/portal/admin/tracker/health` (только admin).
 
-Плагин UI Трекера (`plugins/tracker/sfrfr-issue-wizard`): очереди **SFRFR / PUB / FUNNEL**.  
-Задачи качества **STAZH** создаются из admin-кабинета (этот MVP), не из Weavix-мастера.
+Плагин UI Трекера для ручного заведения в **STAZH**: `plugins/tracker/stazh-quality-wizard`  
+([док](../TRACKER/plugin-stazh-quality-wizard.md)). Мастер SFRFR/PUB/FUNNEL — отдельно (`sfrfr-issue-wizard`).  
+Задачи из карточки дела — через admin API (этот MVP).
 
 ## Env (VPS `/opt/sfrfr/.env` или secrets)
 
