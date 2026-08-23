@@ -901,3 +901,9 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 
 
 
+
+## 2026-08-23 — §5г: препятствие после чек-листа
+- Канон: playbook-sales-clarity-funnel.md §5г — один вопрос о барьере, скрипты, микроворонка подэтапов.
+- Скрипты в ils-self-check-checklist.md; заметка/микроворонка в AMO task templates + карточка оператора.
+- CI: marketing_consent_repository → sfrfr.db.session; тест формы под новое согласие ПДн.
+- Tracker: комментарий FUNNEL-5.
