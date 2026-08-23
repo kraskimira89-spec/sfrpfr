@@ -1,49 +1,58 @@
 {
-  "$schema": "./manifest.schema.json",
-  "manifest_version": 1,
-  "id": "stazh-quality-wizard",
-  "supported_services": ["tracker"],
-  "slug": "stazh-quality-wizard",
-  "version": "0.1.0",
-  "name": {
-    "ru": "Качество STAZH",
-    "en": "STAZH Quality"
-  },
-  "description": {
-    "ru": "Внутренние задачи качества и улучшений в очереди STAZH без ПДн клиента.",
-    "en": "Internal quality and improvement issues in the STAZH queue without client PII."
-  },
-  "categories": ["productivity"],
-  "permissions": {
-    "data": [
-      "tracker:queues:read",
-      "tracker:issues:read",
-      "tracker:issues:write"
+    "$schema": "./manifest.schema.json",
+    "manifest_version": 1,
+    "supported_services": [
+        "tracker"
     ],
-    "ui": ["toaster", "confirm"]
-  },
-  "support": [
-    {
-      "type": "email",
-      "value": "bogdanchik2@yandex.ru"
-    }
-  ],
-  "slots": {
-    "tracker": {
-      "navigation": [
+    "slug": "stazh-quality-wizard",
+    "version": "0.1.1",
+    "name": {
+        "ru": "Качество STAZH",
+        "en": "STAZH Quality"
+    },
+    "description": {
+        "ru": "Внутренние задачи качества и улучшений в очереди STAZH без ПДн клиента.",
+        "en": "Internal quality and improvement issues in the STAZH queue without client PII."
+    },
+    "categories": [
+        "productivity"
+    ],
+    "permissions": {
+        "data": [
+            "tracker:queues:read",
+            "tracker:issues:read",
+            "tracker:issues:write",
+            "tracker.v2.read",
+            "tracker.v2.write"
+        ],
+        "ui": [
+            "toaster",
+            "confirm"
+        ]
+    },
+    "support": [
         {
-          "entrypoint": "index.html",
-          "title": {
-            "ru": "Качество STAZH",
-            "en": "STAZH Quality"
-          },
-          "contextLevel": "basic",
-          "description": {
-            "ru": "Создание обезличенных задач качества в очереди STAZH",
-            "en": "Create anonymized quality issues in the STAZH queue"
-          }
+            "type": "email",
+            "value": "bogdanchik2@yandex.ru"
         }
-      ]
-    }
-  }
+    ],
+    "slots": {
+        "tracker": {
+            "navigation": [
+                {
+                    "entrypoint": "index.html",
+                    "title": {
+                        "ru": "Качество STAZH",
+                        "en": "STAZH Quality"
+                    },
+                    "contextLevel": "basic",
+                    "description": {
+                        "ru": "Создание обезличенных задач качества в очереди STAZH",
+                        "en": "Create anonymized quality issues in the STAZH queue"
+                    }
+                }
+            ]
+        }
+    },
+    "id": "654059d7-7712-44fa-bbab-62dc0d132acb"
 }
