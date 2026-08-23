@@ -2,12 +2,8 @@
 
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  BOT_TYPING_TIMEOUT_HINT,
-  BOT_TYPING_TIMEOUT_MS,
-  awaitingBotReplyKey,
-  isAwaitingBotReply,
-} from "../../../../shared/bot-typing";
+import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
+import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
 
 export type CaseChatMessage = {
   id: string;
@@ -167,22 +163,7 @@ export function CaseChatPanel({
 
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
 
-  const awaitingBotReply = useMemo(() => isAwaitingBotReply(messages), [messages]);
-  const botReplyKey = useMemo(() => awaitingBotReplyKey(messages), [messages]);
-  const [botTypingTimedOut, setBotTypingTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (!botReplyKey) {
-      setBotTypingTimedOut(false);
-      return;
-    }
-    setBotTypingTimedOut(false);
-    const timer = window.setTimeout(() => setBotTypingTimedOut(true), BOT_TYPING_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [botReplyKey]);
-
-  const showBotTyping = awaitingBotReply && !botTypingTimedOut;
-  const showBotTypingTimeout = awaitingBotReply && botTypingTimedOut;
+  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
   const scrollFeedToEnd = useCallback(() => {
     const el = feedRef.current;

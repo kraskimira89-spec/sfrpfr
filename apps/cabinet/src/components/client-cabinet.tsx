@@ -3,7 +3,8 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
-import { BOT_TYPING_TIMEOUT_HINT, BOT_TYPING_TIMEOUT_MS, awaitingBotReplyKey, isAwaitingBotReply } from "../../../../shared/bot-typing";
+import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
+import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 
 type CaseSummary = {
@@ -323,22 +324,7 @@ export function ClientCabinet() {
   const ensureCaseRef = useRef(false);
   const messagesPanelRef = useRef<HTMLDivElement | null>(null);
 
-  const awaitingBotReply = useMemo(() => isAwaitingBotReply(messages), [messages]);
-  const botReplyKey = useMemo(() => awaitingBotReplyKey(messages), [messages]);
-  const [botTypingTimedOut, setBotTypingTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (!botReplyKey) {
-      setBotTypingTimedOut(false);
-      return;
-    }
-    setBotTypingTimedOut(false);
-    const timer = window.setTimeout(() => setBotTypingTimedOut(true), BOT_TYPING_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [botReplyKey]);
-
-  const showBotTyping = awaitingBotReply && !botTypingTimedOut;
-  const showBotTypingTimeout = awaitingBotReply && botTypingTimedOut;
+  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
   const scrollMessagesToEnd = useCallback(() => {
     const el = messagesPanelRef.current;
