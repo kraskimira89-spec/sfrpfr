@@ -150,14 +150,18 @@ def test_suppression_blocks_schedule() -> None:
 
 def test_approve_returns_tokens_without_case_id_in_payload() -> None:
     svc, _repo, _fb = _svc()
-    camp = svc.schedule_clarity_after_open(case_id="c2", diagnostic_result_id="r2", delay_hours=0)
+    # Длинный case_id: короткие «c2» дают ложные срабатывания в urlsafe-токенах.
+    case_id = "case-must-not-appear-in-token-xyz"
+    camp = svc.schedule_clarity_after_open(
+        case_id=case_id, diagnostic_result_id="r2", delay_hours=0
+    )
     assert camp is not None
     out = svc.approve_and_mark_sent(campaign_id=str(camp["id"]), actor_id="staff1")
     assert out.get("ok")
     tokens = out["tokens"]
     assert set(tokens) == set(CLARITY_ANSWERS)
     for raw in tokens.values():
-        assert "c2" not in raw
+        assert case_id not in raw
         assert "@" not in raw
         assert len(raw) >= 10
 
