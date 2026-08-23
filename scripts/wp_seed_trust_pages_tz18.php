@@ -446,15 +446,24 @@ if ($menu) {
             break;
         }
     }
-    if ($uslugiParentId > 0 && !isset($titles['Стаж до 2002'])) {
-        wp_update_nav_menu_item($menuId, 0, [
-            'menu-item-title' => 'Стаж до 2002',
-            'menu-item-url' => home_url('/stazh-do-2002/'),
-            'menu-item-status' => 'publish',
-            'menu-item-type' => 'custom',
-            'menu-item-parent-id' => $uslugiParentId,
-        ]);
-        echo "MENU Стаж до 2002 under Услуги\n";
+    $uslugiChildren = [
+        'Стаж до 2002' => home_url('/stazh-do-2002/'),
+        'Чек-лист документов' => home_url('/chek-list-dokumentov/'),
+    ];
+    if ($uslugiParentId > 0) {
+        foreach ($uslugiChildren as $title => $url) {
+            if (isset($titles[$title])) {
+                continue;
+            }
+            wp_update_nav_menu_item($menuId, 0, [
+                'menu-item-title' => $title,
+                'menu-item-url' => $url,
+                'menu-item-status' => 'publish',
+                'menu-item-type' => 'custom',
+                'menu-item-parent-id' => $uslugiParentId,
+            ]);
+            echo "MENU {$title} under Услуги\n";
+        }
     }
 
     // Порядок верхнего уровня: … Услуги → Отзывы → Статьи → …

@@ -166,6 +166,7 @@ if [ "${SFRFR_REBUILD_MENU:-0}" = "1" ]; then
       "${WP[@]}" menu item add-custom "$MENU_ID" "Северный стаж" "/proverka-severnogo-stazha/" --parent-id="$USLUGI_ID" >/dev/null
       "${WP[@]}" menu item add-custom "$MENU_ID" "Стаж до 2002" "/stazh-do-2002/" --parent-id="$USLUGI_ID" >/dev/null
       "${WP[@]}" menu item add-custom "$MENU_ID" "Помочь родственнику" "/pomoch-rodstvenniku-proverit-stazh/" --parent-id="$USLUGI_ID" >/dev/null
+      "${WP[@]}" menu item add-custom "$MENU_ID" "Чек-лист документов" "/chek-list-dokumentov/" --parent-id="$USLUGI_ID" >/dev/null
       "${WP[@]}" menu item add-custom "$MENU_ID" "Как это работает" "/kak-rabotaem/" --parent-id="$USLUGI_ID" >/dev/null
       "${WP[@]}" menu item add-custom "$MENU_ID" "Тарифы" "/tarify/" --parent-id="$USLUGI_ID" >/dev/null
     fi
