@@ -7,13 +7,15 @@ Weavix-плагин для Яндекс Трекера: быстрое созд�
 | Поле | Значение |
 |------|----------|
 | Plugin ID / slug | `sfrfr-issue-wizard` |
+| Platform Plugin ID | `07376a90-6b90-43fb-81d7-21f77d3baf1d` |
 | UI name | Мастер задач SFRFR |
 | Слот | `navigation` |
 | Категория | `productivity` |
 | Support email | `bogdanchik2@yandex.ru` |
-| Data permissions | `tracker:queues:read`, `tracker:issues:read`, `tracker:issues:write` |
+| Data permissions | `tracker:queues:read`, `tracker:issues:read`, `tracker:issues:write`, `tracker:tags:read` |
 | UI permissions | `toaster`, `confirm` |
 | Путь | `plugins/tracker/sfrfr-issue-wizard/` |
+| Version | `0.1.6` (на модерации после `weavix submit`) |
 
 Создан по шаблону Weavix CLI `@weavix/cli` (`navigation`): `weavix create` интерактивен (legal + checkbox), поэтому scaffold скопирован из шаблона CLI.
 
@@ -48,9 +50,12 @@ weavix debug
 | Поле | Значение |
 |------|----------|
 | Version | `0.1.6` |
+| Platform Plugin ID | `07376a90-6b90-43fb-81d7-21f77d3baf1d` |
 | Visibility (ожидаемо) | `ORGANIZATION` |
 | Marketplace | `marketplace/index.md`, `marketplace/header-image.jpg`, `public/logo.svg` |
 | Справка | `docs/index.md` + `docs/toc.yaml` |
+
+В манифесте поле `id` — **UUID платформы** (не slug). Если указать slug в `id`, `weavix submit` пойдёт в update и упадёт с `expected type: UUID`. Первая публикация: без `id` → CLI создаёт плагин и сам проставляет UUID.
 
 ```powershell
 cd plugins\tracker\sfrfr-issue-wizard

@@ -1,17 +1,17 @@
-import {useCallback, useMemo, useState} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import {Button, Select, Text, TextArea, TextInput, ThemeProvider} from '@gravity-ui/uikit';
-import {trackerApi, uiApi, useTrackerPluginContext} from '@weavix/tracker-plugin-sdk-react';
+import { Button, Select, Text, TextArea, TextInput, ThemeProvider } from '@gravity-ui/uikit';
+import { trackerApi, uiApi, useTrackerPluginContext } from '@weavix/tracker-plugin-sdk-react';
 
 import {
     FUNNEL_TAGS,
     PUB_TAGS,
     QUEUE_OPTIONS,
-    SFRFR_OPTIONAL_TAGS,
     type QueueKey,
+    SFRFR_OPTIONAL_TAGS,
 } from './types/queues';
-import {detectPii, formatPiiWarning} from './utils/pii';
-import {getPrefill} from './utils/prefills';
+import { detectPii, formatPiiWarning } from './utils/pii';
+import { getPrefill } from './utils/prefills';
 
 import './App.scss';
 
@@ -26,7 +26,7 @@ function isTagRequired(queue: QueueKey): boolean {
 }
 
 const App = () => {
-    const {theme} = useTrackerPluginContext<'navigation'>();
+    const { theme } = useTrackerPluginContext<'navigation'>();
     const [queue, setQueue] = useState<QueueKey>('SFRFR');
     const [tag, setTag] = useState<string | undefined>();
     const [summary, setSummary] = useState(() => getPrefill('SFRFR').summary);
@@ -66,26 +66,26 @@ const App = () => {
         // (https://yandex.ru/support/tracker/ru/plugins/examples.md).
         // Вызов '/v2/issues' требует scope tracker:v2:write, которого нет в permissions.data.
         const bodyParams = {
-            queue: {key: queue},
+            queue: { key: queue },
             summary: summary.trim(),
-            ...(description.trim() ? {description: description.trim()} : {}),
-            ...(tag ? {tags: [tag]} : {}),
+            ...(description.trim() ? { description: description.trim() } : {}),
+            ...(tag ? { tags: [tag] } : {}),
         };
 
         type CreateIssueFn = (payload: {
             bodyParams: {
-                queue: {key: string};
+                queue: { key: string };
                 summary: string;
                 description?: string;
                 tags?: string[];
             };
-        }) => Promise<{data: {key?: string}}>;
+        }) => Promise<{ data: { key?: string } }>;
 
-        const postIssues = (
-            trackerApi.v3.post as unknown as Record<string, CreateIssueFn>
-        )['/issues'];
+        const postIssues = (trackerApi.v3.post as unknown as Record<string, CreateIssueFn>)[
+            '/issues'
+        ];
 
-        const {data: created} = await postIssues({bodyParams});
+        const { data: created } = await postIssues({ bodyParams });
 
         const key =
             typeof created === 'object' && created && 'key' in created
@@ -98,7 +98,7 @@ const App = () => {
         });
 
         if (key) {
-            await uiApi.navigate({path: `/issues/${key}`});
+            await uiApi.navigate({ path: `/issues/${key}` });
         }
     }, [description, queue, summary, tag]);
 
@@ -112,7 +112,7 @@ const App = () => {
 
         const piiHits = detectPii(`${summary}\n${description}`);
         if (piiHits.length > 0) {
-            const {confirmed} = await uiApi.confirm.show({
+            const { confirmed } = await uiApi.confirm.show({
                 title: 'Возможные ПДн в тексте',
                 message: formatPiiWarning(piiHits),
                 textButtonApply: 'Всё равно создать',
@@ -168,12 +168,12 @@ const App = () => {
                     </Text>
                     <Select
                         value={tag ? [tag] : []}
-                        onUpdate={(values) => setTag(values[0] === '__none__' ? undefined : values[0])}
+                        onUpdate={(values) =>
+                            setTag(values[0] === '__none__' ? undefined : values[0])
+                        }
                         options={[
-                            ...(tagRequired
-                                ? []
-                                : [{value: '__none__', content: 'Без тега'}]),
-                            ...tags.map((t) => ({value: t, content: t})),
+                            ...(tagRequired ? [] : [{ value: '__none__', content: 'Без тега' }]),
+                            ...tags.map((t) => ({ value: t, content: t })),
                         ]}
                         placeholder={tagRequired ? 'Выберите тег' : 'Без тега'}
                         filterable={false}

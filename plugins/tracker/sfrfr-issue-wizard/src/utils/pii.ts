@@ -4,7 +4,7 @@ export type PiiHit = {
 };
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-const PHONE_RE = /(?:\+?7|8)[\s\-()]?\d{3}[\s\-()]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}/g;
+const PHONE_RE = /(?:\+?7|8)[\s()-]?\d{3}[\s()-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g;
 const SNILS_RE = /\b\d{3}[-\s]?\d{3}[-\s]?\d{3}[-\s]?\d{2}\b/g;
 
 export function detectPii(text: string): PiiHit[] {
@@ -15,7 +15,7 @@ export function detectPii(text: string): PiiHit[] {
         const key = `${kind}:${label}`;
         if (seen.has(key)) return;
         seen.add(key);
-        hits.push({kind, label});
+        hits.push({ kind, label });
     };
 
     if ((text.match(EMAIL_RE) ?? []).length > 0) {

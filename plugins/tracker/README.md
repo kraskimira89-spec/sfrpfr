@@ -6,7 +6,7 @@
 
 | Каталог | Plugin ID | Слот | Порт debug | Назначение |
 |---------|-----------|------|------------|------------|
-| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` | `navigation` | 5173 | Мастер SFRFR / PUB / FUNNEL (ассеты marketplace готовы к `weavix submit`) |
+| [sfrfr-issue-wizard](./sfrfr-issue-wizard/) | `sfrfr-issue-wizard` (`07376a90-…`, v0.1.6 **submitted**) | `navigation` | 5173 | Мастер SFRFR / PUB / FUNNEL |
 | [stazh-quality-wizard](./stazh-quality-wizard/) | `stazh-quality-wizard` (`654059d7-…`, v0.1.1 **IN_REVIEW**) | `navigation` | 5174 | Качество / улучшения → **STAZH** (без ПДн) |
 
 Документация:

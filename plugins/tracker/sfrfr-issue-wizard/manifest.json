@@ -1,57 +1,58 @@
 {
-  "$schema": "./manifest.schema.json",
-  "manifest_version": 1,
-  "id": "sfrfr-issue-wizard",
-  "supported_services": [
-    "tracker"
-  ],
-  "slug": "sfrfr-issue-wizard",
-  "version": "0.1.6",
-  "name": {
-    "ru": "Мастер задач SFRFR",
-    "en": "SFRFR Issue Wizard"
-  },
-  "description": {
-    "ru": "Создание задач SFRFR, PUB, FUNNEL с тегами и проверкой ПДн",
-    "en": "Create SFRFR, PUB, FUNNEL issues with tags and PII checks"
-  },
-  "categories": [
-    "productivity"
-  ],
-  "permissions": {
-    "data": [
-      "tracker:queues:read",
-      "tracker:issues:read",
-      "tracker:issues:write",
-      "tracker:tags:read"
+    "$schema": "./manifest.schema.json",
+    "manifest_version": 1,
+    "supported_services": [
+        "tracker"
     ],
-    "ui": [
-      "toaster",
-      "confirm"
-    ]
-  },
-  "support": [
-    {
-      "type": "email",
-      "value": "bogdanchik2@yandex.ru"
-    }
-  ],
-  "slots": {
-    "tracker": {
-      "navigation": [
+    "slug": "sfrfr-issue-wizard",
+    "version": "0.1.6",
+    "name": {
+        "ru": "Мастер задач SFRFR",
+        "en": "SFRFR Issue Wizard"
+    },
+    "description": {
+        "ru": "Создание задач SFRFR, PUB, FUNNEL с тегами и проверкой ПДн",
+        "en": "Create SFRFR, PUB, FUNNEL issues with tags and PII checks"
+    },
+    "categories": [
+        "productivity"
+    ],
+    "permissions": {
+        "data": [
+            "tracker:queues:read",
+            "tracker:issues:read",
+            "tracker:issues:write",
+            "tracker:tags:read"
+        ],
+        "ui": [
+            "toaster",
+            "confirm"
+        ]
+    },
+    "support": [
         {
-          "entrypoint": "index.html",
-          "title": {
-            "ru": "Мастер задач SFRFR",
-            "en": "SFRFR Issue Wizard"
-          },
-          "contextLevel": "basic",
-          "description": {
-            "ru": "Быстрое создание задач по очередям SFRFR / PUB / FUNNEL",
-            "en": "Quick issue creation for SFRFR / PUB / FUNNEL queues"
-          }
+            "type": "email",
+            "value": "bogdanchik2@yandex.ru"
         }
-      ]
-    }
-  }
+    ],
+    "slots": {
+        "tracker": {
+            "navigation": [
+                {
+                    "entrypoint": "index.html",
+                    "title": {
+                        "ru": "Мастер задач SFRFR",
+                        "en": "SFRFR Issue Wizard"
+                    },
+                    "contextLevel": "basic",
+                    "description": {
+                        "ru": "Быстрое создание задач по очередям SFRFR / PUB / FUNNEL",
+                        "en": "Quick issue creation for SFRFR / PUB / FUNNEL queues"
+                    }
+                }
+            ]
+        }
+    },
+    "docsUrl": "/docs/index.html",
+    "id": "07376a90-6b90-43fb-81d7-21f77d3baf1d"
 }

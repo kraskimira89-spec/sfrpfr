@@ -1,4 +1,4 @@
-import type {QueueKey} from '../types/queues';
+import type { QueueKey } from '../types/queues';
 
 export type Prefill = {
     summary: string;
