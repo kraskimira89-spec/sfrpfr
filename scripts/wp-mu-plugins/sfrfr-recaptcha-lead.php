@@ -21,8 +21,8 @@ add_filter('wpforms_field_properties', function ($properties, $field, $form_data
         return $properties;
     }
     $css = (string) ($field['css'] ?? '');
-    $title = (string) ($form_data['settings']['form_title'] ?? '');
-    if (!str_contains($css, 'sfrfr-lead-consent') && $title !== 'Заявка с сайта') {
+    // Только обязательное согласие ПДн — не трогаем marketing-consent.
+    if (!str_contains($css, 'sfrfr-lead-consent')) {
         return $properties;
     }
     $link = '<a class="sfrfr-consent-link" href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных*</a>';

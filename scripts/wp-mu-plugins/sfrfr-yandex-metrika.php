@@ -132,10 +132,11 @@ add_action('wp_footer', static function (): void {
     ?>
 <style id="sfrfr-metrika-consent-css">
 #sfrfr-metrika-consent{
-  position:fixed;z-index:40;left:16px;bottom:16px;right:auto;max-width:320px;margin:0;
+  position:fixed;z-index:10050;left:16px;bottom:16px;right:auto;max-width:320px;margin:0;
   background:rgba(255,255,255,.96);color:#445566;border:1px solid #e4ebf2;border-radius:10px;
   box-shadow:0 4px 18px rgba(20,40,60,.08);padding:12px 14px;font:12.5px/1.4 system-ui,sans-serif;
   opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  /* Выше sticky «Оставить заявку» (z-index 1000), не перекрывается ею */
 }
 #sfrfr-metrika-consent.sfrfr-mc-visible{
   opacity:1;transform:none;pointer-events:auto;
@@ -149,8 +150,15 @@ add_action('wp_footer', static function (): void {
   cursor:pointer;font:500 12.5px/1 system-ui,sans-serif;padding:6px 8px;background:#fff;color:#334455;
 }
 #sfrfr-metrika-consent .sfrfr-mc-allow{background:#1e4e79;border-color:#1e4e79;color:#fff}
+@media (max-width:767px){
+  /* Над sticky CTA (~52px + отступы) + safe-area */
+  #sfrfr-metrika-consent{
+    left:10px;right:10px;max-width:none;
+    bottom:calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
 @media (max-width:480px){
-  #sfrfr-metrika-consent{left:10px;right:10px;max-width:none;bottom:10px}
+  #sfrfr-metrika-consent{left:10px;right:10px;max-width:none}
 }
 </style>
 <div id="sfrfr-metrika-consent" hidden role="dialog" aria-live="polite" aria-label="Статистические файлы браузера">

@@ -2592,6 +2592,9 @@ body.bvi-active .sfrfr-bvi-float {
   grid-template-columns: 1fr;
   gap: 0.85rem;
   align-items: stretch;
+  max-width: 100%;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .sfrfr-form-block .wpforms-field-container {
@@ -2673,16 +2676,36 @@ body.bvi-active .sfrfr-bvi-float {
   margin: 0 !important;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .sfrfr-form-block .sfrfr-smartcaptcha-widget {
   min-height: 100px;
   max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.sfrfr-form-block .sfrfr-smartcaptcha-widget iframe,
+.sfrfr-form-block .sfrfr-smartcaptcha-widget > div {
+  max-width: 100% !important;
 }
 
 .sfrfr-form-block .sfrfr-lead-channel .sfrfr-smartcaptcha-widget,
 .sfrfr-form-block .wpforms-field-radio .sfrfr-smartcaptcha-widget {
   margin-top: 0.55rem !important;
+}
+
+@media (max-width: 380px) {
+  .sfrfr-form-block .sfrfr-smartcaptcha-widget {
+    transform: scale(0.88);
+    transform-origin: left top;
+    /* Компенсация высоты после scale, чтобы не было лишнего зазора */
+    margin-bottom: -12px;
+  }
 }
 
 .sfrfr-form-block .wpforms-field-hp,
@@ -2817,10 +2840,37 @@ body.bvi-active .sfrfr-bvi-float {
   margin: 0.3rem 0 !important;
 }
 
+.sfrfr-form-block .wpforms-field-checkbox li {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.sfrfr-form-block .wpforms-field-checkbox li input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0.2rem 0 0 !important;
+  width: 1.05rem;
+  height: 1.05rem;
+  writing-mode: horizontal-tb;
+}
+
 .sfrfr-form-block .wpforms-field-label-inline {
   font-size: 0.92rem !important;
   line-height: 1.4 !important;
   font-weight: 600 !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  display: inline-block !important;
+  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .sfrfr-landing .wpforms-container input[type="text"],
@@ -2851,14 +2901,21 @@ body.bvi-active .sfrfr-bvi-float {
 }
 
 .sfrfr-form-block .sfrfr-lead-consent,
+.sfrfr-form-block .sfrfr-lead-marketing-consent,
 .sfrfr-form-block .wpforms-field-checkbox {
   margin: 0 !important;
   padding: 0.45rem 0.7rem !important;
+  grid-column: 1 / -1;
+  max-width: 100%;
+  min-width: 0;
+  writing-mode: horizontal-tb;
 }
 
 .sfrfr-form-block .sfrfr-lead-channel .sfrfr-lead-consent,
+.sfrfr-form-block .sfrfr-lead-channel .sfrfr-lead-marketing-consent,
 .sfrfr-form-block .sfrfr-lead-channel .wpforms-field-checkbox,
 .sfrfr-form-block .wpforms-field-radio .sfrfr-lead-consent,
+.sfrfr-form-block .wpforms-field-radio .sfrfr-lead-marketing-consent,
 .sfrfr-form-block .wpforms-field-radio .wpforms-field-checkbox {
   background: none;
   box-shadow: none;
@@ -2867,6 +2924,18 @@ body.bvi-active .sfrfr-bvi-float {
   width: 100%;
   padding: 0.55rem 0 0 !important;
   margin-top: auto !important;
+  grid-column: unset;
+}
+
+.sfrfr-form-block .sfrfr-consent-warn {
+  margin: 0.4rem 0 0 !important;
+  padding: 0.45rem 0.65rem !important;
+  font-size: 0.88rem !important;
+  line-height: 1.35 !important;
+  color: #7a1f1f !important;
+  background: rgba(180, 40, 40, 0.08);
+  border-radius: 8px;
+  border-left: 3px solid #b42828;
 }
 
 .sfrfr-form-block .sfrfr-lead-consent .wpforms-field-description {
@@ -2876,6 +2945,8 @@ body.bvi-active .sfrfr-bvi-float {
 .sfrfr-form-block .sfrfr-lead-consent ul,
 .sfrfr-form-block .wpforms-field-checkbox ul {
   margin: 0 !important;
+  width: 100%;
+  max-width: 100%;
 }
 
 .sfrfr-form-block .sfrfr-consent-link,
@@ -3841,8 +3912,9 @@ body:not(.home).ast-separate-container .ast-article-post {
     position: fixed;
     left: 0.75rem;
     right: 0.75rem;
-    bottom: 0.75rem;
-    z-index: 1000;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    /* Ниже cookie-баннера (#sfrfr-metrika-consent z-index 10050) */
+    z-index: 900;
     min-height: 52px;
     padding: 0.75rem 1rem;
     border-radius: 12px;

@@ -57,9 +57,8 @@
     var channel =
       form.querySelector(".sfrfr-lead-channel") ||
       form.querySelector(".wpforms-field-radio");
-    var consent =
-      form.querySelector(".sfrfr-lead-consent") ||
-      form.querySelector(".wpforms-field-checkbox");
+    var consent = form.querySelector(".sfrfr-lead-consent");
+    var marketing = form.querySelector(".sfrfr-lead-marketing-consent");
     var submit = form.querySelector(".wpforms-submit-container");
     if (channel) {
       if (box.parentNode !== channel) {
@@ -67,6 +66,9 @@
       }
       if (consent && consent.parentNode !== channel) {
         channel.appendChild(consent);
+      }
+      if (marketing && marketing.parentNode !== channel) {
+        channel.appendChild(marketing);
       }
     } else if (submit && submit.parentNode) {
       submit.parentNode.insertBefore(box, submit);
@@ -131,9 +133,9 @@
   }
 
   function linkConsentLabel() {
-    document.querySelectorAll(
-      ".sfrfr-lead-consent .wpforms-field-label-inline, form.wpforms-form .wpforms-field-checkbox .wpforms-field-label-inline"
-    ).forEach(function (label) {
+    document
+      .querySelectorAll(".sfrfr-lead-consent .wpforms-field-label-inline")
+      .forEach(function (label) {
       if (label.querySelector("a")) return;
       var a = document.createElement("a");
       a.href = "/soglasie/";
@@ -152,16 +154,48 @@
     });
   }
 
+  function hasPdnConsent(form) {
+    var pdn = form.querySelector(".sfrfr-lead-consent input[type='checkbox']");
+    if (pdn) return !!pdn.checked;
+    // Партнёрская / старая разметка без класса — первый обязательный checkbox.
+    var required = form.querySelector(
+      ".wpforms-field-checkbox input[type='checkbox'][required], .wpforms-field-checkbox input[type='checkbox'][aria-required='true']"
+    );
+    return required ? !!required.checked : true;
+  }
+
+  function warnNeedConsent(form) {
+    var msg = "Отметьте «Даю согласие на обработку персональных данных», чтобы отправить заявку.";
+    var box =
+      form.querySelector(".sfrfr-lead-consent") ||
+      form.querySelector(".wpforms-field-checkbox");
+    var prev = form.querySelector(".sfrfr-consent-warn");
+    if (prev) prev.remove();
+    if (box) {
+      var warn = document.createElement("p");
+      warn.className = "sfrfr-consent-warn";
+      warn.setAttribute("role", "alert");
+      warn.textContent = msg;
+      box.appendChild(warn);
+      try {
+        box.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (e) {}
+    }
+    window.alert(msg);
+  }
+
   function moveConsentIntoChannel() {
     document.querySelectorAll("form.wpforms-form").forEach(function (form) {
       var channel =
         form.querySelector(".sfrfr-lead-channel") ||
         form.querySelector(".wpforms-field-radio");
-      var consent =
-        form.querySelector(".sfrfr-lead-consent") ||
-        form.querySelector(".wpforms-field-checkbox");
+      var consent = form.querySelector(".sfrfr-lead-consent");
+      var marketing = form.querySelector(".sfrfr-lead-marketing-consent");
       if (channel && consent && consent.parentNode !== channel) {
         channel.appendChild(consent);
+      }
+      if (channel && marketing && marketing.parentNode !== channel) {
+        channel.appendChild(marketing);
       }
     });
   }
@@ -203,12 +237,27 @@
       if (form.getAttribute("data-sfrfr-captcha-ok") === "1") {
         return;
       }
-      if (!form.querySelector('input[type="checkbox"]:checked')) {
+
+      function stopSubmit() {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (typeof ev.stopImmediatePropagation === "function") {
+          ev.stopImmediatePropagation();
+        }
+      }
+
+      if (!hasPdnConsent(form)) {
+        stopSubmit();
+        warnNeedConsent(form);
         return;
       }
+
+      var warnEl = form.querySelector(".sfrfr-consent-warn");
+      if (warnEl) warnEl.remove();
+
       if (!CLIENT_KEY) {
+        stopSubmit();
         window.alert("Капча не настроена. Обратитесь к администратору.");
-        ev.preventDefault();
         return;
       }
 
@@ -217,19 +266,11 @@
       ensureYandexWidget(form);
       var yToken = readYandexToken(form);
       if (!yToken) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (typeof ev.stopImmediatePropagation === "function") {
-          ev.stopImmediatePropagation();
-        }
+        stopSubmit();
         window.alert("Отметьте «Я не робот» и при необходимости пройдите проверку.");
         return;
       }
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (typeof ev.stopImmediatePropagation === "function") {
-        ev.stopImmediatePropagation();
-      }
+      stopSubmit();
       submitWithToken(form, submitBtn, yToken);
     },
     true
