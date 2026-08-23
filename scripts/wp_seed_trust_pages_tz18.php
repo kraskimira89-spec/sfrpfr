@@ -495,7 +495,7 @@ if ($menu) {
         }
     }
     if ($partneramId > 0 && $kontaktyOrder !== null) {
-        require dirname(__DIR__) . '/wp_fix_partneram_menu_order.php';
+        require __DIR__ . '/wp_fix_partneram_menu_order.php';
     }
 }
 
