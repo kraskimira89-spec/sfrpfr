@@ -108,11 +108,54 @@
   let currentView = "overview";
   let messagesPollTimer = null;
 
-  function shouldShowBotTyping(rows) {
-    if (!rows?.length) return false;
+  const BOT_TYPING_TIMEOUT_MS = 50000;
+  const BOT_TYPING_TIMEOUT_HINT =
+    "Бот не ответил. Напишите ещё раз или откройте чат MAX";
+  let botTypingStartedAt = null;
+  let botTypingReplyKey = null;
+  let botTypingUiTimer = null;
+
+  function scheduleBotTypingUiRefresh(rows) {
+    if (botTypingUiTimer) {
+      window.clearTimeout(botTypingUiTimer);
+      botTypingUiTimer = null;
+    }
+    const key = awaitingBotReplyKey(rows);
+    if (!key) return;
+    const elapsed = Date.now() - (botTypingStartedAt || Date.now());
+    const remaining = BOT_TYPING_TIMEOUT_MS - elapsed;
+    if (remaining <= 0) return;
+    botTypingUiTimer = window.setTimeout(() => {
+      botTypingUiTimer = null;
+      if (currentView === "chat") void loadMessages();
+    }, remaining);
+  }
+
+  function awaitingBotReplyKey(rows) {
+    if (!rows?.length) return null;
     const last = rows[rows.length - 1];
     const kind = last?.author_kind || "";
-    return kind === "client" || kind === "representative";
+    if (kind !== "client" && kind !== "representative") return null;
+    return last.id || `${last.created_at || ""}:${kind}`;
+  }
+
+  function resolveBotTypingState(rows) {
+    const key = awaitingBotReplyKey(rows);
+    if (!key) {
+      botTypingReplyKey = null;
+      botTypingStartedAt = null;
+      return { showTyping: false, showTimeout: false };
+    }
+    const now = Date.now();
+    if (key !== botTypingReplyKey) {
+      botTypingReplyKey = key;
+      botTypingStartedAt = now;
+    }
+    const elapsed = now - (botTypingStartedAt || now);
+    if (elapsed >= BOT_TYPING_TIMEOUT_MS) {
+      return { showTyping: false, showTimeout: true };
+    }
+    return { showTyping: true, showTimeout: false };
   }
 
   function scrollMessagesToEnd() {
@@ -565,8 +608,8 @@
     if (!currentCase?.id || !els.messagesList) return;
     try {
       const rows = await api(`/api/portal/cases/${encodeURIComponent(currentCase.id)}/messages`);
-      const showTyping = shouldShowBotTyping(rows);
-      if (!rows?.length && !showTyping) {
+      const { showTyping, showTimeout } = resolveBotTypingState(rows);
+      if (!rows?.length && !showTyping && !showTimeout) {
         els.messagesList.innerHTML = "";
         if (els.messagesEmpty) els.messagesEmpty.classList.remove("hidden");
         return;
@@ -582,7 +625,13 @@
           '<li class="message-typing" aria-live="polite"><span class="hint">Бот MAX · печатает…</span><p class="message-typing-dots" aria-hidden="true"><span></span><span></span><span></span></p></li>',
         );
       }
+      if (showTimeout) {
+        items.push(
+          `<li class="message-typing" aria-live="polite"><span class="hint">Бот MAX</span><p class="hint">${escapeHtml(BOT_TYPING_TIMEOUT_HINT)}</p></li>`,
+        );
+      }
       els.messagesList.innerHTML = items.join("");
+      if (showTyping) scheduleBotTypingUiRefresh(rows);
       scrollMessagesToEnd();
     } catch (err) {
       if (els.messagesEmpty) {

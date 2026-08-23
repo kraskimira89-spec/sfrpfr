@@ -3,7 +3,9 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
+import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
+import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
 
 type CaseSummary = {
   id: string;
@@ -322,11 +324,7 @@ export function ClientCabinet() {
   const ensureCaseRef = useRef(false);
   const messagesPanelRef = useRef<HTMLDivElement | null>(null);
 
-  const showBotTyping = useMemo(() => {
-    const last = messages[messages.length - 1];
-    if (!last) return false;
-    return last.author_kind === "client" || last.author_kind === "representative";
-  }, [messages]);
+  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
   const scrollMessagesToEnd = useCallback(() => {
     const el = messagesPanelRef.current;
@@ -645,7 +643,7 @@ export function ClientCabinet() {
   useEffect(() => {
     if (view !== "case") return;
     scrollMessagesToEnd();
-  }, [messages, showBotTyping, view, scrollMessagesToEnd]);
+  }, [messages, showBotTyping, showBotTypingTimeout, view, scrollMessagesToEnd]);
 
   // P0: после пароля сразу создать и открыть дело, если списка нет
   useEffect(() => {
@@ -2418,7 +2416,9 @@ export function ClientCabinet() {
           <div className="panel" id="messages" ref={messagesPanelRef}>
             <h2>Написать специалисту</h2>
             <ul className="messages">
-              {messages.length === 0 && !showBotTyping && <li>Сообщений пока нет.</li>}
+              {messages.length === 0 && !showBotTyping && !showBotTypingTimeout && (
+                <li>Сообщений пока нет.</li>
+              )}
               {messages.map((message) => (
                 <li key={message.id} className={message.author_kind === "client" ? "mine" : ""}>
                   <span className="meta">
@@ -2434,6 +2434,12 @@ export function ClientCabinet() {
                   <p className="message-typing-dots" aria-hidden="true">
                     <span></span><span></span><span></span>
                   </p>
+                </li>
+              ) : null}
+              {showBotTypingTimeout ? (
+                <li className="message-typing" aria-live="polite">
+                  <span className="meta">Бот MAX</span>
+                  <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
                 </li>
               ) : null}
             </ul>

@@ -2,6 +2,8 @@
 
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
+import { useBotTypingIndicator } from "../../../../shared/use-bot-typing";
 
 export type CaseChatMessage = {
   id: string;
@@ -161,11 +163,7 @@ export function CaseChatPanel({
 
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
 
-  const showBotTyping = useMemo(() => {
-    const last = messages[messages.length - 1];
-    if (!last) return false;
-    return last.author_kind === "client" || last.author_kind === "representative";
-  }, [messages]);
+  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
   const scrollFeedToEnd = useCallback(() => {
     const el = feedRef.current;
@@ -177,7 +175,7 @@ export function CaseChatPanel({
 
   useEffect(() => {
     scrollFeedToEnd();
-  }, [messages, filter, showBotTyping, scrollFeedToEnd]);
+  }, [messages, filter, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
 
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
@@ -275,6 +273,12 @@ export function CaseChatPanel({
                 <p className="case-chat-typing-dots" aria-hidden="true">
                   <span></span><span></span><span></span>
                 </p>
+              </li>
+            ) : null}
+            {showBotTypingTimeout ? (
+              <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
+                <span className="meta">Бот MAX</span>
+                <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
               </li>
             ) : null}
           </ul>
