@@ -54,6 +54,7 @@ cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-nav-mobile.php" \
 cp -f "${APP_DIR}/scripts/wp-mu-plugins/sfrfr-lead-magnet.php" \
   "${SITE_DIR}/wp-content/mu-plugins/sfrfr-lead-magnet.php"
 echo "MU nav-mobile OK"
+"${WP[@]}" eval-file "${APP_DIR}/scripts/wp_ensure_mobile_menu.php" || echo "WARN: mobile_menu ensure failed"
 # Copy awards gallery into WP uploads on landing apply too
 AWARDS_SRC="${APP_DIR}/scripts/assets/awards"
 AWARDS_DST="${SITE_DIR}/wp-content/uploads/sfrfr/awards"

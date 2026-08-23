@@ -9,8 +9,28 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Astra mobile drawer (`mobile_menu`) по умолчанию показывает список страниц.
- * Подставляем SFRFR Primary из location `primary`.
+ * Astra mobile drawer: если mobile_menu не назначен, theme вызывает wp_page_menu()
+ * (список всех страниц), а не wp_nav_menu — фильтр args не срабатывает.
+ *
+ * @param array<string, int> $locations
+ * @return array<string, int>
+ */
+add_filter('theme_mod_nav_menu_locations', static function ($locations): array {
+    if (!is_array($locations)) {
+        $locations = [];
+    }
+
+    if (!empty($locations['mobile_menu']) || empty($locations['primary'])) {
+        return $locations;
+    }
+
+    $locations['mobile_menu'] = (int) $locations['primary'];
+
+    return $locations;
+}, 20);
+
+/**
+ * Запасной путь: если Astra всё же вызовет wp_nav_menu для mobile_menu.
  *
  * @param array<string, mixed> $args
  * @return array<string, mixed>

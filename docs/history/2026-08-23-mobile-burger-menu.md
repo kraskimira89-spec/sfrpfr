@@ -8,7 +8,8 @@
 
 ## Фикс
 
-- `sfrfr-nav-mobile.php` — mobile drawer использует то же меню, что `primary`.
+- `sfrfr-nav-mobile.php` — `theme_mod_nav_menu_locations`: mobile_menu = primary (иначе Astra зовёт `wp_page_menu`).
+- `wp_ensure_mobile_menu.php` — persist assign `mobile_menu` на деплое.
 - `sfrfr-landing.css` — `sfrfr-mobile-nav-v1`: z-index 1100, бургер не уезжает, submenu static в drawer; dropdown-стили только `@media (min-width: 922px)`.
 - `wp_seed_site_tz02.sh` — assign `mobile_menu`.
 
