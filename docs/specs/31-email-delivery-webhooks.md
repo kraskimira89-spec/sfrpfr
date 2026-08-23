@@ -19,29 +19,31 @@
 
 ---
 
-## 2. Провайдер MVP: Postmark
+## 2. Провайдеры (схемы подписи разные)
 
-Исходящая почта диагностики пока может идти через **Yandex SMTP** (`Message-ID` сохраняется в `notification_jobs.provider_message_id`).  
-Webhook-инфраструктура рассчитана на **Postmark** (официальная схема: HTTPS + **HTTP Basic Auth**, без HMAC).
+| Провайдер | Auth | Endpoint |
+|-----------|------|----------|
+| **Postmark** | HTTP Basic | `POST /api/webhooks/email/postmark` |
+| **Mailgun** | HMAC-SHA256(`timestamp`+`token`) + freshness ±5 мин | `POST /api/webhooks/email/mailgun` |
+| **SendGrid** | ECDSA по **raw body** + headers Signature/Timestamp | `POST /api/webhooks/email/sendgrid` |
 
-Endpoint:
-
-```text
-POST https://api.proverkastaza.ru/api/webhooks/email/postmark
-```
+Не применять один алгоритм ко всем. Health: `GET /api/webhooks/email/health`.
 
 Env:
 
 ```text
 POSTMARK_WEBHOOK_USER=…
 POSTMARK_WEBHOOK_PASSWORD=…
-# опционально позже:
-POSTMARK_SERVER_TOKEN=…
-EMAIL_DELIVERY_HASH_SALT=…   # иначе APP_SECRET_KEY
+MAILGUN_WEBHOOK_SIGNING_KEY=…          # HTTP webhook signing key
+SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY=…  # base64 DER или PEM
+EMAIL_DELIVERY_HASH_SALT=…
 ```
 
-В Postmark: URL с Basic Auth, триггеры Delivery / Bounce / SpamComplaint / Open / Click / SubscriptionChange.  
-`Include content` = **выкл**.
+**Рекомендация MVP (Python):** Mailgun — простая HMAC-проверка.  
+Если уже SendGrid — только raw body + ECDSA.  
+Postmark остаётся вариантом с Basic Auth.
+
+Исходящая почта диагностики пока может идти через **Yandex SMTP** (`Message-ID` в `notification_jobs.provider_message_id`).
 
 ---
 

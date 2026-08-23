@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     postmark_webhook_user: str = ""
     postmark_webhook_password: str = ""
     postmark_server_token: str = ""  # опционально, для будущей отправки через Postmark
+    # ТЗ-31b: Mailgun HMAC signing key; SendGrid Event Webhook public key (base64/PEM)
+    mailgun_webhook_signing_key: str = ""
+    sendgrid_event_webhook_public_key: str = ""
     email_delivery_hash_salt: str = ""  # пусто = app_secret_key
     yandex_calendar_enabled: bool = True
     yandex_disk_enabled: bool = False
