@@ -36,3 +36,7 @@
 
 - Без ПДн в issues/Wiki; CRM — amo.
 - Токен Tracker — только `secrets/yandex-tracker.env`.
+
+## Полезное
+
+- Тест владельца с одного MAX без лида в amo: [../ops/checklist-max-owner-test-no-amo.md](../ops/checklist-max-owner-test-no-amo.md)

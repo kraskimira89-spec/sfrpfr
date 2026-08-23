@@ -73,6 +73,8 @@
 
 В `/opt/sfrfr/.env`: `AMO_SUBDOMAIN`, `AMO_ACCESS_TOKEN`, `AMO_PIPELINE_ID`, `AMO_STATUS_ID` → перезапуск API → тестовый лид по [qa-lead-amocrm-e2e.md](qa-lead-amocrm-e2e.md).
 
+Владелец тестирует клиентский MAX с того же телефона **без** сделки в amo: [../ops/checklist-max-owner-test-no-amo.md](../ops/checklist-max-owner-test-no-amo.md).
+
 Без токена sync может пропускаться (`skipped`) — заявка в SFRFR создаётся, но карточки в amo не будет (для prod лида с формы целевой сценарий — сделка обязательна).
 
 ---
