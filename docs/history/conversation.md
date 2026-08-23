@@ -912,3 +912,8 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - Канон: playbook-sales-clarity-funnel §4б; ассет diagnosis-offer-to-payment.md.
 - Триггеры оффера, выбор действия, шаблоны после «да», «подумаю», доверие, самопроверка.
 - AMO: чеклист оффера, шпаргалка, first-message, task templates, prompt.
+
+## 2026-08-23 — §4в: путь после оплаты до рекомендации
+- Канон clarity-funnel §4в; ассет diagnosis-result-delivery.md.
+- Подтверждение ≤15 мин; SLA 3 р.д.; каркас результата; оффер 5k/8k / отказ от оффера.
+- AMO: SLA, чеклисты этапов 4–7, задачи, шпаргалка, prompt.

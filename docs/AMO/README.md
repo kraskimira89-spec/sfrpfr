@@ -23,7 +23,7 @@
 | [playbook-operator-amo-card.md](playbook-operator-amo-card.md) | Что видит оператор в карточке: поля + перечень документов без содержимого |
 | [playbook-operator-new-lead-cheatsheet.md](playbook-operator-new-lead-cheatsheet.md) | **Шпаргалка на 1 стр.** (новый лид) + [PDF](assets/playbook-operator-new-lead-cheatsheet.pdf) |
 | [playbook-operator-first-message-max.md](playbook-operator-first-message-max.md) | **Первое сообщение** в MAX (скрипт: человек → польза → диагностика) |
-| [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) | **Канон оффера:** ясность, воронка, возражения, перевод в оплату (§4б), метрики |
+| [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) | **Канон оффера:** ясность, оплата (§4б), результат после оплаты (§4в), возражения |
 | [ops-amocrm-task-templates.md](ops-amocrm-task-templates.md) | Шаблоны задач amo (Digital Pipeline + тексты из кода) |
 | [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) | **Виджет MAX в amo** — клиентский бот, чаты, инструкция оператору |
 | [vendor-user-docs.md](vendor-user-docs.md) | Оглавление пользовательской доки amo |
