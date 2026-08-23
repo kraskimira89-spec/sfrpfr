@@ -144,3 +144,6 @@ plugins/tracker/**/config.json
 plugins/tracker/**/.yaweavix-debug.lock
 plugins/tracker/**/dist/
 
+
+# Weavix marketplace covers (required by weavix submit)
+!plugins/tracker/**/marketplace/header-image.jpg
