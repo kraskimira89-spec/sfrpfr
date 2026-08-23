@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 
 from sfrfr.services.diagnosis_survey import (
-    CLARITY_ANSWERS,
     DiagnosisSurveyService,
     hash_action_token,
     is_night_msk,
