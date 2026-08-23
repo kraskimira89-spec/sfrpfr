@@ -366,11 +366,29 @@ class DiagnosisDeliveryService:
         )
         self.repo.cancel_jobs(case_id, job_types=["result_unread"])
         result = self.repo.get_result(str(link["diagnostic_result_id"]))
+        survey_campaign_id = None
+        try:
+            from sfrfr.services.diagnosis_survey import DiagnosisSurveyService
+
+            survey = DiagnosisSurveyService().schedule_clarity_after_open(
+                case_id=case_id,
+                diagnostic_result_id=str(link["diagnostic_result_id"]),
+            )
+            if survey:
+                survey_campaign_id = survey.get("id")
+        except Exception as exc:  # noqa: BLE001 — опрос не должен ломать выдачу PDF
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "survey schedule after open failed: %s", type(exc).__name__
+            )
+            survey_campaign_id = None
         return {
             "case_id": case_id,
             "document_id": (result or {}).get("document_id"),
             "diagnostic_result_id": link["diagnostic_result_id"],
             "link_id": link["id"],
+            "survey_campaign_id": survey_campaign_id,
         }
 
 

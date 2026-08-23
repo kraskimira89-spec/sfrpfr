@@ -28,6 +28,8 @@ from sfrfr.api.schemas.admin import (
     StaffInviteRequest,
     StaffPatchRequest,
     StaffRoleUpsert,
+    SurveyCampaignApproveRequest,
+    SurveyCampaignRescheduleRequest,
     TrackerQualityIssueRequest,
     WorkQueueItem,
     YandexMailRequest,
@@ -1051,6 +1053,124 @@ def cancel_notification_job(
     out = DiagnosisDeliveryService().cancel_job(job_id)
     _repo().audit(case_id, principal.audit_actor_id(), f"notification_job_cancel:{job_id}")
     return out
+
+
+@router.get("/admin/cases/{case_id}/survey-campaigns")
+def list_survey_campaigns(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Черновики и статусы сервисных опросов (ТЗ-29)."""
+    from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
+
+    _repo().require_case(principal, case_id)
+    rows = DiagnosisSurveyRepository().list_campaigns(case_id)
+    # Не отдавать токены; только метаданные.
+    safe = [
+        {
+            "id": r.get("id"),
+            "survey_type": r.get("survey_type"),
+            "channel": r.get("channel"),
+            "status": r.get("status"),
+            "scheduled_at": r.get("scheduled_at"),
+            "sent_at": r.get("sent_at"),
+            "completed_at": r.get("completed_at"),
+            "template_version": r.get("template_version"),
+            "touch_index": r.get("touch_index"),
+            "body": r.get("body"),
+        }
+        for r in rows
+    ]
+    return {"campaigns": safe}
+
+
+@router.post("/admin/cases/{case_id}/survey-campaigns/{campaign_id}/approve")
+def approve_survey_campaign(
+    case_id: str,
+    campaign_id: str,
+    payload: SurveyCampaignApproveRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Подтвердить MAX-опрос: вернуть body + tokens для кнопок (один раз)."""
+    from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
+    from sfrfr.integrations.max.survey_flow import clarity_keyboard
+    from sfrfr.services.diagnosis_survey import DiagnosisSurveyService
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    camp = DiagnosisSurveyRepository().get_campaign(campaign_id)
+    if not camp or str(camp.get("case_id")) != case_id:
+        raise HTTPException(status_code=404, detail="campaign not found")
+    do_not = bool(payload.do_not_contact) or bool(case.get("do_not_contact"))
+    try:
+        out = DiagnosisSurveyService().approve_and_mark_sent(
+            campaign_id=campaign_id,
+            actor_id=principal.user_id,
+            do_not_contact=do_not,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out.get("ok") and out.get("tokens"):
+        out["attachments"] = clarity_keyboard(out["tokens"])
+        # raw tokens только внутри attachments.payload кнопок
+        out.pop("tokens", None)
+        if not payload.mark_sent:
+            DiagnosisSurveyRepository().update_campaign(
+                campaign_id,
+                {"status": "approved", "updated_at": datetime.now(UTC).isoformat()},
+            )
+            out["status"] = "approved"
+    repo.audit(case_id, principal.audit_actor_id(), f"survey_campaign_approve:{campaign_id}")
+    return out
+
+
+@router.post("/admin/cases/{case_id}/survey-campaigns/{campaign_id}/reschedule")
+def reschedule_survey_campaign(
+    case_id: str,
+    campaign_id: str,
+    payload: SurveyCampaignRescheduleRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
+
+    _repo().require_case(principal, case_id)
+    camp = DiagnosisSurveyRepository().get_campaign(campaign_id)
+    if not camp or str(camp.get("case_id")) != case_id:
+        raise HTTPException(status_code=404, detail="campaign not found")
+    if camp.get("status") not in ("draft", "scheduled", "approved"):
+        raise HTTPException(status_code=400, detail="cannot reschedule")
+    DiagnosisSurveyRepository().update_campaign(
+        campaign_id,
+        {
+            "scheduled_at": payload.scheduled_at,
+            "status": "draft",
+            "updated_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    _repo().audit(case_id, principal.audit_actor_id(), f"survey_campaign_reschedule:{campaign_id}")
+    return {"ok": True, "campaign_id": campaign_id, "scheduled_at": payload.scheduled_at}
+
+
+@router.post("/admin/cases/{case_id}/survey-campaigns/{campaign_id}/cancel")
+def cancel_survey_campaign(
+    case_id: str,
+    campaign_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
+
+    _repo().require_case(principal, case_id)
+    camp = DiagnosisSurveyRepository().get_campaign(campaign_id)
+    if not camp or str(camp.get("case_id")) != case_id:
+        raise HTTPException(status_code=404, detail="campaign not found")
+    DiagnosisSurveyRepository().update_campaign(
+        campaign_id,
+        {"status": "cancelled", "updated_at": datetime.now(UTC).isoformat()},
+    )
+    _repo().audit(case_id, principal.audit_actor_id(), f"survey_campaign_cancel:{campaign_id}")
+    return {"ok": True, "campaign_id": campaign_id}
 
 
 @router.get("/admin/mail/inbox")

@@ -2168,6 +2168,21 @@ def handle_max_update(
     if intake_result is not None:
         return intake_result
 
+    if callback.startswith("svy:"):
+        from sfrfr.integrations.max.survey_flow import handle_survey_callback
+
+        survey = handle_survey_callback(user_id=user_id, payload=callback)
+        if survey is not None:
+            text = str(survey.get("text") or "")
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=text,
+                attachments=survey.get("attachments"),
+            )
+            return MaxHandleResult(ok=True, action="survey_clarity", reply=text)
+
     if callback.startswith("review:"):
         from sfrfr.integrations.max.review_flow import handle_review_callback
 

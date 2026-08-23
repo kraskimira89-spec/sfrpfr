@@ -160,6 +160,18 @@ class NotificationJobApproveRequest(BaseModel):
     mark_max_sent: bool = False
 
 
+class SurveyCampaignApproveRequest(BaseModel):
+    """Подтвердить отправку сервисного опроса (MAX clarity MVP)."""
+
+    do_not_contact: bool = False
+    # Если true — сразу status=sent (токены в ответе один раз для клавиатуры).
+    mark_sent: bool = True
+
+
+class SurveyCampaignRescheduleRequest(BaseModel):
+    scheduled_at: str = Field(min_length=10, max_length=40)
+
+
 class MaxReplyRequest(BaseModel):
     message: str = Field(min_length=1, max_length=3500)
     force: bool = False

@@ -141,6 +141,8 @@ def label_for_callback(payload: str) -> str:
         parts = raw.split(":", 2)
         soft = parts[2].strip() if len(parts) > 2 else ""
         return soft or "вариант ответа"
+    if raw.startswith("svy:"):
+        return "опрос понятности"
     if raw.startswith("review:"):
         return f"отзыв ({raw.split(':', 1)[-1]})"
     return raw
