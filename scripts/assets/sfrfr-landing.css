@@ -3831,6 +3831,34 @@ mark.sfrfr-search-hit,
     justify-content: center !important;
   }
 
+  #ast-mobile-header .main-header-menu-toggle[aria-expanded="false"] .mobile-menu-toggle-icon {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 16px;
+  }
+
+  #ast-mobile-header .main-header-menu-toggle[aria-expanded="false"] .ast-menu-svg {
+    visibility: hidden !important;
+    position: absolute !important;
+    inset: 0;
+    width: 20px !important;
+    height: 16px !important;
+    pointer-events: none;
+  }
+
+  #ast-mobile-header .main-header-menu-toggle[aria-expanded="false"] .mobile-menu-toggle-icon::before {
+    content: "";
+    display: block;
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+    background: currentColor;
+    box-shadow: 0 6px 0 currentColor, 0 12px 0 currentColor;
+  }
+
   .ast-mobile-header-content {
     z-index: 1099;
     background: #ffffff !important;
