@@ -48,3 +48,30 @@ weavix debug
 weavix build
 # later: weavix login && weavix submit
 ```
+
+## Публикация (каталог)
+
+| Поле | Значение |
+|------|----------|
+| Platform Plugin ID | `654059d7-7712-44fa-bbab-62dc0d132acb` |
+| Slug | `stazh-quality-wizard` |
+| Version submitted | `0.1.1` |
+| Status after submit | `DRAFT` (на модерации) |
+| Org | из `weavix login` / `~/.yaweavix/config.json` (`api.platformOrgId`) |
+
+`powershell
+cd plugins\tracker\stazh-quality-wizard
+npm install
+weavix doctor
+weavix build
+# первый submit: в manifest не должно быть id=slug — CLI создаст UUID и запишет в manifest.id
+weavix login   # OAuth + Organization ID (Windows Credential Store + ~/.yaweavix)
+weavix submit
+weavix list
+weavix info
+`
+
+Каталог в UI Трекера: **Настройки → Плагины / Каталог плагинов** (после модерации статус сменится с DRAFT).
+
+Marketplace-ассеты обязательны: `marketplace/index.md`, `marketplace/header-image.jpg`, `public/logo.svg`.
+Permissions v2: `tracker.v2.read` / `tracker.v2.write` (точки, не `tracker:v2:*`).

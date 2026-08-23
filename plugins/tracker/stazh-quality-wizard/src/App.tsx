@@ -1,34 +1,34 @@
-import {useCallback, useMemo, useState} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import {Button, Select, Text, TextArea, TextInput, ThemeProvider} from '@gravity-ui/uikit';
-import {trackerApi, uiApi, useTrackerPluginContext} from '@weavix/tracker-plugin-sdk-react';
+import { Button, Select, Text, TextArea, TextInput, ThemeProvider } from '@gravity-ui/uikit';
+import { trackerApi, uiApi, useTrackerPluginContext } from '@weavix/tracker-plugin-sdk-react';
 
 import {
     CHANNEL_OPTIONS,
+    type Channel,
     DIRECTION_OPTIONS,
+    type Direction,
     ISSUE_TYPE_OPTIONS,
+    type IssueType,
     PRIORITY_OPTIONS,
     PRIORITY_TO_TRACKER,
+    type Priority,
     REPEAT_OPTIONS,
+    type Repeatability,
     SOURCE_OPTIONS,
     STAZH_QUEUE,
+    type Source,
     defaultDirectionFor,
     labelForIssueType,
     tagsForIssue,
-    type Channel,
-    type Direction,
-    type IssueType,
-    type Priority,
-    type Repeatability,
-    type Source,
 } from './types/stazh';
-import {detectPii, formatPiiBlock} from './utils/pii';
-import {getPrefill} from './utils/prefills';
+import { detectPii, formatPiiBlock } from './utils/pii';
+import { getPrefill } from './utils/prefills';
 
 import './App.scss';
 
 const App = () => {
-    const {theme} = useTrackerPluginContext<'navigation'>();
+    const { theme } = useTrackerPluginContext<'navigation'>();
     const [issueType, setIssueType] = useState<IssueType>('process_improvement');
     const [direction, setDirection] = useState<Direction>('product');
     const [source, setSource] = useState<Source>('staff');
@@ -43,7 +43,7 @@ const App = () => {
     const [error, setError] = useState<string | null>(null);
 
     const previewTags = useMemo(
-        () => tagsForIssue({issueType, direction, source, channel, repeatability}),
+        () => tagsForIssue({ issueType, direction, source, channel, repeatability }),
         [channel, direction, issueType, repeatability, source],
     );
 
@@ -68,25 +68,25 @@ const App = () => {
     }, [description, summary]);
 
     const createIssue = useCallback(async () => {
-        const tags = tagsForIssue({issueType, direction, source, channel, repeatability});
+        const tags = tagsForIssue({ issueType, direction, source, channel, repeatability });
         const bodyParams = {
-            queue: {key: STAZH_QUEUE},
+            queue: { key: STAZH_QUEUE },
             summary: summary.trim(),
             priority: PRIORITY_TO_TRACKER[priority],
-            ...(description.trim() ? {description: description.trim()} : {}),
+            ...(description.trim() ? { description: description.trim() } : {}),
             tags,
         };
 
-        const {data: created} = await trackerApi.v3.post['/v2/issues']({
+        const { data: created } = await trackerApi.v3.post['/v2/issues']({
             bodyParams: bodyParams as {
-                queue: {key: string};
+                queue: { key: string };
                 summary: string;
             },
         });
 
         const key =
             typeof created === 'object' && created && 'key' in created
-                ? String((created as {key: string}).key)
+                ? String((created as { key: string }).key)
                 : undefined;
 
         await uiApi.toaster.add({
@@ -95,7 +95,7 @@ const App = () => {
         });
 
         if (key) {
-            await uiApi.navigate({path: `/issues/${key}`});
+            await uiApi.navigate({ path: `/issues/${key}` });
         }
     }, [channel, description, direction, issueType, priority, repeatability, source, summary]);
 

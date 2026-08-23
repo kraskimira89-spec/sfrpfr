@@ -24,55 +24,55 @@ export type SelectOption<T extends string> = {
 };
 
 export const ISSUE_TYPE_OPTIONS: SelectOption<IssueType>[] = [
-    {value: 'bug', content: 'Ошибка'},
-    {value: 'sla_incident', content: 'Инцидент SLA'},
-    {value: 'channel_conflict', content: 'Конфликт каналов'},
-    {value: 'process_improvement', content: 'Улучшение процесса'},
-    {value: 'development', content: 'Разработка'},
-    {value: 'content', content: 'Контент'},
-    {value: 'security_privacy', content: 'Безопасность / ПДн'},
-    {value: 'analytics_hypothesis', content: 'Аналитическая гипотеза'},
-    {value: 'partner_request', content: 'Партнёрский запрос'},
+    { value: 'bug', content: 'Ошибка' },
+    { value: 'sla_incident', content: 'Инцидент SLA' },
+    { value: 'channel_conflict', content: 'Конфликт каналов' },
+    { value: 'process_improvement', content: 'Улучшение процесса' },
+    { value: 'development', content: 'Разработка' },
+    { value: 'content', content: 'Контент' },
+    { value: 'security_privacy', content: 'Безопасность / ПДн' },
+    { value: 'analytics_hypothesis', content: 'Аналитическая гипотеза' },
+    { value: 'partner_request', content: 'Партнёрский запрос' },
 ];
 
 export const DIRECTION_OPTIONS: SelectOption<Direction>[] = [
-    {value: 'ops', content: 'Операции'},
-    {value: 'product', content: 'Продукт'},
-    {value: 'dev', content: 'Разработка'},
-    {value: 'content', content: 'Контент'},
-    {value: 'security', content: 'Безопасность'},
-    {value: 'partners', content: 'Партнёры'},
+    { value: 'ops', content: 'Операции' },
+    { value: 'product', content: 'Продукт' },
+    { value: 'dev', content: 'Разработка' },
+    { value: 'content', content: 'Контент' },
+    { value: 'security', content: 'Безопасность' },
+    { value: 'partners', content: 'Партнёры' },
 ];
 
 export const SOURCE_OPTIONS: SelectOption<Source>[] = [
-    {value: 'staff', content: 'Сотрудник'},
-    {value: 'cabinet', content: 'Кабинет'},
-    {value: 'max', content: 'MAX'},
-    {value: 'web', content: 'Сайт'},
-    {value: 'amocrm', content: 'amoCRM'},
-    {value: 'analytics', content: 'Аналитика'},
-    {value: 'partner', content: 'Партнёр'},
+    { value: 'staff', content: 'Сотрудник' },
+    { value: 'cabinet', content: 'Кабинет' },
+    { value: 'max', content: 'MAX' },
+    { value: 'web', content: 'Сайт' },
+    { value: 'amocrm', content: 'amoCRM' },
+    { value: 'analytics', content: 'Аналитика' },
+    { value: 'partner', content: 'Партнёр' },
 ];
 
 export const CHANNEL_OPTIONS: SelectOption<Channel>[] = [
-    {value: 'unknown', content: 'Не определён'},
-    {value: 'max', content: 'MAX'},
-    {value: 'web', content: 'Web'},
-    {value: 'phone', content: 'Телефон'},
-    {value: 'email', content: 'E-mail'},
+    { value: 'unknown', content: 'Не определён' },
+    { value: 'max', content: 'MAX' },
+    { value: 'web', content: 'Web' },
+    { value: 'phone', content: 'Телефон' },
+    { value: 'email', content: 'E-mail' },
 ];
 
 export const REPEAT_OPTIONS: SelectOption<Repeatability>[] = [
-    {value: 'once', content: 'Единично'},
-    {value: 'recurring', content: 'Повторяется'},
-    {value: 'systemic', content: 'Системно'},
+    { value: 'once', content: 'Единично' },
+    { value: 'recurring', content: 'Повторяется' },
+    { value: 'systemic', content: 'Системно' },
 ];
 
 export const PRIORITY_OPTIONS: SelectOption<Priority>[] = [
-    {value: 'critical', content: 'Критический'},
-    {value: 'high', content: 'Высокий'},
-    {value: 'normal', content: 'Обычный'},
-    {value: 'low', content: 'Низкий'},
+    { value: 'critical', content: 'Критический' },
+    { value: 'high', content: 'Высокий' },
+    { value: 'normal', content: 'Обычный' },
+    { value: 'low', content: 'Низкий' },
 ];
 
 /** Маппинг приоритета UI → ключ приоритета Tracker API. */

@@ -1,4 +1,4 @@
-import {labelForIssueType, type IssueType} from '../types/stazh';
+import { type IssueType, labelForIssueType } from '../types/stazh';
 
 export type Prefill = {
     summary: string;
