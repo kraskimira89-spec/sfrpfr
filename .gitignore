@@ -53,6 +53,9 @@ storage/max_channel_daily_state.json
 !assets/**/*.png
 !scripts/assets/yandex-business/promo/*.pdf
 !scripts/assets/yandex-business/promo/*.png
+!scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf
+!scripts/assets/leadmagnets/pension-checklist-a4-bw.pdf
+!scripts/assets/leadmagnets/pension-checklist-a4-preview.png
 !scripts/assets/favicon-120.png
 !scripts/assets/sfrfr-logo-light.png
 !scripts/assets/trust/expert-lopakova.jpg

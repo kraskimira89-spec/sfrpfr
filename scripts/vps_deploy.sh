@@ -99,6 +99,11 @@ if [[ -f "$APP_DIR/scripts/wp_deploy_yandex_review_qr.sh" ]]; then
   bash "$APP_DIR/scripts/wp_deploy_yandex_review_qr.sh" || echo "WARN: wp_deploy_yandex_review_qr.sh failed"
 fi
 
+if [[ -f "$APP_DIR/scripts/wp_deploy_leadmagnet_a4_pdf.sh" ]]; then
+  echo "Deploying lead magnet A4 PDF …"
+  bash "$APP_DIR/scripts/wp_deploy_leadmagnet_a4_pdf.sh" || echo "WARN: wp_deploy_leadmagnet_a4_pdf.sh failed"
+fi
+
 # ТЗ-18/19: страницы доверия/контактов (в т.ч. блок отзывов)
 if [[ -f "$APP_DIR/scripts/wp_seed_trust_pages_tz18.sh" ]]; then
   echo "Seeding trust/commerce pages …"

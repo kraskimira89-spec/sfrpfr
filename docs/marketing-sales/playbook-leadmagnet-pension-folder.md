@@ -7,7 +7,9 @@
 | URL | Назначение |
 |-----|------------|
 | https://proverkastaza.ru/chek-list-dokumentov/ | Посадочная выдача |
-| https://proverkastaza.ru/chek-list-dokumentov/a4/ | Компактный лист A4 (1 стр., noindex) |
+| https://proverkastaza.ru/pension-checklist-a4.pdf | **PDF для рассылки** (канон) |
+| https://proverkastaza.ru/pension-checklist-a4-bw.pdf | PDF ч/б для офисной печати |
+| https://proverkastaza.ru/chek-list-dokumentov/a4/ | Компактный лист A4 в браузере (noindex) |
 | https://proverkastaza.ru/chek-list-dokumentov/pechat/ | Рабочая тетрадь 8 стр. (noindex) |
 
 ## Исходники
@@ -16,13 +18,23 @@
 |------|------------|
 | `scripts/assets/leadmagnets/pension-folder-checklist.md` | Текст тетради 8 стр. |
 | `scripts/assets/leadmagnets/pension-checklist-a4-one-page.md` | Текст листа A4 (1 стр.) |
-| `docs/marketing-sales/spec-leadmagnet-a4-one-page-2026-08.md` | ТЗ для дизайнера / Canva |
+| `docs/marketing-sales/spec-leadmagnet-a4-one-page-2026-08.md` | ТЗ для дизайнера / Figma |
+| `scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf` | PDF рассылки (канон) |
+| `scripts/assets/leadmagnets/pension-checklist-a4-bw.pdf` | PDF ч/б |
+| `scripts/assets/leadmagnets/pension-checklist-a4-preview.png` | Превью для лендинга |
+| `scripts/build_leadmagnet_a4_pdf.py` | Пересборка PDF из HTML |
 | `scripts/assets/trust/chek-list-dokumentov.html` | Посадочная |
 | `scripts/assets/trust/chek-list-dokumentov-a4.html` | Печать A4 (1 стр.) |
 | `scripts/assets/trust/chek-list-dokumentov-pechat.html` | Печать тетради (8 стр.) |
 | Сид | `scripts/wp_seed_trust_pages_tz18.php` |
 
-После деплоя на VPS:
+После правки текста/макета:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/build_leadmagnet_a4_pdf.py
+```
+
+После деплоя на VPS (PDF копируется автоматически в `vps_deploy.sh`):
 
 ```bash
 bash /opt/sfrfr/scripts/wp_seed_trust_pages_tz18.sh
@@ -33,7 +45,7 @@ bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
 
 1. Форма на `/chek-list-dokumentov/`: имя + канал (e-mail / MAX) + обязательное согласие ПДн + необязательный маркетинг.  
 2. REST: `POST /wp-json/proverkastaza/v1/lead-magnet` (MU `sfrfr-lead-magnet.php`).  
-3. Всегда выдаётся ссылка на `/chek-list-dokumentov/pechat/` (веб-тетрадь).  
+3. Всегда выдаётся ссылка на **`/pension-checklist-a4.pdf`** (+ тетрадь 8 стр. в письме).  
 4. При e-mail — письмо со ссылкой; маркетинг не шлётся без отдельного согласия.  
 5. Микродействия после: **«ИЛС получил(а)»** / **«Есть расхождение»** / **«Нужна проверка документов»**.
 
@@ -54,13 +66,13 @@ bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
 | `checklist_cta_click` | Клик «Получить чек-лист» |
 | `checklist_max_click` | Переход в MAX с страницы |
 | `checklist_print_open` | Открытие версии для печати |
-| `checklist_download` | (позже) скачивание PDF |
+| `checklist_download` | Скачивание PDF |
 
 ## Что ещё сделать
 
 - [x] Сверстать печатную HTML-тетрадь A4 (`chek-list-dokumentov-pechat.html`, 8 стр.)  
 - [x] Посадочная + форма + REST `lead-magnet` (ПДн / маркетинг раздельно, honeypot, rate limit, nonce)  
-- [ ] Отдельный PDF-файл из Canva (опционально; сейчас «Печать → PDF» из браузера)  
+- [x] PDF A4 для рассылки (`pension-checklist-a4-standard.pdf`, деплой → `/pension-checklist-a4.pdf`)  
 - [ ] Теги leadmagnet в amo / кабинете  
 - [ ] 2–3 статьи-проводника со ссылкой на страницу  
 - [ ] Ссылка с главной / релевантных trust-страниц (по согласованию)  

@@ -134,7 +134,9 @@
             </p>
             <p class="ps-lead__alt">
               Или сразу:
-              <a href="/chek-list-dokumentov/a4/" data-sfrfr-goal="checklist_print_open">компактный лист A4</a>
+              <a href="/pension-checklist-a4.pdf" download data-sfrfr-goal="checklist_download">скачать PDF (A4)</a>
+              ·
+              <a href="/chek-list-dokumentov/a4/" data-sfrfr-goal="checklist_print_open">открыть в браузере</a>
               ·
               <a href="/chek-list-dokumentov/pechat/" data-sfrfr-goal="checklist_print_open">тетрадь 8 стр.</a>
               ·
@@ -273,6 +275,7 @@
   const maxInput = form.querySelector("#lead-max");
   const status = form.querySelector("#lead-form-status");
   const submitButton = form.querySelector('button[type="submit"]');
+  const pdfUrl = "/pension-checklist-a4.pdf";
   const pechatUrl = "/chek-list-dokumentov/pechat/";
   let wpNonce = "";
 
@@ -334,19 +337,25 @@
 
       status.textContent =
         data.message ||
-        "Готово. Откройте рабочую тетрадь по ссылке ниже.";
+        "Готово. Скачайте PDF по ссылке ниже.";
       if (data.deliver_url) {
         status.innerHTML =
           (data.message || "Готово.") +
           ' <a href="' +
           data.deliver_url +
-          '">Открыть рабочую тетрадь</a>';
+          '" download data-sfrfr-goal="checklist_download">Скачать PDF</a>';
+        if (data.deliver_print_url) {
+          status.innerHTML +=
+            ' · <a href="' +
+            data.deliver_print_url +
+            '" data-sfrfr-goal="checklist_print_open">тетрадь 8 стр.</a>';
+        }
       } else {
         status.innerHTML =
           status.textContent +
           ' <a href="' +
-          pechatUrl +
-          '">Открыть рабочую тетрадь</a>';
+          pdfUrl +
+          '" download data-sfrfr-goal="checklist_download">Скачать PDF</a>';
       }
       if (typeof window.sfrfrMetrikaGoal === "function") {
         window.sfrfrMetrikaGoal("checklist_form_submit", {
@@ -361,8 +370,11 @@
       status.innerHTML =
         "Не удалось отправить форму. Вы всё равно можете " +
         '<a href="' +
+        pdfUrl +
+        '" download>скачать PDF</a> или ' +
+        '<a href="' +
         pechatUrl +
-        '">открыть рабочую тетрадь</a> или написать в MAX.';
+        '">открыть тетрадь</a> или написать в MAX.';
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = "Получить чек-лист";

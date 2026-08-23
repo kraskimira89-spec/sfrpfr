@@ -11,6 +11,8 @@ if (!defined('ABSPATH')) {
 const SFRFR_LEAD_MAGNET_CONSENT_VERSION = 'pdn-leadmagnet-2026-08-23';
 const SFRFR_LEAD_MAGNET_RATE_KEY = 'sfrfr_lm_rl_';
 const SFRFR_LEAD_MAGNET_AUDIT_OPTION = 'sfrfr_lead_magnet_audit';
+const SFRFR_LEAD_MAGNET_PDF_PATH = '/pension-checklist-a4.pdf';
+const SFRFR_LEAD_MAGNET_PRINT_PATH = '/chek-list-dokumentov/pechat/';
 
 add_action('rest_api_init', static function (): void {
     register_rest_route('proverkastaza/v1', '/lead-magnet/bootstrap', [
@@ -19,7 +21,8 @@ add_action('rest_api_init', static function (): void {
         'callback' => static function () {
             return [
                 'nonce' => wp_create_nonce('wp_rest'),
-                'deliver_url' => home_url('/chek-list-dokumentov/pechat/'),
+                'deliver_url' => home_url(SFRFR_LEAD_MAGNET_PDF_PATH),
+                'deliver_print_url' => home_url(SFRFR_LEAD_MAGNET_PRINT_PATH),
                 'consent_version' => SFRFR_LEAD_MAGNET_CONSENT_VERSION,
             ];
         },
@@ -98,7 +101,7 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
         return new WP_REST_Response([
             'ok' => true,
             'message' => 'Готово.',
-            'deliver_url' => home_url('/chek-list-dokumentov/pechat/'),
+            'deliver_url' => home_url(SFRFR_LEAD_MAGNET_PDF_PATH),
             'status' => 'checklist_sent',
         ], 200);
     }
@@ -149,7 +152,8 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
         (string) ($params['consent_version'] ?? SFRFR_LEAD_MAGNET_CONSENT_VERSION)
     );
 
-    $deliverUrl = home_url('/chek-list-dokumentov/pechat/');
+    $deliverUrl = home_url(SFRFR_LEAD_MAGNET_PDF_PATH);
+    $printUrl = home_url(SFRFR_LEAD_MAGNET_PRINT_PATH);
     $now = gmdate('c');
     $contactRaw = $channel === 'email' ? $email : $maxContact;
 
@@ -180,7 +184,8 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
         'Согласие маркетинг: ' . ($marketing ? 'да' : 'нет'),
         'Время UTC: ' . $now,
         'Статус: checklist_sent',
-        'Выдача: ' . $deliverUrl,
+        'Выдача PDF: ' . $deliverUrl,
+        'Тетрадь 8 стр.: ' . $printUrl,
     ];
     if ($channel === 'email') {
         $lines[] = 'E-mail: ' . $email;
@@ -194,8 +199,10 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
     if ($channel === 'email' && $email !== '') {
         $userSubject = 'Ваш чек-лист документов — Проверка стажа';
         $userBody = "Здравствуйте" . ($name !== '' ? ', ' . $name : '') . "!\n\n"
-            . "Рабочая тетрадь (веб-версия для печати):\n"
+            . "Скачайте чек-лист (PDF, одна страница A4):\n"
             . $deliverUrl . "\n\n"
+            . "Полная рабочая тетрадь для печати (8 страниц):\n"
+            . $printUrl . "\n\n"
             . "После выписки ИЛС ответьте нам: «ИЛС получил(а)» или «Есть расхождение».\n"
             . "Не отправляйте паспорт, СНИЛС, трудовую и выписку ИЛС в открытый чат.\n\n"
             . "Решение о пенсии принимает СФР. Сервис «Проверка стажа»: https://proverkastaza.ru/\n";
@@ -207,13 +214,14 @@ function sfrfr_lead_magnet_handle(WP_REST_Request $request)
     }
 
     $message = $channel === 'email'
-        ? 'Готово. Проверьте почту и откройте рабочую тетрадь по ссылке.'
-        : 'Готово. Откройте рабочую тетрадь и при желании напишите в MAX: «Нужен чек-лист документов».';
+        ? 'Готово. Проверьте почту и скачайте PDF по ссылке ниже.'
+        : 'Готово. Скачайте PDF по ссылке ниже или напишите в MAX: «Нужен чек-лист документов».';
 
     return new WP_REST_Response([
         'ok' => true,
         'message' => $message,
         'deliver_url' => $deliverUrl,
+        'deliver_print_url' => $printUrl,
         'status' => 'checklist_sent',
         'marketing_consent' => $marketing,
     ], 200);
