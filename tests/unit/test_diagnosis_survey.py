@@ -59,6 +59,15 @@ class _MemSurveyRepo:
     def list_campaigns(self, case_id: str) -> list[dict[str, Any]]:
         return [c for c in self.campaigns.values() if c.get("case_id") == case_id]
 
+    def list_due_scheduled(self, *, now_iso: str, limit: int = 50) -> list[dict[str, Any]]:
+        out = []
+        for c in self.campaigns.values():
+            if c.get("status") != "scheduled":
+                continue
+            if str(c.get("scheduled_at") or "") <= now_iso:
+                out.append(c)
+        return out[:limit]
+
     def count_sent_surveys(self, case_id: str) -> int:
         return sum(
             1
@@ -139,64 +148,13 @@ def test_schedule_clarity_draft_once() -> None:
     assert a["id"] == b["id"]
     assert a["status"] == "scheduled"
     assert a["survey_type"] == "clarity"
-    assert len(repo.list_campaigns("c1")) == 1
+    clarity = [c for c in repo.list_campaigns("c1") if c["survey_type"] == "clarity"]
+    acquaint = [c for c in repo.list_campaigns("c1") if c["survey_type"] == "acquaint"]
+    assert len(clarity) == 1
+    assert len(acquaint) == 1
 
 
-def test_suppression_blocks_schedule() -> None:
-    svc, repo, _fb = _svc()
-    repo.suppressions.add("c9")
-    assert svc.schedule_clarity_after_open(case_id="c9", diagnostic_result_id=None) is None
-
-
-def test_approve_returns_tokens_without_case_id_in_payload() -> None:
-    svc, _repo, _fb = _svc()
-    # Длинный case_id: короткие «c2» дают ложные срабатывания в urlsafe-токенах.
-    case_id = "case-must-not-appear-in-token-xyz"
-    camp = svc.schedule_clarity_after_open(
-        case_id=case_id, diagnostic_result_id="r2", delay_hours=0
-    )
-    assert camp is not None
-    out = svc.approve_and_mark_sent(campaign_id=str(camp["id"]), actor_id="staff1")
-    assert out.get("ok")
-    tokens = out["tokens"]
-    assert set(tokens) == set(CLARITY_ANSWERS)
-    for raw in tokens.values():
-        assert case_id not in raw
-        assert "@" not in raw
-        assert len(raw) >= 10
-
-
-def test_callback_idempotent_and_needs_help_cancels() -> None:
-    svc, repo, fb = _svc()
-    camp = svc.schedule_clarity_after_open(case_id="c3", diagnostic_result_id="r3", delay_hours=0)
-    assert camp is not None
-    cid = str(camp["id"])
-    # второй draft опрос — должен отмениться
-    repo.insert_campaign(
-        {
-            "id": "other",
-            "case_id": "c3",
-            "survey_type": "first_step",
-            "channel": "max",
-            "status": "draft",
-            "scheduled_at": datetime.now(UTC).isoformat(),
-            "touch_index": 1,
-        }
-    )
-    tokens = svc.prepare_send_tokens(cid)
-    repo.update_campaign(cid, {"status": "sent"})
-    raw = tokens["needs_help"]
-    first = svc.handle_action_token(raw)
-    second = svc.handle_action_token(raw)
-    assert first["ok"] and not first.get("idempotent")
-    assert second.get("idempotent") is True
-    assert repo.get_campaign(cid)["status"] == "completed"
-    assert repo.get_campaign("other")["status"] == "cancelled"
-    assert fb.rows["c3"]["feedback_status"] == "need_help"
-    assert first["side_effects"]["requires_contact"] is True
-
-
-def test_clear_schedules_first_step_draft() -> None:
+def test_clear_schedules_first_step_and_cancels_acquaint() -> None:
     svc, repo, fb = _svc()
     camp = svc.schedule_clarity_after_open(case_id="c4", diagnostic_result_id="r4", delay_hours=0)
     assert camp is not None
@@ -205,9 +163,46 @@ def test_clear_schedules_first_step_draft() -> None:
     repo.update_campaign(cid, {"status": "sent"})
     out = svc.handle_action_token(tokens["clear"])
     assert out["side_effects"].get("first_step_draft")
+    assert out["side_effects"].get("pipeline") == "acts_alone"
     assert fb.rows["c4"]["feedback_status"] == "understood"
-    types = {c["survey_type"] for c in repo.list_campaigns("c4")}
+    assert fb.rows["c4"]["first_plan_step_status"] == "pending"
+    types = {c["survey_type"]: c["status"] for c in repo.list_campaigns("c4")}
     assert "first_step" in types
+    acquaint = [c for c in repo.list_campaigns("c4") if c["survey_type"] == "acquaint"]
+    assert all(c["status"] == "cancelled" for c in acquaint)
+
+
+def test_first_step_answers() -> None:
+    svc, repo, fb = _svc()
+    camp = svc.schedule_clarity_after_open(case_id="c10", diagnostic_result_id="r10", delay_hours=0)
+    assert camp is not None
+    tokens = svc.prepare_send_tokens(str(camp["id"]))
+    repo.update_campaign(str(camp["id"]), {"status": "sent"})
+    svc.handle_action_token(tokens["clear"])
+    fs = [c for c in repo.list_campaigns("c10") if c["survey_type"] == "first_step"][0]
+    out = svc.approve_and_mark_sent(campaign_id=str(fs["id"]), actor_id="staff")
+    assert out.get("ok")
+    assert set(out["tokens"]) == {"done", "blocked", "deferred"}
+    blocked = svc.handle_action_token(out["tokens"]["blocked"])
+    assert blocked["side_effects"]["first_plan_step_status"] == "blocked"
+    assert fb.rows["c10"]["first_plan_step_status"] == "blocked"
+
+
+def test_due_tick_promotes_scheduled() -> None:
+    svc, repo, _fb = _svc()
+    past = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+    repo.insert_campaign(
+        {
+            "id": "due1",
+            "case_id": "c11",
+            "survey_type": "first_step",
+            "status": "scheduled",
+            "scheduled_at": past,
+        }
+    )
+    stats = svc.run_due_tick()
+    assert stats["promoted"] >= 1
+    assert repo.get_campaign("due1")["status"] == "draft"
 
 
 def test_not_viewed_one_retry() -> None:

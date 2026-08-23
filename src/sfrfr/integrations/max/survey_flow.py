@@ -1,4 +1,4 @@
-"""MAX: опрос понятности PDF — кнопки с одноразовыми токенами (ТЗ-29)."""
+"""MAX: опросы после PDF — кнопки с одноразовыми токенами (ТЗ-29 / acts_alone)."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from sfrfr.services.diagnosis_survey import CLARITY_ANSWERS, DiagnosisSurveyServ
 CALLBACK_PREFIX = "svy:"
 
 
-def clarity_keyboard(tokens: dict[str, str]) -> list[dict[str, Any]]:
-    """tokens: answer_code → raw token."""
+def survey_keyboard(tokens: dict[str, str], labels: dict[str, str]) -> list[dict[str, Any]]:
+    """tokens/labels: answer_code → raw token / button text."""
     rows: list[list[dict[str, Any]]] = []
-    for code, label in CLARITY_ANSWERS.items():
+    for code, label in labels.items():
         raw = tokens.get(code)
         if not raw:
             continue
@@ -21,12 +21,17 @@ def clarity_keyboard(tokens: dict[str, str]) -> list[dict[str, Any]]:
             [
                 {
                     "type": "callback",
-                    "text": label[:64],
+                    "text": str(label)[:64],
                     "payload": f"{CALLBACK_PREFIX}{raw}",
                 }
             ]
         )
     return inline_buttons_keyboard(rows)
+
+
+def clarity_keyboard(tokens: dict[str, str]) -> list[dict[str, Any]]:
+    """Совместимость: clarity labels."""
+    return survey_keyboard(tokens, CLARITY_ANSWERS)
 
 
 def handle_survey_callback(*, user_id: str, payload: str) -> dict[str, Any] | None:

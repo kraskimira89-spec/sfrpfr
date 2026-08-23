@@ -57,6 +57,19 @@ class DiagnosisSurveyRepository:
         )
         return list(resp.data or [])
 
+    def list_due_scheduled(self, *, now_iso: str, limit: int = 50) -> list[dict[str, Any]]:
+        """Кампании status=scheduled с scheduled_at <= now."""
+        resp = (
+            self.client.table("survey_campaigns")
+            .select("*")
+            .eq("status", "scheduled")
+            .lte("scheduled_at", now_iso)
+            .order("scheduled_at")
+            .limit(min(max(limit, 1), 100))
+            .execute()
+        )
+        return list(resp.data or [])
+
     def count_sent_surveys(self, case_id: str) -> int:
         rows = self.list_campaigns(case_id)
         return sum(1 for r in rows if r.get("status") in ("sent", "completed", "approved"))

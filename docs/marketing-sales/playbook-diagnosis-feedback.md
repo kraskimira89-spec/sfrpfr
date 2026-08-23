@@ -2,7 +2,7 @@
 
 **Дата:** 2026-08-23  
 **Статус:** канон ops + ТЗ кабинета  
-**Связано:** [стандарт PDF](playbook-diagnosis-result-standard.md) · [§4в](playbook-sales-clarity-funnel.md) · [выдача](../../scripts/assets/copy/diagnosis-result-delivery.md) · [сообщения](../../scripts/assets/copy/diagnosis-feedback-messages.md) · [ТЗ-27](../specs/27-diagnosis-pdf-feedback.md) · [ТЗ-29 опросы](../specs/29-diagnosis-surveys.md) · [ТЗ-19 отзывы](../specs/19-yandex-reviews-feedback.md) · [marketing consent](playbook-marketing-consent.md)
+**Связано:** [стандарт PDF](playbook-diagnosis-result-standard.md) · [§4в](playbook-sales-clarity-funnel.md) · [выдача](../../scripts/assets/copy/diagnosis-result-delivery.md) · [сообщения](../../scripts/assets/copy/diagnosis-feedback-messages.md) · [**понял и делает сам**](playbook-acts-alone.md) · [ТЗ-27](../specs/27-diagnosis-pdf-feedback.md) · [ТЗ-29 опросы](../specs/29-diagnosis-surveys.md) · [ТЗ-19 отзывы](../specs/19-yandex-reviews-feedback.md) · [marketing consent](playbook-marketing-consent.md)
 
 ---
 

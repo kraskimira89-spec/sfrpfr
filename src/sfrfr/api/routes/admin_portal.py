@@ -1102,6 +1102,18 @@ def run_unread_reminder_tick(
     return {"ok": True, **stats}
 
 
+@router.post("/admin/diagnosis-surveys/due-tick")
+def run_survey_due_tick(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Scheduler: scheduled surveys → draft на Approve (без автоотправки)."""
+    from sfrfr.services.diagnosis_survey import DiagnosisSurveyService
+
+    _ = principal
+    stats = DiagnosisSurveyService().run_due_tick()
+    return {"ok": True, **stats}
+
+
 @router.post("/admin/cases/{case_id}/notification-jobs/{job_id}/cancel")
 def cancel_notification_job(
     case_id: str,
@@ -1158,7 +1170,7 @@ def approve_survey_campaign(
 ) -> dict[str, Any]:
     """Подтвердить MAX-опрос: вернуть body + tokens для кнопок (один раз)."""
     from sfrfr.db.diagnosis_survey_repository import DiagnosisSurveyRepository
-    from sfrfr.integrations.max.survey_flow import clarity_keyboard
+    from sfrfr.integrations.max.survey_flow import survey_keyboard
     from sfrfr.services.diagnosis_survey import DiagnosisSurveyService
 
     repo = _repo()
@@ -1178,8 +1190,9 @@ def approve_survey_campaign(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if out.get("ok") and out.get("tokens"):
-        out["attachments"] = clarity_keyboard(out["tokens"])
-        # raw tokens только внутри attachments.payload кнопок
+        labels = out.get("labels") or {}
+        tokens = out["tokens"]
+        out["attachments"] = survey_keyboard(tokens, labels)
         out.pop("tokens", None)
         if not payload.mark_sent:
             DiagnosisSurveyRepository().update_campaign(
