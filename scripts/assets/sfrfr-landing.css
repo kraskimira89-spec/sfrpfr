@@ -2944,7 +2944,7 @@ body.bvi-active .sfrfr-bvi-float {
 
 .sfrfr-form-block .sfrfr-lead-consent ul,
 .sfrfr-form-block .wpforms-field-checkbox ul {
-  margin: 0 !important;
+    margin: 0 !important;
   width: 100%;
   max-width: 100%;
 }
