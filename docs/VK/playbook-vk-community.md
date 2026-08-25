@@ -26,10 +26,13 @@
 | Сайт | https://proverkastaza.ru/ |
 | Тарифы | https://proverkastaza.ru/tarify/ |
 | Телефон (публичный) | +7 909 195-04-08 |
+| Телефон входа в ВК | номер аккаунта владельца — **не** в карточку сообщества |
+| Email | info@proverkastaza.ru |
 
-Готовые тексты под копипаст (описание, закреп, автоответ, 3 стартовых поста, поля создания, чеклист 20–30 мин): [copy-community-launch.md](copy-community-launch.md).
+Пошагово создать в UI (телефон, возможности, параметры): [howto-create-community.md](howto-create-community.md).  
+Тексты под копипаст (описание, закреп, автоответ, 3 поста): [copy-community-launch.md](copy-community-launch.md).
 
-**Не дублировать** длинные тексты здесь — править канон запуска в `copy-community-launch.md`.
+**Не дублировать** длинные тексты здесь — UI: `howto-create-community.md`, копипаст: `copy-community-launch.md`.
 
 ---
 
@@ -262,7 +265,7 @@ https://proverkastaza.ru/tarify/?utm_source=vk&utm_medium=organic_social&utm_cam
 
 ## 9. Запуск сообщества (чеклист владельца)
 
-Полный копипаст и минутный чеклист UI: [copy-community-launch.md](copy-community-launch.md) §1 и §7.
+Пошагово UI: [howto-create-community.md](howto-create-community.md). Копипаст текстов: [copy-community-launch.md](copy-community-launch.md) §1 и §7.
 
 1. Создать сообщество **вручную в UI ВК** с аккаунта владельца воронки (тип «Бизнес», название «Проверка стажа»). URL вписать в §1 этой таблицы — пока **TBD**, не выдумывать.  
 2. Заполнить описание, закреп, контакты, кнопку MAX, автоответ, аватар/обложку — тексты и файлы из `copy-community-launch.md`.  
@@ -275,6 +278,7 @@ https://proverkastaza.ru/tarify/?utm_source=vk&utm_medium=organic_social&utm_cam
 
 ## 10. Связанные файлы
 
+- Как создать в UI: [howto-create-community.md](howto-create-community.md)  
 - Тексты запуска (копипаст): [copy-community-launch.md](copy-community-launch.md)  
 - API: [research-vk-api.md](research-vk-api.md)  
 - Промпт агента: [prompt-agent-vk.md](prompt-agent-vk.md)  

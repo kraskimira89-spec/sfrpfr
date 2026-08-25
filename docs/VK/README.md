@@ -14,6 +14,7 @@
 |------|------------|
 | [prompt-agent-vk.md](prompt-agent-vk.md) | Промпт для нового чата |
 | [playbook-vk-community.md](playbook-vk-community.md) | Сообщество: ритм, CTA, тарифы 3/5/8, лид-форма, UTM |
+| [howto-create-community.md](howto-create-community.md) | Пошагово: телефон, возможности вкл/выкл, параметры UI |
 | [copy-community-launch.md](copy-community-launch.md) | Копипаст запуска: описание, закреп, автоответ, 3 поста, чеклист UI |
 | [research-vk-api.md](research-vk-api.md) | API VK: что нужно сервису, границы, ссылки на доки |
 

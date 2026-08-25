@@ -105,7 +105,7 @@ VK_ADS_CABINET_ID=
 
 ## 7. Что сделать сейчас (без кода)
 
-1. Создать сообщество **в UI ВК** по [copy-community-launch.md](copy-community-launch.md) §1 и §7 (тип «Бизнес», не API). URL → `playbook-vk-community.md` §1.  
+1. Создать сообщество **в UI ВК** по [howto-create-community.md](howto-create-community.md) (тип «Бизнес», не API). URL → `playbook-vk-community.md` §1.  
 2. Тексты: описание, закреп, автоответ, 3 поста — тот же файл. Публиковать — когда решит владелец.  
 3. UTM органики — таблица в copy §0 и playbook §7.  
 4. Paid / Callback / Ads API — отложить до снятия BLOCKED в implementation-status.
@@ -120,4 +120,5 @@ VK_ADS_CABINET_ID=
 - [Маркировка / ERID](https://ads.vk.com/help/ord/labeling)  
 - [Продвижение каналов VK и MAX](https://ads.vk.ru/news/reklama-kanalov-vk-i-max)  
 - Канон цен и CTA: [playbook-vk-community.md](playbook-vk-community.md)  
-- Копипаст запуска: [copy-community-launch.md](copy-community-launch.md)
+- Копипаст запуска: [copy-community-launch.md](copy-community-launch.md)  
+- Пошагово UI: [howto-create-community.md](howto-create-community.md)

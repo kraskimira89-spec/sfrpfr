@@ -12,6 +12,7 @@ alwaysApply: true
 - `README.md` — индекс;
 - `prompt-agent-vk.md` — промпт нового чата;
 - `playbook-vk-community.md` — ритм, CTA, лид-форма, UTM, тарифы 3/5/8;
+- `howto-create-community.md` — пошагово создать сообщество (телефон, возможности, параметры);
 - `copy-community-launch.md` — копипаст запуска сообщества (описание, закреп, автоответ, 3 поста);
 - `research-vk-api.md` — обзор API и границы.
 

@@ -5,6 +5,8 @@
 **Сообщество:** владелец создаёт вручную; **публиковать сообщество и посты — только по своему решению**. В этом пакете публикация не требуется.  
 **URL сообщества:** **TBD** — вписать в [playbook-vk-community.md](playbook-vk-community.md) §1 после создания (`https://vk.com/…`). Не выдумывать.
 
+**Пошагово в UI ВК** (какой телефон, что включить, какие параметры): [howto-create-community.md](howto-create-community.md). Ниже — тексты под копипаст.
+
 Канон: подача — `scripts/assets/copy/submission-position.md`; без калькулятора выплат — `scripts/assets/copy/no-calculator-no-recalculation.md`; голос — `docs/brand/brand-platform-v2.md` («Цифровая рука помощи»); тарифы — `scripts/assets/trust/tarify.html`; UTM — [playbook §7](playbook-vk-community.md).
 
 **Лид-магнит «4 проверки»:** пост/карточка  
@@ -314,7 +316,7 @@ https://max.ru/id8905998693_1_bot
 
 ## 7. Чеклист владельца (~20–30 мин, только UI ВК)
 
-Не включать VK Ads и лид-форму (статус paid: **BLOCKED**).
+Клики, телефоны и тумблеры — [howto-create-community.md](howto-create-community.md). Не включать VK Ads и лид-форму (статус paid: **BLOCKED**).
 
 1. [ ] Войти аккаунтом **владельца воронки** (не личный профиль сотрудника). После создания добавить ops вторым админом.
 2. [ ] Создать **одно** сообщество: тип **Бизнес**, название **Проверка стажа** (без ООО в названии). Не «тематическое».
