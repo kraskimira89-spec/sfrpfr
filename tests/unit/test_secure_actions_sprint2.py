@@ -94,13 +94,12 @@ def test_issue_and_load_consent_context(svc: SecureActionLinkService) -> None:
         secure_link_pepper="",
         app_secret_key="x",
     )
+    cases = MagicMock()
+    cases.has_consent.return_value = False
     with (
         patch("sfrfr.secure_links.actions.get_settings", return_value=settings),
         patch("sfrfr.secure_links.urls.get_settings", return_value=settings),
-        patch(
-            "sfrfr.secure_links.actions.CaseRepository.has_consent",
-            return_value=False,
-        ),
+        patch("sfrfr.secure_links.actions.CaseRepository", return_value=cases),
         patch(
             "sfrfr.secure_links.actions.SecureActionLinkService",
             return_value=svc,
@@ -121,25 +120,20 @@ def test_grant_consent_consumes_link(svc: SecureActionLinkService) -> None:
         secure_action_links_enabled=True,
         public_base_url="https://api.example",
     )
-    accept = MagicMock(return_value={"id": "cons1"})
+    cases = MagicMock()
+    cases.has_consent.return_value = False
+    cases.accept_consent.return_value = {"id": "cons1"}
     with (
         patch("sfrfr.secure_links.actions.get_settings", return_value=settings),
         patch("sfrfr.secure_links.urls.get_settings", return_value=settings),
         patch("sfrfr.secure_links.actions.SecureActionLinkService", return_value=svc),
-        patch(
-            "sfrfr.secure_links.actions.CaseRepository.has_consent",
-            side_effect=[False, True],
-        ),
-        patch(
-            "sfrfr.secure_links.actions.CaseRepository.accept_consent",
-            accept,
-        ),
+        patch("sfrfr.secure_links.actions.CaseRepository", return_value=cases),
     ):
         issued = issue_consent_link(case_id="11111111-1111-1111-1111-111111111111")
         raw = issued["raw_token_once"]
         out = grant_consent_via_token(raw, ip="127.0.0.1", user_agent="pytest")
         assert out["ok"] is True
-        accept.assert_called_once()
+        cases.accept_consent.assert_called_once()
         with pytest.raises(SecureLinkDenied) as exc:
             grant_consent_via_token(raw)
         assert exc.value.reason in ("consumed", "max_uses")
