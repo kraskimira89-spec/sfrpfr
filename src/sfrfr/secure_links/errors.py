@@ -8,7 +8,7 @@ class SecureLinksDisabled(Exception):
 
     def __init__(self, message: str = "secure_action_links_disabled") -> None:
         super().__init__(message)
-        self.reason = "disabled"
+        self.reason = message if message != "secure_action_links_disabled" else "disabled"
 
 
 class SecureLinkDenied(Exception):

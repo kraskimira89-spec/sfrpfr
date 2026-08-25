@@ -1,6 +1,6 @@
 # Архитектура: MAX-first + защищённые страницы действия
 
-**Статус:** Sprint 1 done (фундамент за флагами OFF); UI/MAX UX — Sprint 2+  
+**Статус:** Sprint 1–2 done (флаги OFF); upload UI / FSM cutover — Sprint 3–4  
 **Дата:** 2026-08-25  
 **Стратегия:** до сделки кабинет как «продукт с регистрацией» не нужен; после оплаты — одноразовые защищённые страницы из MAX (не регистрация).  
 **Кабинет (`apps/cabinet`) не удаляем** — остаётся полноценным контуром и запасным путём.
@@ -58,8 +58,8 @@
 | Secure share PDF диагностики | ✅ Есть (узкий) | `secure_share_links` + `/api/portal/diag-share/{token}` (ТЗ-28) |
 | max_intake | ✅ Есть | migration `20260804120000_max_intake.sql` |
 | Feature flags MAX-first | ✅ Sprint 1 | `config.py` + `.env.example`: `MAX_FIRST_*` / `SECURE_*` default off |
-| Универсальные action links (purpose) | ✅ Sprint 1 (модель) | `secure_action_links` + `src/sfrfr/secure_links/`; UI ещё нет |
-| Secure page UI (без полной сессии) | ❌ Нет | Cabinet — полноценный SPA |
+| Универсальные action links (purpose) | ✅ Sprint 1–2 | `secure_action_links` + `src/sfrfr/secure_links/` |
+| Secure page UI (без полной сессии) | ✅ Sprint 2 | `/api/portal/secure/{token}` HTML+JSON (consent, view_pdf) |
 | Оплата **до** кабинета как единственный путь | ⚠️ Частично | Счета и pay_url есть; воронка ТЗ-20 всё ещё ведёт в кабинет за документами |
 
 ### Сверка утверждений ТЗ с кодом
@@ -215,10 +215,26 @@
 
 История: `docs/history/2026-08-25-max-first-sprint1-secure-links.md`.
 
-### Sprint 2 — consent + view PDF по ссылке
+### Sprint 2 — consent + view PDF по ссылке ✅ done
 
-**Делать:** страницы/роуты `purpose=consent` и переиспользование diag viewer; MAX после `paid` шлёт ссылку.  
-**Готово когда:** клиент без регистрации принимает ПДн-согласие; PDF по токену; audit есть; флаги можно включить на staging.
+**Сделано:**
+
+- HTML/JSON: `GET /api/portal/secure/{token}` (`purpose=consent|view_pdf`);
+- `POST /api/portal/secure/{token}/consent` — согласие ПДн без регистрации;
+- `GET /api/portal/secure/{token}/pdf` — signed URL (нужен `SECURE_RESULT_VIEW_ENABLED`);
+- staff: `POST /api/portal/admin/cases/{id}/secure-links`;
+- payment notify: при `MAX_SECURE_LINK_BUTTONS_ENABLED=1` кнопка «Подтвердить согласие»;
+- unit-тесты `tests/unit/test_secure_actions_sprint2.py`;
+- **не** делали upload UI и cutover MAX FSM.
+
+**Готово когда:**
+
+- [x] клиент без регистрации принимает ПДн-согласие по ссылке;
+- [x] PDF по токену (за флагом result view);
+- [x] audit через `secure_action_events` + case audit;
+- [x] флаги default off — prod без изменений.
+
+История: `docs/history/2026-08-25-max-first-sprint2-consent-pdf.md`.
 
 ### Sprint 3 — upload по ссылке
 
@@ -266,7 +282,7 @@
 
 ## 11. Что НЕ делаем сейчас
 
-- Реализацию Sprint 2–4 (upload/consent UI, FSM cutover).
+- Реализацию Sprint 3–4 (upload UI, FSM cutover).
 - Удаление или замену `apps/cabinet`.
 - Ломку существующего OTP / pair-code / magiclink Auth.
 - Приём документов в MAX «временно».

@@ -173,11 +173,45 @@ def notify_payment_succeeded(
             from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
 
             bot = MaxBotClient()
-            cabinet = cabinet_case_url(case_id, view="payments")
+            button_label = "Открыть оплаты"
+            button_url = cabinet_case_url(case_id, view="payments")
+            message_text = text
+
+            # Sprint 2: опционально — защищённая ссылка на согласие (без cutover FSM)
+            if (
+                settings.max_secure_link_buttons_enabled
+                and settings.secure_action_links_enabled
+            ):
+                try:
+                    from sfrfr.secure_links.actions import issue_consent_link
+
+                    issued = issue_consent_link(
+                        case_id=case_id,
+                        max_user_id=str(max_user_id),
+                        issued_via="max",
+                        actor="payment_notify",
+                    )
+                    button_label = "Подтвердить согласие"
+                    button_url = str(issued["url"])
+                    message_text = (
+                        text
+                        + "\n\n"
+                        + "Чтобы безопасно передать документы позже, "
+                        + "сначала подтвердите согласие по кнопке ниже. "
+                        + "Регистрация не нужна. Сканы в чат не отправляйте."
+                    )
+                    result["secure_consent_prefix"] = issued.get("token_prefix")
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "payment notify secure consent link skipped case=%s: %s",
+                        case_id[:8],
+                        exc,
+                    )
+
             send = bot.send_message(
-                text=text,
+                text=message_text,
                 user_id=max_user_id,
-                attachments=inline_link_keyboard("Открыть оплаты", cabinet),
+                attachments=inline_link_keyboard(button_label, button_url),
             )
             result["max_sent"] = not send.get("skipped")
             keys = ("ok", "skipped", "reason")
