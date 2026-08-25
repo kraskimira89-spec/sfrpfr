@@ -1,9 +1,20 @@
-"""Короткая ссылка и QR на оплату ЮKassa (счёт self, без авторассылки)."""
+"""Короткая ссылка и QR на оплату ЮKassa → доставка клиенту в MAX.
+
+Каналы доставки (канон):
+1. Staff «В MAX» / API pay-link send_max=true — текст + кнопка «Оплатить» + QR PNG.
+2. Staff «Ссылка» — только pay_url в админке (копипаст), без MAX.
+3. Клиент сам: кабинет / mini-app → confirmation_url (без QR в чат).
+4. Опционально MAX_PAY_LINK_AUTO_SEND=1 — после черновика счёта, если есть max_user_id.
+
+SMS/email ЮKassa не используем. Secure action link для оплаты не нужен:
+страница оплаты на стороне ЮKassa; QR — наш signed /api/public/pay/{id}/qr.png.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from typing import Any
@@ -16,6 +27,8 @@ from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
 from sfrfr.integrations.payments import YooKassaClient
 from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, staff_package_label
 from sfrfr.services.staff_finance import parse_dt
+
+logger = logging.getLogger(__name__)
 
 _YOOKASSA_HOSTS = ("yookassa.ru", "yoomoney.ru")
 
@@ -138,6 +151,7 @@ def send_pay_link_max(
     pay_url: str,
     qr_url: str | None = None,
 ) -> None:
+    """Текст + (опц.) картинка QR + кнопка «Оплатить» в личный чат MAX."""
     bot = MaxBotClient()
     if not bot.available:
         raise RuntimeError("max_bot_not_configured")
@@ -147,3 +161,173 @@ def send_pay_link_max(
         attachments.append({"type": "image", "payload": {"url": qr_url}})
     attachments.extend(inline_link_keyboard("Оплатить", pay_url))
     bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
+
+
+class PayLinkError(Exception):
+    """Ошибка выдачи/доставки pay-link (код в .code)."""
+
+    def __init__(self, code: str, message: str = "") -> None:
+        self.code = code
+        super().__init__(message or code)
+
+
+def issue_and_deliver_pay_link(
+    *,
+    repo: Any,
+    order: dict[str, Any],
+    case: dict[str, Any],
+    actor_id: str | None,
+    send_max: bool,
+    channel: str | None = None,
+    return_url: str | None = None,
+    yookassa: YooKassaClient | None = None,
+) -> dict[str, Any]:
+    """Создать/reuse счёт ЮKassa, сохранить pay_url, опционально отправить в MAX.
+
+    Возвращает: pay_url, qr_url, sent, kind, order (после update), payment_id.
+    Не логирует полный pay_url и ПДн.
+    """
+    order_id = str(order.get("id") or "")
+    case_id = str(order.get("case_id") or case.get("id") or "")
+    if not order_id or not case_id:
+        raise PayLinkError("missing_ids")
+    if order.get("status") == "paid":
+        raise PayLinkError("order_already_paid")
+
+    settings = get_settings()
+    resolved_channel = channel or ("max" if send_max else "web_cabinet")
+    if return_url is None:
+        cabinet = settings.cabinet_public_url.rstrip("/")
+        return_url = f"{cabinet}/cases/{case_id}?view=payments&paid=1"
+
+    created = ensure_yookassa_pay_url(
+        client=yookassa or YooKassaClient(),
+        order=order,
+        case=case,
+        return_url=return_url,
+        channel=resolved_channel,
+    )
+    pay_url = str(created.get("pay_url") or "")
+    payment_id = str(created.get("payment_id") or "")
+    if payment_id and hasattr(repo, "create_payment_record"):
+        repo.create_payment_record(
+            order_id=order_id,
+            case_id=case_id,
+            provider="yookassa",
+            provider_payment_id=payment_id,
+            status_value=str(created.get("status") or "pending"),
+            actor_id=actor_id,
+        )
+    if not pay_url:
+        cabinet = settings.cabinet_public_url.rstrip("/")
+        pay_url = f"{cabinet}/cases/{case_id}?view=payments"
+
+    updated = repo.update_order_fields(
+        order_id,
+        case_id=case_id,
+        actor_id=actor_id,
+        action="invoice_sent",
+        fields={
+            "pay_url": pay_url,
+            "sent_channel": resolved_channel,
+            "sent_at": datetime.now(UTC).isoformat(),
+            "invoice_status": "invoice_sent",
+            "status": "pending" if order.get("status") == "draft" else order.get("status"),
+        },
+        audit_payload={
+            "channel": resolved_channel,
+            "kind": created.get("kind"),
+            "invoice_id": created.get("invoice_id"),
+            "sent_max": False,
+        },
+    )
+
+    qr = public_qr_url(order_id)
+    sent = False
+    if send_max:
+        client_row = case.get("clients") or {}
+        max_uid = str(client_row.get("max_user_id") or "").strip()
+        if not max_uid:
+            raise PayLinkError("client_has_no_max_user_id")
+        service = staff_package_label(
+            str(order.get("package_code") or ""), order.get("service_label")
+        )
+        try:
+            send_pay_link_max(
+                max_user_id=max_uid,
+                service=service,
+                amount_rub=float(order.get("amount_rub") or 0),
+                pay_url=pay_url,
+                qr_url=qr,
+            )
+            sent = True
+        except PayLinkError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PayLinkError("max_send_failed", str(exc)) from exc
+        if hasattr(repo, "append_finance_audit"):
+            repo.append_finance_audit(
+                order_id=order_id,
+                case_id=case_id,
+                actor_id=actor_id,
+                action="pay_link_max",
+                payload={"sent": True},
+            )
+        logger.info(
+            "pay_link_max_sent order=%s case=%s kind=%s",
+            order_id[:8],
+            case_id[:8],
+            created.get("kind"),
+        )
+
+    return {
+        "pay_url": pay_url,
+        "qr_url": qr,
+        "sent": sent,
+        "kind": created.get("kind"),
+        "payment_id": payment_id or None,
+        "order": updated,
+    }
+
+
+def maybe_auto_send_pay_link_after_draft(
+    *,
+    repo: Any,
+    order: dict[str, Any],
+    case: dict[str, Any],
+    actor_id: str | None,
+) -> dict[str, Any] | None:
+    """Если MAX_PAY_LINK_AUTO_SEND=1 и у клиента есть max_user_id — выставить и отправить."""
+    settings = get_settings()
+    if not settings.max_pay_link_auto_send:
+        return None
+    client_row = case.get("clients") or {}
+    if not str(client_row.get("max_user_id") or "").strip():
+        logger.info(
+            "pay_link_auto_skip_no_max order=%s case=%s",
+            str(order.get("id") or "")[:8],
+            str(case.get("id") or "")[:8],
+        )
+        return None
+    try:
+        return issue_and_deliver_pay_link(
+            repo=repo,
+            order=order,
+            case=case,
+            actor_id=actor_id,
+            send_max=True,
+            channel="max_auto",
+        )
+    except PayLinkError as exc:
+        logger.warning(
+            "pay_link_auto_failed order=%s code=%s",
+            str(order.get("id") or "")[:8],
+            exc.code,
+        )
+        return None
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "pay_link_auto_error order=%s",
+            str(order.get("id") or "")[:8],
+        )
+        return None
