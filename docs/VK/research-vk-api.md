@@ -108,14 +108,37 @@ VK_ADS_CABINET_ID=
 1. Сообщество: [https://vk.ru/proverkastaza](https://vk.ru/proverkastaza) (`VK_GROUP_ID=241062531`). Дальше — оформление по [howto-create-community.md](howto-create-community.md).  
 2. Тексты: описание, закреп, автоответ, 3 поста — тот же файл. Публиковать — когда решит владелец.  
 3. UTM органики — таблица в copy §0 и playbook §7.  
-4. Paid / Callback / Ads API — отложить до снятия BLOCKED в implementation-status.
+4. Paid / Callback / Long Poll / Ads API — отложить. В UI: Long Poll **Отключено**, Callback не подтверждать (см. §8).
 
 ---
 
-## 8. Ссылки
+## 8. Callback vs Bots Long Poll (что делать в UI сейчас)
+
+Официально: [Bots Long Poll API](https://dev.vk.ru/ru/api/bots-long-poll/getting-started). События те же, что у Callback; очередь хранится у ВК, отдельный webhook-сервер не обязателен.
+
+| | Callback API | Bots Long Poll |
+|--|--------------|----------------|
+| Как работает | ВК шлёт POST на **ваш** URL на каждое событие | Ваш процесс сам держит соединение к серверу ВК (`groups.getLongPollServer`) |
+| Что нужно | Свой HTTPS-endpoint, ответ строкой confirmation, секрет | Токен сообщества + процесс 24/7 (VPS) |
+| Когда у нас | Когда будет сервер лидов/бота на FastAPI | Тоже только когда решим писать бота |
+
+**Сейчас (оформление сообщества, без кода бота):**
+
+1. **Long Poll API** — оставить **Отключено** (как на скрине). Не включать «ради галочки»: без нашего процесса события никуда не уйдут, а типы событий начнут копиться зря.
+2. **Callback API** — не жать **Подтвердить**, пока адрес `https://example.com/…` или любой чужой URL. Подтверждение пройдёт только если **наш** сервер ответит строкой confirmation на `{"type":"confirmation","group_id":241062531}`. Такого сервера в контуре SFRFR пока нет.
+3. **Типы событий** — ничего не отмечать (входящие сообщения и т.д.). Иначе ВК будет слать события в никуда / на example.com.
+4. Автоответ «без сканов → MAX» — только **Управление → Сообщения → приветствие** ([copy-community-launch.md](copy-community-launch.md) §5), не через API.
+
+**Секреты:** ключ Callback, confirmation-строка, токены с вкладки «Ключи доступа» — **не** в чат, **не** в git, **не** в скрин в общий канал. Если ключ уже светился на скрине — в настройках Callback **сгенерировать новый** секрет. Имена переменных (без значений): `VK_GROUP_ID`, `VK_GROUP_TOKEN`, `VK_CALLBACK_SECRET`, `VK_CALLBACK_CONFIRMATION`.
+
+Код бота / webhook — только по явной просьбе владельца после политики «не логировать сканы и ИЛС».
+
+---
+
+## 9. Ссылки
 
 - [VK API](https://dev.vk.com/method)  
-- [Сообщества](https://dev.vk.com/ru/api/community-long-poll/getting-started)  
+- [Bots Long Poll API](https://dev.vk.ru/ru/api/bots-long-poll/getting-started)  
 - [VK Реклама: лид-формы](https://ads.vk.com/help/general/lead_forms/lead_forms)  
 - [Маркировка / ERID](https://ads.vk.com/help/ord/labeling)  
 - [Продвижение каналов VK и MAX](https://ads.vk.ru/news/reklama-kanalov-vk-i-max)  
