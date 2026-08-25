@@ -2,7 +2,7 @@
 
 Рабочая папка чата Cursor про **ВКонтакте** для «Проверки стажа» (SFRFR).
 
-Живое сообщество: [https://vk.ru/club241062531](https://vk.ru/club241062531) (id `241062531`).
+Живое сообщество: [https://vk.ru/proverkastaza](https://vk.ru/proverkastaza) · [https://vk.com/proverkastaza](https://vk.com/proverkastaza) (id `241062531`).
 
 ## Быстрый старт
 

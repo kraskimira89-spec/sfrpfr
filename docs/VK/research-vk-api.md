@@ -105,7 +105,7 @@ VK_ADS_CABINET_ID=
 
 ## 7. Что сделать сейчас (без кода)
 
-1. Сообщество создано: [https://vk.ru/club241062531](https://vk.ru/club241062531) (`VK_GROUP_ID=241062531`). Дальше — оформление по [howto-create-community.md](howto-create-community.md).  
+1. Сообщество: [https://vk.ru/proverkastaza](https://vk.ru/proverkastaza) (`VK_GROUP_ID=241062531`). Дальше — оформление по [howto-create-community.md](howto-create-community.md).  
 2. Тексты: описание, закреп, автоответ, 3 поста — тот же файл. Публиковать — когда решит владелец.  
 3. UTM органики — таблица в copy §0 и playbook §7.  
 4. Paid / Callback / Ads API — отложить до снятия BLOCKED в implementation-status.
