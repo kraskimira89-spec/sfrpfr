@@ -28,7 +28,7 @@
 | Тарифы                | [https://proverkastaza.ru/tarify/](https://proverkastaza.ru/tarify/)                                                                                              |
 | Телефон (публичный)   | +7 909 195-04-08                                                                                                                                                  |
 | Телефон входа в ВК    | тот же +7 909 195-04-08 (совпадает с публичным)                                                                                                                   |
-| Email                 | [info@proverkastaza.ru](mailto:info@proverkastaza.ru)                                                                                                             |
+| Email                 | в карточке ВК: [proverkastaza@yandex.ru](mailto:proverkastaza@yandex.ru). На сайте по-прежнему `info@proverkastaza.ru` |
 
 
 Пошагово создать в UI (телефон, возможности, параметры): [howto-create-community.md](howto-create-community.md).  
