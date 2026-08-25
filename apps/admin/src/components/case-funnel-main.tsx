@@ -12,6 +12,7 @@ import {
   type FunnelStageState,
 } from "@/lib/case-funnel";
 import {
+  formatCaseStatuses,
   humanCaseStage,
   labelChecklistOwner,
   labelChecklistStatus,
@@ -1295,7 +1296,9 @@ export function CaseFunnelMain({
             </>
           ) : null}
           <p>
-            pipeline={detail.pipeline_status} · b2c={detail.b2c_status}
+            Рабочий статус: {stageLabel}
+            <br />
+            {formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}
           </p>
           {actionItems.length > 0 ? (
             <>
