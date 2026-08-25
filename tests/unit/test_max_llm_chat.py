@@ -18,6 +18,19 @@ def test_looks_like_pdn() -> None:
     assert looks_like_pdn("где взять ИЛС?") is False
 
 
+def test_client_chat_system_prompt_rules() -> None:
+    from sfrfr.integrations.max.llm_chat import CLIENT_CHAT_SYSTEM
+
+    low = CLIENT_CHAT_SYSTEM.lower()
+    assert "сфр" in low
+    assert "3 000" in CLIENT_CHAT_SYSTEM or "3000" in CLIENT_CHAT_SYSTEM.replace(" ", "")
+    assert "кнопк" in low
+    assert "снилс" in low or "скан" in low
+    assert "reply:" in low
+    assert "зачем" in low or "чтобы" in low
+    assert "не обещай" in low or "не обеща" in low
+
+
 def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:
     monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
     from sfrfr.core.config import get_settings
