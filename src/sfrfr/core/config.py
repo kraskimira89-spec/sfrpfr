@@ -49,16 +49,6 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
     deepseek_fallback_enabled: bool = False
-    # Perplexity Router API (OpenAI Chat Completions; не Perplexity SDK)
-    # Каталог моделей: GET https://api.perplexity.ai/router/v1/models — не выдумывать slug.
-    # Private preview; вне prod (ПДн → Yandex). AI_PROVIDER=perplexity
-    perplexity_api_key: str = ""
-    perplexity_base_url: str = "https://api.perplexity.ai/router/v1"
-    # Пустой model — возьмём первый id из GET /models при первом запросе (см. LLMClient)
-    perplexity_model: str = ""
-    perplexity_model_classify: str = ""
-    perplexity_model_analyze: str = ""
-    perplexity_model_draft: str = ""
     # Яндекс Workspace OAuth (ТЗ-14) — отдельно от Cloud AI
     yandex_oauth_client_id: str = ""
     yandex_oauth_client_secret: str = ""

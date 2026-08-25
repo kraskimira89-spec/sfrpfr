@@ -1,9 +1,4 @@
-"""Тонкая обёртка над LLM: Yandex AI Studio; иностранный fallback только вне production.
-
-Perplexity Router (`AI_PROVIDER=perplexity`): OpenAI SDK →
-`https://api.perplexity.ai/router/v1` + `PERPLEXITY_API_KEY`. Не Perplexity SDK.
-Slug моделей только из GET /router/v1/models (allowlist ключа).
-"""
+"""Тонкая обёртка над LLM: Yandex AI Studio; иностранный fallback только вне production."""
 
 from __future__ import annotations
 
@@ -14,9 +9,6 @@ from sfrfr.core.config import get_settings
 
 LlmPurpose = Literal["default", "classify", "analyze", "draft"]
 logger = logging.getLogger(__name__)
-
-# Канон Router OpenAI-compatible base (SDK дописывает /chat/completions).
-PERPLEXITY_ROUTER_BASE_URL = "https://api.perplexity.ai/router/v1"
 
 
 class LLMClient:
@@ -59,19 +51,6 @@ class LLMClient:
             ).rstrip("/")
             self.folder_id = ""
             self.model = model or (settings.deepseek_model.strip() or "deepseek-chat")
-        elif self.provider in {"perplexity", "perplexity_router", "pplx"}:
-            self.provider = "perplexity"
-            self.api_key = (
-                api_key
-                if api_key is not None
-                else settings.perplexity_api_key.strip()
-            )
-            raw_base = (
-                settings.perplexity_base_url.strip() or PERPLEXITY_ROUTER_BASE_URL
-            )
-            self.base_url = raw_base.rstrip("/")
-            self.folder_id = ""
-            self.model = model or self._perplexity_model(settings, purpose=purpose)
         else:
             self.api_key = api_key if api_key is not None else settings.openai_api_key
             self.base_url = settings.openai_base_url
@@ -79,7 +58,6 @@ class LLMClient:
             self.model = model or settings.openai_model
 
         self._client: Any | None = None
-        self._perplexity_resolved_model: str | None = None
 
     @classmethod
     def for_classify(cls, **kwargs: Any) -> LLMClient:
@@ -117,24 +95,6 @@ class LLMClient:
     def for_deepseek_fallback(cls, *, purpose: LlmPurpose = "analyze") -> LLMClient:
         """Прямой клиент platform.deepseek.com без вложенного fallback."""
         return cls(provider="deepseek", purpose=purpose, allow_fallback=False)
-
-    @classmethod
-    def for_perplexity(cls, **kwargs: Any) -> LLMClient:
-        """Perplexity Router (OpenAI Chat Completions)."""
-        return cls(provider="perplexity", allow_fallback=False, **kwargs)
-
-    @staticmethod
-    def _perplexity_model(settings: Any, *, purpose: LlmPurpose = "default") -> str:
-        purpose_model = ""
-        if purpose == "classify":
-            purpose_model = (settings.perplexity_model_classify or "").strip()
-        elif purpose == "analyze":
-            purpose_model = (settings.perplexity_model_analyze or "").strip()
-        elif purpose == "draft":
-            purpose_model = (settings.perplexity_model_draft or "").strip()
-        if purpose_model:
-            return purpose_model
-        return (settings.perplexity_model or "").strip()
 
     @staticmethod
     def _folder_from_model(model: str) -> str:
@@ -192,7 +152,6 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
-        # ПДн в production — только Yandex AI Studio (не Perplexity / OpenAI / DeepSeek).
         if (
             self._settings.app_env.strip().lower() in {"prod", "production"}
             and self.provider != "yandex"
@@ -239,34 +198,10 @@ class LLMClient:
             self._client = OpenAI(**kwargs)
         return self._client
 
-    def _resolve_chat_model(self) -> str:
-        """Для Perplexity — slug только из каталога ключа (GET /models), без выдуманных id."""
-        if self.provider != "perplexity":
-            return self.model
-        if self.model.strip():
-            return self.model.strip()
-        if self._perplexity_resolved_model:
-            return self._perplexity_resolved_model
-        client = self._get_client()
-        listed = client.models.list()
-        data = getattr(listed, "data", None) or []
-        if not data:
-            raise RuntimeError(
-                "Perplexity Router: пустой каталог GET /models — "
-                "проверьте доступ к Router (private preview) и PERPLEXITY_API_KEY"
-            )
-        first_id = str(getattr(data[0], "id", "") or "").strip()
-        if not first_id:
-            raise RuntimeError("Perplexity Router: у первой модели в каталоге нет id")
-        self._perplexity_resolved_model = first_id
-        logger.info("perplexity router: model from catalog id=%s", first_id)
-        return first_id
-
     def _chat_once(self, *, system: str, user: str, temperature: float) -> str:
         client = self._get_client()
-        model = self._resolve_chat_model()
         resp = client.chat.completions.create(
-            model=model,
+            model=self.model,
             temperature=temperature,
             messages=[
                 {"role": "system", "content": system},
