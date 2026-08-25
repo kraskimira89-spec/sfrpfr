@@ -29,6 +29,10 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "reply:" in low
     assert "зачем" in low or "чтобы" in low
     assert "не обещай" in low or "не обеща" in low
+    assert "лицевого счета" in low or "илс" in low
+    assert "кабинет" in low
+    assert "не получается" in low or "не справля" in low
+    assert "пароль" in low or "смс" in low
 
 
 def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:
