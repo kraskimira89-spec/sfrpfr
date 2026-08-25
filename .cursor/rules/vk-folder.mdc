@@ -12,6 +12,7 @@ alwaysApply: true
 - `README.md` — индекс;
 - `prompt-agent-vk.md` — промпт нового чата;
 - `playbook-vk-community.md` — ритм, CTA, лид-форма, UTM, тарифы 3/5/8;
+- `copy-community-launch.md` — копипаст запуска сообщества (описание, закреп, автоответ, 3 поста);
 - `research-vk-api.md` — обзор API и границы.
 
 Стратегия и сегменты — в `docs/marketing-sales/` (ссылки, без дублей).

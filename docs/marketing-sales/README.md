@@ -43,7 +43,7 @@
 - **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
 - **Задачи и wiki (Notion не используем):** Яндекс Трекер (очередь `SFRFR`) + MCP [yandex-tracker-mcp](../ops/yandex-tracker-mcp.md); Wiki SFRFR; SoT — [yandex-tracker-ops.md](../ops/yandex-tracker-ops.md).
 - **Стек автоматизации (без Make/Albato):** [`docs/ops/automation-stack-ru.md`](../ops/automation-stack-ru.md) — лиды, amo, AI, n8n P2.
-- **ВКонтакте (чат VK):** [`docs/VK/`](../VK/README.md) — сообщество, ритм/CTA/лид-форма/UTM под тарифы 3/5/8, обзор API, промпт агента.
+- **ВКонтакте (чат VK):** [`docs/VK/`](../VK/README.md) — сообщество, ритм/CTA/лид-форма/UTM под тарифы 3/5/8, копипаст запуска, обзор API, промпт агента.
 - **MAX (клиентский чат):** [`docs/MAX/`](../MAX/README.md) — системный промпт LLM-агента (кнопки intake + soft-ответы).
 - **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 
