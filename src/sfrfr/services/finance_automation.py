@@ -1,6 +1,7 @@
 """Автоматизация счетов: черновик после соглашения, срок, этап после оплаты.
 
-Не шлёт MAX и не создаёт платёж ЮKassa — только черновик, задача и next_action.
+По умолчанию не шлёт MAX и не создаёт платёж ЮKassa — только черновик, задача и next_action.
+При MAX_PAY_LINK_AUTO_SEND=1 после черновика: invoice ЮKassa + кнопка/QR в MAX.
 """
 
 from __future__ import annotations
@@ -101,12 +102,25 @@ def ensure_agreement_draft_invoice(
         service_label=draft["service_label"],
         invoice_status="draft",
     )
+    from sfrfr.services.pay_link import maybe_auto_send_pay_link_after_draft
+
+    auto = maybe_auto_send_pay_link_after_draft(
+        repo=repo,
+        order=order,
+        case=case,
+        actor_id=actor_id,
+    )
+    next_action = (
+        "Проверить оплату"
+        if auto and auto.get("sent")
+        else "Выставить счёт"
+    )
     if update_queue:
         try:
             repo.update_next_action(
                 case_id,
                 actor_id,
-                next_action="Выставить счёт",
+                next_action=next_action,
                 waiting_on="payment",
             )
         except Exception:  # noqa: BLE001

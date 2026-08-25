@@ -8,12 +8,16 @@
 Сотрудник → «Ссылка» / «В MAX»
       → POST /v3/invoices (delivery self)
       → короткая ссылка https://yookassa.ru/my/i/…
-      → QR PNG + кнопка в MAX (только если нажали «В MAX»)
+      → QR PNG + кнопка в MAX (только если нажали «В MAX»
+         или MAX_PAY_LINK_AUTO_SEND=1 после черновика)
       → webhook payment.succeeded / invoice.paid → paid
 ```
 
 Документация счетов: [выставление счетов](https://yookassa.ru/developers/payment-acceptance/scenario-extensions/invoices/basics).
 SMS и email ЮKassa не включаем — клиенту пишем в MAX.
+
+Канон доставки ссылки/QR: `docs/ops/playbook-pay-link-to-client.md`.
+Оркестратор: `issue_and_deliver_pay_link` в `src/sfrfr/services/pay_link.py`.
 
 Клиентский кабинет (как было):
 

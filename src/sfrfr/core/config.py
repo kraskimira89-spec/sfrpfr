@@ -172,6 +172,8 @@ class Settings(BaseSettings):
     max_secure_link_buttons_enabled: bool = False
     # Pepper для HMAC token_hash; пусто = fallback на app_secret_key
     secure_link_pepper: str = ""
+    # После черновика счёта: ЮKassa invoice + кнопка/QR в MAX (нужен max_user_id)
+    max_pay_link_auto_send: bool = False
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

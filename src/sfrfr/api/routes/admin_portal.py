@@ -1566,81 +1566,27 @@ def admin_order_pay_link(
     if principal.role is StaffRole.OPERATOR:
         raise HTTPException(status_code=403, detail="expert or admin role required")
     from sfrfr.api.routes.payments import _return_url
-    from sfrfr.integrations.payments import YooKassaClient
-    from sfrfr.services.pay_link import (
-        ensure_yookassa_pay_url,
-        public_qr_url,
-        send_pay_link_max,
-    )
+    from sfrfr.services.pay_link import PayLinkError, issue_and_deliver_pay_link
 
     repo, order, case = _require_order(principal, order_id)
     case_id = str(order.get("case_id"))
-    if order.get("status") == "paid":
-        raise HTTPException(status_code=400, detail="order already paid")
-    settings = get_settings()
     send_max = bool(payload.send_max) if payload else False
-    channel = "max" if send_max else "web_cabinet"
-    created = ensure_yookassa_pay_url(
-        client=YooKassaClient(),
-        order=order,
-        case=case,
-        return_url=_return_url(case_id, "web_cabinet"),
-        channel=channel,
-    )
-    pay_url = str(created.get("pay_url") or "")
-    payment_id = str(created.get("payment_id") or "")
-    if payment_id:
-        repo.create_payment_record(
-            order_id=order_id,
-            case_id=case_id,
-            provider="yookassa",
-            provider_payment_id=payment_id,
-            status_value=str(created.get("status") or "pending"),
+    try:
+        result = issue_and_deliver_pay_link(
+            repo=repo,
+            order=order,
+            case=case,
             actor_id=principal.user_id,
+            send_max=send_max,
+            channel="max" if send_max else "web_cabinet",
+            return_url=_return_url(case_id, "web_cabinet"),
         )
-    if not pay_url:
-        cabinet = settings.cabinet_public_url.rstrip("/")
-        pay_url = f"{cabinet}/cases/{case_id}?view=payments"
-    updated = repo.update_order_fields(
-        order_id,
-        case_id=case_id,
-        actor_id=principal.user_id,
-        action="invoice_sent",
-        fields={
-            "pay_url": pay_url,
-            "sent_channel": channel,
-            "sent_at": datetime.now(UTC).isoformat(),
-            "invoice_status": "invoice_sent",
-            "status": "pending" if order.get("status") == "draft" else order.get("status"),
-        },
-        audit_payload={
-            "channel": channel,
-            "kind": created.get("kind"),
-            "invoice_id": created.get("invoice_id"),
-            "sent_max": False,
-        },
-    )
-    sent = False
-    if send_max:
-        client_row = case.get("clients") or {}
-        max_uid = str(client_row.get("max_user_id") or "").strip()
-        if not max_uid:
-            raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
-        service = staff_package_label(
-            str(order.get("package_code") or ""), order.get("service_label")
-        )
-        try:
-            send_pay_link_max(
-                max_user_id=max_uid,
-                service=service,
-                amount_rub=float(order.get("amount_rub") or 0),
-                pay_url=pay_url,
-                qr_url=public_qr_url(order_id),
-            )
-            sent = True
-        except HTTPException:
-            raise
-        except Exception as exc:  # noqa: BLE001
+    except PayLinkError as exc:
+        if exc.code == "order_already_paid":
+            raise HTTPException(status_code=400, detail="order already paid") from exc
+        if exc.code == "client_has_no_max_user_id":
+            raise HTTPException(status_code=400, detail="client_has_no_max_user_id") from exc
+        if exc.code == "max_send_failed":
             raise HTTPException(
                 status_code=502,
                 detail=(
@@ -1648,18 +1594,12 @@ def admin_order_pay_link(
                     "Проверьте связь клиента с ботом и повторите."
                 ),
             ) from exc
-        repo.append_finance_audit(
-            order_id=order_id,
-            case_id=case_id,
-            actor_id=principal.user_id,
-            action="pay_link_max",
-            payload={"sent": True},
-        )
-    serialized = serialize_order(updated, case)
+        raise HTTPException(status_code=400, detail=exc.code) from exc
+    serialized = serialize_order(result["order"], case)
     return {
-        "pay_url": pay_url,
-        "qr_url": serialized.get("qr_url"),
-        "sent": sent,
+        "pay_url": result["pay_url"],
+        "qr_url": serialized.get("qr_url") or result.get("qr_url"),
+        "sent": result["sent"],
         "order": serialized,
     }
 
@@ -1681,17 +1621,60 @@ def admin_order_remind(
     )
     sent = False
     if payload.send_max:
-        from sfrfr.integrations.max.client import MaxBotClient
+        from sfrfr.services.pay_link import (
+            PayLinkError,
+            is_yookassa_pay_url,
+            issue_and_deliver_pay_link,
+            public_qr_url,
+            send_pay_link_max,
+        )
 
         client = case.get("clients") or {}
         max_uid = str(client.get("max_user_id") or "").strip()
-        bot = MaxBotClient()
         if not max_uid:
             raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
-        if not bot.available:
-            raise HTTPException(status_code=503, detail="max_bot_not_configured")
+        pay_url = str(order.get("pay_url") or "")
         try:
-            bot.send_message(text=text, user_id=max_uid)
+            if not is_yookassa_pay_url(pay_url):
+                # Нет живой ссылки ЮKassa — выставим счёт и отправим кнопку+QR
+                from sfrfr.api.routes.payments import _return_url
+
+                result = issue_and_deliver_pay_link(
+                    repo=repo,
+                    order=order,
+                    case=case,
+                    actor_id=principal.user_id,
+                    send_max=True,
+                    channel="max",
+                    return_url=_return_url(str(order.get("case_id")), "web_cabinet"),
+                )
+                pay_url = str(result["pay_url"])
+                text = reminder_draft_text(
+                    service=service,
+                    amount_rub=float(order.get("amount_rub") or 0),
+                    pay_url=pay_url,
+                )
+            else:
+                send_pay_link_max(
+                    max_user_id=max_uid,
+                    service=service,
+                    amount_rub=float(order.get("amount_rub") or 0),
+                    pay_url=pay_url,
+                    qr_url=public_qr_url(order_id),
+                )
+            sent = True
+        except PayLinkError as exc:
+            if exc.code == "client_has_no_max_user_id":
+                raise HTTPException(status_code=400, detail=exc.code) from exc
+            if exc.code == "max_send_failed":
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Не удалось отправить сообщение в MAX. "
+                        "Проверьте связь клиента с ботом и повторите."
+                    ),
+                ) from exc
+            raise HTTPException(status_code=400, detail=exc.code) from exc
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
                 status_code=502,
@@ -1700,7 +1683,6 @@ def admin_order_remind(
                     "Проверьте связь клиента с ботом и повторите."
                 ),
             ) from exc
-        sent = True
     repo.update_order_fields(
         order_id,
         case_id=str(order.get("case_id")),

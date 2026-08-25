@@ -186,6 +186,7 @@
 | `SECURE_UPLOAD_ENABLED` | `0` | Upload без полной JWT-сессии (Sprint 3) |
 | `SECURE_RESULT_VIEW_ENABLED` | `0` | View PDF / result по токену (Sprint 2) |
 | `MAX_SECURE_LINK_BUTTONS_ENABLED` | `0` | Кнопки secure link в MAX-боте |
+| `MAX_PAY_LINK_AUTO_SEND` | `0` | После черновика счёта: ЮKassa + кнопка/QR в MAX |
 | `SECURE_LINK_PEPPER` | пусто | HMAC pepper; fallback `APP_SECRET_KEY` |
 
 Заготовки под будущие спринты; на prod не включать без staging.  
