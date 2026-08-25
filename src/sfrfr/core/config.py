@@ -164,6 +164,15 @@ class Settings(BaseSettings):
     # Форма отзыва Яндекс Бизнес (ТЗ-19): ведущая короткая ссылка → Sprav
     yandex_business_review_url: str = "https://proverkastaza.ru/otzyv/"
 
+    # MAX-first + secure action links (Sprint 1; default OFF — prod UX без изменений)
+    max_first_funnel_enabled: bool = False
+    secure_action_links_enabled: bool = False
+    secure_upload_enabled: bool = False
+    secure_result_view_enabled: bool = False
+    max_secure_link_buttons_enabled: bool = False
+    # Pepper для HMAC token_hash; пусто = fallback на app_secret_key
+    secure_link_pepper: str = ""
+
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""
     ops_failed_alert_threshold: int = 1

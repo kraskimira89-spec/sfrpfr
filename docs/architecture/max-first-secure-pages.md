@@ -1,6 +1,6 @@
 # Архитектура: MAX-first + защищённые страницы действия
 
-**Статус:** план / фаза 0 (обследование + дорожная карта)  
+**Статус:** Sprint 1 done (фундамент за флагами OFF); UI/MAX UX — Sprint 2+  
 **Дата:** 2026-08-25  
 **Стратегия:** до сделки кабинет как «продукт с регистрацией» не нужен; после оплаты — одноразовые защищённые страницы из MAX (не регистрация).  
 **Кабинет (`apps/cabinet`) не удаляем** — остаётся полноценным контуром и запасным путём.
@@ -57,8 +57,8 @@
 | Notify после оплаты | ✅ Есть | `integrations/payments/notify.py` |
 | Secure share PDF диагностики | ✅ Есть (узкий) | `secure_share_links` + `/api/portal/diag-share/{token}` (ТЗ-28) |
 | max_intake | ✅ Есть | migration `20260804120000_max_intake.sql` |
-| Feature flags MAX-first | ❌ Нет | В `.env.example` нет `MAX_FIRST_*` / `SECURE_ACTION_*` |
-| Универсальные action links (purpose) | ❌ Нет | Только diagnosis-bound share |
+| Feature flags MAX-first | ✅ Sprint 1 | `config.py` + `.env.example`: `MAX_FIRST_*` / `SECURE_*` default off |
+| Универсальные action links (purpose) | ✅ Sprint 1 (модель) | `secure_action_links` + `src/sfrfr/secure_links/`; UI ещё нет |
 | Secure page UI (без полной сессии) | ❌ Нет | Cabinet — полноценный SPA |
 | Оплата **до** кабинета как единственный путь | ⚠️ Частично | Счета и pay_url есть; воронка ТЗ-20 всё ещё ведёт в кабинет за документами |
 
@@ -77,12 +77,12 @@
 
 ## 3. Gaps относительно целевого MAX-first
 
-1. **Нет generic secure action link** с полями `purpose`, TTL, max_uses, revoke, привязкой к `case_id`/`order_id`/`document_id` **без** обязательной Auth-сессии (кроме узкого diag-share).
+1. **Есть модель** `secure_action_links` (purpose, TTL, max_uses, revoke) — **за флагом OFF**; UI и выдача из MAX ещё нет.
 2. **Нет UI «страница одного действия»** (consent-only, upload-only, pdf-viewer-only) — клиент попадает в полный кабинет.
 3. **Воронка MAX до оплаты** всё ещё объясняет кабинет как место загрузки (ТЗ-20/24) — нужно переписать сценарии состояний под «сначала оплата / согласие по secure link».
-4. **`secure_share_links` жёстко привязан** к `diagnostic_result_id` — нельзя переиспользовать as-is для upload/consent/pay без миграции/новой таблицы.
+4. **`secure_share_links` жёстко привязан** к `diagnostic_result_id` — не ломаем; общая таблица `secure_action_links` рядом (adapter позже).
 5. **`max_link_token`** идентифицирует пользователя MAX на 7 дней, но **не** ограничивает purpose и не аудитит одно действие.
-6. **Нет feature flags** поэтапного включения MAX-first без риска сломать prod auth.
+6. **Feature flags** есть, default off — prod auth не меняется.
 7. **Паритет mini-app** (ТЗ-09) vs MAX-first: нужно явно решить, mini-app = thin wrapper над secure pages или остаётся полным кабинетом.
 8. **Повторный доступ** после истечения ссылки: сейчас логичный путь — снова кабинет/OTP; для MAX-first нужен «запросить новую ссылку в чате».
 
@@ -177,16 +177,18 @@
 
 ## 7. Feature flags (имена)
 
-Предлагаемые переменные (ещё **не** в `.env.example` — Sprint 1):
+Предлагаемые переменные (в `.env.example`, default **off**):
 
 | Flag | Default | Смысл |
 |---|---|---|
 | `MAX_FIRST_FUNNEL_ENABLED` | `0` | Новые тексты/кнопки MAX: оплата до кабинета |
 | `SECURE_ACTION_LINKS_ENABLED` | `0` | Выдача/проверка generic action links |
-| `SECURE_ACTION_UPLOAD_ENABLED` | `0` | Upload без полной JWT-сессии кабинета |
-| `SECURE_ACTION_CONSENT_ENABLED` | `0` | Consent page по токену |
-| `CABINET_REQUIRED_BEFORE_PAY` | `1` (текущее поведение) | Пока `1` — старый путь ТЗ-20; при MAX-first → `0` |
+| `SECURE_UPLOAD_ENABLED` | `0` | Upload без полной JWT-сессии (Sprint 3) |
+| `SECURE_RESULT_VIEW_ENABLED` | `0` | View PDF / result по токену (Sprint 2) |
+| `MAX_SECURE_LINK_BUTTONS_ENABLED` | `0` | Кнопки secure link в MAX-боте |
+| `SECURE_LINK_PEPPER` | пусто | HMAC pepper; fallback `APP_SECRET_KEY` |
 
+Заготовки под будущие спринты; на prod не включать без staging.  
 Существующие релевантные: `REQUIRE_CONSENT`, `MAX_LLM_CHAT_ENABLED`, URL’ы MAX/cabinet.  
 Не трогать prod auth при выключенных флагах.
 
@@ -194,17 +196,24 @@
 
 ## 8. Дорожная карта спринтов 1–4
 
-### Sprint 1 — фундамент (флаги + модель + документация)
+### Sprint 1 — фундамент (флаги + модель + документация) ✅ done
 
-**Делать:** схема/миграция `secure_action_links` (или расширение share) **за флагом**; репозиторий create/verify/revoke; unit-тесты hash/TTL; флаги в config + `.env.example`; **не** переключать MAX UX.  
+**Сделано:**
+
+- флаги в `src/sfrfr/core/config.py` + `.env.example` (все default off);
+- миграция `supabase/migrations/20260825140000_secure_action_links.sql` (`secure_action_links`, `secure_action_events`);
+- пакет `src/sfrfr/secure_links/` (token HMAC, repository, service create/verify/revoke/supersede);
+- unit-тесты `tests/unit/test_secure_action_links.py`;
+- **не** переключали MAX UX, **не** трогали `/diag-share`, cabinet OTP, UI `/secure/[token]`.
+
 **Готово когда:**
 
-- [ ] флаги читаются, default off;
-- [ ] create→verify→revoke в тестах;
-- [ ] diag-share и cabinet OTP без регрессии;
-- [ ] этот документ актуален.
+- [x] флаги читаются, default off;
+- [x] create→verify→revoke в тестах;
+- [x] diag-share и cabinet OTP без регрессии (не менялись);
+- [x] этот документ актуален.
 
-**В этом прогоне фазы 0:** код Sprint 1 **не начинали** — только план (безопаснее для prod auth).
+История: `docs/history/2026-08-25-max-first-sprint1-secure-links.md`.
 
 ### Sprint 2 — consent + view PDF по ссылке
 
@@ -272,3 +281,4 @@
 | Дата | Что |
 |---|---|
 | 2026-08-25 | Фаза 0: обследование кода + этот план |
+| 2026-08-25 | Sprint 1: флаги OFF + миграция + сервис `secure_links` + unit-тесты |
