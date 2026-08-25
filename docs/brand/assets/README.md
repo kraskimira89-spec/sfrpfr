@@ -23,7 +23,7 @@
 | `viz-kontakty-16x9.png` | `/kontakty/` | на сайте |
 | `viz-otzyvy-16x9.png` | `/otzyvy/` | на сайте |
 | `viz-stazh-do-2002-16x9.png` | `/stazh-do-2002/` | на сайте |
-| `viz-eksperty-16x9.png` | `/expert/` | на сайте |
+| `viz-vk-community-cover-1920x768.png` | обложка сообщества ВК | **1920×768** (мин. ВК 960×384); не шаблон zip 911×364 |
 
 Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.
 
