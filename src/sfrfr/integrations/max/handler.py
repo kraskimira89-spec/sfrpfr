@@ -506,16 +506,16 @@ def _ensure_supabase_max_client(max_user_id: str) -> None:
     import threading
 
     def _work() -> None:
-        try:
-            from sfrfr.db.client_channels import ClientChannelRepository
+    try:
+        from sfrfr.db.client_channels import ClientChannelRepository
 
-            ClientChannelRepository().ensure_for_max_user(str(max_user_id))
-        except Exception:
-            import logging
+        ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+    except Exception:
+        import logging
 
-            logging.getLogger(__name__).exception(
-                "ensure_supabase_max_client_failed max=%s", max_user_id
-            )
+        logging.getLogger(__name__).exception(
+            "ensure_supabase_max_client_failed max=%s", max_user_id
+        )
 
     threading.Thread(target=_work, daemon=True, name="max-ensure-client").start()
 
@@ -940,7 +940,7 @@ def _handle_intake_callback(
         case_id = intake.case_id
         if case_id:
             max_url, web_url = cabinet_urls_for_case(case_id)
-        else:
+    else:
             max_url = get_settings().max_miniapp_url or get_settings().cabinet_public_url
             web_url = get_settings().cabinet_public_url
         _reply(
@@ -973,14 +973,14 @@ def _handle_intake_callback(
         reply = texts[value]
         attachments = (
             ils_howto_keyboard() if value == "ils_howto" else docs_section_keyboard()
-        )
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=reply,
-            attachments=attachments,
-        )
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=attachments,
+    )
         return MaxHandleResult(
             ok=True, action=f"docs_{value}", case_id=intake.case_id, reply=reply
         )
@@ -1344,13 +1344,13 @@ def _token_hash_for_email(email: str) -> str | None:
         existing = find_user_by_email(normalized)
         if existing is None:
             try:
-                client.auth.admin.create_user(
-                    {
-                        "email": normalized,
-                        "email_confirm": True,
-                        "app_metadata": {"role_source": "staff_max_login"},
-                    }
-                )
+            client.auth.admin.create_user(
+                {
+                    "email": normalized,
+                    "email_confirm": True,
+                    "app_metadata": {"role_source": "staff_max_login"},
+                }
+            )
             except Exception as exc:
                 err = str(exc).lower()
                 if "already" not in err and "registered" not in err:
@@ -1363,7 +1363,7 @@ def _token_hash_for_email(email: str) -> str | None:
                 existing = find_user_by_email(normalized)
             if existing is None:
                 return None
-            link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
+        link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
         props = getattr(link, "properties", None)
         if props is None and isinstance(link, dict):
             props = link.get("properties") or link
@@ -1503,17 +1503,17 @@ def _complete_pc_login(
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_staff_no_email", reply=reply)
         else:
-            row = _ensure_client_row(user_id)
-            if not row:
+        row = _ensure_client_row(user_id)
+        if not row:
                 reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
-                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-                return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
-            contact = _auth_email_for_row(row, user_id)
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
+        contact = _auth_email_for_row(row, user_id)
         pending = (
             bind_max_by_code(
-                pair_code=pending.pair_code,
-                max_user_id=user_id,
-                contact=contact,
+            pair_code=pending.pair_code,
+            max_user_id=user_id,
+            contact=contact,
             )
             or pending
         )
@@ -1777,7 +1777,7 @@ def _issue_login_code_to_max(
         ticket_id=pending.ticket_id,
         otp_verify_ticket=issued.ticket,
         otp_code=issued.code,
-        max_user_id=user_id,
+            max_user_id=user_id,
         contact=contact,
     )
     login_url = cabinet_login_with_verify_url(verify_ticket=issued.ticket)
@@ -1789,10 +1789,10 @@ def _issue_login_code_to_max(
         text=reply,
         attachments=inline_link_keyboard(OPEN_CABINET_BUTTON_LABEL, login_url),
     )
-    auth_event(
+        auth_event(
         "max_login_code",
         outcome="ok",
-        max_user_id=user_id,
+            max_user_id=user_id,
         ticket=pending.ticket_id,
         status="code_sent",
     )
@@ -1822,13 +1822,13 @@ def _handle_pair_code(
         pair_code=code, max_user_id=user_id, contact=contact
     )
     if pending:
-        auth_event(
-            "max_pair",
-            outcome="ok",
-            max_user_id=user_id,
-            ticket=pending.ticket_id,
-            status=pending.status,
-        )
+    auth_event(
+        "max_pair",
+        outcome="ok",
+        max_user_id=user_id,
+        ticket=pending.ticket_id,
+        status=pending.status,
+    )
         if pending.audience == "staff":
             from sfrfr.security.login_otp import CONFIRM_STAFF_CABINET_LOGIN_LABEL
 
@@ -1848,12 +1848,12 @@ def _handle_pair_code(
                 ),
             )
             return MaxHandleResult(ok=True, action="staff_pair_accepted", reply=reply)
-        return _complete_pc_login(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            ticket_id=pending.ticket_id,
-        )
+    return _complete_pc_login(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        ticket_id=pending.ticket_id,
+    )
     return _issue_login_code_to_max(bot, user_id=user_id, chat_id=chat_id)
 
 

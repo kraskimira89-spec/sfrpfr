@@ -208,9 +208,8 @@ export function labelFeedbackQuality(value: string): string {
   return FEEDBACK_QUALITY_LABELS[value] ?? value;
 }
 
-/** Подробная строка статусов для служебного блока карточки дела. */
 export function formatCaseStatuses(pipeline: string, b2c: string): string {
-  return `Этап обработки: ${labelPipeline(pipeline)} · Клиентский статус: ${labelB2c(b2c)}`;
+  return `${labelPipeline(pipeline)} · ${labelB2c(b2c)}`;
 }
 
 /** Короткий рабочий статус для очереди сотрудника (не сырые коды). */
