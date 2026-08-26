@@ -9,6 +9,11 @@
 **Публичный канон:** [brand-platform-v2.md](brand-platform-v2.md).  
 **Расширенные смыслы и запреты:** [platform-proverka-stazha.md](platform-proverka-stazha.md).
 
+Для **обложек публикаций** (блог, MAX, VK, Директ) — отдельный конвейер
+двух слоёв (VisualMatrix → Midjourney / DALL·E):  
+[methodology-visual-metaphor-publication.md](methodology-visual-metaphor-publication.md),
+пакет [prompts/visual/](../prompts/visual/README.md).
+
 При расхождении публичных формулировок побеждает v2.
 
 ---

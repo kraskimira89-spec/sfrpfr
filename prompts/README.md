@@ -21,6 +21,7 @@
 |---|---|---|
 | `system/yandex-cloud-agent.md` | Яндекс.Облако | Инфра YC, self-host Supabase, Object Storage, SmartCaptcha, `yc` CLI |
 | `system/yandex-ai-studio-agent.md` | Yandex AI Studio | LLM/YandexGPT, `LLMClient`, промпты, embeddings, ПДн в модели |
+| [`visual/`](visual/README.md) | Visual Prompt Architect | Обложки: VisualMatrix → Midjourney / DALL·E |
 
 ## Готовые задания
 

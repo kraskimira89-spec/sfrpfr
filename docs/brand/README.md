@@ -25,11 +25,14 @@
 
 | Путь | Назначение |
 |------|------------|
-| [methodology-meaning-visualization.md](methodology-meaning-visualization.md) | Пошаговая технология |
+| [methodology-meaning-visualization.md](methodology-meaning-visualization.md) | Пошаговая технология (платформа услуг) |
+| [methodology-visual-metaphor-publication.md](methodology-visual-metaphor-publication.md) | Обложки публикаций: 7 шагов + два слоя (матрица → MJ/DALL·E) |
 | [brand-platform-v2.md](brand-platform-v2.md) | **Актуальная дружественная платформа** «Цифровая рука помощи» |
 | [platform-proverka-stazha.md](platform-proverka-stazha.md) | Расширенный черновик смыслов и запретов (детали) |
 | [spec-brand-rollout.md](spec-brand-rollout.md) | ТЗ: внедрение бренда на сайт без поломки стилей |
-| [prompt-agent-brand-rollout.md](prompt-agent-brand-rollout.md) | Промпт для агента (отдельный чат, P0) |
+| [prompt-agent-brand-rollout.md](prompt-agent-brand-rollout.md) | Промпт для агента (отдельный чат, P0 HTML) |
+| [prompt-agent-brand-visual-metaphor.md](prompt-agent-brand-visual-metaphor.md) | Агент обложек → VisualMatrix + промпты |
+| [../prompts/visual/](../prompts/visual/README.md) | Schema, compiler, examples, system-prompt |
 | [strategy-brand-visuals-on-site.md](strategy-brand-visuals-on-site.md) | Куда и как класть картинки на сайт |
 | `associations/` | Ассоциативные ряды по этапам и услугам |
 | `visualizations/` | Брифы на символьные изображения |
