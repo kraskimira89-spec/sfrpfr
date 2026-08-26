@@ -183,6 +183,57 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://proverkastaza.ru";
 const DEFAULT_MAX_OPS_BOT = "https://max.ru/id8905998693_3_bot";
+const ADMIN_DEEP_LINK_KEY = "sfrfr_admin_deep_link";
+
+type AdminDeepLink = { caseId: string; focusChat: boolean };
+
+function captureAdminDeepLink(): AdminDeepLink | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const caseId = (params.get("case") || "").trim();
+  const focusParam = (params.get("focus") || "").trim().toLowerCase();
+  const focusChat =
+    focusParam === "chat" ||
+    focusParam === "max-reply" ||
+    focusParam === "max_reply" ||
+    window.location.hash === "#max-reply";
+  if (caseId) {
+    const link: AdminDeepLink = { caseId, focusChat };
+    try {
+      window.sessionStorage.setItem(ADMIN_DEEP_LINK_KEY, JSON.stringify(link));
+    } catch {
+      // private mode / quota
+    }
+    return link;
+  }
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_DEEP_LINK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdminDeepLink;
+    if (parsed?.caseId) return parsed;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function clearAdminDeepLink() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ADMIN_DEEP_LINK_KEY);
+  } catch {
+    // ignore
+  }
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.delete("case");
+    u.searchParams.delete("focus");
+    if (u.hash === "#max-reply") u.hash = "";
+    window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    // ignore
+  }
+}
 
 /** Экран входа: MAX (основной) | код на почту (запасной). Саморегистрации нет. */
 type AuthScreen = "max" | "email_otp";
@@ -621,8 +672,8 @@ export function AdminCabinet() {
     setNotice(error ? "Неверный код." : "");
   }
 
-  async function openCase(caseId: string, opts?: { focusMaxReply?: boolean }) {
-    if (!token) return;
+  async function openCase(caseId: string, opts?: { focusMaxReply?: boolean }): Promise<boolean> {
+    if (!token) return false;
     if (opts?.focusMaxReply) {
       setMaxReplyFocus(true);
     }
@@ -657,6 +708,7 @@ export function AdminCabinet() {
       setDupDialog(null);
       setView("case");
       void loadMarketingConsent(caseId);
+      return true;
     } catch (err) {
       const detail = err instanceof Error ? err.message : "";
       setNotice(
@@ -664,57 +716,41 @@ export function AdminCabinet() {
           ? "Дело не найдено или недоступно для вашей роли."
           : `Не удалось открыть дело: ${detail || "ошибка API"}`,
       );
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   useEffect(() => {
+    // Сохранить deep-link до логина (MAX часто открывает URL на экране входа).
+    captureAdminDeepLink();
+  }, []);
+
+  useEffect(() => {
     if (!token || !me?.is_staff) return;
-    const params = new URLSearchParams(window.location.search);
-    const caseId = params.get("case")?.trim();
-    const focusMax = window.location.hash === "#max-reply";
-    if (caseId) {
-      void (async () => {
-        if (!token) return;
-        setBusy(true);
-        try {
-          const caseDetail = await apiFetch<StaffCaseDetail>(
-            `/api/portal/admin/cases/${caseId}`,
-            token,
-          );
-          let caseMessages: { id: string; author_kind: string; body: string; created_at: string }[] =
-            [];
-          try {
-            caseMessages = await apiFetch<typeof caseMessages>(
-              `/api/portal/cases/${caseId}/messages`,
-              token,
-            );
-          } catch {
-            // см. openCase
-          }
-          setDetail(caseDetail);
-          setMessages(caseMessages);
-          setPipelineStatus(caseDetail.pipeline_status);
-          setView("case");
-          if (focusMax) setMaxReplyFocus(true);
-        } catch (err) {
-          const detail = err instanceof Error ? err.message : "";
-          setNotice(
-            detail.includes("case not found") || detail.includes("404")
-              ? "Дело не найдено или недоступно для вашей роли."
-              : `Не удалось открыть дело: ${detail || "ошибка API"}`,
-          );
-        } finally {
-          setBusy(false);
-        }
-      })();
-    }
+    const link = captureAdminDeepLink();
+    if (!link?.caseId) return;
+    let cancelled = false;
+    void (async () => {
+      // Deep-link из ops «клиент ждёт» / документ в чат → дело + чат.
+      const ok = await openCase(link.caseId, { focusMaxReply: true });
+      if (ok && !cancelled) clearAdminDeepLink();
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // openCase замыкается на token/state — достаточно staff-сессии.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, me?.is_staff]);
 
   useEffect(() => {
     if (view !== "case" || !detail || !maxReplyFocus) return;
     window.requestAnimationFrame(() => {
+      document.getElementById("max-reply-panel")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
       document.getElementById("max-reply-text")?.focus();
       setMaxReplyFocus(false);
     });

@@ -18,11 +18,14 @@ def admin_case_url(case_id: str | None) -> str | None:
 
 
 def admin_case_max_reply_url(case_id: str | None) -> str | None:
-    """Кабинет сотрудника → дело → блок «Написать клиенту в MAX»."""
+    """Кабинет сотрудника → дело → чат с клиентом.
+
+    ``focus=chat`` в query (не hash): MAX и др. мессенджеры часто отрезают ``#…``.
+    """
     base = admin_case_url(case_id)
     if not base:
         return None
-    return f"{base}#max-reply"
+    return f"{base}&focus=chat"
 
 
 def max_dialog_url(case_id: str | None = None) -> str | None:

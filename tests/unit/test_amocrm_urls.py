@@ -31,8 +31,8 @@ def test_admin_case_max_reply_url(monkeypatch) -> None:
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()
-    assert admin_case_max_reply_url("abc") == "https://admin.example/?case=abc#max-reply"
-    assert max_dialog_url("abc") == "https://admin.example/?case=abc#max-reply"
+    assert admin_case_max_reply_url("abc") == "https://admin.example/?case=abc&focus=chat"
+    assert max_dialog_url("abc") == "https://admin.example/?case=abc&focus=chat"
     get_settings.cache_clear()
 
 
@@ -57,13 +57,13 @@ def test_build_lead_custom_fields_urls_and_hint() -> None:
     fields = build_lead_custom_fields(
         case_id="c1",
         case_url="https://admin.example/?case=c1",
-        max_dialog_url="https://admin.example/?case=c1#max-reply",
+        max_dialog_url="https://admin.example/?case=c1&focus=chat",
         max_reply_hint="Ответ через admin",
         max_user_id="48799013",
         pipeline_status="intake",
     )
     by_code = {f["field_code"]: f for f in fields}
     assert by_code[SFRFR_CASE_URL]["values"][0]["value"].startswith("https://")
-    assert by_code[MAX_DIALOG_URL]["values"][0]["value"].endswith("#max-reply")
+    assert by_code[MAX_DIALOG_URL]["values"][0]["value"].endswith("focus=chat")
     assert by_code[MAX_REPLY_HINT]["values"][0]["value"] == "Ответ через admin"
     assert by_code["MAX_USER_ID"]["values"][0]["value"] == "48799013"

@@ -655,6 +655,7 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
 def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
     if not case_id:
         return
+    crm_url: str | None = None
     try:
         from sfrfr.db.session import get_supabase_client
         from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
@@ -672,18 +673,20 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
             .data
             or []
         )
-        if not rows:
-            return
-        case = rows[0]
-        amo = push_case_to_amocrm(case, task="max_operator")
-        lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
-        if lead_id and amo.get("ok"):
-            persist_crm_external_id(case_id, str(lead_id))
-        _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=amo.get("crm_url"))
+        if rows:
+            case = rows[0]
+            amo = push_case_to_amocrm(case, task="max_operator")
+            lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
+            if lead_id and amo.get("ok"):
+                persist_crm_external_id(case_id, str(lead_id))
+            if isinstance(amo, dict):
+                crm_url = amo.get("crm_url")
     except Exception:
         import logging
 
         logging.getLogger(__name__).exception("max_operator_amocrm_failed max=%s", user_id)
+    # Ops-ссылка на дело/чат — всегда, даже если amo недоступен.
+    _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=crm_url)
 
 
 def _fanout_ops_text(text: str) -> None:
@@ -734,7 +737,7 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
         text = (
             "Клиент ждёт ответа в MAX\n"
             f"MAX user_id: {user_id}\n"
-            f"Ответить: {admin}\n"
+            f"Открыть дело и чат: {admin}\n"
             f"{max_operator_reply_hint(user_id)}\n"
         )
         if crm_url:
