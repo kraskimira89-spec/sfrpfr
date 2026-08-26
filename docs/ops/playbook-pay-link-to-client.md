@@ -22,7 +22,7 @@ Secure action link для оплаты **не** используем: стран
 | Staff **«Ссылка»** | То же API, `send_max=false` | Только `pay_url` / QR в карточке (копипаст) |
 | Staff **напоминание** | `POST .../remind` `send_max=true` | Снова кнопка+QR; если ссылки нет — сначала выставит счёт |
 | **Авто** (флаг) | `MAX_PAY_LINK_AUTO_SEND=1` после черновика счёта | То же, что «В MAX», без клика staff |
-| Клиент сам | Кабинет / mini-app «Оплатить онлайн» | Redirect `confirmation_url` (без QR в чат) |
+| Клиент сам | Кабинет на сайте «Оплатить онлайн» | Redirect `confirmation_url` (без QR в чат) |
 
 Предусловие для MAX: у клиента заполнен `clients.max_user_id` (диалог с ботом).
 

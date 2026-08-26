@@ -124,6 +124,6 @@ sudo bash /opt/sfrfr/scripts/vps_cutover_proverkastaza.sh
 
 ## Ручные шаги после cutover
 
-1. **MAX** → Чат-боты → «Стаж и пенсия» → URL мини-приложения: `https://proverkastaza.ru/app/`
+1. **MAX** → Чат-боты → «Стаж и пенсия» → URL мини-приложения может быть `https://proverkastaza.ru/app/` (технический; с 2026-08-26 это **заглушка**, не ЛК). Клиентский кабинет — `cabinet.proverkastaza.ru`.
 2. **Supabase Auth** → Site URL / Redirect URLs: `https://cabinet.proverkastaza.ru/**` (см. `docs/ops/supabase-auth-redirects.md`)
 3. Webhook: `sfrfr max-subscribe` (если `PUBLIC_BASE_URL` сменился)

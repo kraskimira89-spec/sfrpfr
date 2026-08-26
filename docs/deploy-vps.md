@@ -202,11 +202,11 @@ npx supabase db push
 - Дизайн главной: `scripts/assets/sfrfr-home.html` + `scripts/assets/sfrfr-landing.css` (синий `#1E4E79`, акцент `#2E7D5B`, Manrope).
 - Форма лида: `scripts/wp_ensure_lead_form.php` (имя, телефон/канал, согласие; без файлов и СНИЛС; entries + email admin).
 - Страницы: `/`, `/oferta/`, `/politika-pdn/`, `/soglasie/` (HTTPS).
-- Мини-приложение MAX (кабинет v1): `https://proverkastaza.ru/app/` — исходники `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`.
-- В кабинете MAX: **Чат-боты → «Стаж и пенсия» → Расширенные настройки** → URL `https://proverkastaza.ru/app/` → Сохранить.
-- Диплинк: `https://max.ru/id8905998693_1_bot?startapp` (`MAX_PUBLIC_BOT_URL`) — подставить в кнопку на лендинге WP. Используйте технический username из `/me`, а не отображаемое имя бота.
-- API MVP / мини-приложение: `POST /api/cases/open`, `GET /api/cases/{id}`, `POST /api/documents/upload`, `POST /api/cases/{id}/run`.
-- API кабинетов (JWT): `GET /api/portal/me/cases`, `GET /api/portal/cases/{id}`, upload/signed-url/messages; staff — `PATCH /api/portal/admin/cases/{id}/pipeline-status`.
+- Мини-приложение MAX (`/app/`): **не клиентский кабинет** (заглушка с 2026-08-26) — `web/max-miniapp/`, выкладка `scripts/deploy_max_miniapp.sh`. ЛК клиента — только `cabinet.proverkastaza.ru`.
+- В кабинете партнёра MAX URL мини-приложения может оставаться `https://proverkastaza.ru/app/` (технический); бот **не** предлагает его как ЛК.
+- Диплинк чата: `https://max.ru/id8905998693_1_bot` (`MAX_PUBLIC_BOT_URL` / `MAX_CHAT_URL`) — подставить в кнопку на лендинге WP.
+- API MVP (legacy `/app/`): `POST /api/cases/open`, … — не продуктовый клиентский ЛК.
+- API кабинетов (JWT): `GET /api/portal/me/cases`, …; staff — `PATCH /api/portal/admin/cases/{id}/pipeline-status`.
 - Next.js кабинеты: `apps/cabinet` → `cabinet.proverkastaza.ru`, `apps/admin` → `admin.proverkastaza.ru` (Apache proxy + systemd).
 - На VPS нужен **Node.js ≥20.9** (факт: Node 22 LTS). Units: `sfrfr-cabinet` (:3001), `sfrfr-admin` (:3002). SSL: общий сертификат Let's Encrypt на оба хоста.
 - После миграций Supabase выдать staff-роль (первый admin через CLI, service role):
@@ -215,5 +215,5 @@ npx supabase db push
 - CORS: `CORS_ALLOWED_ORIGINS` в `.env` (витрина + cabinet + admin).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.proverkastaza.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
-- ПДн-сканы не через WP-формы; загрузка — MAX / кабинет `/app/`.
+- ПДн-сканы не через WP-формы; предпочтительно веб-кабинет; вложения в чат MAX — принимаем.
 - `service_role` только на сервере API, не в JS.

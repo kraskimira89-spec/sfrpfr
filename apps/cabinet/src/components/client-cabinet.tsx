@@ -2532,7 +2532,7 @@ export function ClientCabinet() {
                   disabled={busy}
                   onClick={() => void setPreferredChannel("max_miniapp")}
                 >
-                  MAX
+                  Чат MAX
                 </button>
                 <button
                   type="button"

@@ -1,24 +1,25 @@
-# 2026-08-26 — Кабинет только на сайте; вложения в MAX принимаем
+# 2026-08-26 — Кабинет только на сайте; ЛК в MAX закрыт
 
 ## Решение
 
-1. Клиентский кабинет — **только сайт** (`CABINET_PUBLIC_URL`, `cabinet.proverkastaza.ru`). Mini-app не позиционировать как ЛК.
-2. В чате MAX — подсказки, кнопки, «Позвать специалиста»; кнопка **«Кабинет на сайте»**.
-3. Документы: **предпочтительно** кабинет на сайте (защищённо, после согласия). Если клиент прислал файл **в чат** — **принимаем** (не reject), подтверждаем, ставим задачу сотруднику (checklist / ops / amo `max_chat_docs`).
-4. Канон copy: «предпочтительно кабинет на сайте; если отправили сюда — приняли, специалист увидит». Без абсолютного «в чат нельзя».
+1. **Личного кабинета клиента в MAX нет и не будет.**
+2. Вся переписка — в личном чате MAX (подсказки, кнопки, вложения, специалист).
+3. Клиентский кабинет — **только сайт** (`CABINET_PUBLIC_URL`, `cabinet.proverkastaza.ru`).
+4. `/app/` (mini-app) — заглушка-мост, **не** продуктовый ЛК; бот не даёт его как CTA кабинета.
+5. Документы: **предпочтительно** кабинет на сайте. Файл **в чат** — **принимаем** + мягкий CTA сайта. Без абсолютного «в чат нельзя».
 
 ## Код / доки
 
-- `src/sfrfr/integrations/max/intake.py`, `handler.py` (`UPLOAD_ACCEPTED_TEXT`, `_notify_staff_chat_docs`)
-- `llm_chat.py`, `docs/MAX/prompt-agent-client-chat.md`
-- ТЗ-09/20/23/24/26, strategy, AMO, architecture max-first, copy
-- тесты: `test_max_intake.py` (accept в production), llm/login/channels
+- `web/max-miniapp/index.html` — заглушка «ЛК в MAX нет»; `app.js` legacy, не подключается
+- `src/sfrfr/integrations/max/intake.py`, `handler.py`, `llm_chat.py`, `client.py`
+- `docs/MAX/*`, ТЗ-01/09/20/24, strategy, AMO, deploy-vps, ops
+- тесты: `test_max_intake.py` (accept; без `/app/` в CTA)
 
 ## Callbacks
 
-Дерево `intake:…` / `svy:…` не ломали; `intake:device:max|web|help` сохранены, сменены подписи.
+Дерево `intake:…` / `svy:…` не ломали; `intake:device:max|web|help` сохранены (кабинет всегда сайт).
 
-## Follow-up (тот же день)
+## Follow-up того же дня
 
-Коммиты `ddb35e8` / `1bf2c3f` ошибочно вернули reject вложений в prod — откат к канону accept
-(`UPLOAD_ACCEPTED_TEXT`, `_notify_staff_chat_docs`), кабинет по-прежнему только сайт.
+Коммиты `ddb35e8` / `1bf2c3f` ошибочно вернули reject вложений — откат (`297d256`).
+Затем mini-app закрыт как ЛК (заглушка + канон «нет и не будет»).

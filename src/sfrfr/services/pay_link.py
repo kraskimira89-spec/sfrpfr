@@ -3,7 +3,7 @@
 Каналы доставки (канон):
 1. Staff «В MAX» / API pay-link send_max=true — текст + кнопка «Оплатить» + QR PNG.
 2. Staff «Ссылка» — только pay_url в админке (копипаст), без MAX.
-3. Клиент сам: кабинет / mini-app → confirmation_url (без QR в чат).
+3. Клиент сам: кабинет на сайте → confirmation_url (без QR в чат).
 4. Опционально MAX_PAY_LINK_AUTO_SEND=1 — после черновика счёта, если есть max_user_id.
 
 SMS/email ЮKassa не используем. Secure action link для оплаты не нужен:

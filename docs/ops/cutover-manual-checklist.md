@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `.env` `MAX_MINIAPP_URL=https://proverkastaza.ru/app/` | ✅ VPS | `/opt/sfrfr/.env` |
 | Статика `/app/` отдаёт 200 | ✅ | `https://proverkastaza.ru/app/` |
-| URL mini-app в кабинете MAX | ✅ вручную | business.max.ru |
+| URL mini-app в кабинете партнёра MAX | ✅ вручную (заглушка, не ЛК) | business.max.ru |
 | Supabase Auth redirect URLs | ✅ вручную | Dashboard (cabinet.proverkastaza.ru + recover + старые taxi-*) |
 | reCAPTCHA Enterprise domains | ✅ вручную | GCP Console |
 
@@ -26,7 +26,7 @@ API бота **не** меняет URL мини-приложения — тол�
 https://proverkastaza.ru/app/
 ```
 
-4. Сохранить. Проверка: в чате с ботом кнопка открытия mini-app грузит новый домен (не `taxi-doroga-dobra.ru`).
+4. Сохранить. Проверка: `/app/` отдаёт заглушку (ЛК в MAX нет); клиентский кабинет — `cabinet.proverkastaza.ru`.
 
 Диплинк лендинга без смены: `https://max.ru/id8905998693_1_bot?startapp`.
 
