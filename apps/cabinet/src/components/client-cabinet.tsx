@@ -634,16 +634,39 @@ export function ClientCabinet() {
     if (view !== "case" || !selectedId || !token) return;
     const timer = window.setInterval(() => {
       void apiFetch<CaseMessage[]>(`/api/portal/cases/${selectedId}/messages`, token)
-        .then(setMessages)
+        .then((next) => {
+          setMessages((prev) => {
+            if (
+              prev.length === next.length &&
+              prev.every(
+                (m, i) =>
+                  m.id === next[i]?.id &&
+                  m.body === next[i]?.body &&
+                  m.created_at === next[i]?.created_at &&
+                  m.author_kind === next[i]?.author_kind,
+              )
+            ) {
+              return prev;
+            }
+            return next;
+          });
+        })
         .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
   }, [view, selectedId, token]);
 
+  const lastMessageKey = useMemo(() => {
+    const last = messages[messages.length - 1];
+    return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
+  }, [messages]);
+
   useEffect(() => {
     if (view !== "case") return;
+    // Не дёргать страницу при опросе, если контент сообщений не менялся —
+    // скролл только при реальном обновлении ленты / typing.
     scrollMessagesToEnd();
-  }, [messages, showBotTyping, showBotTypingTimeout, view, scrollMessagesToEnd]);
+  }, [lastMessageKey, showBotTyping, showBotTypingTimeout, view, scrollMessagesToEnd]);
 
   // P0: после пароля сразу создать и открыть дело, если списка нет
   useEffect(() => {

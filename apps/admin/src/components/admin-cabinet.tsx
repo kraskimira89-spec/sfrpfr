@@ -725,7 +725,23 @@ export function AdminCabinet() {
     const caseId = detail.id;
     const timer = window.setInterval(() => {
       void apiFetch<typeof messages>(`/api/portal/cases/${caseId}/messages`, token)
-        .then(setMessages)
+        .then((next) => {
+          setMessages((prev) => {
+            if (
+              prev.length === next.length &&
+              prev.every(
+                (m, i) =>
+                  m.id === next[i]?.id &&
+                  m.body === next[i]?.body &&
+                  m.created_at === next[i]?.created_at &&
+                  m.author_kind === next[i]?.author_kind,
+              )
+            ) {
+              return prev;
+            }
+            return next;
+          });
+        })
         .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);

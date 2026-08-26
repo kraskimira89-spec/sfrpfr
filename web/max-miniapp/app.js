@@ -158,15 +158,38 @@
     return { showTyping: true, showTimeout: false };
   }
 
-  function scrollMessagesToEnd() {
+  let stickChatToBottom = true;
+
+  function isNearBottom(el, thresholdPx = 96) {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= thresholdPx;
+  }
+
+  function scrollMessagesToEnd(force = false) {
+    if (!force && !stickChatToBottom) return;
     const viewChat = document.getElementById("view-chat");
-    if (!viewChat) return;
     requestAnimationFrame(() => {
-      viewChat.scrollIntoView({ behavior: "smooth", block: "end" });
+      if (viewChat) viewChat.scrollIntoView({ behavior: "smooth", block: "end" });
       if (els.messagesList?.lastElementChild) {
         els.messagesList.lastElementChild.scrollIntoView({ behavior: "smooth", block: "end" });
       }
+      stickChatToBottom = true;
     });
+  }
+
+  function bindChatScrollGuard() {
+    const root =
+      (els.messagesList && els.messagesList.closest(".messages-scroll")) ||
+      els.messagesList?.parentElement ||
+      document.getElementById("view-chat");
+    if (!root || root.dataset.scrollGuardBound === "1") return;
+    root.dataset.scrollGuardBound = "1";
+    root.addEventListener(
+      "scroll",
+      () => {
+        stickChatToBottom = isNearBottom(root);
+      },
+      { passive: true },
+    );
   }
 
   function show(el) {
@@ -704,6 +727,7 @@
   async function loadMessages() {
     if (!currentCase?.id || !els.messagesList) return;
     try {
+      bindChatScrollGuard();
       const rows = await api(`/api/portal/cases/${encodeURIComponent(currentCase.id)}/messages`);
       const { showTyping, showTimeout } = resolveBotTypingState(rows);
       if (!rows?.length && !showTyping && !showTimeout) {
@@ -727,9 +751,26 @@
           `<li class="message-typing" aria-live="polite"><span class="hint">Бот MAX</span><p class="hint">${escapeHtml(BOT_TYPING_TIMEOUT_HINT)}</p></li>`,
         );
       }
-      els.messagesList.innerHTML = items.join("");
+      const html = items.join("");
+      const signature = `${(rows || []).length}:${rows?.[rows.length - 1]?.id || ""}:${showTyping}:${showTimeout}`;
+      if (els.messagesList.dataset.sig === signature) {
+        if (showTyping) scheduleBotTypingUiRefresh(rows);
+        return;
+      }
+      const scrollRoot =
+        els.messagesList.closest(".messages-scroll") ||
+        els.messagesList.parentElement ||
+        document.getElementById("view-chat");
+      const prevTop = scrollRoot ? scrollRoot.scrollTop : 0;
+      const wasSticky = stickChatToBottom;
+      els.messagesList.innerHTML = html;
+      els.messagesList.dataset.sig = signature;
       if (showTyping) scheduleBotTypingUiRefresh(rows);
-      scrollMessagesToEnd();
+      if (wasSticky) {
+        scrollMessagesToEnd(true);
+      } else if (scrollRoot) {
+        scrollRoot.scrollTop = prevTop;
+      }
     } catch (err) {
       if (els.messagesEmpty) {
         els.messagesEmpty.textContent = err.message || "Сообщения недоступны";

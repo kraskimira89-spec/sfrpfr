@@ -158,6 +158,8 @@ export function CaseChatPanel({
   onRequestMarketingConsent?: () => void;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
+  /** Автоскролл вниз только если пользователь уже у низа ленты (иначе история «отскакивает»). */
+  const stickToBottomRef = useRef(true);
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [expandedDup, setExpandedDup] = useState<Record<string, boolean>>({});
 
@@ -165,17 +167,45 @@ export function CaseChatPanel({
 
   const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
-  const scrollFeedToEnd = useCallback(() => {
+  const lastMessageKey = useMemo(() => {
+    const last = messages[messages.length - 1];
+    return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
+  }, [messages]);
+
+  const isNearBottom = useCallback((el: HTMLElement, thresholdPx = 96) => {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= thresholdPx;
+  }, []);
+
+  const scrollFeedToEnd = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = feedRef.current;
     if (!el) return;
     requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      el.scrollTo({ top: el.scrollHeight, behavior });
     });
   }, []);
 
+  const onFeedScroll = useCallback(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    stickToBottomRef.current = isNearBottom(el);
+  }, [isNearBottom]);
+
+  // Смена фильтра — снова к низу.
   useEffect(() => {
+    stickToBottomRef.current = true;
+    scrollFeedToEnd("auto");
+  }, [filter, scrollFeedToEnd]);
+
+  // Новые сообщения / typing — только если пользователь у низа.
+  // Своё сообщение сотрудника всегда показывает низ (после «Отправить в MAX»).
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.author_kind === "staff") {
+      stickToBottomRef.current = true;
+    }
+    if (!stickToBottomRef.current) return;
     scrollFeedToEnd();
-  }, [messages, filter, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
+  }, [lastMessageKey, messages, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
 
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
@@ -202,7 +232,7 @@ export function CaseChatPanel({
         </div>
       </div>
 
-      <div className="case-chat-feed" ref={feedRef}>
+      <div className="case-chat-feed" ref={feedRef} onScroll={onFeedScroll}>
         {feed.length === 0 ? (
           <p className="hint case-chat-empty">
             Пока пусто. Здесь появятся сообщения бота, нажатия клиента и ответы сотрудника.
