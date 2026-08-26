@@ -23,7 +23,7 @@
 | Юрлицо                | ООО «ПОД ПРИСМОТРОМ» — в контактах, не в названии                                                                                                                 |
 | Аватар                | `assets/sfrfr-logo-transparent-500.png`                                                                                                                           |
 | Обложка               | `assets/vk-community-cover-1920x768.png` (1920×768, минимум ВК 960×384)                                                                                           |
-| Связь с MAX           | личный чат `https://max.ru/id8905998693_1_bot` (кнопка «Уточнить ситуацию в MAX»)                                                                                 |
+| Связь с MAX           | личный чат `https://max.ru/id8905998693_1_bot`. В постах CTA «Уточнить ситуацию в MAX». Кнопка шапки ВК — штатная **«Сообщение»** (подпись не меняется, техподдержка 2026-08-26); дальше автоответ §5 |
 | Сайт                  | [https://proverkastaza.ru/](https://proverkastaza.ru/)                                                                                                            |
 | Тарифы                | [https://proverkastaza.ru/tarify/](https://proverkastaza.ru/tarify/)                                                                                              |
 | Телефон (публичный)   | +7 909 195-04-08                                                                                                                                                  |
