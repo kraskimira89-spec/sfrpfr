@@ -25,8 +25,8 @@ NOW = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
 
 
 def _sample_case(**overrides: object) -> dict:
-    created = (datetime.now(UTC) - timedelta(days=3)).isoformat()
-    first_contact = (datetime.now(UTC) - timedelta(days=2, hours=20)).isoformat()
+    created = (NOW - timedelta(days=3)).isoformat()
+    first_contact = (NOW - timedelta(days=2, hours=20)).isoformat()
     base = {
         "id": "00000000-0000-0000-0000-000000000101",
         "pipeline_status": "intake",
