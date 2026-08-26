@@ -264,12 +264,15 @@ def _lead_notify_text(
     contact: str,
     channel: str,
     crm_url: str | None,
+    max_user_id: str | None = None,
 ) -> tuple[str, str]:
     """subject, body для MAX/email."""
+    from sfrfr.integrations.max.ops_client_label import format_ops_client_block
+
     catalog = case_catalog_code(case_id, full_name=full_name)
     lines = [
         "Новая заявка с сайта",
-        f"Имя: {full_name}",
+        format_ops_client_block(max_user_id=max_user_id, full_name=full_name),
         f"Контакт: {contact}",
         f"Канал: {_channel_label_ru(channel)}",
         f"Дело: {catalog}",

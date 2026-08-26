@@ -210,4 +210,8 @@ def test_lead_notify_sends_to_specialists_channel(monkeypatch) -> None:
     assert result["ok"] is True
     assert result["team_channel_sent"] is True
     assert sent and str(sent[0]["chat_id"]) == "-77768587291288"
+    body = sent[0]["text"]
+    assert "Клиент: Тест" in body
+    assert "MAX user_id: не привязан" in body
+    assert "Имя: Тест" not in body
     get_settings.cache_clear()

@@ -732,11 +732,16 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
             admin_case_max_reply_url,
             max_operator_reply_hint,
         )
+        from sfrfr.integrations.max.ops_client_label import (
+            format_ops_client_block,
+            lookup_ops_client_full_name,
+        )
 
+        full_name = lookup_ops_client_full_name(max_user_id=user_id, case_id=case_id)
         admin = admin_case_max_reply_url(case_id) or ""
         text = (
             "Клиент ждёт ответа в MAX\n"
-            f"MAX user_id: {user_id}\n"
+            f"{format_ops_client_block(max_user_id=user_id, full_name=full_name)}\n"
             f"Открыть дело и чат: {admin}\n"
             f"{max_operator_reply_hint(user_id)}\n"
         )
@@ -777,6 +782,7 @@ def _notify_staff_chat_docs(
         logging.getLogger(__name__).info(
             "max_chat_docs staff_task skipped case=%s", (case_id or "")[:8], exc_info=True
         )
+    client_from_case: dict[str, Any] | None = None
     try:
         from sfrfr.db.session import get_supabase_client
         from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
@@ -795,6 +801,11 @@ def _notify_staff_chat_docs(
             or []
         )
         if rows:
+            raw_client = rows[0].get("clients")
+            if isinstance(raw_client, list):
+                client_from_case = raw_client[0] if raw_client else None
+            elif isinstance(raw_client, dict):
+                client_from_case = raw_client
             amo = push_case_to_amocrm(rows[0], task="max_chat_docs")
             lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
             if lead_id and amo.get("ok"):
@@ -809,12 +820,21 @@ def _notify_staff_chat_docs(
         crm_url = None
     try:
         from sfrfr.integrations.amocrm.urls import admin_case_max_reply_url
+        from sfrfr.integrations.max.ops_client_label import (
+            format_ops_client_block,
+            lookup_ops_client_full_name,
+        )
 
+        full_name = lookup_ops_client_full_name(
+            max_user_id=user_id,
+            case_id=case_id,
+            client_row=client_from_case,
+        )
         admin = admin_case_max_reply_url(case_id) or ""
         text = (
             "Клиент прислал документ в чат MAX\n"
             f"Файл: {label}{extra}\n"
-            f"MAX user_id: {user_id}\n"
+            f"{format_ops_client_block(max_user_id=user_id, full_name=full_name)}\n"
             f"Дело: {admin}\n"
         )
         if crm_url:
