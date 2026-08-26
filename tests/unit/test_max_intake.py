@@ -176,6 +176,10 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "электронн" in low
     assert "справка о размере пенсии" in low
     assert "выплатах сфр" in low or "выплат сфр" in low
+    assert "банковск" in low
+    assert "начислил" in low or "пришло" in low
+    assert "опек" in low or "дет" in low
+    assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
     assert "этот чат" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
@@ -392,7 +396,12 @@ def test_docs_info_menu_and_special_section(tmp_path: Path, monkeypatch) -> None
 
     special = handle_max_update(_cb(31, "intake:docs:special"), bot=bot)
     assert special.action == "docs_special"
-    assert "свидетельства о рождении" in (special.reply or "").lower()
+    assert "свидетельства о рождении" in (special.reply or "").lower() or "количество детей" in (
+        special.reply or ""
+    ).lower()
+    assert "опек" in (special.reply or "").lower()
+    assert "банковск" in (special.reply or "").lower()
+    assert "льготн" in (special.reply or "").lower() or "северн" in (special.reply or "").lower()
     assert "Справка о выплатах СФР" in (special.reply or "")
     assert "ИПК" in (special.reply or "")
 
