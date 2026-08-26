@@ -96,7 +96,8 @@ def lookup_ops_client_full_name(
                 or []
             )
             if rows:
-                name = normalize_ops_full_name(_client_dict(rows[0].get("clients")).get("full_name"))
+                raw = _client_dict(rows[0].get("clients")).get("full_name")
+                name = normalize_ops_full_name(raw)
                 if name:
                     return name
         except Exception:
