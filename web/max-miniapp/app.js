@@ -1,3 +1,5 @@
+/* Legacy: не подключается из index.html с 2026-08-26.
+   Клиентский ЛК в MAX закрыт; канон — чат MAX + веб-кабинет. См. README.md */
 (() => {
   const cfg = window.SFRFR_CONFIG || {};
   const apiBase = (cfg.apiBase || "").replace(/\/$/, "");

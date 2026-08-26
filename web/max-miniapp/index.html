@@ -4,211 +4,96 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow,noarchive" />
-  <title>Проверка стажа — кабинет</title>
+  <title>Проверка стажа — чат MAX</title>
   <link rel="icon" href="./favicon.ico" type="image/x-icon" sizes="any" />
   <link rel="apple-touch-icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./app.css?v=20260823a" />
-  <script src="https://st.max.ru/js/max-web-app.js"></script>
+  <link rel="stylesheet" href="./app.css?v=20260826-closed" />
+  <style>
+    .bridge {
+      max-width: 28rem;
+      margin: 1.5rem auto;
+      padding: 1.25rem 1rem 2rem;
+    }
+    .bridge h1 {
+      font-size: 1.35rem;
+      line-height: 1.25;
+      margin: 0 0 0.75rem;
+    }
+    .bridge .lede {
+      color: var(--muted);
+      margin: 0 0 1.25rem;
+      line-height: 1.45;
+    }
+    .bridge .canon {
+      margin: 0 0 1.25rem;
+      padding: 0.9rem 1rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .bridge .canon li {
+      margin: 0.35rem 0;
+      line-height: 1.4;
+    }
+    .bridge .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .bridge .tiny {
+      margin-top: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+  </style>
 </head>
 <body>
   <div class="bg" aria-hidden="true"></div>
 
   <header class="appbar">
-    <button type="button" id="btn-back" class="nav-icon hidden" aria-label="Назад к делам">←</button>
-    <button type="button" id="btn-menu" class="burger" aria-label="Меню" aria-expanded="false" aria-controls="drawer">
-      <span></span><span></span><span></span>
-    </button>
     <div class="appbar-title">
       <a class="brand brand-home" href="https://proverkastaza.ru/" title="На главную" aria-label="На главную">
         Проверка стажа
       </a>
-      <p class="tag" id="appbar-sub">Кабинет</p>
+      <p class="tag" id="appbar-sub">Личный чат MAX</p>
     </div>
-    <button type="button" id="btn-home-cases" class="nav-text" aria-label="Мои дела">Дела</button>
   </header>
 
-  <div id="drawer-backdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
-  <aside id="drawer" class="drawer" aria-hidden="true">
-    <p class="drawer-heading">Этапы дела</p>
-    <ol id="steps-list" class="steps"></ol>
-    <p class="drawer-heading">Разделы</p>
-    <nav class="drawer-nav" id="drawer-nav">
-      <button type="button" data-view="overview" class="nav-item active">Обзор</button>
-      <button type="button" data-view="docs" class="nav-item">Документы</button>
-      <button type="button" data-view="checklist" class="nav-item">Чек-лист</button>
-      <button type="button" data-view="draft" class="nav-item">Черновик</button>
-      <button type="button" data-view="pay" class="nav-item">Оплаты</button>
-      <button type="button" data-view="result" class="nav-item">Результат</button>
-      <button type="button" data-view="chat" class="nav-item">Сообщения</button>
-      <button type="button" data-view="list" class="nav-item">Мои дела</button>
-    </nav>
-    <div class="drawer-links">
-      <a id="drawer-web" href="#" target="_blank" rel="noopener noreferrer">Веб-кабинет</a>
-      <a id="drawer-chat-bot" href="#" target="_blank" rel="noopener noreferrer">Чат с ботом</a>
+  <main class="bridge">
+    <h1>Личного кабинета в MAX нет</h1>
+    <p class="lede">
+      Вся переписка — в чате с ботом. Кабинет клиента остаётся только на сайте.
+    </p>
+    <ul class="canon">
+      <li>В MAX нет и не будет клиентского личного кабинета.</li>
+      <li>Вопросы, статусы и файлы — в личном чате MAX.</li>
+      <li>Согласие, документы и оплата на сайте — в веб-кабинете.</li>
+    </ul>
+    <div class="actions">
+      <a id="btn-chat" class="btn primary" href="https://max.ru/id8905998693_1_bot">Открыть чат с ботом</a>
+      <a id="btn-cabinet" class="btn secondary" href="https://cabinet.proverkastaza.ru/?from=max" target="_blank" rel="noopener noreferrer">Кабинет на сайте</a>
     </div>
-  </aside>
-
-  <main class="shell">
-    <section id="panel-boot" class="panel compact">
-      <p class="muted">Открываем кабинет…</p>
-    </section>
-
-    <section id="panel-form" class="panel compact hidden">
-      <h1>Первый вход</h1>
-      <p class="lede">Имя для карточки дела и согласие на ПДн.</p>
-      <p id="auth-hint" class="error hidden" role="alert"></p>
-      <label class="field">
-        <span>Имя</span>
-        <input id="client-name" type="text" maxlength="200" autocomplete="name" placeholder="Как к вам обращаться" />
-      </label>
-      <label class="check">
-        <input id="consent" type="checkbox" />
-        <span>Даю <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a></span>
-      </label>
-      <button type="button" id="btn-open" class="btn primary">Открыть кабинет</button>
-    </section>
-
-    <section id="panel-list" class="panel compact hidden">
-      <h1>Мои дела</h1>
-      <p class="lede warning" id="list-warning">Решение принимает СФР. Результат не гарантирован.</p>
-      <ul id="case-list" class="case-list"></ul>
-      <button type="button" id="btn-new-case" class="btn primary">Новое дело</button>
-    </section>
-
-    <section id="panel-case" class="panel compact hidden">
-      <nav class="case-tabs" id="case-tabs" aria-label="Разделы дела">
-        <button type="button" data-view="overview" class="case-tab active">Обзор</button>
-        <button type="button" data-view="docs" class="case-tab">Документы</button>
-        <button type="button" data-view="checklist" class="case-tab">Чек-лист</button>
-        <button type="button" data-view="draft" class="case-tab">Черновик</button>
-        <button type="button" data-view="pay" class="case-tab">Оплаты</button>
-        <button type="button" data-view="result" class="case-tab">Результат</button>
-        <button type="button" data-view="chat" class="case-tab">Сообщения</button>
-      </nav>
-      <!-- Обзор: только текущий этап + главные действия -->
-      <div id="view-overview" class="view">
-        <div class="status-card">
-          <p class="label">Сейчас</p>
-          <p id="case-status" class="status">—</p>
-          <p id="case-status-hint" class="hint"></p>
-          <p id="case-warning" class="warning tiny">Решение принимает СФР. Результат не гарантирован.</p>
-        </div>
-        <dl class="meta tight">
-          <div><dt>Дело</dt><dd id="case-id">—</dd></div>
-          <div><dt>Документы</dt><dd id="case-docs">0</dd></div>
-        </dl>
-        <p id="case-error" class="error hidden"></p>
-        <div id="case-next" class="meta-block hidden">
-          <p class="label">Ближайшее действие</p>
-          <p id="case-next-text">—</p>
-        </div>
-        <div id="case-consent" class="meta-block hidden">
-          <p class="label">Согласие на обработку персональных данных</p>
-          <p class="hint">Ознакомьтесь с <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noopener noreferrer">текстом согласия</a>.</p>
-          <label class="check">
-            <input id="case-consent-check" type="checkbox" />
-            <span>Даю согласие редакции pdn-consent-2026-08-22</span>
-          </label>
-          <button type="button" id="btn-case-consent" class="btn primary" disabled>Зафиксировать согласие</button>
-        </div>
-        <div class="actions">
-          <label class="btn secondary file-btn">
-            Загрузить документ
-            <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff" hidden />
-          </label>
-          <button type="button" id="btn-run" class="btn primary">Запустить проверку</button>
-          <button type="button" id="btn-refresh" class="btn ghost">Обновить</button>
-        </div>
-      </div>
-
-      <div id="view-docs" class="view hidden">
-        <h1>Документы</h1>
-        <p class="lede">Клиент: <span id="case-name">—</span></p>
-        <p id="case-findings" class="findings hidden"></p>
-        <div class="meta-block">
-          <p class="label">Как подать</p>
-          <p id="case-submit-hint" class="hint">
-            Подайте заявление самостоятельно в СФР, МФЦ или через Госуслуги.
-          </p>
-        </div>
-        <label class="btn secondary file-btn">
-          Загрузить ещё
-          <input id="file-input-docs" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff" hidden />
-        </label>
-      </div>
-
-      <div id="view-checklist" class="view hidden">
-        <h1>Чек-лист</h1>
-        <div id="case-checklist" class="meta-block">
-          <ul id="case-checklist-list"></ul>
-          <p id="checklist-empty" class="hint">Пунктов пока нет.</p>
-        </div>
-      </div>
-
-      <div id="view-draft" class="view hidden">
-        <h1>Черновик</h1>
-        <div id="case-draft" class="meta-block">
-          <pre id="case-draft-body" class="draft"></pre>
-          <p id="draft-empty" class="hint">Черновик ещё не готов.</p>
-        </div>
-      </div>
-
-      <div id="view-pay" class="view hidden">
-        <h1>Оплаты</h1>
-        <ul id="orders-list" class="plain"></ul>
-        <p id="orders-empty" class="hint">Счетов пока нет — их выставляет оператор.</p>
-        <a id="pay-cabinet-link" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Оплаты в веб-кабинете</a>
-      </div>
-
-      <div id="view-result" class="view hidden">
-        <h1>Результат СФР</h1>
-        <div id="result-body" class="hint">Пока нет подтверждённого результата.</div>
-        <a id="result-cabinet-link" class="btn ghost" href="#" target="_blank" rel="noopener noreferrer">Результат в веб-кабинете</a>
-      </div>
-
-      <div id="view-chat" class="view hidden">
-        <h1>Сообщения</h1>
-        <ul id="messages-list" class="plain"></ul>
-        <p id="messages-empty" class="hint">Сообщений пока нет.</p>
-        <form id="message-form" class="message-form">
-          <label class="field">
-            <span>Сообщение</span>
-            <input id="message-input" type="text" maxlength="1000" placeholder="Краткий вопрос эксперту" />
-          </label>
-          <button type="submit" class="btn primary">Отправить</button>
-        </form>
-      </div>
-    </section>
-
-    <p id="toast" class="toast hidden" role="status"></p>
+    <p class="tiny">
+      Мы готовим документы, проект обращения и план — расскажем по шагам,
+      но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.
+    </p>
   </main>
 
-  <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Навигация">
-    <button type="button" data-view="overview" class="bottom-nav__item active">
-      <span class="bottom-nav__icon" aria-hidden="true">○</span>
-      <span>Обзор</span>
-    </button>
-    <button type="button" data-view="docs" class="bottom-nav__item">
-      <span class="bottom-nav__icon" aria-hidden="true">≡</span>
-      <span>Документы</span>
-    </button>
-    <button type="button" data-view="chat" class="bottom-nav__item">
-      <span class="bottom-nav__icon" aria-hidden="true">◎</span>
-      <span>Сообщения</span>
-    </button>
-    <button type="button" data-view="list" class="bottom-nav__item">
-      <span class="bottom-nav__icon" aria-hidden="true">☰</span>
-      <span>Мои дела</span>
-    </button>
-  </nav>
-
-  <!-- скрытые кнопки для совместимости со старым JS-API -->
-  <a id="btn-web-cabinet" class="hidden" href="#"></a>
-  <a id="btn-web-from-list" class="hidden" href="#"></a>
-  <a id="btn-chat" class="hidden" href="#"></a>
-  <button type="button" id="btn-back-list" class="hidden"></button>
-
-  <script src="./config.js?v=20260823a"></script>
-  <script src="./app.js?v=20260823a"></script>
+  <script src="./config.js?v=20260826-closed"></script>
+  <script>
+    (function () {
+      var cfg = window.SFRFR_CONFIG || {};
+      var chat = document.getElementById("btn-chat");
+      var cabinet = document.getElementById("btn-cabinet");
+      if (chat && (cfg.botChatUrl || cfg.maxBotUrl || cfg.botDeepLink)) {
+        chat.href = cfg.botChatUrl || cfg.botDeepLink || cfg.maxBotUrl;
+      }
+      if (cabinet && cfg.cabinetUrl) {
+        cabinet.href = cfg.cabinetUrl;
+      }
+    })();
+  </script>
 </body>
 </html>
