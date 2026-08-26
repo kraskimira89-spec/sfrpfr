@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sfrfr.services.staff_reply_suggest import client_salutation, _ensure_salutation
+from sfrfr.services.staff_reply_suggest import _ensure_salutation, client_salutation
 
 
 def test_client_salutation_full_fio() -> None:
