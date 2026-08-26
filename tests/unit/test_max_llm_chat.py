@@ -34,7 +34,10 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "сайте" in low
     assert "только на сайте" in low or "кабинет на сайте" in low
     assert "не обещай кабинет внутри max" in low or "не обещай «кабинет в max»" in low
-    assert "не получается" in low or "не справля" in low
+    assert "не получается" in low
+    assert "получите" in low
+    assert "по шагам" in low
+    assert "полные фразы с глаголом" in low
     assert "пароль" in low or "смс" in low
     assert "вручную" in low
     assert "свободн" in low
