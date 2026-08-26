@@ -549,7 +549,7 @@ def suggest_case_replies(
     case_id: str,
     principal: Principal = Depends(require_staff),
 ) -> dict:
-    """DeepSeek: 2–3 варианта ответа клиенту в MAX (без ПДн)."""
+    """DeepSeek: 2–3 варианта ответа клиенту в MAX (с обращением по имени)."""
     repo = _repo()
     case = repo.require_case(principal, case_id)
     messages = (
@@ -563,10 +563,15 @@ def suggest_case_replies(
         .data
         or []
     )
+    client = case.get("clients") if isinstance(case.get("clients"), dict) else {}
+    client_name = ""
+    if isinstance(client, dict):
+        client_name = str(client.get("full_name") or "").strip()
     suggestions = suggest_staff_replies(
         messages=messages,
         pipeline_status=str(case.get("pipeline_status") or ""),
         b2c_status=str(case.get("b2c_status") or ""),
+        client_name=client_name or None,
     )
     return {"suggestions": suggestions, "source": "deepseek"}
 

@@ -127,6 +127,8 @@ function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] 
 
 export function CaseChatPanel({
   messages,
+  clientName = null,
+  caseLabel = null,
   maxLinked,
   maxUserId,
   maxBusinessUrl,
@@ -142,6 +144,10 @@ export function CaseChatPanel({
   onRequestMarketingConsent,
 }: {
   messages: CaseChatMessage[];
+  /** ФИО клиента в шапке чата. */
+  clientName?: string | null;
+  /** Идентификатор дела вида ПС-000123. */
+  caseLabel?: string | null;
   maxLinked: boolean;
   maxUserId: string | null;
   maxBusinessUrl: string | null;
@@ -211,6 +217,10 @@ export function CaseChatPanel({
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
       <div className="case-chat-head">
         <h2>Чат с клиентом</h2>
+        <p className="case-chat-client-id" title="Клиент и номер дела">
+          <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
+          {caseLabel ? <span className="case-chat-case-no"> · {caseLabel}</span> : null}
+        </p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [

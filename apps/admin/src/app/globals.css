@@ -789,6 +789,17 @@ header div { display: grid; gap: 3px; }
 }
 .case-chat-head h2 { margin: 0; font-size: 1.1rem; }
 .case-chat-head .hint { margin: 0; }
+.case-chat-client-id {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--ink, #142033);
+}
+.case-chat-case-no {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
 .case-chat-filters {
   display: flex;
   flex-wrap: wrap;

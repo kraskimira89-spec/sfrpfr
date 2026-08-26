@@ -9,7 +9,7 @@ import {
   PIPELINE_FILTER_STAGES,
   labelStaffRole,
 } from "@/lib/ui-labels";
-import { CasesRegistry, buildPreviewFromSummary } from "@/components/cases-registry";
+import { CasesRegistry, buildPreviewFromSummary, caseCatalogLabel } from "@/components/cases-registry";
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
@@ -2148,6 +2148,8 @@ export function AdminCabinet() {
 
           <CaseChatPanel
             messages={messages}
+            clientName={detail.client.full_name ?? null}
+            caseLabel={caseCatalogLabel(detail.id)}
             maxLinked={Boolean(detail.client.max_linked)}
             maxUserId={detail.client.max_user_id ?? null}
             maxBusinessUrl={detail.channels.max_ops_bot_url ?? detail.channels.max_reply_url ?? null}

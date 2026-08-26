@@ -1,4 +1,4 @@
-"""Подсказки ответов сотруднику: DeepSeek в Yandex AI Studio, без ПДн."""
+"""Подсказки ответов сотруднику: DeepSeek в Yandex AI Studio."""
 
 from __future__ import annotations
 
@@ -13,13 +13,54 @@ SYSTEM = f"""Ты помощник сотрудника сервиса «Про�
 
 {POSITION_SHORT}
 
-Сгенерируй 3 коротких варианта ответа клиенту в MAX (без ПДн, без обещаний перерасчёта).
+Сгенерируй 3 коротких варианта ответа клиенту в MAX.
 Формат строго:
 1) ...
 2) ...
 3) ...
 Каждый вариант — 1–2 предложения на русском.
+
+Обязательно:
+- в КАЖДОМ варианте обратись к человеку по имени/отчеству из поля «Обращение»
+  (например: «Здравствуйте, Иван Иванович!» или «Иван Иванович, …»);
+- если обращение «Клиент» — начни с «Здравствуйте,» без выдуманного имени;
+- без телефона, e-mail, СНИЛС, номера дела, без обещаний перерасчёта и сумм.
 """
+
+
+def client_salutation(full_name: str | None) -> str:
+    """Имя + отчество для обращения; без фамилии, если есть полное ФИО."""
+    parts = [p for p in re.split(r"\s+", (full_name or "").strip()) if p]
+    if len(parts) >= 3:
+        return f"{parts[1]} {parts[2]}"
+    if len(parts) == 2:
+        # Фамилия Имя → обращение по имени
+        return parts[1]
+    if len(parts) == 1:
+        return parts[0]
+    return "Клиент"
+
+
+def _ensure_salutation(text: str, salutation: str) -> str:
+    """Если модель забыла имя — аккуратно добавить обращение в начало."""
+    body = (text or "").strip()
+    if not body:
+        return body
+    if salutation == "Клиент":
+        if re.match(r"(?i)^здравствуйте\b", body):
+            return body
+        return f"Здравствуйте! {body}"
+    # Уже есть имя или имя+отчество в тексте
+    tokens = [t for t in re.split(r"\s+", salutation) if t]
+    if tokens and all(re.search(rf"(?i)\b{re.escape(t)}\b", body) for t in tokens):
+        return body
+    if re.match(r"(?i)^здравствуйте\b", body):
+        # «Здравствуйте! …» → «Здравствуйте, Иван Иванович! …»
+        rest = re.sub(r"(?i)^здравствуйте\s*[,!]?\s*", "", body).strip()
+        if rest:
+            return f"Здравствуйте, {salutation}! {rest}"
+        return f"Здравствуйте, {salutation}!"
+    return f"{salutation}, {body[0].lower() + body[1:] if body else body}"
 
 
 def suggest_staff_replies(
@@ -27,11 +68,13 @@ def suggest_staff_replies(
     messages: list[dict[str, Any]],
     pipeline_status: str | None = None,
     b2c_status: str | None = None,
+    client_name: str | None = None,
 ) -> list[str]:
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         return []
 
+    salutation = client_salutation(client_name)
     lines: list[str] = []
     for row in messages[-12:]:
         kind = str(row.get("author_kind") or "unknown")
@@ -43,8 +86,9 @@ def suggest_staff_replies(
         lines.append("(история пуста — предложи вежливое первое сообщение)")
 
     user = (
+        f"Обращение к клиенту (обязательно в каждом варианте): {salutation}\n"
         f"Этап дела: pipeline={pipeline_status or '—'}, b2c={b2c_status or '—'}\n"
-        f"Лента (обезличено):\n" + "\n".join(lines)
+        f"Лента (без ПДн в тексте):\n" + "\n".join(lines)
     )
     try:
         raw = llm.chat(system=SYSTEM, user=user, temperature=0.4)
@@ -53,17 +97,16 @@ def suggest_staff_replies(
 
     out: list[str] = []
     for m in re.finditer(r"^\s*\d+[).]\s*(.+)$", raw or "", re.M):
-        text = m.group(1).strip().strip("«»\"'")
+        text = _ensure_salutation(m.group(1).strip().strip("«»\"'"), salutation)
         if text:
             out.append(text[:400])
         if len(out) >= 3:
             break
     if not out and (raw or "").strip():
-        # fallback: split by newlines
         for line in (raw or "").splitlines():
             t = line.strip().lstrip("1234567890). ").strip()
             if len(t) > 12:
-                out.append(t[:400])
+                out.append(_ensure_salutation(t, salutation)[:400])
             if len(out) >= 3:
                 break
     return out
