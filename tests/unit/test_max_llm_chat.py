@@ -43,6 +43,9 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "свободн" in low
     assert "остановил" in low
     assert "специалист" in low
+    assert "этот чат" in low
+    assert "электронн" in low or "трудов" in low
+    assert "справка" in low
 
 
 def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:
