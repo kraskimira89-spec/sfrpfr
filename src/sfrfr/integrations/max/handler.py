@@ -31,7 +31,7 @@ from sfrfr.integrations.max.intake import (
     ILS_HOWTO_TEXT,
     OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
-    UPLOAD_BLOCKED_TEXT,
+    UPLOAD_ACCEPTED_TEXT,
     WELCOME_TEXT,
     cabinet_url_for_case,
     device_keyboard,
@@ -1020,7 +1020,10 @@ def _handle_intake_callback(
 
     if kind == "docs_info" or (kind == "docs" and value == "menu"):
         case_id = intake.case_id
-        cabinet_url = cabinet_url_for_case(case_id) if case_id else get_settings().cabinet_public_url
+        if case_id:
+            cabinet_url = cabinet_url_for_case(case_id)
+        else:
+            cabinet_url = get_settings().cabinet_public_url
         _reply(
             bot,
             user_id=user_id,
