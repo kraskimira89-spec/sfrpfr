@@ -1,0 +1,48 @@
+{
+  "cases": {
+    "af953158-76ec-4c75-831f-b979b0d2277d": {
+      "case_id": "af953158-76ec-4c75-831f-b979b0d2277d",
+      "client_name": "MAX user 21",
+      "snils_masked": "***-***-*** **",
+      "consent_given": false,
+      "ctx": {
+        "case_id": "af953158-76ec-4c75-831f-b979b0d2277d",
+        "status": "intake",
+        "client_name": "MAX user 21",
+        "max_user_id": null,
+        "max_chat_id": null,
+        "document_paths": [],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": null,
+        "error": null
+      }
+    },
+    "b291adf1-2168-4033-b3ac-8c0d4c36e741": {
+      "case_id": "b291adf1-2168-4033-b3ac-8c0d4c36e741",
+      "client_name": "MAX user 21",
+      "snils_masked": "***-***-*** **",
+      "consent_given": false,
+      "ctx": {
+        "case_id": "b291adf1-2168-4033-b3ac-8c0d4c36e741",
+        "status": "intake",
+        "client_name": "MAX user 21",
+        "max_user_id": "21",
+        "max_chat_id": "42",
+        "document_paths": [],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": null,
+        "error": null
+      }
+    }
+  }
+}
