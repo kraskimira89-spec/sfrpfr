@@ -42,39 +42,25 @@ def notification_channel_links(
     case_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    Две ссылки (кабинет + MAX); порядок по предпочтению канала.
-    Не блокирует другой канал — только порядок CTA.
+    CTA уведомления: кабинет только на сайте.
+    preferred_channel / max_linked сохранены для совместимости API (на порядок ссылок
+    мини-приложения больше не влияют).
     """
-    settings = get_settings()
+    _ = preferred_channel, max_linked
     cabinet = cabinet_case_url(case_id)
-
-    max_url = settings.max_public_bot_url
-    miniapp = settings.max_miniapp_url.rstrip("/") + "/"
-    if case_id:
-        miniapp = f"{miniapp}?case={case_id}" if "?" not in miniapp else f"{miniapp}&case={case_id}"
-
     links = [
         {
             "channel": "web_cabinet",
-            "label": "Веб-кабинет",
+            "label": "Кабинет на сайте",
             "url": cabinet,
-            "copy": "В браузере — удобнее с компьютера и большим экраном",
-        },
-        {
-            "channel": "max_miniapp",
-            "label": "Мини-приложение MAX",
-            "url": miniapp if max_linked else max_url,
-            "copy": "В MAX — быстро из мессенджера",
-            "bot_url": max_url,
+            "copy": "Документы, оплата и статус дела — в личном кабинете на сайте",
         },
     ]
     preferred = preferred_channel or "unset"
-    if preferred == "max_miniapp":
-        links = list(reversed(links))
     return {
         "preferred_channel": preferred,
         "links": links,
-        "note": "Оба варианта: одни и те же документы и статус дела",
+        "note": "Клиентский кабинет — только сайт; в MAX — подсказки и связь",
         "warning": (
             "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
             "Решение принимает СФР. Результат не гарантирован."

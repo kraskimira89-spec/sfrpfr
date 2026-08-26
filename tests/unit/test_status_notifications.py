@@ -27,7 +27,7 @@ def test_notification_links_use_cases_path() -> None:
     assert payload["links"][0]["channel"] == "web_cabinet"
 
 
-def test_status_message_has_two_links_preferred_max_first() -> None:
+def test_status_message_website_cabinet_only() -> None:
     text = format_status_change_message(
         status_value="human_review",
         preferred_channel="max_miniapp",
@@ -35,9 +35,10 @@ def test_status_message_has_two_links_preferred_max_first() -> None:
         case_id="11111111-2222-3333-4444-555555555555",
     )
     assert "На проверке специалиста" in text
-    assert "Мини-приложение MAX" in text
-    assert "Веб-кабинет" in text
-    assert text.index("Мини-приложение MAX") < text.index("Веб-кабинет")
+    assert "Кабинет на сайте" in text
+    assert "Мини-приложение MAX" not in text
+    assert "Веб-кабинет" not in text
+    assert text.count("http") >= 1
 
 
 def test_shared_status_labels_payload() -> None:

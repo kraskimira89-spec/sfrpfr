@@ -38,16 +38,16 @@ def inline_link_keyboard(text: str, url: str) -> list[dict[str, Any]]:
 
 
 def inline_channel_choice_keyboard(*, app_url: str, cabinet_url: str) -> list[dict[str, Any]]:
-    """Две ссылки после входа: приложение MAX и веб-интерфейс."""
-    from sfrfr.security.login_otp import WORK_IN_APP_LABEL, WORK_IN_INTERFACE_LABEL
+    """После входа — только веб-кабинет (кабинет в MAX снят). app_url игнорируется."""
+    from sfrfr.integrations.max.intake import OPEN_CABINET_LABEL
 
+    url = (cabinet_url or app_url or "").strip()
     return [
         {
             "type": "inline_keyboard",
             "payload": {
                 "buttons": [
-                    [{"type": "link", "text": WORK_IN_APP_LABEL, "url": app_url}],
-                    [{"type": "link", "text": WORK_IN_INTERFACE_LABEL, "url": cabinet_url}],
+                    [{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}],
                 ],
             },
         }

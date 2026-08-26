@@ -23,8 +23,7 @@ from sfrfr.integrations.max.intake import (
     EMP_CONTINUE_LABEL,
     ILS_GOT_LABEL,
     ILS_MFC_LABEL,
-    OPEN_CABINET_MAX_LABEL,
-    OPEN_CABINET_WEB_LABEL,
+    OPEN_CABINET_LABEL,
     OPEN_GOSUSLUGI_LABEL,
     RESTART_LABEL,
 )
@@ -58,8 +57,8 @@ CALLBACK_LABELS: dict[str, str] = {
     "intake:emp:partial": "Часть документов",
     "intake:emp:no": "Нет",
     "intake:emp_guide:done": EMP_CONTINUE_LABEL,
-    "intake:device:max": "С телефона в MAX",
-    "intake:device:web": "С компьютера в браузере",
+    "intake:device:max": "С телефона",
+    "intake:device:web": "С компьютера",
     "intake:device:help": "Нужна помощь",
     "intake:docs_info": DOCS_INFO_LABEL,
     "intake:docs:base": DOCS_BASE_LABEL,
@@ -175,7 +174,7 @@ def keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str
     # link-кнопки кабинета тоже полезны в ленте
     extra = []
     for label in labels:
-        if label in {OPEN_CABINET_MAX_LABEL, OPEN_CABINET_WEB_LABEL, DOCS_ARTICLE_LABEL}:
+        if label in {OPEN_CABINET_LABEL, DOCS_ARTICLE_LABEL}:
             extra.append(label)
     return [x for x in labels if x]
 

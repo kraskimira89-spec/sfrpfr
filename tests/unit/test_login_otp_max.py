@@ -80,21 +80,22 @@ def test_unified_login_terms() -> None:
 
 def test_channel_choice_after_login() -> None:
     from sfrfr.integrations.max.client import inline_channel_choice_keyboard
-    from sfrfr.security.login_otp import (
-        WORK_IN_APP_LABEL,
-        WORK_IN_INTERFACE_LABEL,
-        channel_choice_after_login_message,
-    )
+    from sfrfr.integrations.max.intake import OPEN_CABINET_LABEL
+    from sfrfr.security.login_otp import channel_choice_after_login_message
 
     text = channel_choice_after_login_message()
     assert "Вход выполнен" in text
+    assert "сайте" in text.lower()
+    assert "кабинет в max" not in text.lower()
+    cabinet = "https://cabinet.proverkastaza.ru/?auth=max&t=1"
     kb = inline_channel_choice_keyboard(
         app_url="https://example.com/app/",
-        cabinet_url="https://example.com/cabinet/?auth=max&t=1",
+        cabinet_url=cabinet,
     )
     buttons = kb[0]["payload"]["buttons"]
-    labels = {btn[0]["text"] for btn in buttons}
-    assert labels == {WORK_IN_APP_LABEL, WORK_IN_INTERFACE_LABEL}
+    assert len(buttons) == 1
+    assert buttons[0][0]["text"] == OPEN_CABINET_LABEL
+    assert buttons[0][0]["url"] == cabinet
     text = confirm_web_login_message(code="123456")
     assert "123456" in text
     assert "кнопк" in text.lower()

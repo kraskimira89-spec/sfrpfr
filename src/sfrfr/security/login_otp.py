@@ -31,8 +31,9 @@ SHOW_CODE_BUTTON_LABEL = "Показать код здесь"
 GET_CODE_IN_BROWSER_LABEL = "Получить код для входа"
 GET_CODE_CALLBACK = "get_login_code"
 OPEN_CABINET_BUTTON_LABEL = "Открыть страницу входа"
-WORK_IN_APP_LABEL = "Работать в приложении"
-WORK_IN_INTERFACE_LABEL = "Работать в интерфейсе"
+# Устар.: раньше выбор «приложение MAX» vs «веб»; кабинет клиента — только сайт.
+WORK_IN_APP_LABEL = "Кабинет на сайте"
+WORK_IN_INTERFACE_LABEL = "Кабинет на сайте"
 
 
 def get_code_in_browser_url(*, mode: str = "login") -> str:
@@ -80,7 +81,10 @@ def confirm_web_login_message(*, code: str | None = None) -> str:
 
 
 def channel_choice_after_login_message() -> str:
-    return "Вход выполнен. Выберите, где работать:"
+    return (
+        "Вход выполнен. Документы и дело — в личном кабинете на сайте. "
+        "В этом чате MAX — подсказки и связь."
+    )
 
 
 def pair_code_prompt_message(*, pair_code: str) -> str:

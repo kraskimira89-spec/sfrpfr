@@ -4,4 +4,16 @@
 - Сценарий кнопок: [ТЗ-20](../specs/20-max-private-chat-funnel.md).
 - LLM-контур: [ТЗ-26](../specs/26-max-llm-chat.md).
 - Первое сообщение оператора: [AMO](../AMO/playbook-operator-first-message-max.md).
-- **Архитектура MAX-first + secure pages (план):** [../architecture/max-first-secure-pages.md](../architecture/max-first-secure-pages.md).
+
+## Роли (канон с 2026-08-26)
+
+| Канал | Роль |
+|-------|------|
+| Личный чат MAX | Диагностика кнопками, подсказки, «Позвать специалиста», код входа; вложения принимаем |
+| Личный кабинет **на сайте** | Согласие, документы (предпочтительно), оплата, статус, результат (`CABINET_PUBLIC_URL`) |
+
+**Канон документов:** предпочтительно кабинет на сайте; если файл в чат — приняли, специалист увидит.  
+**Не направлять** в «кабинет MAX» / mini-app как в личный кабинет.  
+Кнопка в боте: **«Кабинет на сайте»** → веб-URL кабинета.
+
+**Архитектура MAX-first + secure pages (план):** [../architecture/max-first-secure-pages.md](../architecture/max-first-secure-pages.md).

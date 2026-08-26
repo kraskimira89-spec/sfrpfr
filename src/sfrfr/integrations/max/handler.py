@@ -33,7 +33,7 @@ from sfrfr.integrations.max.intake import (
     SUMMARY_TEXT,
     UPLOAD_BLOCKED_TEXT,
     WELCOME_TEXT,
-    cabinet_urls_for_case,
+    cabinet_url_for_case,
     device_keyboard,
     device_question,
     docs_info_keyboard,
@@ -686,21 +686,50 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
         logging.getLogger(__name__).exception("max_operator_amocrm_failed max=%s", user_id)
 
 
+def _fanout_ops_text(text: str) -> None:
+    """Разослать короткое ops-уведомление менеджерам / чатам / каналу специалистов."""
+    from sfrfr.core.config import get_settings
+    from sfrfr.db.staff_roles import list_manager_max_user_ids
+    from sfrfr.integrations.max.ops_bot import get_ops_bot
+
+    settings = get_settings()
+    bot = get_ops_bot()
+    if not bot.available:
+        return
+    manager_ids = list_manager_max_user_ids(
+        extra_ids=settings.staff_login_approver_max_user_ids,
+    )
+    chat_ids = [
+        p.strip()
+        for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
+        if p.strip()
+    ]
+    team_channel = (settings.max_specialists_channel_chat_id or "").strip()
+    for mid in manager_ids:
+        try:
+            bot.send_message(text=text, user_id=str(mid))
+        except Exception:
+            continue
+    for cid in chat_ids:
+        try:
+            bot.send_message(text=text, chat_id=cid)
+        except Exception:
+            continue
+    if team_channel:
+        try:
+            bot.send_message(text=text, chat_id=team_channel)
+        except Exception:
+            pass
+
+
 def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None) -> None:
     """Ops-бот: клиент ждёт ответа в MAX (не ссылка на бота)."""
     try:
-        from sfrfr.core.config import get_settings
-        from sfrfr.db.staff_roles import list_manager_max_user_ids
         from sfrfr.integrations.amocrm.urls import (
             admin_case_max_reply_url,
             max_operator_reply_hint,
         )
-        from sfrfr.integrations.max.ops_bot import get_ops_bot
 
-        settings = get_settings()
-        bot = get_ops_bot()
-        if not bot.available:
-            return
         admin = admin_case_max_reply_url(case_id) or ""
         text = (
             "Клиент ждёт ответа в MAX\n"
@@ -710,34 +739,88 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
         )
         if crm_url:
             text += f"amo: {crm_url}\n"
-        manager_ids = list_manager_max_user_ids(
-            extra_ids=settings.staff_login_approver_max_user_ids,
-        )
-        chat_ids = [
-            p.strip()
-            for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
-            if p.strip()
-        ]
-        team_channel = (settings.max_specialists_channel_chat_id or "").strip()
-        for mid in manager_ids:
-            try:
-                bot.send_message(text=text, user_id=str(mid))
-            except Exception:
-                continue
-        for cid in chat_ids:
-            try:
-                bot.send_message(text=text, chat_id=cid)
-            except Exception:
-                continue
-        if team_channel:
-            try:
-                bot.send_message(text=text, chat_id=team_channel)
-            except Exception:
-                pass
+        _fanout_ops_text(text)
     except Exception:
         import logging
 
-        logging.getLogger(__name__).exception("max_ops_operator_notify_failed max=%s", user_id)
+        logging.getLogger(__name__).exception("max_operator_ops_notify_failed max=%s", user_id)
+
+
+def _notify_staff_chat_docs(
+    *,
+    user_id: str,
+    case_id: str | None,
+    filenames: list[str],
+) -> None:
+    """Вложение в чат MAX принято → очередь сотруднику (ops + checklist + amo)."""
+    if not case_id:
+        return
+    label = filenames[0] if filenames else "файл"
+    extra = f" (+{len(filenames) - 1})" if len(filenames) > 1 else ""
+    try:
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.services.finance_automation import ensure_staff_task
+
+        ensure_staff_task(
+            CaseRepository(),
+            case_id,
+            title="Документ из чата MAX",
+            item_type="document",
+            due_at=None,
+            actor_id=None,
+            note=f"Вложение в чат: {label}{extra}",
+        )
+    except Exception:
+        logging.getLogger(__name__).info(
+            "max_chat_docs staff_task skipped case=%s", (case_id or "")[:8], exc_info=True
+        )
+    try:
+        from sfrfr.db.session import get_supabase_client
+        from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
+
+        rows = (
+            get_supabase_client()
+            .table("cases")
+            .select(
+                "id,b2c_status,pipeline_status,crm_external_id,"
+                "clients(full_name,phone,email,preferred_channel,max_user_id)"
+            )
+            .eq("id", case_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if rows:
+            amo = push_case_to_amocrm(rows[0], task="max_chat_docs")
+            lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
+            if lead_id and amo.get("ok"):
+                persist_crm_external_id(case_id, str(lead_id))
+            crm_url = amo.get("crm_url") if isinstance(amo, dict) else None
+        else:
+            crm_url = None
+    except Exception:
+        logging.getLogger(__name__).info(
+            "max_chat_docs amo skipped case=%s", (case_id or "")[:8], exc_info=True
+        )
+        crm_url = None
+    try:
+        from sfrfr.integrations.amocrm.urls import admin_case_max_reply_url
+
+        admin = admin_case_max_reply_url(case_id) or ""
+        text = (
+            "Клиент прислал документ в чат MAX\n"
+            f"Файл: {label}{extra}\n"
+            f"MAX user_id: {user_id}\n"
+            f"Дело: {admin}\n"
+        )
+        if crm_url:
+            text += f"amo: {crm_url}\n"
+        _fanout_ops_text(text)
+    except Exception:
+        logging.getLogger(__name__).info(
+            "max_chat_docs ops notify skipped case=%s", (case_id or "")[:8], exc_info=True
+        )
 
 
 def _handle_operator(
@@ -785,11 +868,10 @@ def _show_summary(
     intake.status = "completed"
     intake.completed_at = datetime.now(UTC).isoformat()
     get_intake_store().save(intake)
-    max_url, web_url = cabinet_urls_for_case(case_id)
+    cabinet_url = cabinet_url_for_case(case_id)
     attachments = summary_keyboard(
         device=intake.device_preference,
-        cabinet_max_url=max_url,
-        cabinet_web_url=web_url,
+        cabinet_url=cabinet_url,
     )
     _reply(
         bot,
@@ -938,19 +1020,13 @@ def _handle_intake_callback(
 
     if kind == "docs_info" or (kind == "docs" and value == "menu"):
         case_id = intake.case_id
-        if case_id:
-            max_url, web_url = cabinet_urls_for_case(case_id)
-        else:
-            max_url = get_settings().max_miniapp_url or get_settings().cabinet_public_url
-            web_url = get_settings().cabinet_public_url
+        cabinet_url = cabinet_url_for_case(case_id) if case_id else get_settings().cabinet_public_url
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=DOCS_INFO_TEXT,
-            attachments=docs_info_keyboard(
-                cabinet_max_url=max_url, cabinet_web_url=web_url
-            ),
+            attachments=docs_info_keyboard(cabinet_url=cabinet_url),
         )
         return MaxHandleResult(ok=True, action="docs_info", case_id=case_id, reply=DOCS_INFO_TEXT)
 
@@ -1732,11 +1808,9 @@ def _send_open_cabinet_link(
     chat_id: int | str | None,
     contact: str,
 ) -> None:
-    settings = get_settings()
     issued = issue_login_link(contact=contact, max_user_id=str(user_id))
-    app_url = (settings.max_miniapp_url or settings.max_chat_url).rstrip("/") + "/"
     attachments = inline_channel_choice_keyboard(
-        app_url=app_url,
+        app_url=issued.login_url,
         cabinet_url=issued.login_url,
     )
     _reply(
@@ -1894,14 +1968,13 @@ def _send_confirm_web_login(
 
 
 def _docs_request_text(*, has_docs: bool) -> str:
-    if get_settings().app_env.strip().lower() == "production":
-        return (
-            "Загрузите документы в защищённом кабинете после подтверждения согласия. "
-            "Через сообщения MAX документы не принимаются."
-        )
+    preferred = (
+        "Предпочтительно загрузите документы в личный кабинет на сайте "
+        "(после согласия). Если пришлёте файл сюда — примем, специалист увидит."
+    )
     if has_docs:
-        return "Пришлите следующий документ (PDF/JPG/PNG) или /run."
-    return "Пришлите выписку ИЛС (PDF/JPG/PNG)."
+        return f"Можно прислать следующий документ (PDF/JPG/PNG) или /run. {preferred}"
+    return f"Можно прислать выписку ИЛС (PDF/JPG/PNG) или открыть кабинет. {preferred}"
 
 
 def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
@@ -2089,7 +2162,7 @@ def handle_max_update(
     intake:* — цели и вопросы
     /login — вход в веб-кабинет по коду
     /cabinet /status /documents /help — меню вернувшегося клиента
-    вложения в production — отказ + CTA кабинета
+    вложения — принимаем + CTA кабинета на сайте (предпочтительно)
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -2296,9 +2369,10 @@ def handle_max_update(
                 ticket_id=pending.ticket_id,
             )
         reply = (
-            "Команды: /start — диагностика, /cabinet — кабинет, "
+            "Команды: /start — диагностика, /cabinet — кабинет на сайте, "
             "/documents — какие документы нужны, /status — статус дела, "
-            f"/login — вход с компьютера. Всегда можно позвать специалиста. {POSITION_SHORT}"
+            f"/login — вход в кабинет с компьютера. Всегда можно позвать специалиста. "
+            f"{POSITION_SHORT}"
         )
         _reply(
             bot,
@@ -2320,18 +2394,18 @@ def handle_max_update(
         case_id = _ensure_case_for_intake(
             user_id=user_id, chat_id=chat_id, intake=intake, store=store
         )
-        max_url, web_url = cabinet_urls_for_case(case_id)
+        cabinet_url = cabinet_url_for_case(case_id)
         reply = (
-            "Откройте личный кабинет для документов. "
-            "В личном кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
-            f"{POSITION_SHORT}"
+            "Откройте личный кабинет на сайте для документов. "
+            "В кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
+            f"В этом чате MAX — подсказки и связь; кабинет — только на сайте. {POSITION_SHORT}"
         )
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=reply,
-            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
+            attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
         )
         return MaxHandleResult(ok=True, action="cabinet_links", case_id=case_id, reply=reply)
 
@@ -2346,19 +2420,17 @@ def handle_max_update(
         docs_case_id: str | None = (intake.case_id if intake else None) or (
             record.case_id if record else None
         )
-        if docs_case_id:
-            max_url, web_url = cabinet_urls_for_case(docs_case_id)
-        else:
-            max_url = get_settings().max_miniapp_url or get_settings().cabinet_public_url
-            web_url = get_settings().cabinet_public_url
+        cabinet_url = (
+            cabinet_url_for_case(docs_case_id)
+            if docs_case_id
+            else get_settings().cabinet_public_url
+        )
         _reply(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             text=reply,
-            attachments=docs_info_keyboard(
-                cabinet_max_url=max_url, cabinet_web_url=web_url
-            ),
+            attachments=docs_info_keyboard(cabinet_url=cabinet_url),
         )
         return MaxHandleResult(
             ok=True, action="docs_request", case_id=docs_case_id, reply=reply
@@ -2407,9 +2479,8 @@ def handle_max_update(
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = (
-                "Сначала загрузите документ в защищённом кабинете."
-                if get_settings().app_env.strip().lower() == "production"
-                else "Сначала пришлите документ."
+                "Сначала загрузите документ в кабинет на сайте "
+                "или пришлите файл сюда в чат."
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
@@ -2427,61 +2498,52 @@ def handle_max_update(
     file_name = update.get("file_name")
     file_bytes = update.get("file_bytes")
     downloads = extract_downloadable_files(update)
-    is_production = get_settings().app_env.strip().lower() == "production"
     max_files = _collect_max_files(update)
     receipt_handled = _try_max_payment_receipt(
         bot, user_id=user_id, chat_id=chat_id, files=max_files
     )
     if receipt_handled is not None:
         return receipt_handled
-    if is_production and (isinstance(file_bytes, (bytes, bytearray)) or bool(downloads)):
-        case_id = record.case_id
-        attempt_names: list[str] = []
-        if isinstance(file_name, str):
-            attempt_names.append(file_name)
-        attempt_names.extend(name for name, _url in downloads)
-        label = attempt_names[0] if attempt_names else "файл"
-        _append_client_case_message(
-            case_id=case_id or _case_id_for_max_user(user_id),
-            max_user_id=user_id,
-            text=f"[Документ] попытка отправить в чат: {label}",
-        )
-        max_url, web_url = cabinet_urls_for_case(case_id)
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=UPLOAD_BLOCKED_TEXT,
-            attachments=upload_blocked_keyboard(cabinet_max_url=max_url, cabinet_web_url=web_url),
-            case_id=case_id,
-        )
-        return MaxHandleResult(
-            ok=False,
-            action="upload_blocked",
-            case_id=case_id,
-            reply=UPLOAD_BLOCKED_TEXT,
-        )
-    if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
-        fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
-        reply = f"Файл принят ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
-        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-        return MaxHandleResult(ok=True, action="upload", case_id=record.case_id, reply=reply)
-
-    if downloads:
-        names: list[str] = []
+    # Канон: предпочтительно кабинет на сайте; вложение в чате — принимаем.
+    if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
         fresh = record
-        for name, url in downloads:
-            try:
-                data = download_file(url)
+        names: list[str] = []
+        if max_files:
+            for name, data in max_files:
                 fresh = _ingest_bytes(store, fresh, name, data)
                 names.append(name)
-            except Exception:
-                continue
+        elif isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
+            fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
+            names.append(file_name)
+        else:
+            for name, url in downloads:
+                try:
+                    data = download_file(url)
+                    fresh = _ingest_bytes(store, fresh, name, data)
+                    names.append(name)
+                except Exception:
+                    continue
         if names:
-            reply = f"Файлы приняты ({len(fresh.ctx.document_paths)}). Пришлите ещё или /run."
-            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+            case_id = fresh.case_id
+            _notify_staff_chat_docs(user_id=user_id, case_id=case_id, filenames=names)
+            cabinet_url = cabinet_url_for_case(case_id)
+            reply = (
+                f"{UPLOAD_ACCEPTED_TEXT}\n"
+                f"В деле файлов: {len(fresh.ctx.document_paths)}."
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
+                case_id=case_id,
+            )
             return MaxHandleResult(
-                ok=True, action="upload_url", case_id=record.case_id, reply=reply
+                ok=True,
+                action="upload",
+                case_id=case_id,
+                reply=reply,
             )
 
     # Свободный текст: DeepSeek (Yandex AI Studio) + кнопки шага / fallback nudge (ТЗ-26).

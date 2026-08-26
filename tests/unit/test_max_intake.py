@@ -63,6 +63,7 @@ def _setup(tmp_path: Path, monkeypatch) -> _SilentBot:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     reset_intake_store(tmp_path / "max_intake.json")
@@ -102,6 +103,7 @@ def test_repeat_start_keeps_started_intake(tmp_path: Path, monkeypatch) -> None:
 def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("MAX_MINIAPP_URL", "https://proverkastaza.ru/app/")
+    monkeypatch.setenv("CABINET_PUBLIC_URL", "https://cabinet.proverkastaza.ru")
     get_settings.cache_clear()
 
     handle_max_update(_msg(9, "/start"), bot=bot)
@@ -127,7 +129,39 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
     assert last_att
     blob = str(last_att)
     assert case_id in blob
+    assert "cabinet.proverkastaza.ru" in blob
+    assert "Кабинет на сайте" in blob
+    assert "В MAX — кабинет" not in blob
+    assert "/app/" not in blob
     get_settings.cache_clear()
+
+
+def test_summary_and_upload_keyboards_website_only() -> None:
+    from sfrfr.integrations.max.intake import (
+        OPEN_CABINET_LABEL,
+        SUMMARY_TEXT,
+        UPLOAD_BLOCKED_TEXT,
+        cabinet_url_for_case,
+        summary_keyboard,
+        upload_blocked_keyboard,
+    )
+
+    url = cabinet_url_for_case("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+    assert url.startswith("https://cabinet.proverkastaza.ru")
+    assert "/app/" not in url
+    sk = summary_keyboard(device="max", cabinet_url=url)
+    uk = upload_blocked_keyboard(cabinet_url=url)
+    for kb in (sk, uk):
+        labels = [btn["text"] for row in kb[0]["payload"]["buttons"] for btn in row]
+        assert OPEN_CABINET_LABEL in labels
+        assert "В MAX — кабинет" not in labels
+        assert "В браузере — кабинет" not in labels
+        links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
+        assert links and all("cabinet." in u or "proverkastaza.ru" in u for u in links)
+        assert all("/app/" not in u for u in links)
+    assert "сайте" in SUMMARY_TEXT.lower()
+    assert "сайте" in UPLOAD_BLOCKED_TEXT.lower()
+    assert "кабинет в max" not in SUMMARY_TEXT.lower()
 
 
 def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
@@ -210,10 +244,14 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
+def test_upload_accepted_in_production(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
     get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._notify_staff_chat_docs",
+        lambda **_k: None,
+    )
 
     handle_max_update(_msg(12, "/start"), bot=bot)
     for payload in (
@@ -224,7 +262,7 @@ def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
     ):
         handle_max_update(_cb(12, payload), bot=bot)
 
-    blocked = handle_max_update(
+    accepted = handle_max_update(
         {
             "message": {
                 "sender": {"user_id": 12},
@@ -236,10 +274,22 @@ def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
         },
         bot=bot,
     )
-    assert blocked.action == "upload_blocked"
-    assert blocked.ok is False
+    assert accepted.action == "upload"
+    assert accepted.ok is True
+    assert "приняли" in (accepted.reply or "").lower() or "принят" in (accepted.reply or "").lower()
+    assert "кабинет" in (accepted.reply or "").lower()
     assert bot.attachments[-1]
     get_settings.cache_clear()
+
+
+def test_summary_keyboard_single_web_cabinet() -> None:
+    from sfrfr.integrations.max.intake import OPEN_CABINET_LABEL, summary_keyboard
+
+    kb = summary_keyboard(device="max", cabinet_url="https://cabinet.example/?case=1")
+    blob = str(kb)
+    assert OPEN_CABINET_LABEL in blob
+    assert "В MAX — кабинет" not in blob
+    assert blob.count("https://cabinet.example") == 1
 
 
 def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> None:
@@ -263,6 +313,8 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
 
 def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
+    get_settings.cache_clear()
     # Есть дело (как после лида с сайта), но диагностика ещё не начата.
     case = get_case_store().create(client_name="Тест", snils_masked="***")
     get_case_store().bind_max(case.case_id, max_user_id="22")
@@ -283,6 +335,8 @@ def test_free_text_after_start_nudges_without_full_welcome(
     tmp_path: Path, monkeypatch
 ) -> None:
     bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
+    get_settings.cache_clear()
     handle_max_update(_msg(23, "/start"), bot=bot)
     result = handle_max_update(_msg(23, "А можно просто спросить про стаж?"), bot=bot)
     assert result.action == "free_text_nudge"
@@ -350,5 +404,7 @@ def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
 
     done = handle_max_update(_cb(30, "intake:ils_guide:done"), bot=bot)
     assert done.action == "intake_ils"
-    assert done.reply == "Как вам удобнее загрузить документы?"
+    assert done.reply == (
+        "Как вам удобнее открыть кабинет на сайте — с телефона или с компьютера?"
+    )
     get_settings.cache_clear()

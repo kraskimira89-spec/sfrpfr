@@ -44,9 +44,10 @@ WELCOME_TEXT = (
     "Я бот сервиса «Проверка стажа». Здесь можно:\n"
     "• коротко уточнить ситуацию — за себя или хотите помочь близкому;\n"
     "• понять, какие документы нужны для сверки стажа и ИЛС;\n"
-    "• перейти в личный кабинет и безопасно загрузить файлы;\n"
+    "• открыть личный кабинет на сайте и безопасно загрузить файлы;\n"
     "• позвать специалиста в этот же чат.\n\n"
-    "Сканы и трудовую книжку в сообщения не присылайте — только через кабинет.\n\n"
+    "Документы предпочтительно загружайте в личный кабинет на сайте — так защищённее. "
+    "Если пришлёте файл сюда в чат — примем, специалист увидит.\n\n"
     "Мы проверим Ваши документы, сделаем проекты обращений и план подачи — "
     "расскажем всё по шагам, но подаёте через СФР или Госуслуги вы сами. "
     "Решение принимает СФР.\n\n"
@@ -70,13 +71,17 @@ FALLBACK_MENU_TEXT = (
     "Спасибо за сообщение.\n\n"
     "Сейчас удобнее отвечать кнопками ниже — так мы быстрее поймём ситуацию. "
     "Если хотите поговорить с человеком, нажмите «Позвать специалиста».\n\n"
-    "Сканы и трудовую книжку присылайте только через личный кабинет."
+    "В этом чате MAX — подсказки и связь. "
+    "Документы предпочтительно — в личный кабинет на сайте; "
+    "если пришлёте файл сюда — примем, специалист увидит."
 )
 
 SUMMARY_TEXT = (
     "Поняли. Для начала нужно загрузить доступные документы и сверить их с данными ИЛС. "
-    "В личном кабинете документы передаются защищённо. Это займёт 2–3 минуты. "
-    f"Перед загрузкой потребуется согласие на обработку данных. {POSITION_SHORT}"
+    "Предпочтительно — личный кабинет на сайте: там файлы передаются защищённо "
+    "(после согласия на обработку данных), это займёт 2–3 минуты. "
+    "Если отправите файл сюда в чат — примем, специалист увидит. "
+    f"Кабинет клиента — только на сайте. {POSITION_SHORT}"
 )
 
 DOCS_INFO_TEXT = (
@@ -84,7 +89,8 @@ DOCS_INFO_TEXT = (
     "База: паспорт, СНИЛС, выписка ИЛС с Госуслуг. "
     "Дальше — по кнопкам: полный список, особые периоды, как заказать на Госуслугах, "
     "что делать если документов нет.\n\n"
-    "Файлы загружайте только в личном кабинете, не в этот чат.\n\n"
+    "Предпочтительно загружайте файлы в личный кабинет на сайте — так защищённее. "
+    "Если пришлёте сюда в чат — примем, специалист увидит.\n\n"
     f"{POSITION_SHORT}"
 )
 
@@ -135,7 +141,8 @@ DOCS_GOSUSLUGI_TEXT = (
     "и/или «Справка о размере пенсии».\n"
     "5. «Назначение пенсии» — отдельная услуга, когда наступит право.\n\n"
     "Названия на портале могут чуть меняться — сверяйте на дату заказа.\n"
-    "Готовые файлы — в наш кабинет, не в этот чат."
+    "Готовые файлы предпочтительно — в личный кабинет на сайте; "
+    "если пришлёте сюда — примем."
 )
 
 DOCS_MISSING_TEXT = (
@@ -163,7 +170,8 @@ ILS_HOWTO_TEXT = (
     "4. Сохраните PDF и дату формирования. В выписке также смотрите ИПК "
     "и блок о назначенной пенсии (если пенсия уже есть).\n\n"
     "Если онлайн недоступен — МФЦ или способы на сайте СФР.\n"
-    "Файл загрузите в наш кабинет — не присылайте в этот чат.\n\n"
+    "Файл предпочтительно загрузите в личный кабинет на сайте; "
+    "если пришлёте сюда — примем.\n\n"
     f"{POSITION_SHORT}"
 )
 
@@ -175,7 +183,7 @@ ILS_HOWTO_MFC_TEXT = (
     "3. После подтверждения закажите «Выписку из лицевого счета в СФР».\n\n"
     "Без Госуслуг выписку также можно получить в клиентской службе СФР или МФЦ по паспорту.\n\n"
     "Когда выписка будет — нажмите «Уже получил(а) — дальше». "
-    "Файл загрузите только в личном кабинете сервиса."
+    "Файл предпочтительно — в личный кабинет на сайте; если пришлёте сюда — примем."
 )
 
 EMP_HOWTO_TEXT = (
@@ -186,7 +194,7 @@ EMP_HOWTO_TEXT = (
     "3. Если книжку утратил работодатель — дубликат оформляет он; "
     "если утратили вы — кадры / архивы бывших работодателей / госархив.\n\n"
     "Даже без полного комплекта можно продолжить: загрузите то, что есть, "
-    "в кабинет. Остальное подскажем по шагам.\n\n"
+    "в личный кабинет на сайте. Остальное подскажем по шагам.\n\n"
     f"{POSITION_SHORT}"
 )
 
@@ -198,12 +206,14 @@ OPERATOR_CONFIRM_TEXT = f"Передали запрос специалисту. 
 
 UPLOAD_BLOCKED_TEXT = (
     "Документы через сообщения MAX не принимаются. "
-    "В личном кабинете они передаются защищённо — после согласия на обработку данных. "
-    f"{POSITION_SHORT}"
+    "Загрузите их в личный кабинет на сайте — после согласия на обработку данных. "
+    f"В этом чате — подсказки и связь. {POSITION_SHORT}"
 )
 
-OPEN_CABINET_MAX_LABEL = "В MAX — кабинет"
-OPEN_CABINET_WEB_LABEL = "В браузере — кабинет"
+# Кабинет клиента — только сайт (cabinet.proverkastaza.ru). Mini-app не кабинет.
+OPEN_CABINET_LABEL = "Кабинет на сайте"
+OPEN_CABINET_WEB_LABEL = OPEN_CABINET_LABEL  # совместимость импортов
+OPEN_CABINET_MAX_LABEL = OPEN_CABINET_LABEL  # устар.: раньше «В MAX — кабинет»
 CALL_OPERATOR_LABEL = "Позвать специалиста"
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 DOCS_BASE_LABEL = "Базовый набор"
@@ -502,12 +512,13 @@ def employment_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
 
 
 def device_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
+    # payload intake:device:max|web|help сохранены (совместимость FSM); кабинет — всегда сайт.
     rows: list[list[dict[str, Any]]] = [
-        [{"type": "callback", "text": "С телефона в MAX", "payload": "intake:device:max"}],
+        [{"type": "callback", "text": "С телефона", "payload": "intake:device:max"}],
         [
             {
                 "type": "callback",
-                "text": "С компьютера в браузере",
+                "text": "С компьютера",
                 "payload": "intake:device:web",
             }
         ],
@@ -520,21 +531,21 @@ def device_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
 
 
 def summary_keyboard(
-    *, device: DevicePref | None, cabinet_max_url: str, cabinet_web_url: str
+    *,
+    device: DevicePref | None,
+    cabinet_url: str,
+    cabinet_max_url: str | None = None,
+    cabinet_web_url: str | None = None,
 ) -> list[dict[str, Any]]:
+    """Одна CTA в веб-кабинет. Устар. cabinet_max_url/cabinet_web_url — для совместимости."""
+    url = (cabinet_url or cabinet_web_url or cabinet_max_url or "").strip()
     rows: list[list[dict[str, Any]]] = []
-    if device == "web":
-        rows.append([{"type": "link", "text": OPEN_CABINET_WEB_LABEL, "url": cabinet_web_url}])
-        rows.append([{"type": "link", "text": OPEN_CABINET_MAX_LABEL, "url": cabinet_max_url}])
-    elif device == "help":
+    if device == "help":
         rows.append(
             [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
         )
-        rows.append([{"type": "link", "text": OPEN_CABINET_MAX_LABEL, "url": cabinet_max_url}])
-        rows.append([{"type": "link", "text": OPEN_CABINET_WEB_LABEL, "url": cabinet_web_url}])
-    else:
-        rows.append([{"type": "link", "text": OPEN_CABINET_MAX_LABEL, "url": cabinet_max_url}])
-        rows.append([{"type": "link", "text": OPEN_CABINET_WEB_LABEL, "url": cabinet_web_url}])
+    if url:
+        rows.append([{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}])
     rows.extend(
         [
             [{"type": "callback", "text": DOCS_INFO_LABEL, "payload": "intake:docs_info"}],
@@ -545,21 +556,29 @@ def summary_keyboard(
     return inline_buttons_keyboard(rows)
 
 
-def upload_blocked_keyboard(*, cabinet_max_url: str, cabinet_web_url: str) -> list[dict[str, Any]]:
-    return inline_buttons_keyboard(
-        [
-            [{"type": "link", "text": OPEN_CABINET_MAX_LABEL, "url": cabinet_max_url}],
-            [{"type": "link", "text": OPEN_CABINET_WEB_LABEL, "url": cabinet_web_url}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
-        ]
+def upload_blocked_keyboard(
+    *,
+    cabinet_url: str | None = None,
+    cabinet_max_url: str | None = None,
+    cabinet_web_url: str | None = None,
+) -> list[dict[str, Any]]:
+    url = (cabinet_url or cabinet_web_url or cabinet_max_url or "").strip()
+    rows: list[list[dict[str, Any]]] = []
+    if url:
+        rows.append([{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}])
+    rows.append(
+        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
     )
+    return inline_buttons_keyboard(rows)
 
 
 def docs_info_keyboard(
     *,
+    cabinet_url: str | None = None,
     cabinet_max_url: str | None = None,
     cabinet_web_url: str | None = None,
 ) -> list[dict[str, Any]]:
+    url = (cabinet_url or cabinet_web_url or cabinet_max_url or "").strip() or None
     rows: list[list[dict[str, Any]]] = [
         [{"type": "callback", "text": DOCS_BASE_LABEL, "payload": "intake:docs:base"}],
         [{"type": "callback", "text": DOCS_STAZH_LABEL, "payload": "intake:docs:stazh"}],
@@ -571,14 +590,10 @@ def docs_info_keyboard(
         [{"type": "callback", "text": "Как получить ИЛС", "payload": "intake:docs:ils_howto"}],
         [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
     ]
-    if cabinet_max_url and cabinet_web_url:
+    if url:
         rows.insert(
             -1,
-            [{"type": "link", "text": OPEN_CABINET_MAX_LABEL, "url": cabinet_max_url}],
-        )
-        rows.insert(
-            -1,
-            [{"type": "link", "text": OPEN_CABINET_WEB_LABEL, "url": cabinet_web_url}],
+            [{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}],
         )
     return inline_buttons_keyboard(rows)
 
@@ -616,7 +631,7 @@ def employment_question() -> str:
 
 
 def device_question() -> str:
-    return "Как вам удобнее загрузить документы?"
+    return "Как вам удобнее открыть кабинет на сайте — с телефона или с компьютера?"
 
 
 def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list[dict[str, Any]]]:
@@ -644,13 +659,11 @@ def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list
         hint = device_question()
         keyboard = device_keyboard()
     elif step == "summary":
-        hint = "Можно открыть кабинет или позвать специалиста."
+        hint = "Можно открыть кабинет на сайте или позвать специалиста."
         case_id = intake.case_id if intake else None
-        max_url, web_url = cabinet_urls_for_case(case_id)
+        cabinet_url = cabinet_url_for_case(case_id)
         device = intake.device_preference if intake else None
-        keyboard = summary_keyboard(
-            device=device, cabinet_max_url=max_url, cabinet_web_url=web_url
-        )
+        keyboard = summary_keyboard(device=device, cabinet_url=cabinet_url)
     else:
         hint = "Для кого проверка — за себя или хотите помочь близкому?"
         keyboard = whom_keyboard()
@@ -658,14 +671,19 @@ def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list
     return text, keyboard
 
 
-def cabinet_urls_for_case(case_id: str | None) -> tuple[str, str]:
+def cabinet_url_for_case(case_id: str | None) -> str:
+    """Канонический URL веб-кабинета (единственный клиентский кабинет)."""
     settings = get_settings()
     web = settings.cabinet_public_url.rstrip("/")
-    max_app = (settings.max_miniapp_url or web).rstrip("/")
     if case_id:
-        q = urlencode({"case": case_id})
-        return f"{max_app}?{q}", f"{web}/?{q}"
-    return max_app, web
+        return f"{web}/?{urlencode({'case': case_id})}"
+    return web
+
+
+def cabinet_urls_for_case(case_id: str | None) -> tuple[str, str]:
+    """Совместимость: оба значения — веб-кабинет (кабинет в MAX снят)."""
+    url = cabinet_url_for_case(case_id)
+    return url, url
 
 
 def problem_type_for_goal(goal: Goal | None) -> str:

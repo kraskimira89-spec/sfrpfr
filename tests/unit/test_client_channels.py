@@ -17,14 +17,16 @@ def test_max_link_token_roundtrip() -> None:
     assert verify_max_link_token("a.1.deadbeef") is None
 
 
-def test_notification_links_prefer_max() -> None:
+def test_notification_links_website_cabinet_only() -> None:
     payload = notification_channel_links(
         preferred_channel="max_miniapp",
         max_linked=True,
         case_id="11111111-2222-3333-4444-555555555555",
     )
-    assert payload["links"][0]["channel"] == "max_miniapp"
-    assert "/cases/" in payload["links"][1]["url"]
+    assert len(payload["links"]) == 1
+    assert payload["links"][0]["channel"] == "web_cabinet"
+    assert "Кабинет на сайте" in payload["links"][0]["label"]
+    assert "/cases/" in payload["links"][0]["url"]
     assert "не гарантирован" in payload["warning"].lower() or "СФР" in payload["warning"]
 
 
@@ -34,15 +36,17 @@ def test_notification_links_prefer_web() -> None:
         max_linked=False,
     )
     assert payload["links"][0]["channel"] == "web_cabinet"
+    assert len(payload["links"]) == 1
 
 
-def test_notification_links_unlinked_uses_bot_url() -> None:
+def test_notification_links_no_miniapp_cabinet() -> None:
     payload = notification_channel_links(
         preferred_channel="max_miniapp",
         max_linked=False,
     )
-    max_link = next(item for item in payload["links"] if item["channel"] == "max_miniapp")
-    assert max_link["url"] == max_link["bot_url"]
+    channels = {item["channel"] for item in payload["links"]}
+    assert channels == {"web_cabinet"}
+    assert "miniapp" not in payload["links"][0]["url"]
 
 
 def test_principal_max_only_audit_actor() -> None:
