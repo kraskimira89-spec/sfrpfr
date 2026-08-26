@@ -244,11 +244,14 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
+def test_upload_accepted_in_production(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
     get_settings.cache_clear()
-    monkeypatch.setenv("CABINET_PUBLIC_URL", "https://cabinet.proverkastaza.ru")
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._notify_staff_chat_docs",
+        lambda **_k: None,
+    )
 
     handle_max_update(_msg(12, "/start"), bot=bot)
     for payload in (
@@ -259,7 +262,7 @@ def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
     ):
         handle_max_update(_cb(12, payload), bot=bot)
 
-    blocked = handle_max_update(
+    accepted = handle_max_update(
         {
             "message": {
                 "sender": {"user_id": 12},
@@ -271,12 +274,11 @@ def test_upload_blocked_in_production(tmp_path: Path, monkeypatch) -> None:
         },
         bot=bot,
     )
-    assert blocked.action == "upload_blocked"
-    assert blocked.ok is False
-    assert "не принимаются" in (blocked.reply or "").lower()
-    assert "сайте" in (blocked.reply or "").lower()
-    blob = str(bot.attachments[-1])
-    assert "Кабинет на сайте" in blob
+    assert accepted.action == "upload"
+    assert accepted.ok is True
+    assert "приняли" in (accepted.reply or "").lower() or "принят" in (accepted.reply or "").lower()
+    assert "кабинет" in (accepted.reply or "").lower()
+    assert bot.attachments[-1]
     get_settings.cache_clear()
 
 

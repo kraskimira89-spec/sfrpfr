@@ -17,3 +17,8 @@
 ## Callbacks
 
 Дерево `intake:…` / `svy:…` не ломали; `intake:device:max|web|help` сохранены, сменены подписи.
+
+## Follow-up (тот же день)
+
+Коммиты `ddb35e8` / `1bf2c3f` ошибочно вернули reject вложений в prod — откат к канону accept
+(`UPLOAD_ACCEPTED_TEXT`, `_notify_staff_chat_docs`), кабинет по-прежнему только сайт.
