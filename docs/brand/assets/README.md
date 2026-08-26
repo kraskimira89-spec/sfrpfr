@@ -24,6 +24,13 @@
 | `viz-otzyvy-16x9.png` | `/otzyvy/` | на сайте |
 | `viz-stazh-do-2002-16x9.png` | `/stazh-do-2002/` | на сайте |
 | `viz-vk-community-cover-1920x768.png` | обложка сообщества ВК | **1920×768** (мин. ВК 960×384); не шаблон zip 911×364 |
+| `viz-meta-checklist-documents-1x1.png` | посты MAX / сбор документов | черновик ИИ |
+| `viz-meta-archive-request-16x9.png` | блог / архивная справка | черновик ИИ |
+| `viz-meta-safe-document-upload-1x1.png` | MAX / безопасная передача | черновик ИИ |
+| `viz-meta-checklist-return-16x9.png` | блог / бережный возврат | черновик ИИ |
+| `viz-meta-family-support-4x3.png` | сайт / родственник помогает | черновик ИИ |
+
+Мета-обложки: матрицы в `prompts/visual/examples/`, брифы `viz-meta-*.md`. Приёмка человека обязательна.
 
 Копирование на VPS: `wp_apply_landing_vps.sh` → `uploads/sfrfr/brand/`.
 

@@ -1,0 +1,24 @@
+{
+  "topic": "Что делать, если клиент пропал после чек-листа",
+  "audience": "сотрудник / контент о бережной коммуникации",
+  "problem": "человек получил инструкцию, но отложил вопрос",
+  "emotionBefore": "неопределённость и тревога потери контакта",
+  "desiredState": "спокойное ожидание и открытая возможность вернуться",
+  "coreMessage": "не давить — оставить путь вернуться",
+  "metaphor": "приоткрытая дверь и аккуратная папка на столе",
+  "action": "тёплый свет из комнаты, на столе чек-лист и папка, дверь слегка приоткрыта",
+  "subject": "светлая спокойная комната, деревянный стол, папка, ручка, приоткрытая дверь",
+  "visualStyle": "warm realistic editorial illustration",
+  "mood": "respect, patience, open return",
+  "brandPalette": "soft daylight, restrained navy-green accents",
+  "composition": "horizontal scene, empty left side for headline",
+  "textSafeArea": "left third",
+  "platform": "blog",
+  "aspectRatio": "16:9",
+  "prohibitions": [
+    "anxious faces",
+    "medical symbols",
+    "logos",
+    "readable text"
+  ]
+}

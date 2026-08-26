@@ -30,6 +30,11 @@
 | [viz-otzyvy.md](viz-otzyvy.md) | отзывы | 16:9 |
 | [viz-stazh-do-2002.md](viz-stazh-do-2002.md) | стаж до 2002 | 16:9 |
 | [viz-eksperty.md](viz-eksperty.md) | эксперты | 16:9 |
+| [viz-meta-checklist-documents.md](viz-meta-checklist-documents.md) | publication meta | 1:1 ИИ |
+| [viz-meta-archive-request.md](viz-meta-archive-request.md) | publication meta | 16:9 ИИ |
+| [viz-meta-safe-document-upload.md](viz-meta-safe-document-upload.md) | publication meta | 1:1 ИИ |
+| [viz-meta-checklist-return.md](viz-meta-checklist-return.md) | publication meta | 16:9 ИИ |
+| [viz-meta-family-support.md](viz-meta-family-support.md) | publication meta | 4:3 ИИ |
 
 ---
 

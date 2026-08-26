@@ -1,0 +1,24 @@
+{
+  "topic": "Родственник помогает родителю с проверкой стажа",
+  "audience": "взрослый ребёнок и пожилой родитель",
+  "problem": "пожилому человеку трудно ориентироваться в цифровых сервисах",
+  "emotionBefore": "неуверенность",
+  "desiredState": "поддержка и совместное действие",
+  "metaphor": "две пары рук над чек-листом",
+  "coreMessage": "рядом, уважительно, по шагам",
+  "action": "пожилой человек и взрослый родственник сидят рядом и спокойно смотрят на крупный чек-лист",
+  "subject": "светлый стол, большой простой чек-лист с пустыми строками, закрытая папка, планшет с нейтральным экраном",
+  "visualStyle": "warm realistic photography",
+  "mood": "support, dignity, calm partnership",
+  "brandPalette": "soft daylight, restrained navy blue and green details",
+  "composition": "two people at table, empty space top-right for headline",
+  "textSafeArea": "upper right",
+  "platform": "site",
+  "aspectRatio": "4:3",
+  "prohibitions": [
+    "helpless elderly stereotype",
+    "hospital atmosphere",
+    "readable personal documents",
+    "logos"
+  ]
+}

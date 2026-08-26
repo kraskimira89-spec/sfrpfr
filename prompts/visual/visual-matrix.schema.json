@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proverkastaza.ru/schemas/visual-matrix.json",
+  "title": "VisualMatrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "topic",
+    "audience",
+    "problem",
+    "emotionBefore",
+    "desiredState",
+    "coreMessage",
+    "metaphor",
+    "action",
+    "subject",
+    "visualStyle",
+    "mood",
+    "brandPalette",
+    "composition",
+    "textSafeArea",
+    "aspectRatio",
+    "prohibitions"
+  ],
+  "properties": {
+    "topic": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "problem": { "type": "string", "minLength": 1 },
+    "emotionBefore": { "type": "string", "minLength": 1 },
+    "desiredState": { "type": "string", "minLength": 1 },
+    "coreMessage": { "type": "string", "minLength": 1 },
+    "metaphor": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "minLength": 1 },
+    "subject": { "type": "string", "minLength": 1 },
+    "visualStyle": { "type": "string", "minLength": 1 },
+    "mood": { "type": "string", "minLength": 1 },
+    "brandPalette": { "type": "string", "minLength": 1 },
+    "composition": { "type": "string", "minLength": 1 },
+    "textSafeArea": { "type": "string", "minLength": 1 },
+    "platform": { "type": "string" },
+    "aspectRatio": {
+      "type": "string",
+      "enum": ["16:9", "4:3", "1:1", "9:16"]
+    },
+    "prohibitions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  }
+}

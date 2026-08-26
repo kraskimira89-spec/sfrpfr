@@ -1,0 +1,25 @@
+{
+  "topic": "Как безопасно передать документы сервису",
+  "audience": "клиент, который хочет быстро отправить сканы",
+  "problem": "хочется отправить файлы сразу в чат, не зная про кабинет",
+  "emotionBefore": "неосознанный риск и спешка",
+  "desiredState": "защищённость и уверенность",
+  "coreMessage": "общение в чате — документы предпочтительно в кабинете на сайте; если прислали в чат — примем",
+  "metaphor": "чат снаружи, папка документов в защищённой ячейке кабинета",
+  "action": "документы спокойно помещаются в закрывающуюся синюю папку с небольшим замком рядом с телефоном",
+  "subject": "смартфон с нейтральным интерфейсом чата без текста, синяя папка, защищённая ячейка",
+  "visualStyle": "minimal realistic 3D editorial illustration",
+  "mood": "calm trust and clarity",
+  "brandPalette": "white-blue background with soft green accent",
+  "composition": "centered objects, empty upper area for headline",
+  "textSafeArea": "upper third",
+  "platform": "MAX",
+  "aspectRatio": "1:1",
+  "prohibitions": [
+    "SNILS",
+    "passport",
+    "word secret",
+    "red alarm icons",
+    "cyberpunk"
+  ]
+}

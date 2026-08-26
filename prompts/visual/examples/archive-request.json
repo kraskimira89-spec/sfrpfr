@@ -1,0 +1,24 @@
+{
+  "topic": "Архивная справка: с чего начать",
+  "audience": "человек, у которого организация ликвидирована",
+  "problem": "непонятно, где искать подтверждение периода работы",
+  "emotionBefore": "тупик",
+  "desiredState": "маршрут и надежда без ложной гарантии",
+  "coreMessage": "есть понятный следующий шаг к архиву, без обещания результата",
+  "metaphor": "архивный каталог и карта пути",
+  "action": "карточка периода лежит рядом с архивными коробками и стрелкой маршрута на листе",
+  "subject": "светлый стол в архивной комнате, коробки без надписей, картотечный ящик, лупа, нейтральная карточка",
+  "visualStyle": "calm editorial illustration photography hybrid",
+  "mood": "systematic search, quiet hope",
+  "brandPalette": "soft daylight, restrained navy and green accents",
+  "composition": "desk scene, open space on the right for headline",
+  "textSafeArea": "right third",
+  "platform": "blog",
+  "aspectRatio": "16:9",
+  "prohibitions": [
+    "official seals",
+    "coats of arms",
+    "personal data",
+    "promise of result"
+  ]
+}
