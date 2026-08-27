@@ -9,5 +9,6 @@
 | Метафора | Приоткрытая дверь + папка на столе |
 | Главная мысль | Не давить |
 | Формат | 16:9 |
-| Ассет | [../assets/viz-meta-checklist-return-16x9.png](../assets/viz-meta-checklist-return-16x9.png) |
-| Статус | черновик (ИИ, приёмка) |
+| Ассет без слогана | [../assets/viz-meta-checklist-return-16x9.png](../assets/viz-meta-checklist-return-16x9.png) |
+| Ассет для постов | [../assets/viz-meta-checklist-return-16x9 пауза уважение возврат.png](../assets/viz-meta-checklist-return-16x9%20пауза%20уважение%20возврат.png) |
+| Статус | канон слогана — **Пауза**, не «Замешательство»; на кадре должно быть то же, что в имени файла |
