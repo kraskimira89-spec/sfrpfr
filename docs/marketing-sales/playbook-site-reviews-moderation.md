@@ -16,11 +16,13 @@
 
 | Канал | Куда |
 |---|---|
-| Почта | `proverkastaza@yandex.ru` (тема `[Проверка стажа] Отзыв на сайте (модерация)`) |
+| Почта | `proverkastaza@yandex.ru` — кликабельные ссылки «Одобрить» / «Отклонить» |
 | Flamingo | WordPress → **Контакт → Входящие** |
-| MAX | ops-бот → `MAX_SPECIALISTS_CHANNEL_CHAT_ID` + менеджеры (`_fanout_ops_text`) |
+| MAX | кнопки **Одобрить** / **Отклонить** в ops-боте (`srev:p:` / `srev:r:`) |
 
 ## Модерация (публикация на сайте)
+
+В MAX — нажать кнопку. В письме — открыть ссылку. CLI:
 
 ```bash
 .\.venv\Scripts\Activate.ps1
@@ -48,14 +50,15 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
 4. Тест: отправить форму → **письмо** + запись в **Flamingo** (`Контакт → Входящие`).  
 5. На VPS в `/opt/sfrfr/.env`: `MAX_SPECIALISTS_CHANNEL_CHAT_ID`, токен ops-бота; `PUBLIC_LEAD_TOKEN` совпадает с WP (`sfrfr-lead.config.php` / env), иначе очередь/MAX с CF7 не доедут.
 
-### Проверка 2026-08-27
+### Проверка 2026-08-27 / доработка
 
 | Шаг | Результат |
 |---|---|
 | CF7 + Flamingo active | ок |
 | Форма «Отзыв на сайте» | id `2984` |
-| Flamingo inbound | ок (есть запись) |
-| `wp_mail` / CF7 mail | **fail** — на WP нет sendmail/postfix и SMTP-плагина |
-| Обход | MU `sfrfr-cf7-site-review.php`: при `wpcf7_mail_failed` → API `/site-reviews` с `mail_already_sent=false` → письмо через **Яндекс SMTP** SFRFR + очередь + MAX |
+| Flamingo inbound | ок |
+| Письмо | **Яндекс SMTP**: MU `sfrfr-wp-mail-relay.php` → `/api/public/wp-mail-relay` (замена SMTP-плагина) |
+| Fallback | при `mail_failed` — API всё равно ставит в очередь и шлёт уведомление |
+| Модерация | MAX-кнопки + HTTPS-ссылки в письме (`/api/public/site-reviews/moderate`) |
 
-Долгосрочно: поставить FluentSMTP / WP Mail SMTP на WP **или** оставить канон «письмо через API». Flamingo продолжает писать при любом исходе CF7 mail.
+На WP **не** ставим postfix/FluentSMTP: исходящая почта канона — Яндекс SMTP через API SFRFR.

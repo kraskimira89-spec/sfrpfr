@@ -365,6 +365,25 @@ def handle_ops_update(
         if handled is not None:
             return handled
 
+    if callback.startswith("srev:"):
+        from sfrfr.api.routes.public_site_reviews import parse_site_review_callback
+        from sfrfr.core.site_reviews import set_status
+        from sfrfr.integrations.max.handler import _ack_message_callback
+
+        parsed = parse_site_review_callback(callback)
+        _ack_message_callback(bot, update)
+        if not parsed:
+            return MaxHandleResult(ok=False, action="srev_bad", detail="bad payload")
+        item_id, review_status = parsed
+        result = set_status(item_id, review_status)
+        label = "опубликован" if review_status == "published" else "отклонён"
+        if result.get("ok"):
+            reply = f"Отзыв {label}: {item_id}"
+        else:
+            reply = f"Не удалось: {result.get('error') or 'ошибка'} ({item_id})"
+        _reply(bot, user_id=user_id or "", chat_id=chat_id, text=reply)
+        return MaxHandleResult(ok=True, action="srev_moderate", reply=reply)
+
     if not user_id and not manager_ticket:
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")
     if manager_ticket:

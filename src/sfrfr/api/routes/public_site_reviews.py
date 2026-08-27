@@ -2,21 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import html
 import logging
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from sfrfr.api.routes.public_leads import _require_captcha
 from sfrfr.core.config import get_settings
-from sfrfr.core.site_reviews import enqueue_quote, list_published
+from sfrfr.core.site_reviews import enqueue_quote, list_published, set_status
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 _REVIEW_NOTIFY_EMAIL = "proverkastaza@yandex.ru"
+_SREV_PUBLISH = "srev:p:"
+_SREV_REJECT = "srev:r:"
 
 
 class SiteReviewSubmit(BaseModel):
@@ -33,12 +40,84 @@ class SiteReviewSubmit(BaseModel):
     source: str = Field(default="site", max_length=32)
 
 
+class WpMailRelay(BaseModel):
+    """Relay wp_mail с WordPress → Яндекс SMTP (без SMTP-плагина на WP)."""
+
+    to: str = Field(min_length=3, max_length=320)
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=20000)
+    html: str | None = Field(default=None, max_length=40000)
+
+
 def _trusted_wp_token(x_public_lead_token: str | None) -> bool:
     """WP MU после CF7: тот же PUBLIC_LEAD_TOKEN, что у заявок."""
     expected = (get_settings().public_lead_token or "").strip()
     if not expected or not x_public_lead_token:
         return False
     return x_public_lead_token.strip() == expected
+
+
+def _moderation_secret() -> str:
+    settings = get_settings()
+    return (settings.public_lead_token or settings.app_secret_key or "sfrfr").strip()
+
+
+def moderate_sig(item_id: str, review_status: str) -> str:
+    """Короткий HMAC для ссылок в письме (без логина)."""
+    raw = f"{item_id}:{review_status}".encode()
+    return hmac.new(_moderation_secret().encode(), raw, hashlib.sha256).hexdigest()[:32]
+
+
+def verify_moderate_sig(item_id: str, review_status: str, sig: str) -> bool:
+    expected = moderate_sig(item_id, review_status)
+    return hmac.compare_digest(expected, (sig or "").strip())
+
+
+def moderation_urls(item_id: str) -> dict[str, str]:
+    base = (get_settings().public_base_url or "https://api.proverkastaza.ru").rstrip("/")
+    pub = moderate_sig(item_id, "published")
+    rej = moderate_sig(item_id, "rejected")
+    return {
+        "published": (
+            f"{base}/api/public/site-reviews/moderate"
+            f"?id={quote(item_id)}&status=published&sig={pub}"
+        ),
+        "rejected": (
+            f"{base}/api/public/site-reviews/moderate"
+            f"?id={quote(item_id)}&status=rejected&sig={rej}"
+        ),
+    }
+
+
+def site_review_max_keyboard(item_id: str) -> list[dict[str, Any]]:
+    from sfrfr.integrations.max.client import inline_buttons_keyboard
+
+    return inline_buttons_keyboard(
+        [
+            [
+                {
+                    "type": "callback",
+                    "text": "✅ Одобрить",
+                    "payload": f"{_SREV_PUBLISH}{item_id}",
+                },
+                {
+                    "type": "callback",
+                    "text": "❌ Отклонить",
+                    "payload": f"{_SREV_REJECT}{item_id}",
+                },
+            ]
+        ]
+    )
+
+
+def parse_site_review_callback(payload: str) -> tuple[str, str] | None:
+    """Вернуть (item_id, status) или None."""
+    raw = (payload or "").strip()
+    if raw.startswith(_SREV_PUBLISH):
+        return raw[len(_SREV_PUBLISH) :], "published"
+    if raw.startswith(_SREV_REJECT):
+        return raw[len(_SREV_REJECT) :], "rejected"
+    return None
 
 
 def notify_site_review_queued(
@@ -52,13 +131,26 @@ def notify_site_review_queued(
     preview = (text or "").strip()
     if len(preview) > 280:
         preview = preview[:279] + "…"
+    urls = moderation_urls(item_id)
     body = (
         "Новый отзыв на сайте (очередь модерации)\n"
         f"id: {item_id}\n"
         f"источник: {source}\n"
-        f"текст: {preview}\n"
-        "Одобрить: sfrfr site-reviews-set <id> --status published\n"
-        "Отклонить: sfrfr site-reviews-set <id> --status rejected"
+        f"текст: {preview}\n\n"
+        f"Одобрить: {urls['published']}\n"
+        f"Отклонить: {urls['rejected']}"
+    )
+    html_body = (
+        "<p><b>Новый отзыв на сайте</b> (очередь модерации)</p>"
+        f"<p>id: <code>{html.escape(item_id)}</code><br>"
+        f"источник: {html.escape(source)}</p>"
+        f"<p>{html.escape(preview)}</p>"
+        "<p>"
+        f'<a href="{html.escape(urls["published"])}">✅ Одобрить на сайте</a>'
+        " &nbsp;|&nbsp; "
+        f'<a href="{html.escape(urls["rejected"])}">❌ Отклонить</a>'
+        "</p>"
+        "<p style=\"color:#666;font-size:12px\">Рейтинг Яндекса эта форма не меняет.</p>"
     )
     out: dict[str, Any] = {"email": None, "max": None}
 
@@ -71,6 +163,7 @@ def notify_site_review_queued(
                 template="custom",
                 subject="[Проверка стажа] Отзыв на сайте (модерация)",
                 body=body,
+                html=html_body,
                 from_name="Проверка стажа",
             )
         except Exception as exc:  # noqa: BLE001
@@ -80,7 +173,7 @@ def notify_site_review_queued(
     try:
         from sfrfr.integrations.max.handler import _fanout_ops_text
 
-        _fanout_ops_text(body)
+        _fanout_ops_text(body, attachments=site_review_max_keyboard(item_id))
         out["max"] = {"ok": True}
     except Exception as exc:  # noqa: BLE001
         logger.warning("site review max notify failed: %s", exc)
@@ -98,6 +191,35 @@ def public_site_reviews(limit: int = 6) -> dict[str, Any]:
         "items": items,
         "note": "Рейтинг только на Яндекс Картах; здесь модерируемые цитаты.",
     }
+
+
+@router.get("/site-reviews/moderate", response_class=HTMLResponse)
+def moderate_site_review_link(
+    id: str,
+    status: str,
+    sig: str,
+) -> HTMLResponse:
+    """Кликабельные ссылки из письма: одобрить / отклонить."""
+    item_id = (id or "").strip()
+    review_status = (status or "").strip().lower()
+    if review_status not in {"published", "rejected"}:
+        raise HTTPException(status_code=400, detail="bad_status")
+    if not item_id or not verify_moderate_sig(item_id, review_status, sig):
+        raise HTTPException(status_code=403, detail="bad_signature")
+    result = set_status(item_id, review_status)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=str(result.get("error") or "not_found"))
+    label = "опубликован на сайте" if review_status == "published" else "отклонён"
+    page = (
+        "<!doctype html><html lang=\"ru\"><meta charset=\"utf-8\">"
+        "<title>Модерация отзыва</title>"
+        "<body style=\"font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem\">"
+        f"<h1>Отзыв {html.escape(label)}</h1>"
+        f"<p>id: <code>{html.escape(item_id)}</code></p>"
+        "<p><a href=\"https://proverkastaza.ru/otzyvy/\">Страница отзывов</a></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(page)
 
 
 @router.post("/site-reviews")
@@ -145,3 +267,33 @@ def submit_site_review(
         "id": item_id,
         "detail": "После модерации появится на странице.",
     }
+
+
+@router.post("/wp-mail-relay")
+def wp_mail_relay(
+    payload: WpMailRelay,
+    x_public_lead_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """WordPress wp_mail → Яндекс SMTP SFRFR (замена SMTP-плагина на WP)."""
+    if not _trusted_wp_token(x_public_lead_token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+    try:
+        from sfrfr.integrations.yandex_workspace.mail import send_mail
+
+        result = send_mail(
+            to=payload.to,
+            template="custom",
+            subject=payload.subject,
+            body=payload.body,
+            html=payload.html,
+            from_name="Проверка стажа",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("wp mail relay failed: %s", exc)
+        raise HTTPException(status_code=502, detail=type(exc).__name__) from exc
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail=str(result.get("error") or result.get("reason") or "send_failed"),
+        )
+    return {"ok": True, "provider": result.get("provider"), "message_id": result.get("message_id")}

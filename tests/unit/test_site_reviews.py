@@ -143,3 +143,51 @@ def test_public_post_site_review_trusted_wp_skips_captcha(monkeypatch) -> None:
         get_settings.cache_clear()
         if store.exists():
             store.unlink()
+
+
+def test_moderate_sig_and_link(monkeypatch) -> None:
+    store = Path("var") / "test_site_reviews_mod.json"
+    if store.exists():
+        store.unlink()
+    monkeypatch.setattr(sr, "_DEFAULT_PATH", store)
+    monkeypatch.setenv("PUBLIC_LEAD_TOKEN", "mod-secret-token")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    from sfrfr.api.routes import public_site_reviews as psr
+
+    text = (
+        "Обращался в сервис Проверка стажа. Помогли сверить документы и "
+        "подготовить план. Понятно, что в СФР подаю сам."
+    )
+    queued = sr.enqueue_quote(text=text, source="site", consent=True)
+    assert queued and queued["queued"]
+    item_id = queued["id"]
+    assert psr.parse_site_review_callback(f"srev:p:{item_id}") == (item_id, "published")
+    assert psr.parse_site_review_callback(f"srev:r:{item_id}") == (item_id, "rejected")
+    urls = psr.moderation_urls(item_id)
+    assert "status=published" in urls["published"]
+    assert "sig=" in urls["published"]
+    from fastapi.testclient import TestClient
+
+    from sfrfr.api import create_app
+
+    try:
+        client = TestClient(create_app())
+        bad = client.get(
+            "/api/public/site-reviews/moderate",
+            params={"id": item_id, "status": "published", "sig": "bad"},
+        )
+        assert bad.status_code == 403
+        sig = psr.moderate_sig(item_id, "published")
+        ok = client.get(
+            "/api/public/site-reviews/moderate",
+            params={"id": item_id, "status": "published", "sig": sig},
+        )
+        assert ok.status_code == 200
+        assert "опубликован" in ok.text
+        assert len(sr.list_published()) == 1
+    finally:
+        get_settings.cache_clear()
+        if store.exists():
+            store.unlink()

@@ -30,7 +30,9 @@ fi
 MU="${SITE_DIR}/wp-content/mu-plugins"
 mkdir -p "${MU}"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-site-review.php" "${MU}/sfrfr-cf7-site-review.php"
-chown www-data:www-data "${MU}/sfrfr-cf7-site-review.php" 2>/dev/null || true
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-wp-mail-relay.php" "${MU}/sfrfr-wp-mail-relay.php"
+chown www-data:www-data "${MU}/sfrfr-cf7-site-review.php" "${MU}/sfrfr-wp-mail-relay.php" 2>/dev/null || true
+echo "==> MU: CF7 site review + wp_mail relay (Яндекс SMTP через API)"
 
 echo "==> Ensure CF7 site review form"
 form_id="$("${WP[@]}" eval-file "${SCRIPT_DIR}/wp_ensure_cf7_site_review.php" | tr -d '[:space:]' || true)"

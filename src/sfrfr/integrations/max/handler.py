@@ -689,7 +689,11 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
     _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=crm_url)
 
 
-def _fanout_ops_text(text: str) -> None:
+def _fanout_ops_text(
+    text: str,
+    *,
+    attachments: list[dict[str, Any]] | None = None,
+) -> None:
     """Разослать короткое ops-уведомление менеджерам / чатам / каналу специалистов."""
     from sfrfr.core.config import get_settings
     from sfrfr.db.staff_roles import list_manager_max_user_ids
@@ -710,17 +714,17 @@ def _fanout_ops_text(text: str) -> None:
     team_channel = (settings.max_specialists_channel_chat_id or "").strip()
     for mid in manager_ids:
         try:
-            bot.send_message(text=text, user_id=str(mid))
+            bot.send_message(text=text, user_id=str(mid), attachments=attachments)
         except Exception:
             continue
     for cid in chat_ids:
         try:
-            bot.send_message(text=text, chat_id=cid)
+            bot.send_message(text=text, chat_id=cid, attachments=attachments)
         except Exception:
             continue
     if team_channel:
         try:
-            bot.send_message(text=text, chat_id=team_channel)
+            bot.send_message(text=text, chat_id=team_channel, attachments=attachments)
         except Exception:
             pass
 
