@@ -1,24 +1,32 @@
 # Очередь цитат / отзывов для /otzyvy/ и главной
 
 **Дата:** 2026-08-27  
-**Канон:** рейтинг только Яндекс Карты; цитаты на сайте — только после модерации.
+**Канон:** рейтинг только Яндекс Карты; цитаты на сайте — только после **отдельного** согласия на публикацию и модерации.
 
 ## UX на https://proverkastaza.ru/otzyvy/
 
-1. **Яндекс Карты** — бейдж + QR (`/yandex-review-qr.png` → `/otzyv/`) + «Оставить отзыв на Картах».  
-2. **Анкета** — Яндекс Форма → https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/  
-3. **Оставить отзыв на сайте** — **Contact Form 7** «Отзыв на сайте» (маркер `<!-- SFRFR_SITE_REVIEW_FORM -->`):
-   - письмо на `proverkastaza@yandex.ru` + копия во **Flamingo**;
-   - после `mail_sent` MU шлёт в API очередь `pending` и fanout в **MAX** (канал команды / менеджеры);
-   - на витрину и главную — только после approve.
+Линейный путь для 55+: **выберите один удобный способ**.
+
+1. **Яндекс Карты** — публичный отзыв (кнопка основная; QR вторичный, на мобиле скрыт).  
+2. **Короткая обратная связь** — Яндекс Форма (~1 мин). Контакты в копирайте — только по желанию.  
+   Поля самой Яндекс Формы править в UI Яндекс Форм (не в репо).  
+3. **Короткий отзыв на сайте** — в `<details>` («Хотите написать…»):
+   - обязательное «Что было полезно?»;
+   - необязательное «Что улучшить?»;
+   - обязательное согласие на обработку текста;
+   - необязательное согласие на публикацию на сайте без ПДн;
+   - SmartCaptcha;
+   - CF7 + Flamingo + API.
+
+Без согласия на публикацию запись уходит как `feedback` (внутренняя ОС). С согласием — `pending` → approve → витрина.
 
 ## Доставка
 
 | Канал | Куда |
 |---|---|
-| Почта | `proverkastaza@yandex.ru` — кликабельные ссылки «Одобрить» / «Отклонить» |
+| Почта | `proverkastaza@yandex.ru` — ссылки «Одобрить» / «Отклонить» только при `publish_consent` |
 | Flamingo | WordPress → **Контакт → Входящие** |
-| MAX | кнопки **Одобрить** / **Отклонить** в ops-боте (`srev:p:` / `srev:r:`) |
+| MAX | кнопки модерации только если автор разрешил публикацию |
 
 ## Модерация (публикация на сайте)
 
@@ -31,7 +39,13 @@ sfrfr site-reviews-set <uuid> --status published
 sfrfr site-reviews-set <uuid> --status rejected
 ```
 
-На витрину и главную попадают только `published`. Рейтинг Яндекса форма не меняет.
+На витрину и главную — только `published`. Рейтинг Яндекса форма не меняет.
+
+## Аналитика (без ПДн и без текста отзыва)
+
+`review_page_view`, `review_yandex_map_click`, `review_yandex_qr_view`, `review_survey_click`,  
+`review_form_open`, `review_form_submit_attempt`, `review_form_submit_success`,  
+`review_form_submit_error`, `review_publication_consent_checked`.
 
 ## Деплой / ensure
 
@@ -40,25 +54,20 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_ensure_cf7_site_review.sh
 SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
 ```
 
-Форму CF7 перезаписывает `wp_ensure_cf7_site_review.php` — поля править в репозитории, не в UI.
+Форму CF7 перезаписывает `wp_ensure_cf7_site_review.php` — поля править в репозитории.
 
-## Чеклист WP admin (если письмо не приходит)
+## Чеклист WP admin
 
-1. Плагины **Contact Form 7** и **Flamingo** активны.  
-2. Форма «Отзыв на сайте» существует (ensure-скрипт), id в `sfrfr_cf7_site_review_id`.  
-3. В форме Mail → To: `proverkastaza@yandex.ru`, Mail active.  
-4. Тест: отправить форму → **письмо** + запись в **Flamingo** (`Контакт → Входящие`).  
-5. На VPS в `/opt/sfrfr/.env`: `MAX_SPECIALISTS_CHANNEL_CHAT_ID`, токен ops-бота; `PUBLIC_LEAD_TOKEN` совпадает с WP (`sfrfr-lead.config.php` / env), иначе очередь/MAX с CF7 не доедут.
+1. CF7 + Flamingo активны.  
+2. Форма «Отзыв на сайте» (ensure), id в `sfrfr_cf7_site_review_id`.  
+3. Mail → To: `proverkastaza@yandex.ru`.  
+4. Тест: отправка → Flamingo + очередь API; письмо через MU `sfrfr-wp-mail-relay.php`.  
+5. `PUBLIC_LEAD_TOKEN` совпадает у WP и API.
 
-### Проверка 2026-08-27 / доработка
+### Важно про SMTP
 
-| Шаг | Результат |
-|---|---|
-| CF7 + Flamingo active | ок |
-| Форма «Отзыв на сайте» | id `2984` |
-| Flamingo inbound | ок |
-| Письмо | **Яндекс SMTP**: MU `sfrfr-wp-mail-relay.php` → `/api/public/wp-mail-relay` (замена SMTP-плагина) |
-| Fallback | при `mail_failed` — API всё равно ставит в очередь и шлёт уведомление |
-| Модерация | MAX-кнопки + HTTPS-ссылки в письме (`/api/public/site-reviews/moderate`) |
+В теле исходящих писем **не** писать слово «СНИЛС» — фильтр Яндекс SMTP режет `body_contains_forbidden_markers`. На странице для людей слово можно оставлять.
 
-На WP **не** ставим postfix/FluentSMTP: исходящая почта канона — Яндекс SMTP через API SFRFR.
+### Rollback
+
+Вернуть предыдущие `scripts/assets/trust/otzyvy.html`, MU `sfrfr-cf7-site-review.php`, `wp_ensure_cf7_site_review.php`, CSS-блок `.sfrfr-otzyvy-*` и прогнать `wp_seed_trust_pages_tz18.sh` + `wp_ensure_cf7_site_review.sh`.

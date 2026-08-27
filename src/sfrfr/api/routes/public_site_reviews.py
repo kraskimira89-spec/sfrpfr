@@ -30,7 +30,11 @@ class SiteReviewSubmit(BaseModel):
     """Короткий отзыв с /otzyvy/: без ФИО, в очередь модерации."""
 
     text: str = Field(min_length=1, max_length=600)
-    consent: bool = Field(description="Согласие на показ текста на сайте без ФИО")
+    consent: bool = Field(description="Согласие на обработку текста отзыва")
+    publish_consent: bool = Field(
+        default=False,
+        description="Отдельное согласие на публикацию цитаты на сайте без ПДн",
+    )
     smartcaptcha_token: str | None = Field(default=None, max_length=4000)
     recaptcha_token: str | None = Field(default=None, max_length=4000)
     mail_already_sent: bool = Field(
@@ -126,30 +130,48 @@ def notify_site_review_queued(
     item_id: str,
     source: str,
     send_email: bool = True,
+    publish_consent: bool = False,
 ) -> dict[str, Any]:
     """Письмо на proverkastaza@yandex.ru (если нужно) + fanout в MAX / канал команды."""
     preview = (text or "").strip()
     if len(preview) > 280:
         preview = preview[:279] + "…"
     urls = moderation_urls(item_id)
+    mode = (
+        "можно опубликовать после проверки"
+        if publish_consent
+        else "внутренняя обратная связь (без согласия на публикацию)"
+    )
     body = (
-        "Новый отзыв на сайте (очередь модерации)\n"
+        "Новый отзыв на сайте\n"
         f"id: {item_id}\n"
         f"источник: {source}\n"
-        f"текст: {preview}\n\n"
-        f"Одобрить: {urls['published']}\n"
-        f"Отклонить: {urls['rejected']}"
+        f"режим: {mode}\n"
+        f"текст: {preview}\n"
     )
+    if publish_consent:
+        body += (
+            f"\nОдобрить: {urls['published']}\n"
+            f"Отклонить: {urls['rejected']}"
+        )
+    else:
+        body += "\nНа витрину не ставить без отдельного согласия автора."
     html_body = (
-        "<p><b>Новый отзыв на сайте</b> (очередь модерации)</p>"
+        "<p><b>Новый отзыв на сайте</b></p>"
         f"<p>id: <code>{html.escape(item_id)}</code><br>"
-        f"источник: {html.escape(source)}</p>"
+        f"источник: {html.escape(source)}<br>"
+        f"режим: {html.escape(mode)}</p>"
         f"<p>{html.escape(preview)}</p>"
-        "<p>"
-        f'<a href="{html.escape(urls["published"])}">✅ Одобрить на сайте</a>'
-        " &nbsp;|&nbsp; "
-        f'<a href="{html.escape(urls["rejected"])}">❌ Отклонить</a>'
-        "</p>"
+    )
+    if publish_consent:
+        html_body += (
+            "<p>"
+            f'<a href="{html.escape(urls["published"])}">✅ Одобрить на сайте</a>'
+            " &nbsp;|&nbsp; "
+            f'<a href="{html.escape(urls["rejected"])}">❌ Отклонить</a>'
+            "</p>"
+        )
+    html_body += (
         "<p style=\"color:#666;font-size:12px\">Рейтинг Яндекса эта форма не меняет.</p>"
     )
     out: dict[str, Any] = {"email": None, "max": None}
@@ -173,7 +195,8 @@ def notify_site_review_queued(
     try:
         from sfrfr.integrations.max.handler import _fanout_ops_text
 
-        _fanout_ops_text(body, attachments=site_review_max_keyboard(item_id))
+        attachments = site_review_max_keyboard(item_id) if publish_consent else None
+        _fanout_ops_text(body, attachments=attachments)
         out["max"] = {"ok": True}
     except Exception as exc:  # noqa: BLE001
         logger.warning("site review max notify failed: %s", exc)
@@ -243,7 +266,12 @@ def submit_site_review(
             client_ip=client_ip,
         )
     source = (payload.source or "site").strip()[:32] or "site"
-    result = enqueue_quote(text=payload.text, source=source, consent=True)
+    result = enqueue_quote(
+        text=payload.text,
+        source=source,
+        consent=True,
+        publish_consent=bool(payload.publish_consent),
+    )
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -260,12 +288,19 @@ def submit_site_review(
         item_id=item_id,
         source=source,
         send_email=not payload.mail_already_sent,
+        publish_consent=bool(payload.publish_consent),
+    )
+    detail = (
+        "После модерации появится на странице."
+        if payload.publish_consent
+        else "Принято как внутренняя обратная связь (без публикации на сайте)."
     )
     return {
         "ok": True,
         "queued": True,
         "id": item_id,
-        "detail": "После модерации появится на странице.",
+        "status": result.get("status"),
+        "detail": detail,
     }
 
 

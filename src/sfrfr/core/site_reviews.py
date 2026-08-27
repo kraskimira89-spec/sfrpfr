@@ -53,7 +53,7 @@ def _sanitize_text(text: str) -> str:
 
 
 def looks_unsafe(text: str) -> bool:
-    if not text or len(text) < 40:
+    if not text or len(text) < 15:
         return True
     if _PDN_HINT.search(text):
         return True
@@ -67,10 +67,12 @@ def enqueue_quote(
     text: str,
     source: str = "anketa",
     consent: bool = False,
+    publish_consent: bool = False,
 ) -> dict[str, Any] | None:
     """
     Положить цитату в очередь модерации.
-    Без consent или при небезопасном тексте — None (тихо не публикуем).
+    Без consent или при небезопасном тексте — None / queued=False.
+    Без publish_consent — статус feedback (внутренняя ОС, не на витрину).
     """
     if not consent:
         return None
@@ -78,11 +80,13 @@ def enqueue_quote(
     if looks_unsafe(body):
         return {"ok": False, "queued": False, "reason": "unsafe_or_short"}
 
+    status = "pending" if publish_consent else "feedback"
     item = {
         "id": str(uuid.uuid4()),
         "text": body,
         "source": (source or "anketa")[:32],
-        "status": "pending",
+        "status": status,
+        "publish_consent": bool(publish_consent),
         "created_at": datetime.now(UTC).isoformat(),
         "published_at": None,
     }
@@ -92,7 +96,13 @@ def enqueue_quote(
         # Не раздуваем файл
         data["items"] = data["items"][:500]
         _save(data)
-    return {"ok": True, "queued": True, "id": item["id"], "status": "pending"}
+    return {
+        "ok": True,
+        "queued": True,
+        "id": item["id"],
+        "status": status,
+        "publish_consent": bool(publish_consent),
+    }
 
 
 def list_published(*, limit: int = 6) -> list[dict[str, Any]]:

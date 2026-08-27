@@ -4,8 +4,15 @@
     <div class="sfrfr-wrap">
       <div class="sfrfr-hero__grid sfrfr-otzyvy-hero">
         <div>
-          <h1 class="sfrfr-visually-hidden">Отзывы о сервисе «Проверка стажа»</h1>
-          <p class="sfrfr-section__lead">Отзывы на Яндекс Картах и короткие цитаты на сайте после проверки. Без скидок и бонусов за отзыв.</p>
+          <h1>Отзывы о сервисе «Проверка стажа»</h1>
+          <p class="sfrfr-section__lead">
+            Нам важно, чтобы разбираться с документами было спокойно и понятно.
+            Отзыв добровольный и не влияет на услугу, стоимость или решение СФР.
+          </p>
+          <p class="sfrfr-otzyvy-safety">
+            Не указывайте СНИЛС, паспорт, суммы пенсии, номера документов
+            и подробности трудовой истории.
+          </p>
         </div>
         <div class="sfrfr-illustration">
           <img
@@ -13,53 +20,102 @@
             src="/wp-content/uploads/sfrfr/brand/viz-otzyvy-16x9.png"
             width="1280"
             height="720"
-            alt="Спокойные отзывы: карточки с цитатами на столе"
+            alt="Спокойная иллюстрация: документы и порядок на столе"
             loading="eager"
             decoding="async"
           />
-          <p class="sfrfr-illustration__caption">Текст появится после проверки, без фамилии.</p>
+          <p class="sfrfr-illustration__caption">
+            Отзывы публикуются только после проверки и без личных данных.
+          </p>
         </div>
       </div>
 
+      <h2 class="sfrfr-otzyvy-choose">Выберите один удобный способ</h2>
+      <p class="sfrfr-otzyvy-choose-lead">Достаточно одного варианта — как вам удобнее.</p>
+
       <div class="sfrfr-otzyvy-layout">
         <aside class="sfrfr-otzyvy-yandex-card">
-          <h2>Яндекс Карты</h2>
+          <h3>Оставить отзыв на Яндекс Картах</h3>
+          <p class="sfrfr-otzyvy-card-lead">
+            Подойдёт, если вам удобно оставить короткий публичный отзыв.
+            Откроется страница Яндекс Карт.
+          </p>
           <div class="sfrfr-otzyvy-yandex-media">
             <p class="sfrfr-yandex-badge">
               <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </p>
-            <a class="sfrfr-otzyvy-qr" href="/otzyv/" target="_blank" rel="noopener noreferrer">
-              <img src="/yandex-review-qr.png" alt="QR-код: оставить отзыв на Яндекс Картах" width="120" height="120" loading="lazy">
-              <span>Камера телефона</span>
-            </a>
           </div>
           <p class="sfrfr-cta-row">
-            <a class="sfrfr-btn sfrfr-btn--primary" href="/otzyv/" target="_blank" rel="noopener noreferrer">Оставить отзыв на Картах</a>
+            <a
+              class="sfrfr-btn sfrfr-btn--primary"
+              href="/otzyv/"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-sfrfr-review-goal="review_yandex_map_click"
+            >Открыть Яндекс Карты</a>
           </p>
+          <div class="sfrfr-otzyvy-qr-wrap">
+            <p class="sfrfr-otzyvy-qr-label">Откройте камерой телефона</p>
+            <a class="sfrfr-otzyvy-qr" href="/otzyv/" target="_blank" rel="noopener noreferrer" data-sfrfr-review-goal="review_yandex_qr_view">
+              <img src="/yandex-review-qr.png" alt="QR-код: оставить отзыв на Яндекс Картах" width="96" height="96" loading="lazy">
+            </a>
+          </div>
         </aside>
 
         <div class="sfrfr-otzyvy-form-card sfrfr-otzyvy-anketa-card">
-          <h2>Анкета</h2>
-          <p class="sfrfr-otzyvy-card-lead">Несколько вопросов: чем помогли и что улучшить. Нужны ФИО и телефон или почта. Без СНИЛС и сумм пенсии.</p>
+          <h3>Короткая обратная связь — 1 минута</h3>
+          <p class="sfrfr-otzyvy-card-lead">
+            Ответьте на 3–4 вопроса: что было полезно, что оказалось непонятным
+            и что нам улучшить.
+          </p>
+          <ul class="sfrfr-otzyvy-bullets">
+            <li>ФИО, СНИЛС, паспорт и документы не нужны.</li>
+            <li>Контакт можно оставить только если хотите получить ответ.</li>
+          </ul>
           <p class="sfrfr-cta-row">
-            <a class="sfrfr-btn sfrfr-btn--primary" href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/" target="_blank" rel="noopener noreferrer">Яндекс Форма</a>
+            <a
+              class="sfrfr-btn sfrfr-btn--primary"
+              href="https://forms.yandex.ru/cloud/6a7db97670ad3712589c7456/"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-sfrfr-review-goal="review_survey_click"
+            >Ответить на 4 вопроса</a>
           </p>
         </div>
       </div>
 
-      <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
-        <h2>Оставить отзыв на сайте</h2>
-        <p class="sfrfr-otzyvy-hint">Два–три предложения о сервисе. Текст появится после проверки, без фамилии. Не пишите СНИЛС и суммы пенсии.</p>
-        <!-- SFRFR_SITE_REVIEW_FORM -->
-      </div>
+      <p class="sfrfr-note sfrfr-otzyvy-bonus-note">
+        Без скидок и бонусов за отзыв. Уже написали? Спасибо — текст на сайте
+        появляется только после проверки и только с отдельного разрешения.
+      </p>
+
+      <details class="sfrfr-otzyvy-disclosure" id="sfrfr-otzyvy-site-form">
+        <summary data-sfrfr-review-goal="review_form_open">
+          Хотите написать короткий отзыв прямо на сайте?
+        </summary>
+        <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
+          <p class="sfrfr-otzyvy-hint">
+            Можно написать, например: «Стало понятнее, какие документы собрать»
+            или «Понравилось, что объяснили порядок действий».
+          </p>
+          <p class="sfrfr-otzyvy-hint sfrfr-otzyvy-hint--warn">
+            Без фамилии в публикации. Не пишите СНИЛС, паспорт, суммы и детали документов.
+          </p>
+          <!-- SFRFR_SITE_REVIEW_FORM -->
+        </div>
+      </details>
 
       <div class="sfrfr-otzyvy-published" id="sfrfr-page-reviews">
-        <h2>Отзывы на сайте</h2>
-        <div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes>
-          <p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>
-            Пока нет опубликованных цитат. Можно оставить отзыв формой выше или на Яндекс Картах.
-          </p>
+        <h2 data-sfrfr-quotes-title>Как мы публикуем отзывы</h2>
+        <div class="sfrfr-otzyvy-policy" data-sfrfr-quotes-empty>
+          <ul class="sfrfr-otzyvy-bullets">
+            <li>Публикуем только с отдельного разрешения автора.</li>
+            <li>Не указываем фамилию, СНИЛС, суммы выплат и документы.</li>
+            <li>Не редактируем смысл отзыва.</li>
+            <li>Не платим за отзывы и не даём скидки за публикацию.</li>
+          </ul>
         </div>
+        <div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes hidden></div>
       </div>
 
       <p class="sfrfr-note sfrfr-otzyvy-legal">
@@ -74,14 +130,37 @@
   if (!root) return;
   var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
 
+  function goal(name) {
+    if (typeof window.sfrfrMetrikaGoal === "function") {
+      window.sfrfrMetrikaGoal(name);
+    }
+  }
+
+  goal("review_page_view");
+
+  root.querySelectorAll("[data-sfrfr-review-goal]").forEach(function (el) {
+    var name = el.getAttribute("data-sfrfr-review-goal");
+    if (!name) return;
+    var ev = el.tagName === "SUMMARY" ? "click" : "click";
+    el.addEventListener(ev, function () {
+      if (el.tagName === "SUMMARY" && el.parentElement && el.parentElement.open) {
+        return;
+      }
+      goal(name);
+    });
+  });
+
   var box = root.querySelector("[data-sfrfr-quotes]");
   var empty = root.querySelector("[data-sfrfr-quotes-empty]");
+  var title = root.querySelector("[data-sfrfr-quotes-title]");
   fetch(apiBase + "/api/public/site-reviews?limit=12")
     .then(function (r) { return r.json(); })
     .then(function (data) {
       var items = (data && data.items) || [];
       if (!items.length || !box) return;
       if (empty) empty.hidden = true;
+      if (title) title.textContent = "Что говорят клиенты";
+      box.hidden = false;
       items.forEach(function (item) {
         var art = document.createElement("article");
         art.className = "sfrfr-card sfrfr-otzyvy-quote";
@@ -89,7 +168,7 @@
         p.textContent = "«" + (item.text || "") + "»";
         var foot = document.createElement("p");
         foot.className = "sfrfr-muted";
-        foot.textContent = "Клиент сервиса";
+        foot.textContent = "Клиент сервиса, опубликовано с согласия";
         art.appendChild(p);
         art.appendChild(foot);
         box.appendChild(art);

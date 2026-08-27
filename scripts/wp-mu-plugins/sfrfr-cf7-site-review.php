@@ -47,9 +47,47 @@ function sfrfr_cf7_site_review_panel_html(): string
         ? do_shortcode('[contact-form-7 id="' . $formId . '" title="' . SFRFR_CF7_SITE_REVIEW_TITLE . '"]')
         : '<p class="sfrfr-note">Форма временно недоступна. Напишите на <a href="mailto:proverkastaza@yandex.ru">proverkastaza@yandex.ru</a>.</p>';
 
-    return '<div class="sfrfr-cf7-site-review" id="sfrfr-otzyvy-cf7">'
+    return '<div class="sfrfr-cf7-site-review" id="sfrfr-otzyvy-cf7" aria-live="polite">'
         . $inner
         . '</div>';
+}
+
+/**
+ * Собрать текст для очереди: полезное + (опционально) улучшить.
+ *
+ * @param array<string, mixed> $posted
+ */
+function sfrfr_cf7_site_review_compose_text(array $posted): string
+{
+    $useful = isset($posted['your-useful']) ? trim((string) $posted['your-useful']) : '';
+    if ($useful === '' && isset($posted['your-review'])) {
+        $useful = trim((string) $posted['your-review']);
+    }
+    $improve = isset($posted['your-improve']) ? trim((string) $posted['your-improve']) : '';
+    if ($useful === '') {
+        return '';
+    }
+    if ($improve === '') {
+        return $useful;
+    }
+    return $useful . "\n\nЧто улучшить: " . $improve;
+}
+
+function sfrfr_cf7_site_review_publish_consent(array $posted): bool
+{
+    if (!empty($posted['acceptance-publish'])) {
+        return true;
+    }
+    // CF7 иногда отдаёт массив значений acceptance.
+    $raw = $posted['acceptance-publish'] ?? null;
+    if (is_array($raw)) {
+        foreach ($raw as $v) {
+            if ((string) $v !== '' && (string) $v !== '0') {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 add_filter('the_content', static function (string $content): string {
@@ -86,10 +124,16 @@ add_action('wp_enqueue_scripts', static function (): void {
         );
     }
     $deps = $clientKey !== '' ? ['yandex-smartcaptcha'] : [];
-    wp_register_script('sfrfr-cf7-site-review', '', $deps, '20260827', true);
+    wp_register_script('sfrfr-cf7-site-review', '', $deps, '20260827b', true);
     wp_enqueue_script('sfrfr-cf7-site-review');
     wp_add_inline_script('sfrfr-cf7-site-review', <<<'JS'
 (function () {
+  function goal(name) {
+    if (typeof window.sfrfrMetrikaGoal === "function") {
+      window.sfrfrMetrikaGoal(name);
+    }
+  }
+
   function bindConsent(root) {
     root.querySelectorAll('a[href*="/soglasie/"]').forEach(function (a) {
       a.addEventListener("click", function (e) { e.stopPropagation(); });
@@ -128,14 +172,43 @@ add_action('wp_enqueue_scripts', static function (): void {
 
   document.querySelectorAll(".sfrfr-cf7-site-review").forEach(init);
 
+  document.addEventListener("wpcf7submit", function (ev) {
+    var form = ev && ev.target;
+    var root = form && form.closest ? form.closest(".sfrfr-cf7-site-review") : null;
+    if (!root) return;
+    goal("review_form_submit_attempt");
+  });
+
   document.addEventListener("wpcf7mailsent", function (ev) {
+    var form = ev && ev.target;
+    var root = form && form.closest ? form.closest(".sfrfr-cf7-site-review") : null;
+    if (!root) return;
+    goal("review_form_submit_success");
     if (typeof window.sfrfrMetrikaGoal === "function") {
       window.sfrfrMetrikaGoal("cf7_site_review_ok");
     }
+    setTimeout(function () { renderCaptcha(root); }, 80);
+  });
+
+  document.addEventListener("wpcf7mailfailed", function (ev) {
     var form = ev && ev.target;
     var root = form && form.closest ? form.closest(".sfrfr-cf7-site-review") : null;
-    if (root) {
-      setTimeout(function () { renderCaptcha(root); }, 80);
+    if (!root) return;
+    goal("review_form_submit_error");
+  });
+
+  document.addEventListener("wpcf7invalid", function (ev) {
+    var form = ev && ev.target;
+    var root = form && form.closest ? form.closest(".sfrfr-cf7-site-review") : null;
+    if (!root) return;
+    goal("review_form_submit_error");
+  });
+
+  document.addEventListener("change", function (ev) {
+    var t = ev.target;
+    if (!t || !t.name || t.name.indexOf("acceptance-publish") === -1) return;
+    if (t.checked && typeof window.sfrfrMetrikaGoal === "function") {
+      window.sfrfrMetrikaGoal("review_publication_consent_checked");
     }
   });
 })();
@@ -161,13 +234,13 @@ add_filter('wpcf7_spam', static function ($spam, $submission = null) {
     return $spam;
 }, 10, 2);
 
-/** CF7: обязательный textarea* валидируется отдельным хуком `wpcf7_validate_textarea*`. */
+/** CF7: обязательный textarea* валидируется хуком `wpcf7_validate_textarea*`. */
 $sfrfr_cf7_site_review_validate_len = static function ($result, $tag) {
     if (!($result instanceof WPCF7_Validation) || !is_object($tag)) {
         return $result;
     }
     $name = isset($tag->name) ? (string) $tag->name : '';
-    if ($name !== 'your-review') {
+    if ($name !== 'your-useful' && $name !== 'your-review') {
         return $result;
     }
     $submission = WPCF7_Submission::get_instance();
@@ -179,10 +252,10 @@ $sfrfr_cf7_site_review_validate_len = static function ($result, $tag) {
         return $result;
     }
     $posted = $submission->get_posted_data();
-    $text = isset($posted['your-review']) ? trim((string) $posted['your-review']) : '';
+    $text = isset($posted[$name]) ? trim((string) $posted[$name]) : '';
     $len = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
-    if ($len < 40) {
-        $result->invalidate($tag, 'Напишите чуть подробнее — хотя бы два-три предложения.');
+    if ($len < 15) {
+        $result->invalidate($tag, 'Напишите, пожалуйста, хотя бы одно предложение.');
     }
     return $result;
 };
@@ -208,10 +281,14 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
         return false;
     }
     $posted = $submission->get_posted_data();
-    $text = isset($posted['your-review']) ? trim((string) $posted['your-review']) : '';
+    if (!is_array($posted)) {
+        $posted = [];
+    }
+    $text = sfrfr_cf7_site_review_compose_text($posted);
     if ($text === '') {
         return false;
     }
+    $publishConsent = sfrfr_cf7_site_review_publish_consent($posted);
 
     $url = 'https://api.proverkastaza.ru/api/public/site-reviews';
     if (function_exists('sfrfr_env')) {
@@ -235,6 +312,7 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
     $payload = [
         'text' => mb_substr($text, 0, 600),
         'consent' => true,
+        'publish_consent' => $publishConsent,
         'mail_already_sent' => $mailAlreadySent,
         'source' => 'cf7',
     ];
@@ -286,13 +364,18 @@ add_action('wpcf7_mail_failed', static function ($contact_form): void {
         return;
     }
     $ok = sfrfr_cf7_site_review_enqueue_api(false);
+    $submission = WPCF7_Submission::get_instance();
+    if (!$submission instanceof WPCF7_Submission) {
+        return;
+    }
     if ($ok) {
-        $submission = WPCF7_Submission::get_instance();
-        if ($submission instanceof WPCF7_Submission) {
-            $submission->set_response(
-                'Спасибо. Отзыв принят и ждёт проверки перед публикацией на сайте.'
-            );
-        }
+        $submission->set_response(
+            'Спасибо. Текст принят. Если вы разрешили публикацию — он появится на сайте после проверки.'
+        );
+    } else {
+        $submission->set_response(
+            'Не удалось отправить отзыв. Ваш текст сохранён в форме — попробуйте ещё раз или выберите Яндекс Карты выше.'
+        );
     }
 }, 20);
 
@@ -315,6 +398,8 @@ add_filter('wpcf7_feedback_response', static function ($response, $result) {
     $msg = $submission->get_response();
     if (is_string($msg) && str_contains($msg, 'принят')) {
         $response['status'] = 'mail_sent';
+        $response['message'] = $msg;
+    } elseif (is_string($msg) && $msg !== '') {
         $response['message'] = $msg;
     }
     return $response;

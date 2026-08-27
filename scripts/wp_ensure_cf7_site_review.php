@@ -32,13 +32,21 @@ if (!$contact instanceof WPCF7_ContactForm) {
 $form = <<<'FORM'
 <div class="sfrfr-cf7-site-review-grid">
 <div class="sfrfr-cf7-site-review-main">
-<label>Текст отзыва *
-[textarea* your-review maxlength:600 placeholder "Например: объяснили по шагам, куда подавать документы."]
+<label>Что было для вас полезно? *
+[textarea* your-useful maxlength:400 placeholder "Напишите 1–3 предложения о вашем опыте"]
+</label>
+<p class="sfrfr-otzyvy-examples">Можно написать, например: «Стало понятнее, какие документы собрать». «Понравилось, что объяснили порядок действий».</p>
+<label>Что можно улучшить? <span class="sfrfr-optional">(необязательно)</span>
+[textarea your-improve maxlength:400 placeholder "Если есть идея — напишите коротко"]
 </label>
 </div>
 <div class="sfrfr-cf7-site-review-side">
 <div class="sfrfr-cf7-consent">
-[acceptance acceptance-consent] <a class="sfrfr-consent-link" href="/soglasie/" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных*</a> [/acceptance]
+[acceptance acceptance-consent] Согласен(на) на обработку текста отзыва* [/acceptance]
+<p class="sfrfr-otzyvy-consent-note"><a class="sfrfr-consent-link" href="/soglasie/" target="_blank" rel="noopener noreferrer">Политика обработки данных</a></p>
+</div>
+<div class="sfrfr-cf7-consent sfrfr-cf7-consent--optional">
+[acceptance acceptance-publish optional] Разрешаю опубликовать отзыв на сайте без фамилии, контактов, личных номеров, сумм и деталей документов [/acceptance]
 </div>
 <div class="sfrfr-cf7-hp-wrap" aria-hidden="true">
 <label>Сайт
@@ -53,10 +61,16 @@ $form = <<<'FORM'
 FORM;
 
 $mailBody = <<<'BODY'
-Отзыв с страницы /otzyvy/ (ожидает модерации перед публикацией на сайте).
+Отзыв с страницы /otzyvy/.
 
-Текст:
-[your-review]
+Что было полезно:
+[your-useful]
+
+Что улучшить:
+[your-improve]
+
+Согласие на обработку текста: [acceptance-consent]
+Согласие на публикацию на сайте: [acceptance-publish]
 
 Страница: [_post_title]
 URL: [_post_url]
@@ -83,11 +97,12 @@ $messages = $contact->prop('messages');
 if (!is_array($messages)) {
     $messages = [];
 }
-$messages['mail_sent_ok'] = 'Спасибо. Отзыв принят и ждёт проверки перед публикацией на сайте.';
+$messages['mail_sent_ok'] = 'Спасибо. Текст принят. Если вы разрешили публикацию — он появится на сайте после проверки.';
+$messages['mail_sent_ng'] = 'Не удалось отправить отзыв. Ваш текст сохранён в форме — попробуйте ещё раз или выберите Яндекс Карты выше.';
 $messages['validation_error'] = 'Проверьте поля формы и повторите отправку.';
 $messages['spam'] = 'Сообщение не отправлено. Обновите страницу и попробуйте ещё раз.';
-$messages['accept_terms'] = 'Нужно согласие на обработку персональных данных.';
-$messages['invalid_required'] = 'Заполните это поле.';
+$messages['accept_terms'] = 'Чтобы отправить отзыв, подтвердите согласие на обработку текста отзыва.';
+$messages['invalid_required'] = 'Напишите, пожалуйста, хотя бы одно предложение.';
 
 $contact->set_properties([
     'form' => $form,

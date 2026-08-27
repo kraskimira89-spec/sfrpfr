@@ -7,6 +7,26 @@ from pathlib import Path
 import sfrfr.core.site_reviews as sr
 
 
+def test_enqueue_without_publish_consent_is_feedback(monkeypatch) -> None:
+    store = Path("var") / "test_site_reviews_feedback.json"
+    if store.exists():
+        store.unlink()
+    monkeypatch.setattr(sr, "_DEFAULT_PATH", store)
+    try:
+        text = (
+            "Обращался в сервис Проверка стажа. Помогли сверить документы и "
+            "подготовить план. Понятно, что в СФР подаю сам."
+        )
+        queued = sr.enqueue_quote(text=text, source="cf7", consent=True, publish_consent=False)
+        assert queued and queued["queued"] is True
+        assert queued.get("status") == "feedback"
+        assert sr.list_pending() == []
+        assert sr.list_published() == []
+    finally:
+        if store.exists():
+            store.unlink()
+
+
 def test_enqueue_and_publish(monkeypatch) -> None:
     store = Path("var") / "test_site_reviews.json"
     if store.exists():
@@ -19,8 +39,9 @@ def test_enqueue_and_publish(monkeypatch) -> None:
             "Обращался в сервис Проверка стажа. Помогли сверить документы и "
             "подготовить план. Понятно, что в СФР подаю сам."
         )
-        queued = sr.enqueue_quote(text=text, source="site", consent=True)
+        queued = sr.enqueue_quote(text=text, source="site", consent=True, publish_consent=True)
         assert queued and queued["queued"] is True
+        assert queued.get("status") == "pending"
         assert sr.list_published() == []
         assert len(sr.list_pending()) == 1
         item_id = queued["id"]
@@ -77,12 +98,13 @@ def test_public_post_site_review_queues(monkeypatch) -> None:
         )
         response = client.post(
             "/api/public/site-reviews",
-            json={"text": text, "consent": True},
+            json={"text": text, "consent": True, "publish_consent": True},
         )
         assert response.status_code == 200
         body = response.json()
         assert body["ok"] is True
         assert body["queued"] is True
+        assert body.get("status") == "pending"
         assert len(sr.list_pending()) == 1
     finally:
         if store.exists():
@@ -131,6 +153,7 @@ def test_public_post_site_review_trusted_wp_skips_captcha(monkeypatch) -> None:
             json={
                 "text": text,
                 "consent": True,
+                "publish_consent": True,
                 "mail_already_sent": True,
                 "source": "cf7",
             },
@@ -160,7 +183,7 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
         "Обращался в сервис Проверка стажа. Помогли сверить документы и "
         "подготовить план. Понятно, что в СФР подаю сам."
     )
-    queued = sr.enqueue_quote(text=text, source="site", consent=True)
+    queued = sr.enqueue_quote(text=text, source="site", consent=True, publish_consent=True)
     assert queued and queued["queued"]
     item_id = queued["id"]
     assert psr.parse_site_review_callback(f"srev:p:{item_id}") == (item_id, "published")
