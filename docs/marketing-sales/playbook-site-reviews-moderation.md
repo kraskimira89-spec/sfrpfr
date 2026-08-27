@@ -43,7 +43,19 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
 ## Чеклист WP admin (если письмо не приходит)
 
 1. Плагины **Contact Form 7** и **Flamingo** активны.  
-2. Форма «Отзыв на сайте» существует (ensure-скрипт).  
+2. Форма «Отзыв на сайте» существует (ensure-скрипт), id в `sfrfr_cf7_site_review_id`.  
 3. В форме Mail → To: `proverkastaza@yandex.ru`, Mail active.  
-4. WordPress умеет отправлять почту (SMTP / хостинг); тест: отправить форму → письмо + запись в Flamingo.  
+4. Тест: отправить форму → **письмо** + запись в **Flamingo** (`Контакт → Входящие`).  
 5. На VPS в `/opt/sfrfr/.env`: `MAX_SPECIALISTS_CHANNEL_CHAT_ID`, токен ops-бота; `PUBLIC_LEAD_TOKEN` совпадает с WP (`sfrfr-lead.config.php` / env), иначе очередь/MAX с CF7 не доедут.
+
+### Проверка 2026-08-27
+
+| Шаг | Результат |
+|---|---|
+| CF7 + Flamingo active | ок |
+| Форма «Отзыв на сайте» | id `2984` |
+| Flamingo inbound | ок (есть запись) |
+| `wp_mail` / CF7 mail | **fail** — на WP нет sendmail/postfix и SMTP-плагина |
+| Обход | MU `sfrfr-cf7-site-review.php`: при `wpcf7_mail_failed` → API `/site-reviews` с `mail_already_sent=false` → письмо через **Яндекс SMTP** SFRFR + очередь + MAX |
+
+Долгосрочно: поставить FluentSMTP / WP Mail SMTP на WP **или** оставить канон «письмо через API». Flamingo продолжает писать при любом исходе CF7 mail.

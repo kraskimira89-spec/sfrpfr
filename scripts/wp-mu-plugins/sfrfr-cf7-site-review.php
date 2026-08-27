@@ -193,23 +193,20 @@ add_filter('wpcf7_autop_or_not', static function ($autop, $contact_form = null) 
 }, 10, 2);
 
 /**
- * После успешной отправки CF7 — очередь модерации + MAX (почта уже ушла через CF7).
+ * Очередь модерации + MAX (+ письмо через API, если CF7 mail не ушёл).
+ *
+ * @param bool $mailAlreadySent true = CF7 уже отправил письмо; false = API шлёт через Яндекс SMTP.
  */
-add_action('wpcf7_mail_sent', static function ($contact_form): void {
-    if (!($contact_form instanceof WPCF7_ContactForm)) {
-        return;
-    }
-    if ($contact_form->title() !== SFRFR_CF7_SITE_REVIEW_TITLE) {
-        return;
-    }
+function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
+{
     $submission = WPCF7_Submission::get_instance();
     if (!$submission instanceof WPCF7_Submission) {
-        return;
+        return false;
     }
     $posted = $submission->get_posted_data();
     $text = isset($posted['your-review']) ? trim((string) $posted['your-review']) : '';
     if ($text === '') {
-        return;
+        return false;
     }
 
     $url = 'https://api.proverkastaza.ru/api/public/site-reviews';
@@ -234,7 +231,7 @@ add_action('wpcf7_mail_sent', static function ($contact_form): void {
     $payload = [
         'text' => mb_substr($text, 0, 600),
         'consent' => true,
-        'mail_already_sent' => true,
+        'mail_already_sent' => $mailAlreadySent,
         'source' => 'cf7',
     ];
     $smart = isset($posted['smart-token']) ? trim((string) $posted['smart-token']) : '';
@@ -253,7 +250,7 @@ add_action('wpcf7_mail_sent', static function ($contact_form): void {
     );
     if (is_wp_error($response)) {
         error_log('SFRFR site review queue: ' . $response->get_error_message());
-        return;
+        return false;
     }
     $code = (int) wp_remote_retrieve_response_code($response);
     if ($code < 200 || $code >= 300) {
@@ -261,5 +258,60 @@ add_action('wpcf7_mail_sent', static function ($contact_form): void {
             'SFRFR site review queue HTTP ' . $code . ': '
             . substr((string) wp_remote_retrieve_body($response), 0, 300)
         );
+        return false;
+    }
+    return true;
+}
+
+add_action('wpcf7_mail_sent', static function ($contact_form): void {
+    if (!($contact_form instanceof WPCF7_ContactForm)) {
+        return;
+    }
+    if ($contact_form->title() !== SFRFR_CF7_SITE_REVIEW_TITLE) {
+        return;
+    }
+    sfrfr_cf7_site_review_enqueue_api(true);
+}, 20);
+
+/** WP без SMTP: Flamingo пишет, mail падает — API шлёт письмо через Яндекс SMTP. */
+add_action('wpcf7_mail_failed', static function ($contact_form): void {
+    if (!($contact_form instanceof WPCF7_ContactForm)) {
+        return;
+    }
+    if ($contact_form->title() !== SFRFR_CF7_SITE_REVIEW_TITLE) {
+        return;
+    }
+    $ok = sfrfr_cf7_site_review_enqueue_api(false);
+    if ($ok) {
+        $submission = WPCF7_Submission::get_instance();
+        if ($submission instanceof WPCF7_Submission) {
+            $submission->set_response(
+                'Спасибо. Отзыв принят и ждёт проверки перед публикацией на сайте.'
+            );
+        }
     }
 }, 20);
+
+/** Показать клиенту успех, если при mail_failed очередь API всё же приняла отзыв. */
+add_filter('wpcf7_feedback_response', static function ($response, $result) {
+    if (!is_array($response) || !is_array($result)) {
+        return $response;
+    }
+    if (($result['status'] ?? '') !== 'mail_failed') {
+        return $response;
+    }
+    $submission = WPCF7_Submission::get_instance();
+    if (!$submission instanceof WPCF7_Submission) {
+        return $response;
+    }
+    $contact = $submission->get_contact_form();
+    if (!($contact instanceof WPCF7_ContactForm) || $contact->title() !== SFRFR_CF7_SITE_REVIEW_TITLE) {
+        return $response;
+    }
+    $msg = $submission->get_response();
+    if (is_string($msg) && str_contains($msg, 'принят')) {
+        $response['status'] = 'mail_sent';
+        $response['message'] = $msg;
+    }
+    return $response;
+}, 20, 2);
