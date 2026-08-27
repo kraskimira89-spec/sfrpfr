@@ -108,9 +108,15 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "forms.yandex.ru/cloud/6a7db97670ad3712589c7456" in otzyvy
     assert "Яндекс Форма" in otzyvy
     assert "sfrfr-otzyvy-form-frame" not in otzyvy
-    assert 'id="sfrfr-otzyvy-msg-form"' in otzyvy
+    assert "SFRFR_SITE_REVIEW_FORM" in otzyvy
+    assert 'id="sfrfr-otzyvy-msg-form"' not in otzyvy
     assert "Оставить отзыв" in otzyvy
-    assert "sfrfr-otzyvy-msg-captcha" in otzyvy
+    assert "sfrfr-otzyvy-msg-captcha" not in otzyvy
+    cf7_review = (REPO / "scripts/wp-mu-plugins/sfrfr-cf7-site-review.php").read_text(
+        encoding="utf-8"
+    )
+    assert "Отзыв на сайте" in cf7_review
+    assert "proverkastaza@yandex.ru" in cf7_review
     assert "/otzyv/" in otzyvy
     assert 'src="/yandex-review-qr.png"' in otzyvy
     assert "Собрать черновик" not in otzyvy
