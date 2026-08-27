@@ -90,55 +90,14 @@ add_filter('pre_wp_mail', static function ($null, $atts) {
     );
     if (is_wp_error($response)) {
         error_log('SFRFR wp_mail relay: ' . $response->get_error_message());
-        // #region agent log
-        @file_put_contents(
-            '/tmp/debug-e6d4c0.log',
-            wp_json_encode([
-                'sessionId' => 'e6d4c0',
-                'hypothesisId' => 'A',
-                'location' => 'sfrfr-wp-mail-relay.php:pre_wp_mail',
-                'message' => 'relay wp_error',
-                'data' => [
-                    'subjectLen' => function_exists('mb_strlen') ? mb_strlen($subject) : strlen($subject),
-                    'bodyLen' => function_exists('mb_strlen') ? mb_strlen($message) : strlen($message),
-                    'hasSnilsWord' => (function_exists('mb_stripos')
-                        ? mb_stripos($message, 'СНИЛС') !== false
-                        : stripos($message, 'СНИЛС') !== false),
-                    'err' => $response->get_error_message(),
-                ],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ], JSON_UNESCAPED_UNICODE) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
         return false;
     }
     $code = (int) wp_remote_retrieve_response_code($response);
-    $respBody = substr((string) wp_remote_retrieve_body($response), 0, 300);
-    // #region agent log
-    @file_put_contents(
-        '/tmp/debug-e6d4c0.log',
-        wp_json_encode([
-            'sessionId' => 'e6d4c0',
-            'hypothesisId' => 'A',
-            'location' => 'sfrfr-wp-mail-relay.php:pre_wp_mail',
-            'message' => 'relay http result',
-            'data' => [
-                'subjectLen' => function_exists('mb_strlen') ? mb_strlen($subject) : strlen($subject),
-                'bodyLen' => function_exists('mb_strlen') ? mb_strlen($message) : strlen($message),
-                'hasSnilsWord' => (function_exists('mb_stripos')
-                    ? mb_stripos($message, 'СНИЛС') !== false
-                    : stripos($message, 'СНИЛС') !== false),
-                'code' => $code,
-                'body' => $respBody,
-            ],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_UNICODE) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
     if ($code < 200 || $code >= 300) {
-        error_log('SFRFR wp_mail relay HTTP ' . $code . ': ' . $respBody);
+        error_log(
+            'SFRFR wp_mail relay HTTP ' . $code . ': '
+            . substr((string) wp_remote_retrieve_body($response), 0, 300)
+        );
         return false;
     }
     return true;

@@ -181,20 +181,6 @@ $sfrfr_cf7_site_review_validate_len = static function ($result, $tag) {
     $posted = $submission->get_posted_data();
     $text = isset($posted['your-review']) ? trim((string) $posted['your-review']) : '';
     $len = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
-    // #region agent log
-    @file_put_contents(
-        '/tmp/debug-e6d4c0.log',
-        wp_json_encode([
-            'sessionId' => 'e6d4c0',
-            'hypothesisId' => 'D',
-            'location' => 'sfrfr-cf7-site-review.php:validate_len',
-            'message' => 'cf7 review length check',
-            'data' => ['len' => $len, 'ok' => $len >= 40],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_UNICODE) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
     if ($len < 40) {
         $result->invalidate($tag, 'Напишите чуть подробнее — хотя бы два-три предложения.');
     }
@@ -268,51 +254,14 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
     );
     if (is_wp_error($response)) {
         error_log('SFRFR site review queue: ' . $response->get_error_message());
-        // #region agent log
-        @file_put_contents(
-            '/tmp/debug-e6d4c0.log',
-            wp_json_encode([
-                'sessionId' => 'e6d4c0',
-                'hypothesisId' => 'B',
-                'location' => 'sfrfr-cf7-site-review.php:enqueue',
-                'message' => 'queue wp_error',
-                'data' => [
-                    'mailAlreadySent' => $mailAlreadySent,
-                    'hasToken' => isset($headers['X-Public-Lead-Token']),
-                    'textLen' => function_exists('mb_strlen') ? mb_strlen($text) : strlen($text),
-                    'err' => $response->get_error_message(),
-                ],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ], JSON_UNESCAPED_UNICODE) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
         return false;
     }
     $code = (int) wp_remote_retrieve_response_code($response);
-    $respBody = substr((string) wp_remote_retrieve_body($response), 0, 300);
-    // #region agent log
-    @file_put_contents(
-        '/tmp/debug-e6d4c0.log',
-        wp_json_encode([
-            'sessionId' => 'e6d4c0',
-            'hypothesisId' => 'B',
-            'location' => 'sfrfr-cf7-site-review.php:enqueue',
-            'message' => 'queue http result',
-            'data' => [
-                'mailAlreadySent' => $mailAlreadySent,
-                'hasToken' => isset($headers['X-Public-Lead-Token']),
-                'textLen' => function_exists('mb_strlen') ? mb_strlen($text) : strlen($text),
-                'code' => $code,
-                'body' => $respBody,
-            ],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_UNICODE) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
     if ($code < 200 || $code >= 300) {
-        error_log('SFRFR site review queue HTTP ' . $code . ': ' . $respBody);
+        error_log(
+            'SFRFR site review queue HTTP ' . $code . ': '
+            . substr((string) wp_remote_retrieve_body($response), 0, 300)
+        );
         return false;
     }
     return true;

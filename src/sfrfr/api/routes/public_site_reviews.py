@@ -235,35 +235,6 @@ def submit_site_review(
             detail="consent_required",
         )
     trusted = _trusted_wp_token(x_public_lead_token)
-    # #region agent log
-    try:
-        import json
-        import time
-        from pathlib import Path
-
-        Path("/opt/sfrfr/debug-e6d4c0.log").open("a", encoding="utf-8").write(
-            json.dumps(
-                {
-                    "sessionId": "e6d4c0",
-                    "hypothesisId": "B",
-                    "location": "public_site_reviews.py:submit_site_review",
-                    "message": "submit entry",
-                    "data": {
-                        "trusted": trusted,
-                        "textLen": len((payload.text or "").strip()),
-                        "source": (payload.source or "")[:32],
-                        "mailAlreadySent": payload.mail_already_sent,
-                        "hasSmart": bool((payload.smartcaptcha_token or "").strip()),
-                    },
-                    "timestamp": int(time.time() * 1000),
-                },
-                ensure_ascii=False,
-            )
-            + "\n"
-        )
-    except Exception:  # noqa: BLE001
-        pass
-    # #endregion
     if not trusted:
         client_ip = request.client.host if request.client else None
         _require_captcha(
@@ -279,29 +250,6 @@ def submit_site_review(
             detail="consent_required",
         )
     if not result.get("queued"):
-        # #region agent log
-        try:
-            import json
-            import time
-            from pathlib import Path
-
-            Path("/opt/sfrfr/debug-e6d4c0.log").open("a", encoding="utf-8").write(
-                json.dumps(
-                    {
-                        "sessionId": "e6d4c0",
-                        "hypothesisId": "B",
-                        "location": "public_site_reviews.py:submit_site_review",
-                        "message": "enqueue rejected",
-                        "data": {"reason": str(result.get("reason") or "rejected")},
-                        "timestamp": int(time.time() * 1000),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
-        except Exception:  # noqa: BLE001
-            pass
-        # #endregion
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.get("reason") or "rejected"),
@@ -329,35 +277,6 @@ def wp_mail_relay(
     """WordPress wp_mail → Яндекс SMTP SFRFR (замена SMTP-плагина на WP)."""
     if not _trusted_wp_token(x_public_lead_token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
-    # #region agent log
-    try:
-        import json
-        import time
-        from pathlib import Path
-
-        body_l = (payload.body or "").lower()
-        Path("/opt/sfrfr/debug-e6d4c0.log").open("a", encoding="utf-8").write(
-            json.dumps(
-                {
-                    "sessionId": "e6d4c0",
-                    "hypothesisId": "A",
-                    "location": "public_site_reviews.py:wp_mail_relay",
-                    "message": "relay entry",
-                    "data": {
-                        "subjectLen": len(payload.subject or ""),
-                        "bodyLen": len(payload.body or ""),
-                        "hasSnilsMarker": "снилс" in body_l or "snils" in body_l,
-                        "hasPassportMarker": "паспорт" in body_l or "passport" in body_l,
-                    },
-                    "timestamp": int(time.time() * 1000),
-                },
-                ensure_ascii=False,
-            )
-            + "\n"
-        )
-    except Exception:  # noqa: BLE001
-        pass
-    # #endregion
     try:
         from sfrfr.integrations.yandex_workspace.mail import send_mail
 
@@ -373,31 +292,6 @@ def wp_mail_relay(
         logger.warning("wp mail relay failed: %s", exc)
         raise HTTPException(status_code=502, detail=type(exc).__name__) from exc
     if not result.get("ok"):
-        # #region agent log
-        try:
-            import json
-            import time
-            from pathlib import Path
-
-            Path("/opt/sfrfr/debug-e6d4c0.log").open("a", encoding="utf-8").write(
-                json.dumps(
-                    {
-                        "sessionId": "e6d4c0",
-                        "hypothesisId": "A",
-                        "location": "public_site_reviews.py:wp_mail_relay",
-                        "message": "relay send not ok",
-                        "data": {
-                            "error": str(result.get("error") or result.get("reason") or "send_failed")
-                        },
-                        "timestamp": int(time.time() * 1000),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
-        except Exception:  # noqa: BLE001
-            pass
-        # #endregion
         raise HTTPException(
             status_code=502,
             detail=str(result.get("error") or result.get("reason") or "send_failed"),
