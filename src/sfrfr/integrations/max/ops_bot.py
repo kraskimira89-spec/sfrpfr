@@ -378,7 +378,8 @@ def handle_ops_update(
         result = set_status(item_id, review_status)
         label = "опубликован" if review_status == "published" else "отклонён"
         if result.get("ok"):
-            item = result.get("item") if isinstance(result.get("item"), dict) else {}
+            raw_item = result.get("item")
+            item = raw_item if isinstance(raw_item, dict) else {}
             quote = str(item.get("text") or "").strip()
             if quote:
                 reply = f"Отзыв {label}.\n\nТекст:\n{quote}\n\nid: {item_id}"

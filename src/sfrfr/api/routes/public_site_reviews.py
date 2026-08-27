@@ -234,7 +234,8 @@ def moderate_site_review_link(
     result = set_status(item_id, review_status)
     if not result.get("ok"):
         raise HTTPException(status_code=404, detail=str(result.get("error") or "not_found"))
-    item = result.get("item") if isinstance(result.get("item"), dict) else {}
+    raw_item = result.get("item")
+    item = raw_item if isinstance(raw_item, dict) else {}
     quote = str(item.get("text") or "").strip()
     label = "опубликован на сайте" if review_status == "published" else "отклонён"
     quote_html = (
