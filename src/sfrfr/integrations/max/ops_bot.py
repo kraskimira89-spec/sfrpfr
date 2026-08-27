@@ -378,7 +378,12 @@ def handle_ops_update(
         result = set_status(item_id, review_status)
         label = "опубликован" if review_status == "published" else "отклонён"
         if result.get("ok"):
-            reply = f"Отзыв {label}: {item_id}"
+            item = result.get("item") if isinstance(result.get("item"), dict) else {}
+            quote = str(item.get("text") or "").strip()
+            if quote:
+                reply = f"Отзыв {label}.\n\nТекст:\n{quote}\n\nid: {item_id}"
+            else:
+                reply = f"Отзыв {label}: {item_id}"
         else:
             reply = f"Не удалось: {result.get('error') or 'ошибка'} ({item_id})"
         _reply(bot, user_id=user_id or "", chat_id=chat_id, text=reply)

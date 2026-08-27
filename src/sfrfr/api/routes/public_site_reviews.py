@@ -133,9 +133,8 @@ def notify_site_review_queued(
     publish_consent: bool = False,
 ) -> dict[str, Any]:
     """Письмо на proverkastaza@yandex.ru (если нужно) + fanout в MAX / канал команды."""
-    preview = (text or "").strip()
-    if len(preview) > 280:
-        preview = preview[:279] + "…"
+    # Полный текст для сотрудника (лимит формы 600); без обрезки «для превью».
+    full_text = (text or "").strip()[:600]
     urls = moderation_urls(item_id)
     mode = (
         "можно опубликовать после проверки"
@@ -144,10 +143,10 @@ def notify_site_review_queued(
     )
     body = (
         "Новый отзыв на сайте\n"
-        f"id: {item_id}\n"
         f"источник: {source}\n"
         f"режим: {mode}\n"
-        f"текст: {preview}\n"
+        f"id: {item_id}\n\n"
+        f"Текст отзыва:\n{full_text}\n"
     )
     if publish_consent:
         body += (
@@ -158,10 +157,13 @@ def notify_site_review_queued(
         body += "\nНа витрину не ставить без отдельного согласия автора."
     html_body = (
         "<p><b>Новый отзыв на сайте</b></p>"
-        f"<p>id: <code>{html.escape(item_id)}</code><br>"
-        f"источник: {html.escape(source)}<br>"
-        f"режим: {html.escape(mode)}</p>"
-        f"<p>{html.escape(preview)}</p>"
+        f"<p>источник: {html.escape(source)}<br>"
+        f"режим: {html.escape(mode)}<br>"
+        f"id: <code>{html.escape(item_id)}</code></p>"
+        "<p><b>Текст отзыва</b></p>"
+        f"<blockquote style=\"margin:0;padding:0.75rem 1rem;background:#f5f7f6;"
+        f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
+        f"{html.escape(full_text)}</blockquote>"
     )
     if publish_consent:
         html_body += (
@@ -232,12 +234,22 @@ def moderate_site_review_link(
     result = set_status(item_id, review_status)
     if not result.get("ok"):
         raise HTTPException(status_code=404, detail=str(result.get("error") or "not_found"))
+    item = result.get("item") if isinstance(result.get("item"), dict) else {}
+    quote = str(item.get("text") or "").strip()
     label = "опубликован на сайте" if review_status == "published" else "отклонён"
+    quote_html = (
+        f"<blockquote style=\"margin:1rem 0;padding:0.75rem 1rem;background:#f5f7f6;"
+        f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
+        f"{html.escape(quote)}</blockquote>"
+        if quote
+        else ""
+    )
     page = (
         "<!doctype html><html lang=\"ru\"><meta charset=\"utf-8\">"
         "<title>Модерация отзыва</title>"
         "<body style=\"font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem\">"
         f"<h1>Отзыв {html.escape(label)}</h1>"
+        f"{quote_html}"
         f"<p>id: <code>{html.escape(item_id)}</code></p>"
         "<p><a href=\"https://proverkastaza.ru/otzyvy/\">Страница отзывов</a></p>"
         "</body></html>"

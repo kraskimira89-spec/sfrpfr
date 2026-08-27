@@ -41,6 +41,9 @@ sfrfr site-reviews-set <uuid> --status rejected
 
 На витрину и главную — только `published`. Рейтинг Яндекса форма не меняет.
 
+В MAX и письме сотруднику показывается **полный текст** отзыва (до 600 символов).
+После нажатия кнопки / перехода по ссылке текст также виден в подтверждении.
+
 ## Аналитика (без ПДн и без текста отзыва)
 
 `review_page_view`, `review_yandex_map_click`, `review_yandex_qr_view`, `review_survey_click`,  

@@ -209,6 +209,7 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
         )
         assert ok.status_code == 200
         assert "опубликован" in ok.text
+        assert "Обращался в сервис" in ok.text
         assert len(sr.list_published()) == 1
     finally:
         get_settings.cache_clear()

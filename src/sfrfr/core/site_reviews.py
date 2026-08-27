@@ -142,9 +142,22 @@ def list_pending(*, limit: int = 50) -> list[dict[str, Any]]:
     return out
 
 
+def get_item(item_id: str) -> dict[str, Any] | None:
+    """Найти отзыв по id (для модерации / уведомлений)."""
+    needle = (item_id or "").strip()
+    if not needle:
+        return None
+    with _STORE_LOCK:
+        items = _load().get("items") or []
+    for raw in items:
+        if isinstance(raw, dict) and str(raw.get("id") or "") == needle:
+            return dict(raw)
+    return None
+
+
 def set_status(item_id: str, status: str) -> dict[str, Any]:
     status = status.strip().lower()
-    if status not in {"pending", "published", "rejected"}:
+    if status not in {"pending", "published", "rejected", "feedback"}:
         return {"ok": False, "error": "bad_status"}
     with _STORE_LOCK:
         data = _load()
@@ -155,7 +168,7 @@ def set_status(item_id: str, status: str) -> dict[str, Any]:
                 raw["published_at"] = (
                     datetime.now(UTC).isoformat() if status == "published" else None
                 )
-                found = raw
+                found = dict(raw)
                 break
         if not found:
             return {"ok": False, "error": "not_found"}
