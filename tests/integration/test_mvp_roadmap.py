@@ -106,7 +106,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     otzyvy = (REPO / "scripts/assets/trust/otzyvy.html").read_text(encoding="utf-8")
     assert 'id="sfrfr-otzyvy-page"' in otzyvy
     assert "forms.yandex.ru/cloud/6a7db97670ad3712589c7456" in otzyvy
-    assert "Яндекс Форма" in otzyvy
+    assert "Ответить на 4 вопроса" in otzyvy
+    assert "Выберите один удобный способ" in otzyvy
     assert "sfrfr-otzyvy-form-frame" not in otzyvy
     assert "SFRFR_SITE_REVIEW_FORM" in otzyvy
     assert 'id="sfrfr-otzyvy-msg-form"' not in otzyvy
@@ -121,7 +122,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert 'src="/yandex-review-qr.png"' in otzyvy
     assert "Собрать черновик" not in otzyvy
     assert "Написать нам сообщение" not in otzyvy
-    assert "sfrfr-visually-hidden" in otzyvy
+    assert "Отзывы о сервисе" in otzyvy
+    assert "sfrfr-otzyvy-disclosure" in otzyvy
     assert "sfrfr-otzyvy-quotes" in otzyvy
     assert "Обязательное заполнение" not in css
     assert "display: contents" in css
