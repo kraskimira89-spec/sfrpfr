@@ -74,6 +74,15 @@ def create_review_draft(payload: ReviewDraftRequest, request: Request) -> Review
     if payload.site_quote_consent and draft:
         queued = enqueue_quote(text=draft, source="anketa", consent=True)
         quote_queued = bool(queued and queued.get("queued"))
+        if quote_queued and queued:
+            from sfrfr.api.routes.public_site_reviews import notify_site_review_queued
+
+            notify_site_review_queued(
+                text=draft,
+                item_id=str(queued.get("id") or ""),
+                source="anketa",
+                send_email=True,
+            )
 
     return ReviewDraftResponse(
         ok=True,

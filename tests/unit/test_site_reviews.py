@@ -61,6 +61,10 @@ def test_public_post_site_review_queues(monkeypatch) -> None:
         "sfrfr.api.routes.public_site_reviews._require_captcha",
         lambda **_kwargs: None,
     )
+    monkeypatch.setattr(
+        "sfrfr.api.routes.public_site_reviews.notify_site_review_queued",
+        lambda **_kwargs: {"email": {"ok": True}, "max": {"ok": True}},
+    )
     from fastapi.testclient import TestClient
 
     from sfrfr.api import create_app
@@ -81,5 +85,61 @@ def test_public_post_site_review_queues(monkeypatch) -> None:
         assert body["queued"] is True
         assert len(sr.list_pending()) == 1
     finally:
+        if store.exists():
+            store.unlink()
+
+
+def test_public_post_site_review_trusted_wp_skips_captcha(monkeypatch) -> None:
+    store = Path("var") / "test_site_reviews_cf7.json"
+    if store.exists():
+        store.unlink()
+    monkeypatch.setattr(sr, "_DEFAULT_PATH", store)
+    monkeypatch.setenv("PUBLIC_LEAD_TOKEN", "test-wp-token")
+    called = {"captcha": 0, "notify": 0}
+
+    def _cap(**_kwargs):
+        called["captcha"] += 1
+
+    def _notify(**kwargs):
+        called["notify"] += 1
+        assert kwargs.get("send_email") is False
+        assert kwargs.get("source") == "cf7"
+        return {"email": None, "max": {"ok": True}}
+
+    monkeypatch.setattr(
+        "sfrfr.api.routes.public_site_reviews._require_captcha",
+        _cap,
+    )
+    monkeypatch.setattr(
+        "sfrfr.api.routes.public_site_reviews.notify_site_review_queued",
+        _notify,
+    )
+    from fastapi.testclient import TestClient
+
+    from sfrfr.api import create_app
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        client = TestClient(create_app())
+        text = (
+            "Обращался в сервис Проверка стажа. Помогли сверить документы и "
+            "подготовить план. Понятно, что в СФР подаю сам."
+        )
+        response = client.post(
+            "/api/public/site-reviews",
+            json={
+                "text": text,
+                "consent": True,
+                "mail_already_sent": True,
+                "source": "cf7",
+            },
+            headers={"X-Public-Lead-Token": "test-wp-token"},
+        )
+        assert response.status_code == 200
+        assert called["captcha"] == 0
+        assert called["notify"] == 1
+    finally:
+        get_settings.cache_clear()
         if store.exists():
             store.unlink()

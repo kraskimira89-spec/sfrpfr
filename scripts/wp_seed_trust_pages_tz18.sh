@@ -31,6 +31,11 @@ if [[ -f "${SCRIPT_DIR}/wp_ensure_cf7_feedback.sh" ]]; then
   bash "${SCRIPT_DIR}/wp_ensure_cf7_feedback.sh" || echo "WARN: CF7 feedback ensure failed"
 fi
 
+if [[ -f "${SCRIPT_DIR}/wp_ensure_cf7_site_review.sh" ]]; then
+  echo "==> Ensure CF7 site review"
+  bash "${SCRIPT_DIR}/wp_ensure_cf7_site_review.sh" || echo "WARN: CF7 site review ensure failed"
+fi
+
 echo "==> Seed trust/commerce pages"
 "${WP[@]}" eval-file "${SCRIPT_DIR}/wp_seed_trust_pages_tz18.php"
 
@@ -49,6 +54,7 @@ cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-footer.php" "${MU}/sfrfr-site-foot
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-feedback.php" "${MU}/sfrfr-cf7-feedback.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-site-review.php" "${MU}/sfrfr-cf7-site-review.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-lead-magnet.php" "${MU}/sfrfr-lead-magnet.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-metrika.php" "${MU}/sfrfr-yandex-metrika.php"
 

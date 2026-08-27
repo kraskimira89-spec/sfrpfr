@@ -1076,6 +1076,58 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
   resize: vertical;
 }
 
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .wpcf7,
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .wpcf7-form {
+  margin: 0;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review-grid {
+  display: grid;
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+@media (min-width: 800px) {
+  #sfrfr-otzyvy-page .sfrfr-cf7-site-review-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+  }
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review-main label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review textarea.wpcf7-form-control {
+  width: 100%;
+  min-height: 6.25rem;
+  resize: vertical;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .sfrfr-cf7-hp-wrap,
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .sfrfr-cf7-hp {
+  position: absolute;
+  left: -9999px;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .sfrfr-consent-link {
+  text-decoration: underline;
+}
+
+#sfrfr-otzyvy-page .sfrfr-cf7-site-review .wpcf7-submit {
+  cursor: pointer;
+}
+
 #sfrfr-otzyvy-page .sfrfr-review-captcha-box {
   min-height: 100px;
   margin: 0;

@@ -132,6 +132,9 @@ echo
 if [[ -f "${APP_DIR}/scripts/wp_ensure_cf7_feedback.sh" ]]; then
   bash "${APP_DIR}/scripts/wp_ensure_cf7_feedback.sh" || echo "WARN: CF7 feedback ensure failed"
 fi
+if [[ -f "${APP_DIR}/scripts/wp_ensure_cf7_site_review.sh" ]]; then
+  bash "${APP_DIR}/scripts/wp_ensure_cf7_site_review.sh" || echo "WARN: CF7 site review ensure failed"
+fi
 "${WP[@]}" eval-file "${APP_DIR}/scripts/wp_seed_blog_tz11.php"
 echo
 

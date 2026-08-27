@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-08-27 — отзывы: CF7 + почта + MAX
+
+- Было: самописная форма `/otzyvy/` → API pending без почты/MAX.
+- Стало: CF7 «Отзыв на сайте» → `proverkastaza@yandex.ru` + Flamingo; MU → очередь + fanout MAX; публикация только после `site-reviews-set published`.
+- Playbook: `docs/marketing-sales/playbook-site-reviews-moderation.md`.
+
 ## 2026-08-22 — Яндекс Трекер: клон aikts + bootstrap
 
 - `gh repo clone aikts/yandex-tracker-mcp` → `tools/yandex-tracker-mcp`; `pip install -e` в `.venv`.
