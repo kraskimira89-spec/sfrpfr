@@ -89,21 +89,17 @@
         появляется только после проверки и только с отдельного разрешения.
       </p>
 
-      <details class="sfrfr-otzyvy-disclosure" id="sfrfr-otzyvy-site-form">
-        <summary data-sfrfr-review-goal="review_form_open">
-          Хотите написать короткий отзыв прямо на сайте?
-        </summary>
-        <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-message">
-          <p class="sfrfr-otzyvy-hint">
-            Можно написать, например: «Стало понятнее, какие документы собрать»
-            или «Понравилось, что объяснили порядок действий».
-          </p>
-          <p class="sfrfr-otzyvy-hint sfrfr-otzyvy-hint--warn">
-            Без фамилии в публикации. Не пишите СНИЛС, паспорт, суммы и детали документов.
-          </p>
-          <!-- SFRFR_SITE_REVIEW_FORM -->
-        </div>
-      </details>
+      <div class="sfrfr-otzyvy-message" id="sfrfr-otzyvy-site-form">
+        <h2>Короткий отзыв на сайте</h2>
+        <p class="sfrfr-otzyvy-hint">
+          Можно написать, например: «Стало понятнее, какие документы собрать»
+          или «Понравилось, что объяснили порядок действий».
+        </p>
+        <p class="sfrfr-otzyvy-hint sfrfr-otzyvy-hint--warn">
+          Без фамилии в публикации. Не пишите СНИЛС, паспорт, суммы и детали документов.
+        </p>
+        <!-- SFRFR_SITE_REVIEW_FORM -->
+      </div>
 
       <div class="sfrfr-otzyvy-published" id="sfrfr-page-reviews">
         <h2 data-sfrfr-quotes-title>Как мы публикуем отзывы</h2>
@@ -137,15 +133,12 @@
   }
 
   goal("review_page_view");
+  goal("review_form_open");
 
   root.querySelectorAll("[data-sfrfr-review-goal]").forEach(function (el) {
     var name = el.getAttribute("data-sfrfr-review-goal");
     if (!name) return;
-    var ev = el.tagName === "SUMMARY" ? "click" : "click";
-    el.addEventListener(ev, function () {
-      if (el.tagName === "SUMMARY" && el.parentElement && el.parentElement.open) {
-        return;
-      }
+    el.addEventListener("click", function () {
       goal(name);
     });
   });

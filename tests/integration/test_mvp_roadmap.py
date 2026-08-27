@@ -123,7 +123,11 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Собрать черновик" not in otzyvy
     assert "Написать нам сообщение" not in otzyvy
     assert "Отзывы о сервисе" in otzyvy
-    assert "sfrfr-otzyvy-disclosure" in otzyvy
+    assert "Короткий отзыв на сайте" in otzyvy
+    assert "sfrfr-otzyvy-disclosure" not in otzyvy
+    assert "your-improve" not in (
+        REPO / "scripts/wp_ensure_cf7_site_review.php"
+    ).read_text(encoding="utf-8")
     assert "sfrfr-otzyvy-quotes" in otzyvy
     assert "Обязательное заполнение" not in css
     assert "display: contents" in css

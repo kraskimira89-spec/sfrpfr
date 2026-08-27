@@ -33,12 +33,9 @@ $form = <<<'FORM'
 <div class="sfrfr-cf7-site-review-grid">
 <div class="sfrfr-cf7-site-review-main">
 <label>Что было для вас полезно? *
-[textarea* your-useful maxlength:400 placeholder "Напишите 1–3 предложения о вашем опыте"]
+[textarea* your-useful maxlength:600 placeholder "Напишите 1–3 предложения о вашем опыте"]
 </label>
 <p class="sfrfr-otzyvy-examples">Можно написать, например: «Стало понятнее, какие документы собрать». «Понравилось, что объяснили порядок действий».</p>
-<label>Что можно улучшить? <span class="sfrfr-optional">(необязательно)</span>
-[textarea your-improve maxlength:400 placeholder "Если есть идея — напишите коротко"]
-</label>
 </div>
 <div class="sfrfr-cf7-site-review-side">
 <div class="sfrfr-cf7-consent">
@@ -63,11 +60,8 @@ FORM;
 $mailBody = <<<'BODY'
 Отзыв с страницы /otzyvy/.
 
-Что было полезно:
+Текст:
 [your-useful]
-
-Что улучшить:
-[your-improve]
 
 Согласие на обработку текста: [acceptance-consent]
 Согласие на публикацию на сайте: [acceptance-publish]

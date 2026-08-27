@@ -959,8 +959,13 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
   }
 }
 
+#sfrfr-otzyvy-page > .sfrfr-section {
+  padding-top: 0.35rem;
+  padding-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+
 #sfrfr-otzyvy-page h1 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.4rem;
   font-size: clamp(1.45rem, 2.4vw, 1.85rem);
   line-height: 1.25;
   color: var(--sfrfr-ink, #1a2330);
@@ -990,7 +995,6 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
 .sfrfr-otzyvy-form-card,
 .sfrfr-otzyvy-yandex-card,
 .sfrfr-otzyvy-message,
-.sfrfr-otzyvy-disclosure,
 .sfrfr-otzyvy-published {
   background: var(--sfrfr-surface);
   border-radius: var(--sfrfr-radius);
@@ -1050,49 +1054,17 @@ body:has(#sfrfr-otzyvy-page) .ast-page-title-wrapper {
   margin: 0.85rem 0 !important;
 }
 
-.sfrfr-otzyvy-disclosure {
-  margin: 0.85rem 0;
+.sfrfr-otzyvy-message h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1.2rem;
+  line-height: 1.3;
 }
 
-.sfrfr-otzyvy-disclosure > summary {
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1.05rem;
-  line-height: 1.35;
-  list-style: none;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-}
-
-.sfrfr-otzyvy-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.sfrfr-otzyvy-disclosure > summary::before {
-  content: "▸";
-  margin-right: 0.45rem;
-  color: var(--sfrfr-primary, #1a5c3a);
-}
-
-.sfrfr-otzyvy-disclosure[open] > summary::before {
-  content: "▾";
-}
-
-.sfrfr-otzyvy-disclosure > summary:focus-visible,
 #sfrfr-otzyvy-page .sfrfr-btn:focus-visible,
 #sfrfr-otzyvy-page .wpcf7-submit:focus-visible,
 #sfrfr-otzyvy-page a:focus-visible {
   outline: 3px solid #1a5c3a;
   outline-offset: 2px;
-}
-
-.sfrfr-otzyvy-message {
-  margin-top: 0.75rem;
-  box-shadow: none;
-  border-left: 0;
-  padding: 0.35rem 0 0;
-  background: transparent;
 }
 
 .sfrfr-otzyvy-form-frame-wrap {
@@ -1407,6 +1379,7 @@ body:has(#sfrfr-kontakty-page) .sfrfr-breadcrumbs {
 }
 
 #sfrfr-otzyvy-page .sfrfr-otzyvy-hero {
+  margin-top: 0;
   margin-bottom: 0.75rem;
 }
 
@@ -1420,7 +1393,8 @@ body:has(#sfrfr-otzyvy-page) .ast-article-single {
 
 body:has(#sfrfr-otzyvy-page) .ast-breadcrumbs-wrapper,
 body:has(#sfrfr-otzyvy-page) .sfrfr-breadcrumbs {
-  margin: 0.35rem 0 0.15rem !important;
+  margin: 0.15rem 0 0 !important;
+  padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
 

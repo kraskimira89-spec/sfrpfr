@@ -63,14 +63,7 @@ function sfrfr_cf7_site_review_compose_text(array $posted): string
     if ($useful === '' && isset($posted['your-review'])) {
         $useful = trim((string) $posted['your-review']);
     }
-    $improve = isset($posted['your-improve']) ? trim((string) $posted['your-improve']) : '';
-    if ($useful === '') {
-        return '';
-    }
-    if ($improve === '') {
-        return $useful;
-    }
-    return $useful . "\n\nЧто улучшить: " . $improve;
+    return $useful;
 }
 
 function sfrfr_cf7_site_review_publish_consent(array $posted): bool
