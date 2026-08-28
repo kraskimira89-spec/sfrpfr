@@ -1434,6 +1434,10 @@ body:has(#sfrfr-otzyvy-page) .sfrfr-breadcrumbs {
   scroll-margin-top: 5rem;
 }
 
+.sfrfr-otzyvy-review-miss {
+  margin-top: 0.75rem;
+}
+
 .sfrfr-review-submit-row {
   display: flex;
   flex-wrap: wrap;

@@ -209,30 +209,48 @@
     var root = document.getElementById("sfrfr-home-reviews");
     if (!root) return;
     var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
-    var box = root.querySelector("[data-sfrfr-quotes]");
+    var box = root.querySelector(".sfrfr-home-reviews__quotes[data-sfrfr-quotes]");
     var empty = root.querySelector("[data-sfrfr-quotes-empty]");
-    fetch(apiBase + "/api/public/site-reviews?limit=3")
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var items = (data && data.items) || [];
-        if (!items.length || !box) return;
-        if (empty) empty.hidden = true;
-        items.forEach(function (item) {
-          var fig = document.createElement("figure");
-          fig.className = "sfrfr-home-reviews__quote";
-          if (item.id) {
-            fig.id = "review-" + item.id;
-          }
-          var p = document.createElement("p");
-          p.textContent = "«" + (item.text || "") + "»";
-          var foot = document.createElement("footer");
-          foot.textContent = "Клиент сервиса";
-          fig.appendChild(p);
-          fig.appendChild(foot);
-          box.appendChild(fig);
-        });
-      })
-      .catch(function () {});
+    function renderReviews(items) {
+      if (!items.length || !box) return;
+      if (empty) empty.hidden = true;
+      box.innerHTML = "";
+      items.forEach(function (item) {
+        var fig = document.createElement("figure");
+        fig.className = "sfrfr-home-reviews__quote";
+        if (item.id) {
+          fig.id = "review-" + item.id;
+        }
+        var p = document.createElement("p");
+        p.textContent = "«" + (item.text || "") + "»";
+        var foot = document.createElement("footer");
+        foot.textContent = "Клиент сервиса";
+        fig.appendChild(p);
+        fig.appendChild(foot);
+        box.appendChild(fig);
+      });
+    }
+    function readBootstrap() {
+      var boot = document.getElementById("sfrfr-site-reviews-bootstrap");
+      if (!boot || !boot.textContent) return null;
+      try {
+        var parsed = JSON.parse(boot.textContent);
+        return Array.isArray(parsed) ? parsed : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    var bootItems = readBootstrap();
+    if (bootItems && bootItems.length) {
+      renderReviews(bootItems);
+    } else {
+      fetch(apiBase + "/api/public/site-reviews?limit=3")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          renderReviews((data && data.items) || []);
+        })
+        .catch(function () {});
+    }
   })();
   </script>
 

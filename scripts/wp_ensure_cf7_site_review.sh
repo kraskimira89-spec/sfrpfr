@@ -31,6 +31,7 @@ MU="${SITE_DIR}/wp-content/mu-plugins"
 mkdir -p "${MU}"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-site-review.php" "${MU}/sfrfr-cf7-site-review.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-wp-mail-relay.php" "${MU}/sfrfr-wp-mail-relay.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-reviews-vitrine.php" "${MU}/sfrfr-site-reviews-vitrine.php"
 chown www-data:www-data "${MU}/sfrfr-cf7-site-review.php" "${MU}/sfrfr-wp-mail-relay.php" 2>/dev/null || true
 echo "==> MU: CF7 site review + wp_mail relay (Яндекс SMTP через API)"
 

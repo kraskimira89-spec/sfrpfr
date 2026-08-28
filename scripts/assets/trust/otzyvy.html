@@ -112,6 +112,9 @@
           </ul>
         </div>
         <div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes hidden></div>
+        <p class="sfrfr-note sfrfr-otzyvy-review-miss" data-sfrfr-review-not-found hidden>
+          По этой ссылке отзыв на витрине не найден — возможно, он ещё не одобрён или был отклонён. Ниже — опубликованные цитаты.
+        </p>
       </div>
 
       <p class="sfrfr-note sfrfr-otzyvy-legal">
@@ -165,35 +168,61 @@
   }
 
   var pendingReviewId = reviewIdFromLocation();
-  var box = root.querySelector("[data-sfrfr-quotes]");
+  var box = root.querySelector(".sfrfr-otzyvy-quotes[data-sfrfr-quotes]");
   var empty = root.querySelector("[data-sfrfr-quotes-empty]");
   var title = root.querySelector("[data-sfrfr-quotes-title]");
-  fetch(apiBase + "/api/public/site-reviews?limit=12")
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var items = (data && data.items) || [];
-      if (!items.length || !box) return;
-      if (empty) empty.hidden = true;
-      if (title) title.textContent = "Что говорят клиенты";
-      box.hidden = false;
-      items.forEach(function (item) {
-        var art = document.createElement("article");
-        art.className = "sfrfr-card sfrfr-otzyvy-quote";
-        if (item.id) {
-          art.id = "review-" + item.id;
-        }
-        var p = document.createElement("p");
-        p.textContent = "«" + (item.text || "") + "»";
-        var foot = document.createElement("p");
-        foot.className = "sfrfr-muted";
-        foot.textContent = "Клиент сервиса, опубликовано с согласия";
-        art.appendChild(p);
-        art.appendChild(foot);
-        box.appendChild(art);
-      });
+  var notFound = root.querySelector("[data-sfrfr-review-not-found]");
+
+  function renderReviews(items) {
+    if (!items.length || !box) return;
+    if (empty) empty.hidden = true;
+    if (title) title.textContent = "Что говорят клиенты";
+    box.hidden = false;
+    box.innerHTML = "";
+    items.forEach(function (item) {
+      var art = document.createElement("article");
+      art.className = "sfrfr-card sfrfr-otzyvy-quote";
+      if (item.id) {
+        art.id = "review-" + item.id;
+      }
+      var p = document.createElement("p");
+      p.textContent = "«" + (item.text || "") + "»";
+      var foot = document.createElement("p");
+      foot.className = "sfrfr-muted";
+      foot.textContent = "Клиент сервиса, опубликовано с согласия";
+      art.appendChild(p);
+      art.appendChild(foot);
+      box.appendChild(art);
+    });
+    if (pendingReviewId && !document.getElementById("review-" + pendingReviewId)) {
+      if (notFound) notFound.hidden = false;
+    } else {
       scrollToReview(pendingReviewId);
-    })
-    .catch(function () {});
+    }
+  }
+
+  function readBootstrap() {
+    var boot = document.getElementById("sfrfr-site-reviews-bootstrap");
+    if (!boot || !boot.textContent) return null;
+    try {
+      var parsed = JSON.parse(boot.textContent);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var bootItems = readBootstrap();
+  if (bootItems && bootItems.length) {
+    renderReviews(bootItems);
+  } else {
+    fetch(apiBase + "/api/public/site-reviews?limit=12")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        renderReviews((data && data.items) || []);
+      })
+      .catch(function () {});
+  }
 })();
 </script>
 <!-- /wp:html -->

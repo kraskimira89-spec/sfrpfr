@@ -56,6 +56,7 @@ cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.p
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-feedback.php" "${MU}/sfrfr-cf7-feedback.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-cf7-site-review.php" "${MU}/sfrfr-cf7-site-review.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-wp-mail-relay.php" "${MU}/sfrfr-wp-mail-relay.php"
+cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-site-reviews-vitrine.php" "${MU}/sfrfr-site-reviews-vitrine.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-lead-magnet.php" "${MU}/sfrfr-lead-magnet.php"
 cp -f "${SCRIPT_DIR}/wp-mu-plugins/sfrfr-yandex-metrika.php" "${MU}/sfrfr-yandex-metrika.php"
 
