@@ -106,7 +106,7 @@
         <div class="sfrfr-otzyvy-policy" data-sfrfr-quotes-empty>
           <ul class="sfrfr-otzyvy-bullets">
             <li>Публикуем только с отдельного разрешения автора.</li>
-            <li>Подпись — имя или «имя, город»; без фамилии, СНИЛС, сумм и документов.</li>
+            <li>Подпись обязательна: имя или «имя, город» и дата; без фамилии, СНИЛС, сумм и документов.</li>
             <li>Не редактируем смысл отзыва.</li>
             <li>Не платим за отзывы и не даём скидки за публикацию.</li>
           </ul>
@@ -195,11 +195,14 @@
       }
       var p = document.createElement("p");
       p.textContent = "«" + (item.text || "") + "»";
+      art.appendChild(p);
       var foot = document.createElement("p");
       foot.className = "sfrfr-muted sfrfr-otzyvy-quote-author";
-      foot.textContent = "— " + (item.byline || "Клиент сервиса");
-      art.appendChild(p);
-      art.appendChild(foot);
+      var byline = (item.byline || "").trim();
+      if (byline) {
+        foot.textContent = "— " + byline;
+        art.appendChild(foot);
+      }
       box.appendChild(art);
     });
     if (pendingReviewId && !document.getElementById("review-" + pendingReviewId)) {

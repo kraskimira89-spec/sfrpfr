@@ -83,6 +83,27 @@ function sfrfr_cf7_site_review_publish_consent(array $posted): bool
     return false;
 }
 
+/**
+ * Подпись на сайте: имя или «имя, город» (без фамилии).
+ *
+ * @param array<string, mixed> $posted
+ */
+function sfrfr_cf7_site_review_author_label(array $posted): string
+{
+    $name = isset($posted['your-name']) ? trim((string) $posted['your-name']) : '';
+    if ($name === '' && isset($posted['your-label'])) {
+        $name = trim((string) $posted['your-label']);
+    }
+    $city = isset($posted['your-city']) ? trim((string) $posted['your-city']) : '';
+    if ($name === '') {
+        return '';
+    }
+    if ($city !== '') {
+        return mb_substr($name . ', ' . $city, 0, 40);
+    }
+    return mb_substr($name, 0, 40);
+}
+
 add_filter('the_content', static function (string $content): string {
     if (is_admin() || !is_singular('page')) {
         return $content;
@@ -200,6 +221,12 @@ add_action('wp_enqueue_scripts', static function (): void {
   document.addEventListener("change", function (ev) {
     var t = ev.target;
     if (!t || !t.name || t.name.indexOf("acceptance-publish") === -1) return;
+    var root = t.closest ? t.closest(".sfrfr-cf7-site-review") : null;
+    if (root) {
+      root.querySelectorAll(".sfrfr-cf7-label-publish").forEach(function (el) {
+        el.classList.toggle("sfrfr-cf7-label-publish--active", !!t.checked);
+      });
+    }
     if (t.checked && typeof window.sfrfrMetrikaGoal === "function") {
       window.sfrfrMetrikaGoal("review_publication_consent_checked");
     }
@@ -260,6 +287,63 @@ $sfrfr_cf7_site_review_validate_len = static function ($result, $tag) {
 add_filter('wpcf7_validate_textarea', $sfrfr_cf7_site_review_validate_len, 20, 2);
 add_filter('wpcf7_validate_textarea*', $sfrfr_cf7_site_review_validate_len, 20, 2);
 
+$sfrfr_cf7_site_review_validate_name = static function ($result, $tag) {
+    if (!($result instanceof WPCF7_Validation) || !is_object($tag)) {
+        return $result;
+    }
+    $name = isset($tag->name) ? (string) $tag->name : '';
+    if ($name !== 'your-name' && $name !== 'your-label') {
+        return $result;
+    }
+    $submission = WPCF7_Submission::get_instance();
+    if (!$submission instanceof WPCF7_Submission) {
+        return $result;
+    }
+    $contact = $submission->get_contact_form();
+    if (!($contact instanceof WPCF7_ContactForm) || $contact->title() !== SFRFR_CF7_SITE_REVIEW_TITLE) {
+        return $result;
+    }
+    $posted = $submission->get_posted_data();
+    if (!is_array($posted) || !sfrfr_cf7_site_review_publish_consent($posted)) {
+        return $result;
+    }
+    $label = sfrfr_cf7_site_review_author_label($posted);
+    $len = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
+    if ($len < 2) {
+        $result->invalidate(
+            $tag,
+            'Укажите имя для подписи на сайте — только имя или «имя, город», без фамилии.'
+        );
+        return $result;
+    }
+    if (sfrfr_cf7_site_review_label_issue($label) === 'pdn_in_text') {
+        $result->invalidate($tag, 'Уберите из подписи личные номера и реквизиты документов.');
+    }
+    return $result;
+};
+add_filter('wpcf7_validate_text', $sfrfr_cf7_site_review_validate_name, 20, 2);
+add_filter('wpcf7_validate_text*', $sfrfr_cf7_site_review_validate_name, 20, 2);
+
+function sfrfr_cf7_site_review_label_issue(string $label): ?string
+{
+    $cleaned = trim(preg_replace('/\s+/u', ' ', $label) ?? '');
+    if ($cleaned === '' || (function_exists('mb_strlen') ? mb_strlen($cleaned) : strlen($cleaned)) < 2) {
+        return 'author_label_required';
+    }
+    if (preg_match('/\b\d{3}[- ]?\d{3}[- ]?\d{3}[ ]?\d{2}\b/u', $cleaned)) {
+        return 'pdn_in_text';
+    }
+    if (preg_match('/\b\d{4,}\s*(?:₽|руб\.?)/ui', $cleaned)) {
+        return 'pdn_in_text';
+    }
+    foreach (['снилс', 'snils', 'паспорт', 'passport'] as $word) {
+        if (preg_match('/\b' . preg_quote($word, '/') . '\b/ui', $cleaned)) {
+            return 'pdn_in_text';
+        }
+    }
+    return null;
+}
+
 /**
  * Проверка текста отзыва (зеркало API site_reviews.review_text_issue).
  *
@@ -316,6 +400,7 @@ function sfrfr_cf7_site_review_issue_message(string $issue): string
         'hint_text' => 'Похоже, скопирована подсказка со страницы. Напишите своими словами о вашем опыте с сервисом.',
         'pdn_in_text' => 'Уберите из текста личные номера, суммы и реквизиты документов — напишите только о вашем опыте.',
         'too_short' => 'Напишите, пожалуйста, хотя бы одно предложение.',
+        'author_label_required' => 'Укажите имя для подписи на сайте — только имя или «имя, город», без фамилии.',
         default => 'Проверьте текст отзыва и попробуйте ещё раз.',
     };
 }
@@ -387,9 +472,9 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
         'source' => 'cf7',
     ];
     if ($publishConsent) {
-        $label = isset($posted['your-label']) ? trim((string) $posted['your-label']) : '';
+        $label = sfrfr_cf7_site_review_author_label($posted);
         if ($label !== '') {
-            $payload['author_label'] = mb_substr($label, 0, 40);
+            $payload['author_label'] = $label;
         }
     }
     $smart = isset($posted['smart-token']) ? trim((string) $posted['smart-token']) : '';

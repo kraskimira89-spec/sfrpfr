@@ -9,13 +9,20 @@ import logging
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from sfrfr.api.routes.public_leads import _require_captcha
 from sfrfr.core.config import get_settings
-from sfrfr.core.site_reviews import enqueue_quote, list_published, set_status
+from sfrfr.core.site_reviews import (
+    enqueue_quote,
+    get_item,
+    list_published,
+    review_byline,
+    set_author_label,
+    set_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +157,13 @@ def build_site_review_moderation_reply(
     from sfrfr.integrations.max.client import inline_link_keyboard
 
     if not ok:
+        if error == "author_label_required":
+            return (
+                "Не удалось опубликовать: укажите подпись (имя или «имя, город») "
+                "и одобрите снова.",
+                None,
+                None,
+            )
         return (f"Не удалось изменить статус: {error or 'ошибка'}.", None, None)
 
     quote_block = f"\n\nТекст:\n{quote.strip()}" if quote.strip() else ""
@@ -177,6 +191,7 @@ def notify_site_review_queued(
     source: str,
     send_email: bool = True,
     publish_consent: bool = False,
+    author_label: str = "",
 ) -> dict[str, Any]:
     """Письмо на proverkastaza@yandex.ru (если нужно) + fanout в MAX / канал команды."""
     # Полный текст для сотрудника (лимит формы 600); без обрезки «для превью».
@@ -194,6 +209,15 @@ def notify_site_review_queued(
         f"id: {item_id}\n\n"
         f"Текст отзыва:\n{full_text}\n"
     )
+    label_line = (author_label or "").strip()
+    if publish_consent:
+        if label_line:
+            body += f"\nПодпись на сайте: {label_line}\n"
+        else:
+            body += (
+                "\nПодпись на сайте: не указана — перед одобрением задайте имя "
+                "(имя или «имя, город», без фамилии).\n"
+            )
     if publish_consent:
         body += (
             f"\nОдобрить: {urls['published']}\n"
@@ -211,6 +235,14 @@ def notify_site_review_queued(
         f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
         f"{html.escape(full_text)}</blockquote>"
     )
+    if publish_consent:
+        if label_line:
+            html_body += f"<p><b>Подпись на сайте:</b> {html.escape(label_line)}</p>"
+        else:
+            html_body += (
+                "<p><b>Подпись на сайте:</b> "
+                "<span style=\"color:#b45309\">не указана — задайте перед одобрением</span></p>"
+            )
     if publish_consent:
         html_body += (
             "<p>"
@@ -277,25 +309,138 @@ def moderate_site_review_link(
         raise HTTPException(status_code=400, detail="bad_status")
     if not item_id or not verify_moderate_sig(item_id, review_status, sig):
         raise HTTPException(status_code=403, detail="bad_signature")
+    item = get_item(item_id) or {}
+    quote = str(item.get("text") or "").strip()
+    if review_status == "published" and not review_byline(item):
+        return _moderation_label_form_page(item_id=item_id, sig=sig, quote=quote)
     result = set_status(item_id, review_status)
     if not result.get("ok"):
-        raise HTTPException(status_code=404, detail=str(result.get("error") or "not_found"))
+        err = str(result.get("error") or "not_found")
+        if err == "author_label_required":
+            return _moderation_label_form_page(item_id=item_id, sig=sig, quote=quote)
+        raise HTTPException(status_code=404, detail=err)
     raw_item = result.get("item")
-    item: dict[str, Any] = raw_item if isinstance(raw_item, dict) else {}
+    item = raw_item if isinstance(raw_item, dict) else {}
     quote = str(item.get("text") or "").strip()
-    if review_status == "published":
+    return _moderation_result_page(
+        item_id=item_id,
+        review_status=review_status,
+        quote=quote,
+    )
+
+
+@router.post("/site-reviews/moderate", response_class=HTMLResponse)
+def moderate_site_review_publish_with_label(
+    id: str = Form(...),
+    status: str = Form(...),
+    sig: str = Form(...),
+    author_name: str = Form(default=""),
+    author_city: str = Form(default=""),
+) -> HTMLResponse:
+    """Публикация с подписью, если автор не указал имя в форме."""
+    item_id = (id or "").strip()
+    review_status = (status or "").strip().lower()
+    if review_status != "published":
+        raise HTTPException(status_code=400, detail="bad_status")
+    if not item_id or not verify_moderate_sig(item_id, review_status, sig):
+        raise HTTPException(status_code=403, detail="bad_signature")
+    item = get_item(item_id) or {}
+    quote = str(item.get("text") or "").strip()
+    label = _compose_moderation_label(author_name, author_city)
+    label_result = set_author_label(item_id, label)
+    if not label_result.get("ok"):
+        return _moderation_label_form_page(item_id=item_id, sig=sig, quote=quote)
+    result = set_status(item_id, review_status)
+    if not result.get("ok"):
+        err = str(result.get("error") or "not_found")
+        return _moderation_result_page(
+            item_id=item_id,
+            review_status=review_status,
+            quote=quote,
+            error=err,
+        )
+    raw_item = result.get("item")
+    item = raw_item if isinstance(raw_item, dict) else {}
+    quote = str(item.get("text") or "").strip()
+    return _moderation_result_page(
+        item_id=item_id,
+        review_status=review_status,
+        quote=quote,
+    )
+
+
+def _moderation_label_form_page(*, item_id: str, sig: str, quote: str) -> HTMLResponse:
+    quote_html = (
+        f"<blockquote style=\"margin:1rem 0;padding:0.75rem 1rem;background:#f5f7f6;"
+        f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
+        f"{html.escape(quote)}</blockquote>"
+        if quote.strip()
+        else ""
+    )
+    page = (
+        "<!doctype html><html lang=\"ru\"><meta charset=\"utf-8\">"
+        "<title>Подпись отзыва</title>"
+        "<body style=\"font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem\">"
+        "<h1>Укажите подпись для публикации</h1>"
+        "<p>На сайте показываем только имя или «имя, город» — без фамилии и контактов.</p>"
+        f"{quote_html}"
+        "<form method=\"post\" action=\"/api/public/site-reviews/moderate\">"
+        f"<input type=\"hidden\" name=\"id\" value=\"{html.escape(item_id)}\">"
+        "<input type=\"hidden\" name=\"status\" value=\"published\">"
+        f"<input type=\"hidden\" name=\"sig\" value=\"{html.escape(sig)}\">"
+        "<p><label>Имя<br>"
+        "<input name=\"author_name\" required maxlength=\"24\" "
+        "placeholder=\"Например: Сергей\" style=\"width:100%;padding:0.5rem\"></label></p>"
+        "<p><label>Город (необязательно)<br>"
+        "<input name=\"author_city\" maxlength=\"24\" "
+        "placeholder=\"Например: Архангельск\" style=\"width:100%;padding:0.5rem\"></label></p>"
+        "<p><button type=\"submit\" style=\"padding:0.6rem 1.2rem\">Опубликовать на сайте</button></p>"
+        "</form>"
+        f"<p style=\"color:#666;font-size:12px\">id: <code>{html.escape(item_id)}</code></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(page)
+
+
+def _compose_moderation_label(name: str, city: str) -> str:
+    name = " ".join((name or "").split()).strip()
+    city = " ".join((city or "").split()).strip()
+    if not name:
+        return ""
+    if city:
+        return f"{name}, {city}"[:40]
+    return name[:40]
+
+
+def _moderation_result_page(
+    *,
+    item_id: str,
+    review_status: str,
+    quote: str,
+    error: str | None = None,
+) -> HTMLResponse:
+    if review_status == "published" and not error:
         headline = "Отзыв опубликован. Проверьте на сайте."
         link_url = site_review_public_url(item_id)
         link_label = "Открыть этот отзыв"
-    else:
+    elif review_status == "rejected" and not error:
         headline = "Отзыв отклонён. Проверьте на сайте."
+        link_url = _SITE_REVIEWS_PAGE
+        link_label = "Страница отзывов"
+    else:
+        headline = "Не удалось опубликовать"
         link_url = _SITE_REVIEWS_PAGE
         link_label = "Страница отзывов"
     quote_html = (
         f"<blockquote style=\"margin:1rem 0;padding:0.75rem 1rem;background:#f5f7f6;"
         f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
         f"{html.escape(quote)}</blockquote>"
-        if quote
+        if quote.strip()
+        else ""
+    )
+    err_html = (
+        f"<p style=\"color:#b45309\">{html.escape(error or 'ошибка')}</p>"
+        if error
         else ""
     )
     page = (
@@ -303,6 +448,7 @@ def moderate_site_review_link(
         "<title>Модерация отзыва</title>"
         "<body style=\"font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem\">"
         f"<h1>{html.escape(headline)}</h1>"
+        f"{err_html}"
         f"{quote_html}"
         f"<p><a href=\"{html.escape(link_url)}\">{html.escape(link_label)}</a></p>"
         f"<p style=\"color:#666;font-size:12px\">id: <code>{html.escape(item_id)}</code></p>"
@@ -350,12 +496,16 @@ def submit_site_review(
             detail=str(result.get("reason") or "rejected"),
         )
     item_id = str(result.get("id") or "")
+    author_label = ""
+    if payload.publish_consent:
+        author_label = (payload.author_label or "").strip()
     notify_site_review_queued(
         text=payload.text,
         item_id=item_id,
         source=source,
         send_email=not payload.mail_already_sent,
         publish_consent=bool(payload.publish_consent),
+        author_label=author_label,
     )
     detail = (
         "После модерации появится на странице."

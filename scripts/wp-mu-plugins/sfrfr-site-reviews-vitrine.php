@@ -63,7 +63,7 @@ function sfrfr_site_reviews_vitrine_items(int $limit = 12): array
         }
         $byline = trim((string) ($raw['byline'] ?? ''));
         if ($byline === '') {
-            $byline = 'Клиент сервиса';
+            continue;
         }
         $out[] = [
             'id' => $id,
@@ -94,8 +94,8 @@ function sfrfr_site_reviews_vitrine_render_otzyvy(array $items, string $focusId 
     foreach ($items as $item) {
         $id = esc_attr((string) ($item['id'] ?? ''));
         $text = esc_html((string) ($item['text'] ?? ''));
-        $byline = esc_html((string) ($item['byline'] ?? 'Клиент сервиса'));
-        if ($id === '' || $text === '') {
+        $byline = esc_html((string) ($item['byline'] ?? ''));
+        if ($id === '' || $text === '' || $byline === '') {
             continue;
         }
         $classes = 'sfrfr-card sfrfr-otzyvy-quote';
@@ -119,8 +119,8 @@ function sfrfr_site_reviews_vitrine_render_home(array $items): string
     foreach ($items as $item) {
         $id = esc_attr((string) ($item['id'] ?? ''));
         $text = esc_html((string) ($item['text'] ?? ''));
-        $byline = esc_html((string) ($item['byline'] ?? 'Клиент сервиса'));
-        if ($id === '' || $text === '') {
+        $byline = esc_html((string) ($item['byline'] ?? ''));
+        if ($id === '' || $text === '' || $byline === '') {
             continue;
         }
         $html .= '<figure class="sfrfr-home-reviews__quote" id="review-' . $id . '">';

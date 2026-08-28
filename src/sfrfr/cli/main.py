@@ -1331,13 +1331,26 @@ def site_reviews_list(
 @app.command("site-reviews-set")
 def site_reviews_set(
     item_id: str = typer.Argument(..., help="UUID цитаты"),
-    status: str = typer.Option(..., "--status", "-s", help="published|rejected|pending"),
+    status: str | None = typer.Option(None, "--status", "-s", help="published|rejected|pending"),
+    author_label: str | None = typer.Option(
+        None, "--author-label", "-l", help="Подпись на сайте: имя или «имя, город»"
+    ),
 ) -> None:
-    """Опубликовать / отклонить цитату (не трогает рейтинг Яндекса)."""
+    """Опубликовать / отклонить цитату или задать подпись (не трогает рейтинг Яндекса)."""
     import json
 
-    from sfrfr.core.site_reviews import set_status
+    from sfrfr.core.site_reviews import set_author_label, set_status
 
+    if author_label is not None:
+        result = set_author_label(item_id, author_label)
+        typer.echo(json.dumps(result, ensure_ascii=False))
+        if not result.get("ok"):
+            raise typer.Exit(code=1)
+    if status is None:
+        if author_label is None:
+            typer.echo("Укажите --status и/или --author-label", err=True)
+            raise typer.Exit(code=1)
+        return
     result = set_status(item_id, status)
     typer.echo(json.dumps(result, ensure_ascii=False))
     if not result.get("ok"):

@@ -9,6 +9,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 _STORE_LOCK = threading.Lock()
 _DEFAULT_PATH = Path("var") / "site_reviews.json"
@@ -23,20 +24,20 @@ _HINT_EXAMPLES = (
     "понравилось, что объяснили порядок действий",
 )
 
-_MONTHS_RU = (
+_MONTHS_RU_GENITIVE = (
     "",
-    "январь",
-    "февраль",
-    "март",
-    "апрель",
-    "май",
-    "июнь",
-    "июль",
-    "август",
-    "сентябрь",
-    "октябрь",
-    "ноябрь",
-    "декабрь",
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
 )
 
 
@@ -121,26 +122,46 @@ def _sanitize_author_label(label: str) -> str:
         return ""
     if len(cleaned) < 2:
         return ""
-    if review_text_issue(cleaned) or _has_actionable_pdn(cleaned):
+    if _has_actionable_pdn(cleaned):
+        return ""
+    banned = ("поставьте 5", "ставьте пять", "гарантируем перерасчёт", "повысили пенсию")
+    lower = cleaned.lower()
+    if any(b in lower for b in banned):
         return ""
     return cleaned[:40]
 
 
-def review_byline(item: dict[str, Any]) -> str:
-    """Подпись под цитатой на сайте: имя автора или нейтральный fallback."""
-    label = _sanitize_author_label(str(item.get("author_label") or ""))
-    if label:
-        return label
+def _format_review_date(item: dict[str, Any]) -> str:
+    """Полная дата отзыва для подписи: «28 августа 2026» (МСК)."""
     raw_ts = item.get("published_at") or item.get("created_at")
-    if isinstance(raw_ts, str) and raw_ts.strip():
-        try:
-            dt = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
-            month = _MONTHS_RU[dt.month] if 1 <= dt.month <= 12 else ""
-            if month:
-                return f"Клиент · {month} {dt.year}"
-        except ValueError:
-            pass
-    return "Клиент сервиса"
+    if not isinstance(raw_ts, str) or not raw_ts.strip():
+        return ""
+    try:
+        dt = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        dt = dt.astimezone(ZoneInfo("Europe/Moscow"))
+    except ValueError:
+        return ""
+    month = _MONTHS_RU_GENITIVE[dt.month] if 1 <= dt.month <= 12 else ""
+    if not month:
+        return ""
+    return f"{dt.day} {month} {dt.year}"
+
+
+def review_byline(item: dict[str, Any]) -> str:
+    """Подпись под цитатой: имя / «имя, город» · полная дата."""
+    label = _sanitize_author_label(str(item.get("author_label") or ""))
+    if not label:
+        return ""
+    date = _format_review_date(item)
+    if date:
+        return f"{label} · {date}"
+    return label
+
+
+def _has_author_label(item: dict[str, Any]) -> bool:
+    return bool(_sanitize_author_label(str(item.get("author_label") or "")))
 
 
 def looks_unsafe(text: str) -> bool:
@@ -169,6 +190,8 @@ def enqueue_quote(
 
     status = "pending" if publish_consent else "feedback"
     label = _sanitize_author_label(author_label) if publish_consent else ""
+    if publish_consent and not label:
+        return {"ok": False, "queued": False, "reason": "author_label_required"}
     item = {
         "id": str(uuid.uuid4()),
         "text": body,
@@ -204,13 +227,16 @@ def list_published(*, limit: int = 6) -> list[dict[str, Any]]:
         if str(raw.get("status") or "") != "published":
             continue
         row = dict(raw)
+        byline = review_byline(row)
+        if not byline:
+            continue
         out.append(
             {
                 "id": str(raw.get("id") or ""),
                 "text": str(raw.get("text") or ""),
                 "source": str(raw.get("source") or ""),
                 "author_label": str(raw.get("author_label") or "") or None,
-                "byline": review_byline(row),
+                "byline": byline,
                 "published_at": raw.get("published_at"),
             }
         )
@@ -247,6 +273,28 @@ def get_item(item_id: str) -> dict[str, Any] | None:
     return None
 
 
+def set_author_label(item_id: str, author_label: str) -> dict[str, Any]:
+    """Задать подпись перед публикацией (модерация / CLI)."""
+    label = _sanitize_author_label(author_label)
+    if not label:
+        return {"ok": False, "error": "bad_label"}
+    needle = (item_id or "").strip()
+    if not needle:
+        return {"ok": False, "error": "not_found"}
+    with _STORE_LOCK:
+        data = _load()
+        found = None
+        for raw in data["items"]:
+            if isinstance(raw, dict) and str(raw.get("id") or "") == needle:
+                raw["author_label"] = label
+                found = dict(raw)
+                break
+        if not found:
+            return {"ok": False, "error": "not_found"}
+        _save(data)
+    return {"ok": True, "item": found}
+
+
 def set_status(item_id: str, status: str) -> dict[str, Any]:
     status = status.strip().lower()
     if status not in {"pending", "published", "rejected", "feedback"}:
@@ -256,6 +304,8 @@ def set_status(item_id: str, status: str) -> dict[str, Any]:
         found = None
         for raw in data["items"]:
             if isinstance(raw, dict) and str(raw.get("id")) == item_id:
+                if status == "published" and not _has_author_label(raw):
+                    return {"ok": False, "error": "author_label_required"}
                 raw["status"] = status
                 raw["published_at"] = (
                     datetime.now(UTC).isoformat() if status == "published" else None

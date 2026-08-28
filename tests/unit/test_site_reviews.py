@@ -56,7 +56,13 @@ def test_enqueue_and_publish(monkeypatch) -> None:
             "Обращался в сервис Проверка стажа. Помогли сверить документы и "
             "подготовить план. Понятно, что в СФР подаю сам."
         )
-        queued = sr.enqueue_quote(text=text, source="site", consent=True, publish_consent=True)
+        queued = sr.enqueue_quote(
+            text=text,
+            source="site",
+            consent=True,
+            publish_consent=True,
+            author_label="Андрей",
+        )
         assert queued and queued["queued"] is True
         assert queued.get("status") == "pending"
         assert sr.list_published() == []
@@ -67,6 +73,7 @@ def test_enqueue_and_publish(monkeypatch) -> None:
         assert len(published) == 1
         assert published[0]["text"].startswith("Обращался")
         assert published[0]["source"] == "site"
+        assert published[0]["byline"] == "Андрей · 28 августа 2026"
     finally:
         if store.exists():
             store.unlink()
@@ -115,7 +122,12 @@ def test_public_post_site_review_queues(monkeypatch) -> None:
         )
         response = client.post(
             "/api/public/site-reviews",
-            json={"text": text, "consent": True, "publish_consent": True},
+            json={
+                "text": text,
+                "consent": True,
+                "publish_consent": True,
+                "author_label": "Андрей",
+            },
         )
         assert response.status_code == 200
         body = response.json()
@@ -173,6 +185,7 @@ def test_public_post_site_review_trusted_wp_skips_captcha(monkeypatch) -> None:
                 "publish_consent": True,
                 "mail_already_sent": True,
                 "source": "cf7",
+                "author_label": "Андрей",
             },
             headers={"X-Public-Lead-Token": "test-wp-token"},
         )
@@ -200,7 +213,13 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
         "Обращался в сервис Проверка стажа. Помогли сверить документы и "
         "подготовить план. Понятно, что в СФР подаю сам."
     )
-    queued = sr.enqueue_quote(text=text, source="site", consent=True, publish_consent=True)
+    queued = sr.enqueue_quote(
+        text=text,
+        source="site",
+        consent=True,
+        publish_consent=True,
+        author_label="Андрей",
+    )
     assert queued and queued["queued"]
     item_id = queued["id"]
     assert psr.parse_site_review_callback(f"srev:p:{item_id}") == (item_id, "published")
@@ -244,17 +263,52 @@ def test_site_review_public_url() -> None:
     )
 
 
-def test_review_byline_fallback_month() -> None:
+def test_enqueue_publish_requires_author_label(monkeypatch) -> None:
+    store = Path("var") / "test_site_reviews_label.json"
+    if store.exists():
+        store.unlink()
+    monkeypatch.setattr(sr, "_DEFAULT_PATH", store)
+    try:
+        text = (
+            "Обращался в сервис Проверка стажа. Помогли сверить документы и "
+            "подготовить план. Понятно, что в СФР подаю сам."
+        )
+        blocked = sr.enqueue_quote(text=text, source="site", consent=True, publish_consent=True)
+        assert blocked and blocked.get("reason") == "author_label_required"
+        queued = sr.enqueue_quote(
+            text=text,
+            source="site",
+            consent=True,
+            publish_consent=True,
+            author_label="Сергей, Архангельск",
+        )
+        assert queued and queued["queued"] is True
+        assert sr.set_status(queued["id"], "published")["ok"] is True
+        assert sr.list_published()[0]["byline"] == "Сергей, Архангельск · 28 августа 2026"
+    finally:
+        if store.exists():
+            store.unlink()
+
+
+def test_review_byline_empty_without_label() -> None:
     item = {
         "author_label": "",
         "published_at": "2026-08-28T07:25:21.830295+00:00",
     }
-    assert sr.review_byline(item) == "Клиент · август 2026"
+    assert sr.review_byline(item) == ""
 
 
 def test_review_byline_custom_label() -> None:
-    item = {"author_label": "Андрей, Архангельск", "published_at": "2026-08-28T07:25:21+00:00"}
-    assert sr.review_byline(item) == "Андрей, Архангельск"
+    item = {
+        "author_label": "Андрей, Архангельск",
+        "published_at": "2026-08-28T07:25:21+00:00",
+    }
+    assert sr.review_byline(item) == "Андрей, Архангельск · 28 августа 2026"
+
+
+def test_review_byline_date_only_when_published() -> None:
+    item = {"author_label": "Иван", "created_at": "2026-01-15T12:00:00+00:00"}
+    assert sr.review_byline(item) == "Иван · 15 января 2026"
 
 
 def test_build_site_review_moderation_reply_published() -> None:
