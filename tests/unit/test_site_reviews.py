@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import sfrfr.core.site_reviews as sr
@@ -75,6 +76,9 @@ def test_enqueue_and_publish(monkeypatch) -> None:
         assert published[0]["text"].startswith("Обращался")
         assert published[0]["source"] == "site"
         assert published[0]["byline"] == "Андрей · 28 августа 2026"
+        stored = json.loads(store.read_text(encoding="utf-8"))
+        item = stored["items"][0]
+        assert item.get("display_byline") == "Андрей · 28 августа 2026"
     finally:
         if store.exists():
             store.unlink()

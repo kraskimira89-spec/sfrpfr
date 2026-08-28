@@ -211,6 +211,35 @@
     var apiBase = (root.getAttribute("data-api-base") || "https://api.proverkastaza.ru").replace(/\/$/, "");
     var box = root.querySelector(".sfrfr-home-reviews__quotes[data-sfrfr-quotes]");
     var empty = root.querySelector("[data-sfrfr-quotes-empty]");
+    function formatReviewDate(iso) {
+      if (!iso) return "";
+      var months = ["", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+      try {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        var parts = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "numeric", year: "numeric" }).formatToParts(d);
+        var day = 0, month = 0, year = "";
+        parts.forEach(function (p) {
+          if (p.type === "day") day = parseInt(p.value, 10);
+          if (p.type === "month") month = parseInt(p.value, 10);
+          if (p.type === "year") year = p.value;
+        });
+        if (!day || !month || !year || !months[month]) return "";
+        return day + " " + months[month] + " " + year;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function composeByline(item) {
+      var byline = (item.byline || "").trim();
+      if (byline.indexOf(" · ") >= 0) return byline;
+      var label = byline || (item.author_label || "").trim();
+      if (!label) return "";
+      var date = formatReviewDate(item.published_at || item.created_at);
+      return date ? label + " · " + date : label;
+    }
+
     function renderReviews(items) {
       if (!items.length || !box) return;
       if (box.getAttribute("data-sfrfr-quotes-rendered") === "1" && box.children.length) {
@@ -226,8 +255,10 @@
         }
         var p = document.createElement("p");
         p.textContent = "«" + (item.text || "") + "»";
+        var byline = composeByline(item);
+        if (!byline) return;
         var foot = document.createElement("footer");
-          foot.textContent = "— " + (item.byline || "Клиент сервиса");
+        foot.textContent = "— " + byline;
         fig.appendChild(p);
         fig.appendChild(foot);
         box.appendChild(fig);

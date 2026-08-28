@@ -132,8 +132,11 @@ def _sanitize_author_label(label: str) -> str:
 
 
 def _format_review_date(item: dict[str, Any]) -> str:
-    """Полная дата отзыва для подписи: «28 августа 2026» (МСК)."""
-    raw_ts = item.get("published_at") or item.get("created_at")
+    """Полная дата публикации для подписи: «28 августа 2026» (МСК)."""
+    status = str(item.get("status") or "").strip().lower()
+    raw_ts = item.get("published_at")
+    if status != "published" and not raw_ts:
+        raw_ts = item.get("created_at")
     if not isinstance(raw_ts, str) or not raw_ts.strip():
         return ""
     try:
@@ -150,7 +153,10 @@ def _format_review_date(item: dict[str, Any]) -> str:
 
 
 def review_byline(item: dict[str, Any]) -> str:
-    """Подпись под цитатой: имя / «имя, город» · полная дата публикации."""
+    """Подпись под цитатой: имя / «имя, город» · дата (дата — автоматически при публикации)."""
+    stored = str(item.get("display_byline") or "").strip()
+    if stored:
+        return stored
     label = _sanitize_author_label(str(item.get("author_label") or ""))
     if not label:
         return ""
@@ -306,6 +312,9 @@ def set_author_label(item_id: str, author_label: str) -> dict[str, Any]:
         for raw in data["items"]:
             if isinstance(raw, dict) and str(raw.get("id") or "") == needle:
                 raw["author_label"] = label
+                row = dict(raw)
+                if str(row.get("status") or "") == "published":
+                    raw["display_byline"] = review_byline(row)
                 found = dict(raw)
                 break
         if not found:
@@ -329,6 +338,10 @@ def set_status(item_id: str, status: str) -> dict[str, Any]:
                 raw["published_at"] = (
                     datetime.now(UTC).isoformat() if status == "published" else None
                 )
+                if status == "published":
+                    raw["display_byline"] = review_byline(dict(raw))
+                elif status != "published":
+                    raw["display_byline"] = None
                 found = dict(raw)
                 break
         if not found:

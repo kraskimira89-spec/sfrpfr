@@ -23,6 +23,52 @@ function sfrfr_site_reviews_vitrine_api_url(int $limit): string
     return 'http://127.0.0.1:8011/api/public/site-reviews?limit=' . $limit;
 }
 
+function sfrfr_site_reviews_vitrine_format_date(?string $iso): string
+{
+    $iso = trim((string) $iso);
+    if ($iso === '') {
+        return '';
+    }
+    try {
+        $dt = new DateTimeImmutable($iso);
+        $dt = $dt->setTimezone(new DateTimeZone('Europe/Moscow'));
+    } catch (Exception $e) {
+        return '';
+    }
+    $months = [
+        1 => 'января', 2 => 'февраля', 3 => 'марта', 4 => 'апреля',
+        5 => 'мая', 6 => 'июня', 7 => 'июля', 8 => 'августа',
+        9 => 'сентября', 10 => 'октября', 11 => 'ноября', 12 => 'декабря',
+    ];
+    $month = $months[(int) $dt->format('n')] ?? '';
+    if ($month === '') {
+        return '';
+    }
+    return ((int) $dt->format('j')) . ' ' . $month . ' ' . $dt->format('Y');
+}
+
+function sfrfr_site_reviews_vitrine_compose_byline(array $raw): string
+{
+    $byline = trim((string) ($raw['byline'] ?? ''));
+    if ($byline !== '' && str_contains($byline, ' · ')) {
+        return $byline;
+    }
+    $label = trim((string) ($raw['author_label'] ?? ''));
+    if ($label === '' && $byline !== '') {
+        $label = $byline;
+    }
+    if ($label === '') {
+        return '';
+    }
+    $date = sfrfr_site_reviews_vitrine_format_date(
+        is_string($raw['published_at'] ?? null) ? (string) $raw['published_at'] : null
+    );
+    if ($date === '') {
+        return $label;
+    }
+    return $label . ' · ' . $date;
+}
+
 /**
  * @return list<array<string, mixed>>
  */
@@ -61,7 +107,7 @@ function sfrfr_site_reviews_vitrine_items(int $limit = 12): array
         if ($text === '' || $id === '') {
             continue;
         }
-        $byline = trim((string) ($raw['byline'] ?? ''));
+        $byline = sfrfr_site_reviews_vitrine_compose_byline($raw);
         if ($byline === '') {
             continue;
         }

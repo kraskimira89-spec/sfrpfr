@@ -111,7 +111,7 @@
         <div class="sfrfr-otzyvy-policy" data-sfrfr-quotes-empty>
           <ul class="sfrfr-otzyvy-bullets">
             <li>Публикуем только с отдельного разрешения автора.</li>
-            <li>Подпись: имя или «имя, город» и дата публикации; без СНИЛС, сумм и документов.</li>
+            <li>Подпись: имя или «имя, город»; дату публикации добавляем автоматически.</li>
             <li>Не редактируем смысл отзыва.</li>
             <li>Не платим за отзывы и не даём скидки за публикацию.</li>
           </ul>
@@ -202,6 +202,35 @@
   var title = root.querySelector("[data-sfrfr-quotes-title]");
   var notFound = root.querySelector("[data-sfrfr-review-not-found]");
 
+  function formatReviewDate(iso) {
+    if (!iso) return "";
+    var months = ["", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      var parts = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "numeric", year: "numeric" }).formatToParts(d);
+      var day = 0, month = 0, year = "";
+      parts.forEach(function (p) {
+        if (p.type === "day") day = parseInt(p.value, 10);
+        if (p.type === "month") month = parseInt(p.value, 10);
+        if (p.type === "year") year = p.value;
+      });
+      if (!day || !month || !year || !months[month]) return "";
+      return day + " " + months[month] + " " + year;
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function composeByline(item) {
+    var byline = (item.byline || "").trim();
+    if (byline.indexOf(" · ") >= 0) return byline;
+    var label = byline || (item.author_label || "").trim();
+    if (!label) return "";
+    var date = formatReviewDate(item.published_at || item.created_at);
+    return date ? label + " · " + date : label;
+  }
+
   function renderReviews(items) {
     if (!items.length || !box) return;
     if (box.getAttribute("data-sfrfr-quotes-rendered") === "1" && box.children.length) {
@@ -227,7 +256,7 @@
       art.appendChild(p);
       var foot = document.createElement("p");
       foot.className = "sfrfr-muted sfrfr-otzyvy-quote-author";
-      var byline = (item.byline || "").trim();
+      var byline = composeByline(item);
       if (byline) {
         foot.textContent = "— " + byline;
         art.appendChild(foot);
