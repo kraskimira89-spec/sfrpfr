@@ -227,7 +227,7 @@
         var p = document.createElement("p");
         p.textContent = "«" + (item.text || "") + "»";
         var foot = document.createElement("footer");
-        foot.textContent = "Клиент сервиса";
+          foot.textContent = "— " + (item.byline || "Клиент сервиса");
         fig.appendChild(p);
         fig.appendChild(foot);
         box.appendChild(fig);

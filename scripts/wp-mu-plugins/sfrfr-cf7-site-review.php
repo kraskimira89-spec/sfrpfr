@@ -386,6 +386,12 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
         'mail_already_sent' => $mailAlreadySent,
         'source' => 'cf7',
     ];
+    if ($publishConsent) {
+        $label = isset($posted['your-label']) ? trim((string) $posted['your-label']) : '';
+        if ($label !== '') {
+            $payload['author_label'] = mb_substr($label, 0, 40);
+        }
+    }
     $smart = isset($posted['smart-token']) ? trim((string) $posted['smart-token']) : '';
     if ($smart !== '') {
         $payload['smartcaptcha_token'] = $smart;

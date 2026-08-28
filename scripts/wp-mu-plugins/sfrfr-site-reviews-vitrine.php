@@ -24,7 +24,7 @@ function sfrfr_site_reviews_vitrine_api_url(int $limit): string
 }
 
 /**
- * @return list<array{id: string, text: string, source: string, published_at: mixed}>
+ * @return list<array<string, mixed>>
  */
 function sfrfr_site_reviews_vitrine_items(int $limit = 12): array
 {
@@ -61,38 +61,57 @@ function sfrfr_site_reviews_vitrine_items(int $limit = 12): array
         if ($text === '' || $id === '') {
             continue;
         }
+        $byline = trim((string) ($raw['byline'] ?? ''));
+        if ($byline === '') {
+            $byline = 'Клиент сервиса';
+        }
         $out[] = [
             'id' => $id,
             'text' => $text,
             'source' => (string) ($raw['source'] ?? ''),
+            'author_label' => (string) ($raw['author_label'] ?? ''),
+            'byline' => $byline,
             'published_at' => $raw['published_at'] ?? null,
         ];
     }
     return $out;
 }
 
+function sfrfr_site_reviews_vitrine_focus_id(): string
+{
+    if (!isset($_GET['review'])) {
+        return '';
+    }
+    return sanitize_text_field(wp_unslash((string) $_GET['review']));
+}
+
 /**
- * @param list<array{id: string, text: string}> $items
+ * @param list<array<string, mixed>> $items
  */
-function sfrfr_site_reviews_vitrine_render_otzyvy(array $items): string
+function sfrfr_site_reviews_vitrine_render_otzyvy(array $items, string $focusId = ''): string
 {
     $html = '';
     foreach ($items as $item) {
         $id = esc_attr((string) ($item['id'] ?? ''));
         $text = esc_html((string) ($item['text'] ?? ''));
+        $byline = esc_html((string) ($item['byline'] ?? 'Клиент сервиса'));
         if ($id === '' || $text === '') {
             continue;
         }
-        $html .= '<article class="sfrfr-card sfrfr-otzyvy-quote" id="review-' . $id . '">';
+        $classes = 'sfrfr-card sfrfr-otzyvy-quote';
+        if ($focusId !== '' && hash_equals($focusId, (string) ($item['id'] ?? ''))) {
+            $classes .= ' sfrfr-otzyvy-quote--highlight';
+        }
+        $html .= '<article class="' . $classes . '" id="review-' . $id . '" tabindex="-1">';
         $html .= '<p>«' . $text . '»</p>';
-        $html .= '<p class="sfrfr-muted">Клиент сервиса, опубликовано с согласия</p>';
+        $html .= '<p class="sfrfr-muted sfrfr-otzyvy-quote-author">— ' . $byline . '</p>';
         $html .= '</article>';
     }
     return $html;
 }
 
 /**
- * @param list<array{id: string, text: string}> $items
+ * @param list<array<string, mixed>> $items
  */
 function sfrfr_site_reviews_vitrine_render_home(array $items): string
 {
@@ -100,19 +119,20 @@ function sfrfr_site_reviews_vitrine_render_home(array $items): string
     foreach ($items as $item) {
         $id = esc_attr((string) ($item['id'] ?? ''));
         $text = esc_html((string) ($item['text'] ?? ''));
+        $byline = esc_html((string) ($item['byline'] ?? 'Клиент сервиса'));
         if ($id === '' || $text === '') {
             continue;
         }
         $html .= '<figure class="sfrfr-home-reviews__quote" id="review-' . $id . '">';
         $html .= '<p>«' . $text . '»</p>';
-        $html .= '<footer>Клиент сервиса</footer>';
+        $html .= '<footer>— ' . $byline . '</footer>';
         $html .= '</figure>';
     }
     return $html;
 }
 
 /**
- * @param list<array{id: string, text: string}> $items
+ * @param list<array<string, mixed>> $items
  */
 function sfrfr_site_reviews_vitrine_bootstrap_tag(array $items): string
 {
@@ -121,6 +141,18 @@ function sfrfr_site_reviews_vitrine_bootstrap_tag(array $items): string
         $json = '[]';
     }
     return '<script type="application/json" id="sfrfr-site-reviews-bootstrap">' . $json . '</script>';
+}
+
+function sfrfr_site_reviews_vitrine_scroll_snippet(string $focusId): string
+{
+    if ($focusId === '') {
+        return '';
+    }
+    $jsonId = wp_json_encode($focusId);
+    if (!is_string($jsonId)) {
+        return '';
+    }
+    return '<script>(function(){var id=' . $jsonId . ';function go(){var el=document.getElementById("review-"+id);if(!el)return;el.classList.add("sfrfr-otzyvy-quote--highlight");try{el.scrollIntoView({block:"center",behavior:"auto"});}catch(e){location.hash="review-"+id;}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",go);}else{setTimeout(go,0);}})();</script>';
 }
 
 add_filter('the_content', static function (string $content): string {
@@ -135,15 +167,21 @@ add_filter('the_content', static function (string $content): string {
         return $content;
     }
 
-    // Не кэшировать устаревший bootstrap из сохранённого контента.
     $content = (string) preg_replace(
         '/<script type="application\/json" id="sfrfr-site-reviews-bootstrap">.*?<\/script>\s*/s',
+        '',
+        $content
+    );
+    $content = (string) preg_replace(
+        '/<script>\(function\(\)\{var id=.*?sfrfr_site_reviews_vitrine_scroll.*?\}\)\(\);<\/script>\s*/s',
         '',
         $content
     );
 
     $limit = $isOtzyvy ? 12 : 3;
     $items = sfrfr_site_reviews_vitrine_items($limit);
+    $focusId = $isOtzyvy ? sfrfr_site_reviews_vitrine_focus_id() : '';
+    $scrollSnippet = '';
 
     if ($isOtzyvy && $items !== []) {
         $content = (string) preg_replace(
@@ -158,12 +196,13 @@ add_filter('the_content', static function (string $content): string {
             $content,
             1
         );
-        $quotesHtml = sfrfr_site_reviews_vitrine_render_otzyvy($items);
+        $quotesHtml = sfrfr_site_reviews_vitrine_render_otzyvy($items, $focusId);
         $replaced = preg_replace(
-            '/<div class="sfrfr-otzyvy-quotes[^"]*"[^>]*data-sfrfr-quotes(?:="")?[^>]*>\s*<\/div>/',
+            '/<div class="sfrfr-otzyvy-quotes[^"]*"[^>]*data-sfrfr-quotes(?:="")?[^>]*>[\s\S]*?<\/div>\s*(?=<p class="sfrfr-note sfrfr-otzyvy-review-miss"|<\/div>)/',
             '<div class="sfrfr-otzyvy-quotes sfrfr-cards sfrfr-cards--row sfrfr-cards--2" data-sfrfr-quotes data-sfrfr-quotes-rendered="1">'
             . $quotesHtml
-            . '</div>',
+            . '</div>'
+            . "\n",
             $content,
             1,
             $count
@@ -171,12 +210,13 @@ add_filter('the_content', static function (string $content): string {
         if ($count > 0 && is_string($replaced)) {
             $content = $replaced;
         }
+        $scrollSnippet = sfrfr_site_reviews_vitrine_scroll_snippet($focusId);
     }
 
     if ($isHome && $items !== []) {
         $quotesHtml = sfrfr_site_reviews_vitrine_render_home($items);
         $replaced = preg_replace(
-            '/<div class="sfrfr-home-reviews__quotes" data-sfrfr-quotes>\s*<p class="sfrfr-home-reviews__empty" data-sfrfr-quotes-empty>.*?<\/p>\s*<\/div>/s',
+            '/<div class="sfrfr-home-reviews__quotes" data-sfrfr-quotes[^>]*>[\s\S]*?<\/div>/s',
             '<div class="sfrfr-home-reviews__quotes" data-sfrfr-quotes data-sfrfr-quotes-rendered="1">'
             . $quotesHtml
             . '</div>',
@@ -190,8 +230,9 @@ add_filter('the_content', static function (string $content): string {
     }
 
     $bootstrap = sfrfr_site_reviews_vitrine_bootstrap_tag($items);
+    $inject = $bootstrap . ($scrollSnippet !== '' ? "\n" . $scrollSnippet : '');
     if (preg_match('/<script\b/i', $content)) {
-        return (string) preg_replace('/<script\b/i', $bootstrap . "\n<script", $content, 1);
+        return (string) preg_replace('/<script\b/i', $inject . "\n<script", $content, 1);
     }
-    return $content . "\n" . $bootstrap;
+    return $content . "\n" . $inject;
 }, 23);

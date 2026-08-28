@@ -106,7 +106,7 @@
         <div class="sfrfr-otzyvy-policy" data-sfrfr-quotes-empty>
           <ul class="sfrfr-otzyvy-bullets">
             <li>Публикуем только с отдельного разрешения автора.</li>
-            <li>Не указываем фамилию, СНИЛС, суммы выплат и документы.</li>
+            <li>Подпись — имя или «имя, город»; без фамилии, СНИЛС, сумм и документов.</li>
             <li>Не редактируем смысл отзыва.</li>
             <li>Не платим за отзывы и не даём скидки за публикацию.</li>
           </ul>
@@ -196,8 +196,8 @@
       var p = document.createElement("p");
       p.textContent = "«" + (item.text || "") + "»";
       var foot = document.createElement("p");
-      foot.className = "sfrfr-muted";
-      foot.textContent = "Клиент сервиса, опубликовано с согласия";
+      foot.className = "sfrfr-muted sfrfr-otzyvy-quote-author";
+      foot.textContent = "— " + (item.byline || "Клиент сервиса");
       art.appendChild(p);
       art.appendChild(foot);
       box.appendChild(art);

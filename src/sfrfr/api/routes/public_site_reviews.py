@@ -43,6 +43,11 @@ class SiteReviewSubmit(BaseModel):
         description="True если письмо уже отправил CF7 — не дублировать SMTP",
     )
     source: str = Field(default="site", max_length=32)
+    author_label: str | None = Field(
+        default=None,
+        max_length=40,
+        description="Подпись на сайте: имя или «имя, город», без фамилии",
+    )
 
 
 class WpMailRelay(BaseModel):
@@ -126,11 +131,11 @@ def parse_site_review_callback(payload: str) -> tuple[str, str] | None:
 
 
 def site_review_public_url(item_id: str) -> str:
-    """Прямая ссылка на опубликованный отзыв на /otzyvy/ (?review= — без # для MAX)."""
+    """Ссылка на опубликованный отзыв: query для PHP + hash для прокрутки."""
     rid = (item_id or "").strip()
     if not rid:
         return _SITE_REVIEWS_PAGE
-    return f"{_SITE_REVIEWS_PAGE}?review={quote(rid)}"
+    return f"{_SITE_REVIEWS_PAGE}?review={quote(rid)}#review-{rid}"
 
 
 def build_site_review_moderation_reply(
@@ -332,6 +337,7 @@ def submit_site_review(
         source=source,
         consent=True,
         publish_consent=bool(payload.publish_consent),
+        author_label=(payload.author_label or "") if payload.publish_consent else "",
     )
     if result is None:
         raise HTTPException(

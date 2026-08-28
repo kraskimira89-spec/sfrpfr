@@ -23,6 +23,22 @@ _HINT_EXAMPLES = (
     "понравилось, что объяснили порядок действий",
 )
 
+_MONTHS_RU = (
+    "",
+    "январь",
+    "февраль",
+    "март",
+    "апрель",
+    "май",
+    "июнь",
+    "июль",
+    "август",
+    "сентябрь",
+    "октябрь",
+    "ноябрь",
+    "декабрь",
+)
+
 
 def _store_path() -> Path:
     return _DEFAULT_PATH
@@ -99,6 +115,34 @@ def review_text_issue(text: str) -> str | None:
     return None
 
 
+def _sanitize_author_label(label: str) -> str:
+    cleaned = " ".join((label or "").split()).strip()
+    if not cleaned:
+        return ""
+    if len(cleaned) < 2:
+        return ""
+    if review_text_issue(cleaned) or _has_actionable_pdn(cleaned):
+        return ""
+    return cleaned[:40]
+
+
+def review_byline(item: dict[str, Any]) -> str:
+    """Подпись под цитатой на сайте: имя автора или нейтральный fallback."""
+    label = _sanitize_author_label(str(item.get("author_label") or ""))
+    if label:
+        return label
+    raw_ts = item.get("published_at") or item.get("created_at")
+    if isinstance(raw_ts, str) and raw_ts.strip():
+        try:
+            dt = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+            month = _MONTHS_RU[dt.month] if 1 <= dt.month <= 12 else ""
+            if month:
+                return f"Клиент · {month} {dt.year}"
+        except ValueError:
+            pass
+    return "Клиент сервиса"
+
+
 def looks_unsafe(text: str) -> bool:
     return review_text_issue(text) is not None
 
@@ -109,6 +153,7 @@ def enqueue_quote(
     source: str = "anketa",
     consent: bool = False,
     publish_consent: bool = False,
+    author_label: str = "",
 ) -> dict[str, Any] | None:
     """
     Положить цитату в очередь модерации.
@@ -123,12 +168,14 @@ def enqueue_quote(
         return {"ok": False, "queued": False, "reason": issue}
 
     status = "pending" if publish_consent else "feedback"
+    label = _sanitize_author_label(author_label) if publish_consent else ""
     item = {
         "id": str(uuid.uuid4()),
         "text": body,
         "source": (source or "anketa")[:32],
         "status": status,
         "publish_consent": bool(publish_consent),
+        "author_label": label or None,
         "created_at": datetime.now(UTC).isoformat(),
         "published_at": None,
     }
@@ -156,11 +203,14 @@ def list_published(*, limit: int = 6) -> list[dict[str, Any]]:
             continue
         if str(raw.get("status") or "") != "published":
             continue
+        row = dict(raw)
         out.append(
             {
                 "id": str(raw.get("id") or ""),
                 "text": str(raw.get("text") or ""),
                 "source": str(raw.get("source") or ""),
+                "author_label": str(raw.get("author_label") or "") or None,
+                "byline": review_byline(row),
                 "published_at": raw.get("published_at"),
             }
         )

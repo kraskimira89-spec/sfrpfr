@@ -1431,7 +1431,12 @@ body:has(#sfrfr-otzyvy-page) .sfrfr-breadcrumbs {
 .sfrfr-otzyvy-quote:target,
 .sfrfr-otzyvy-quote--highlight {
   box-shadow: 0 0 0 2px #1a5c3a;
-  scroll-margin-top: 5rem;
+  scroll-margin-top: 7rem;
+}
+
+.sfrfr-otzyvy-quote-author {
+  margin-bottom: 0;
+  font-weight: 600;
 }
 
 .sfrfr-otzyvy-review-miss {

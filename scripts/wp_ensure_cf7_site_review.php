@@ -44,6 +44,10 @@ $form = <<<'FORM'
 </div>
 <div class="sfrfr-cf7-consent sfrfr-cf7-consent--optional">
 [acceptance acceptance-publish optional] Разрешаю опубликовать отзыв на сайте без фамилии, контактов, личных номеров, сумм и деталей документов [/acceptance]
+<label class="sfrfr-cf7-label-optional">Как подписать на сайте (необязательно)
+[text your-label maxlength:40 placeholder "Имя или «Имя, город» — без фамилии"]
+</label>
+<p class="sfrfr-otzyvy-hint">Если оставите пустым — подпишем «Клиент · месяц год».</p>
 </div>
 <div class="sfrfr-cf7-hp-wrap" aria-hidden="true">
 <label>Сайт

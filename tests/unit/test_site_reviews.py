@@ -226,7 +226,7 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
         )
         assert ok.status_code == 200
         assert "Отзыв опубликован. Проверьте на сайте." in ok.text
-        assert f"?review={item_id}" in ok.text
+        assert f"?review={item_id}#review-{item_id}" in ok.text
         assert "Обращался в сервис" in ok.text
         assert len(sr.list_published()) == 1
     finally:
@@ -239,7 +239,22 @@ def test_site_review_public_url() -> None:
     from sfrfr.api.routes import public_site_reviews as psr
 
     uid = "abc-123"
-    assert psr.site_review_public_url(uid) == "https://proverkastaza.ru/otzyvy/?review=abc-123"
+    assert psr.site_review_public_url(uid) == (
+        "https://proverkastaza.ru/otzyvy/?review=abc-123#review-abc-123"
+    )
+
+
+def test_review_byline_fallback_month() -> None:
+    item = {
+        "author_label": "",
+        "published_at": "2026-08-28T07:25:21.830295+00:00",
+    }
+    assert sr.review_byline(item) == "Клиент · август 2026"
+
+
+def test_review_byline_custom_label() -> None:
+    item = {"author_label": "Андрей, Архангельск", "published_at": "2026-08-28T07:25:21+00:00"}
+    assert sr.review_byline(item) == "Андрей, Архангельск"
 
 
 def test_build_site_review_moderation_reply_published() -> None:
@@ -252,7 +267,7 @@ def test_build_site_review_moderation_reply_published() -> None:
         ok=True,
     )
     assert "Отзыв опубликован. Проверьте на сайте." in text
-    assert "[Открыть этот отзыв](https://proverkastaza.ru/otzyvy/?review=abc-123)" in text
+    assert "[Открыть этот отзыв](https://proverkastaza.ru/otzyvy/?review=abc-123#review-abc-123)" in text
     assert "abc-123" not in text.split("](")[0]
     assert attachments is not None
     assert text_format == "markdown"
