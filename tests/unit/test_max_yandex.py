@@ -17,6 +17,7 @@ from sfrfr.integrations.max.handler import handle_max_update
 class _SilentBot(MaxBotClient):
     def __init__(self) -> None:
         self.sent: list[tuple[object, str]] = []
+        self.attachments: list[object] = []
 
     @property
     def available(self) -> bool:
@@ -29,8 +30,10 @@ class _SilentBot(MaxBotClient):
         user_id=None,
         chat_id=None,
         attachments=None,
+        text_format=None,
     ):
         self.sent.append((user_id or chat_id, text))
+        self.attachments.append(attachments)
         return {"ok": True}
 
 
