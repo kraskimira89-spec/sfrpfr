@@ -71,6 +71,14 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
 
 Текст отзыва в исходящем письме **маскируется** (`redact_outbound_body`: СНИЛС/паспорт → `[…]`). Шаблон CF7 mail body по-прежнему без слова «СНИЛС». Если пользователь копирует подсказку со страницы — CF7 и API вернут `hint_text` с понятным сообщением.
 
+### MAX: кнопки модерации
+
+После **✅ Одобрить** бот пишет в чат: «Отзыв опубликован. Проверьте на сайте» + кнопка **Открыть этот отзыв** → `https://proverkastaza.ru/otzyvy/#review-{uuid}`.
+
+После **❌ Отклонить**: «Отзыв отклонён. Проверьте на сайте» + кнопка **Страница отзывов** (отклонённые на витрине не показываются).
+
+Всплывающая подсказка на кнопке: «Опубликован» / «Отклонён».
+
 ### Rollback
 
 Вернуть предыдущие `scripts/assets/trust/otzyvy.html`, MU `sfrfr-cf7-site-review.php`, `wp_ensure_cf7_site_review.php`, CSS-блок `.sfrfr-otzyvy-*` и прогнать `wp_seed_trust_pages_tz18.sh` + `wp_ensure_cf7_site_review.sh`.

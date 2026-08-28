@@ -157,6 +157,9 @@
       items.forEach(function (item) {
         var art = document.createElement("article");
         art.className = "sfrfr-card sfrfr-otzyvy-quote";
+        if (item.id) {
+          art.id = "review-" + item.id;
+        }
         var p = document.createElement("p");
         p.textContent = "«" + (item.text || "") + "»";
         var foot = document.createElement("p");
@@ -166,6 +169,14 @@
         art.appendChild(foot);
         box.appendChild(art);
       });
+      var hash = window.location.hash;
+      if (hash && hash.indexOf("#review-") === 0) {
+        var target = document.getElementById(hash.slice(1));
+        if (target) {
+          target.classList.add("sfrfr-otzyvy-quote--highlight");
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
     })
     .catch(function () {});
 })();

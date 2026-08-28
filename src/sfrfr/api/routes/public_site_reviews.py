@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _REVIEW_NOTIFY_EMAIL = "proverkastaza@yandex.ru"
+_SITE_REVIEWS_PAGE = "https://proverkastaza.ru/otzyvy/"
 _SREV_PUBLISH = "srev:p:"
 _SREV_REJECT = "srev:r:"
 
@@ -122,6 +123,40 @@ def parse_site_review_callback(payload: str) -> tuple[str, str] | None:
     if raw.startswith(_SREV_REJECT):
         return raw[len(_SREV_REJECT) :], "rejected"
     return None
+
+
+def site_review_public_url(item_id: str) -> str:
+    """Прямая ссылка на опубликованный отзыв на /otzyvy/."""
+    rid = (item_id or "").strip()
+    if not rid:
+        return _SITE_REVIEWS_PAGE
+    return f"{_SITE_REVIEWS_PAGE}#review-{rid}"
+
+
+def build_site_review_moderation_reply(
+    *,
+    item_id: str,
+    review_status: str,
+    quote: str = "",
+    ok: bool = True,
+    error: str | None = None,
+) -> tuple[str, list[dict[str, Any]] | None]:
+    """Текст и кнопка-ссылка для MAX после модерации отзыва."""
+    from sfrfr.integrations.max.client import inline_link_keyboard
+
+    if not ok:
+        return (f"Не удалось изменить статус: {error or 'ошибка'}.", None)
+
+    quote_block = f"\n\nТекст:\n{quote.strip()}" if quote.strip() else ""
+    if review_status == "published":
+        url = site_review_public_url(item_id)
+        text = f"Отзыв опубликован. Проверьте на сайте.{quote_block}\n\n{url}"
+        attachments = inline_link_keyboard("Открыть этот отзыв", url)
+        return text, attachments
+
+    text = f"Отзыв отклонён. Проверьте на сайте.{quote_block}\n\n{_SITE_REVIEWS_PAGE}"
+    attachments = inline_link_keyboard("Страница отзывов", _SITE_REVIEWS_PAGE)
+    return text, attachments
 
 
 def notify_site_review_queued(
@@ -237,7 +272,14 @@ def moderate_site_review_link(
     raw_item = result.get("item")
     item: dict[str, Any] = raw_item if isinstance(raw_item, dict) else {}
     quote = str(item.get("text") or "").strip()
-    label = "опубликован на сайте" if review_status == "published" else "отклонён"
+    if review_status == "published":
+        headline = "Отзыв опубликован. Проверьте на сайте."
+        link_url = site_review_public_url(item_id)
+        link_label = "Открыть этот отзыв"
+    else:
+        headline = "Отзыв отклонён. Проверьте на сайте."
+        link_url = _SITE_REVIEWS_PAGE
+        link_label = "Страница отзывов"
     quote_html = (
         f"<blockquote style=\"margin:1rem 0;padding:0.75rem 1rem;background:#f5f7f6;"
         f"border-left:4px solid #1a5c3a;white-space:pre-wrap\">"
@@ -249,10 +291,10 @@ def moderate_site_review_link(
         "<!doctype html><html lang=\"ru\"><meta charset=\"utf-8\">"
         "<title>Модерация отзыва</title>"
         "<body style=\"font-family:sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem\">"
-        f"<h1>Отзыв {html.escape(label)}</h1>"
+        f"<h1>{html.escape(headline)}</h1>"
         f"{quote_html}"
-        f"<p>id: <code>{html.escape(item_id)}</code></p>"
-        "<p><a href=\"https://proverkastaza.ru/otzyvy/\">Страница отзывов</a></p>"
+        f"<p><a href=\"{html.escape(link_url)}\">{html.escape(link_label)}</a></p>"
+        f"<p style=\"color:#666;font-size:12px\">id: <code>{html.escape(item_id)}</code></p>"
         "</body></html>"
     )
     return HTMLResponse(page)

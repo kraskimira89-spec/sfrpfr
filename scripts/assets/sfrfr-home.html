@@ -220,6 +220,9 @@
         items.forEach(function (item) {
           var fig = document.createElement("figure");
           fig.className = "sfrfr-home-reviews__quote";
+          if (item.id) {
+            fig.id = "review-" + item.id;
+          }
           var p = document.createElement("p");
           p.textContent = "«" + (item.text || "") + "»";
           var foot = document.createElement("footer");

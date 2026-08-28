@@ -366,28 +366,41 @@ def handle_ops_update(
             return handled
 
     if callback.startswith("srev:"):
-        from sfrfr.api.routes.public_site_reviews import parse_site_review_callback
+        from sfrfr.api.routes.public_site_reviews import (
+            build_site_review_moderation_reply,
+            parse_site_review_callback,
+        )
         from sfrfr.core.site_reviews import set_status
-        from sfrfr.integrations.max.handler import _ack_message_callback
+        from sfrfr.integrations.max.handler import _callback_id, _reply
 
         parsed = parse_site_review_callback(callback)
-        _ack_message_callback(bot, update)
+        cb_id = _callback_id(update)
         if not parsed:
+            if cb_id:
+                try:
+                    bot.answer_callback(cb_id, notification="Ошибка кнопки")
+                except Exception:  # noqa: BLE001
+                    pass
             return MaxHandleResult(ok=False, action="srev_bad", detail="bad payload")
         item_id, review_status = parsed
         result = set_status(item_id, review_status)
-        label = "опубликован" if review_status == "published" else "отклонён"
-        if result.get("ok"):
-            raw_item = result.get("item")
-            item: dict[str, Any] = raw_item if isinstance(raw_item, dict) else {}
-            quote = str(item.get("text") or "").strip()
-            if quote:
-                reply = f"Отзыв {label}.\n\nТекст:\n{quote}\n\nid: {item_id}"
-            else:
-                reply = f"Отзыв {label}: {item_id}"
-        else:
-            reply = f"Не удалось: {result.get('error') or 'ошибка'} ({item_id})"
-        _reply(bot, user_id=user_id or "", chat_id=chat_id, text=reply)
+        raw_item = result.get("item")
+        item: dict[str, Any] = raw_item if isinstance(raw_item, dict) else {}
+        quote = str(item.get("text") or "").strip()
+        if cb_id:
+            try:
+                toast = "Опубликован" if review_status == "published" else "Отклонён"
+                bot.answer_callback(cb_id, notification=toast)
+            except Exception:  # noqa: BLE001
+                pass
+        reply, attachments = build_site_review_moderation_reply(
+            item_id=item_id,
+            review_status=review_status,
+            quote=quote,
+            ok=bool(result.get("ok")),
+            error=str(result.get("error") or "") or None,
+        )
+        _reply(bot, user_id=user_id or "", chat_id=chat_id, text=reply, attachments=attachments)
         return MaxHandleResult(ok=True, action="srev_moderate", reply=reply)
 
     if not user_id and not manager_ticket:

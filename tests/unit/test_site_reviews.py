@@ -225,10 +225,47 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
             params={"id": item_id, "status": "published", "sig": sig},
         )
         assert ok.status_code == 200
-        assert "опубликован" in ok.text
+        assert "Отзыв опубликован. Проверьте на сайте." in ok.text
+        assert f"#review-{item_id}" in ok.text
         assert "Обращался в сервис" in ok.text
         assert len(sr.list_published()) == 1
     finally:
         get_settings.cache_clear()
         if store.exists():
             store.unlink()
+
+
+def test_site_review_public_url() -> None:
+    from sfrfr.api.routes import public_site_reviews as psr
+
+    uid = "abc-123"
+    assert psr.site_review_public_url(uid) == f"https://proverkastaza.ru/otzyvy/#review-{uid}"
+
+
+def test_build_site_review_moderation_reply_published() -> None:
+    from sfrfr.api.routes.public_site_reviews import build_site_review_moderation_reply
+
+    text, attachments = build_site_review_moderation_reply(
+        item_id="abc-123",
+        review_status="published",
+        quote="Хороший сервис",
+        ok=True,
+    )
+    assert "Отзыв опубликован. Проверьте на сайте." in text
+    assert "#review-abc-123" in text
+    assert attachments is not None
+
+
+def test_build_site_review_moderation_reply_rejected() -> None:
+    from sfrfr.api.routes.public_site_reviews import build_site_review_moderation_reply
+
+    text, attachments = build_site_review_moderation_reply(
+        item_id="abc-123",
+        review_status="rejected",
+        quote="Спам",
+        ok=True,
+    )
+    assert "Отзыв отклонён. Проверьте на сайте." in text
+    assert "otzyvy/" in text
+    assert "#review-" not in text
+    assert attachments is not None
