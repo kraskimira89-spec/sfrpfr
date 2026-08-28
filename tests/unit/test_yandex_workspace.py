@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sfrfr.integrations.yandex_workspace import disk_status, ping, send_mail
+from sfrfr.integrations.yandex_workspace import disk_status, ping
 from sfrfr.integrations.yandex_workspace.mail import _xoauth2_string
 from sfrfr.integrations.yandex_workspace.telemost import create_conference
 

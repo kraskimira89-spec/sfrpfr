@@ -9,7 +9,8 @@ import sfrfr.core.site_reviews as sr
 
 def test_review_text_rejects_hint_boilerplate() -> None:
     text = (
-        "«Стало понятнее, какие документы собрать» или «Понравилось, что объяснили порядок действий».\n"
+        "«Стало понятнее, какие документы собрать» или "
+        "«Понравилось, что объяснили порядок действий».\n"
         "Без фамилии в публикации. Не пишите СНИЛС, паспорт, суммы и детали документов."
     )
     assert sr.review_text_issue(text) == "hint_text"
@@ -321,7 +322,11 @@ def test_build_site_review_moderation_reply_published() -> None:
         ok=True,
     )
     assert "Отзыв опубликован. Проверьте на сайте." in text
-    assert "[Открыть этот отзыв](https://proverkastaza.ru/otzyvy/?review=abc-123#review-abc-123)" in text
+    review_url = (
+        "[Открыть этот отзыв]"
+        "(https://proverkastaza.ru/otzyvy/?review=abc-123#review-abc-123)"
+    )
+    assert review_url in text
     assert "abc-123" not in text.split("](")[0]
     assert attachments is not None
     assert text_format == "markdown"
