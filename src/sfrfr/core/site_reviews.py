@@ -13,10 +13,14 @@ from typing import Any
 _STORE_LOCK = threading.Lock()
 _DEFAULT_PATH = Path("var") / "site_reviews.json"
 
-_PDN_HINT = re.compile(
-    r"(?i)(\b\d{3}[- ]?\d{3}[- ]?\d{3}[ ]?\d{2}\b|"  # СНИЛС-подобное
-    r"\bпаспорт\b|\bснилс\b|"
-    r"\b\d{4,}\s*₽|\b\d{4,}\s*руб)",
+_PDN_SNILS = re.compile(r"\b\d{3}[- ]?\d{3}[- ]?\d{3}[ ]?\d{2}\b")
+_PDN_MONEY = re.compile(r"(?i)\b\d{4,}\s*(?:₽|руб\.?)")
+_PDN_WORD = re.compile(r"(?i)\b(снилс|snils|паспорт|passport)\b")
+_NEGATION = re.compile(r"(?i)(не\s|без\s|не\s+указы|не\s+пиш)")
+
+_HINT_EXAMPLES = (
+    "стало понятнее, какие документы собрать",
+    "понравилось, что объяснили порядок действий",
 )
 
 
@@ -52,14 +56,51 @@ def _sanitize_text(text: str) -> str:
     return cleaned[:600]
 
 
-def looks_unsafe(text: str) -> bool:
-    if not text or len(text) < 15:
-        return True
-    if _PDN_HINT.search(text):
-        return True
-    banned = ("поставьте 5", "ставьте пять", "гарантируем перерасчёт", "повысили пенсию")
+def _is_hint_boilerplate(text: str) -> bool:
+    """Текст подсказки с /otzyvy/, который люди копируют вместо своего отзыва."""
     lower = text.lower()
-    return any(b in lower for b in banned)
+    hits = sum(1 for marker in _HINT_EXAMPLES if marker in lower)
+    if hits >= 2:
+        return True
+    return hits >= 1 and "не пишите" in lower
+
+
+def _has_actionable_pdn(text: str) -> bool:
+    if _PDN_SNILS.search(text):
+        return True
+    if _PDN_MONEY.search(text):
+        return True
+    lower = text.lower()
+    for match in _PDN_WORD.finditer(text):
+        start = match.start()
+        prefix = lower[max(0, start - 48) : start]
+        if _NEGATION.search(prefix):
+            continue
+        return True
+    return False
+
+
+def review_text_issue(text: str) -> str | None:
+    """
+    Причина отклонения текста отзыва или None, если текст принимаем.
+    Коды: too_short, hint_text, pdn_in_text, banned_phrase.
+    """
+    cleaned = " ".join((text or "").split()).strip()
+    if not cleaned or len(cleaned) < 15:
+        return "too_short"
+    if _is_hint_boilerplate(cleaned):
+        return "hint_text"
+    if _has_actionable_pdn(cleaned):
+        return "pdn_in_text"
+    banned = ("поставьте 5", "ставьте пять", "гарантируем перерасчёт", "повысили пенсию")
+    lower = cleaned.lower()
+    if any(b in lower for b in banned):
+        return "banned_phrase"
+    return None
+
+
+def looks_unsafe(text: str) -> bool:
+    return review_text_issue(text) is not None
 
 
 def enqueue_quote(
@@ -77,8 +118,9 @@ def enqueue_quote(
     if not consent:
         return None
     body = _sanitize_text(text)
-    if looks_unsafe(body):
-        return {"ok": False, "queued": False, "reason": "unsafe_or_short"}
+    issue = review_text_issue(body)
+    if issue:
+        return {"ok": False, "queued": False, "reason": issue}
 
     status = "pending" if publish_consent else "feedback"
     item = {

@@ -7,6 +7,23 @@ from pathlib import Path
 import sfrfr.core.site_reviews as sr
 
 
+def test_review_text_rejects_hint_boilerplate() -> None:
+    text = (
+        "«Стало понятнее, какие документы собрать» или «Понравилось, что объяснили порядок действий».\n"
+        "Без фамилии в публикации. Не пишите СНИЛС, паспорт, суммы и детали документов."
+    )
+    assert sr.review_text_issue(text) == "hint_text"
+    assert sr.enqueue_quote(text=text, source="cf7", consent=True)["queued"] is False
+
+
+def test_review_text_accepts_real_experience() -> None:
+    text = (
+        "Обращался в сервис Проверка стажа. Помогли сверить документы и "
+        "подготовить план. Понятно, что в СФР подаю сам."
+    )
+    assert sr.review_text_issue(text) is None
+
+
 def test_enqueue_without_publish_consent_is_feedback(monkeypatch) -> None:
     store = Path("var") / "test_site_reviews_feedback.json"
     if store.exists():

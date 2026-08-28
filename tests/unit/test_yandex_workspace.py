@@ -34,22 +34,13 @@ def test_telemost_skipped_when_disabled(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_mail_rejects_snils_marker(monkeypatch) -> None:
-    monkeypatch.setenv("YANDEX_OAUTH_ACCESS_TOKEN", "tok")
-    monkeypatch.setenv("YANDEX_MAIL_ENABLED", "true")
-    from sfrfr.core.config import get_settings
-    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
+def test_mail_redacts_snils_marker(monkeypatch) -> None:
+    from sfrfr.integrations.yandex_workspace.mail import redact_outbound_body
 
-    oauth_mod._loaded = True
-    get_settings.cache_clear()
-    result = send_mail(
-        to="client@example.com",
-        template="custom",
-        body="Мой СНИЛС 123",
-    )
-    assert result.get("ok") is False
-    assert result.get("error") == "body_contains_forbidden_markers"
-    get_settings.cache_clear()
+    redacted = redact_outbound_body("Мой СНИЛС 123 и паспорт")
+    assert "снилс" not in redacted.lower()
+    assert "паспорт" not in redacted.lower()
+    assert "[…]" in redacted
 
 
 def test_xoauth2_encoding() -> None:

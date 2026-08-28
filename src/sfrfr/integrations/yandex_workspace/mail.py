@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -16,6 +17,18 @@ from sfrfr.integrations.yandex_workspace.oauth import token_available, workspace
 def _xoauth2_plain(user: str, access_token: str) -> str:
     """Незакодированная строка XOAUTH2 (smtplib.auth сам сделает base64)."""
     return f"user={user}\x01auth=Bearer {access_token}\x01\x01"
+
+
+_PDN_SNILS = re.compile(r"\b\d{3}[- ]?\d{3}[- ]?\d{3}[ ]?\d{2}\b")
+_PDN_MONEY = re.compile(r"(?i)\b\d{4,}\s*(?:₽|руб\.?)")
+_PDN_WORD = re.compile(r"(?i)\b(снилс|snils|паспорт|passport)\b")
+
+
+def redact_outbound_body(body: str) -> str:
+    """Убрать типичные ПДн-маркеры из исходящего письма (модерация / relay WP)."""
+    redacted = _PDN_SNILS.sub("[номер]", body or "")
+    redacted = _PDN_MONEY.sub("[сумма]", redacted)
+    return _PDN_WORD.sub("[…]", redacted)
 
 
 def _xoauth2_string(user: str, access_token: str) -> str:
@@ -81,11 +94,8 @@ def send_mail(
         "body": (body or "").strip() or "Сообщение от сервиса «Проверка стажа».",
     }
     final_subject = (subject or tpl_subject).format(**fmt)[:200]
-    final_body = tpl_body.format(**fmt)
-
-    # Защита: не тащим типичные ПДн-маркеры из кастомного body в логи — режем длину
-    if any(x in final_body.lower() for x in ("снилс", "snils", "passport", "паспорт")):
-        return {"ok": False, "error": "body_contains_forbidden_markers"}
+    final_body = redact_outbound_body(tpl_body.format(**fmt))
+    html_body = redact_outbound_body((html or "").strip()) if (html or "").strip() else ""
 
     from_addr = workspace_email()
     display = (from_name or "").strip() or "Проверка стажа"
@@ -100,7 +110,6 @@ def send_mail(
     message_id = make_msgid(domain="proverkastaza.ru")
     msg["Message-ID"] = message_id
     msg.set_content(final_body)
-    html_body = (html or "").strip()
     if html_body:
         msg.add_alternative(html_body, subtype="html")
 

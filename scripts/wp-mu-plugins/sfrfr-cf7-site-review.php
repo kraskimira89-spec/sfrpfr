@@ -117,7 +117,7 @@ add_action('wp_enqueue_scripts', static function (): void {
         );
     }
     $deps = $clientKey !== '' ? ['yandex-smartcaptcha'] : [];
-    wp_register_script('sfrfr-cf7-site-review', '', $deps, '20260827b', true);
+    wp_register_script('sfrfr-cf7-site-review', '', $deps, '20260828a', true);
     wp_enqueue_script('sfrfr-cf7-site-review');
     wp_add_inline_script('sfrfr-cf7-site-review', <<<'JS'
 (function () {
@@ -248,12 +248,89 @@ $sfrfr_cf7_site_review_validate_len = static function ($result, $tag) {
     $text = isset($posted[$name]) ? trim((string) $posted[$name]) : '';
     $len = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
     if ($len < 15) {
-        $result->invalidate($tag, 'Напишите, пожалуйста, хотя бы одно предложение.');
+        $result->invalidate($tag, sfrfr_cf7_site_review_issue_message('too_short'));
+        return $result;
+    }
+    $issue = sfrfr_cf7_site_review_text_issue($text);
+    if ($issue !== null) {
+        $result->invalidate($tag, sfrfr_cf7_site_review_issue_message($issue));
     }
     return $result;
 };
 add_filter('wpcf7_validate_textarea', $sfrfr_cf7_site_review_validate_len, 20, 2);
 add_filter('wpcf7_validate_textarea*', $sfrfr_cf7_site_review_validate_len, 20, 2);
+
+/**
+ * Проверка текста отзыва (зеркало API site_reviews.review_text_issue).
+ *
+ * @return string|null hint_text|pdn_in_text|too_short|null если ок
+ */
+function sfrfr_cf7_site_review_text_issue(string $text): ?string
+{
+    $cleaned = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+    if ($cleaned === '') {
+        return 'too_short';
+    }
+    $len = function_exists('mb_strlen') ? mb_strlen($cleaned) : strlen($cleaned);
+    if ($len < 15) {
+        return 'too_short';
+    }
+    $lower = function_exists('mb_strtolower') ? mb_strtolower($cleaned) : strtolower($cleaned);
+    $hintHits = 0;
+    if (str_contains($lower, 'стало понятнее, какие документы собрать')) {
+        $hintHits++;
+    }
+    if (str_contains($lower, 'понравилось, что объяснили порядок действий')) {
+        $hintHits++;
+    }
+    if ($hintHits >= 2 || ($hintHits >= 1 && str_contains($lower, 'не пишите'))) {
+        return 'hint_text';
+    }
+    if (preg_match('/\b\d{3}[- ]?\d{3}[- ]?\d{3}[ ]?\d{2}\b/u', $cleaned)) {
+        return 'pdn_in_text';
+    }
+    if (preg_match('/\b\d{4,}\s*(?:₽|руб\.?)/ui', $cleaned)) {
+        return 'pdn_in_text';
+    }
+    foreach (['снилс', 'snils', 'паспорт', 'passport'] as $word) {
+        $pattern = '/\b' . preg_quote($word, '/') . '\b/ui';
+        if (!preg_match($pattern, $cleaned, $match, PREG_OFFSET_CAPTURE)) {
+            continue;
+        }
+        $start = (int) ($match[0][1] ?? 0);
+        $prefixLen = min(48, $start);
+        $prefix = function_exists('mb_substr')
+            ? mb_substr($lower, $start - $prefixLen, $prefixLen)
+            : substr($lower, $start - $prefixLen, $prefixLen);
+        if (preg_match('/(не\s|без\s|не\s+указы|не\s+пиш)/ui', $prefix)) {
+            continue;
+        }
+        return 'pdn_in_text';
+    }
+    return null;
+}
+
+function sfrfr_cf7_site_review_issue_message(string $issue): string
+{
+    return match ($issue) {
+        'hint_text' => 'Похоже, скопирована подсказка со страницы. Напишите своими словами о вашем опыте с сервисом.',
+        'pdn_in_text' => 'Уберите из текста личные номера, суммы и реквизиты документов — напишите только о вашем опыте.',
+        'too_short' => 'Напишите, пожалуйста, хотя бы одно предложение.',
+        default => 'Проверьте текст отзыва и попробуйте ещё раз.',
+    };
+}
+
+function sfrfr_cf7_site_review_api_issue_message(string $detail): string
+{
+    $detail = trim($detail);
+    if ($detail === '' || $detail === 'unsafe_or_short') {
+        return sfrfr_cf7_site_review_issue_message('pdn_in_text');
+    }
+    if (isset(['hint_text' => 1, 'pdn_in_text' => 1, 'too_short' => 1][$detail])) {
+        return sfrfr_cf7_site_review_issue_message($detail);
+    }
+    return 'Не удалось отправить отзыв. Попробуйте ещё раз или выберите Яндекс Карты выше.';
+}
 
 add_filter('wpcf7_autop_or_not', static function ($autop, $contact_form = null) {
     if ($contact_form instanceof WPCF7_ContactForm && $contact_form->title() === SFRFR_CF7_SITE_REVIEW_TITLE) {
@@ -329,10 +406,19 @@ function sfrfr_cf7_site_review_enqueue_api(bool $mailAlreadySent): bool
     }
     $code = (int) wp_remote_retrieve_response_code($response);
     if ($code < 200 || $code >= 300) {
+        $bodyRaw = (string) wp_remote_retrieve_body($response);
+        $detail = '';
+        $decoded = json_decode($bodyRaw, true);
+        if (is_array($decoded) && isset($decoded['detail'])) {
+            $detail = trim((string) $decoded['detail']);
+        }
         error_log(
             'SFRFR site review queue HTTP ' . $code . ': '
-            . substr((string) wp_remote_retrieve_body($response), 0, 300)
+            . substr($bodyRaw, 0, 300)
         );
+        if ($detail !== '') {
+            $GLOBALS['sfrfr_cf7_site_review_last_issue'] = $detail;
+        }
         return false;
     }
     return true;
@@ -366,9 +452,11 @@ add_action('wpcf7_mail_failed', static function ($contact_form): void {
             'Спасибо. Текст принят. Если вы разрешили публикацию — он появится на сайте после проверки.'
         );
     } else {
-        $submission->set_response(
-            'Не удалось отправить отзыв. Ваш текст сохранён в форме — попробуйте ещё раз или выберите Яндекс Карты выше.'
-        );
+        $detail = isset($GLOBALS['sfrfr_cf7_site_review_last_issue'])
+            ? trim((string) $GLOBALS['sfrfr_cf7_site_review_last_issue'])
+            : '';
+        unset($GLOBALS['sfrfr_cf7_site_review_last_issue']);
+        $submission->set_response(sfrfr_cf7_site_review_api_issue_message($detail));
     }
 }, 20);
 

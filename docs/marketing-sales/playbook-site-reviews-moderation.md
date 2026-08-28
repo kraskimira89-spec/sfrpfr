@@ -69,7 +69,7 @@ SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
 
 ### Важно про SMTP
 
-В теле исходящих писем **не** писать слово «СНИЛС» — фильтр Яндекс SMTP режет `body_contains_forbidden_markers`. На странице для людей слово можно оставлять.
+Текст отзыва в исходящем письме **маскируется** (`redact_outbound_body`: СНИЛС/паспорт → `[…]`). Шаблон CF7 mail body по-прежнему без слова «СНИЛС». Если пользователь копирует подсказку со страницы — CF7 и API вернут `hint_text` с понятным сообщением.
 
 ### Rollback
 
