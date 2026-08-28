@@ -312,6 +312,11 @@ def test_review_byline_date_only_when_published() -> None:
     assert sr.review_byline(item) == "Иван · 15 января 2026"
 
 
+def test_author_label_from_client() -> None:
+    assert sr.author_label_from_client("Борисов Сергей", "Ноябрьск") == "Сергей Б. Ноябрьск"
+    assert sr.author_label_from_client("Иван", "") == "Иван"
+
+
 def test_build_site_review_moderation_reply_published() -> None:
     from sfrfr.api.routes.public_site_reviews import build_site_review_moderation_reply
 

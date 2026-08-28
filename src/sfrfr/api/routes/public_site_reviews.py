@@ -192,6 +192,7 @@ def notify_site_review_queued(
     send_email: bool = True,
     publish_consent: bool = False,
     author_label: str = "",
+    client_id: str = "",
 ) -> dict[str, Any]:
     """Письмо на proverkastaza@yandex.ru (если нужно) + fanout в MAX / канал команды."""
     # Полный текст для сотрудника (лимит формы 600); без обрезки «для превью».
@@ -218,6 +219,9 @@ def notify_site_review_queued(
                 "\nПодпись на сайте: не указана — перед одобрением задайте имя "
                 "(имя или «имя, город», без фамилии).\n"
             )
+    cid = (client_id or "").strip()
+    if cid:
+        body += f"client_id: {cid}\n"
     if publish_consent:
         body += (
             f"\nОдобрить: {urls['published']}\n"
@@ -394,7 +398,8 @@ def _moderation_label_form_page(*, item_id: str, sig: str, quote: str) -> HTMLRe
         "<p><label>Город (необязательно)<br>"
         "<input name=\"author_city\" maxlength=\"24\" "
         "placeholder=\"Например: Архангельск\" style=\"width:100%;padding:0.5rem\"></label></p>"
-        "<p><button type=\"submit\" style=\"padding:0.6rem 1.2rem\">Опубликовать на сайте</button></p>"
+        "<p><button type=\"submit\" "
+        "style=\"padding:0.6rem 1.2rem\">Опубликовать на сайте</button></p>"
         "</form>"
         f"<p style=\"color:#666;font-size:12px\">id: <code>{html.escape(item_id)}</code></p>"
         "</body></html>"

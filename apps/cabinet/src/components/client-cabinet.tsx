@@ -106,6 +106,7 @@ type PortalMe = {
   user_id: string;
   email?: string | null;
   client_id?: string | null;
+  full_name?: string | null;
   preferred_channel: PreferredChannel;
   max_linked: boolean;
   web_linked: boolean;
@@ -316,6 +317,11 @@ export function ClientCabinet() {
   const [busy, setBusy] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewCity, setReviewCity] = useState("");
+  const [reviewConsent, setReviewConsent] = useState(false);
+  const [reviewPublish, setReviewPublish] = useState(false);
+  const [reviewSent, setReviewSent] = useState(false);
   const [me, setMe] = useState<PortalMe | null>(null);
   const [youAreRepresentative, setYouAreRepresentative] = useState(false);
   const [representatives, setRepresentatives] = useState<
@@ -1381,6 +1387,45 @@ export function ClientCabinet() {
     }
   }
 
+  async function submitSiteReview() {
+    if (!token) return;
+    if (!reviewConsent) {
+      setNotice("Подтвердите согласие на обработку текста отзыва.");
+      return;
+    }
+    const text = reviewText.trim();
+    if (text.length < 15) {
+      setNotice("Напишите хотя бы одно предложение об опыте.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await apiFetch<{
+        ok: boolean;
+        detail?: string;
+      }>("/api/portal/me/site-review", token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          consent: true,
+          publish_consent: reviewPublish,
+          city: reviewCity.trim() || null,
+        }),
+      });
+      setReviewSent(true);
+      setReviewText("");
+      setReviewCity("");
+      setReviewConsent(false);
+      setReviewPublish(false);
+      setNotice(result.detail || "Спасибо. Отзыв принят.");
+    } catch {
+      setNotice("Не удалось отправить отзыв. Попробуйте позже.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function uploadDocument(file: File, docType?: string) {
     if (!token || !selectedId) return;
     if (!detail?.consent_accepted) {
@@ -2168,28 +2213,72 @@ export function ClientCabinet() {
           </p>
           {(detail.pipeline_status || "").toLowerCase() === "completed" ? (
             <div className="panel accent" style={{ marginTop: "0.75rem" }}>
-              <p>
-                Если захотите — можно сформулировать короткий отзыв о нашей работе
-                (необязательно). Публикуете вы сами на Яндексе.
-              </p>
-              <p style={{ marginTop: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                <a
-                  className="button-link"
-                  href="https://proverkastaza.ru/anketa-otzyv/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Сформулировать отзыв
-                </a>
-                <a
-                  className="button-link"
-                  href="https://proverkastaza.ru/otzyv/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Сразу форма Яндекса
-                </a>
-              </p>
+              <h2>Короткий отзыв</h2>
+              {reviewSent ? (
+                <p className="ok">Спасибо. Если вы разрешили публикацию — отзыв появится на сайте после проверки с датой.</p>
+              ) : (
+                <>
+                  <p>
+                    Можно написать о нашей работе. Подпись возьмём из профиля
+                    {me?.full_name ? ` (${me.full_name})` : ""}
+                    {reviewCity.trim() ? `, ${reviewCity.trim()}` : ""}
+                    ; в конце добавим дату публикации.
+                  </p>
+                  <label className="stack" style={{ marginTop: "0.75rem" }}>
+                    Что было полезно?
+                    <textarea
+                      value={reviewText}
+                      rows={4}
+                      maxLength={600}
+                      disabled={busy}
+                      onChange={(event) => setReviewText(event.target.value)}
+                      placeholder="1–3 предложения о вашем опыте"
+                    />
+                  </label>
+                  <label className="stack" style={{ marginTop: "0.75rem" }}>
+                    Город для подписи (необязательно)
+                    <input
+                      type="text"
+                      value={reviewCity}
+                      maxLength={24}
+                      disabled={busy}
+                      onChange={(event) => setReviewCity(event.target.value)}
+                      placeholder="Например: Ноябрьск"
+                    />
+                  </label>
+                  <label style={{ display: "block", marginTop: "0.75rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={reviewConsent}
+                      disabled={busy}
+                      onChange={(event) => setReviewConsent(event.target.checked)}
+                    />{" "}
+                    Согласен(на) на обработку текста отзыва
+                  </label>
+                  <label style={{ display: "block", marginTop: "0.5rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={reviewPublish}
+                      disabled={busy}
+                      onChange={(event) => setReviewPublish(event.target.checked)}
+                    />{" "}
+                    Разрешаю опубликовать отзыв на сайте
+                  </label>
+                  <p style={{ marginTop: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <button type="button" onClick={() => void submitSiteReview()} disabled={busy}>
+                      Отправить отзыв
+                    </button>
+                    <a
+                      className="button-link"
+                      href="https://proverkastaza.ru/otzyv/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Или форма на Яндекс Картах
+                    </a>
+                  </p>
+                </>
+              )}
             </div>
           ) : null}
           <p className="now-need">

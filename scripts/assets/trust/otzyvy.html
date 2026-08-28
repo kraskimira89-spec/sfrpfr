@@ -14,7 +14,12 @@
             и подробности трудовой истории.
           </p>
         </div>
-        <div class="sfrfr-illustration">
+        <a
+          class="sfrfr-illustration sfrfr-otzyvy-hero-jump"
+          href="#sfrfr-otzyvy-site-form"
+          data-sfrfr-review-goal="review_hero_to_form"
+          aria-label="Перейти к форме отзыва на сайте"
+        >
           <img
             class="sfrfr-illustration__img"
             src="/wp-content/uploads/sfrfr/brand/viz-otzyvy-16x9.png"
@@ -27,7 +32,7 @@
           <p class="sfrfr-illustration__caption">
             Отзывы публикуются только после проверки и без личных данных.
           </p>
-        </div>
+        </a>
       </div>
 
       <h2 class="sfrfr-otzyvy-choose">Выберите один удобный способ</h2>
@@ -96,7 +101,7 @@
           или «Понравилось, что объяснили порядок действий».
         </p>
         <p class="sfrfr-otzyvy-hint sfrfr-otzyvy-hint--warn">
-          Без фамилии в публикации. Не указывайте личные номера, суммы и детали документов.
+          Не указывайте личные номера, суммы и детали документов.
         </p>
         <!-- SFRFR_SITE_REVIEW_FORM -->
       </div>
@@ -106,7 +111,7 @@
         <div class="sfrfr-otzyvy-policy" data-sfrfr-quotes-empty>
           <ul class="sfrfr-otzyvy-bullets">
             <li>Публикуем только с отдельного разрешения автора.</li>
-            <li>Подпись обязательна: имя или «имя, город» и дата; без фамилии, СНИЛС, сумм и документов.</li>
+            <li>Подпись: имя или «имя, город» и дата публикации; без СНИЛС, сумм и документов.</li>
             <li>Не редактируем смысл отзыва.</li>
             <li>Не платим за отзывы и не даём скидки за публикацию.</li>
           </ul>
@@ -143,6 +148,30 @@
     if (!name) return;
     el.addEventListener("click", function () {
       goal(name);
+    });
+  });
+
+  function scrollToSiteForm() {
+    var target = document.getElementById("sfrfr-otzyvy-site-form");
+    if (!target) return;
+    try {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      location.hash = "sfrfr-otzyvy-site-form";
+    }
+  }
+
+  root.querySelectorAll(".sfrfr-otzyvy-hero-jump").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      if (ev.defaultPrevented) return;
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      scrollToSiteForm();
+      if (history.replaceState) {
+        history.replaceState(null, "", "#sfrfr-otzyvy-site-form");
+      } else {
+        location.hash = "sfrfr-otzyvy-site-form";
+      }
     });
   });
 
@@ -237,6 +266,10 @@
         renderReviews((data && data.items) || []);
       })
       .catch(function () {});
+  }
+
+  if (location.hash === "#sfrfr-otzyvy-site-form") {
+    setTimeout(scrollToSiteForm, 120);
   }
 })();
 </script>

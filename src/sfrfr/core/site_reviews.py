@@ -150,14 +150,31 @@ def _format_review_date(item: dict[str, Any]) -> str:
 
 
 def review_byline(item: dict[str, Any]) -> str:
-    """Подпись под цитатой: имя / «имя, город» · полная дата."""
+    """Подпись под цитатой: имя / «имя, город» · полная дата публикации."""
     label = _sanitize_author_label(str(item.get("author_label") or ""))
     if not label:
         return ""
     date = _format_review_date(item)
-    if date:
-        return f"{label} · {date}"
-    return label
+    if not date:
+        return ""
+    return f"{label} · {date}"
+
+
+def author_label_from_client(full_name: str, city: str = "") -> str:
+    """Подпись из профиля кабинета: «Имя О. Город» (без фамилии целиком)."""
+    parts = " ".join((full_name or "").split()).split()
+    if not parts:
+        return ""
+    if len(parts) >= 3:
+        label = f"{parts[1]} {parts[2][0]}."
+    elif len(parts) == 2:
+        label = f"{parts[1]} {parts[0][0]}."
+    else:
+        label = parts[0]
+    city = " ".join((city or "").split()).strip()
+    if city:
+        label = f"{label} {city}"
+    return _sanitize_author_label(label[:40])
 
 
 def _has_author_label(item: dict[str, Any]) -> bool:
@@ -175,6 +192,7 @@ def enqueue_quote(
     consent: bool = False,
     publish_consent: bool = False,
     author_label: str = "",
+    client_id: str = "",
 ) -> dict[str, Any] | None:
     """
     Положить цитату в очередь модерации.
@@ -199,6 +217,7 @@ def enqueue_quote(
         "status": status,
         "publish_consent": bool(publish_consent),
         "author_label": label or None,
+        "client_id": (client_id or "").strip() or None,
         "created_at": datetime.now(UTC).isoformat(),
         "published_at": None,
     }

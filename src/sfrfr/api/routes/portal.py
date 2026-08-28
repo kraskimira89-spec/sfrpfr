@@ -31,6 +31,8 @@ from sfrfr.api.schemas.portal import (
     MaxOtpVerifyResponse,
     PipelineRunResponse,
     PortalMeResponse,
+    PortalSiteReviewRequest,
+    PortalSiteReviewResponse,
     PreferencesUpdateRequest,
     PreferredChannel,
     SignedDocumentResponse,
@@ -335,6 +337,65 @@ def patch_preferences(
         action = f"{action}:max:{principal.max_user_id}"
     repo.audit(principal.audit_actor_id(), action)
     return _me_response(principal, updated)
+
+
+@router.post("/me/site-review", response_model=PortalSiteReviewResponse)
+def submit_client_site_review(
+    payload: PortalSiteReviewRequest,
+    principal: Principal = Depends(get_current_principal),
+) -> PortalSiteReviewResponse:
+    """Отзыв из личного кабинета: подпись из профиля, client_id в очереди."""
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client only")
+    if not payload.consent:
+        raise HTTPException(status_code=400, detail="consent_required")
+    row = _ensure_client_row(principal)
+    from sfrfr.api.routes.public_site_reviews import notify_site_review_queued
+    from sfrfr.core.site_reviews import author_label_from_client, enqueue_quote
+
+    label = ""
+    if payload.publish_consent:
+        label = author_label_from_client(
+            str(row.get("full_name") or ""),
+            payload.city or "",
+        )
+    result = enqueue_quote(
+        text=payload.text,
+        source="cabinet",
+        consent=True,
+        publish_consent=bool(payload.publish_consent),
+        author_label=label,
+        client_id=str(row.get("id") or ""),
+    )
+    if result is None:
+        raise HTTPException(status_code=400, detail="consent_required")
+    if not result.get("queued"):
+        raise HTTPException(
+            status_code=400,
+            detail=str(result.get("reason") or "rejected"),
+        )
+    item_id = str(result.get("id") or "")
+    notify_site_review_queued(
+        text=payload.text,
+        item_id=item_id,
+        source="cabinet",
+        send_email=True,
+        publish_consent=bool(payload.publish_consent),
+        author_label=label,
+        client_id=str(row.get("id") or ""),
+    )
+    detail = (
+        "После модерации появится на странице с датой публикации."
+        if payload.publish_consent
+        else "Принято как внутренняя обратная связь (без публикации на сайте)."
+    )
+    return PortalSiteReviewResponse(
+        ok=True,
+        queued=True,
+        id=item_id,
+        status=str(result.get("status") or ""),
+        detail=detail,
+    )
 
 
 @router.get("/me/notification-links")

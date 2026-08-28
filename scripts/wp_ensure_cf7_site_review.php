@@ -50,7 +50,7 @@ $form = <<<'FORM'
 <label class="sfrfr-cf7-label-optional">Город (необязательно)
 [text your-city maxlength:24 placeholder "Например: Архангельск"]
 </label>
-<p class="sfrfr-otzyvy-hint">На сайте будет «Имя» или «Имя, город» — без фамилии. Обязательно, если разрешаете публикацию.</p>
+<p class="sfrfr-otzyvy-hint">На сайте будет «Имя» или «Имя, город» и дата публикации. Обязательно, если разрешаете публикацию.</p>
 </div>
 <div class="sfrfr-cf7-hp-wrap" aria-hidden="true">
 <label>Сайт

@@ -196,3 +196,18 @@ class ClientCaseDetail(BaseModel):
         "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
         "Решение принимает СФР. Результат не гарантирован."
     )
+
+
+class PortalSiteReviewRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+    consent: bool
+    publish_consent: bool = False
+    city: str | None = Field(default=None, max_length=24)
+
+
+class PortalSiteReviewResponse(BaseModel):
+    ok: bool
+    queued: bool = False
+    id: str = ""
+    status: str = ""
+    detail: str = ""

@@ -1383,6 +1383,31 @@ body:has(#sfrfr-kontakty-page) .sfrfr-breadcrumbs {
   margin-bottom: 0.75rem;
 }
 
+.sfrfr-otzyvy-hero-jump {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sfrfr-otzyvy-hero-jump:hover {
+  box-shadow: 0 10px 28px rgba(29, 67, 113, 0.14);
+  transform: translateY(-1px);
+}
+
+.sfrfr-otzyvy-hero-jump:focus-visible {
+  outline: 3px solid var(--sfrfr-primary);
+  outline-offset: 3px;
+}
+
+.sfrfr-otzyvy-hero-jump .sfrfr-illustration__caption {
+  color: var(--sfrfr-primary);
+}
+
+#sfrfr-otzyvy-site-form {
+  scroll-margin-top: 7rem;
+}
+
 body:has(#sfrfr-otzyvy-page) #primary,
 body:has(#sfrfr-otzyvy-page) .site-content,
 body:has(#sfrfr-otzyvy-page) .entry-content,
