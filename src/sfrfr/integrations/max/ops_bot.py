@@ -393,14 +393,21 @@ def handle_ops_update(
                 bot.answer_callback(cb_id, notification=toast)
             except Exception:  # noqa: BLE001
                 pass
-        reply, attachments = build_site_review_moderation_reply(
+        reply, attachments, text_format = build_site_review_moderation_reply(
             item_id=item_id,
             review_status=review_status,
             quote=quote,
             ok=bool(result.get("ok")),
             error=str(result.get("error") or "") or None,
         )
-        _reply(bot, user_id=user_id or "", chat_id=chat_id, text=reply, attachments=attachments)
+        _reply(
+            bot,
+            user_id=user_id or "",
+            chat_id=chat_id,
+            text=reply,
+            attachments=attachments,
+            text_format=text_format,
+        )
         return MaxHandleResult(ok=True, action="srev_moderate", reply=reply)
 
     if not user_id and not manager_ticket:

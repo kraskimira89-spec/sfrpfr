@@ -226,7 +226,7 @@ def test_moderate_sig_and_link(monkeypatch) -> None:
         )
         assert ok.status_code == 200
         assert "Отзыв опубликован. Проверьте на сайте." in ok.text
-        assert f"#review-{item_id}" in ok.text
+        assert f"?review={item_id}" in ok.text
         assert "Обращался в сервис" in ok.text
         assert len(sr.list_published()) == 1
     finally:
@@ -239,33 +239,36 @@ def test_site_review_public_url() -> None:
     from sfrfr.api.routes import public_site_reviews as psr
 
     uid = "abc-123"
-    assert psr.site_review_public_url(uid) == f"https://proverkastaza.ru/otzyvy/#review-{uid}"
+    assert psr.site_review_public_url(uid) == "https://proverkastaza.ru/otzyvy/?review=abc-123"
 
 
 def test_build_site_review_moderation_reply_published() -> None:
     from sfrfr.api.routes.public_site_reviews import build_site_review_moderation_reply
 
-    text, attachments = build_site_review_moderation_reply(
+    text, attachments, text_format = build_site_review_moderation_reply(
         item_id="abc-123",
         review_status="published",
         quote="Хороший сервис",
         ok=True,
     )
     assert "Отзыв опубликован. Проверьте на сайте." in text
-    assert "#review-abc-123" in text
+    assert "[Открыть этот отзыв](https://proverkastaza.ru/otzyvy/?review=abc-123)" in text
+    assert "abc-123" not in text.split("](")[0]
     assert attachments is not None
+    assert text_format == "markdown"
 
 
 def test_build_site_review_moderation_reply_rejected() -> None:
     from sfrfr.api.routes.public_site_reviews import build_site_review_moderation_reply
 
-    text, attachments = build_site_review_moderation_reply(
+    text, attachments, text_format = build_site_review_moderation_reply(
         item_id="abc-123",
         review_status="rejected",
         quote="Спам",
         ok=True,
     )
     assert "Отзыв отклонён. Проверьте на сайте." in text
-    assert "otzyvy/" in text
-    assert "#review-" not in text
+    assert "[Страница отзывов]" in text
+    assert "?review=" not in text
     assert attachments is not None
+    assert text_format == "markdown"

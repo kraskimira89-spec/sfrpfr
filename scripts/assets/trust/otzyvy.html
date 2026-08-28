@@ -143,6 +143,28 @@
     });
   });
 
+  function scrollToReview(reviewId) {
+    if (!reviewId) return;
+    var target = document.getElementById("review-" + reviewId);
+    if (target) {
+      target.classList.add("sfrfr-otzyvy-quote--highlight");
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  function reviewIdFromLocation() {
+    var hash = window.location.hash;
+    if (hash && hash.indexOf("#review-") === 0) {
+      return hash.slice(8);
+    }
+    try {
+      return new URLSearchParams(window.location.search).get("review") || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  var pendingReviewId = reviewIdFromLocation();
   var box = root.querySelector("[data-sfrfr-quotes]");
   var empty = root.querySelector("[data-sfrfr-quotes-empty]");
   var title = root.querySelector("[data-sfrfr-quotes-title]");
@@ -169,14 +191,7 @@
         art.appendChild(foot);
         box.appendChild(art);
       });
-      var hash = window.location.hash;
-      if (hash && hash.indexOf("#review-") === 0) {
-        var target = document.getElementById(hash.slice(1));
-        if (target) {
-          target.classList.add("sfrfr-otzyvy-quote--highlight");
-          target.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }
+      scrollToReview(pendingReviewId);
     })
     .catch(function () {});
 })();

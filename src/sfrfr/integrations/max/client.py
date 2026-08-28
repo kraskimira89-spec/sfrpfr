@@ -133,6 +133,7 @@ class MaxBotClient:
         user_id: int | str | None = None,
         chat_id: int | str | None = None,
         attachments: list[dict[str, Any]] | None = None,
+        text_format: str | None = None,
     ) -> dict[str, Any]:
         """Отправить текст. Личный диалог — user_id, группа — chat_id (query)."""
         if not self.available:
@@ -146,6 +147,8 @@ class MaxBotClient:
         elif chat_id is not None:
             params["chat_id"] = chat_id
         payload: dict[str, Any] = {"text": text}
+        if text_format:
+            payload["format"] = text_format
         if attachments:
             payload["attachments"] = attachments
         with self._client() as client:

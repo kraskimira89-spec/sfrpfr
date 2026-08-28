@@ -425,6 +425,7 @@ def _reply(
     text: str,
     attachments: list[dict[str, Any]] | None = None,
     case_id: str | None = None,
+    text_format: str | None = None,
 ) -> bool:
     try:
         bot.send_message(
@@ -432,6 +433,7 @@ def _reply(
             user_id=user_id,
             chat_id=chat_id,
             attachments=attachments,
+            text_format=text_format,
         )
         cid = case_id or _case_id_for_max_user(user_id)
         _append_bot_case_message(

@@ -126,11 +126,11 @@ def parse_site_review_callback(payload: str) -> tuple[str, str] | None:
 
 
 def site_review_public_url(item_id: str) -> str:
-    """Прямая ссылка на опубликованный отзыв на /otzyvy/."""
+    """Прямая ссылка на опубликованный отзыв на /otzyvy/ (?review= — без # для MAX)."""
     rid = (item_id or "").strip()
     if not rid:
         return _SITE_REVIEWS_PAGE
-    return f"{_SITE_REVIEWS_PAGE}#review-{rid}"
+    return f"{_SITE_REVIEWS_PAGE}?review={quote(rid)}"
 
 
 def build_site_review_moderation_reply(
@@ -140,23 +140,29 @@ def build_site_review_moderation_reply(
     quote: str = "",
     ok: bool = True,
     error: str | None = None,
-) -> tuple[str, list[dict[str, Any]] | None]:
-    """Текст и кнопка-ссылка для MAX после модерации отзыва."""
+) -> tuple[str, list[dict[str, Any]] | None, str | None]:
+    """Текст, кнопка-ссылка и format для MAX после модерации отзыва."""
     from sfrfr.integrations.max.client import inline_link_keyboard
 
     if not ok:
-        return (f"Не удалось изменить статус: {error or 'ошибка'}.", None)
+        return (f"Не удалось изменить статус: {error or 'ошибка'}.", None, None)
 
     quote_block = f"\n\nТекст:\n{quote.strip()}" if quote.strip() else ""
     if review_status == "published":
         url = site_review_public_url(item_id)
-        text = f"Отзыв опубликован. Проверьте на сайте.{quote_block}\n\n{url}"
+        text = (
+            f"Отзыв опубликован. Проверьте на сайте.{quote_block}\n\n"
+            f"[Открыть этот отзыв]({url})"
+        )
         attachments = inline_link_keyboard("Открыть этот отзыв", url)
-        return text, attachments
+        return text, attachments, "markdown"
 
-    text = f"Отзыв отклонён. Проверьте на сайте.{quote_block}\n\n{_SITE_REVIEWS_PAGE}"
+    text = (
+        f"Отзыв отклонён. Проверьте на сайте.{quote_block}\n\n"
+        f"[Страница отзывов]({_SITE_REVIEWS_PAGE})"
+    )
     attachments = inline_link_keyboard("Страница отзывов", _SITE_REVIEWS_PAGE)
-    return text, attachments
+    return text, attachments, "markdown"
 
 
 def notify_site_review_queued(
