@@ -213,6 +213,9 @@
     var empty = root.querySelector("[data-sfrfr-quotes-empty]");
     function renderReviews(items) {
       if (!items.length || !box) return;
+      if (box.getAttribute("data-sfrfr-quotes-rendered") === "1" && box.children.length) {
+        return;
+      }
       if (empty) empty.hidden = true;
       box.innerHTML = "";
       items.forEach(function (item) {

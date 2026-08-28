@@ -175,6 +175,14 @@
 
   function renderReviews(items) {
     if (!items.length || !box) return;
+    if (box.getAttribute("data-sfrfr-quotes-rendered") === "1" && box.children.length) {
+      if (pendingReviewId && !document.getElementById("review-" + pendingReviewId)) {
+        if (notFound) notFound.hidden = false;
+      } else {
+        scrollToReview(pendingReviewId);
+      }
+      return;
+    }
     if (empty) empty.hidden = true;
     if (title) title.textContent = "Что говорят клиенты";
     box.hidden = false;
@@ -215,6 +223,10 @@
   var bootItems = readBootstrap();
   if (bootItems && bootItems.length) {
     renderReviews(bootItems);
+  } else if (box && box.getAttribute("data-sfrfr-quotes-rendered") === "1") {
+    if (empty) empty.hidden = true;
+    if (title) title.textContent = "Что говорят клиенты";
+    scrollToReview(pendingReviewId);
   } else {
     fetch(apiBase + "/api/public/site-reviews?limit=12")
       .then(function (r) { return r.json(); })
