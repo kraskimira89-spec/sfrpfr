@@ -65,6 +65,31 @@ def test_snapshot_hides_test_and_has_no_edv_formula() -> None:
     assert snap["tariffs"][0]["amount_rub"] == 3000
 
 
+def test_derive_finance_attention() -> None:
+    from sfrfr.services.staff_finance import derive_finance_attention
+
+    assert derive_finance_attention(_case(b2c_status="lead", orders=[])) is None
+    assert derive_finance_attention(_case(b2c_status="consent_accepted", orders=[])) == "awaiting_invoice"
+    assert (
+        derive_finance_attention(
+            _case(orders=[{"status": "pending", "package_code": "DIAG"}]),
+        )
+        == "payable"
+    )
+    assert (
+        derive_finance_attention(
+            _case(orders=[{"status": "draft", "package_code": "DIAG"}]),
+        )
+        == "awaiting_invoice"
+    )
+    assert (
+        derive_finance_attention(
+            _case(orders=[{"status": "paid", "package_code": "DIAG"}]),
+        )
+        is None
+    )
+
+
 def test_awaiting_invoice_includes_cases_without_orders() -> None:
     now = datetime(2026, 8, 22, 12, tzinfo=UTC)
     snap = build_finance_snapshot(

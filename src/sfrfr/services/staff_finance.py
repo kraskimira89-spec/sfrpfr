@@ -198,6 +198,46 @@ def serialize_order(
     }
 
 
+def derive_finance_attention(case: dict[str, Any]) -> str | None:
+    """Лёгкий сигнал для реестра: не дублирует этапы сделки.
+
+    none/None — нет финансового действия;
+    awaiting_invoice — дело без счёта (не lead/closed);
+    payable — есть счёт к оплате.
+    """
+    b2c = str(case.get("b2c_status") or "")
+    orders = case.get("orders") or []
+    if not orders:
+        if b2c in {"lead", "closed", "paused"}:
+            return None
+        return "awaiting_invoice"
+    has_pending = False
+    has_draft = False
+    for order in orders:
+        st = str(order.get("status") or "").lower()
+        overlay = str(order.get("invoice_status") or "").lower()
+        if st in {"cancelled", "canceled", "refund", "refunded", "paid"} or overlay in {
+            "cancelled",
+            "refund",
+            "paid",
+        }:
+            continue
+        if st == "draft" or overlay == "draft":
+            has_draft = True
+            continue
+        if st in _PENDING_LIKE or overlay in _PENDING_LIKE or overlay in {
+            "invoice_ready",
+            "invoice_sent",
+            "pending_payment",
+        }:
+            has_pending = True
+    if has_pending:
+        return "payable"
+    if has_draft:
+        return "awaiting_invoice"
+    return None
+
+
 def serialize_needs_invoice_case(case: dict[str, Any]) -> dict[str, Any]:
     """Строка реестра для дела без счёта (очередь «Ожидает счёт»)."""
     client = case.get("clients") or {}

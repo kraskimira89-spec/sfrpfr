@@ -27,6 +27,7 @@ export type RegistryCase = {
   is_test?: boolean;
   last_event?: string | null;
   silent_days?: number;
+  finance_attention?: "awaiting_invoice" | "payable" | null;
 };
 
 const QUEUES: Array<{ id: string; label: string }> = [
@@ -94,8 +95,8 @@ function rowBadges(item: RegistryCase, meUserId: string) {
       max_linked: item.max_linked,
       web_linked: item.web_linked,
       silent_days: item.silent_days,
-      // очередь «без согласия» = lead; отдельного флага в list summary нет
       consent_accepted: item.b2c_status === "lead" ? false : undefined,
+      finance_attention: item.finance_attention,
     },
     { meUserId },
   );
@@ -127,6 +128,7 @@ export function CasesRegistry({
   onSuggest,
   onRequestDocs,
   onMarkTest,
+  onOpenFinance,
   preview,
   previewLoading,
 }: {
@@ -155,6 +157,8 @@ export function CasesRegistry({
   onSuggest: (id: string) => void;
   onRequestDocs: (id: string) => void;
   onMarkTest: (id: string, isTest: boolean) => void;
+  /** Переход на вкладку Финансы (счета, не этап сделки). */
+  onOpenFinance?: (opts?: { caseId?: string; queue?: string }) => void;
   preview: {
     id: string;
     stage: string;
@@ -174,13 +178,24 @@ export function CasesRegistry({
 
   const counts = useMemo(() => {
     const live = cases.filter((c) => !c.is_test);
+    const paymentRelated = (c: RegistryCase) =>
+      c.waiting_on === "payment" ||
+      c.finance_attention === "payable" ||
+      c.finance_attention === "awaiting_invoice";
     return {
       active: live.filter((c) => c.pipeline_status !== "completed" && c.b2c_status !== "closed").length,
       reply: live.filter((c) => c.waiting_on === "staff").length,
       overdue: live.filter((c) => c.deadline_status === "overdue").length,
       docs: live.filter((c) => c.waiting_on === "client" || c.waiting_on === "archive").length,
+      payment: live.filter(paymentRelated).length,
     };
   }, [cases]);
+
+  function financeQueueFor(item: RegistryCase): string {
+    if (item.finance_attention === "awaiting_invoice") return "awaiting_invoice";
+    if (item.waiting_on === "payment" || item.finance_attention === "payable") return "payable";
+    return "all";
+  }
 
   const visible = cases.slice(0, (page + 1) * PAGE_SIZE);
 
@@ -241,8 +256,23 @@ export function CasesRegistry({
 
       <p className="registry-stats hint">
         Активных: {counts.active} · Нужен ответ: {counts.reply} · Просрочено: {counts.overdue} · Ждём документы: {counts.docs}
+        {" · Оплата: "}{counts.payment}
         {queue !== "test" ? " · Тестовые скрыты" : " · Показаны тестовые"}
       </p>
+
+      {queue === "payment" ? (
+        <p className="hint registry-finance-hint">
+          Очередь «Ждём оплату» — дела с сигналом оплаты. Счета, просрочки, возвраты и «оплачено сегодня» ведутся на вкладке{" "}
+          {onOpenFinance ? (
+            <button type="button" className="linkish" onClick={() => onOpenFinance({ queue: "payable" })}>
+              Финансы
+            </button>
+          ) : (
+            "Финансы"
+          )}
+          {" "}— это не этапы сделки в реестре.
+        </p>
+      ) : null}
 
       <p className="registry-legend" aria-label="Легенда срочности">
         <span className="registry-legend__item">
@@ -322,11 +352,26 @@ export function CasesRegistry({
                           <strong>{item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}</strong>
                           {badges.length > 0 ? (
                             <div className="situation-badges" style={{ marginTop: 4 }}>
-                              {badges.map((b) => (
-                                <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
-                                  {b.label}
-                                </span>
-                              ))}
+                              {badges.map((b) =>
+                                b.kind === "payment" && onOpenFinance ? (
+                                  <button
+                                    key={b.id}
+                                    type="button"
+                                    className={`badge badge--${b.kind} badge--clickable`}
+                                    title={`${b.title} · открыть Финансы`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onOpenFinance({ caseId: item.id, queue: financeQueueFor(item) });
+                                    }}
+                                  >
+                                    {b.label}
+                                  </button>
+                                ) : (
+                                  <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                                    {b.label}
+                                  </span>
+                                ),
+                              )}
                             </div>
                           ) : null}
                         </td>
@@ -353,6 +398,20 @@ export function CasesRegistry({
                         <td>
                           <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                             <button type="button" className="ghost" onClick={() => onOpen(item.id)}>Открыть</button>
+                            {onOpenFinance &&
+                              (item.waiting_on === "payment" ||
+                                item.finance_attention === "payable" ||
+                                item.finance_attention === "awaiting_invoice") && (
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() =>
+                                  onOpenFinance({ caseId: item.id, queue: financeQueueFor(item) })
+                                }
+                              >
+                                Финансы
+                              </button>
+                            )}
                             {item.max_linked && (
                               <button type="button" className="ghost" onClick={() => onWriteMax(item.id)}>Написать</button>
                             )}
@@ -376,6 +435,18 @@ export function CasesRegistry({
                               <button type="button" className="linkish" onClick={() => { onRequestDocs(item.id); setMenuId(null); }}>
                                 Запросить документы
                               </button>
+                              {onOpenFinance && (
+                                <button
+                                  type="button"
+                                  className="linkish"
+                                  onClick={() => {
+                                    onOpenFinance({ caseId: item.id, queue: financeQueueFor(item) });
+                                    setMenuId(null);
+                                  }}
+                                >
+                                  Открыть в Финансах
+                                </button>
+                              )}
                               {meRole === "admin" && (
                                 <button type="button" className="linkish" onClick={() => { onMarkTest(item.id, !item.is_test); setMenuId(null); }}>
                                   {item.is_test ? "Убрать из тестовых" : "Пометить тестовым"}
@@ -442,6 +513,20 @@ export function CasesRegistry({
                     </p>
                     <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => onOpen(item.id)}>Открыть дело</button>
+                      {onOpenFinance &&
+                        (item.waiting_on === "payment" ||
+                          item.finance_attention === "payable" ||
+                          item.finance_attention === "awaiting_invoice") && (
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() =>
+                            onOpenFinance({ caseId: item.id, queue: financeQueueFor(item) })
+                          }
+                        >
+                          Финансы
+                        </button>
+                      )}
                       {item.max_linked && (
                         <button type="button" className="ghost" onClick={() => onWriteMax(item.id)}>Написать</button>
                       )}

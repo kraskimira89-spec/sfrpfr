@@ -35,6 +35,8 @@ class StaffCaseSummary(BaseModel):
     deadline_status: str | None = None
     is_test: bool = False
     last_event: str | None = None
+    # Сигнал для реестра (не этап сделки): awaiting_invoice | payable | null
+    finance_attention: Literal["awaiting_invoice", "payable"] | None = None
 
 
 class WorkQueueItem(BaseModel):

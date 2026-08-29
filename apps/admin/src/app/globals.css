@@ -346,6 +346,15 @@ header div { display: grid; gap: 3px; }
 .badge--silent { background: #f5f0e6; color: #7a5c20; border-color: #e0d0a8; }
 .badge--max.on,
 .badge--web.on { background: #e7f6ee; color: #1a5c3a; border-color: #b7deca; }
+button.badge--clickable {
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.35;
+}
+button.badge--clickable:hover {
+  filter: brightness(0.97);
+  outline: 1px solid currentColor;
+}
 .registry-legend {
   display: flex;
   flex-wrap: wrap;

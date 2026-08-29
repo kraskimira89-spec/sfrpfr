@@ -115,6 +115,8 @@ export function FinancePanel({
   onRemind,
   onMarkPaid,
   onCancel,
+  caseFilterActive = false,
+  onClearCaseFilter,
 }: {
   data: FinanceSnapshot | null;
   loading: boolean;
@@ -141,6 +143,9 @@ export function FinancePanel({
   onRemind: (order: FinanceOrder, sendMax: boolean) => void;
   onMarkPaid: (order: FinanceOrder) => void;
   onCancel: (order: FinanceOrder) => void;
+  /** Поиск сужен до дела (переход из реестра). */
+  caseFilterActive?: boolean;
+  onClearCaseFilter?: () => void;
 }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [showTariffs, setShowTariffs] = useState(false);
@@ -224,6 +229,23 @@ export function FinancePanel({
         {" · "}
         {data?.payment_purpose}
       </p>
+      {caseFilterActive ? (
+        <p className="hint">
+          Показаны счета / дела по выбранному делу из реестра.
+          {onClearCaseFilter ? (
+            <>
+              {" "}
+              <button type="button" className="linkish" onClick={onClearCaseFilter}>
+                Сбросить фильтр дела
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : (
+        <p className="hint">
+          Статусы счетов (просрочено, ожидает счёт, возврат) живут здесь. В реестре дел — только сигнал «Оплата», без дублирования этапов сделки.
+        </p>
+      )}
 
       {showTariffs && data?.tariffs && (
         <div className="panel finance-tariffs">

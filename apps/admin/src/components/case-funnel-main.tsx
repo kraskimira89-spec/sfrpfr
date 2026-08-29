@@ -243,6 +243,7 @@ export function CaseFunnelMain({
   onDismissHint,
   onTake,
   onFocusMax,
+  onOpenFinance,
   onRequestReview,
   onCreateTelemost,
   onSendEmail,
@@ -313,6 +314,8 @@ export function CaseFunnelMain({
   onDismissHint: () => void;
   onTake: () => void;
   onFocusMax: () => void;
+  /** Переход на вкладку Финансы по этому делу (счета, не этап pipeline). */
+  onOpenFinance?: () => void;
   onRequestReview: () => void;
   onCreateTelemost: () => void;
   onSendEmail: () => void;
@@ -1250,6 +1253,17 @@ export function CaseFunnelMain({
               </button>
             </form>
             <p className="hint">Сумма по услуге / договору. Не путать с решением СФР.</p>
+            <p className="hint">
+              Просрочки, «оплачено сегодня», возвраты — на вкладке Финансы, не как этап сделки в реестре.
+              {onOpenFinance ? (
+                <>
+                  {" "}
+                  <button type="button" className="linkish" onClick={onOpenFinance}>
+                    Открыть Финансы по делу
+                  </button>
+                </>
+              ) : null}
+            </p>
           </StageShell>
         ) : null}
 

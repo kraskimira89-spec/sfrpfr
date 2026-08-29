@@ -64,6 +64,7 @@ from sfrfr.services.admin_analytics import (
 from sfrfr.services.public_tariffs import staff_package_label
 from sfrfr.services.staff_finance import (
     build_finance_snapshot,
+    derive_finance_attention,
     reminder_draft_text,
     serialize_order,
 )
@@ -161,6 +162,7 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         deadline_status=(work or {}).get("deadline_status"),
         is_test=is_test_case(case),
         last_event=(work or {}).get("last_event"),
+        finance_attention=derive_finance_attention(case),
     )
 
 
@@ -400,7 +402,10 @@ def _queue_match(item: StaffCaseSummary, queue: str, principal: Principal) -> bo
     if queue == "docs":
         return item.waiting_on in {"client", "archive"}
     if queue == "payment":
-        return item.waiting_on == "payment"
+        return item.waiting_on == "payment" or item.finance_attention in {
+            "payable",
+            "awaiting_invoice",
+        }
     if queue == "noconsent":
         return item.b2c_status == "lead"
     if queue == "conflicts":

@@ -48,6 +48,7 @@ type StaffCaseSummary = {
   web_linked: boolean;
   silent_days: number;
   package_codes: string[];
+  finance_attention?: "awaiting_invoice" | "payable" | null;
   next_action?: string | null;
   next_action_at?: string | null;
   waiting_on?: string | null;
@@ -785,14 +786,27 @@ export function AdminCabinet() {
     return () => window.clearInterval(timer);
   }, [view, detail?.id, token]);
 
-  async function loadFinance(nextQueue = financeQueue) {
+  async function loadFinance(opts?: string | { queue?: string; q?: string; caseId?: string }) {
     if (!token) return;
+    const normalized =
+      typeof opts === "string" || opts === undefined
+        ? { queue: opts ?? financeQueue }
+        : opts;
+    const nextQueue = normalized.queue ?? financeQueue;
+    const nextQ =
+      normalized.caseId?.trim() ||
+      (normalized.q !== undefined ? normalized.q : financeQ);
+    setFinanceQueue(nextQueue);
+    if (normalized.caseId || normalized.q !== undefined) {
+      setFinanceQ(nextQ);
+    }
     setFinanceLoading(true);
     setBusy(true);
     try {
       const params = new URLSearchParams();
       if (nextQueue && nextQueue !== "all") params.set("queue", nextQueue);
-      if (financeQ.trim()) params.set("q", financeQ.trim());
+      const qValue = String(nextQ || "").trim();
+      if (qValue) params.set("q", qValue);
       if (financePeriod) params.set("period", financePeriod);
       if (financePackage) params.set("package_code", financePackage);
       if (financeIncludeTest) params.set("include_test", "true");
@@ -1869,11 +1883,12 @@ export function AdminCabinet() {
                   : "ИЛС, трудовая, справки, согласие"}
               </em>
             </button>
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("payment")}>
+            <button type="button" className="metric-card" onClick={() => void loadFinance({ queue: "payable" })}>
               <span>Ожидаем оплату</span>
               <strong>{dashboard.payments_pending} / {formatRub(dashboard.payments_pending_amount)}</strong>
               <em>
                 Оплачено сегодня: {dashboard.payments_paid_today} / {formatRub(dashboard.payments_paid_today_amount)}
+                {" · "}счета на вкладке Финансы
               </em>
             </button>
             <button type="button" className={`metric-card ${dashboard.sla_risk > 0 ? "metric-card--risk" : ""}`} onClick={() => setQueueFilter("sla")}>
@@ -2052,6 +2067,7 @@ export function AdminCabinet() {
           queue={registryQueue}
           onQueue={(next) => {
             setRegistryQueue(next);
+            void loadCases({ queue: next });
           }}
           busy={busy}
           loading={casesLoading}
@@ -2063,6 +2079,7 @@ export function AdminCabinet() {
           onSuggest={(id) => void suggestStep(id)}
           onRequestDocs={(id) => void requestDocsFor(id)}
           onMarkTest={(id, isTest) => void markTest(id, isTest)}
+          onOpenFinance={(opts) => void loadFinance(opts)}
           preview={previewId ? buildPreviewFromSummary(cases.find((c) => c.id === previewId) ?? {
             id: previewId,
             pipeline_status: "",
@@ -2130,6 +2147,20 @@ export function AdminCabinet() {
             }}
             onTake={() => void takeCase(detail.id)}
             onFocusMax={focusMaxReplyPanel}
+            onOpenFinance={() =>
+              void loadFinance({
+                caseId: detail.id,
+                queue:
+                  waitingOn === "payment" ||
+                  (detail.orders ?? []).some((o) =>
+                    ["pending", "awaiting_payment", "invoice_sent", "invoice_ready", "pending_payment"].includes(
+                      String(o.status || ""),
+                    ),
+                  )
+                    ? "payable"
+                    : "awaiting_invoice",
+              })
+            }
             onRequestReview={() => void requestReview()}
             onCreateTelemost={() => void createTelemost()}
             onSendEmail={() => void sendWorkspaceEmail()}
@@ -2361,8 +2392,7 @@ export function AdminCabinet() {
             onQ={setFinanceQ}
             queue={financeQueue}
             onQueue={(value) => {
-              setFinanceQueue(value);
-              void loadFinance(value);
+              void loadFinance({ queue: value });
             }}
             period={financePeriod}
             onPeriod={setFinancePeriod}
@@ -2370,13 +2400,22 @@ export function AdminCabinet() {
             onPackageCode={setFinancePackage}
             includeTest={financeIncludeTest}
             onIncludeTest={setFinanceIncludeTest}
-            onSearch={() => void loadFinance(financeQueue)}
+            onSearch={() => void loadFinance({ queue: financeQueue })}
             onCreate={() => setCreateInvoiceOpen(true)}
             onCreateForCase={(caseId) => {
               setInvoiceCaseId(caseId);
               setCreateInvoiceOpen(true);
             }}
             onOpenCase={(caseId) => void openCase(caseId)}
+            onClearCaseFilter={
+              financeQ.trim()
+                ? () => {
+                    setFinanceQ("");
+                    void loadFinance({ queue: financeQueue, q: "" });
+                  }
+                : undefined
+            }
+            caseFilterActive={Boolean(financeQ.trim())}
             onCopyLink={(order) => void copyPayLink(order)}
             onSendLink={(order) => void sendPayLink(order)}
             onRemind={(order, sendMax) => void remindPayment(order, sendMax)}

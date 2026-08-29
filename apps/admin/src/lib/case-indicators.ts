@@ -16,6 +16,8 @@ export type CaseIndicatorInput = {
   consent_accepted?: boolean | null;
   /** Последнее сообщение в чате — от клиента (нужен ответ). */
   chat_awaits_staff?: boolean;
+  /** Сигнал финансов: awaiting_invoice | payable (не этап сделки). */
+  finance_attention?: "awaiting_invoice" | "payable" | null;
 };
 
 export type SituationBadge = {
@@ -110,12 +112,19 @@ export function situationBadges(
       title: "Ожидаем документы от клиента или архив",
     });
   }
-  if (wait === "payment") {
+  if (wait === "payment" || item.finance_attention === "payable") {
     out.push({
       id: "pay",
       label: "Оплата",
       kind: "payment",
-      title: "Ждём оплату",
+      title: "Ждём оплату — счета на вкладке Финансы",
+    });
+  } else if (item.finance_attention === "awaiting_invoice") {
+    out.push({
+      id: "need-invoice",
+      label: "Нужен счёт",
+      kind: "payment",
+      title: "Счёт ещё не выставлен — откройте Финансы",
     });
   }
   if (wait === "sfr") {
