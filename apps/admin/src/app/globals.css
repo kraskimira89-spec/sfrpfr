@@ -1352,8 +1352,6 @@ button.badge--clickable:hover {
   width: 120px;
   height: 120px;
 }
-  padding: 8px;
-}
 .metric-card.is-active {
   border-color: #1e4e79;
   box-shadow: 0 8px 24px rgba(30, 78, 121, 0.08);
