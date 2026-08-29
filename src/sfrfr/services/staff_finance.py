@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from sfrfr.services.public_tariffs import (
     FINANCE_DISCLAIMER,
@@ -198,7 +198,7 @@ def serialize_order(
     }
 
 
-def derive_finance_attention(case: dict[str, Any]) -> str | None:
+def derive_finance_attention(case: dict[str, Any]) -> Literal["awaiting_invoice", "payable"] | None:
     """Лёгкий сигнал для реестра: не дублирует этапы сделки.
 
     none/None — нет финансового действия;
