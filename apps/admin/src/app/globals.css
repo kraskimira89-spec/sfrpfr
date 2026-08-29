@@ -381,7 +381,7 @@ header div { display: grid; gap: 3px; }
 
 .case-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(480px, 34vw);
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
   width: 100%;
@@ -770,7 +770,7 @@ header div { display: grid; gap: 3px; }
   position: sticky;
   top: 72px;
   width: 100%;
-  max-width: min(560px, 34vw);
+  max-width: none;
   height: calc(100vh - 88px);
   max-height: calc(100vh - 88px);
   display: flex;
