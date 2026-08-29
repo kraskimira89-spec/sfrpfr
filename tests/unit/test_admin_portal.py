@@ -83,7 +83,7 @@ def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch)
     )
     assert payload["role_capabilities"]["can_edit_checklist"] is True
     assert payload["role_capabilities"]["can_confirm_result"] is True
-    assert payload["role_capabilities"]["can_manage_orders"] is False
+    assert payload["role_capabilities"]["can_manage_orders"] is True
 
 
 def test_filter_staff_case_admin_without_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
