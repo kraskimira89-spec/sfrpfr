@@ -145,6 +145,7 @@ def test_amocrm_payload_excludes_files(monkeypatch) -> None:
             "response": {"_embedded": {"leads": [{"id": 99}]}},
         }
 
+    monkeypatch.setenv("AMOCRM_ENABLED", "1")
     monkeypatch.setenv("AMO_SUBDOMAIN", "demo")
     monkeypatch.setenv("AMO_ACCESS_TOKEN", "token")
     from sfrfr.core.config import get_settings
