@@ -7,6 +7,7 @@ import {
   type SlaTone,
 } from "@/lib/case-indicators";
 import { humanCaseStage, labelB2c, labelPipeline } from "@/lib/ui-labels";
+import { SALES_BOARD_COLUMNS, salesBoardColumn } from "@/lib/sales-board";
 import { useMemo, useState } from "react";
 
 export type RegistryCase = {
@@ -28,6 +29,8 @@ export type RegistryCase = {
   last_event?: string | null;
   silent_days?: number;
   finance_attention?: "awaiting_invoice" | "payable" | null;
+  loss_reason?: string | null;
+  sales_board_column?: string | null;
 };
 
 const QUEUES: Array<{ id: string; label: string }> = [
@@ -175,6 +178,7 @@ export function CasesRegistry({
 }) {
   const [page, setPage] = useState(0);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "board">("table");
 
   const counts = useMemo(() => {
     const live = cases.filter((c) => !c.is_test);
@@ -199,10 +203,41 @@ export function CasesRegistry({
 
   const visible = cases.slice(0, (page + 1) * PAGE_SIZE);
 
+  const boardColumns = useMemo(() => {
+    const grouped: Record<string, RegistryCase[]> = {};
+    for (const col of SALES_BOARD_COLUMNS) grouped[col.id] = [];
+    for (const item of cases) {
+      if (queue !== "test" && item.is_test) continue;
+      const key = salesBoardColumn(item);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    }
+    return SALES_BOARD_COLUMNS.map((col) => ({
+      ...col,
+      items: grouped[col.id] || [],
+    }));
+  }, [cases, queue]);
+
   return (
     <section className="stack registry">
       <div className="registry-head">
         <h1>Реестр дел</h1>
+        <div className="chip-row" role="group" aria-label="Вид реестра">
+          <button
+            type="button"
+            className={viewMode === "table" ? "chip active" : "chip"}
+            onClick={() => setViewMode("table")}
+          >
+            Таблица
+          </button>
+          <button
+            type="button"
+            className={viewMode === "board" ? "chip active" : "chip"}
+            onClick={() => setViewMode("board")}
+          >
+            Канбан
+          </button>
+        </div>
       </div>
       <form
         className="filters registry-filters"
@@ -303,6 +338,45 @@ export function CasesRegistry({
               <div className="skeleton" />
               <div className="skeleton" />
               <div className="skeleton" />
+            </div>
+          ) : viewMode === "board" ? (
+            <div className="sales-board" aria-label="Канбан сделок">
+              {boardColumns.map((col) => (
+                <div key={col.id} className="sales-board__col">
+                  <header className="sales-board__head">
+                    <strong>{col.label}</strong>
+                    <span className="hint">{col.items.length}</span>
+                  </header>
+                  <div className="sales-board__cards">
+                    {col.items.length === 0 ? (
+                      <p className="hint sales-board__empty">Пусто</p>
+                    ) : (
+                      col.items.map((item) => {
+                        const t = rowTone(item);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`sales-board__card sla-stripe sla-stripe--${t}`}
+                            onClick={() => onOpen(item.id)}
+                          >
+                            <span className={`prio-dot prio-dot--${t}`} />
+                            <strong>
+                              {item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}
+                            </strong>
+                            <span className="hint">
+                              {item.next_action || humanCaseStage(item.pipeline_status, item.b2c_status)}
+                            </span>
+                            {item.loss_reason ? (
+                              <span className="badge badge--muted">{item.loss_reason}</span>
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : visible.length === 0 ? (
             <p className="panel hint">В этой очереди дел нет. Смените фильтр или откройте «Тестовые».</p>

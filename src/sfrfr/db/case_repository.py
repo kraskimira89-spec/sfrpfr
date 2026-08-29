@@ -1035,6 +1035,47 @@ class CaseRepository:
         self.audit(case_id, actor_id, "archive_prep_updated")
         return response.data[0]
 
+    def close_case(
+        self,
+        case_id: str,
+        actor_id: str,
+        *,
+        outcome: str,
+        loss_reason: str | None = None,
+    ) -> dict[str, Any]:
+        """Закрыть дело: success → closed без loss; lost → closed + loss_reason."""
+        from datetime import UTC, datetime
+
+        from sfrfr.services.sales_board import LOSS_REASON_VALUES
+
+        outcome_norm = (outcome or "").strip().lower()
+        if outcome_norm not in {"success", "lost"}:
+            raise HTTPException(status_code=400, detail="outcome must be success|lost")
+        reason = (loss_reason or "").strip() or None
+        if outcome_norm == "lost":
+            if not reason or reason not in LOSS_REASON_VALUES:
+                raise HTTPException(status_code=400, detail="loss_reason_required")
+        else:
+            reason = None
+        payload = {
+            "b2c_status": "closed",
+            "loss_reason": reason,
+            "closed_at": datetime.now(UTC).isoformat(),
+            "waiting_on": "none",
+            "next_action": "Закрыто" if outcome_norm == "success" else f"Отказ: {reason}",
+        }
+        response = (
+            self.client.table("cases").update(payload).eq("id", case_id).execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        self.audit(
+            case_id,
+            actor_id,
+            f"case_closed:{outcome_norm}" + (f":{reason}" if reason else ""),
+        )
+        return response.data[0]
+
     def update_case_flags(
         self,
         case_id: str,

@@ -37,6 +37,13 @@ class StaffCaseSummary(BaseModel):
     last_event: str | None = None
     # Сигнал для реестра (не этап сделки): awaiting_invoice | payable | null
     finance_attention: Literal["awaiting_invoice", "payable"] | None = None
+    loss_reason: str | None = None
+    sales_board_column: str | None = None
+
+
+class CaseCloseRequest(BaseModel):
+    outcome: Literal["success", "lost"]
+    loss_reason: str | None = Field(default=None, max_length=120)
 
 
 class WorkQueueItem(BaseModel):

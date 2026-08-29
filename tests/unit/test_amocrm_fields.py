@@ -83,6 +83,7 @@ def test_suggest_amo_stage_key_signals() -> None:
 
 
 def test_lead_url_template(monkeypatch) -> None:
+    monkeypatch.setenv("AMOCRM_ENABLED", "1")
     monkeypatch.setenv("AMO_SUBDOMAIN", "demo")
     monkeypatch.setenv("AMO_ACCESS_TOKEN", "token")
     monkeypatch.setenv(

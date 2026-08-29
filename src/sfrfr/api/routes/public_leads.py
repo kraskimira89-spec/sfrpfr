@@ -238,8 +238,14 @@ def _from_wpforms_payload(raw: dict[str, Any]) -> PublicLeadRequest | None:
 
 
 def _require_amocrm_lead(amocrm: dict[str, Any] | None) -> None:
-    """После заявки с сайта сделка в amoCRM обязательна (кроме local без ключей)."""
+    """Sync в amo опционален: при AMOCRM_ENABLED=0 сделка не требуется.
+
+    Код интеграции сохранён (резерв). Когда флаг снова включат — при настроенных
+    ключах требуем успешный lead_id; без ключей в local/dev пропускаем.
+    """
     settings = get_settings()
+    if not settings.amocrm_enabled:
+        return
     amo = amocrm if isinstance(amocrm, dict) else {}
     local = settings.app_env.strip().lower() in ("local", "dev", "development")
     client = AmoCrmClient()

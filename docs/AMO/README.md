@@ -1,48 +1,27 @@
-# AMO — пакет агента amoCRM
+# AMO — пакет агента amoCRM (**РЕЗЕРВ**)
 
-Рабочая папка чата Cursor про **amoCRM** для «Проверки стажа» (SFRFR).
+> **Статус с 2026-08-29:** amoCRM **выключена** (`AMOCRM_ENABLED=0`).  
+> Операционная CRM: **кабинет сотрудника** — [playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md).  
+> Код `src/sfrfr/integrations/amocrm/` **не удалять**. Документы ниже — на случай повторного включения.
 
-## Быстрый старт
+## Быстрый старт (только если снова включаете amo)
 
-1. Новый чат Agent → имя **«AMO»** / **«amoCRM»**.
-2. Скопировать блок из [prompt-agent-amocrm.md](prompt-agent-amocrm.md).
-3. При необходимости уточнить: настройка / sync / воронка / E2E-проверка.
+1. `AMOCRM_ENABLED=1` + токены в `/opt/sfrfr/.env`
+2. Новый чат Agent → имя **«AMO»**
+3. Промпт: [prompt-agent-amocrm.md](prompt-agent-amocrm.md)
 
-## Файлы пакета
+## Файлы пакета (архив процесса)
 
 | Файл | Назначение |
 |------|------------|
-| [prompt-agent-amocrm.md](prompt-agent-amocrm.md) | **Промпт** для нового чата |
-| [how-we-work-amocrm.md](how-we-work-amocrm.md) | Как работаем с amoCRM (роли систем, поток, день оператора) |
-| [role-amocrm.md](role-amocrm.md) | Роль агента и границы |
-| [tz-12-amocrm.md](tz-12-amocrm.md) | ТЗ-12: интеграция (продукт / код) |
-| [ops-amocrm-setup.md](ops-amocrm-setup.md) | Пошаговая настройка UI + env |
-| [qa-lead-amocrm-e2e.md](qa-lead-amocrm-e2e.md) | QA: лид WP → API → amo |
-| [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md) | Воронка продаж, LOSS, поля атрибуции (из foundation) |
-| [playbook-funnel-checklists-automation.md](playbook-funnel-checklists-automation.md) | Этапы, чеклисты, SLA, авто, маппинг SFRFR→amo |
-| [playbook-operator-amo-card.md](playbook-operator-amo-card.md) | Что видит оператор в карточке: поля + перечень документов без содержимого |
-| [playbook-operator-new-lead-cheatsheet.md](playbook-operator-new-lead-cheatsheet.md) | **Шпаргалка на 1 стр.** (новый лид) + [PDF](assets/playbook-operator-new-lead-cheatsheet.pdf) |
-| [playbook-operator-first-message-max.md](playbook-operator-first-message-max.md) | **Первое сообщение** в MAX (скрипт: человек → польза → диагностика) |
-| [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) | **Канон оффера:** ясность, оплата (§4б), результат после оплаты (§4в), возражения |
-| [ops-amocrm-task-templates.md](ops-amocrm-task-templates.md) | Шаблоны задач amo (Digital Pipeline + тексты из кода) |
-| [ops-amocrm-max-widget.md](ops-amocrm-max-widget.md) | **Виджет MAX в amo** — клиентский бот, чаты, инструкция оператору |
-| [vendor-user-docs.md](vendor-user-docs.md) | Оглавление пользовательской доки amo |
-| [vendor-dev-docs.md](vendor-dev-docs.md) | Оглавление доки разработчика amo |
-| [../ops/automation-stack-ru.md](../ops/automation-stack-ru.md) | **Стек автоматизации** (без Make/Albato): матрица P0/P1/P2 |
+| [how-we-work-amocrm.md](how-we-work-amocrm.md) | Бывшие роли систем (обновить при включении) |
+| [tz-12-amocrm.md](tz-12-amocrm.md) | ТЗ-12 |
+| [ops-amocrm-setup.md](ops-amocrm-setup.md) | Настройка UI |
+| [sales-pipeline-amocrm.md](sales-pipeline-amocrm.md) | Воронка / LOSS (канон причин перенесён в staff) |
+| … | Остальные playbook’и — справочно |
 
-## Канон в репозитории (не ломать ссылки)
+## Жёсткие границы (актуальны всегда)
 
-При правках содержимого ТЗ обновлять **и** копию здесь, **и** оригинал:
-
-- Продуктовое ТЗ: `docs/specs/12-amocrm.md`
-- Ops: `docs/ops/amocrm-setup.md`
-- QA: `docs/qa/lead-amocrm-e2e.md`
-- Код: `src/sfrfr/integrations/amocrm/`
-- Маркетинг / CRM-поля: `docs/marketing-sales/spec-marketing-sales-foundation.md` §9
-
-## Жёсткие границы
-
-- В amo **нет** сканов, СНИЛС, ИЛС, OCR, Storage URL.
-- Источник истины по делу — SFRFR (Supabase + кабинет).
-- Токен `AMO_ACCESS_TOKEN` — только в `secrets/` и `/opt/sfrfr/.env`, не в git.
-- Канон подачи: `scripts/assets/copy/submission-position.md`.
+- В amo **нет** сканов, СНИЛС, ИЛС, OCR.
+- Источник истины по делу и оплатам — SFRFR.
+- Токены только в `secrets/` / VPS `.env`, не в git.

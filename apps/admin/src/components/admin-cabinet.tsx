@@ -168,6 +168,8 @@ type StaffCaseDetail = {
   waiting_on?: string | null;
   is_test?: boolean;
   silent_days?: number;
+  loss_reason?: string | null;
+  closed_at?: string | null;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
   orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
@@ -1228,6 +1230,34 @@ export function AdminCabinet() {
     }
   }
 
+  async function closeCase(payload: {
+    outcome: "success" | "lost";
+    loss_reason?: string;
+  }) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/close`, token, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setNotice(
+        payload.outcome === "lost"
+          ? `Отказ зафиксирован: ${payload.loss_reason || "—"}`
+          : "Дело закрыто успешно.",
+      );
+      await openCase(detail.id);
+      await loadDashboard();
+      await loadCases();
+    } catch {
+      setNotice(
+        "Не удалось закрыть дело. Проверьте причину отказа или примените миграцию loss_reason.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function savePipeline() {
     if (!token || !detail) return;
     await apiFetch(`/api/portal/admin/cases/${detail.id}/pipeline-status`, token, {
@@ -2139,6 +2169,7 @@ export function AdminCabinet() {
             onWaitingOn={setWaitingOn}
             onSaveNextAction={() => void saveNextAction()}
             onSaveArchivePrep={(p) => void saveArchivePrep(p)}
+            onCloseCase={(p) => void closeCase(p)}
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
             onDismissHint={() => {

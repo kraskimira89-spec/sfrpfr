@@ -1,20 +1,18 @@
 # ТЗ-12: интеграция amoCRM
 
-**Статус:** MVP в коде (`src/sfrfr/integrations/amocrm/`)  
-**Пакет агента (чат AMO):** [../AMO/README.md](../AMO/README.md) · промпт: [../AMO/prompt-agent-amocrm.md](../AMO/prompt-agent-amocrm.md)  
+**Статус:** код сохранён; **с 2026-08-29 выключена** (`AMOCRM_ENABLED=0`).  
+Операционная CRM: [../ops/playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md).  
+**Пакет агента:** [../AMO/README.md](../AMO/README.md)  
 **Связано:** [01-architecture.md](01-architecture.md), [06-integrations-and-security.md](06-integrations-and-security.md)  
-**Пошаговая настройка в UI amoCRM (исполнять по порядку):**  
-➜ **[../ops/amocrm-setup.md](../ops/amocrm-setup.md)** (копия в пакете: [../AMO/ops-amocrm-setup.md](../AMO/ops-amocrm-setup.md))
-
-Официальные доки: [OAuth по шагам](https://www.amocrm.ru/developers/content/oauth/step-by-step) · [custom fields](https://www.amocrm.ru/developers/content/crm_platform/custom-fields) · [leads API](https://www.amocrm.ru/developers/content/crm_platform/leads-api)
+**Пошаговая настройка (только если снова включите):** [../ops/amocrm-setup.md](../ops/amocrm-setup.md)
 
 ---
 
-## 1. Цель
+## 1. Цель (историческая)
 
 Синхронизировать лиды и этапы дел SFRFR в amoCRM: **сделка + контакт**, связь по `case_id`, без файлов и чувствительных ПДн.
 
-Источник истины по делу — FastAPI + Supabase. amoCRM — операторская воронка.
+**Актуально:** источник истины по делу и продажам — FastAPI + Supabase + **кабинет сотрудника**. amoCRM — опциональный mirror при `AMOCRM_ENABLED=1`.
 
 ---
 
@@ -23,8 +21,8 @@
 1. Минимум контактов: ФИО, телефон/email, согласие (флаг), канал.
 2. **Не передавать:** СНИЛС, паспорт, ИЛС, OCR, Storage URL, сканы.
 3. Ключ связи: custom field сделки `CASE_ID` + `cases.crm_external_id` = ID сделки amo.
-4. Основная CRM продукта — amoCRM (этот ТЗ).
-5. **Граница API:** значения в карточках и создание доп. полей — через API; интеграция, токен, удобная настройка воронки/прав — в веб-UI (см. таблицу в [amocrm-setup.md](../ops/amocrm-setup.md)).
+4. **Основная CRM продукта — кабинет сотрудника** (не amo).
+5. Флаг `AMOCRM_ENABLED` (default `0`): без него sync skipped, лид с сайта не падает.
 
 ---
 

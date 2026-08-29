@@ -11,6 +11,7 @@ from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
     CancelOrderRequest,
     CaseArchivePrepUpdate,
+    CaseCloseRequest,
     CaseFlagsUpdate,
     CaseNextActionUpdate,
     ChecklistItemCreate,
@@ -163,6 +164,21 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         is_test=is_test_case(case),
         last_event=(work or {}).get("last_event"),
         finance_attention=derive_finance_attention(case),
+        loss_reason=str(case.get("loss_reason") or "") or None,
+        sales_board_column=_sales_column(case, work),
+    )
+
+
+def _sales_column(case: dict[str, Any], work: dict[str, Any] | None) -> str:
+    from sfrfr.services.sales_board import sales_board_column
+
+    waiting = (work or {}).get("waiting_on") or derive_waiting_on(case)
+    return sales_board_column(
+        pipeline_status=str(case.get("pipeline_status") or ""),
+        b2c_status=str(case.get("b2c_status") or ""),
+        waiting_on=str(waiting or ""),
+        finance_attention=derive_finance_attention(case),
+        loss_reason=str(case.get("loss_reason") or "") or None,
     )
 
 
@@ -195,6 +211,8 @@ def _filter_staff_case(
         "next_action_at": case.get("next_action_at"),
         "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
         "silent_days": _silent_days(case),
+        "loss_reason": case.get("loss_reason"),
+        "closed_at": case.get("closed_at"),
         "archive_prep_status": case.get("archive_prep_status"),
         "archive_tariff": case.get("archive_tariff"),
         "archive_successor": case.get("archive_successor"),
@@ -508,6 +526,34 @@ def update_next_action(
         "next_action": updated.get("next_action"),
         "next_action_at": updated.get("next_action_at"),
         "waiting_on": updated.get("waiting_on"),
+    }
+
+
+@router.post("/admin/cases/{case_id}/close")
+def close_case(
+    case_id: str,
+    payload: CaseCloseRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Закрыть дело успешно или с причиной отказа (LOSS в кабинете, не в amo)."""
+    _require_expert(principal)
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    updated = repo.close_case(
+        case_id,
+        principal.user_id,
+        outcome=payload.outcome,
+        loss_reason=payload.loss_reason,
+    )
+    case = {**case, **updated}
+    # amo reserved: push best-effort only if AMOCRM_ENABLED
+    _push_case_crm(case, task=f"close:{payload.outcome}")
+    return {
+        "id": case_id,
+        "b2c_status": updated.get("b2c_status"),
+        "loss_reason": updated.get("loss_reason"),
+        "closed_at": updated.get("closed_at"),
+        "next_action": updated.get("next_action"),
     }
 
 

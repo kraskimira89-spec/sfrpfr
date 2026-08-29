@@ -1,6 +1,9 @@
 # ТЗ / инструкция: настройка amoCRM для SFRFR (по шагам)
 
-**Версия:** 1.3 · **Дата:** 2026-07-26  
+> ⚠️ **РЕЗЕРВ:** с 2026-08-29 `AMOCRM_ENABLED=0`. Рабочий процесс:  
+> [playbook-staff-cabinet-crm.md](playbook-staff-cabinet-crm.md). Ниже — если снова включите amo.
+
+**Версия:** 1.4 · **Дата:** 2026-08-29  
 **Пакет агента (чат AMO):** [../AMO/README.md](../AMO/README.md) · [../AMO/prompt-agent-amocrm.md](../AMO/prompt-agent-amocrm.md) · как работаем: [../AMO/how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)  
 **Для кого:** администратор аккаунта amoCRM + тот, кто правит `/opt/sfrfr/.env` на VPS.  
 **Продуктовое ТЗ (код):** [../specs/12-amocrm.md](../specs/12-amocrm.md)  

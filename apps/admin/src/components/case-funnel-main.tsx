@@ -25,6 +25,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
+import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
 type Caps = {
@@ -53,6 +54,8 @@ type Detail = {
   archive_successor?: string | null;
   archive_target?: string | null;
   archive_followup_at?: string | null;
+  loss_reason?: string | null;
+  closed_at?: string | null;
   client: {
     full_name?: string;
     phone?: string;
@@ -238,6 +241,7 @@ export function CaseFunnelMain({
   onWaitingOn,
   onSaveNextAction,
   onSaveArchivePrep,
+  onCloseCase,
   onSuggestStep,
   onApplyChatMessage,
   onDismissHint,
@@ -309,6 +313,7 @@ export function CaseFunnelMain({
     archive_target: string | null;
     archive_followup_at: string | null;
   }) => void;
+  onCloseCase?: (payload: { outcome: "success" | "lost"; loss_reason?: string }) => void;
   onSuggestStep: () => void;
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   onDismissHint: () => void;
@@ -752,6 +757,13 @@ export function CaseFunnelMain({
       </div>
 
       <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
+      {onCloseCase ? (
+        <CloseCaseBlock
+          detail={detail}
+          busy={busy}
+          onClose={onCloseCase}
+        />
+      ) : null}
 
       <div className="case-cards case-funnel-stack">
         <div className="panel case-card--wide case-funnel-map">
@@ -1444,6 +1456,76 @@ function toLocalInput(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function CloseCaseBlock({
+  detail,
+  busy,
+  onClose,
+}: {
+  detail: Detail;
+  busy: boolean;
+  onClose: (payload: { outcome: "success" | "lost"; loss_reason?: string }) => void;
+}) {
+  const [outcome, setOutcome] = useState<"success" | "lost">("success");
+  const [reason, setReason] = useState(detail.loss_reason || "");
+  const alreadyClosed = detail.b2c_status === "closed";
+
+  return (
+    <div className="panel case-card--wide" style={{ marginTop: "0.75rem" }}>
+      <h2 className="case-subhead">Закрытие сделки</h2>
+      <p className="hint">
+        Вместо воронки amo: закрытие и причина отказа хранятся в кабинете. Оплаты — вкладка Финансы.
+      </p>
+      {alreadyClosed ? (
+        <p>
+          Уже закрыто
+          {detail.loss_reason ? ` · отказ: ${detail.loss_reason}` : " · успешно"}
+          {detail.closed_at
+            ? ` · ${new Date(detail.closed_at).toLocaleString("ru-RU")}`
+            : ""}
+        </p>
+      ) : (
+        <div className="filters case-action-bar-fields">
+          <label>
+            Итог
+            <select
+              value={outcome}
+              onChange={(e) => setOutcome(e.target.value as "success" | "lost")}
+            >
+              <option value="success">Успешно закрыто</option>
+              <option value="lost">Отказ</option>
+            </select>
+          </label>
+          {outcome === "lost" ? (
+            <label>
+              Причина отказа
+              <select value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">— выберите —</option>
+                {LOSS_REASON_VALUES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy || (outcome === "lost" && !reason)}
+            onClick={() =>
+              onClose({
+                outcome,
+                loss_reason: outcome === "lost" ? reason : undefined,
+              })
+            }
+          >
+            Закрыть дело
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ArchivePrepBlock({

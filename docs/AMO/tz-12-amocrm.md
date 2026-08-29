@@ -3,9 +3,10 @@
 > **Пакет агента:** [docs/AMO/README.md](../AMO/README.md) · как работаем: [how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)  
 > Эта копия для чата AMO. Канон также: `docs/specs/12-amocrm.md` — при правках синхронизировать оба.
 
-**Статус:** MVP в коде (`src/sfrfr/integrations/amocrm/`)  
+**Статус:** код сохранён; **выключена** (`AMOCRM_ENABLED=0`). CRM = кабинет сотрудника.  
 **Связано:** [01-architecture.md](../specs/01-architecture.md), [06-integrations-and-security.md](../specs/06-integrations-and-security.md)  
-**Пошаговая настройка в UI amoCRM (исполнять по порядку):**  
+**Канон процессов:** [../ops/playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md)  
+**Пошаговая настройка UI (только при повторном включении):**  
 ➜ **[ops-amocrm-setup.md](ops-amocrm-setup.md)** (канон: [../ops/amocrm-setup.md](../ops/amocrm-setup.md))
 
 Официальные доки: [OAuth по шагам](https://www.amocrm.ru/developers/content/oauth/step-by-step) · [custom fields](https://www.amocrm.ru/developers/content/crm_platform/custom-fields) · [leads API](https://www.amocrm.ru/developers/content/crm_platform/leads-api)

@@ -1,21 +1,20 @@
 ---
-description: Материалы и чат агента по amoCRM хранить в docs/AMO
+description: Материалы amoCRM в docs/AMO; сейчас РЕЗЕРВ, CRM = admin
 alwaysApply: true
 ---
 
-# Папка AMO (amoCRM)
+# Папка AMO (amoCRM) — резерв
 
-Пакет агента, ТЗ-копии и промпт для чата Cursor про amoCRM:
+Пакет документов про amoCRM: `docs/AMO/`
 
-`docs/AMO/`
+**С 2026-08-29:** amo выключена (`AMOCRM_ENABLED=0`). Операционная CRM —
+кабинет сотрудника (`docs/ops/playbook-staff-cabinet-crm.md`).
+Код `src/sfrfr/integrations/amocrm/` не удалять.
 
-- `README.md` — индекс;
-- `prompt-agent-amocrm.md` — промпт нового чата;
-- `how-we-work-amocrm.md` — роли систем и поток лида;
-- `playbook-operator-amo-card.md` — поля карточки + перечень документов без содержимого;
-- `playbook-funnel-checklists-automation.md` — этапы, чеклисты, авто, маппинг SFRFR→amo;
-- `tz-12-amocrm.md`, `ops-amocrm-setup.md`, `qa-lead-amocrm-e2e.md` — рабочие копии ТЗ;
-- канон в репо: `docs/specs/12-amocrm.md`, `docs/ops/amocrm-setup.md`, `docs/qa/lead-amocrm-e2e.md` — при правках синхронизировать.
+- `README.md` — индекс (статус РЕЗЕРВ);
+- `how-we-work-amocrm.md` — исторический поток;
+- канон ТЗ: `docs/specs/12-amocrm.md` (при правках синхронизировать копии в AMO).
 
-Не хранить токены amo, ПДн клиентов и сканы документов в этой папке.
-В amo не проектировать передачу СНИЛС / ИЛС / сканов.
+Не хранить токены amo, ПДн и сканы в этой папке.
+Не проектировать в amo передачу СНИЛС / ИЛС / сканов.
+Не покупать платные расширения amo, пока флаг выключен.

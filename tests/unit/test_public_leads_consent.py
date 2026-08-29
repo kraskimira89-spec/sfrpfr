@@ -101,6 +101,16 @@ def test_normalize_channel(raw: str | None, expected: str) -> None:
     assert _normalize_channel(raw) == expected
 
 
+def test_require_amocrm_skipped_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AMOCRM_ENABLED", "0")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    _require_amocrm_lead({"ok": False, "skipped": True})
+    get_settings.cache_clear()
+
+
 def test_require_amocrm_fails_without_lead(monkeypatch: pytest.MonkeyPatch) -> None:
     class _FakeAmo:
         available = True
@@ -109,6 +119,7 @@ def test_require_amocrm_fails_without_lead(monkeypatch: pytest.MonkeyPatch) -> N
             pass
 
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AMOCRM_ENABLED", "1")
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()
@@ -127,6 +138,7 @@ def test_require_amocrm_fails_when_not_configured_in_prod(monkeypatch: pytest.Mo
             pass
 
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AMOCRM_ENABLED", "1")
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()

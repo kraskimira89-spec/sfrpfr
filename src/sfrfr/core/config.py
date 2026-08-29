@@ -106,7 +106,8 @@ class Settings(BaseSettings):
 
     default_diagnostic_price_rub: int = 3000
     success_fee_percent: int = 10
-    # amoCRM API v4 (ТЗ-12)
+    # amoCRM API v4 — код сохранён, по умолчанию ВЫКЛ (резерв; кабинет staff = CRM)
+    amocrm_enabled: bool = False
     amo_subdomain: str = ""
     amo_access_token: str = ""
     amo_pipeline_id: str = ""

@@ -49,6 +49,9 @@ class AmoCrmClient:
 
     @property
     def available(self) -> bool:
+        settings = get_settings()
+        if not settings.amocrm_enabled:
+            return False
         return bool(self.subdomain and self.access_token)
 
     @property
@@ -290,6 +293,8 @@ class AmoCrmClient:
         loss_reason: str | None = None,
     ) -> dict[str, Any]:
         """Создать или обновить сделку. Возвращает lead_id при успехе."""
+        if not get_settings().amocrm_enabled:
+            return {"ok": False, "skipped": True, "reason": "amocrm_disabled"}
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "no AMO_SUBDOMAIN/AMO_ACCESS_TOKEN"}
 

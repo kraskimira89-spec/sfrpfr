@@ -282,6 +282,65 @@ header div { display: grid; gap: 3px; }
   gap: 12px;
   align-items: start;
 }
+.registry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sales-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.sales-board__col {
+  background: #f4f7fb;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+.sales-board__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d9e2ec;
+}
+.sales-board__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  flex: 1;
+}
+.sales-board__card {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  border-left-width: 4px;
+}
+.sales-board__card:hover {
+  border-color: #9fb3c8;
+}
+.sales-board__empty {
+  margin: 8px;
+}
+.badge--muted {
+  background: #eef2f7;
+  color: #52606d;
+  font-size: 12px;
+}
 .registry-table tbody tr { cursor: pointer; }
 .registry-table tbody tr:hover { background: #f7fafc; }
 .registry-table tbody tr.is-selected { background: #eef6f1; }
