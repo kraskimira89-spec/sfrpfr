@@ -313,11 +313,18 @@ def _append_bot_case_message(
     )
 
 
+def _supabase_configured() -> bool:
+    settings = get_settings()
+    return bool(settings.supabase_url and settings.supabase_service_role_key)
+
+
 def _case_id_for_max_user(user_id: str | None) -> str | None:
     """Дело по клиенту MAX или по активной диагностике.
 
     Не возвращаем фантомный UUID из локального intake/store: его нет в Postgres
     → insert в case_messages падает по FK. Лучше None → буфер по max_user_id.
+
+    Без Supabase (юнит-тесты) локальный UUID допустим — не сбрасываем.
     """
     cid = _resolve_case_id_by_max_user(user_id)
     if cid:
@@ -332,6 +339,8 @@ def _case_id_for_max_user(user_id: str | None) -> str | None:
         candidate = str(intake.case_id).strip()
         if len(candidate) < 32:
             return None
+        if not _supabase_configured():
+            return candidate
         if _case_exists_in_supabase(candidate):
             return candidate
         logger.warning(
@@ -350,14 +359,16 @@ def _chat_case_id(
     user_id: str | None,
     preferred: str | None = None,
 ) -> str | None:
-    """UUID только для ленты case_messages / deep-link: обязан существовать в Postgres.
+    """UUID только для ленты case_messages / deep-link.
 
-    ``preferred`` (intake/local/record) может быть фантомом — тогда ищем по MAX
-    или возвращаем None (буфер по max_user_id).
+    В проде — только id из Postgres. Без Supabase (тесты) — принимаем local preferred.
     """
     pref = str(preferred or "").strip()
-    if len(pref) >= 32 and _case_exists_in_supabase(pref):
-        return pref
+    if len(pref) >= 32:
+        if not _supabase_configured():
+            return pref
+        if _case_exists_in_supabase(pref):
+            return pref
     return _case_id_for_max_user(user_id)
 
 

@@ -18,12 +18,29 @@ def test_case_id_for_max_user_clears_phantom_intake() -> None:
     with (
         patch.object(max_handler, "_resolve_case_id_by_max_user", return_value=None),
         patch.object(max_handler, "get_intake_store", return_value=store),
+        patch.object(max_handler, "_supabase_configured", return_value=True),
         patch.object(max_handler, "_case_exists_in_supabase", return_value=False),
     ):
         assert max_handler._case_id_for_max_user("max-1") is None
 
     assert intake.case_id is None
     store.save.assert_called_once_with(intake)
+
+
+def test_case_id_for_max_user_keeps_local_without_supabase() -> None:
+    local = "86fa10dd-15a7-4cde-aec5-75a97dff5b5e"
+    intake = SimpleNamespace(case_id=local)
+    store = MagicMock()
+    store.get_active.return_value = intake
+
+    with (
+        patch.object(max_handler, "_resolve_case_id_by_max_user", return_value=None),
+        patch.object(max_handler, "get_intake_store", return_value=store),
+        patch.object(max_handler, "_supabase_configured", return_value=False),
+    ):
+        assert max_handler._case_id_for_max_user("max-1") == local
+
+    store.save.assert_not_called()
 
 
 def test_case_id_for_max_user_keeps_real_intake() -> None:
@@ -35,6 +52,7 @@ def test_case_id_for_max_user_keeps_real_intake() -> None:
     with (
         patch.object(max_handler, "_resolve_case_id_by_max_user", return_value=None),
         patch.object(max_handler, "get_intake_store", return_value=store),
+        patch.object(max_handler, "_supabase_configured", return_value=True),
         patch.object(max_handler, "_case_exists_in_supabase", return_value=True),
     ):
         assert max_handler._case_id_for_max_user("max-1") == real
@@ -47,6 +65,7 @@ def test_chat_case_id_rejects_phantom_preferred() -> None:
     real = "32528a2d-b914-4463-b737-feba84cc45e1"
 
     with (
+        patch.object(max_handler, "_supabase_configured", return_value=True),
         patch.object(max_handler, "_case_exists_in_supabase", side_effect=lambda c: c == real),
         patch.object(max_handler, "_case_id_for_max_user", return_value=real) as resolve,
     ):
@@ -58,6 +77,7 @@ def test_chat_case_id_keeps_valid_preferred() -> None:
     real = "32528a2d-b914-4463-b737-feba84cc45e1"
 
     with (
+        patch.object(max_handler, "_supabase_configured", return_value=True),
         patch.object(max_handler, "_case_exists_in_supabase", return_value=True),
         patch.object(max_handler, "_case_id_for_max_user") as resolve,
     ):
