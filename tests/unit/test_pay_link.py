@@ -126,6 +126,7 @@ def test_issue_and_deliver_sends_max_with_qr() -> None:
     send_max.assert_called_once()
     assert send_max.call_args.kwargs["max_user_id"] == "max-42"
     assert send_max.call_args.kwargs["qr_url"]
+    assert send_max.call_args.kwargs["case_id"] == order["case_id"]
 
 
 def test_issue_requires_max_user_when_send() -> None:

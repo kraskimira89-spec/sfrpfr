@@ -172,7 +172,19 @@ type StaffCaseDetail = {
   closed_at?: string | null;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
-  orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
+  orders?: {
+    id: string;
+    package_code: string;
+    amount_rub: number;
+    status: string;
+    finance_status?: string;
+    pay_url?: string | null;
+    qr_url?: string | null;
+    sent_channel?: string | null;
+    sent_at?: string | null;
+    service_label?: string | null;
+    invoice_number?: string | null;
+  }[];
   orders_summary?: { package_code: string; status: string }[];
   result?: {
     evidence: Record<string, unknown> | null;
@@ -1378,8 +1390,58 @@ export function AdminCabinet() {
       );
       setNotice(result.sent ? "Ссылка и QR отправлены клиенту в MAX." : "Ссылка создана, MAX не отправлен.");
       await loadFinance(financeQueue);
+      if (detail && String(order.case_id) === detail.id) {
+        await openCase(detail.id);
+        const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+        setMessages(next);
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось отправить ссылку в MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendPayLinkForCaseOrder(orderId: string) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ sent?: boolean }>(
+        `/api/portal/admin/orders/${orderId}/pay-link`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: true }) },
+      );
+      setNotice(
+        result.sent
+          ? "Счёт отправлен в MAX — текст, кнопка и QR появятся в ленте чата."
+          : "Ссылка создана, но MAX не отправлен (проверьте привязку клиента).",
+      );
+      await openCase(detail.id);
+      const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+      setMessages(next);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить счёт в MAX.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPayLinkForCaseOrder(orderId: string) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ pay_url?: string }>(
+        `/api/portal/admin/orders/${orderId}/pay-link`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: false }) },
+      );
+      const url = result.pay_url || "";
+      if (!url) throw new Error("Нет ссылки");
+      await navigator.clipboard.writeText(url);
+      setNotice("Ссылка скопирована. QR появится в блоке оплаты дела.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось получить ссылку.");
     } finally {
       setBusy(false);
     }
@@ -2217,6 +2279,8 @@ export function AdminCabinet() {
             onOrderCode={setOrderCode}
             onOrderAmount={setOrderAmount}
             onCreateOrder={(e) => void createOrder(e)}
+            onSendPayLink={(orderId) => void sendPayLinkForCaseOrder(orderId)}
+            onCopyPayLink={(orderId) => void copyPayLinkForCaseOrder(orderId)}
             onRecordServiceConsent={() => void recordServiceConsent()}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}

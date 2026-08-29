@@ -1331,11 +1331,27 @@ button.badge--clickable:hover {
 }
 .finance-kpis { margin: 4px 0 8px; }
 .pay-qr {
+  display: block;
+  margin: 8px 0;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fff;
   width: 180px;
   height: 180px;
   image-rendering: pixelated;
-  background: #fff;
-  border-radius: 8px;
+}
+.case-order-card {
+  padding: 8px 0;
+  border-bottom: 1px solid #e4ebf3;
+}
+.case-order-card:last-child {
+  border-bottom: none;
+}
+.case-chat-qr {
+  margin-top: 6px;
+  width: 120px;
+  height: 120px;
+}
   padding: 8px;
 }
 .metric-card.is-active {

@@ -150,8 +150,12 @@ def send_pay_link_max(
     amount_rub: float,
     pay_url: str,
     qr_url: str | None = None,
+    case_id: str | None = None,
 ) -> None:
-    """Текст + (опц.) картинка QR + кнопка «Оплатить» в личный чат MAX."""
+    """Текст + (опц.) картинка QR + кнопка «Оплатить» в личный чат MAX.
+
+    Дублирует текст в case_messages, чтобы сотрудник видел счёт в ленте дела.
+    """
     bot = MaxBotClient()
     if not bot.available:
         raise RuntimeError("max_bot_not_configured")
@@ -161,6 +165,24 @@ def send_pay_link_max(
         attachments.append({"type": "image", "payload": {"url": qr_url}})
     attachments.extend(inline_link_keyboard("Оплатить", pay_url))
     bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
+    if case_id:
+        try:
+            from sfrfr.integrations.max.case_chat_log import append_bot_case_message
+
+            chat_body = text
+            if qr_url:
+                chat_body = f"{text}\nQR: {qr_url}"
+            append_bot_case_message(
+                case_id=case_id,
+                text=chat_body,
+                attachments=attachments,
+                max_user_id=max_user_id,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "pay_link_case_message_failed case=%s",
+                str(case_id)[:8],
+            )
 
 
 class PayLinkError(Exception):
@@ -259,6 +281,7 @@ def issue_and_deliver_pay_link(
                 amount_rub=float(order.get("amount_rub") or 0),
                 pay_url=pay_url,
                 qr_url=qr,
+                case_id=case_id,
             )
             sent = True
         except PayLinkError:

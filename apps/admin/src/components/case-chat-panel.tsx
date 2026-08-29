@@ -2,7 +2,7 @@
 
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
@@ -17,15 +17,41 @@ type ChatFilter = "all" | "staff" | "client" | "system";
 
 const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
 
-function splitBody(body: string): { text: string; buttons: string[]; isDocument: boolean } {
+function splitBody(body: string): {
+  text: string;
+  buttons: string[];
+  isDocument: boolean;
+  qrUrl: string | null;
+} {
   const isDocument = body.startsWith("[Документ] ");
-  const match = body.match(BUTTONS_RE);
-  if (!match) return { text: body, buttons: [], isDocument };
+  let text = body;
+  let qrUrl: string | null = null;
+  const qrMatch = text.match(/\nQR:\s*(https?:\/\/\S+)/);
+  if (qrMatch) {
+    qrUrl = qrMatch[1];
+    text = text.replace(qrMatch[0], "").trimEnd();
+  }
+  const match = text.match(BUTTONS_RE);
+  if (!match) return { text, buttons: [], isDocument, qrUrl };
   return {
-    text: body.slice(0, match.index).trimEnd(),
+    text: text.slice(0, match.index).trimEnd(),
     buttons: match[1].split(" · ").map((x) => x.trim()).filter(Boolean),
     isDocument,
+    qrUrl,
   };
+}
+
+function linkify(text: string): ReactNode[] {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a key={`u-${i}`} href={part} target="_blank" rel="noreferrer">
+        {part}
+      </a>
+    ) : (
+      <span key={`t-${i}`}>{part}</span>
+    ),
+  );
 }
 
 function bubbleClass(authorKind: string): string {
@@ -310,10 +336,19 @@ export function CaseChatPanel({
                     return (
                       <div key={m.id} className="case-chat-chunk">
                         {parsed.isDocument ? (
-                          <p className="case-chat-doc">{parsed.text}</p>
+                          <p className="case-chat-doc">{linkify(parsed.text)}</p>
                         ) : (
-                          <p>{parsed.text}</p>
+                          <p>{linkify(parsed.text)}</p>
                         )}
+                        {parsed.qrUrl ? (
+                          <img
+                            className="pay-qr case-chat-qr"
+                            src={parsed.qrUrl}
+                            alt="QR на оплату"
+                            width={120}
+                            height={120}
+                          />
+                        ) : null}
                         {parsed.buttons.length > 0 ? (
                           <div className="case-chat-buttons" aria-label="Кнопки бота в MAX">
                             {parsed.buttons.map((label) => (

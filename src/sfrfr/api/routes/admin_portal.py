@@ -265,7 +265,7 @@ def _filter_staff_case(
             "can_edit_pipeline": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_edit_checklist": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_confirm_result": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
-            "can_manage_orders": principal.role is StaffRole.ADMIN,
+            "can_manage_orders": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_manage_roles": principal.role is StaffRole.ADMIN,
             "can_view_ocr": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_knowledge_feedback": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
@@ -457,7 +457,19 @@ def admin_get_case(
             for o in repo.list_orders(case_id)
         ]
     else:
-        payload["orders"] = repo.list_orders(case_id)
+        from sfrfr.services.staff_finance import serialize_order
+
+        order_rows = repo.list_orders(case_id)
+        payload["orders"] = [serialize_order(o, case) for o in order_rows]
+        payload["orders_summary"] = [
+            {
+                "package_code": o.get("package_code"),
+                "status": o.get("status"),
+                "finance_status": o.get("finance_status"),
+                "amount_rub": o.get("amount_rub"),
+            }
+            for o in payload["orders"]
+        ]
     payload["result"] = None
     if principal.role in (StaffRole.EXPERT, StaffRole.ADMIN):
         evidence = repo.get_result_evidence(case_id) or {}
@@ -1442,10 +1454,13 @@ def confirm_result(
 def create_order(
     case_id: str,
     payload: OrderCreateRequest,
-    principal: Principal = Depends(require_admin),
+    principal: Principal = Depends(require_staff),
 ) -> dict:
     from sfrfr.services.message_dedupe import has_service_consent
 
+    _require_expert(principal)
+    if payload.package_code in ("SF_LUMP", "SF_MONTH") and principal.role is not StaffRole.ADMIN:
+        raise HTTPException(status_code=403, detail="admin role required for success-fee orders")
     repo = _repo()
     case = repo.require_case(principal, case_id)
     audit_rows = (
@@ -1718,6 +1733,7 @@ def admin_order_remind(
                     amount_rub=float(order.get("amount_rub") or 0),
                     pay_url=pay_url,
                     qr_url=public_qr_url(order_id),
+                    case_id=str(order.get("case_id") or ""),
                 )
             sent = True
         except PayLinkError as exc:

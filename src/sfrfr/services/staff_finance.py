@@ -184,6 +184,7 @@ def serialize_order(
         "pay_url": order.get("pay_url"),
         "qr_url": qr_url,
         "sent_channel": order.get("sent_channel"),
+        "sent_at": order.get("sent_at"),
         "next_action": derive_finance_next_action(order, status),
         "client_name": client.get("full_name"),
         "expert_user_id": (case or {}).get("expert_user_id"),

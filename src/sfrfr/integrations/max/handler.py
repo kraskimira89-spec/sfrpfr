@@ -2220,6 +2220,23 @@ def _try_max_payment_receipt(
         from sfrfr.services.payment_receipt import ingest_max_receipt
     except Exception:  # noqa: BLE001
         return None
+    case_id = _case_id_for_max_user(user_id)
+    # В ленту дела — что клиент прислал (чек/фото), до OCR.
+    try:
+        from sfrfr.integrations.max.case_chat_log import (
+            append_case_chat_message,
+            format_document_event,
+        )
+
+        for name, _data in files:
+            append_case_chat_message(
+                case_id=case_id,
+                max_user_id=user_id,
+                author_kind="client",
+                body=format_document_event(filename=name, doc_type="чек оплаты"),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("receipt case_message failed: %s", exc)
     try:
         result = ingest_max_receipt(max_user_id=str(user_id), files=files)
     except Exception:  # noqa: BLE001
@@ -2228,7 +2245,13 @@ def _try_max_payment_receipt(
     if not result:
         return None
     reply = str(result.get("client_message") or "Чек получили.")
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        case_id=str(result.get("case_id") or case_id or "") or None,
+    )
     return MaxHandleResult(
         ok=result.get("status") in {"confirmed", "already_paid"},
         action=f"payment_receipt_{result.get('status')}",
