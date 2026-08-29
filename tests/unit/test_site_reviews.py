@@ -3,9 +3,33 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import sfrfr.core.site_reviews as sr
+
+_MSK = ZoneInfo("Europe/Moscow")
+_MONTHS = (
+    "",
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
+
+
+def _today_byline_date() -> str:
+    now = datetime.now(UTC).astimezone(_MSK)
+    return f"{now.day} {_MONTHS[now.month]} {now.year}"
 
 
 def test_review_text_rejects_hint_boilerplate() -> None:
@@ -75,10 +99,10 @@ def test_enqueue_and_publish(monkeypatch) -> None:
         assert len(published) == 1
         assert published[0]["text"].startswith("Обращался")
         assert published[0]["source"] == "site"
-        assert published[0]["byline"] == "Андрей · 28 августа 2026"
+        assert published[0]["byline"] == f"Андрей · {_today_byline_date()}"
         stored = json.loads(store.read_text(encoding="utf-8"))
         item = stored["items"][0]
-        assert item.get("display_byline") == "Андрей · 28 августа 2026"
+        assert item.get("display_byline") == f"Андрей · {_today_byline_date()}"
     finally:
         if store.exists():
             store.unlink()
@@ -289,7 +313,7 @@ def test_enqueue_publish_requires_author_label(monkeypatch) -> None:
         )
         assert queued and queued["queued"] is True
         assert sr.set_status(queued["id"], "published")["ok"] is True
-        assert sr.list_published()[0]["byline"] == "Сергей, Архангельск · 28 августа 2026"
+        assert sr.list_published()[0]["byline"] == f"Сергей, Архангельск · {_today_byline_date()}"
     finally:
         if store.exists():
             store.unlink()
