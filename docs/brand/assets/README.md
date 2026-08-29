@@ -21,7 +21,7 @@
 | `viz-tarify-16x9.png` | `/tarify/` | на сайте |
 | `viz-kabinet-16x9.png` / `1x1` | кабинет / инструкция | запас |
 | `viz-kontakty-16x9.png` | `/kontakty/` | на сайте |
-| `viz-otzyvy-16x9.png` | `/otzyvy/` | на сайте |
+| `viz-otzyvy-16x9.png` | `/otzyvy/` | на сайте (слова: опыт / слова / доверие) |
 | `viz-stazh-do-2002-16x9.png` | `/stazh-do-2002/` | на сайте |
 | `viz-vk-community-cover-1920x768.png` | обложка сообщества ВК | **1920×768** (мин. ВК 960×384); не шаблон zip 911×364 |
 | `viz-meta-checklist-documents-1x1 хаос папки порядок.png` | посты / сбор документов | **Хаос → Папки → Порядок** (не диагностика) |
