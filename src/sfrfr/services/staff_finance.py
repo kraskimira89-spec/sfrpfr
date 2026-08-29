@@ -18,6 +18,7 @@ from sfrfr.services.staff_work_queue import is_test_case
 
 FINANCE_STATUS_LABELS: dict[str, str] = {
     "draft": "Черновик",
+    "awaiting_invoice": "Ожидает счёт",
     "invoice_ready": "Счёт подготовлен",
     "invoice_sent": "Счёт отправлен",
     "pending_payment": "Ожидает оплату",
@@ -197,6 +198,38 @@ def serialize_order(
     }
 
 
+def serialize_needs_invoice_case(case: dict[str, Any]) -> dict[str, Any]:
+    """Строка реестра для дела без счёта (очередь «Ожидает счёт»)."""
+    client = case.get("clients") or {}
+    case_id = str(case.get("id") or "")
+    return {
+        "id": f"need-invoice:{case_id}",
+        "case_id": case_id,
+        "invoice_number": None,
+        "package_code": None,
+        "service_label": "Счёт ещё не выставлен",
+        "amount_rub": 0,
+        "status": "needs_invoice",
+        "finance_status": "awaiting_invoice",
+        "due_at": None,
+        "created_at": case.get("created_at") or case.get("first_contact_at"),
+        "pay_url": None,
+        "qr_url": None,
+        "sent_channel": None,
+        "next_action": "Выставить счёт",
+        "client_name": client.get("full_name"),
+        "expert_user_id": case.get("expert_user_id"),
+        "is_test": is_test_case(case),
+        "reminder_draft": None,
+        "max_linked": bool(client.get("max_user_id")),
+        "preferred_channel": client.get("preferred_channel") or "unset",
+        "cancel_reason": None,
+        "history": [],
+        "payment_purpose": PAYMENT_PURPOSE,
+        "needs_invoice": True,
+    }
+
+
 def _sum_amount(rows: list[dict[str, Any]]) -> float:
     return round(sum(float(r.get("amount_rub") or 0) for r in rows), 2)
 
@@ -214,6 +247,7 @@ def build_finance_snapshot(
 ) -> dict[str, Any]:
     moment = now or datetime.now(UTC)
     by_case = {str(c.get("id")): c for c in cases}
+    order_case_ids = {str(o.get("case_id")) for o in orders}
     items: list[dict[str, Any]] = []
     for order in orders:
         case = by_case.get(str(order.get("case_id")))
@@ -222,6 +256,15 @@ def build_finance_snapshot(
         if not include_test and is_test_case(case):
             continue
         items.append(serialize_order(order, case, now=moment))
+
+    no_order_cases = [
+        case
+        for case in cases
+        if (include_test or not is_test_case(case))
+        and str(case.get("b2c_status") or "") not in {"lead", "closed"}
+        and str(case.get("id")) not in order_case_ids
+    ]
+    need_invoice_rows = [serialize_needs_invoice_case(case) for case in no_order_cases]
 
     needle = (q or "").strip().lower()
     if needle:
@@ -238,8 +281,21 @@ def build_finance_snapshot(
                 ]
             ).lower()
         ]
+        need_invoice_rows = [
+            row
+            for row in need_invoice_rows
+            if needle
+            in " ".join(
+                [
+                    str(row.get("case_id") or ""),
+                    str(row.get("client_name") or ""),
+                ]
+            ).lower()
+        ]
     if package_code:
         items = [row for row in items if row.get("package_code") == package_code]
+        # Дела без счёта не привязаны к пакету — скрываем при фильтре услуги
+        need_invoice_rows = []
 
     start: datetime | None = None
     if period == "today":
@@ -254,6 +310,11 @@ def build_finance_snapshot(
             for row in items
             if (parse_dt(str(row.get("created_at") or "")) or moment) >= start
         ]
+        need_invoice_rows = [
+            row
+            for row in need_invoice_rows
+            if (parse_dt(str(row.get("created_at") or "")) or moment) >= start
+        ]
 
     def pick(status: str) -> list[dict[str, Any]]:
         return [row for row in items if row.get("finance_status") == status]
@@ -265,6 +326,7 @@ def build_finance_snapshot(
     ]
     overdue = pick("overdue")
     drafts = pick("draft")
+    awaiting_rows = drafts + need_invoice_rows
     refunds = [row for row in items if row.get("finance_status") in {"refund", "cancelled"}]
     start_today = moment.replace(hour=0, minute=0, second=0, microsecond=0)
     paid_today_rows = []
@@ -279,14 +341,6 @@ def build_finance_snapshot(
         if paid_dt and paid_dt >= start_today:
             paid_today_rows.append(row)
 
-    no_order_cases = [
-        case
-        for case in cases
-        if (include_test or not is_test_case(case))
-        and str(case.get("b2c_status") or "") not in {"lead", "closed"}
-        and str(case.get("id")) not in {str(o.get("case_id")) for o in orders}
-    ]
-
     filtered = items
     if queue == "payable":
         filtered = payable
@@ -295,7 +349,7 @@ def build_finance_snapshot(
     elif queue == "paid_today":
         filtered = paid_today_rows
     elif queue in {"awaiting_invoice", "draft"}:
-        filtered = drafts
+        filtered = awaiting_rows
     elif queue in {"refunds", "cancelled"}:
         filtered = refunds
     elif queue and queue != "all":
@@ -306,7 +360,7 @@ def build_finance_snapshot(
         "overdue": {"count": len(overdue), "amount_rub": _sum_amount(overdue)},
         "paid_today": {"count": len(paid_today_rows), "amount_rub": _sum_amount(paid_today_rows)},
         "awaiting_invoice": {
-            "count": len(drafts) + len(no_order_cases),
+            "count": len(awaiting_rows),
             "amount_rub": _sum_amount(drafts),
         },
         "refunds": {"count": len(refunds), "amount_rub": _sum_amount(refunds)},
@@ -319,5 +373,5 @@ def build_finance_snapshot(
         "kpis": kpis,
         "orders": filtered,
         "total": len(filtered),
-        "needs_invoice_cases": len(no_order_cases),
+        "needs_invoice_cases": len(need_invoice_rows),
     }

@@ -2372,6 +2372,10 @@ export function AdminCabinet() {
             onIncludeTest={setFinanceIncludeTest}
             onSearch={() => void loadFinance(financeQueue)}
             onCreate={() => setCreateInvoiceOpen(true)}
+            onCreateForCase={(caseId) => {
+              setInvoiceCaseId(caseId);
+              setCreateInvoiceOpen(true);
+            }}
             onOpenCase={(caseId) => void openCase(caseId)}
             onCopyLink={(order) => void copyPayLink(order)}
             onSendLink={(order) => void sendPayLink(order)}

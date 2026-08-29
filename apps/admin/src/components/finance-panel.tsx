@@ -28,6 +28,7 @@ export type FinanceOrder = {
   history?: Array<{ at: string; text: string }>;
   payment_purpose?: string;
   cancel_reason?: string | null;
+  needs_invoice?: boolean;
 };
 
 export type FinanceSnapshot = {
@@ -83,8 +84,9 @@ function formatWhen(value: string | null | undefined): string {
 function tone(status: string): string {
   if (status === "overdue") return "overdue";
   if (status === "paid") return "ok";
-  if (status === "draft") return "waiting";
+  if (status === "draft" || status === "awaiting_invoice") return "calm";
   if (status === "partially_paid" || status === "reconciliation_error") return "today";
+  if (status === "cancelled" || status === "refund") return "muted";
   return "today";
 }
 
@@ -106,6 +108,7 @@ export function FinancePanel({
   onIncludeTest,
   onSearch,
   onCreate,
+  onCreateForCase,
   onOpenCase,
   onCopyLink,
   onSendLink,
@@ -130,6 +133,8 @@ export function FinancePanel({
   onIncludeTest: (v: boolean) => void;
   onSearch: () => void;
   onCreate: () => void;
+  /** Открыть создание счёта сразу для дела (строка «ожидает счёт»). */
+  onCreateForCase?: (caseId: string) => void;
   onOpenCase: (caseId: string) => void;
   onCopyLink: (order: FinanceOrder) => void;
   onSendLink: (order: FinanceOrder) => void;
@@ -173,7 +178,7 @@ export function FinancePanel({
               key={item.id}
               type="button"
               className={`metric-card ${queue === item.id ? "is-active" : ""} ${item.id === "overdue" ? "metric-card--risk" : ""}`}
-              onClick={() => onQueue(item.id)}
+              onClick={() => onQueue(queue === item.id ? "all" : item.id)}
             >
               <span>{item.label}</span>
               <strong>{kpi?.count ?? 0}</strong>
@@ -261,7 +266,11 @@ export function FinancePanel({
               <div className="skeleton" />
             </div>
           ) : orders.length === 0 ? (
-            <p className="panel hint">В этой очереди счетов нет.</p>
+            <p className="panel hint">
+              {queue === "awaiting_invoice"
+                ? "Нет дел, ожидающих счёт."
+                : "В этой очереди счетов нет."}
+            </p>
           ) : (
             <>
               <div className="queue-wrap registry-table-wrap">
@@ -279,10 +288,12 @@ export function FinancePanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((row) => (
+                    {orders.map((row) => {
+                      const placeholder = Boolean(row.needs_invoice);
+                      return (
                       <tr
                         key={row.id}
-                        className={`tone-${tone(row.finance_status)} ${preview?.id === row.id ? "is-selected" : ""}`}
+                        className={`sla-stripe sla-stripe--${tone(row.finance_status)} ${preview?.id === row.id ? "is-selected" : ""}`}
                         onClick={() => setPreviewId(row.id)}
                       >
                         <td>
@@ -293,14 +304,19 @@ export function FinancePanel({
                           <strong>{row.client_name ?? "Клиент"} · {caseCatalogLabel(row.case_id)}</strong>
                         </td>
                         <td>{row.service_label}</td>
-                        <td>{formatRub(row.amount_rub)}</td>
+                        <td>{placeholder ? "—" : formatRub(row.amount_rub)}</td>
                         <td>{row.invoice_number || "—"}</td>
                         <td>{formatWhen(row.due_at)}</td>
                         <td>{row.next_action}</td>
                         <td>
                           <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                             <button type="button" className="ghost" onClick={() => onOpenCase(row.case_id)}>Открыть</button>
-                            {row.finance_status !== "paid" && row.finance_status !== "cancelled" && (
+                            {placeholder && canManage && onCreateForCase && (
+                              <button type="button" className="ghost" disabled={busy} onClick={() => onCreateForCase(row.case_id)}>
+                                Выставить счёт
+                              </button>
+                            )}
+                            {!placeholder && row.finance_status !== "paid" && row.finance_status !== "cancelled" && (
                               <>
                                 <button type="button" className="ghost" disabled={busy} onClick={() => onCopyLink(row)}>Ссылка</button>
                                 {row.max_linked && (
@@ -314,21 +330,29 @@ export function FinancePanel({
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
               <ul className="registry-cards">
-                {orders.map((row) => (
-                  <li key={row.id} className={`registry-card tone-${tone(row.finance_status)}`}>
+                {orders.map((row) => {
+                  const placeholder = Boolean(row.needs_invoice);
+                  return (
+                  <li key={row.id} className={`registry-card sla-stripe sla-stripe--${tone(row.finance_status)}`}>
                     <strong>{labelFinanceStatus(row.finance_status)}</strong>
                     <p>{row.client_name ?? "Клиент"} · {caseCatalogLabel(row.case_id)}</p>
-                    <p>{row.service_label} · {formatRub(row.amount_rub)}</p>
+                    <p>{row.service_label} · {placeholder ? "—" : formatRub(row.amount_rub)}</p>
                     <p>Срок: {formatWhen(row.due_at)}</p>
                     <p>{row.next_action}</p>
                     <div className="row-actions">
                       <button type="button" onClick={() => onOpenCase(row.case_id)}>Открыть дело</button>
-                      {row.finance_status !== "paid" && (
+                      {placeholder && canManage && onCreateForCase && (
+                        <button type="button" className="ghost" disabled={busy} onClick={() => onCreateForCase(row.case_id)}>
+                          Выставить счёт
+                        </button>
+                      )}
+                      {!placeholder && row.finance_status !== "paid" && (
                         <>
                           <button type="button" className="ghost" onClick={() => onCopyLink(row)}>Ссылка</button>
                           {row.max_linked && (
@@ -338,7 +362,8 @@ export function FinancePanel({
                       )}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </>
           )}
@@ -347,12 +372,22 @@ export function FinancePanel({
           {!preview && <p className="hint">Выберите счёт — справа откроется карточка оплаты.</p>}
           {preview && (
             <>
-              <h2>{preview.invoice_number} · {caseCatalogLabel(preview.case_id)}</h2>
+              <h2>
+                {preview.needs_invoice
+                  ? `Дело · ${caseCatalogLabel(preview.case_id)}`
+                  : `${preview.invoice_number} · ${caseCatalogLabel(preview.case_id)}`}
+              </h2>
               <p><strong>{preview.client_name ?? "Клиент"}</strong></p>
               <p>{preview.service_label}</p>
-              <p>{formatRub(preview.amount_rub)} · {labelFinanceStatus(preview.finance_status)}</p>
+              <p>
+                {preview.needs_invoice ? "—" : formatRub(preview.amount_rub)}
+                {" · "}
+                {labelFinanceStatus(preview.finance_status)}
+              </p>
               <p className="hint">{preview.payment_purpose}</p>
-              <p className="hint">Срок: {formatWhen(preview.due_at)}</p>
+              {!preview.needs_invoice && (
+                <p className="hint">Срок: {formatWhen(preview.due_at)}</p>
+              )}
               {preview.qr_url && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
                 <img
                   className="pay-qr"
@@ -367,20 +402,25 @@ export function FinancePanel({
               )}
               <div className="row-actions">
                 <button type="button" className="ghost" onClick={() => onOpenCase(preview.case_id)}>Открыть дело</button>
-                {preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
+                {preview.needs_invoice && canManage && onCreateForCase && (
+                  <button type="button" disabled={busy} onClick={() => onCreateForCase(preview.case_id)}>
+                    Выставить счёт
+                  </button>
+                )}
+                {!preview.needs_invoice && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
                   <button type="button" disabled={busy} onClick={() => onCopyLink(preview)}>Скопировать ссылку</button>
                 )}
-                {preview.max_linked && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
+                {!preview.needs_invoice && preview.max_linked && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
                   <button type="button" disabled={busy} onClick={() => onSendLink(preview)}>
                     Отправить в MAX
                   </button>
                 )}
-                {preview.max_linked && preview.finance_status !== "paid" && (
+                {!preview.needs_invoice && preview.max_linked && preview.finance_status !== "paid" && (
                   <button type="button" className="ghost" disabled={busy} onClick={() => onRemind(preview, true)}>
                     Напомнить в MAX
                   </button>
                 )}
-                {canManage && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
+                {canManage && !preview.needs_invoice && preview.finance_status !== "paid" && preview.finance_status !== "cancelled" && (
                   <>
                     <button type="button" className="ghost" disabled={busy} onClick={() => onMarkPaid(preview)}>
                       Отметить оплату

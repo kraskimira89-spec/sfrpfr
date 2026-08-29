@@ -41,6 +41,7 @@ export const PACKAGE_LABELS: Record<string, string> = {
 };
 
 export const FINANCE_STATUS_LABELS: Record<string, string> = {
+  awaiting_invoice: "Ожидает счёт",
   draft: "Черновик",
   invoice_ready: "Счёт подготовлен",
   invoice_sent: "Счёт отправлен",

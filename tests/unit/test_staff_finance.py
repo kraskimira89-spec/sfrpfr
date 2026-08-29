@@ -65,6 +65,58 @@ def test_snapshot_hides_test_and_has_no_edv_formula() -> None:
     assert snap["tariffs"][0]["amount_rub"] == 3000
 
 
+def test_awaiting_invoice_includes_cases_without_orders() -> None:
+    now = datetime(2026, 8, 22, 12, tzinfo=UTC)
+    snap = build_finance_snapshot(
+        orders=[],
+        cases=[
+            _case(id="c1", clients={"full_name": "Анна"}),
+            _case(id="c2", b2c_status="lead", clients={"full_name": "Лид"}),
+            _case(id="c3", b2c_status="closed", clients={"full_name": "Закрыт"}),
+        ],
+        queue="awaiting_invoice",
+        now=now,
+    )
+    assert snap["kpis"]["awaiting_invoice"]["count"] == 1
+    assert snap["total"] == 1
+    assert snap["orders"][0]["case_id"] == "c1"
+    assert snap["orders"][0]["needs_invoice"] is True
+    assert snap["orders"][0]["finance_status"] == "awaiting_invoice"
+    assert snap["orders"][0]["next_action"] == "Выставить счёт"
+
+
+def test_payable_overdue_refunds_queues_filter_orders() -> None:
+    now = datetime(2026, 8, 22, 12, tzinfo=UTC)
+    case = _case(id="c1")
+    orders = [
+        _order(
+            id="p1",
+            case_id="c1",
+            status="pending",
+            due_at=(now + timedelta(days=2)).isoformat(),
+            invoice_status="pending_payment",
+        ),
+        _order(
+            id="o1",
+            case_id="c1",
+            status="pending",
+            due_at=(now - timedelta(days=2)).isoformat(),
+            invoice_status="pending_payment",
+        ),
+        _order(id="r1", case_id="c1", status="cancelled"),
+    ]
+    cases = [case]
+    payable = build_finance_snapshot(orders=orders, cases=cases, queue="payable", now=now)
+    overdue = build_finance_snapshot(orders=orders, cases=cases, queue="overdue", now=now)
+    refunds = build_finance_snapshot(orders=orders, cases=cases, queue="refunds", now=now)
+    assert payable["total"] == 1
+    assert payable["orders"][0]["id"] == "p1"
+    assert overdue["total"] == 1
+    assert overdue["orders"][0]["id"] == "o1"
+    assert refunds["total"] == 1
+    assert refunds["orders"][0]["id"] == "r1"
+
+
 def test_admin_finance_endpoint_has_no_formula(monkeypatch) -> None:
     from sfrfr.api.routes import admin_portal
     from sfrfr.security.auth import Principal, StaffRole
