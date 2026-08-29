@@ -230,9 +230,15 @@ def append_case_chat_message(
     author_kind: str,
     body: str,
 ) -> None:
-    """Записать в case_messages или в буфер до появления дела."""
+    """Записать в case_messages или в буфер до появления дела.
+
+    Важно: при ошибке insert (в т.ч. FK — «дела нет в БД») не терять текст —
+    складываем в буфер по max_user_id, иначе клиент видит ответ бота в MAX,
+    а в кабинете сотрудника реплики нет.
+    """
     cid = (case_id or "").strip()
     text = (body or "").strip()
+    mid = (max_user_id or "").strip()
     if not text:
         return
     if cid and len(cid) >= 32:
@@ -240,9 +246,15 @@ def append_case_chat_message(
             _insert_case_message(case_id=cid, author_kind=author_kind, body=text)
             return
         except Exception as exc:  # noqa: BLE001
-            logger.warning("case_message append failed case=%s: %s", cid[:8], exc)
+            logger.warning(
+                "case_message append failed case=%s: %s; fallback_buffer=%s",
+                cid[:8],
+                exc,
+                bool(mid),
+            )
+            if mid:
+                _buffer(max_user_id=mid, author_kind=author_kind, body=text)
             return
-    mid = (max_user_id or "").strip()
     if mid:
         _buffer(max_user_id=mid, author_kind=author_kind, body=text)
 
@@ -295,6 +307,7 @@ def flush_pending_case_chat(*, max_user_id: str | None, case_id: str | None) -> 
     if not items:
         return 0
     written = 0
+    leftover: list[dict[str, str]] = []
     for item in items:
         try:
             _insert_case_message(
@@ -306,6 +319,13 @@ def flush_pending_case_chat(*, max_user_id: str | None, case_id: str | None) -> 
             written += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("flush case_message failed case=%s: %s", cid[:8], exc)
+            leftover.append(item)
+    if leftover:
+        with _lock:
+            bucket = _pending.setdefault(mid, [])
+            # Не дублировать уже записанное — вернуть только неудавшиеся.
+            _pending[mid] = (leftover + bucket)[-_MAX_PENDING_PER_USER:]
+            _save_pending()
     return written
 
 

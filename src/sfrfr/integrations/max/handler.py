@@ -547,7 +547,12 @@ def _ensure_case_for_intake(
     intake,
     store,
 ) -> str:
-    """Создать или найти дело: с /start для ленты чата; также кабинет / оператор."""
+    """Создать или найти дело: с /start для ленты чата; также кабинет / оператор.
+
+    Для ленты кабинета нужен UUID, который есть в Postgres ``cases``.
+    Локальный store.create() без Supabase даёт «фантомный» id → insert в
+    case_messages падает по FK, и ответы бота пропадали из карточки.
+    """
 
     def _finish(case_id: str) -> str:
         cid = str(case_id)
@@ -560,11 +565,24 @@ def _ensure_case_for_intake(
         return cid
 
     if intake.case_id:
-        return _finish(str(intake.case_id))
+        existing = str(intake.case_id)
+        # Фантомный id из локального store (нет в Supabase) — сбросить и создать заново.
+        if _case_exists_in_supabase(existing):
+            return _finish(existing)
+        logger.warning(
+            "intake case_id missing in supabase, reset max=%s case=%s",
+            user_id,
+            existing[:8],
+        )
+        intake.case_id = None
+        get_intake_store().save(intake)
 
-    # Локальный store — быстрый путь (тесты / fallback).
+    # Локальный store — быстрый путь (тесты / fallback без Supabase).
+    settings = get_settings()
+    supabase_ready = bool(settings.supabase_url and settings.supabase_service_role_key)
+
     existing = store.find_by_max_user(user_id)
-    if existing:
+    if existing and (not supabase_ready or _case_exists_in_supabase(existing.case_id)):
         intake.case_id = existing.case_id
         get_intake_store().save(intake)
         return _finish(existing.case_id)
@@ -586,24 +604,56 @@ def _ensure_case_for_intake(
             max_user_id=user_id,
             max_chat_id=str(chat_id) if chat_id is not None else None,
         )
-        # Предпочитаем supabase case_id в deep-link.
+        # Предпочитаем supabase case_id в deep-link и ленте чата.
         intake.case_id = case_id
         get_intake_store().save(intake)
         return _finish(case_id)
 
-    record = store.create(
-        client_name=f"MAX user {user_id}",
-        snils_masked="***-***-*** **",
-        consent_given=False,
+    # Без Supabase (юнит-тесты) — локальный id допустим.
+    if not supabase_ready:
+        record = store.create(
+            client_name=f"MAX user {user_id}",
+            snils_masked="***-***-*** **",
+            consent_given=False,
+        )
+        store.bind_max(
+            record.case_id,
+            max_user_id=user_id,
+            max_chat_id=str(chat_id) if chat_id is not None else None,
+        )
+        intake.case_id = record.case_id
+        get_intake_store().save(intake)
+        return _finish(record.case_id)
+
+    # Supabase настроен, но создать дело не удалось — не выдумываем фантомный UUID.
+    # Ответы бота уйдут в буфер по max_user_id и сольются при следующем успешном create.
+    logger.warning(
+        "ensure_case: supabase case unavailable, buffering chat max=%s",
+        user_id,
     )
-    store.bind_max(
-        record.case_id,
-        max_user_id=user_id,
-        max_chat_id=str(chat_id) if chat_id is not None else None,
-    )
-    intake.case_id = record.case_id
-    get_intake_store().save(intake)
-    return _finish(record.case_id)
+    return ""
+
+
+def _case_exists_in_supabase(case_id: str | None) -> bool:
+    cid = str(case_id or "").strip()
+    if len(cid) < 32:
+        return False
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("cases")
+            .select("id")
+            .eq("id", cid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return bool(rows)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None:
@@ -646,7 +696,7 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
 
     try:
         with ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(_work).result(timeout=2.5)
+            return pool.submit(_work).result(timeout=5.0)
     except (FuturesTimeout, Exception):
         import logging
 

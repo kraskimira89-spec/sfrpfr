@@ -80,3 +80,63 @@ def test_pending_buffer_flush() -> None:
 
     reset_pending_for_tests()
     cfg.get_settings.cache_clear()
+
+
+def test_append_fk_failure_falls_back_to_buffer() -> None:
+    """Фантомный case_id: insert падает → текст в буфер, не теряется."""
+    from unittest.mock import patch
+
+    from sfrfr.core import config as cfg
+
+    reset_pending_for_tests()
+    storage = Path("storage/test-chat-fk-fallback-uploads")
+    storage.mkdir(parents=True, exist_ok=True)
+
+    class _BoomTable:
+        def insert(self, row):
+            raise RuntimeError(
+                "insert or update on table \"case_messages\" violates foreign key"
+            )
+
+        def execute(self):
+            return type("R", (), {"data": []})()
+
+    class _FakeClient:
+        def table(self, name: str):
+            return _BoomTable()
+
+    inserted: list[dict] = []
+
+    class _OkTable:
+        def insert(self, row):
+            inserted.append(row)
+            return self
+
+        def execute(self):
+            return type("R", (), {"data": inserted[-1:]})()
+
+    class _OkClient:
+        def table(self, name: str):
+            return _OkTable()
+
+    phantom = "41935a1d-eea2-4951-b700-65a1063ff5dc"
+    real = "12345678-1234-1234-1234-123456789099"
+
+    with patch.dict("os.environ", {"STORAGE_LOCAL_PATH": str(storage.resolve())}):
+        cfg.get_settings.cache_clear()
+        with patch("sfrfr.db.session.get_supabase_client", return_value=_FakeClient()):
+            append_bot_case_message(
+                case_id=phantom,
+                max_user_id="max42",
+                text="Робот ответил клиенту",
+            )
+            assert inserted == []
+
+        with patch("sfrfr.db.session.get_supabase_client", return_value=_OkClient()):
+            n = flush_pending_case_chat(max_user_id="max42", case_id=real)
+            assert n == 1
+            assert inserted[0]["body"] == "Робот ответил клиенту"
+            assert inserted[0]["author_kind"] == "system"
+
+    reset_pending_for_tests()
+    cfg.get_settings.cache_clear()
