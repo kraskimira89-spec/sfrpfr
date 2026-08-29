@@ -165,6 +165,8 @@ type StaffCaseDetail = {
   next_action?: string | null;
   next_action_at?: string | null;
   waiting_on?: string | null;
+  is_test?: boolean;
+  silent_days?: number;
   role_capabilities: RoleCapabilities;
   audit: { id?: number; action: string; at: string; actor_id?: string }[];
   orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
@@ -2098,6 +2100,7 @@ export function AdminCabinet() {
             repEmail={repEmail}
             stepHint={stepHint}
             stepMessages={stepMessages}
+            chatMessages={messages}
             onBack={() => setView("cases")}
             onPrevCase={() => {
               const ids = cases.map((c) => c.id);
@@ -2178,6 +2181,7 @@ export function AdminCabinet() {
             composerHighlight={composerFlash || maxReplyFocus}
             marketingConsentLabel={marketingConsentLabel}
             onRequestMarketingConsent={() => void requestMarketingConsent()}
+            waitingOn={waitingOn}
           />
           {trackerModalOpen && detail ? (
             <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">

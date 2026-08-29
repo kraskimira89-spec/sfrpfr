@@ -7,10 +7,15 @@ import {
   SERVICE_DESCRIPTION_CHAT,
   deriveFunnel,
   primaryCtaLabel,
-  slaHint,
   type FunnelStageId,
   type FunnelStageState,
 } from "@/lib/case-funnel";
+import {
+  chatAwaitsStaff,
+  situationBadges,
+  slaTone,
+  slaToneLabel,
+} from "@/lib/case-indicators";
 import {
   humanCaseStage,
   labelChecklistOwner,
@@ -20,7 +25,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
-import { FormEvent, useState, type ReactNode } from "react";
+import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
 type Caps = {
   can_edit_pipeline: boolean;
@@ -41,6 +46,8 @@ type Detail = {
   next_action?: string | null;
   next_action_at?: string | null;
   waiting_on?: string | null;
+  is_test?: boolean;
+  silent_days?: number;
   archive_prep_status?: string | null;
   archive_tariff?: string | null;
   archive_successor?: string | null;
@@ -220,6 +227,7 @@ export function CaseFunnelMain({
   repEmail,
   stepHint,
   stepMessages,
+  chatMessages = [],
   onBack,
   onPrevCase,
   onNextCase,
@@ -282,6 +290,8 @@ export function CaseFunnelMain({
   repEmail: string;
   stepHint: { action: string; reason: string; source: string } | null;
   stepMessages: StepChatMessage[];
+  /** Сообщения чата — для бейджа «Нужен ответ». */
+  chatMessages?: Array<{ author_kind: string }>;
   onBack: () => void;
   onPrevCase?: () => void;
   onNextCase?: () => void;
@@ -349,6 +359,27 @@ export function CaseFunnelMain({
   const docCount = detail.documents.length;
   const auditPreview = detail.audit.slice(0, 5);
   const auditRest = detail.audit.slice(5);
+
+  const indicatorInput = useMemo(
+    () => ({
+      waiting_on: waitingOn || detail.waiting_on,
+      is_test: detail.is_test,
+      pipeline_status: detail.pipeline_status,
+      b2c_status: detail.b2c_status,
+      expert_user_id: detail.expert_user_id,
+      max_linked: detail.client.max_linked,
+      web_linked: detail.client.web_linked,
+      silent_days: detail.silent_days,
+      consent_accepted: detail.consent_accepted,
+      chat_awaits_staff: chatAwaitsStaff(chatMessages) || waitingOn === "staff",
+    }),
+    [detail, waitingOn, chatMessages],
+  );
+  const sla = slaTone(indicatorInput);
+  const sitBadges = useMemo(
+    () => situationBadges(indicatorInput, { meUserId }),
+    [indicatorInput, meUserId],
+  );
 
   const [showAll, setShowAll] = useState(() => {
     try {
@@ -461,6 +492,19 @@ export function CaseFunnelMain({
             {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
           </h1>
           <div className="case-funnel-badges">
+            <span
+              className={`prio-dot prio-dot--${sla}`}
+              title={`Срочность: ${slaToneLabel(sla)}`}
+              aria-label={slaToneLabel(sla)}
+            />
+            <span className={`badge badge--${sla === "calm" ? "docs" : sla === "muted" ? "test" : "reply"}`} title="Срочность SLA (не этап воронки)">
+              {slaToneLabel(sla)}
+            </span>
+            {sitBadges.map((b) => (
+              <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                {b.label}
+              </span>
+            ))}
             <span className="badge on" title="Текущий этап воронки — здесь идёт работа">
               Этап: {stageById[current]?.label ?? stageLabel}
             </span>
@@ -470,18 +514,6 @@ export function CaseFunnelMain({
             >
               В реестре: {stageLabel}
             </span>
-            <span className="badge on" title="Кто должен сделать следующий шаг">
-              {slaHint(detail)}
-            </span>
-            {detail.client.max_linked ? (
-              <span className="badge on" title="Клиент связан с ботом MAX — можно писать в чат">
-                MAX
-              </span>
-            ) : (
-              <span className="badge" title="Клиент ещё не связан с MAX — сначала настройте канал">
-                MAX нет
-              </span>
-            )}
             {docCount === 0 ? (
               <span className="badge" title="В деле пока нет загруженных файлов">
                 Нет документов

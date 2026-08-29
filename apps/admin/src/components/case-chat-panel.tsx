@@ -1,6 +1,7 @@
 "use client";
 
 import { labelAuthorKind } from "@/lib/ui-labels";
+import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
@@ -142,6 +143,7 @@ export function CaseChatPanel({
   composerHighlight = false,
   marketingConsentLabel = null,
   onRequestMarketingConsent,
+  waitingOn = null,
 }: {
   messages: CaseChatMessage[];
   /** ФИО клиента в шапке чата. */
@@ -162,6 +164,7 @@ export function CaseChatPanel({
   /** Краткий статус marketing consent по MAX (не ПДн). */
   marketingConsentLabel?: string | null;
   onRequestMarketingConsent?: () => void;
+  waitingOn?: string | null;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
   /** Автоскролл вниз только если пользователь уже у низа ленты (иначе история «отскакивает»). */
@@ -170,6 +173,20 @@ export function CaseChatPanel({
   const [expandedDup, setExpandedDup] = useState<Record<string, boolean>>({});
 
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
+
+  const awaitsStaff = useMemo(
+    () => chatAwaitsStaff(messages) || waitingOn === "staff",
+    [messages, waitingOn],
+  );
+  const headBadges = useMemo(
+    () =>
+      situationBadges({
+        waiting_on: waitingOn,
+        chat_awaits_staff: awaitsStaff,
+        max_linked: maxLinked,
+      }).filter((b) => b.kind === "reply" || b.kind === "docs" || b.kind === "payment" || b.kind === "sfr"),
+    [waitingOn, awaitsStaff, maxLinked],
+  );
 
   const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
@@ -221,6 +238,20 @@ export function CaseChatPanel({
           <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
           {caseLabel ? <span className="case-chat-case-no"> · {caseLabel}</span> : null}
         </p>
+        {headBadges.length > 0 ? (
+          <div className="situation-badges" style={{ marginBottom: 6 }}>
+            {headBadges.map((b) => (
+              <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                {b.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {awaitsStaff ? (
+          <p className="case-chat-await" role="status">
+            Нужен ответ сотрудника
+          </p>
+        ) : null}
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [

@@ -192,6 +192,7 @@ def _filter_staff_case(
         "next_action": case.get("next_action"),
         "next_action_at": case.get("next_action_at"),
         "waiting_on": case.get("waiting_on") or derive_waiting_on(case),
+        "silent_days": _silent_days(case),
         "archive_prep_status": case.get("archive_prep_status"),
         "archive_tariff": case.get("archive_tariff"),
         "archive_successor": case.get("archive_successor"),

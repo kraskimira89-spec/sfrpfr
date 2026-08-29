@@ -257,7 +257,8 @@ header div { display: grid; gap: 3px; }
 .deadline--overdue, .tone-risk { color: #9b1c1c; }
 .deadline--soon, .tone-warn { color: #8a5a00; }
 .deadline--today, .tone-today { color: #1d4f91; }
-.deadline--waiting, .tone-wait { color: #5a6a7a; }
+.deadline--waiting, .deadline--calm, .tone-wait { color: #1a6b3c; }
+.deadline--muted { color: #7a6a9a; }
 .tone-muted { color: var(--muted); }
 .task-list .linkish { font-weight: 600; }
 .sla-list { font-weight: 600; }
@@ -284,19 +285,46 @@ header div { display: grid; gap: 3px; }
 .registry-table tbody tr { cursor: pointer; }
 .registry-table tbody tr:hover { background: #f7fafc; }
 .registry-table tbody tr.is-selected { background: #eef6f1; }
+/* Полоска слева = только срочность SLA (не этап воронки) */
+.registry-table tbody tr.sla-stripe,
+.registry-card.sla-stripe {
+  border-left: 4px solid transparent;
+}
+.registry-table tbody tr.sla-stripe--overdue,
+.registry-card.sla-stripe--overdue { border-left-color: #c0392b; }
+.registry-table tbody tr.sla-stripe--soon,
+.registry-card.sla-stripe--soon { border-left-color: #e67e22; }
+.registry-table tbody tr.sla-stripe--today,
+.registry-card.sla-stripe--today { border-left-color: #d4a017; }
+.registry-table tbody tr.sla-stripe--calm,
+.registry-card.sla-stripe--calm { border-left-color: #2e8b57; }
+.registry-table tbody tr.sla-stripe--ok,
+.registry-card.sla-stripe--ok { border-left-color: #c5ced8; }
+.registry-table tbody tr.sla-stripe--muted,
+.registry-card.sla-stripe--muted { border-left-color: #c4b5e0; }
 .prio-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   margin-right: 6px;
+  vertical-align: middle;
 }
 .prio-dot--overdue { background: #c0392b; }
+.prio-dot--soon { background: #e67e22; }
 .prio-dot--today { background: #d4a017; }
-.prio-dot--waiting { background: #2f6fed; }
+.prio-dot--calm,
+.prio-dot--waiting { background: #2e8b57; } /* зелёный: ждём снаружи / по плану */
 .prio-dot--ok { background: #9aa7b8; }
+.prio-dot--muted { background: #c4b5e0; } /* светло-фиолетовый: тест / пауза */
 .prio-text { font-size: 0.8rem; color: var(--muted); }
-.channel-badges { display: flex; gap: 4px; }
+.channel-badges,
+.situation-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
 .badge {
   display: inline-block;
   border: 1px solid var(--line);
@@ -304,8 +332,44 @@ header div { display: grid; gap: 3px; }
   padding: 1px 7px;
   font-size: 0.75rem;
   color: var(--muted);
+  line-height: 1.35;
 }
 .badge.on { background: #e7f6ee; color: #1a5c3a; border-color: #b7deca; }
+.badge--reply { background: #fde8e8; color: #9b1c1c; border-color: #f0b4b4; font-weight: 600; }
+.badge--docs { background: #e8f4fc; color: #1d4f91; border-color: #b7d4ee; }
+.badge--payment { background: #fff4e0; color: #8a5a00; border-color: #f0d9a0; }
+.badge--sfr { background: #eef2f7; color: #3d4f63; border-color: #c5ced8; }
+.badge--consent { background: #fce8f0; color: #8b2252; border-color: #efb8d0; }
+.badge--mine { background: #e7f6ee; color: #1a5c3a; border-color: #b7deca; }
+.badge--free { background: #f4f1ea; color: #6a5a40; border-color: #ddd4c4; }
+.badge--test { background: #f3eef9; color: #6b4f8a; border-color: #c4b5e0; }
+.badge--silent { background: #f5f0e6; color: #7a5c20; border-color: #e0d0a8; }
+.badge--max.on,
+.badge--web.on { background: #e7f6ee; color: #1a5c3a; border-color: #b7deca; }
+.registry-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.registry-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.case-chat-await {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fde8e8;
+  color: #9b1c1c;
+  border: 1px solid #f0b4b4;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
 .row-menu {
   display: grid;
   gap: 4px;

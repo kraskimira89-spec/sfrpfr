@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  situationBadges,
+  slaTone,
+  slaToneLabel,
+  type SlaTone,
+} from "@/lib/case-indicators";
 import { humanCaseStage, labelB2c, labelPipeline } from "@/lib/ui-labels";
 import { useMemo, useState } from "react";
 
@@ -64,21 +70,35 @@ function formatRelative(value: string | null | undefined): string {
   return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
-function tone(item: RegistryCase): string {
-  if (item.deadline_status === "overdue" || item.priority === "urgent") return "overdue";
-  if (item.deadline_status === "today" || item.priority === "today") return "today";
-  if (item.waiting_on === "client" || item.waiting_on === "archive" || item.waiting_on === "sfr") {
-    return "waiting";
-  }
-  return "ok";
+function rowTone(item: RegistryCase): SlaTone {
+  return slaTone({
+    waiting_on: item.waiting_on,
+    priority: item.priority,
+    deadline_status: item.deadline_status,
+    is_test: item.is_test,
+    pipeline_status: item.pipeline_status,
+    b2c_status: item.b2c_status,
+  });
 }
 
-function toneLabel(item: RegistryCase): string {
-  const t = tone(item);
-  if (t === "overdue") return "Просрочено";
-  if (t === "today") return "Сегодня";
-  if (t === "waiting") return "Ожидание";
-  return "Без срока";
+function rowBadges(item: RegistryCase, meUserId: string) {
+  return situationBadges(
+    {
+      waiting_on: item.waiting_on,
+      priority: item.priority,
+      deadline_status: item.deadline_status,
+      is_test: item.is_test,
+      pipeline_status: item.pipeline_status,
+      b2c_status: item.b2c_status,
+      expert_user_id: item.expert_user_id,
+      max_linked: item.max_linked,
+      web_linked: item.web_linked,
+      silent_days: item.silent_days,
+      // очередь «без согласия» = lead; отдельного флага в list summary нет
+      consent_accepted: item.b2c_status === "lead" ? false : undefined,
+    },
+    { meUserId },
+  );
 }
 
 export function CasesRegistry({
@@ -224,6 +244,28 @@ export function CasesRegistry({
         {queue !== "test" ? " · Тестовые скрыты" : " · Показаны тестовые"}
       </p>
 
+      <p className="registry-legend" aria-label="Легенда срочности">
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--overdue" /> Просрочено
+        </span>
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--soon" /> Скоро
+        </span>
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--today" /> Сегодня
+        </span>
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--calm" /> Ждём снаружи
+        </span>
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--ok" /> В работе
+        </span>
+        <span className="registry-legend__item">
+          <span className="prio-dot prio-dot--muted" /> Пауза / тест
+        </span>
+        <span className="registry-legend__item">Полоска слева = срочность · бейджи = ситуация</span>
+      </p>
+
       <div className="registry-layout">
         <div className="registry-main">
           {loading ? (
@@ -251,10 +293,15 @@ export function CasesRegistry({
                     </tr>
                   </thead>
                   <tbody>
-                    {visible.map((item) => (
+                    {visible.map((item) => {
+                      const t = rowTone(item);
+                      const badges = rowBadges(item, meUserId).filter(
+                        (b) => b.kind !== "max" && b.kind !== "web",
+                      );
+                      return (
                       <tr
                         key={item.id}
-                        className={`tone-${tone(item)} ${preview?.id === item.id ? "is-selected" : ""}`}
+                        className={`sla-stripe sla-stripe--${t} ${preview?.id === item.id ? "is-selected" : ""}`}
                         onClick={() => onOpen(item.id)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -268,11 +315,20 @@ export function CasesRegistry({
                         style={{ cursor: "pointer" }}
                       >
                         <td>
-                          <span className={`prio-dot prio-dot--${tone(item)}`} title={toneLabel(item)} />
-                          <span className="prio-text">{toneLabel(item)}</span>
+                          <span className={`prio-dot prio-dot--${t}`} title={slaToneLabel(t)} />
+                          <span className="prio-text">{slaToneLabel(t)}</span>
                         </td>
                         <td>
                           <strong>{item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}</strong>
+                          {badges.length > 0 ? (
+                            <div className="situation-badges" style={{ marginTop: 4 }}>
+                              {badges.map((b) => (
+                                <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                                  {b.label}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
                         </td>
                         <td>{humanCaseStage(item.pipeline_status, item.b2c_status)}</td>
                         <td>
@@ -329,16 +385,22 @@ export function CasesRegistry({
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <ul className="registry-cards">
-                {visible.map((item) => (
+                {visible.map((item) => {
+                  const t = rowTone(item);
+                  const badges = rowBadges(item, meUserId).filter(
+                    (b) => b.kind !== "max" && b.kind !== "web",
+                  );
+                  return (
                   <li
                     key={item.id}
-                    className={`registry-card tone-${tone(item)}`}
+                    className={`registry-card sla-stripe sla-stripe--${t}`}
                     onClick={() => onOpen(item.id)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -352,12 +414,21 @@ export function CasesRegistry({
                     style={{ cursor: "pointer" }}
                   >
                     <div className="registry-card__top">
-                      <span className={`prio-dot prio-dot--${tone(item)}`} />
-                      <strong>{toneLabel(item)}</strong>
+                      <span className={`prio-dot prio-dot--${t}`} />
+                      <strong>{slaToneLabel(t)}</strong>
                     </div>
                     <button type="button" className="linkish" onClick={() => onOpen(item.id)}>
                       {item.client_name ?? "Клиент"} · {caseCatalogLabel(item.id)}
                     </button>
+                    {badges.length > 0 ? (
+                      <div className="situation-badges" style={{ marginTop: 6 }}>
+                        {badges.map((b) => (
+                          <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                            {b.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                     <p>{humanCaseStage(item.pipeline_status, item.b2c_status)}</p>
                     <p>Следующий шаг: {item.next_action || "Уточнить ситуацию"}</p>
                     <p>Срок: {formatRelative(item.next_action_at)}</p>
@@ -376,7 +447,8 @@ export function CasesRegistry({
                       )}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
 
               {visible.length < cases.length && (
