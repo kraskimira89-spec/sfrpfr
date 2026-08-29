@@ -314,7 +314,11 @@ def _append_bot_case_message(
 
 
 def _case_id_for_max_user(user_id: str | None) -> str | None:
-    """Дело по клиенту MAX или по активной диагностике."""
+    """Дело по клиенту MAX или по активной диагностике.
+
+    Не возвращаем фантомный UUID из локального intake/store: его нет в Postgres
+    → insert в case_messages падает по FK. Лучше None → буфер по max_user_id.
+    """
     cid = _resolve_case_id_by_max_user(user_id)
     if cid:
         return cid
@@ -323,8 +327,20 @@ def _case_id_for_max_user(user_id: str | None) -> str | None:
         return None
     try:
         intake = get_intake_store().get_active(mid)
-        if intake and intake.case_id and len(str(intake.case_id)) >= 32:
-            return str(intake.case_id)
+        if not intake or not intake.case_id:
+            return None
+        candidate = str(intake.case_id).strip()
+        if len(candidate) < 32:
+            return None
+        if _case_exists_in_supabase(candidate):
+            return candidate
+        logger.warning(
+            "phantom intake.case_id cleared max=%s case=%s",
+            mid,
+            candidate[:8],
+        )
+        intake.case_id = None
+        get_intake_store().save(intake)
     except Exception:  # noqa: BLE001
         return None
     return None
@@ -2073,7 +2089,14 @@ def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
     return f"{title}\n\n{preview}"
 
 
-def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
+def _ingest_bytes(
+    store,
+    record,
+    file_name: str,
+    data: bytes,
+    *,
+    max_user_id: str | None = None,
+):  # noqa: ANN001
     path = save_upload(record.case_id, file_name, data)
     fresh = store.add_document(record.case_id, str(path))
     try:
@@ -2082,8 +2105,13 @@ def _ingest_bytes(store, record, file_name: str, data: bytes):  # noqa: ANN001
             format_document_event,
         )
 
+        # Для ленты предпочитаем UUID из Supabase, не локальный store id.
+        chat_case_id = _case_id_for_max_user(max_user_id) or None
+        if chat_case_id is None and _case_exists_in_supabase(str(record.case_id)):
+            chat_case_id = str(record.case_id)
         append_case_chat_message(
-            case_id=record.case_id,
+            case_id=chat_case_id,
+            max_user_id=max_user_id,
             author_kind="client",
             body=format_document_event(filename=file_name),
         )
@@ -2620,16 +2648,18 @@ def handle_max_update(
         names: list[str] = []
         if max_files:
             for name, data in max_files:
-                fresh = _ingest_bytes(store, fresh, name, data)
+                fresh = _ingest_bytes(store, fresh, name, data, max_user_id=user_id)
                 names.append(name)
         elif isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
-            fresh = _ingest_bytes(store, record, file_name, bytes(file_bytes))
+            fresh = _ingest_bytes(
+                store, record, file_name, bytes(file_bytes), max_user_id=user_id
+            )
             names.append(file_name)
         else:
             for name, url in downloads:
                 try:
                     data = download_file(url)
-                    fresh = _ingest_bytes(store, fresh, name, data)
+                    fresh = _ingest_bytes(store, fresh, name, data, max_user_id=user_id)
                     names.append(name)
                 except Exception:
                     continue

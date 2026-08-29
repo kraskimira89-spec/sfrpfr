@@ -246,7 +246,11 @@ def append_case_chat_message(
             _insert_case_message(case_id=cid, author_kind=author_kind, body=text)
             return
         except Exception as exc:  # noqa: BLE001
-            logger.warning(
+            # FK 23503 = фантомный case_id: ожидаемо → буфер, без ERROR-шума.
+            detail = str(exc)
+            is_fk = "23503" in detail or "case_messages_case_id_fkey" in detail
+            log_fn = logger.info if is_fk else logger.warning
+            log_fn(
                 "case_message append failed case=%s: %s; fallback_buffer=%s",
                 cid[:8],
                 exc,
