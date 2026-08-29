@@ -346,6 +346,21 @@ def _case_id_for_max_user(user_id: str | None) -> str | None:
     return None
 
 
+def _chat_case_id(
+    user_id: str | None,
+    preferred: str | None = None,
+) -> str | None:
+    """UUID только для ленты case_messages / deep-link: обязан существовать в Postgres.
+
+    ``preferred`` (intake/local/record) может быть фантомом — тогда ищем по MAX
+    или возвращаем None (буфер по max_user_id).
+    """
+    pref = str(preferred or "").strip()
+    if len(pref) >= 32 and _case_exists_in_supabase(pref):
+        return pref
+    return _case_id_for_max_user(user_id)
+
+
 def _text(update: dict[str, Any]) -> str:
     message = update.get("message") or update.get("message_created") or update
     if not isinstance(message, dict):
@@ -451,7 +466,7 @@ def _reply(
             attachments=attachments,
             text_format=text_format,
         )
-        cid = case_id or _case_id_for_max_user(user_id)
+        cid = _chat_case_id(user_id, preferred=case_id)
         _append_bot_case_message(
             case_id=cid,
             text=text,
@@ -602,6 +617,15 @@ def _ensure_case_for_intake(
         intake.case_id = existing.case_id
         get_intake_store().save(intake)
         return _finish(existing.case_id)
+
+    # Локальный UUID без строки в Postgres — снять MAX-привязку (файлы не трогаем).
+    if existing and supabase_ready:
+        logger.warning(
+            "local phantom case unbound max=%s case=%s",
+            user_id,
+            str(existing.case_id)[:8],
+        )
+        store.clear_max_binding(user_id)
 
     supabase_case = _try_create_supabase_case(user_id=user_id, intake=intake)
     if supabase_case:
@@ -2105,10 +2129,8 @@ def _ingest_bytes(
             format_document_event,
         )
 
-        # Для ленты предпочитаем UUID из Supabase, не локальный store id.
-        chat_case_id = _case_id_for_max_user(max_user_id) or None
-        if chat_case_id is None and _case_exists_in_supabase(str(record.case_id)):
-            chat_case_id = str(record.case_id)
+        # Для ленты — только UUID из Supabase (локальный store id часто фантом).
+        chat_case_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
         append_case_chat_message(
             case_id=chat_case_id,
             max_user_id=max_user_id,
@@ -2555,8 +2577,10 @@ def handle_max_update(
         if intake is None:
             intake = get_intake_store().upsert_started(user_id)
         reply = DOCS_INFO_TEXT
-        docs_case_id: str | None = (intake.case_id if intake else None) or (
-            record.case_id if record else None
+        docs_case_id = _chat_case_id(
+            user_id,
+            preferred=(intake.case_id if intake else None)
+            or (record.case_id if record else None),
         )
         cabinet_url = (
             cabinet_url_for_case(docs_case_id)
@@ -2691,10 +2715,10 @@ def handle_max_update(
         if intake is None:
             get_intake_store().upsert_started(user_id)
             intake = get_intake_store().get_active(user_id)
-        case_for_log = (
-            (intake.case_id if intake else None)
-            or (record.case_id if record else None)
-            or _case_id_for_max_user(user_id)
+        case_for_log = _chat_case_id(
+            user_id,
+            preferred=(intake.case_id if intake else None)
+            or (record.case_id if record else None),
         )
         _append_client_case_message(
             case_id=case_for_log,

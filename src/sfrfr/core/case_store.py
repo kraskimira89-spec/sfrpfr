@@ -181,11 +181,36 @@ class CaseStore:
     ) -> CaseRecord:
         with self._lock:
             self._load()
+            # Один max_user_id → одно локальное дело (иначе find_by_max_user
+            # может снова отдать старый фантомный UUID).
+            mid = str(max_user_id or "").strip()
+            if mid:
+                for other in self._cases.values():
+                    if other.case_id != case_id and other.ctx.max_user_id == mid:
+                        other.ctx.max_user_id = None
+                        other.ctx.max_chat_id = None
             record = self._cases[case_id]
-            record.ctx.max_user_id = max_user_id
+            record.ctx.max_user_id = mid or None
             record.ctx.max_chat_id = max_chat_id
             self._save()
             return record
+
+    def clear_max_binding(self, max_user_id: str) -> int:
+        """Снять привязку MAX у локальных дел (файлы/записи не удаляем)."""
+        mid = str(max_user_id or "").strip()
+        if not mid:
+            return 0
+        cleared = 0
+        with self._lock:
+            self._load()
+            for record in self._cases.values():
+                if record.ctx.max_user_id == mid:
+                    record.ctx.max_user_id = None
+                    record.ctx.max_chat_id = None
+                    cleared += 1
+            if cleared:
+                self._save()
+        return cleared
 
     def add_document(self, case_id: str, path: str) -> CaseRecord:
         with self._lock:
