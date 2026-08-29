@@ -69,7 +69,10 @@ def test_derive_finance_attention() -> None:
     from sfrfr.services.staff_finance import derive_finance_attention
 
     assert derive_finance_attention(_case(b2c_status="lead", orders=[])) is None
-    assert derive_finance_attention(_case(b2c_status="consent_accepted", orders=[])) == "awaiting_invoice"
+    assert (
+        derive_finance_attention(_case(b2c_status="consent_accepted", orders=[]))
+        == "awaiting_invoice"
+    )
     assert (
         derive_finance_attention(
             _case(orders=[{"status": "pending", "package_code": "DIAG"}]),
