@@ -39,13 +39,13 @@ def test_ensure_salutation_fixes_zdravstvuyte() -> None:
 
 
 def test_system_docs_channel_canon_max_chat() -> None:
-    """Подсказки опираются на чат MAX, не на устаревший upload в ЛК."""
+    """Подсказки: чат MAX и кабинет на сайте; не «только в ЛК»."""
     assert "чат MAX" in DOCS_CHANNEL_CANON
     assert "cabinet.proverkastaza.ru" in DOCS_CHANNEL_CANON
-    assert "загрузите в личный кабинет" in DOCS_CHANNEL_CANON  # запрет в каноне
-    assert "Не пиши «загрузите в личный кабинет»" in DOCS_CHANNEL_CANON
+    assert "загружайте только в личный кабинет" in DOCS_CHANNEL_CANON
+    assert "Не пиши «загружайте только в личный кабинет»" in DOCS_CHANNEL_CANON
     assert DOCS_CHANNEL_CANON in SYSTEM
     assert "этот чат MAX" in SYSTEM
     assert "без обещаний перерасчёта" in SYSTEM
-    # Не направляем upload в ЛК как основной канал (фраза-запрет, не инструкция клиенту)
-    assert "как основной способ" in SYSTEM
+    assert "личн" in DOCS_CHANNEL_CANON.lower()
+    assert "альтернатив" in DOCS_CHANNEL_CANON.lower() or "Также можно" in DOCS_CHANNEL_CANON

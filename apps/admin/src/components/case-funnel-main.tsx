@@ -106,7 +106,19 @@ type Detail = {
     is_open?: boolean;
     created_at?: string;
   }[];
-  orders?: { id: string; package_code: string; amount_rub: number; status: string }[];
+  orders?: {
+    id: string;
+    package_code: string;
+    amount_rub: number;
+    status: string;
+    finance_status?: string;
+    pay_url?: string | null;
+    qr_url?: string | null;
+    sent_channel?: string | null;
+    sent_at?: string | null;
+    service_label?: string | null;
+    invoice_number?: string | null;
+  }[];
   orders_summary?: { package_code: string; status: string }[];
   audit: { action: string; at: string }[];
   role_capabilities: Caps;
@@ -137,7 +149,7 @@ const SHOW_ALL_KEY = "sfrfr.case.showAllStages";
 const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
   full: "Полный запрос",
   short: "Короткое напоминание",
-  cabinet_howto: "Инструкция по кабинету",
+  cabinet_howto: "Как передать документы",
 };
 
 function StageMark({ state }: { state: FunnelStageState }) {
@@ -268,6 +280,8 @@ export function CaseFunnelMain({
   onOrderCode,
   onOrderAmount,
   onCreateOrder,
+  onSendPayLink,
+  onCopyPayLink,
   onRecordServiceConsent,
   onFeedbackText,
   onFeedbackQuality,
@@ -341,6 +355,8 @@ export function CaseFunnelMain({
   onOrderCode: (v: "DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH") => void;
   onOrderAmount: (v: string) => void;
   onCreateOrder: (e: FormEvent) => void;
+  onSendPayLink?: (orderId: string) => void;
+  onCopyPayLink?: (orderId: string) => void;
   onRecordServiceConsent: () => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
@@ -1200,10 +1216,60 @@ export function CaseFunnelMain({
             onToggle={() => scrollStage("payment")}
           >
             {(detail.orders ?? []).length > 0 ? (
-              <ul className="plain-list">
+              <ul className="plain-list case-orders-list">
                 {(detail.orders ?? []).map((o) => (
-                  <li key={o.id}>
-                    {labelPackage(o.package_code)} · {o.amount_rub} ₽ · {o.status}
+                  <li key={o.id} className="case-order-card">
+                    <p>
+                      <strong>
+                        {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽
+                      </strong>
+                      {" · "}
+                      {o.finance_status || o.status}
+                      {o.sent_channel ? ` · отправлено: ${o.sent_channel}` : ""}
+                    </p>
+                    {o.pay_url ? (
+                      <p className="hint">
+                        <a href={o.pay_url} target="_blank" rel="noreferrer">
+                          Ссылка на оплату
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="hint">Ссылка ещё не выставлена — нажмите «Ссылка» или «В MAX».</p>
+                    )}
+                    {o.qr_url && o.status !== "paid" ? (
+                      <img
+                        className="pay-qr"
+                        src={o.qr_url}
+                        alt="QR на оплату"
+                        width={140}
+                        height={140}
+                      />
+                    ) : null}
+                    <div className="row-actions">
+                      {onCopyPayLink ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          disabled={busy}
+                          onClick={() => onCopyPayLink(o.id)}
+                        >
+                          Ссылка
+                        </button>
+                      ) : null}
+                      {onSendPayLink && detail.client.max_linked ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => onSendPayLink(o.id)}
+                          title="Отправить счёт, ссылку и QR клиенту в MAX"
+                        >
+                          Отправить в MAX
+                        </button>
+                      ) : null}
+                      {!detail.client.max_linked ? (
+                        <span className="hint">MAX не привязан — только ссылка/QR здесь</span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
