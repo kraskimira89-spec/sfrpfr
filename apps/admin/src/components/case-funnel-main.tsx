@@ -221,6 +221,10 @@ export function CaseFunnelMain({
   stepHint,
   stepMessages,
   onBack,
+  onPrevCase,
+  onNextCase,
+  canPrevCase = false,
+  canNextCase = false,
   onNextActionText,
   onNextActionAt,
   onWaitingOn,
@@ -279,6 +283,10 @@ export function CaseFunnelMain({
   stepHint: { action: string; reason: string; source: string } | null;
   stepMessages: StepChatMessage[];
   onBack: () => void;
+  onPrevCase?: () => void;
+  onNextCase?: () => void;
+  canPrevCase?: boolean;
+  canNextCase?: boolean;
   onNextActionText: (v: string) => void;
   onNextActionAt: (v: string) => void;
   onWaitingOn: (v: string) => void;
@@ -420,14 +428,34 @@ export function CaseFunnelMain({
   return (
     <div className="case-main">
       <div className="case-page-top case-funnel-head">
-        <button
-          type="button"
-          className="ghost"
-          onClick={onBack}
-          title="Вернуться к списку дел в реестре"
-        >
-          ← К реестру
-        </button>
+        <div className="case-nav-bar" role="navigation" aria-label="Навигация по делам">
+          <button
+            type="button"
+            className="ghost"
+            onClick={onBack}
+            title="Вернуться к списку дел в реестре"
+          >
+            ← К реестру
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!canPrevCase || busy}
+            onClick={() => onPrevCase?.()}
+            title="Предыдущее дело в текущем списке реестра"
+          >
+            ← Предыдущее дело
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!canNextCase || busy}
+            onClick={() => onNextCase?.()}
+            title="Следующее дело в текущем списке реестра"
+          >
+            Следующее дело →
+          </button>
+        </div>
         <div className="case-funnel-title-row">
           <h1>
             {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}

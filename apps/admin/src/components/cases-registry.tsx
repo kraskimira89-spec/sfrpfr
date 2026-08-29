@@ -255,7 +255,17 @@ export function CasesRegistry({
                       <tr
                         key={item.id}
                         className={`tone-${tone(item)} ${preview?.id === item.id ? "is-selected" : ""}`}
-                        onClick={() => onPreview(item.id)}
+                        onClick={() => onOpen(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onOpen(item.id);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="link"
+                        title="Открыть дело"
+                        style={{ cursor: "pointer" }}
                       >
                         <td>
                           <span className={`prio-dot prio-dot--${tone(item)}`} title={toneLabel(item)} />
@@ -326,7 +336,21 @@ export function CasesRegistry({
 
               <ul className="registry-cards">
                 {visible.map((item) => (
-                  <li key={item.id} className={`registry-card tone-${tone(item)}`}>
+                  <li
+                    key={item.id}
+                    className={`registry-card tone-${tone(item)}`}
+                    onClick={() => onOpen(item.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpen(item.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="link"
+                    title="Открыть дело"
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="registry-card__top">
                       <span className={`prio-dot prio-dot--${tone(item)}`} />
                       <strong>{toneLabel(item)}</strong>
@@ -345,7 +369,7 @@ export function CasesRegistry({
                           ? "назначен"
                           : "не назначен"}
                     </p>
-                    <div className="row-actions">
+                    <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => onOpen(item.id)}>Открыть дело</button>
                       {item.max_linked && (
                         <button type="button" className="ghost" onClick={() => onWriteMax(item.id)}>Написать</button>
@@ -367,7 +391,7 @@ export function CasesRegistry({
         <aside className="registry-side panel">
           {previewLoading && <p className="hint">Загружаем дело…</p>}
           {!previewLoading && !preview && (
-            <p className="hint">Выберите строку — справа откроется краткая карточка без новой вкладки.</p>
+            <p className="hint">Клик по строке открывает дело целиком. Здесь будет краткая карточка после выбора в списке (если откроете превью иначе).</p>
           )}
           {preview && (
             <>

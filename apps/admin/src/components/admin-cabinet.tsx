@@ -2099,6 +2099,21 @@ export function AdminCabinet() {
             stepHint={stepHint}
             stepMessages={stepMessages}
             onBack={() => setView("cases")}
+            onPrevCase={() => {
+              const ids = cases.map((c) => c.id);
+              const idx = ids.indexOf(detail.id);
+              if (idx > 0) void openCase(ids[idx - 1]);
+            }}
+            onNextCase={() => {
+              const ids = cases.map((c) => c.id);
+              const idx = ids.indexOf(detail.id);
+              if (idx >= 0 && idx < ids.length - 1) void openCase(ids[idx + 1]);
+            }}
+            canPrevCase={cases.findIndex((c) => c.id === detail.id) > 0}
+            canNextCase={(() => {
+              const idx = cases.findIndex((c) => c.id === detail.id);
+              return idx >= 0 && idx < cases.length - 1;
+            })()}
             onNextActionText={setNextActionText}
             onNextActionAt={setNextActionAt}
             onWaitingOn={setWaitingOn}
