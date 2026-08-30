@@ -40,6 +40,7 @@ apps/*/out/
 storage/uploads/*
 storage/processed/*
 storage/knowledge_inbox/
+storage/deepseek_data-2026-07-23/
 storage/cases.json
 storage/cases.tmp
 storage/max_channel_drafts.json
