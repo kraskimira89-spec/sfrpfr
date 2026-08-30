@@ -11,5 +11,6 @@
 - канон `scripts/assets/copy/documents-checklist.md`, ИЛС-чек-лист
 - FAQ лендинга, статья `10-dokumenty-do-sfr.html`, leadmagnet/trust чек-листы
 - playbook ясности, шаблон архива дела
+- догнаны оставшиеся списки в blog 02/05/17/19, trust `kak-rabotaem`, `stazh-do-2002`
 
-Трекер: продолжение комплекта документов (после SFRFR-29).
+Трекер: SFRFR-30.
