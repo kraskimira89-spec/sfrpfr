@@ -142,6 +142,7 @@ def test_assistant_system_prompt_rules() -> None:
     assert "адвокат" not in low or "не адвокат" in low
     # Вторая волна: 4 слоя, сегменты, не суд, архив дела
     assert "банковск" in low
+    assert "12" in ASSISTANT_SYSTEM
     assert "приравнен" in low or "ркс" in low
     assert "педагогич" in low
     assert "работающий пенсионер" in low or "индексац" in low

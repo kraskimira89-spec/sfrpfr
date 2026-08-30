@@ -185,7 +185,8 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "справка о размере пенсии" in low
     assert "выплатах сфр" in low or "выплат сфр" in low
     assert "банковск" in low
-    assert "начислил" in low or "пришло" in low
+    assert "12" in DOCS_INFO_TEXT or "12 месяц" in low
+    assert "начислил" in low or "пришло" in low or "получаем" in low or "начисленн" in low
     assert "опек" in low or "дет" in low
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low

@@ -47,6 +47,7 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "электронн" in low or "трудов" in low
     assert "справка" in low
     assert "банковск" in low
+    assert "12" in CLIENT_CHAT_SYSTEM
     assert "опек" in low or "дет" in low
     # Паттерны из DeepSeek-экспортов (безопасно для клиента)
     assert "сверка" in low
