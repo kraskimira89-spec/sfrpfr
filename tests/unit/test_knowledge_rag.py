@@ -140,6 +140,14 @@ def test_assistant_system_prompt_rules() -> None:
     assert "не считай" in low or "сумму пенсии" in low
     assert "рабочий порядок" in low or "опознать тип" in low
     assert "адвокат" not in low or "не адвокат" in low
+    # Вторая волна: 4 слоя, сегменты, не суд, архив дела
+    assert "банковск" in low
+    assert "приравнен" in low or "ркс" in low
+    assert "педагогич" in low
+    assert "работающий пенсионер" in low or "индексац" in low
+    assert "ветеран" in low
+    assert "суд" in low
+    assert "архив дела" in low
 
 
 def test_draft_always_needs_human_review() -> None:

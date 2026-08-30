@@ -54,6 +54,13 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "илс есть" in low
     assert "трудовая есть" in low
     assert "льготн" in low or "северн" in low or "вредн" in low
+    # Вторая волна DeepSeek → стратегия общения
+    assert "пенсия уже назначена" in low or "пенсия уже есть" in low
+    assert "работаете" in low or "ещё работаю" in low
+    assert "суд" in low
+    assert "прокуратур" in low or "прокурор" in low
+    assert "pdf" in low or "порядк" in low
+    assert "север/льгота" in low or "север/льгот" in low
 
 
 def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:

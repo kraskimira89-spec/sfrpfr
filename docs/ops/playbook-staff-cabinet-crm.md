@@ -20,6 +20,8 @@
 `new` → `in_touch` → `docs` → `payment` → `delivery` → `closed` / `lost`  
 Логика: `src/sfrfr/services/sales_board.py`, UI: `apps/admin/src/lib/sales-board.ts`.
 
+После сверки документов — краткий **[архив дела](template-case-archive.md)** в заметке / next_action (без лишних ПДн).
+
 ## Закрытие
 
 `POST /api/portal/admin/cases/{id}/close`  
