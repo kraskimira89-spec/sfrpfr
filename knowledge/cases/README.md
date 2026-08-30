@@ -23,3 +23,6 @@ sfrfr knowledge-list --rag-ready
 Список: `GET /api/portal/admin/knowledge-cases`.
 
 Не коммитьте сырые диалоги DeepSeek с полными ПДн (`storage/knowledge_inbox/`).
+
+Исходный экспорт на диске ПК (не в git): [deepseek-export-source.md](../ops/deepseek-export-source.md)
+(`D:\user\Загрузки\deepseek_data-2026-07-23\conversations.json`).
