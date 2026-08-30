@@ -132,6 +132,14 @@ def test_assistant_system_prompt_rules() -> None:
     assert "сфр" in low
     assert "пдн" in low or "снилс" in low
     assert "самостоятельно" in low
+    # Паттерны сверки из DeepSeek-экспортов (экспертный контур)
+    assert "илс" in low
+    assert "этк" in low or "электронн" in low
+    assert "расхожден" in low
+    assert "черновик" in low or "заявлен" in low
+    assert "не считай" in low or "сумму пенсии" in low
+    assert "рабочий порядок" in low or "опознать тип" in low
+    assert "адвокат" not in low or "не адвокат" in low
 
 
 def test_draft_always_needs_human_review() -> None:

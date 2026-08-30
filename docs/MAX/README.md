@@ -1,6 +1,7 @@
 # MAX: клиентский чат
 
 - [Промпт агента клиентского чата](prompt-agent-client-chat.md) — системный промпт LLM (ТЗ-26).
+- Эксперт / черновики: `ASSISTANT_SYSTEM` в `src/sfrfr/ai/prompts/__init__.py` (сверка документов, не клиентский чат).
 - Сценарий кнопок: [ТЗ-20](../specs/20-max-private-chat-funnel.md).
 - LLM-контур: [ТЗ-26](../specs/26-max-llm-chat.md).
 - Первое сообщение оператора: [AMO](../AMO/playbook-operator-first-message-max.md).
