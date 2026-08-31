@@ -6,7 +6,7 @@ import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
-import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
+import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 
 type CaseSummary = {
   id: string;
@@ -17,6 +17,7 @@ type CaseSummary = {
   next_action: string | null;
   unread_messages: number;
   consent_accepted: boolean;
+  status_label?: string | null;
 };
 
 type ChecklistItem = {
@@ -29,7 +30,12 @@ type ChecklistItem = {
   due_at?: string | null;
 };
 
-type CaseDocument = CabinetDocument;
+type CaseDocument = {
+  id: string;
+  storage_path: string;
+  doc_type?: string | null;
+  created_at?: string;
+};
 
 type CaseDetail = {
   id: string;
@@ -48,6 +54,7 @@ type CaseDetail = {
   pipeline_error?: string | null;
   submission_instruction: string;
   warning: string;
+  work?: ClientWork;
 };
 
 type CaseMessage = {
@@ -208,21 +215,6 @@ function packageLabel(code: string) {
   return labelPackage(code);
 }
 
-type HomeStepKey = "consent" | "upload" | "check";
-
-function resolveHomeStep(detail: {
-  consent_accepted: boolean;
-  documents: { id: string }[];
-}): { current: HomeStepKey; nowNeed: string } {
-  if (!detail.consent_accepted) {
-    return { current: "consent", nowNeed: "подтвердить согласие" };
-  }
-  if (detail.documents.length === 0) {
-    return { current: "upload", nowNeed: "загрузить документы" };
-  }
-  return { current: "check", nowNeed: "отправить документы на проверку" };
-}
-
 function authorLabel(kind: string) {
   if (kind === "client") return "Вы";
   if (kind === "representative") return "Представитель";
@@ -321,7 +313,7 @@ export function ClientCabinet() {
     { user_id: string; email?: string | null; full_name?: string | null }[]
   >([]);
   const ensureCaseRef = useRef(false);
-  const messagesPanelRef = useRef<HTMLDivElement | null>(null);
+  const messagesPanelRef = useRef<HTMLDetailsElement | null>(null);
 
   const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
 
@@ -1481,8 +1473,8 @@ export function ClientCabinet() {
         setNotice(receipt.message);
         await openCase(selectedId, docType === "payment_receipt" ? "payments" : "case");
       } else {
-        setNotice("Файл загружен. Он появился в таблице ниже.");
-        await openCase(selectedId, docType === "sfr_decision" ? "result" : "case");
+        setNotice("Файл загружен. Он появился в разделе «Мои документы».");
+        await openCase(selectedId, "case");
         if (typeof document !== "undefined") {
           window.setTimeout(() => {
             document.getElementById("docs-table")?.scrollIntoView({
@@ -1523,6 +1515,22 @@ export function ClientCabinet() {
       setNotice(`Скачивание начато. Ссылка действует ${payload.expires_in} сек.`);
     } catch {
       setNotice("Не удалось получить временную ссылку.");
+    }
+  }
+
+  async function deleteDocument(documentId: string) {
+    if (!token || !selectedId) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/cases/${selectedId}/documents/${documentId}`, token, {
+        method: "DELETE",
+      });
+      setNotice("Файл удалён до проверки специалистом.");
+      await openCase(selectedId, "case");
+    } catch {
+      setNotice("Не удалось удалить файл. Возможно, специалист уже принял его.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1568,26 +1576,6 @@ export function ClientCabinet() {
       );
     } catch {
       setNotice("Не удалось сохранить предпочтение канала.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runCheck() {
-    if (!token || !selectedId) return;
-    setBusy(true);
-    setNotice("");
-    try {
-      const result = await apiFetch<{
-        ok: boolean;
-        message: string;
-        pipeline_status?: string;
-        findings?: { type: string; detail: string }[];
-      }>(`/api/portal/cases/${selectedId}/run`, token, { method: "POST" });
-      setNotice(result.message || "Проверка запрошена.");
-      await openCase(selectedId, "case");
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось запустить проверку.");
     } finally {
       setBusy(false);
     }
@@ -2125,23 +2113,9 @@ export function ClientCabinet() {
     selectedId
       ? `${DEFAULT_MAX_MINIAPP}${DEFAULT_MAX_MINIAPP.includes("?") ? "&" : "?"}startapp=case_${selectedId.slice(0, 8)}`
       : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP;
-  const home =
-    detail && view === "case" ? resolveHomeStep(detail) : null;
-  const stepDone = {
-    consent: Boolean(detail?.consent_accepted),
-    upload: Boolean(detail && detail.documents.length > 0),
-    check: Boolean(
-      detail &&
-        detail.documents.length > 0 &&
-        detail.consent_accepted &&
-        !["new", "intake", "documents_requested", ""].includes(
-          (detail.pipeline_status || "").toLowerCase(),
-        ),
-    ),
-  };
 
   return (
-    <main className="app-layout">
+    <main className={view === "case" ? "app-layout app-layout--case" : "app-layout"}>
       <header>
         <div className="brand-block">
           <BrandHomeLink className="brand-home-link--header">
@@ -2177,14 +2151,14 @@ export function ClientCabinet() {
       {cases.length > 1 && view !== "cases" && view === "case" ? (
         <p className="hint">
           <button type="button" className="linkish" onClick={() => setView("cases")}>
-            Другие дела
+            Мои обращения
           </button>
         </p>
       ) : null}
 
       {view === "cases" && (
         <section>
-          <h1>Ваши дела</h1>
+          <h1>Мои обращения</h1>
           {cases.length === 0 ? (
             <div className="panel accent">
               <p>{busy ? "Готовим ваше дело…" : "Готовим ваше дело…"}</p>
@@ -2203,7 +2177,8 @@ export function ClientCabinet() {
                   >
                     <strong>Дело ПС-{caseNumberFromId(caseItem.id)}</strong>
                     <span>
-                      {humanCaseStatus(caseItem.pipeline_status, caseItem.b2c_status)}
+                      {caseItem.status_label ||
+                        humanCaseStatus(caseItem.pipeline_status, caseItem.b2c_status)}
                     </span>
                     <span>
                       Сейчас нужно: {caseItem.next_action ?? "открыть дело"}
@@ -2216,15 +2191,12 @@ export function ClientCabinet() {
         </section>
       )}
 
-      {view === "case" && detail && home && (
+      {view === "case" && detail && (
         <section className="stack">
-          <h1>Дело ПС-{caseNumberFromId(detail.id)}</h1>
+          <h1 className="sr-only">Дело ПС-{caseNumberFromId(detail.id)}</h1>
           {youAreRepresentative ? (
             <p className="ok">Вы законный представитель по этому делу</p>
           ) : null}
-          <p className="status-line">
-            {humanCaseStatus(detail.pipeline_status, detail.b2c_status)}
-          </p>
           {(detail.pipeline_status || "").toLowerCase() === "completed" ? (
             <div className="panel accent" style={{ marginTop: "0.75rem" }}>
               <h2>Короткий отзыв</h2>
@@ -2295,208 +2267,28 @@ export function ClientCabinet() {
               )}
             </div>
           ) : null}
-          <p className="now-need">
-            Сейчас нужно: <strong>{home.nowNeed}</strong>
-          </p>
-
-          <ol className="home-steps">
-            <li className={stepDone.consent ? "done" : home.current === "consent" ? "current" : ""}>
-              <span className="mark" aria-hidden>
-                {stepDone.consent ? "✓" : home.current === "consent" ? "●" : "○"}
-              </span>
-              Шаг 1. Согласие
-            </li>
-            <li className={stepDone.upload ? "done" : home.current === "upload" ? "current" : ""}>
-              <span className="mark" aria-hidden>
-                {stepDone.upload ? "✓" : home.current === "upload" ? "●" : "○"}
-              </span>
-              Шаг 2. Загрузить документы
-            </li>
-            <li className={stepDone.check ? "done" : home.current === "check" ? "current" : ""}>
-              <span className="mark" aria-hidden>
-                {stepDone.check ? "✓" : home.current === "check" ? "●" : "○"}
-              </span>
-              Шаг 3. Отправить на проверку
-            </li>
-          </ol>
-
-          {home.current === "consent" && (
-            <div className="panel accent">
-              <h2>Подтвердите согласие</h2>
-              <p>
-                Нужно до загрузки документов.{" "}
-                <a href={`${SITE_URL}/soglasie/`} target="_blank" rel="noreferrer">
-                  Текст согласия
-                </a>
-              </p>
-              <button type="button" onClick={() => void acceptConsent()} disabled={busy}>
-                Даю согласие на обработку персональных данных
-              </button>
-            </div>
-          )}
-
-          {home.current === "upload" && (
-            <div className="panel accent">
-              <h2>Загрузить документы</h2>
-              <p className="hint">Выписка ИЛС — PDF или фото (JPG / PNG).</p>
-              {detail.required_documents.length > 0 && (
-                <ul className="plain-list">
-                  {detail.required_documents.map((item) => (
-                    <li key={item.id}>{item.title}</li>
-                  ))}
-                </ul>
-              )}
-              <label className="file-label">
-                Загрузить выписку ИЛС (PDF или фото)
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  disabled={busy}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void uploadDocument(file);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-          )}
-
-          {home.current === "check" && (
-            <div className="panel accent">
-              <h2>Отправить на проверку</h2>
-              <p className="hint">
-                Документы уйдут специалисту. Подачи в СФР от вашего имени нет.
-              </p>
-              <button type="button" onClick={() => void runCheck()} disabled={busy}>
-                Отправить документы на проверку
-              </button>
-              <label className="file-label">
-                Добавить ещё документ
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  disabled={busy}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void uploadDocument(file);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-          )}
-
-          <div className="docs-uploaded" aria-live="polite">
-            <DocumentsTable
-              documents={detail.documents}
+          {detail.work?.documents ? (
+            <CaseWorkMap
+              caseNumber={caseNumberFromId(detail.id)}
+              work={detail.work}
               busy={busy}
-              onOpen={(documentId) => void openSignedUrl(documentId)}
+              maxHref={maxChatHref}
+              warning={detail.warning}
+              onConsent={() => void acceptConsent()}
+              onUpload={(file, docType) => void uploadDocument(file, docType)}
+              onDelete={(documentId) => void deleteDocument(documentId)}
+              onPay={(orderId) => void startPayment(orderId)}
+              onDownloadResult={(documentId) => void openSignedUrl(documentId)}
             />
-          </div>
-
-          <div className="home-actions">
-            <a className="secondary" href="#messages">
-              Написать специалисту
-            </a>
-            <a className="ghost" href={maxChatHref} target="_blank" rel="noopener noreferrer">
-              Открыть чат MAX
-            </a>
-          </div>
-
-          {(detail.documents ?? []).some((d) =>
-            `${d.doc_type || ""}`.toLowerCase().includes("diagnosis_report"),
-          ) && (
-            <div className="panel">
-              <h2>Результат диагностики</h2>
-              <p className="hint">
-                Информационно-документарный разбор. Не является решением СФР и не гарантирует
-                перерасчёт. Скачайте PDF и при необходимости покажите родственнику.
-              </p>
-              <ul className="doc-list">
-                {(detail.documents ?? [])
-                  .filter((d) =>
-                    `${d.doc_type || ""}`.toLowerCase().includes("diagnosis_report"),
-                  )
-                  .map((doc) => {
-                    const name =
-                      (doc.filename || "").trim() ||
-                      doc.storage_path.split("/").pop() ||
-                      doc.id;
-                    return (
-                      <li key={doc.id} className="doc-list-item">
-                        <button
-                          type="button"
-                          className="linkish doc-list-name"
-                          onClick={() => void openSignedUrl(doc.id)}
-                        >
-                          {name}
-                        </button>
-                        <p className="doc-list-meta">
-                          {doc.doc_type_label || "Результат диагностики"}
-                        </p>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
+          ) : (
+            <p className="hint">Загружаем карту дела…</p>
           )}
 
-          {(detail.findings?.length ?? 0) > 0 && (
-            <div className="panel">
-              <h2>Что нашли в документах</h2>
-              {detail.pipeline_error && <p className="notice">{detail.pipeline_error}</p>}
-              <ul className="plain-list">
-                {(detail.findings ?? []).map((f, idx) => (
-                  <li key={`${f.type}-${idx}`}>
-                    <strong>{f.type}</strong>
-                    {f.detail ? `: ${f.detail}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {detail.checklist_items.length > 0 && (
-            <div className="panel">
-              <h2>Что ещё нужно сделать</h2>
-              <ul className="plain-list">
-                {detail.checklist_items.map((item) => (
-                  <li key={item.id}>
-                    <strong>{item.title}</strong>
-                    {" · "}
-                    <span>
-                      {item.owner === "client" ? "ваше действие" : "специалист"}
-                      {item.due_at
-                        ? ` · до ${new Date(item.due_at).toLocaleDateString("ru-RU")}`
-                        : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {detail.draft && (
-            <div className="panel">
-              <h2>Проект обращения</h2>
-              <p>
-                <strong>{detail.draft.title ?? "Черновик"}</strong>
-                {detail.draft.needs_human_review ? " · нужна проверка специалиста" : ""}
-              </p>
-              <pre className="draft">{detail.draft.body}</pre>
-            </div>
-          )}
-
-          {detail.submission_instruction && stepDone.check && (
-            <div className="panel">
-              <h2>Как подать самостоятельно</h2>
-              <p>{detail.submission_instruction}</p>
-            </div>
-          )}
-
-          <div className="panel" id="messages" ref={messagesPanelRef}>
-            <h2>Написать специалисту</h2>
+          <details className="home-more" id="messages" ref={messagesPanelRef}>
+            <summary>Если MAX недоступен</summary>
+            <p className="hint">
+              Ответ придёт в MAX или на e-mail. Документы через эту форму не принимаем.
+            </p>
             <ul className="messages">
               {messages.length === 0 && !showBotTyping && !showBotTypingTimeout && (
                 <li>Сообщений пока нет.</li>
@@ -2539,28 +2331,11 @@ export function ClientCabinet() {
                 Отправить
               </button>
             </form>
-          </div>
+          </details>
 
           <details className="home-more">
-            <summary>Ещё</summary>
+            <summary>Важно о безопасности и результате</summary>
             <div className="home-more-links">
-              <a className="linkish" href={maxChatHref} target="_blank" rel="noopener noreferrer">
-                Продолжить в MAX
-              </a>
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => void loadPayments(selectedId!)}
-              >
-                Оплаты
-              </button>
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => void loadResult(selectedId!)}
-              >
-                Результат
-              </button>
               <button
                 type="button"
                 className="linkish"

@@ -52,6 +52,7 @@ from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.auth import Principal, get_current_principal, staff_role_capabilities
 from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
+from sfrfr.services.client_work_map import build_client_work_map
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,7 @@ _ALLOWED_CONTENT_TYPES = {
 _MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 _SUBMISSION_INSTRUCTION = (
-    f"{SUBMISSION_INSTRUCTION} "
-    "Используйте проект обращения и чек-лист как подсказку."
+    f"{SUBMISSION_INSTRUCTION} Используйте проект обращения и чек-лист как подсказку."
 )
 
 _SFR_WARNING = WARNING
@@ -80,6 +80,14 @@ def _repo() -> CaseRepository:
 
 def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> CaseSummary:
     checklist = case.get("checklist_items") or []
+    work = build_client_work_map(
+        pipeline_status=str(case.get("pipeline_status") or ""),
+        b2c_status=str(case.get("b2c_status") or ""),
+        consent_accepted=consent_accepted,
+        documents=list(case.get("documents") or []),
+        checklist_items=list(checklist),
+        orders=list(case.get("orders") or []),
+    )
     return CaseSummary(
         id=str(case["id"]),
         pipeline_status=case["pipeline_status"],
@@ -88,28 +96,16 @@ def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> 
         expert_user_id=str(case["expert_user_id"]) if case.get("expert_user_id") else None,
         expert_assigned=bool(case.get("expert_user_id")),
         checklist_open_count=sum(1 for item in checklist if item.get("status") != "done"),
-        next_action=CaseRepository.next_client_action(case),
+        next_action=work.get("now_need") or CaseRepository.next_client_action(case),
         unread_messages=unread,
         consent_accepted=consent_accepted,
+        status_label=work.get("status_label"),
     )
 
 
 def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) -> ClientCaseDetail:
     repo = _repo()
     case_id = str(case["id"])
-    pipeline = repo.get_pipeline_row(case_id) or {}
-    raw_findings = pipeline.get("findings") or []
-    findings: list[FindingItem] = []
-    if isinstance(raw_findings, list):
-        for item in raw_findings:
-            if isinstance(item, dict):
-                findings.append(
-                    FindingItem(
-                        type=str(item.get("type") or "info"),
-                        detail=str(item.get("detail") or ""),
-                        severity=str(item.get("severity") or "info"),
-                    )
-                )
     status_raw = case.get("pipeline_status") or "intake"
     try:
         status_enum = CaseStatus(str(status_raw))
@@ -118,6 +114,20 @@ def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) ->
     except ValueError:
         label = status_label_ru(status_raw)
         hint = None
+    documents = _client_documents(list(case.get("documents") or []))
+    orders: list[Any] = []
+    try:
+        orders = list(repo.list_orders(case_id) or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.info("client orders skipped: %s", exc)
+    work = build_client_work_map(
+        pipeline_status=str(status_raw),
+        b2c_status=str(case.get("b2c_status") or ""),
+        consent_accepted=consent_accepted,
+        documents=documents,
+        checklist_items=list(case.get("checklist_items") or []),
+        orders=orders,
+    )
     return ClientCaseDetail(
         id=case_id,
         pipeline_status=status_raw,
@@ -127,15 +137,16 @@ def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) ->
         consent_accepted=consent_accepted,
         checklist_items=list(case.get("checklist_items") or []),
         required_documents=CaseRepository.required_document_items(case),
-        documents=_client_documents(list(case.get("documents") or [])),
-        findings=findings,
+        documents=documents,
+        findings=[],
         draft=draft,
-        next_action=CaseRepository.next_client_action(case),
-        status_label=label,
-        status_hint=hint,
-        pipeline_error=pipeline.get("error"),
+        next_action=work.get("now_need") or CaseRepository.next_client_action(case),
+        status_label=work.get("status_label") or label,
+        status_hint=work.get("status_hint") or hint,
+        pipeline_error=None,
         submission_instruction=_SUBMISSION_INSTRUCTION,
         warning=_SFR_WARNING,
+        work=work,
     )
 
 
@@ -273,9 +284,7 @@ def _extract_upload_preview(data: bytes, filename: str) -> str:
 def _client_document(item: dict[str, Any]) -> dict[str, Any]:
     storage_path = str(item.get("storage_path") or "")
     filename = _document_filename(storage_path)
-    type_label = _document_type_label(
-        str(item["doc_type"]) if item.get("doc_type") else None
-    )
+    type_label = _document_type_label(str(item["doc_type"]) if item.get("doc_type") else None)
     preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
     inner_date, inner_title = _meta_from_preview(
         preview,
@@ -515,15 +524,7 @@ def _find_client_by_phone(phone: str) -> dict | None:
         candidates.add("8" + digits[1:])
         candidates.add("+7" + digits[1:])
     for value in candidates:
-        rows = (
-            client.table("clients")
-            .select("*")
-            .eq("phone", value)
-            .limit(1)
-            .execute()
-            .data
-            or []
-        )
+        rows = client.table("clients").select("*").eq("phone", value).limit(1).execute().data or []
         if rows:
             return rows[0]
     return None
@@ -796,10 +797,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 ticket=pending.ticket_id,
                 reason="max_bot_missing",
             )
-        text = (
-            "Запрос входа в личный кабинет на компьютере.\n"
-            f"Нажмите «{CONFIRM_WEB_LOGIN_LABEL}»."
-        )
+        text = f"Запрос входа в личный кабинет на компьютере.\nНажмите «{CONFIRM_WEB_LOGIN_LABEL}»."
         attachments = inline_confirm_login_keyboard(
             ticket_id=pending.ticket_id,
             label=CONFIRM_WEB_LOGIN_LABEL,
@@ -823,8 +821,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    "Не удалось отправить сообщение в чат MAX. "
-                    "Откройте чат MAX и нажмите «Начать»."
+                    "Не удалось отправить сообщение в чат MAX. Откройте чат MAX и нажмите «Начать»."
                 ),
             ) from exc
         ClientChannelRepository().audit(
@@ -1001,9 +998,9 @@ def _session_from_max_identity(*, contact: str, max_user_id: str) -> MaxOtpVerif
     client = get_supabase_client()
     user = find_user_by_email(email)
     if user is not None and not row.get("user_id"):
-        client.table("clients").update(
-            {"user_id": user_id_of(user), "email": email}
-        ).eq("id", row["id"]).execute()
+        client.table("clients").update({"user_id": user_id_of(user), "email": email}).eq(
+            "id", row["id"]
+        ).execute()
 
     ClientChannelRepository().audit(
         str(row.get("user_id") or row.get("id")),
@@ -1155,8 +1152,7 @@ def link_web_from_max(payload: LinkWebFromMaxRequest) -> LinkWebFromMaxResponse:
         cabinet_url=cabinet,
         link_token=token,
         message=(
-            "Войдите в веб-кабинет по одноразовому коду. "
-            "После входа аккаунт будет связан с MAX."
+            "Войдите в веб-кабинет по одноразовому коду. После входа аккаунт будет связан с MAX."
         ),
     )
 
@@ -1195,9 +1191,9 @@ def create_my_case(
     body = payload or CreateCaseRequest()
     client_row = _ensure_client_row(principal)
     if body.full_name and body.full_name.strip():
-        get_supabase_client().table("clients").update(
-            {"full_name": body.full_name.strip()}
-        ).eq("id", client_row["id"]).execute()
+        get_supabase_client().table("clients").update({"full_name": body.full_name.strip()}).eq(
+            "id", client_row["id"]
+        ).execute()
     repo = _repo()
     case = repo.create_case_for_client(
         client_id=str(client_row["id"]),
@@ -1309,9 +1305,7 @@ def run_case_pipeline(
         for f in (result.get("findings") or [])
         if isinstance(f, dict)
     ]
-    analysis_notes = (
-        result.get("analysis_notes") if principal.is_staff else None
-    )
+    analysis_notes = result.get("analysis_notes") if principal.is_staff else None
     return PipelineRunResponse(
         ok=bool(result.get("ok")),
         message=str(result.get("message") or ""),
@@ -1646,8 +1640,10 @@ def create_document_signed_url(
 
     expires_in = SIGNED_URL_TTL_SECONDS
     storage_path = str(row["storage_path"] or "")
-    signed = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).create_signed_url(
-        storage_path, expires_in
+    signed = (
+        get_supabase_client()
+        .storage.from_(PRIVATE_STORAGE_BUCKET)
+        .create_signed_url(storage_path, expires_in)
     )
     raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
     if not raw_url:
@@ -1657,6 +1653,61 @@ def create_document_signed_url(
         url=_with_download_param(raw_url, _document_filename(storage_path)),
         expires_in=expires_in,
     )
+
+
+@router.delete("/cases/{case_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_case_document(
+    case_id: str,
+    document_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> None:
+    """Удалить файл до приёмки специалистом (клиент, не PDF диагностики)."""
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client only")
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    client = get_supabase_client()
+    row = CaseRepository._one_or_none(
+        client.table("documents")
+        .select("id, storage_path, doc_type, created_at, content_preview")
+        .eq("id", document_id)
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    if _lower_doc_type(row.get("doc_type")) == "diagnosis_report":
+        raise HTTPException(status_code=403, detail="result cannot be deleted")
+    work = build_client_work_map(
+        pipeline_status=str(case.get("pipeline_status") or ""),
+        b2c_status=str(case.get("b2c_status") or ""),
+        consent_accepted=repo.has_consent(case_id),
+        documents=_client_documents(list(case.get("documents") or [])),
+        checklist_items=list(case.get("checklist_items") or []),
+    )
+    allowed = {
+        str(slot.get("document_id"))
+        for slot in (work.get("documents") or [])
+        if slot.get("can_delete")
+    }
+    if document_id not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Файл уже принят специалистом или его нельзя удалить.",
+        )
+    path = str(row.get("storage_path") or "")
+    if path:
+        try:
+            client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([path])
+        except Exception as exc:  # noqa: BLE001
+            logger.info("storage remove skipped: %s", exc)
+    client.table("documents").delete().eq("id", document_id).eq("case_id", case_id).execute()
+    repo.audit(case_id, principal.user_id, "document_deleted")
+
+
+def _lower_doc_type(value: object) -> str:
+    return str(value or "").strip().lower()
 
 
 @router.get("/diag-share/{token}")
@@ -1699,8 +1750,10 @@ def open_diagnosis_share(token: str, request: Request) -> RedirectResponse:
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
     expires_in = SIGNED_URL_TTL_SECONDS
-    signed = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).create_signed_url(
-        row["storage_path"], expires_in
+    signed = (
+        get_supabase_client()
+        .storage.from_(PRIVATE_STORAGE_BUCKET)
+        .create_signed_url(row["storage_path"], expires_in)
     )
     url = signed.get("signedURL") or signed.get("signedUrl")
     if not url:

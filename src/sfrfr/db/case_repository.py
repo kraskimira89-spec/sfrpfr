@@ -112,7 +112,7 @@ class CaseRepository:
         query = self.client.table("cases").select(
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
             "checklist_items(id, status, owner, title, item_type, due_at), "
-            "documents(id), "
+            "documents(id, doc_type, created_at), "
             "orders(package_code, status, amount_rub, created_at)"
         )
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):

@@ -21,6 +21,7 @@ class CaseSummary(BaseModel):
     next_action: str | None = None
     unread_messages: int = 0
     consent_accepted: bool = False
+    status_label: str | None = None
 
 
 class CaseMessageCreate(BaseModel):
@@ -212,6 +213,7 @@ class ClientCaseDetail(BaseModel):
         "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
         "Решение принимает СФР. Результат не гарантирован."
     )
+    work: dict[str, Any] = Field(default_factory=dict)
 
 
 class PortalSiteReviewRequest(BaseModel):
