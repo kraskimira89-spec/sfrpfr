@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from sfrfr.api.routes.portal import _meta_from_preview, _normalize_doc_date
+from sfrfr.api.routes.portal import (
+    _meta_from_preview,
+    _normalize_doc_date,
+    _with_download_param,
+)
 
 
 def test_normalize_doc_date() -> None:
@@ -31,3 +35,11 @@ def test_meta_prefers_type_label() -> None:
         type_label="Трудовая книжка",
     )
     assert title == "Трудовая книжка"
+
+
+def test_with_download_param_appends_filename() -> None:
+    url = "https://storage.example/obj?token=abc"
+    out = _with_download_param(url, "выписка.pdf")
+    assert out.startswith(url)
+    assert "download=" in out
+    assert "pdf" in out

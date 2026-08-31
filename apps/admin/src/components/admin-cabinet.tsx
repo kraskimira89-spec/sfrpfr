@@ -1730,8 +1730,14 @@ export function AdminCabinet() {
       token,
       { method: "POST" },
     );
-    window.open(signed.url, "_blank", "noopener,noreferrer");
-    setNotice(`Signed URL: ${signed.expires_in} сек.`);
+    const link = document.createElement("a");
+    link.href = signed.url;
+    link.rel = "noopener noreferrer";
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setNotice(`Скачивание начато. Ссылка действует ${signed.expires_in} сек.`);
   }
 
   async function uploadDiagnosisReport(file: File) {

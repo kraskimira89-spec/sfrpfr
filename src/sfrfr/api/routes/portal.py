@@ -8,6 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, NoReturn
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -160,6 +161,13 @@ def _document_filename(storage_path: str | None) -> str:
         return "документ"
     name = Path(str(storage_path)).name.strip()
     return name or "документ"
+
+
+def _with_download_param(url: str, filename: str) -> str:
+    """Браузер скачивает файл, а не открывает превью."""
+    name = quote(filename or "document", safe=".-_")
+    joiner = "&" if "?" in url else "?"
+    return f"{url}{joiner}download={name}"
 
 
 _DATE_IN_DOC_RE = re.compile(
@@ -1637,11 +1645,18 @@ def create_document_signed_url(
         raise HTTPException(status_code=404, detail="document not found")
 
     expires_in = SIGNED_URL_TTL_SECONDS
+    storage_path = str(row["storage_path"] or "")
     signed = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).create_signed_url(
-        row["storage_path"], expires_in
+        storage_path, expires_in
     )
+    raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
+    if not raw_url:
+        raise HTTPException(status_code=502, detail="signed url failed")
     repo.audit(case_id, principal.user_id, "document_download_url_created")
-    return SignedDocumentResponse(url=signed["signedURL"], expires_in=expires_in)
+    return SignedDocumentResponse(
+        url=_with_download_param(raw_url, _document_filename(storage_path)),
+        expires_in=expires_in,
+    )
 
 
 @router.get("/diag-share/{token}")

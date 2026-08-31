@@ -76,7 +76,7 @@ function sortValue(row: CabinetDocument, key: SortKey): string | number {
 }
 
 export function DocumentsTable({ documents, onOpen, busy }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("created_at");
+  const [sortKey, setSortKey] = useState<SortKey>("inner_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filters, setFilters] = useState<Record<SortKey, string>>({
     created_at: "",
@@ -114,7 +114,7 @@ export function DocumentsTable({ documents, onOpen, busy }: Props) {
       return;
     }
     setSortKey(key);
-    setSortDir(key === "created_at" ? "desc" : "asc");
+    setSortDir(key === "created_at" || key === "inner_date" ? "desc" : "asc");
   }
 
   function sortMark(key: SortKey) {
@@ -123,10 +123,10 @@ export function DocumentsTable({ documents, onOpen, busy }: Props) {
   }
 
   const columns: { key: SortKey; label: string }[] = [
+    { key: "inner_date", label: "Дата документа" },
+    { key: "inner_title", label: "Название документа" },
     { key: "created_at", label: "Дата загрузки" },
-    { key: "filename", label: "Название файла" },
-    { key: "inner_date", label: "Дата внутри документа" },
-    { key: "inner_title", label: "Название из документа" },
+    { key: "filename", label: "Файл" },
   ];
 
   return (
@@ -183,18 +183,23 @@ export function DocumentsTable({ documents, onOpen, busy }: Props) {
               {sorted.map((doc, index) => (
                 <tr key={doc.id}>
                   <td className="docs-table-num">{index + 1}</td>
-                  <td>{cellValue(doc, "created_at")}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => onOpen(doc.id)}
-                    >
-                      {cellValue(doc, "filename")}
-                    </button>
-                  </td>
-                  <td>{cellValue(doc, "inner_date")}</td>
-                  <td>{cellValue(doc, "inner_title")}</td>
+                  {columns.map((col) => (
+                    <td key={col.key}>
+                      {col.key === "filename" ? (
+                        <button
+                          type="button"
+                          className="linkish"
+                          title="Скачать файл"
+                          aria-label={`Скачать файл: ${cellValue(doc, "filename")}`}
+                          onClick={() => onOpen(doc.id)}
+                        >
+                          {cellValue(doc, "filename")}
+                        </button>
+                      ) : (
+                        cellValue(doc, col.key)
+                      )}
+                    </td>
+                  ))}
                 </tr>
               ))}
               {sorted.length === 0 ? (

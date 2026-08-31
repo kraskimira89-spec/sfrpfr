@@ -1513,8 +1513,14 @@ export function ClientCabinet() {
         token,
         { method: "POST" },
       );
-      window.open(payload.url, "_blank", "noopener,noreferrer");
-      setNotice(`Ссылка действует ${payload.expires_in} сек.`);
+      const link = document.createElement("a");
+      link.href = payload.url;
+      link.rel = "noopener noreferrer";
+      link.download = "";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setNotice(`Скачивание начато. Ссылка действует ${payload.expires_in} сек.`);
     } catch {
       setNotice("Не удалось получить временную ссылку.");
     }
