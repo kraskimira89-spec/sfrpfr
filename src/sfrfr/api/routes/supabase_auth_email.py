@@ -233,14 +233,65 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
     HTTPS Auth Hook (Send Email): письмо уходит с Яндекс-ящика РФ,
     отправитель — «Проверка стажа. Личный кабинет».
     """
+    # #region agent log
+    def _dbg(message: str, hypothesis_id: str, data: dict[str, Any]) -> None:
+        try:
+            from sfrfr.api.routes.public_debug_session import _write_ndjson
+
+            _write_ndjson(
+                {
+                    "sessionId": "d43d44",
+                    "location": "supabase_auth_email.py:auth-send-email",
+                    "message": message,
+                    "hypothesisId": hypothesis_id,
+                    "data": data,
+                    "timestamp": int(time.time() * 1000),
+                    "runId": "pre",
+                    "source": "hook",
+                }
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        logger.warning("DEBUG-d43d44 %s %s %s", hypothesis_id, message, data)
+
+    # #endregion
+
     settings = get_settings()
     secret = (settings.supabase_send_email_hook_secret or "").strip()
+    # #region agent log
+    _dbg(
+        "hook_entered",
+        "A",
+        {"secret_configured": bool(secret), "body_len": 0},
+    )
+    # #endregion
     if not secret:
+        # #region agent log
+        _dbg("hook_not_configured", "C", {})
+        # #endregion
         raise HTTPException(status_code=503, detail="hook_not_configured")
 
     body = await request.body()
     headers = {k.lower(): v for k, v in request.headers.items()}
-    _verify_standard_webhook(body=body, headers=headers, secret_raw=secret)
+    # #region agent log
+    _dbg(
+        "hook_headers",
+        "C",
+        {
+            "body_len": len(body),
+            "has_webhook_id": bool(headers.get("webhook-id")),
+            "has_webhook_signature": bool(headers.get("webhook-signature")),
+            "has_webhook_timestamp": bool(headers.get("webhook-timestamp")),
+        },
+    )
+    # #endregion
+    try:
+        _verify_standard_webhook(body=body, headers=headers, secret_raw=secret)
+    except HTTPException as exc:
+        # #region agent log
+        _dbg("hook_signature_failed", "C", {"status": exc.status_code, "detail": str(exc.detail)})
+        # #endregion
+        raise
 
     try:
         payload = json.loads(body.decode("utf-8"))
@@ -251,6 +302,9 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
     email_data = payload.get("email_data") if isinstance(payload.get("email_data"), dict) else {}
     to_addr = str(user.get("email") or "").strip()
     if not to_addr or "@" not in to_addr:
+        # #region agent log
+        _dbg("missing_email", "D", {"has_user": bool(user)})
+        # #endregion
         raise HTTPException(status_code=400, detail="missing_email")
 
     action = str(email_data.get("email_action_type") or "magiclink").strip().lower()
@@ -263,8 +317,25 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
         greeting,
         confirm_url=confirm_url,
     )
+    # #region agent log
+    _dbg(
+        "hook_payload_ready",
+        "D",
+        {
+            "action": action,
+            "has_token": bool(token),
+            "token_len": len(token),
+            "has_confirm_url": bool(confirm_url),
+            "has_token_hash": bool(str(email_data.get("token_hash") or "").strip()),
+            "email_domain": to_addr.split("@")[-1].lower() if "@" in to_addr else "",
+        },
+    )
+    # #endregion
     if not token and not confirm_url:
         logger.warning("auth send-email: empty token and confirm_url action=%s", action)
+        # #region agent log
+        _dbg("missing_token", "D", {"action": action})
+        # #endregion
         raise HTTPException(status_code=400, detail="missing_token")
 
     result = send_mail(
@@ -277,6 +348,15 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
     )
     if not result.get("ok"):
         logger.warning("auth send-email hook failed: %s", result)
+        # #region agent log
+        _dbg(
+            "smtp_failed",
+            "D",
+            {
+                "error": str(result.get("error") or result.get("reason") or "send_failed")[:120],
+            },
+        )
+        # #endregion
         raise HTTPException(
             status_code=502,
             detail={
@@ -286,4 +366,7 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
                 }
             },
         )
+    # #region agent log
+    _dbg("smtp_ok", "D", {"action": action, "has_confirm_url": bool(confirm_url)})
+    # #endregion
     return {}

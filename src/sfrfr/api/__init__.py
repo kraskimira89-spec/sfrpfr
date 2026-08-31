@@ -14,6 +14,7 @@ from sfrfr.api.routes import (
     public_review_draft,
     public_site_reviews,
     public_staff_register,
+    public_debug_session,
     secure_actions,
     supabase_auth_email,
 )
@@ -69,6 +70,11 @@ def create_app() -> FastAPI:
         public_staff_register.router,
         prefix="/api/public",
         tags=["public-staff"],
+    )
+    app.include_router(
+        public_debug_session.router,
+        prefix="/api/public",
+        tags=["public-debug"],
     )
     app.include_router(
         max_webhook.router,

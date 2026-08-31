@@ -1109,6 +1109,31 @@ export function ClientCabinet() {
 
   async function requestRegister(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    // #region agent log
+    const dbg = (message: string, hypothesisId: string, data: Record<string, unknown>) => {
+      const payload = {
+        sessionId: "d43d44",
+        location: "client-cabinet.tsx:requestRegister",
+        message,
+        hypothesisId,
+        data,
+        timestamp: Date.now(),
+        runId: "pre",
+      };
+      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+      if (apiBase) {
+        fetch(`${apiBase}/api/public/debug-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      }
+    };
+    // #endregion
     if (!registerConsent) {
       setNotice("Отметьте согласие с СОПД — без него регистрацию продолжить нельзя.");
       return;
@@ -1136,6 +1161,13 @@ export function ClientCabinet() {
     setBusy(true);
     setNotice("");
     try {
+      // #region agent log
+      dbg("register_start", "B", {
+        hasEmail: Boolean(emailTrim),
+        hasPhone: Boolean(phoneTrim),
+        emailDomain: emailTrim.includes("@") ? emailTrim.split("@")[1] : "",
+      });
+      // #endregion
       const check = await fetch(`${apiBase}/api/portal/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1151,6 +1183,9 @@ export function ClientCabinet() {
         email?: string;
         phone?: string;
       };
+      // #region agent log
+      dbg("register_api_result", "B", { status: check.status, ok: check.ok });
+      // #endregion
       if (!check.ok) {
         throw new Error(
           typeof checkBody.detail === "string"
@@ -1170,6 +1205,14 @@ export function ClientCabinet() {
           data: meta,
         },
       });
+      // #region agent log
+      dbg("signInWithOtp_result", "B", {
+        hasError: Boolean(error),
+        errorName: error?.name || "",
+        errorStatus: (error as { status?: number } | null)?.status ?? null,
+        errorMsg: (error?.message || "").slice(0, 160),
+      });
+      // #endregion
       if (error) throw error;
       setEmail(normalizedEmail);
       setPhone(normalizedPhone);
@@ -1180,8 +1223,14 @@ export function ClientCabinet() {
         "Письмо отправлено. Откройте его и нажмите «Войти в кабинет» — " +
           "или введите код ниже на этой странице.",
       );
+      // #region agent log
+      dbg("register_ui_success", "E", { otpSent: true });
+      // #endregion
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
+      // #region agent log
+      dbg("register_catch", "B", { errorMsg: msg.slice(0, 160) });
+      // #endregion
       if (/rate limit|over_email/i.test(msg)) {
         setNotice("Слишком много запросов. Подождите несколько минут.");
       } else {
