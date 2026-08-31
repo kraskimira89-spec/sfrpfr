@@ -95,6 +95,8 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "Открыть страницу тарифов" not in home
     assert "Написать в личный чат MAX" not in home
     assert "sfrfr-max-guide__links" in home
+    assert 'class="sfrfr-card sfrfr-card--link"' in home
+    assert "{{MAX_CHANNEL_URL}}" in home
     assert 'id="komu"' in home
     # Manrope локально, без Google Fonts (152-ФЗ / скорость)
     css = (REPO / "scripts/assets/sfrfr-landing.css").read_text(encoding="utf-8")
