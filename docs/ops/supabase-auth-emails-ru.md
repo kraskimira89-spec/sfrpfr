@@ -54,7 +54,16 @@ python scripts/supabase_patch_auth_emails.py
 
 Dashboard: https://supabase.com/dashboard/project/frualvycousvvyjivybu/auth/templates
 
+## Письмо клиенту
+
+1. **Кнопка «Войти в кабинет»** — одноразовая ссылка (magic link).
+2. **Код** — запасной вариант: ввод на `cabinet.proverkastaza.ru`.
+
+Ссылку лучше открывать в том же браузере, где нажали «Получить ссылку на почту»
+(PKCE). Код сработает в любом браузере на странице регистрации.
+
 ## Проверка
 
-1. Запросить код в кабинете.
-2. В письме: отправитель «Проверка стажа. Личный кабинет», адрес `proverkastaza@yandex.ru` (не `mail.app.supabase.io`).
+1. Запросить ссылку/код в кабинете.
+2. В письме: отправитель «Проверка стажа. Личный кабинет», адрес `proverkastaza@yandex.ru`
+   (не `mail.app.supabase.io`), кнопка входа + код.

@@ -1175,7 +1175,11 @@ export function ClientCabinet() {
       setPhone(normalizedPhone);
       setOtpSent(true);
       setMaxVerifyTicket("");
-      setNotice("Код отправлен на почту. Введите его ниже.");
+      setAuthChannel("email");
+      setNotice(
+        "Письмо отправлено. Откройте его и нажмите «Войти в кабинет» — " +
+          "или введите код ниже на этой странице.",
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (/rate limit|over_email/i.test(msg)) {
@@ -1750,8 +1754,8 @@ export function ClientCabinet() {
             <>
               <p className="lead lead-compact">
                 {fromLeadPrefill && !editLeadContacts
-                  ? "Данные из заявки уже подставлены. Нужны почта и телефон. Отметьте согласие — проверочный код придёт на почту."
-                  : "Регистрация: укажите электронную почту и телефон. Проверочный код придёт на почту — введите его на этой странице."}
+                  ? "Данные из заявки уже подставлены. Нужны почта и телефон. Отметьте согласие — пришлём письмо со ссылкой для входа."
+                  : "Регистрация: укажите электронную почту и телефон. Пришлём письмо со ссылкой для входа — или код для ввода на этой странице."}
               </p>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestRegister}>
@@ -1813,7 +1817,9 @@ export function ClientCabinet() {
                         placeholder="+7 900 000-00-00"
                         required
                       />
-                      <p className="hint">Нужны и почта, и телефон. Код подтверждения придёт на почту.</p>
+                      <p className="hint">
+                        Нужны и почта, и телефон. На почту придёт ссылка для входа и код.
+                      </p>
                     </>
                   )}
                   <label className="auth-consent" htmlFor="reg-consent">
@@ -1836,40 +1842,15 @@ export function ClientCabinet() {
                     </span>
                   </label>
                   <button type="submit" disabled={busy || !registerConsent}>
-                    Получить код
+                    Получить ссылку на почту
                   </button>
                 </form>
-              ) : maxVerifyTicket || authChannel === "max" ? (
-                <form className="auth-form" onSubmit={verifyMaxSiteOtp}>
-                  <p className="max-wizard-status" role="status">
-                    Код придёт в чат MAX — введите его здесь
-                  </p>
-                  <label htmlFor="reg-max-otp">Код из MAX</label>
-                  <input
-                    id="reg-max-otp"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                  />
-                  <button type="submit" disabled={busy}>
-                    Подтвердить код
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={busy}
-                    onClick={() => {
-                      openMaxChat();
-                      void requestRegister();
-                    }}
-                  >
-                    Открыть MAX / отправить ещё раз
-                  </button>
-                </form>
-              ) : authChannel === "email" ? (
+              ) : (
                 <form className="auth-form" onSubmit={verifyEmailOtp}>
+                  <p className="max-wizard-status" role="status">
+                    Письмо ушло на {email.trim() || "вашу почту"}. Откройте ссылку «Войти в
+                    кабинет» в письме — или введите код ниже.
+                  </p>
                   <label htmlFor="reg-email-otp">Код из письма</label>
                   <input
                     id="reg-email-otp"
@@ -1888,13 +1869,12 @@ export function ClientCabinet() {
                     disabled={busy}
                     onClick={() => void requestRegister()}
                   >
-                    Отправить ещё раз
+                    Отправить письмо ещё раз
+                  </button>
+                  <button type="button" className="ghost" onClick={resetMaxWizard}>
+                    Начать заново
                   </button>
                 </form>
-              ) : (
-                <button type="button" className="ghost" onClick={resetMaxWizard}>
-                  Начать заново
-                </button>
               )}
               <p className="auth-links">
                 <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>

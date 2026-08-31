@@ -10,6 +10,7 @@ import logging
 import time
 from html import escape
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -23,13 +24,13 @@ _SENDER_NAME = "Проверка стажа. Личный кабинет"
 _CABINET = "https://cabinet.proverkastaza.ru/"
 
 _SUBJECTS: dict[str, str] = {
-    "signup": "Код для кабинета «Проверка стажа»: {token}",
+    "signup": "Вход в кабинет «Проверка стажа»",
     "invite": "Приглашение в кабинет «Проверка стажа»",
-    "magiclink": "Код для входа в «Проверка стажа»: {token}",
+    "magiclink": "Вход в кабинет «Проверка стажа»",
     "recovery": "Восстановление пароля — «Проверка стажа»",
     "email_change": "Подтвердите новый email — «Проверка стажа»",
-    "email": "Код для кабинета «Проверка стажа»: {token}",
-    "reauthentication": "{token} — код подтверждения «Проверка стажа»",
+    "email": "Вход в кабинет «Проверка стажа»",
+    "reauthentication": "Код подтверждения «Проверка стажа»",
 }
 
 
@@ -79,10 +80,51 @@ def _greeting(user: dict[str, Any]) -> str:
     return "Здравствуйте!"
 
 
-def _build_html(*, title: str, greeting: str, lead: str, token: str) -> str:
+def confirm_url_from_email_data(email_data: dict[str, Any]) -> str:
+    """Одноразовая ссылка GoTrue: verify + redirect в кабинет."""
+    site = str(email_data.get("site_url") or "").rstrip("/")
+    token_hash = str(email_data.get("token_hash") or "").strip()
+    action = str(email_data.get("email_action_type") or "magiclink").strip() or "magiclink"
+    redirect = str(email_data.get("redirect_to") or _CABINET).strip() or _CABINET
+    if not site or not token_hash:
+        return ""
+    return (
+        f"{site}/auth/v1/verify?token={quote(token_hash, safe='')}"
+        f"&type={quote(action, safe='')}"
+        f"&redirect_to={quote(redirect, safe='')}"
+    )
+
+
+def _build_html(
+    *,
+    title: str,
+    greeting: str,
+    lead: str,
+    token: str,
+    confirm_url: str = "",
+) -> str:
+    link_block = ""
+    if confirm_url:
+        link_block = (
+            '<p style="margin:0 0 20px;text-align:center;">'
+            f'<a href="{escape(confirm_url)}" style="display:inline-block;'
+            "padding:14px 22px;background:#1a4d7a;color:#ffffff;text-decoration:none;"
+            'border-radius:10px;font-weight:700;font-size:16px;">'
+            "Войти в кабинет</a></p>"
+            '<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#3d4f66;">'
+            "Ссылка одноразовая. Откройте её в том же браузере, где начинали регистрацию."
+            "</p>"
+        )
     token_block = ""
     if token:
+        token_label = (
+            "Или введите код на странице кабинета:"
+            if confirm_url
+            else "Введите этот код в личном кабинете на сайте:"
+        )
         token_block = (
+            f'<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3d4f66;">'
+            f"{escape(token_label)}</p>"
             "<p style=\"margin:0 0 20px;text-align:center;font-size:32px;"
             "letter-spacing:0.28em;font-weight:700;"
             f"font-variant-numeric:tabular-nums;\">{escape(token)}</p>"
@@ -107,6 +149,7 @@ def _build_html(*, title: str, greeting: str, lead: str, token: str) -> str:
         f'<p style="margin:0 0 12px;font-size:16px;line-height:1.5;">{greeting}</p>',
         '<p style="margin:0 0 16px;font-size:16px;line-height:1.5;',
         f'color:#3d4f66;">{escape(lead)}</p>',
+        link_block,
         token_block,
         '<p style="margin:0;font-size:14px;line-height:1.5;color:#3d4f66;">',
         f'Кабинет: <a href="{_CABINET}" style="color:#1a4d7a;">{_CABINET}</a>',
@@ -120,38 +163,67 @@ def _build_html(*, title: str, greeting: str, lead: str, token: str) -> str:
     return "".join(parts)
 
 
-def _compose(action: str, token: str, greeting: str) -> tuple[str, str, str]:
+def _compose(
+    action: str,
+    token: str,
+    greeting: str,
+    *,
+    confirm_url: str = "",
+) -> tuple[str, str, str]:
     """subject, plain, html."""
-    subject_tpl = _SUBJECTS.get(action, _SUBJECTS["magiclink"])
-    subject = subject_tpl.format(token=token)
+    subject = _SUBJECTS.get(action, _SUBJECTS["magiclink"])
+    if "{token}" in subject:
+        subject = subject.format(token=token or "")
     greet_plain = greeting.replace("&nbsp;", " ")
 
     if action in ("signup", "magiclink", "email", "invite"):
-        title = "Код для входа в кабинет"
-        lead = "Введите этот код в личном кабинете на сайте — так мы подтвердим, что это вы:"
-        plain = (
-            f"{greet_plain}\n\n"
-            f"Ваш код для входа в личный кабинет «Проверка стажа»: {token}\n\n"
-            f"Введите код на сайте {_CABINET}\n"
-        )
+        title = "Вход в личный кабинет"
+        if confirm_url:
+            lead = (
+                "Нажмите кнопку ниже — кабинет откроется в браузере. "
+                "Если кнопка не открывается, введите код на сайте."
+            )
+        else:
+            lead = "Введите код на сайте кабинета — так мы подтвердим, что это вы."
+        plain_parts = [f"{greet_plain}\n"]
+        if confirm_url:
+            plain_parts.append(f"Войти в кабинет по ссылке:\n{confirm_url}\n")
+        if token:
+            plain_parts.append(f"Или код для ввода на сайте: {token}\n")
+        plain_parts.append(f"\nКабинет: {_CABINET}\n")
+        plain = "\n".join(plain_parts)
     elif action == "recovery":
         title = "Восстановление пароля"
-        lead = "Мы получили запрос на восстановление пароля. Введите код на сайте:"
+        lead = (
+            "Мы получили запрос на восстановление пароля. "
+            "Откройте ссылку или введите код на сайте."
+        )
         plain = (
             f"{greet_plain}\n\n"
-            f"Код для восстановления пароля в кабинете «Проверка стажа»: {token}\n\n"
-            f"{_CABINET}\n"
+            + (f"Ссылка: {confirm_url}\n\n" if confirm_url else "")
+            + (f"Код: {token}\n\n" if token else "")
+            + f"{_CABINET}\n"
         )
     elif action == "email_change":
         title = "Подтвердите новый email"
-        lead = "Чтобы подтвердить новый адрес, введите код на сайте:"
-        plain = f"{greet_plain}\n\nКод подтверждения нового email: {token}\n"
+        lead = "Чтобы подтвердить новый адрес, откройте ссылку или введите код на сайте."
+        plain = (
+            f"{greet_plain}\n\n"
+            + (f"Ссылка: {confirm_url}\n" if confirm_url else "")
+            + (f"Код: {token}\n" if token else "")
+        )
     else:
         title = "Код подтверждения"
         lead = "Ваш код подтверждения:"
         plain = f"{greet_plain}\n\nКод подтверждения: {token}\n"
 
-    html = _build_html(title=title, greeting=greeting, lead=lead, token=token)
+    html = _build_html(
+        title=title,
+        greeting=greeting,
+        lead=lead,
+        token=token,
+        confirm_url=confirm_url,
+    )
     return subject, plain, html
 
 
@@ -183,8 +255,17 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
 
     action = str(email_data.get("email_action_type") or "magiclink").strip().lower()
     token = str(email_data.get("token") or "").strip()
+    confirm_url = confirm_url_from_email_data(email_data)
     greeting = _greeting(user)
-    subject, plain, html = _compose(action, token, greeting)
+    subject, plain, html = _compose(
+        action,
+        token,
+        greeting,
+        confirm_url=confirm_url,
+    )
+    if not token and not confirm_url:
+        logger.warning("auth send-email: empty token and confirm_url action=%s", action)
+        raise HTTPException(status_code=400, detail="missing_token")
 
     result = send_mail(
         to=to_addr,
