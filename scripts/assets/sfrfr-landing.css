@@ -857,15 +857,20 @@ body.page-template-default {
 }
 
 .sfrfr-max-guide__links {
-  margin: 0.85rem 0 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: #444;
+  margin: 1.25rem 0 0;
+  justify-content: flex-start;
 }
 
-.sfrfr-max-guide__links a {
-  color: var(--sfrfr-primary);
-  font-weight: 600;
+.sfrfr-max-guide__links .sfrfr-btn {
+  flex: 0 1 auto;
+  min-width: min(100%, 14rem);
+}
+
+@media (max-width: 640px) {
+  .sfrfr-max-guide__links .sfrfr-btn {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: 0;
+  }
 }
 
 .sfrfr-review-form fieldset {
