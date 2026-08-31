@@ -142,7 +142,10 @@
   --sfrfr-shadow: 0 8px 24px rgba(30, 78, 121, 0.08);
   --sfrfr-font: "Manrope", "PT Sans", system-ui, sans-serif;
   --sfrfr-space: clamp(1rem, 3vw, 1.5rem);
-  --sfrfr-section-y: clamp(2.5rem, 6vw, 4rem);
+  --sfrfr-section-y: clamp(1.75rem, 4vw, 2.75rem);
+  --sfrfr-section-y-tight: clamp(0.75rem, 2vw, 1.15rem);
+  --sfrfr-page-gap: clamp(0.35rem, 1.2vw, 0.6rem);
+  --sfrfr-title-after: clamp(0.45rem, 1.4vw, 0.75rem);
   --sfrfr-card-pad-y: 24px;
   --sfrfr-wrap-gutter: clamp(1rem, 4vw, 1.5rem);
 }
@@ -210,7 +213,7 @@ body.page-template-default {
 }
 
 .sfrfr-hero {
-  padding: clamp(0.65rem, 2vw, 1.25rem) 0 clamp(1.75rem, 4vw, 3rem);
+  padding: var(--sfrfr-section-y-tight) 0 var(--sfrfr-section-y);
   background:
     radial-gradient(ellipse at 85% 20%, rgba(46, 125, 91, 0.08), transparent 50%),
     linear-gradient(180deg, #ffffff 0%, var(--sfrfr-bg) 100%);
@@ -457,7 +460,7 @@ body.page-template-default {
 
 /* Навигационная цепочка (хлебные крошки) */
 .sfrfr-breadcrumbs {
-  padding: 0.65rem 0 0.15rem;
+  padding: var(--sfrfr-page-gap) 0 0.1rem;
   background: transparent;
 }
 
@@ -506,6 +509,13 @@ body.page-template-default {
 
 .home .sfrfr-breadcrumbs {
   display: none;
+}
+
+/* Первая секция лендинга — меньше зазор под H1 темы */
+.sfrfr-landing > .sfrfr-section:first-child,
+.sfrfr-landing > .sfrfr-hero:first-child,
+.sfrfr-landing > main > .sfrfr-section:first-child {
+  padding-top: var(--sfrfr-section-y-tight);
 }
 
 .sfrfr-cards {
@@ -4349,15 +4359,56 @@ mark.sfrfr-search-hit,
   padding-right: 0 !important;
 }
 
-/* Остальные страницы: меньше зазор под меню (Astra по умолчанию ~4em) */
+/* Остальные страницы: компактный зазор под меню (Astra по умолчанию ~4em) */
 body:not(.home).ast-separate-container #primary {
-  padding-top: 1.25rem !important;
+  padding-top: clamp(0.5rem, 1.5vw, 0.85rem) !important;
   margin-top: 0 !important;
 }
 
 body:not(.home).ast-separate-container .ast-article-single,
 body:not(.home).ast-separate-container .ast-article-post {
-  padding-top: 1.5rem !important;
+  padding-top: 0 !important;
+}
+
+/* Лендинги .sfrfr-landing: крошки → H1 → первая секция */
+body:not(.home):has(.entry-content .sfrfr-landing) .entry-header {
+  margin: 0 0 var(--sfrfr-title-after) !important;
+  padding: 0 !important;
+}
+
+body:not(.home):has(.entry-content .sfrfr-landing) h1.entry-title {
+  margin: 0 0 var(--sfrfr-title-after) !important;
+  padding: 0 !important;
+  font-size: clamp(1.45rem, 4vw, 2.15rem);
+  line-height: 1.22;
+}
+
+body:not(.home):has(.entry-content .sfrfr-landing) #primary,
+body:not(.home):has(.entry-content .sfrfr-landing) .site-content {
+  padding-top: var(--sfrfr-page-gap) !important;
+  margin-top: 0 !important;
+}
+
+body:not(.home):has(.entry-content .sfrfr-landing) .ast-article-single,
+body:not(.home):has(.entry-content .sfrfr-landing) .ast-article-post,
+body:not(.home):has(.entry-content .sfrfr-landing) .entry-content {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+body:not(.home):has(.entry-content .sfrfr-landing) .sfrfr-breadcrumbs {
+  padding-top: var(--sfrfr-page-gap);
+  padding-bottom: 0.1rem;
+}
+
+/* Блог: компактнее под заголовком статьи */
+body.single-post:not(.home) .entry-header {
+  margin: 0 0 0.85rem !important;
+  padding: 0 !important;
+}
+
+body.single-post:not(.home) h1.entry-title {
+  margin: 0 0 0.65rem !important;
 }
 
 /* ТЗ-11: блог */
@@ -4906,6 +4957,11 @@ body:has(#sfrfr-partneram-page) .ast-article-single {
 
 
 /* === Лид-магнит /chek-list-dokumentov/ (scoped, стили сайта) === */
+.page-chek-list-dokumentov .entry-header {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .page-chek-list-dokumentov .entry-header .entry-title {
   position: absolute;
   width: 1px;
