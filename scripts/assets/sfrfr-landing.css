@@ -756,8 +756,17 @@ body.page-template-default {
   margin-top: 1.25rem;
 }
 
+.sfrfr-max-guide .sfrfr-card--link,
+.sfrfr-max-guide .sfrfr-card--link:hover,
+.sfrfr-max-guide .sfrfr-card--link:focus,
+.sfrfr-max-guide .sfrfr-card--link:focus-visible,
+.sfrfr-max-guide .sfrfr-card--link:visited,
+.sfrfr-max-guide .sfrfr-card--link * {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+
 .sfrfr-max-guide .sfrfr-card--link {
-  text-decoration: none;
   color: inherit;
   cursor: pointer;
   transition:
@@ -793,6 +802,11 @@ body.page-template-default {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--sfrfr-primary);
+}
+
+.sfrfr-max-guide .sfrfr-card--link:hover .sfrfr-card__cta,
+.sfrfr-max-guide .sfrfr-card--link:focus-visible .sfrfr-card__cta {
+  color: var(--sfrfr-accent);
 }
 
 .sfrfr-max-guide .sfrfr-max-guide__action {
