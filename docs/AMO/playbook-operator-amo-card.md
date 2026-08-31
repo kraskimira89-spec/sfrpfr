@@ -6,7 +6,7 @@
 ## Правило одной строки
 
 В amo — **связь, сделка, статусы и чеклист документов по названиям**.  
-Сканы, тексты, СНИЛС, ИЛС, OCR, ссылки Storage — **только в кабинете SFRFR** (кнопка «Ссылка на дело SFRFR»).
+Сканы, тексты, СНИЛС, ИЛС, OCR, ссылки Storage — **не в amo**; передача через **чат MAX или кабинет SFRFR** (кнопка «Ссылка на дело SFRFR»).
 
 Позиция подачи: готовим документы и план — подаёт клиент через СФР/МФЦ/Госуслуги; решение принимает только СФР.
 
@@ -83,7 +83,7 @@ PDF открыт: …
 
 Канон: [playbook-archive-request-prep.md](../marketing-sales/playbook-archive-request-prep.md).  
 Custom fields (ensure): `ARCHIVE_PREP_STATUS`, `ARCHIVE_TARIFF` (5000/8000), `ARCHIVE_SUCCESSOR`, `ARCHIVE_TARGET`, `ARCHIVE_FOLLOWUP_AT`.  
-В admin — блок «Архивный комплект» + `waiting_on=archive`. Сканы/ПДн только в кабинете.
+В admin — блок «Архивный комплект» + `waiting_on=archive`. Сканы/ПДн — чат MAX или кабинет SFRFR, не amo.
 
 ```text
 Архив статус: diagnosis_ready → … → pack_issued → awaiting_archive → …
@@ -173,6 +173,6 @@ Custom fields (ensure): `ARCHIVE_PREP_STATUS`, `ARCHIVE_TARIFF` (5000/8000), `AR
 2. Контакт и `CONSENT` позволяют связаться?
 3. Этап amo соответствует факту (новый / связались / документы / оплата)?
 4. В заметке есть **перечень документов со статусами**, без вложений?
-5. Сканы смотрю **только в кабинете**, не прошу прислать в amo / MAX-канал?
+5. Сканы смотрю **в чате MAX или кабинете SFRFR**, не прошу прислать в amo / публичный канал?
 
 Если пункта 1 нет — эскалация: sync / `amocrm-sync`, не вести «пустое» дело только в CRM.

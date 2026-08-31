@@ -240,7 +240,7 @@
 ### Sprint 3 — upload по ссылке
 
 **Делать:** upload-only UI; те же лимиты типов/размера, что portal; revoke после комплекта.  
-**Готово когда:** сканы не в MAX; upload только по valid link + consent; Storage private.
+**Готово когда:** upload по valid link + consent в кабинете; файлы в личном чате MAX также принимаются; Storage private; не через форму WP / публичный канал.
 
 ### Sprint 4 — MAX states + pay messaging + hardening
 
