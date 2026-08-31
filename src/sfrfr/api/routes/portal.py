@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -161,6 +162,65 @@ def _document_filename(storage_path: str | None) -> str:
     return name or "документ"
 
 
+_DATE_IN_DOC_RE = re.compile(
+    r"(?:от\s+)?(\d{1,2}[./]\d{1,2}[./]\d{2,4})",
+    re.IGNORECASE,
+)
+
+
+def _normalize_doc_date(raw: str) -> str:
+    parts = re.split(r"[./]", (raw or "").strip())
+    if len(parts) != 3:
+        return (raw or "").strip()
+    day, month, year = parts
+    if len(year) == 2:
+        year = f"20{year}"
+    try:
+        d, m, y = int(day), int(month), int(year)
+        if not (1 <= d <= 31 and 1 <= m <= 12 and 1900 <= y <= 2100):
+            return (raw or "").strip()
+        return f"{d:02d}.{m:02d}.{y}"
+    except ValueError:
+        return (raw or "").strip()
+
+
+def _title_from_preview(preview: str, *, filename: str, type_label: str | None) -> str:
+    if type_label:
+        return type_label
+    text = " ".join((preview or "").split())
+    lowered = text.lower()
+    if (
+        "сзи-илс" in lowered
+        or "индивидуального лицевого счёта" in lowered
+        or "индивидуального лицевого счета" in lowered
+        or re.search(r"\bилс\b", lowered)
+    ):
+        return "Выписка ИЛС"
+    if "трудов" in lowered:
+        return "Трудовая книжка"
+    if "решени" in lowered and "сфр" in lowered:
+        return "Решение СФР"
+    first = text.split(".")[0].strip() if text else ""
+    if 4 <= len(first) <= 80:
+        return first
+    stem = Path(filename or "").stem.replace("_", " ").strip()
+    return stem or "Документ"
+
+
+def _meta_from_preview(
+    preview: str,
+    *,
+    filename: str,
+    type_label: str | None,
+) -> tuple[str | None, str]:
+    """Дата внутри документа + название из текста/типа."""
+    cleaned = _sanitize_content_preview(preview or "", limit=2000)
+    match = _DATE_IN_DOC_RE.search(cleaned)
+    inner_date = _normalize_doc_date(match.group(1)) if match else None
+    inner_title = _title_from_preview(cleaned, filename=filename, type_label=type_label)
+    return inner_date, inner_title
+
+
 def _document_type_label(doc_type: str | None) -> str | None:
     if not doc_type:
         return None
@@ -202,27 +262,39 @@ def _extract_upload_preview(data: bytes, filename: str) -> str:
                 pass
 
 
+def _client_document(item: dict[str, Any]) -> dict[str, Any]:
+    storage_path = str(item.get("storage_path") or "")
+    filename = _document_filename(storage_path)
+    type_label = _document_type_label(
+        str(item["doc_type"]) if item.get("doc_type") else None
+    )
+    preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
+    inner_date, inner_title = _meta_from_preview(
+        preview,
+        filename=filename,
+        type_label=type_label,
+    )
+    return {
+        "id": item.get("id"),
+        "storage_path": storage_path,
+        "doc_type": item.get("doc_type"),
+        "doc_type_label": type_label,
+        "created_at": item.get("created_at"),
+        "filename": filename,
+        "content_preview": preview or None,
+        "inner_date": inner_date,
+        "inner_title": inner_title,
+    }
+
+
 def _client_documents(raw_docs: list[Any] | None) -> list[dict[str, Any]]:
     """Безопасное представление документов для клиента (+ краткое содержание)."""
     out: list[dict[str, Any]] = []
     for item in raw_docs or []:
         if not isinstance(item, dict):
             continue
-        storage_path = str(item.get("storage_path") or "")
-        preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
-        out.append(
-            {
-                "id": item.get("id"),
-                "storage_path": storage_path,
-                "doc_type": item.get("doc_type"),
-                "doc_type_label": _document_type_label(
-                    str(item["doc_type"]) if item.get("doc_type") else None
-                ),
-                "created_at": item.get("created_at"),
-                "filename": _document_filename(storage_path),
-                "content_preview": preview or None,
-            }
-        )
+        out.append(_client_document(item))
+    out.sort(key=lambda d: str(d.get("created_at") or ""), reverse=True)
     return out
 
 
@@ -1521,16 +1593,23 @@ async def upload_case_document(
     except Exception as exc:  # noqa: BLE001
         logger.info("payment receipt check skipped: %s", exc)
     row = response.data[0] if response.data else {"id": document_id}
+    if content_preview and "content_preview" not in row:
+        row = {**row, "content_preview": content_preview}
+    if "storage_path" not in row:
+        row = {**row, "storage_path": storage_path}
+    if "doc_type" not in row:
+        row = {**row, "doc_type": doc_type}
+    client_doc = _client_document(row)
     if payment_receipt:
-        row = {
-            **row,
+        client_doc = {
+            **client_doc,
             "payment_receipt": {
                 "status": payment_receipt.get("status"),
                 "ask_receipt": payment_receipt.get("ask_receipt"),
                 "message": payment_receipt.get("client_message"),
             },
         }
-    return row
+    return client_doc
 
 
 @router.post(

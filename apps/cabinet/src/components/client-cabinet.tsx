@@ -6,6 +6,7 @@ import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
+import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
 
 type CaseSummary = {
   id: string;
@@ -28,15 +29,7 @@ type ChecklistItem = {
   due_at?: string | null;
 };
 
-type CaseDocument = {
-  id: string;
-  storage_path: string;
-  doc_type?: string | null;
-  doc_type_label?: string | null;
-  created_at?: string;
-  filename?: string | null;
-  content_preview?: string | null;
-};
+type CaseDocument = CabinetDocument;
 
 type CaseDetail = {
   id: string;
@@ -1460,12 +1453,24 @@ export function ClientCabinet() {
       const form = new FormData();
       form.append("file", file);
       if (docType) form.append("doc_type", docType);
-      const payload = await apiFetch<{
-        payment_receipt?: { status?: string; message?: string };
-      }>(`/api/portal/cases/${selectedId}/documents`, token, {
+      const payload = await apiFetch<
+        CaseDocument & {
+          payment_receipt?: { status?: string; message?: string };
+        }
+      >(`/api/portal/cases/${selectedId}/documents`, token, {
         method: "POST",
         body: form,
       });
+      if (payload?.id) {
+        setDetail((prev) => {
+          if (!prev) return prev;
+          const nextDocs = [
+            payload,
+            ...prev.documents.filter((d) => d.id !== payload.id),
+          ];
+          return { ...prev, documents: nextDocs };
+        });
+      }
       const receipt = payload.payment_receipt;
       if (receipt?.status === "confirmed") {
         setNotice(receipt.message || "Оплата подтверждена по чеку.");
@@ -1476,8 +1481,16 @@ export function ClientCabinet() {
         setNotice(receipt.message);
         await openCase(selectedId, docType === "payment_receipt" ? "payments" : "case");
       } else {
-        setNotice("Файл загружен. Список и краткое содержание — ниже.");
+        setNotice("Файл загружен. Он появился в таблице ниже.");
         await openCase(selectedId, docType === "sfr_decision" ? "result" : "case");
+        if (typeof document !== "undefined") {
+          window.setTimeout(() => {
+            document.getElementById("docs-table")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }, 80);
+        }
       }
       if (docType === "sfr_decision") await loadResult(selectedId);
     } catch (error) {
@@ -2369,55 +2382,11 @@ export function ClientCabinet() {
           )}
 
           <div className="docs-uploaded" aria-live="polite">
-            <p className="docs-count">
-              Уже загружено: {detail.documents.length}{" "}
-              {detail.documents.length === 1
-                ? "документ"
-                : detail.documents.length > 1 && detail.documents.length < 5
-                  ? "документа"
-                  : "документов"}
-            </p>
-            {detail.documents.length > 0 ? (
-              <ul className="doc-list">
-                {detail.documents.map((doc) => {
-                  const name =
-                    (doc.filename || "").trim() ||
-                    doc.storage_path.split("/").pop() ||
-                    doc.id;
-                  const when = doc.created_at
-                    ? new Date(doc.created_at).toLocaleString("ru-RU", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "";
-                  const typeLabel = (doc.doc_type_label || "").trim();
-                  const preview = (doc.content_preview || "").trim();
-                  return (
-                    <li key={doc.id} className="doc-list-item">
-                      <button
-                        type="button"
-                        className="linkish doc-list-name"
-                        onClick={() => void openSignedUrl(doc.id)}
-                      >
-                        {name}
-                      </button>
-                      <p className="doc-list-meta">
-                        {[typeLabel, when].filter(Boolean).join(" · ") || "файл принят"}
-                      </p>
-                      <p className="doc-list-preview">
-                        {preview ||
-                          "Краткое содержание появится после распознавания текста. Файл уже сохранён."}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="hint">Пока файлов нет — загрузите выписку ИЛС или трудовую книжку.</p>
-            )}
+            <DocumentsTable
+              documents={detail.documents}
+              busy={busy}
+              onOpen={(documentId) => void openSignedUrl(documentId)}
+            />
           </div>
 
           <div className="home-actions">
