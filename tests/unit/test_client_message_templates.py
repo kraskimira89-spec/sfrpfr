@@ -68,7 +68,9 @@ def _assert_no_banned(path: Path) -> None:
         if phrase in lower:
             if path.name == "21-trust-first-contact.md" and "запрещён" in lower:
                 continue
-            assert False, f"{path.relative_to(REPO)}: запрещённая формулировка «{phrase}»"
+            raise AssertionError(
+                f"{path.relative_to(REPO)}: запрещённая формулировка «{phrase}»"
+            )
 
 
 def test_client_templates_no_cabinet_only_wording() -> None:
