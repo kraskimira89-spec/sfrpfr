@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import RedirectResponse
 
 from sfrfr.api.schemas.portal import (
+    CabinetRegisterRequest,
+    CabinetRegisterResponse,
     CaseMessageCreate,
     CaseSummary,
     ClientCaseDetail,
@@ -272,7 +274,11 @@ def _ensure_client_row(principal: Principal) -> dict:
                 email=principal.email,
             )
         return row
-    return repo.ensure_for_auth_user(principal.user_id, email=principal.email)
+    return repo.ensure_for_auth_user(
+        principal.user_id,
+        email=principal.email,
+        phone=principal.phone,
+    )
 
 
 def _me_response(principal: Principal, row: dict) -> PortalMeResponse:
@@ -503,6 +509,45 @@ def _raise_auth(
         **extra,
     )
     raise HTTPException(status_code=status_code, detail=detail)
+
+
+def _validate_cabinet_register(
+    payload: CabinetRegisterRequest,
+) -> tuple[str, str]:
+    """Почта и телефон обязательны; телефон — российский +7XXXXXXXXXX."""
+    from sfrfr.security.login_otp import normalize_phone
+
+    if not payload.consent:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Отметьте согласие с СОПД — без него регистрацию продолжить нельзя.",
+        )
+    email = (payload.email or "").strip().lower()
+    local, _, domain = email.partition("@")
+    if not local or "." not in domain or " " in email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Укажите корректную электронную почту.",
+        )
+    phone = normalize_phone(payload.phone or "")
+    if not phone or not phone.startswith("+7") or len(phone) != 12:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Укажите телефон в формате +7 XXX XXX-XX-XX.",
+        )
+    return email, phone
+
+
+@router.post("/auth/register", response_model=CabinetRegisterResponse)
+def register_cabinet_client(payload: CabinetRegisterRequest) -> CabinetRegisterResponse:
+    """Проверка контактов саморегистрации клиента (почта и телефон обязательны)."""
+    email, phone = _validate_cabinet_register(payload)
+    return CabinetRegisterResponse(
+        ok=True,
+        email=email,
+        phone=phone,
+        message="Контакты приняты. Код подтверждения отправим на почту.",
+    )
 
 
 @router.post("/auth/otp/request", response_model=MaxOtpRequestResponse)

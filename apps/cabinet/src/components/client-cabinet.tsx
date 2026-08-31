@@ -392,7 +392,7 @@ export function ClientCabinet() {
       if (qName) setFullName(qName);
       if (fromLead && (qEmail || qPhone)) {
         setFromLeadPrefill(true);
-        setEditLeadContacts(false);
+        setEditLeadContacts(!qEmail || !qPhone);
       }
       if (mode === "recover") {
         setAuthScreen("recover");
@@ -1113,116 +1113,76 @@ export function ClientCabinet() {
       setNotice("Отметьте согласие с СОПД — без него регистрацию продолжить нельзя.");
       return;
     }
-    const hasEmail = Boolean(email.trim());
-    const hasPhone = Boolean(phone.trim());
-    if (!hasEmail && !hasPhone) {
-      setNotice("Укажите почту или телефон — на него придёт проверочный код.");
+    const emailTrim = email.trim();
+    const phoneTrim = phone.trim();
+    if (!emailTrim) {
+      setNotice("Укажите электронную почту.");
       return;
     }
-    if (hasEmail) {
-      setAuthChannel("email");
-      setEmailCreateUser(true);
-      setBusy(true);
-      setNotice("");
-      try {
-        if (!supabase) {
-          setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
-          return;
-        }
-        const { error } = await supabase.auth.signInWithOtp({
-          email: email.trim(),
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
-            data: fullName.trim() ? { full_name: fullName.trim() } : undefined,
-          },
-        });
-        if (error) throw error;
-        setOtpSent(true);
-        setMaxVerifyTicket("");
-        setNotice("Код отправлен на почту. Введите его ниже.");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "";
-        if (/rate limit|over_email/i.test(msg)) {
-          setNotice("Слишком много запросов. Подождите несколько минут.");
-        } else {
-          setNotice("Не удалось отправить код на почту. Проверьте адрес.");
-        }
-      } finally {
-        setBusy(false);
-      }
+    if (!phoneTrim) {
+      setNotice("Укажите телефон.");
       return;
     }
-    // Только телефон → код в MAX (если номер связан) иначе — вход через чат MAX
-    setAuthChannel("max");
-    setEmailCreateUser(false);
+    if (!apiBase) {
+      setNotice("API кабинета не настроен.");
+      return;
+    }
+    if (!supabase) {
+      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      return;
+    }
+    setAuthChannel("email");
+    setEmailCreateUser(true);
     setBusy(true);
     setNotice("");
     try {
-      if (!apiBase) {
-        setNotice("API кабинета не настроен.");
-        return;
-      }
-      const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
+      const check = await fetch(`${apiBase}/api/portal/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({
+          email: emailTrim,
+          phone: phoneTrim,
+          full_name: fullName.trim() || undefined,
+          consent: true,
+        }),
       });
-      const body = (await response.json().catch(() => ({}))) as {
+      const checkBody = (await check.json().catch(() => ({}))) as {
         detail?: string;
-        ticket?: string;
-        verify_ticket?: string;
-        max_bot_url?: string;
-        message?: string;
-        status?: string;
+        email?: string;
+        phone?: string;
       };
-      if (response.ok) {
-        setMaxTicket(body.ticket || "");
-        setMaxVerifyTicket(body.verify_ticket || "");
-        setMaxWaitStatus(body.status || "pending_confirm");
-        if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
-        setOtpSent(true);
-        setNotice(
-          body.message ||
-            "Код отправлен в MAX. Введите его на этой странице.",
-        );
-        return;
-      }
-      // Первый раз без привязки MAX: открыть чат и получить код там
-      const fallback = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const fb = (await fallback.json().catch(() => ({}))) as {
-        detail?: string;
-        ticket?: string;
-        max_bot_url?: string;
-        message?: string;
-        status?: string;
-      };
-      if (!fallback.ok) {
+      if (!check.ok) {
         throw new Error(
-          typeof body.detail === "string"
-            ? body.detail
-            : typeof fb.detail === "string"
-              ? fb.detail
-              : "Не удалось начать регистрацию через MAX.",
+          typeof checkBody.detail === "string"
+            ? checkBody.detail
+            : "Проверьте почту и телефон.",
         );
       }
-      setMaxTicket(fb.ticket || "");
-      setMaxVerifyTicket("");
-      setMaxWaitStatus(fb.status || "pending_pair");
-      const bot = chatUrlOnly(fb.max_bot_url || maxBotUrl);
-      if (fb.max_bot_url) setMaxBotUrl(bot);
+      const normalizedEmail = (checkBody.email || emailTrim).trim();
+      const normalizedPhone = (checkBody.phone || phoneTrim).trim();
+      const meta: Record<string, string> = { phone: normalizedPhone };
+      if (fullName.trim()) meta.full_name = fullName.trim();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
+          data: meta,
+        },
+      });
+      if (error) throw error;
+      setEmail(normalizedEmail);
+      setPhone(normalizedPhone);
       setOtpSent(true);
-      window.open(bot, "_blank", "noopener,noreferrer");
-      setNotice(
-        fb.message ||
-          "Откройте чат MAX, нажмите «Получить код для входа» и введите код на этой странице.",
-      );
+      setMaxVerifyTicket("");
+      setNotice("Код отправлен на почту. Введите его ниже.");
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось начать регистрацию.");
+      const msg = err instanceof Error ? err.message : "";
+      if (/rate limit|over_email/i.test(msg)) {
+        setNotice("Слишком много запросов. Подождите несколько минут.");
+      } else {
+        setNotice(msg || "Не удалось отправить код на почту. Проверьте адрес и телефон.");
+      }
     } finally {
       setBusy(false);
     }
@@ -1790,8 +1750,8 @@ export function ClientCabinet() {
             <>
               <p className="lead lead-compact">
                 {fromLeadPrefill && !editLeadContacts
-                  ? "Данные из заявки уже подставлены. Отметьте согласие — проверочный код придёт на почту или в MAX."
-                  : "Регистрация: укажите почту или телефон. Проверочный код придёт на почту или в MAX — введите его на этой странице."}
+                  ? "Данные из заявки уже подставлены. Нужны почта и телефон. Отметьте согласие — проверочный код придёт на почту."
+                  : "Регистрация: укажите электронную почту и телефон. Проверочный код придёт на почту — введите его на этой странице."}
               </p>
               {!otpSent ? (
                 <form className="auth-form" onSubmit={requestRegister}>
@@ -1840,7 +1800,8 @@ export function ClientCabinet() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         autoComplete="email"
-                        placeholder="по желанию"
+                        placeholder="name@example.com"
+                        required
                       />
                       <label htmlFor="reg-phone">Телефон</label>
                       <input
@@ -1849,9 +1810,10 @@ export function ClientCabinet() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         autoComplete="tel"
-                        placeholder="по желанию"
+                        placeholder="+7 900 000-00-00"
+                        required
                       />
-                      <p className="hint">Нужна почта или телефон — хотя бы одно поле.</p>
+                      <p className="hint">Нужны и почта, и телефон. Код подтверждения придёт на почту.</p>
                     </>
                   )}
                   <label className="auth-consent" htmlFor="reg-consent">

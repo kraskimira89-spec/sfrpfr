@@ -95,6 +95,22 @@ class LinkWebFromMaxResponse(BaseModel):
     message: str
 
 
+class CabinetRegisterRequest(BaseModel):
+    """Саморегистрация клиента в веб-кабинете: почта и телефон обязательны."""
+
+    email: str = Field(min_length=3, max_length=254)
+    phone: str = Field(min_length=10, max_length=32)
+    full_name: str | None = Field(default=None, max_length=200)
+    consent: bool = Field(description="Согласие с СОПД")
+
+
+class CabinetRegisterResponse(BaseModel):
+    ok: bool
+    email: str
+    phone: str
+    message: str = ""
+
+
 class MaxOtpRequest(BaseModel):
     """Запрос входа через MAX. phone опционален (номер из дела)."""
 

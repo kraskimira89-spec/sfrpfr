@@ -52,9 +52,18 @@ class ClientChannelRepository:
         *,
         email: str | None = None,
         full_name: str = "Клиент",
+        phone: str | None = None,
     ) -> dict[str, Any]:
         existing = self.get_by_user_id(user_id)
         if existing:
+            if phone and not str(existing.get("phone") or "").strip():
+                updated = self._one_or_none(
+                    self.client.table("clients")
+                    .update({"phone": phone})
+                    .eq("id", existing["id"])
+                    .execute()
+                )
+                return updated or existing
             return existing
         payload: dict[str, Any] = {
             "user_id": user_id,
@@ -63,6 +72,8 @@ class ClientChannelRepository:
         }
         if email:
             payload["email"] = email
+        if phone:
+            payload["phone"] = phone
         response = self.client.table("clients").insert(payload).execute()
         row = self._one_or_none(response)
         if not row:

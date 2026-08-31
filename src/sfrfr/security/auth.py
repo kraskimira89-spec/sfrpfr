@@ -31,6 +31,7 @@ class Principal:
     role: StaffRole | None
     max_user_id: str | None = None
     auth_via: str = "jwt"  # jwt | max
+    phone: str | None = None
 
     @property
     def is_staff(self) -> bool:
@@ -155,11 +156,15 @@ def get_current_principal(
             raise _unauthorized("invalid or expired access token") from exc
         if user is None:
             raise _unauthorized("invalid access token")
+        raw_meta = getattr(user, "user_metadata", None)
+        meta = raw_meta if isinstance(raw_meta, dict) else {}
+        phone = str(meta.get("phone") or "").strip() or None
         return Principal(
             user_id=str(user.id),
             email=getattr(user, "email", None),
             role=_lookup_role(str(user.id), getattr(user, "email", None)),
             auth_via="jwt",
+            phone=phone,
         )
 
     if x_max_init_data and x_max_init_data.strip():
