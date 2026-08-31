@@ -2164,10 +2164,10 @@ export function ClientCabinet() {
               height={40}
               alt="Проверка стажа"
             />
-            <div>
-              <strong>Проверка стажа</strong>
-              <span>Личный кабинет</span>
-            </div>
+              <div className="brand-titles">
+                <strong>Проверка стажа</strong>
+                <span>Личный кабинет</span>
+              </div>
           </BrandHomeLink>
         </div>
         <div className="header-actions">

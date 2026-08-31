@@ -162,6 +162,21 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.brand-titles {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.brand-titles strong,
+.brand-titles span {
+  display: block;
+  line-height: 1.2;
+}
+.brand-titles span {
+  font-weight: 500;
+}
 .brand-logo {
   width: 44px;
   height: 44px;
