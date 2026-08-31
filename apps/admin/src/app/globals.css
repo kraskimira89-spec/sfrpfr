@@ -1318,6 +1318,46 @@ button.badge--clickable:hover {
   font-variant-numeric: tabular-nums;
   padding: 0.35rem 0.5rem;
 }
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+.auth-tab {
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: var(--brand, #1e4e79);
+  border-color: var(--brand, #1e4e79);
+  color: #fff;
+}
+.auth-tab:focus-visible {
+  outline: 3px solid rgba(30, 78, 121, 0.35);
+  outline-offset: 2px;
+}
+.auth-consent {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 0.98rem;
+  line-height: 1.4;
+  margin: 0.25rem 0;
+}
+.auth-consent input {
+  margin-top: 0.2rem;
+  min-height: auto;
+}
+.auth-consent a {
+  color: var(--brand);
+}
 .auth-alt-hint {
   margin-top: 1.25rem;
   display: grid;

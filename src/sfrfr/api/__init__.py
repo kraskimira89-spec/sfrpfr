@@ -13,6 +13,7 @@ from sfrfr.api.routes import (
     public_leads,
     public_review_draft,
     public_site_reviews,
+    public_staff_register,
     secure_actions,
     supabase_auth_email,
 )
@@ -63,6 +64,11 @@ def create_app() -> FastAPI:
         public_site_reviews.router,
         prefix="/api/public",
         tags=["public-reviews"],
+    )
+    app.include_router(
+        public_staff_register.router,
+        prefix="/api/public",
+        tags=["public-staff"],
     )
     app.include_router(
         max_webhook.router,

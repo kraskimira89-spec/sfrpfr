@@ -252,8 +252,8 @@ function clearAdminDeepLink() {
   }
 }
 
-/** Экран входа: MAX (основной) | код на почту (запасной). Саморегистрации нет. */
-type AuthScreen = "max" | "email_otp";
+/** Экран входа: MAX (основной) | код на почту | заявка на доступ. */
+type AuthScreen = "max" | "email_otp" | "register";
 
 function chatUrlOnly(url: string): string {
   try {
@@ -370,6 +370,30 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
   return response.json() as Promise<T>;
 }
 
+async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!response.ok) {
+    const raw = (await response.text()) || `HTTP ${response.status}`;
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        message = parsed.detail;
+      }
+    } catch {
+      /* оставить сырой текст */
+    }
+    throw new Error(humanizeStaffApiError(message));
+  }
+  return response.json() as Promise<T>;
+}
+
 export function AdminCabinet() {
   const supabase = useMemo(
     () => (supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null),
@@ -377,6 +401,9 @@ export function AdminCabinet() {
   );
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [registerConsent, setRegisterConsent] = useState(false);
+  const [registerSent, setRegisterSent] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [authScreen, setAuthScreen] = useState<AuthScreen>("max");
@@ -635,8 +662,53 @@ export function AdminCabinet() {
     setAuthScreen(next);
     setOtpSent(false);
     setOtpCode("");
+    setRegisterSent(false);
     setNotice("");
     if (next === "max") resetMaxWizard();
+  }
+
+  async function requestStaffRegister(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!registerConsent) {
+      setNotice("Отметьте согласие с СОПД — без него заявку отправить нельзя.");
+      return;
+    }
+    if (!fullName.trim()) {
+      setNotice("Укажите имя и фамилию.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setNotice("Укажите рабочий e-mail.");
+      return;
+    }
+    if (!apiBase) {
+      setNotice("API кабинета не настроен.");
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      const result = await publicFetch<{ ok?: boolean; message?: string }>(
+        "/api/public/staff-register",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: email.trim(),
+            display_name: fullName.trim(),
+            consent: true,
+          }),
+        },
+      );
+      setRegisterSent(true);
+      setNotice(
+        result.message ||
+          "Заявка отправлена. После подтверждения администратором на proverkastaza@yandex.ru вы получите письмо с доступом.",
+      );
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось отправить заявку.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   // ПК ждёт: код в MAX → (при первом входе) руководитель → сессия
@@ -1708,6 +1780,7 @@ export function AdminCabinet() {
 
   if (!session) {
     const showMax = authScreen === "max";
+    const loginTabActive = authScreen !== "register";
 
     return (
       <main className="auth-layout auth-layout--split">
@@ -1726,13 +1799,36 @@ export function AdminCabinet() {
             </BrandHomeLink>
           </p>
           <h1>Кабинет сотрудника</h1>
-          <p className="lead lead-compact">
-            Вход через ops-бот MAX «Проверка стажа-Ops»: получите код на этой странице, подтвердите в MAX.
-            Роль выдаёт администратор заранее — открытой регистрации нет.
-          </p>
+
+          <div className="auth-tabs" role="tablist" aria-label="Вход или заявка на доступ">
+            <button
+              type="button"
+              role="tab"
+              id="auth-tab-login"
+              aria-selected={loginTabActive}
+              className={loginTabActive ? "auth-tab active" : "auth-tab"}
+              onClick={() => goAuthScreen("max")}
+            >
+              Вход
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="auth-tab-register"
+              aria-selected={!loginTabActive}
+              className={!loginTabActive ? "auth-tab active" : "auth-tab"}
+              onClick={() => goAuthScreen("register")}
+            >
+              Запрос доступа
+            </button>
+          </div>
 
           {authScreen === "max" ? (
             <>
+              <p className="lead lead-compact">
+                Вход через ops-бот MAX «Проверка стажа-Ops»: получите код на этой странице,
+                подтвердите в MAX. Доступ открывается после одобрения администратором.
+              </p>
               <label htmlFor="email-max">Рабочий email</label>
               <input
                 id="email-max"
@@ -1864,10 +1960,77 @@ export function AdminCabinet() {
             </>
           ) : null}
 
-          {notice && <p className="notice">{notice}</p>}
-          <p className="hint auth-staff-hint">
-            Нет доступа? Попросите администратора добавить вас в разделе «Роли».
-          </p>
+          {authScreen === "register" ? (
+            <>
+              <p className="lead lead-compact">
+                Заполните заявку — администратор получит письмо на{" "}
+                <strong>proverkastaza@yandex.ru</strong> и подтвердит доступ. После одобрения
+                придёт приглашение на ваш e-mail.
+              </p>
+              {registerSent ? (
+                <p className="notice" role="status">
+                  {notice ||
+                    "Заявка отправлена. Дождитесь письма с доступом после одобрения администратором."}
+                </p>
+              ) : (
+                <form className="auth-form" onSubmit={requestStaffRegister}>
+                  <label htmlFor="reg-name">Имя и фамилия</label>
+                  <input
+                    id="reg-name"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    autoComplete="name"
+                    required
+                  />
+                  <label htmlFor="reg-email">Рабочий e-mail</label>
+                  <input
+                    id="reg-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                    placeholder="name@company.ru"
+                  />
+                  <label className="auth-consent" htmlFor="reg-consent">
+                    <input
+                      id="reg-consent"
+                      type="checkbox"
+                      checked={registerConsent}
+                      onChange={(e) => setRegisterConsent(e.target.checked)}
+                      required
+                    />
+                    <span>
+                      Согласен с{" "}
+                      <a href={`${SITE_URL}/soglasie/`} target="_blank" rel="noopener noreferrer">
+                        СОПД
+                      </a>{" "}
+                      для рассмотрения заявки
+                    </span>
+                  </label>
+                  <button type="submit" disabled={busy || !registerConsent}>
+                    Отправить заявку
+                  </button>
+                  {notice ? <p className="notice">{notice}</p> : null}
+                </form>
+              )}
+              {!registerSent ? (
+                <p className="hint">
+                  <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
+                    ← Уже есть доступ — войти
+                  </button>
+                </p>
+              ) : null}
+            </>
+          ) : null}
+
+          {authScreen !== "register" && notice ? <p className="notice">{notice}</p> : null}
+          {authScreen !== "register" ? (
+            <p className="hint auth-staff-hint">
+              Нет доступа? Вкладка «Запрос доступа» или попросите администратора добавить вас в разделе «Роли».
+            </p>
+          ) : null}
         </section>
           <SiteReturnPanel />
         </div>

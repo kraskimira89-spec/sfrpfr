@@ -544,7 +544,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
         if role is None:
             _raise_auth(
                 403,
-                "Email не найден в staff-ролях. Обратитесь к администратору.",
+                "Email не найден в staff-ролях. Подайте заявку на доступ "
+                "во вкладке «Запрос доступа» или обратитесь к администратору.",
                 event="otp_request",
                 audience="staff",
                 reason="staff_email_unknown",
