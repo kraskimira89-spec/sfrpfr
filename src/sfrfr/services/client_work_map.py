@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -116,7 +116,7 @@ _MONTHS_RU = (
     "декабря",
 )
 try:
-    _MSK = ZoneInfo("Europe/Moscow")
+    _MSK: tzinfo = ZoneInfo("Europe/Moscow")
 except Exception:  # noqa: BLE001
     _MSK = timezone(timedelta(hours=3))
 
@@ -293,7 +293,7 @@ def _order_view(orders: list[Any] | None) -> dict[str, Any]:
     }
     amount = order.get("amount_rub")
     try:
-        amount_i = int(float(amount))
+        amount_i = int(float(str(amount)))
     except (TypeError, ValueError):
         amount_i = int((tariff or {}).get("amount_rub") or 3000)
     includes_raw = str((tariff or {}).get("includes") or "")

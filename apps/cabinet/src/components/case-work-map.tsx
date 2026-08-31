@@ -57,6 +57,12 @@ type Props = {
   onDownloadResult: (documentId: string) => void;
 };
 
+function mark(state: string) {
+  if (state === "done") return "✓";
+  if (state === "current") return "●";
+  return "○";
+}
+
 function firstUploadSlot(work: ClientWork): WorkSlot | undefined {
   return (
     work.documents.find((row) => row.status === "missing" || row.status === "reupload") ||
