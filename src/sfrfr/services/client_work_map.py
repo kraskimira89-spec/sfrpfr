@@ -56,17 +56,87 @@ _DOC_SLOTS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "labor",
-        "title": "Трудовая книжка / сведения о стаже",
+        "title": "Трудовая книжка / сведения о трудовой деятельности",
         "need": "required",
         "need_label": "Обязательно",
         "doc_type": "workbook",
     },
     {
+        "key": "passport",
+        "title": "Паспорт",
+        "need": "optional",
+        "need_label": "При необходимости",
+        "doc_type": "passport",
+    },
+    {
+        "key": "sfr_size",
+        "title": "Справка о размере пенсии",
+        "need": "if_pension",
+        "need_label": "Если пенсия уже назначена",
+        "doc_type": "pension_size",
+    },
+    {
+        "key": "sfr_pay",
+        "title": "Справка о выплатах СФР за 12 месяцев",
+        "need": "if_pension",
+        "need_label": "Если пенсия уже назначена",
+        "doc_type": "sfr_payments",
+    },
+    {
+        "key": "bank",
+        "title": "Банковская выписка за 12 месяцев",
+        "need": "if_pension",
+        "need_label": "Если пенсия уже назначена",
+        "doc_type": "bank_statement",
+    },
+    {
+        "key": "archive",
+        "title": "Архивные справки с мест работы",
+        "need": "optional",
+        "need_label": "При наличии",
+        "doc_type": "archive",
+    },
+    {
         "key": "extra",
-        "title": "Справки, договоры, приказы",
+        "title": "Договоры, приказы, ведомости",
         "need": "optional",
         "need_label": "При наличии",
         "doc_type": None,
+    },
+    {
+        "key": "military",
+        "title": "Военный билет",
+        "need": "optional",
+        "need_label": "При наличии",
+        "doc_type": "military",
+    },
+    {
+        "key": "children",
+        "title": "Свидетельства о рождении детей / уход",
+        "need": "optional",
+        "need_label": "При наличии",
+        "doc_type": "children",
+    },
+    {
+        "key": "marriage",
+        "title": "Свидетельство о браке (смена фамилии)",
+        "need": "optional",
+        "need_label": "При наличии",
+        "doc_type": "marriage",
+    },
+    {
+        "key": "education",
+        "title": "Документы об образовании",
+        "need": "optional",
+        "need_label": "При необходимости",
+        "doc_type": "education",
+    },
+    {
+        "key": "north",
+        "title": "Льготный, северный или вредный стаж",
+        "need": "optional",
+        "need_label": "При наличии",
+        "doc_type": "north",
     },
     {
         "key": "sfr",
@@ -149,6 +219,66 @@ def _is_sfr(doc: dict[str, Any]) -> bool:
     return _lower(doc.get("doc_type")) == "sfr_decision" or "решени" in _doc_blob(doc)
 
 
+def _is_passport(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    return _lower(doc.get("doc_type")) == "passport" or "паспорт" in blob
+
+
+def _is_sfr_size(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return (
+        dtype in {"pension_size", "sfr_size"} or "размер пенсии" in blob or "размере пенсии" in blob
+    )
+
+
+def _is_sfr_pay(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return dtype in {"sfr_payments", "sfr_payout"} or "выплат" in blob
+
+
+def _is_bank(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return dtype in {"bank_statement", "bank"} or "банк" in blob
+
+
+def _is_archive(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    return _lower(doc.get("doc_type")) == "archive" or "архив" in blob
+
+
+def _is_military(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    return _lower(doc.get("doc_type")) == "military" or "военн" in blob
+
+
+def _is_children(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return dtype in {"children", "birth"} or "рождении" in blob or "уход до" in blob
+
+
+def _is_marriage(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    return _lower(doc.get("doc_type")) == "marriage" or "брак" in blob
+
+
+def _is_education(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return dtype == "education" or "образован" in blob or "диплом" in blob or "аттестат" in blob
+
+
+def _is_north(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return (
+        dtype in {"north", "preferential"} or "северн" in blob or "льготн" in blob or "соут" in blob
+    )
+
+
 def _is_diagnosis(doc: dict[str, Any]) -> bool:
     return "diagnosis" in _lower(doc.get("doc_type"))
 
@@ -180,7 +310,6 @@ def _needs_reupload(item: dict[str, Any] | None) -> bool:
 
 def _slot_status(
     *,
-    required: bool,
     docs: list[dict[str, Any]],
     checklist: dict[str, Any] | None,
 ) -> str:
@@ -190,9 +319,7 @@ def _slot_status(
         return "accepted"
     if docs:
         return "awaiting"
-    if required:
-        return "missing"
-    return "not_needed"
+    return "missing"
 
 
 def _format_added(value: object) -> str | None:
@@ -208,13 +335,26 @@ def _format_added(value: object) -> str | None:
 
 
 def _match_docs(docs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
-    if key == "ils":
-        return [d for d in docs if _is_ils(d)]
-    if key == "labor":
-        return [d for d in docs if _is_labor(d)]
-    if key == "sfr":
-        return [d for d in docs if _is_sfr(d)]
-    return [d for d in docs if not _is_ils(d) and not _is_labor(d) and not _is_sfr(d)]
+    checks = {
+        "ils": _is_ils,
+        "labor": _is_labor,
+        "sfr": _is_sfr,
+        "passport": _is_passport,
+        "sfr_size": _is_sfr_size,
+        "sfr_pay": _is_sfr_pay,
+        "bank": _is_bank,
+        "archive": _is_archive,
+        "military": _is_military,
+        "children": _is_children,
+        "marriage": _is_marriage,
+        "education": _is_education,
+        "north": _is_north,
+    }
+    check = checks.get(key)
+    if check:
+        return [d for d in docs if check(d)]
+    claimed = checks.values()
+    return [d for d in docs if not any(fn(d) for fn in claimed)]
 
 
 def _slot_row(
@@ -226,8 +366,7 @@ def _slot_row(
     title_override: str | None = None,
 ) -> dict[str, Any]:
     latest = matched[0] if matched else None
-    required = slot["need"] == "required"
-    status = _slot_status(required=required, docs=matched, checklist=checklist)
+    status = _slot_status(docs=matched, checklist=checklist)
     return {
         "key": key_override or str(slot["key"]),
         "title": title_override or slot["title"],
@@ -251,15 +390,19 @@ def document_slots(
     items = [i for i in (checklist_items or []) if isinstance(i, dict)]
     used: set[str] = set()
     typed: dict[str, list[dict[str, Any]]] = {}
-    for key in ("ils", "labor", "sfr"):
+    for slot in _DOC_SLOTS:
+        key = str(slot["key"])
+        if key == "extra":
+            continue
         matched = [d for d in _match_docs(docs, key) if str(d.get("id")) not in used]
         for row in matched:
             used.add(str(row.get("id")))
         typed[key] = matched
     leftover = [d for d in docs if str(d.get("id")) not in used]
     leftover.sort(key=lambda d: str(d.get("created_at") or ""))
-    for key in ("ils", "labor"):
-        if not typed[key] and leftover:
+    for slot in _DOC_SLOTS:
+        key = str(slot["key"])
+        if slot["need"] == "required" and not typed.get(key) and leftover:
             taken = leftover.pop(0)
             typed[key] = [taken]
             used.add(str(taken.get("id")))
@@ -271,15 +414,15 @@ def document_slots(
         if key == "extra":
             matched = extra_docs[:1]
             check = None
-        elif key == "sfr":
-            matched = typed["sfr"]
-            check = None
         elif key == "ils":
-            matched = typed["ils"]
+            matched = typed.get(key) or []
             check = _checklist_for(items, "илс", "сзи")
-        else:
-            matched = typed["labor"]
+        elif key == "labor":
+            matched = typed.get(key) or []
             check = _checklist_for(items, "труд", "стаж")
+        else:
+            matched = typed.get(key) or []
+            check = None
         rows.append(_slot_row(slot, matched=matched, checklist=check))
     for extra in extra_docs[1:]:
         rows.append(

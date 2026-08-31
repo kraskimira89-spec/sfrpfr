@@ -123,7 +123,7 @@ def test_untyped_upload_fills_ils_slot() -> None:
     assert ils["status"] == "awaiting"
     assert ils["document_id"] == "scan"
     assert labor["status"] == "missing"
-    assert extra["status"] == "not_needed"
+    assert extra["status"] == "missing"
     assert uploaded == 1
     assert total == 2
 
@@ -141,6 +141,22 @@ def test_two_untyped_uploads_fill_required_slots() -> None:
     assert ils["document_id"] == "first"
     assert labor["document_id"] == "second"
     assert uploaded == 2
+
+
+def test_full_checklist_has_core_and_pension_rows() -> None:
+    slots, uploaded, total = document_slots([], [])
+    keys = [s["key"] for s in slots]
+    assert keys[:2] == ["ils", "labor"]
+    assert "bank" in keys
+    assert "sfr_pay" in keys
+    assert "sfr_size" in keys
+    assert "military" in keys
+    assert "children" in keys
+    assert "north" in keys
+    assert "sfr" in keys
+    assert all(s["status"] == "missing" for s in slots)
+    assert uploaded == 0
+    assert total == 2
 
 
 def test_result_ready_only_with_diagnosis_pdf() -> None:

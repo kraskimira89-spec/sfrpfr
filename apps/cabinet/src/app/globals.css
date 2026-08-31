@@ -953,10 +953,14 @@ header span { color: var(--muted); font-size: 1rem; }
   display: inline-block;
   font-weight: 700;
 }
-.doc-status--missing { color: #8a4b12; }
-.doc-status--awaiting { color: var(--brand); }
-.doc-status--accepted { color: var(--ok); }
-.doc-status--reupload { color: #8a4b12; }
+.doc-status--missing,
+.doc-status--reupload {
+  color: #c62828;
+}
+.doc-status--awaiting,
+.doc-status--accepted {
+  color: #1b6b3a;
+}
 .doc-status--not_needed { color: var(--muted); }
 .slot-actions {
   display: flex;
