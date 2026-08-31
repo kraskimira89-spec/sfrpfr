@@ -217,6 +217,32 @@ def _match_docs(docs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
     return [d for d in docs if not _is_ils(d) and not _is_labor(d) and not _is_sfr(d)]
 
 
+def _slot_row(
+    slot: dict[str, Any],
+    *,
+    matched: list[dict[str, Any]],
+    checklist: dict[str, Any] | None,
+    key_override: str | None = None,
+    title_override: str | None = None,
+) -> dict[str, Any]:
+    latest = matched[0] if matched else None
+    required = slot["need"] == "required"
+    status = _slot_status(required=required, docs=matched, checklist=checklist)
+    return {
+        "key": key_override or str(slot["key"]),
+        "title": title_override or slot["title"],
+        "need": slot["need"],
+        "need_label": slot["need_label"],
+        "doc_type": slot["doc_type"],
+        "status": status,
+        "status_label": _STATUS_LABEL[status],
+        "added_at": _format_added(latest.get("created_at") if latest else None),
+        "document_id": str(latest["id"]) if latest and latest.get("id") else None,
+        "can_replace": status in {"awaiting", "reupload"} and bool(latest),
+        "can_delete": status in {"awaiting", "reupload"} and bool(latest),
+    }
+
+
 def document_slots(
     documents: list[Any] | None,
     checklist_items: list[Any] | None,
@@ -224,35 +250,46 @@ def document_slots(
     docs = _client_docs(list(documents or []))
     items = [i for i in (checklist_items or []) if isinstance(i, dict)]
     used: set[str] = set()
-    rows: list[dict[str, Any]] = []
-    for slot in _DOC_SLOTS:
-        key = str(slot["key"])
+    typed: dict[str, list[dict[str, Any]]] = {}
+    for key in ("ils", "labor", "sfr"):
         matched = [d for d in _match_docs(docs, key) if str(d.get("id")) not in used]
         for row in matched:
             used.add(str(row.get("id")))
-        latest = matched[0] if matched else None
-        if key == "ils":
-            check = _checklist_for(items, "илс", "сзи")
-        elif key == "labor":
-            check = _checklist_for(items, "труд", "стаж")
-        else:
+        typed[key] = matched
+    leftover = [d for d in docs if str(d.get("id")) not in used]
+    leftover.sort(key=lambda d: str(d.get("created_at") or ""))
+    for key in ("ils", "labor"):
+        if not typed[key] and leftover:
+            taken = leftover.pop(0)
+            typed[key] = [taken]
+            used.add(str(taken.get("id")))
+    extra_docs = leftover
+    extra_slot = next(s for s in _DOC_SLOTS if s["key"] == "extra")
+    rows: list[dict[str, Any]] = []
+    for slot in _DOC_SLOTS:
+        key = str(slot["key"])
+        if key == "extra":
+            matched = extra_docs[:1]
             check = None
-        required = slot["need"] == "required"
-        status = _slot_status(required=required, docs=matched, checklist=check)
+        elif key == "sfr":
+            matched = typed["sfr"]
+            check = None
+        elif key == "ils":
+            matched = typed["ils"]
+            check = _checklist_for(items, "илс", "сзи")
+        else:
+            matched = typed["labor"]
+            check = _checklist_for(items, "труд", "стаж")
+        rows.append(_slot_row(slot, matched=matched, checklist=check))
+    for extra in extra_docs[1:]:
         rows.append(
-            {
-                "key": key,
-                "title": slot["title"],
-                "need": slot["need"],
-                "need_label": slot["need_label"],
-                "doc_type": slot["doc_type"],
-                "status": status,
-                "status_label": _STATUS_LABEL[status],
-                "added_at": _format_added(latest.get("created_at") if latest else None),
-                "document_id": str(latest["id"]) if latest and latest.get("id") else None,
-                "can_replace": status in {"awaiting", "reupload"} and bool(latest),
-                "can_delete": status in {"awaiting", "reupload"} and bool(latest),
-            }
+            _slot_row(
+                extra_slot,
+                matched=[extra],
+                checklist=None,
+                key_override=f"file-{extra.get('id')}",
+                title_override="Дополнительный документ",
+            )
         )
     required = [r for r in rows if r["need"] == "required"]
     uploaded = sum(1 for r in required if r["status"] in {"awaiting", "accepted"})

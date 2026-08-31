@@ -88,13 +88,19 @@ export function CaseWorkMap({
 
   function pickFile(next: WorkSlot) {
     pendingSlot.current = next;
-    window.setTimeout(() => fileRef.current?.click(), 0);
+    const input = fileRef.current;
+    if (input) {
+      input.dataset.slotKey = next.key;
+      input.click();
+    }
   }
 
   function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    const slotKey = event.currentTarget.dataset.slotKey;
     event.target.value = "";
-    const chosen = pendingSlot.current;
+    const chosen =
+      work.documents.find((row) => row.key === slotKey) || pendingSlot.current || firstUploadSlot(work);
     pendingSlot.current = null;
     if (!file) return;
     onUpload(file, chosen?.doc_type || undefined);

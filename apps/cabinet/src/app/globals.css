@@ -35,11 +35,17 @@ button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.auth-layout,
-.app-layout {
+.auth-layout {
   width: min(640px, calc(100% - 32px));
   margin: 0 auto;
   padding-bottom: 48px;
+}
+.app-layout {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+  box-sizing: border-box;
 }
 .auth-layout {
   min-height: 100vh;
@@ -949,10 +955,11 @@ header span { color: var(--muted); font-size: 1rem; }
 .next-actions { padding-left: 1.2rem; }
 .safety-note { margin: 0.25rem 0 0; }
 .app-layout--case {
-  width: min(880px, calc(100% - 32px));
+  width: 100%;
+  max-width: none;
 }
 
-@media (max-width: 880px) {
+@media (max-width: 720px) {
   .my-docs-table-wrap { display: none; }
   .my-docs-cards { display: grid; }
 }
@@ -970,9 +977,12 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 
 @media (max-width: 640px) {
-  .auth-layout,
-  .app-layout {
+  .auth-layout {
     width: calc(100% - 20px);
+  }
+  .app-layout {
+    width: 100%;
+    padding: 0 12px 40px;
   }
   .auth-layout--split {
     width: calc(100% - 20px);

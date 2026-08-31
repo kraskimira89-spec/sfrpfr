@@ -215,6 +215,40 @@ function packageLabel(code: string) {
   return labelPackage(code);
 }
 
+function markSlotUploaded(
+  work: ClientWork,
+  payload: { id: string },
+  docType?: string,
+): ClientWork {
+  const docs = work.documents.map((slot) => ({ ...slot }));
+  let idx = -1;
+  if (docType) {
+    idx = docs.findIndex((slot) => slot.doc_type === docType && slot.status !== "accepted");
+  }
+  if (idx < 0) {
+    idx = docs.findIndex((slot) => slot.status === "missing" || slot.status === "reupload");
+  }
+  if (idx < 0) {
+    idx = docs.findIndex((slot) => slot.key === "extra" || slot.status === "not_needed");
+  }
+  if (idx >= 0) {
+    docs[idx] = {
+      ...docs[idx],
+      status: "awaiting",
+      status_label: "Загружен — ожидает проверки",
+      added_at: "только что",
+      document_id: payload.id,
+      can_replace: true,
+      can_delete: true,
+    };
+  }
+  const required = docs.filter((slot) => slot.need === "required");
+  const uploaded = required.filter(
+    (slot) => slot.status === "awaiting" || slot.status === "accepted",
+  ).length;
+  return { ...work, documents: docs, required_uploaded: uploaded };
+}
+
 function authorLabel(kind: string) {
   if (kind === "client") return "Вы";
   if (kind === "representative") return "Представитель";
@@ -587,10 +621,10 @@ export function ClientCabinet() {
   }, [needsPasswordGate]);
 
   const openCase = useCallback(
-    async (caseId: string, nextView: View = "case") => {
+    async (caseId: string, nextView: View = "case", keepNotice = false) => {
       if (!token) return;
       setBusy(true);
-      setNotice("");
+      if (!keepNotice) setNotice("");
       try {
         const [caseDetail, caseMessages, consentBundle, reps] = await Promise.all([
           apiFetch<CaseDetail>(`/api/portal/cases/${caseId}`, token),
@@ -1460,7 +1494,11 @@ export function ClientCabinet() {
             payload,
             ...prev.documents.filter((d) => d.id !== payload.id),
           ];
-          return { ...prev, documents: nextDocs };
+          return {
+            ...prev,
+            documents: nextDocs,
+            work: prev.work ? markSlotUploaded(prev.work, payload, docType) : prev.work,
+          };
         });
       }
       const receipt = payload.payment_receipt;
@@ -1468,13 +1506,13 @@ export function ClientCabinet() {
         setNotice(receipt.message || "Оплата подтверждена по чеку.");
         await loadPayments(selectedId);
         setView("payments");
-        await openCase(selectedId, "payments");
+        await openCase(selectedId, "payments", true);
       } else if (receipt?.message) {
         setNotice(receipt.message);
-        await openCase(selectedId, docType === "payment_receipt" ? "payments" : "case");
+        await openCase(selectedId, docType === "payment_receipt" ? "payments" : "case", true);
       } else {
         setNotice("Файл загружен. Он появился в разделе «Мои документы».");
-        await openCase(selectedId, "case");
+        await openCase(selectedId, "case", true);
         if (typeof document !== "undefined") {
           window.setTimeout(() => {
             document.getElementById("docs-table")?.scrollIntoView({
@@ -2115,7 +2153,7 @@ export function ClientCabinet() {
       : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP;
 
   return (
-    <main className={view === "case" ? "app-layout app-layout--case" : "app-layout"}>
+    <main className="app-layout">
       <header>
         <div className="brand-block">
           <BrandHomeLink className="brand-home-link--header">

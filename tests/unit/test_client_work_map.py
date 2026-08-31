@@ -109,6 +109,40 @@ def test_no_raw_pipeline_codes_in_client_copy() -> None:
     assert work["cta_key"] == "pay"
 
 
+def test_untyped_upload_fills_ils_slot() -> None:
+    slots, uploaded, total = document_slots(
+        [{"id": "scan", "doc_type": None, "created_at": "2026-08-31T15:40:00+00:00"}],
+        [
+            {"title": "Выписка ИЛС", "status": "open"},
+            {"title": "Трудовая книжка / сведения о стаже", "status": "open"},
+        ],
+    )
+    ils = next(s for s in slots if s["key"] == "ils")
+    labor = next(s for s in slots if s["key"] == "labor")
+    extra = next(s for s in slots if s["key"] == "extra")
+    assert ils["status"] == "awaiting"
+    assert ils["document_id"] == "scan"
+    assert labor["status"] == "missing"
+    assert extra["status"] == "not_needed"
+    assert uploaded == 1
+    assert total == 2
+
+
+def test_two_untyped_uploads_fill_required_slots() -> None:
+    slots, uploaded, _total = document_slots(
+        [
+            {"id": "first", "created_at": "2026-08-31T10:00:00+00:00"},
+            {"id": "second", "created_at": "2026-08-31T11:00:00+00:00"},
+        ],
+        [],
+    )
+    ils = next(s for s in slots if s["key"] == "ils")
+    labor = next(s for s in slots if s["key"] == "labor")
+    assert ils["document_id"] == "first"
+    assert labor["document_id"] == "second"
+    assert uploaded == 2
+
+
 def test_result_ready_only_with_diagnosis_pdf() -> None:
     work = build_client_work_map(
         pipeline_status="audited",
