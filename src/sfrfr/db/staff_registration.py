@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import quote
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
 from sfrfr.core.config import get_settings
 from sfrfr.db.session import get_supabase_client
@@ -104,13 +104,19 @@ def create_registration_request(*, email: str, display_name: str) -> dict[str, A
     if existing_staff and str(existing_staff.get("status") or "") != "archived":
         raise HTTPException(
             status_code=409,
-            detail="Этот e-mail уже есть в кабинете сотрудников. Войдите или обратитесь к администратору.",
+            detail=(
+                "Этот e-mail уже есть в кабинете сотрудников. "
+                "Войдите или обратитесь к администратору."
+            ),
         )
 
     if get_pending_by_email(normalized):
         raise HTTPException(
             status_code=409,
-            detail="Заявка с этим e-mail уже на рассмотрении. Дождитесь ответа администратора.",
+            detail=(
+                "Заявка с этим e-mail уже на рассмотрении. "
+                "Дождитесь ответа администратора."
+            ),
         )
 
     response = (
