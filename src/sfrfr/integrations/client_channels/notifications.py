@@ -53,7 +53,7 @@ def notification_channel_links(
             "channel": "web_cabinet",
             "label": "Кабинет на сайте",
             "url": cabinet,
-            "copy": "Документы, оплата и статус дела — в личном кабинете на сайте",
+            "copy": "Документы — в чат MAX или кабинет на сайте; оплата и статус — в кабинете",
         },
     ]
     preferred = preferred_channel or "unset"

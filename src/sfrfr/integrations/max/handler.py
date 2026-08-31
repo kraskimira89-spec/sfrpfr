@@ -2652,8 +2652,8 @@ def handle_max_update(
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = (
-                "Сначала загрузите документ в кабинет на сайте "
-                "или пришлите файл сюда в чат."
+                "Пришлите файл сюда в чат (PDF/JPG/PNG) "
+                "или загрузите в кабинет на сайте."
             )
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
