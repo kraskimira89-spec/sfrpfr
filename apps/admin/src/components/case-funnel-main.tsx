@@ -25,6 +25,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
+import { DocumentsTable } from "@/components/documents-table";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -69,7 +70,12 @@ type Detail = {
     id: string;
     storage_path: string;
     doc_type?: string | null;
+    doc_type_label?: string | null;
     created_at?: string;
+    filename?: string | null;
+    inner_date?: string | null;
+    inner_title?: string | null;
+    content_preview?: string | null;
   }[];
   checklist_items: {
     id: string;
@@ -213,13 +219,6 @@ function StageShell({
       <div className="funnel-stage-body">{children}</div>
     </div>
   );
-}
-
-function docSourceLabel(doc: Detail["documents"][0]): string {
-  const t = `${doc.doc_type || ""} ${doc.storage_path || ""}`.toLowerCase();
-  if (/ils|илс|сзи/.test(t)) return "ИЛС";
-  if (/labor|труд|employment/.test(t)) return "Трудовая";
-  return doc.doc_type || "файл";
 }
 
 export function CaseFunnelMain({
@@ -955,29 +954,13 @@ export function CaseFunnelMain({
                   </button>
                 </td>
               </tr>
-              {detail.documents.map((doc) => (
-                <tr key={doc.id}>
-                  <td>
-                    <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
-                      {doc.storage_path.split("/").pop()}
-                    </button>
-                  </td>
-                  <td>загружен</td>
-                  <td>{docSourceLabel(doc)}</td>
-                  <td>
-                    {doc.created_at
-                      ? new Date(doc.created_at).toLocaleString("ru-RU", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
+          <DocumentsTable
+            documents={detail.documents}
+            onOpen={onOpenSigned}
+            busy={busy}
+          />
           {docItems.length > 0 ? (
             <ul className="plain-list case-doc-checklist">
               {docItems.map((item) => (

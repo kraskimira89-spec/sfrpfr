@@ -123,7 +123,17 @@ type StaffCaseDetail = {
     web_linked: boolean;
     max_user_id?: string | null;
   };
-  documents: { id: string; storage_path: string; doc_type?: string | null }[];
+  documents: {
+    id: string;
+    storage_path: string;
+    doc_type?: string | null;
+    doc_type_label?: string | null;
+    created_at?: string;
+    filename?: string | null;
+    inner_date?: string | null;
+    inner_title?: string | null;
+    content_preview?: string | null;
+  }[];
   checklist_items: {
     id: string;
     title: string;

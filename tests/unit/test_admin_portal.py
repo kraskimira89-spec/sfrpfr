@@ -39,7 +39,15 @@ def _base_case() -> dict:
             "max_user_id": "max-1",
             "user_id": None,
         },
-        "documents": [{"id": "d1", "storage_path": "c/d/f.pdf", "doc_type": None}],
+        "documents": [
+            {
+                "id": "d1",
+                "storage_path": "c/d/f.pdf",
+                "doc_type": None,
+                "created_at": "2026-08-31T10:00:00+00:00",
+                "content_preview": "Выписка ИЛС от 15.03.2024",
+            }
+        ],
         "checklist_items": [],
     }
 
@@ -55,6 +63,11 @@ def test_filter_staff_case_hides_ocr_from_operator() -> None:
     assert payload["role_capabilities"]["can_edit_pipeline"] is False
     assert payload["role_capabilities"]["can_view_ocr"] is False
     assert payload["role_capabilities"]["can_manage_roles"] is False
+    doc = payload["documents"][0]
+    assert doc["filename"] == "f.pdf"
+    assert doc["inner_title"] == "Выписка ИЛС"
+    assert doc["inner_date"] == "15.03.2024"
+    assert "content_preview" not in doc
 
 
 def test_filter_staff_case_expert_sees_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:

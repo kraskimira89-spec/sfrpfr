@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
+from sfrfr.api.routes.portal import _client_documents
 from sfrfr.api.schemas.admin import (
     AssignExpertRequest,
     CancelOrderRequest,
@@ -182,6 +183,20 @@ def _sales_column(case: dict[str, Any], work: dict[str, Any] | None) -> str:
     )
 
 
+def _staff_documents(
+    raw_docs: list[Any] | None,
+    *,
+    can_view_ocr: bool,
+) -> list[dict[str, Any]]:
+    """Таблица документов как у клиента; OCR-превью — только эксперт/админ."""
+    docs = _client_documents(raw_docs)
+    if can_view_ocr:
+        return docs
+    for item in docs:
+        item.pop("content_preview", None)
+    return docs
+
+
 def _filter_staff_case(
     case: dict[str, Any],
     principal: Principal,
@@ -237,15 +252,10 @@ def _filter_staff_case(
                 else None
             ),
         },
-        "documents": [
-            {
-                "id": d.get("id"),
-                "storage_path": d.get("storage_path"),
-                "doc_type": d.get("doc_type"),
-                "created_at": d.get("created_at"),
-            }
-            for d in (case.get("documents") or [])
-        ],
+        "documents": _staff_documents(
+            list(case.get("documents") or []),
+            can_view_ocr=principal.role in (StaffRole.ADMIN, StaffRole.EXPERT),
+        ),
         "checklist_items": case.get("checklist_items") or [],
         "channels": {
             "cabinet_url": (
