@@ -10,11 +10,11 @@ from sfrfr.api.routes import (
     max_webhook,
     payments,
     portal,
+    public_debug_session,
     public_leads,
     public_review_draft,
     public_site_reviews,
     public_staff_register,
-    public_debug_session,
     secure_actions,
     supabase_auth_email,
 )
