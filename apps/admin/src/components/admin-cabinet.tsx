@@ -285,6 +285,15 @@ function BrandHomeLink({
   );
 }
 
+function SiteReturnPanel() {
+  return (
+    <a className="auth-return-panel" href={SITE_URL}>
+      <span className="auth-return-panel__title">Вернуться на сайт</span>
+      <span className="auth-return-panel__hint">proverkastaza.ru</span>
+    </a>
+  );
+}
+
 const CHANNEL_LABELS: Record<string, string> = {
   max_miniapp: "MAX",
   web_cabinet: "Веб-кабинет",
@@ -1698,9 +1707,12 @@ export function AdminCabinet() {
   }
 
   if (!session) {
+    const showMax = authScreen === "max";
+
     return (
-      <main className="auth-layout">
-        <section className="card auth-card">
+      <main className="auth-layout auth-layout--split">
+        <div className="auth-split">
+        <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
           <p className="eyebrow">
             <BrandHomeLink>
               <img
@@ -1799,18 +1811,16 @@ export function AdminCabinet() {
                 )}
               </div>
               <div className="auth-alt-hint">
-                <details>
-                  <summary>Другие способы</summary>
-                  <div className="auth-alt-list">
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => goAuthScreen("email_otp")}
-                    >
-                      Код на рабочую почту
-                    </button>
-                  </div>
-                </details>
+                <p className="auth-alt-label">Другие способы входа</p>
+                <div className="auth-alt-list" role="group" aria-label="Другие способы входа">
+                  <button
+                    type="button"
+                    className="auth-alt-btn"
+                    onClick={() => goAuthScreen("email_otp")}
+                  >
+                    Код на рабочую почту
+                  </button>
+                </div>
               </div>
             </>
           ) : null}
@@ -1859,23 +1869,28 @@ export function AdminCabinet() {
             Нет доступа? Попросите администратора добавить вас в разделе «Роли».
           </p>
         </section>
+          <SiteReturnPanel />
+        </div>
       </main>
     );
   }
 
   if (me && !me.is_staff) {
     return (
-      <main className="auth-layout">
-        <section className="card auth-card">
-          <h1>Нет доступа</h1>
-          <p className="lead lead-compact">
-            Вход выполнен, но роли сотрудника нет. Попросите администратора добавить вас в разделе
-            «Роли» — открытой регистрации нет.
-          </p>
-          <button type="button" className="max-action-btn" onClick={() => void supabase?.auth.signOut()}>
-            Выйти
-          </button>
-        </section>
+      <main className="auth-layout auth-layout--split">
+        <div className="auth-split">
+          <section className="card auth-card">
+            <h1>Нет доступа</h1>
+            <p className="lead lead-compact">
+              Вход выполнен, но роли сотрудника нет. Попросите администратора добавить вас в разделе
+              «Роли» — открытой регистрации нет.
+            </p>
+            <button type="button" className="max-action-btn" onClick={() => void supabase?.auth.signOut()}>
+              Выйти
+            </button>
+          </section>
+          <SiteReturnPanel />
+        </div>
       </main>
     );
   }
