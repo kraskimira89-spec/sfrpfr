@@ -1233,6 +1233,10 @@ export function ClientCabinet() {
       // #endregion
       if (/rate limit|over_email/i.test(msg)) {
         setNotice("Слишком много запросов. Подождите несколько минут.");
+      } else if (!msg || msg === "{}" || /unexpected_failure|Error sending confirmation|AuthRetryableFetchError/i.test(msg)) {
+        setNotice(
+          "Не удалось отправить письмо подтверждения. Попробуйте ещё раз через минуту или войдите через MAX.",
+        );
       } else {
         setNotice(msg || "Не удалось отправить код на почту. Проверьте адрес и телефон.");
       }
