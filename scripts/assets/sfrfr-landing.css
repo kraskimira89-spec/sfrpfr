@@ -809,6 +809,19 @@ body.page-template-default {
   color: var(--sfrfr-accent);
 }
 
+/* Astra / entry-content: ссылки по умолчанию с underline */
+.entry-content .sfrfr-max-guide a.sfrfr-card--link,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:hover,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:focus,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:focus-visible,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:visited,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link *,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:hover *,
+.entry-content .sfrfr-max-guide a.sfrfr-card--link:focus-visible * {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+
 .sfrfr-max-guide .sfrfr-max-guide__action {
   align-self: flex-start;
   margin: 0 0 0.75rem;
