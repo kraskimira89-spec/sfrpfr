@@ -721,23 +721,8 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
         if not client_row or not client_row.get("id"):
             return None
         from sfrfr.db.case_repository import CaseRepository
-        from sfrfr.db.session import get_supabase_client
 
         client_id = str(client_row["id"])
-        sb = get_supabase_client()
-        open_rows = (
-            sb.table("cases")
-            .select("id")
-            .eq("client_id", client_id)
-            .neq("pipeline_status", "closed")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-            .data
-            or []
-        )
-        if open_rows:
-            return str(open_rows[0]["id"]), client_id
         created = CaseRepository().create_case_for_client(
             client_id=client_id,
             actor_id=None,

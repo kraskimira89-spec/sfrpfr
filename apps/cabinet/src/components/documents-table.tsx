@@ -21,6 +21,7 @@ type Props = {
   documents: CabinetDocument[];
   onOpen: (documentId: string) => void;
   busy?: boolean;
+  emptyHint?: string;
 };
 
 function formatUploadAt(value?: string) {
@@ -75,7 +76,12 @@ function sortValue(row: CabinetDocument, key: SortKey): string | number {
   return cellValue(row, key).toLowerCase();
 }
 
-export function DocumentsTable({ documents, onOpen, busy }: Props) {
+export function DocumentsTable({
+  documents,
+  onOpen,
+  busy,
+  emptyHint = "Пока файлов нет — загрузите выписку ИЛС или трудовую книжку.",
+}: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("inner_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filters, setFilters] = useState<Record<SortKey, string>>({
@@ -138,81 +144,77 @@ export function DocumentsTable({ documents, onOpen, busy }: Props) {
           {filtered.length !== documents.length ? ` · показано: ${filtered.length}` : ""}
         </p>
       </div>
-      {documents.length === 0 ? (
-        <p className="hint">Пока файлов нет — загрузите выписку ИЛС или трудовую книжку.</p>
-      ) : (
-        <div className="docs-table-scroll">
-          <table className="docs-table">
-            <thead>
-              <tr>
-                <th scope="col" className="docs-table-num">
-                  №
-                </th>
-                {columns.map((col) => (
-                  <th scope="col" key={col.key}>
-                    <button
-                      type="button"
-                      className="docs-sort-btn"
-                      onClick={() => toggleSort(col.key)}
-                      aria-label={`Сортировать: ${col.label}`}
+      <div className="docs-table-scroll">
+        <table className="docs-table">
+          <thead>
+            <tr>
+              <th scope="col" className="docs-table-num">
+                №
+              </th>
+              {columns.map((col) => (
+                <th scope="col" key={col.key}>
+                  <button
+                    type="button"
+                    className="docs-sort-btn"
+                    onClick={() => toggleSort(col.key)}
+                    aria-label={`Сортировать: ${col.label}`}
+                  >
+                    {col.label} <span aria-hidden="true">{sortMark(col.key)}</span>
+                  </button>
+                  <label className="docs-filter">
+                    <span className="sr-only">Фильтр: {col.label}</span>
+                    <select
+                      value={filters[col.key]}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setFilters((prev) => ({ ...prev, [col.key]: e.target.value }))
+                      }
                     >
-                      {col.label} <span aria-hidden="true">{sortMark(col.key)}</span>
-                    </button>
-                    <label className="docs-filter">
-                      <span className="sr-only">Фильтр: {col.label}</span>
-                      <select
-                        value={filters[col.key]}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setFilters((prev) => ({ ...prev, [col.key]: e.target.value }))
-                        }
+                      <option value="">Все</option>
+                      {uniqueValues(documents, col.key).map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((doc, index) => (
+              <tr key={doc.id}>
+                <td className="docs-table-num">{index + 1}</td>
+                {columns.map((col) => (
+                  <td key={col.key}>
+                    {col.key === "filename" ? (
+                      <button
+                        type="button"
+                        className="linkish"
+                        title="Скачать файл"
+                        aria-label={`Скачать файл: ${cellValue(doc, "filename")}`}
+                        onClick={() => onOpen(doc.id)}
                       >
-                        <option value="">Все</option>
-                        {uniqueValues(documents, col.key).map((value) => (
-                          <option key={value} value={value}>
-                            {value}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </th>
+                        {cellValue(doc, "filename")}
+                      </button>
+                    ) : (
+                      cellValue(doc, col.key)
+                    )}
+                  </td>
                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {sorted.map((doc, index) => (
-                <tr key={doc.id}>
-                  <td className="docs-table-num">{index + 1}</td>
-                  {columns.map((col) => (
-                    <td key={col.key}>
-                      {col.key === "filename" ? (
-                        <button
-                          type="button"
-                          className="linkish"
-                          title="Скачать файл"
-                          aria-label={`Скачать файл: ${cellValue(doc, "filename")}`}
-                          onClick={() => onOpen(doc.id)}
-                        >
-                          {cellValue(doc, "filename")}
-                        </button>
-                      ) : (
-                        cellValue(doc, col.key)
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              {sorted.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="hint">
-                    Нет строк по выбранным фильтрам.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="hint">
+                  {documents.length === 0 ? emptyHint : "Нет строк по выбранным фильтрам."}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -56,3 +56,43 @@ def test_client_case_detail_contains_sfr_warning() -> None:
     )
     assert "СФР" in detail.warning
     assert "не гарантирован" in detail.warning
+
+
+def test_pick_primary_client_case_prefers_docs_over_newer_empty() -> None:
+    older = {
+        "id": "old",
+        "created_at": "2026-08-01T10:00:00+00:00",
+        "pipeline_status": "intake",
+        "b2c_status": "consent_accepted",
+        "documents": [{"id": "d1"}],
+    }
+    newer = {
+        "id": "new",
+        "created_at": "2026-08-31T10:00:00+00:00",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "documents": [],
+    }
+    picked = CaseRepository.pick_primary_client_case([newer, older])
+    assert picked is not None
+    assert picked["id"] == "old"
+
+
+def test_pick_primary_client_case_older_when_both_empty() -> None:
+    older = {
+        "id": "old",
+        "created_at": "2026-08-01T10:00:00+00:00",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "documents": [],
+    }
+    newer = {
+        "id": "new",
+        "created_at": "2026-08-31T10:00:00+00:00",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "documents": [],
+    }
+    picked = CaseRepository.pick_primary_client_case([newer, older])
+    assert picked is not None
+    assert picked["id"] == "old"

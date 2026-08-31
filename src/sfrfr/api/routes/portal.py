@@ -1189,7 +1189,7 @@ def create_my_case(
     payload: CreateCaseRequest | None = None,
     principal: Principal = Depends(get_current_principal),
 ) -> dict:
-    """Создать дело для текущего клиента (веб или MAX). Один case_id на оба канала."""
+    """Создать дело для текущего клиента (веб или MAX). Один клиент — одно дело."""
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client only")
     body = payload or CreateCaseRequest()

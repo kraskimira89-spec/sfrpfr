@@ -6,6 +6,7 @@ RLS остаётся вторым уровнем защиты для browser-к�
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -111,6 +112,7 @@ class CaseRepository:
         query = self.client.table("cases").select(
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
             "checklist_items(id, status, owner, title, item_type, due_at), "
+            "documents(id), "
             "orders(package_code, status, amount_rub, created_at)"
         )
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
@@ -130,6 +132,8 @@ class CaseRepository:
             if client_id
             else []
         )
+        primary = self.pick_primary_client_case(own)
+        own = [primary] if primary else []
         if principal.is_max_only:
             return own
         represented = (
@@ -308,6 +312,58 @@ class CaseRepository:
             )
         )
 
+    @staticmethod
+    def _case_is_closed(case: dict[str, Any]) -> bool:
+        status = str(case.get("pipeline_status") or "").lower()
+        b2c = str(case.get("b2c_status") or "").lower()
+        return (
+            bool(case.get("closed_at"))
+            or status in {"closed", "failed"}
+            or b2c in {"lost", "closed"}
+        )
+
+    @staticmethod
+    def pick_primary_client_case(cases: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """Одно дело на клиента: с документами/согласием, иначе самое раннее открытое."""
+        if not cases:
+            return None
+        open_cases = [row for row in cases if not CaseRepository._case_is_closed(row)] or list(
+            cases
+        )
+
+        def _created_ts(raw: object) -> float:
+            text = str(raw or "")
+            if not text:
+                return 0.0
+            try:
+                return datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return 0.0
+
+        _progress = {
+            "intake": 1,
+            "documents_received": 2,
+            "ocr_done": 3,
+            "classified": 4,
+            "extracted": 5,
+            "audited": 6,
+            "draft_ready": 7,
+            "human_review": 8,
+            "completed": 9,
+            "failed": 0,
+            "closed": 0,
+        }
+
+        def _key(row: dict[str, Any]) -> tuple[int, int, int, float]:
+            docs = row.get("documents")
+            doc_n = len(docs) if isinstance(docs, list) else 0
+            b2c = str(row.get("b2c_status") or "")
+            consent = 0 if b2c in ("", "lead") else 1
+            progress = _progress.get(str(row.get("pipeline_status") or "").lower(), 1)
+            return (doc_n, consent, progress, -_created_ts(row.get("created_at")))
+
+        return max(open_cases, key=_key)
+
     def create_case_for_client(
         self,
         *,
@@ -316,7 +372,19 @@ class CaseRepository:
         problem_type: str | None = None,
         seed_checklist: bool = True,
     ) -> dict[str, Any]:
-        """Создать дело для клиента (веб / MAX) в Supabase."""
+        """Вернуть единственное дело клиента или создать его (веб / MAX)."""
+        existing = (
+            self.client.table("cases")
+            .select("*, documents(id), checklist_items(id, status)")
+            .eq("client_id", client_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+        picked = self.pick_primary_client_case(existing)
+        if picked:
+            return picked
         response = (
             self.client.table("cases")
             .insert(

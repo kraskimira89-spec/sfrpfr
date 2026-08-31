@@ -673,7 +673,7 @@ export function ClientCabinet() {
     if (!token || !apiBase || !casesReady || ensureCaseRef.current) return;
     if (cases.length > 0) {
       ensureCaseRef.current = true;
-      if (cases.length === 1 && view === "cases" && !selectedId) {
+      if (cases.length >= 1 && view === "cases" && !selectedId) {
         const caseId = cases[0].id;
         const t = window.setTimeout(() => {
           void openCase(caseId);
