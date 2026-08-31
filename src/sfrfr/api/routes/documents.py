@@ -25,5 +25,11 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="empty file")
 
     path = save_upload(case_id, file.filename or "upload.bin", data)
+    try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+
+        mirror_case_document_safe(case_id, file.filename or "upload.bin", data)
+    except Exception:  # noqa: BLE001
+        pass
     record = store.add_document(case_id, str(path))
     return case_to_read(record)

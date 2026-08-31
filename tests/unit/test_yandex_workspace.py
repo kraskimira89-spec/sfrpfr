@@ -61,11 +61,53 @@ def test_disk_disabled_when_flag_false(monkeypatch) -> None:
 
 
 def test_disk_path_policy() -> None:
-    from sfrfr.integrations.yandex_workspace.disk import _path_allowed
+    from sfrfr.integrations.yandex_workspace.disk import _cases_path_allowed, _path_allowed
 
     assert _path_allowed("disk:/SFRFR-ops/template.docx") is True
     assert _path_allowed("disk:/SFRFR-ops/cases/scan.pdf") is False
     assert _path_allowed("disk:/other/file.txt") is False
+    assert _path_allowed("disk:/SFRFR-cases/x") is False
+
+    cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert _cases_path_allowed("disk:/SFRFR-cases") is True
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}") is True
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/scan.pdf", case_id=cid) is True
+    assert _cases_path_allowed("disk:/SFRFR-cases/not-a-uuid/f.pdf") is False
+    other = "11111111-1111-1111-1111-111111111111"
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/f.pdf", case_id=other) is False
+    assert _cases_path_allowed("disk:/SFRFR-ops/x") is False
+
+
+def test_upload_case_file_skipped_when_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("YANDEX_DISK_ENABLED", "false")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
+    from sfrfr.integrations.yandex_workspace.disk import upload_case_file
+
+    oauth_mod._loaded = True
+    get_settings.cache_clear()
+    result = upload_case_file(
+        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        remote_name="doc.pdf",
+        content=b"%PDF",
+    )
+    assert result.get("skipped") is True
+    get_settings.cache_clear()
+
+
+def test_mirror_case_document_invalid_case_id(monkeypatch) -> None:
+    monkeypatch.setenv("YANDEX_DISK_ENABLED", "true")
+    monkeypatch.setenv("YANDEX_OAUTH_ACCESS_TOKEN", "tok")
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.yandex_workspace import oauth as oauth_mod
+    from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+
+    oauth_mod._loaded = True
+    get_settings.cache_clear()
+    result = mirror_case_document_safe("local-not-uuid", "a.pdf", b"x")
+    assert result.get("ok") is False
+    assert result.get("error") == "invalid_case_id"
+    get_settings.cache_clear()
 
 
 def test_imap_skipped_when_disabled(monkeypatch) -> None:

@@ -20,7 +20,7 @@
 
 | Шаг | Статус | Факт |
 |-----|--------|------|
-| 0. Контур | ✅ | Org-mailbox + employee Telemost; Диск `SFRFR-ops`; dual-write календаря |
+| 0. Контур | ✅ | Org-mailbox + employee Telemost; Диск `SFRFR-ops` + зеркало `SFRFR-cases`; dual-write календаря |
 | 1. OAuth-приложение | ✅ | `SFRFR Workspace` + `SFRFR_telemost` |
 | 2. Scopes | ✅ | Почта / календарь / Диск / Телемост — токены живые |
 | 3. OAuth-токены | ✅ | Workspace → `proverkastaza`; Telemost → `info@proverkastaza.ru` |
@@ -35,7 +35,7 @@
 | Env: блок Yandex в `.env` | **дописан** (раньше только комментарий; рабочие значения были в secrets) |
 | Identities токенов | Workspace=`proverkastaza` ≠ Telemost=`info@proverkastaza.ru` ✅ |
 | `login.info` / ping | **ok**, login `proverkastaza` |
-| Диск status + `SFRFR-ops` | **ok** |
+| Диск status + `SFRFR-ops` / `SFRFR-cases` | **ok** |
 | Календарь create (CalDAV) | **201** |
 | Почта SMTP XOAUTH2 | **ok** (письмо на себя) |
 | Телемост create (employee) | **201**, `join_url` |
@@ -66,7 +66,7 @@ sfrfr calendar-mirror-yandex
 | Вопрос | Решение SFRFR (2026-07-28) |
 |--------|----------------------------|
 | Личный ящик `@yandex.ru` или Яндекс 360? | Личный; Телемост API уже отвечает 201 на токене `SFRFR_telemost` |
-| Нужен ли Диск? | **Да**, только папка `disk:/SFRFR-ops` (`YANDEX_DISK_ENABLED=true`). ПДн-сканы → Supabase Storage |
+| Нужен ли Диск? | **Да** (`YANDEX_DISK_ENABLED=true`): `disk:/SFRFR-ops` (ops без ПДн в путях) + зеркало сканов `disk:/SFRFR-cases/{case_id}`. Primary документов — Supabase Storage / local uploads |
 | Дублировать Google Calendar? | **Да**, dual-write: Google остаётся основным create-path, Яндекс — зеркало |
 
 ---
@@ -174,7 +174,7 @@ sudo systemctl restart sfrfr-api
 | Проверка | Ожидание |
 |----------|----------|
 | `sfrfr yandex-workspace-ping` | `ok`, login `proverkastaza` |
-| `sfrfr yandex-disk-status` | `ok`, папка `disk:/SFRFR-ops` |
+| `sfrfr yandex-disk-status` | `ok`, папки `disk:/SFRFR-ops` и `disk:/SFRFR-cases` |
 | `sfrfr yandex-telemost-create -c <uuid>` | `join_url` **или** `403 ApiRestrictedToOrganizations` → нужен Яндекс 360 |
 | `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
 | `sfrfr yandex-mail-imap-ping` | `ok`, `messages_total` при `mail:imap_ro` + `YANDEX_MAIL_IMAP_ENABLED=true` |
@@ -186,7 +186,7 @@ sudo systemctl restart sfrfr-api
 >
 > **Телемост API (проверено 2026-07-28):** create → **201** + `join_url` на токене `SFRFR_telemost`.
 >
-> **Календарь CalDAV** — PROPFIND 207, create 201. **Диск** — API 200; продукт: `YANDEX_DISK_ENABLED=true`, только `SFRFR-ops`.
+> **Календарь CalDAV** — PROPFIND 207, create 201. **Диск** — API 200; продукт: `YANDEX_DISK_ENABLED=true`, `SFRFR-ops` + зеркало `SFRFR-cases/{case_id}`.
 
 Документация создания конференций: [Телемост API](https://yandex.ru/dev/telemost/doc/ru/).
 

@@ -1545,6 +1545,14 @@ async def upload_case_document(
     action = "result_decision_uploaded" if doc_type == "sfr_decision" else "document_uploaded"
     repo.audit(case_id, principal.user_id, action)
     try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+
+        mirror = mirror_case_document_safe(case_id, filename, data)
+        if mirror.get("ok"):
+            repo.audit(case_id, principal.user_id, "document_mirrored_yandex_disk")
+    except Exception as exc:  # noqa: BLE001
+        logger.info("document yandex disk mirror skipped: %s", exc)
+    try:
         from sfrfr.integrations.max.case_chat_log import (
             append_case_chat_message,
             format_document_event,

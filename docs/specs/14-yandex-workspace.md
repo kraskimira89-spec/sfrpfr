@@ -22,13 +22,15 @@
 - писать клиентам с фирменного адреса;
 - создавать ссылку на консультацию (Телемост);
 - ставить слоты в календаре;
-- (опционально) складывать **не-ПДн** операционные файлы на Диск.
+- (опционально) складывать **не-ПДн** операционные файлы на Диск (`SFRFR-ops`);
+- зеркалировать сканы дел в `disk:/SFRFR-cases/{case_id}/` (best-effort; primary — Supabase).
 
 Это **не** замена:
 
 | Уже есть | Остаётся источником истины |
 |----------|----------------------------|
-| Supabase Storage | сканы ИЛС / трудовой / ПДн |
+| Supabase Storage | сканы ИЛС / трудовой / ПДн (primary) |
+| Яндекс Диск `SFRFR-cases` | зеркало тех же сканов для сотрудников |
 | amoCRM | воронка и контакты лида |
 | MAX | основной клиентский канал |
 | Yandex Cloud AI Studio | GPT / Vision (другой контур, API-ключ folder) |
@@ -51,7 +53,9 @@
 
 1. Один служебный аккаунт `proverkastaza@yandex.ru` (или ящик организации 360) — токены только на сервере.
 2. **Минимум scopes** — только то, что реально используем в MVP.
-3. **ПДн-сканы не на Яндекс.Диск** — только Supabase Storage (ТЗ-06 / ТЗ-13).
+3. **Документы дел:** источник истины — Supabase Storage (кабинет) / local uploads (MAX);
+   на Диск — **best-effort зеркало** `disk:/SFRFR-cases/{case_id}/` (в пути только UUID).
+   Ops без ПДн в путях — только `disk:/SFRFR-ops`.
 4. Контакты клиентов — Supabase + amoCRM; адресная книга Яндекса **не** источник истины.
 5. Письма и встречи — действия сотрудника (или явные шаблоны), с записью в `access_audit`.
 6. Секреты — `secrets/yandex-workspace.env` (gitignored) + VPS `.env`; не в WordPress.
@@ -73,7 +77,7 @@
 | Сервис | Use-case | Ограничение |
 |--------|----------|-------------|
 | **Почта IMAP** | читать входящие на ящик поддержки, линковать к делу | только с правилами ПДн; не автосоздавать дело из СНИЛС в письме |
-| **Яндекс Диск** | шаблоны заявлений, обезличенные пакеты | **запрет** загружать ИЛС/трудовые/паспорт; папка `SFRFR-ops`; дублирует Google Drive ops |
+| **Яндекс Диск** | (1) ops-шаблоны `SFRFR-ops`; (2) зеркало сканов дел `SFRFR-cases/{case_id}` | ops без ПДн в путях; cases — UUID в пути; primary = Supabase/local |
 | **Адресная книга** | редко | не дублировать amoCRM |
 
 ### 4.3. Вне scope ТЗ-14
@@ -81,7 +85,7 @@
 - Логин клиентов через Яндекс ID на кабинете (отдельное ТЗ Auth).
 - Замена amoCRM контактами Яндекса.
 - «Все сервисы Яндекса» (Трекер, Wiki, Forms) без явной потребности.
-- Хранение ПДн-документов на Диске.
+- Замена Supabase Storage Диском как единственным хранилищем.
 - Публичный OAuth для каждого сотрудника (MVP = один shared mailbox token; позже — 360 service apps).
 
 ---
@@ -145,7 +149,7 @@ YANDEX_WORKSPACE_EMAIL=proverkastaza@yandex.ru
 YANDEX_TELEMOST_ENABLED=true
 YANDEX_MAIL_ENABLED=true
 YANDEX_CALENDAR_ENABLED=true
-YANDEX_DISK_ENABLED=true             # ops-папка SFRFR-ops; ПДн-сканы всё равно запрещены
+YANDEX_DISK_ENABLED=true             # SFRFR-ops + зеркало SFRFR-cases/{case_id}
 ```
 
 Не смешивать с `YANDEX_API_KEY` / `YANDEX_FOLDER_ID` (Cloud AI).
@@ -163,7 +167,8 @@ src/sfrfr/integrations/yandex_workspace/
   mail.py              # send_message (SMTP XOAUTH2 или API)
   telemost.py          # create_conference → join_url
   calendar_yandex.py   # create_event(case_id, …)
-  disk.py              # опционально; whitelist путей без ПДн
+  disk.py              # SFRFR-ops + SFRFR-cases mirror
+  case_mirror.py       # best-effort mirror_case_document_safe
 ```
 
 CLI (позже):
@@ -217,7 +222,7 @@ Admin API (ТЗ-04):
 - Refresh token хранить encrypted at rest (или OS permissions 600 на VPS).
 - Не логировать тело писем и OAuth token.
 - При компрометации: отозвать приложение на oauth.yandex.ru, перевыпустить токен.
-- Диск: `YANDEX_DISK_ENABLED=true` только для `disk:/SFRFR-ops`; сканы дел не пишутся на Диск.
+- Диск: `YANDEX_DISK_ENABLED=true` → `disk:/SFRFR-ops` (ops) и зеркало `disk:/SFRFR-cases/{case_id}` (сканы; primary = Supabase/local).
 
 ---
 
@@ -230,7 +235,7 @@ Admin API (ТЗ-04):
 | **B** | Исходящая почта (шаблоны) + audit |
 | **C** | Календарь событий по `case_id` |
 | **D** | IMAP inbox rules (опционально) |
-| **E** | Диск `SFRFR-ops` + dual-write Google Calendar → Яндекс |
+| **E** | Диск `SFRFR-ops` + зеркало дел `SFRFR-cases/{case_id}` + dual-write Google Calendar → Яндекс |
 
 MVP ТЗ-14 = **0 + A + B**.
 
@@ -244,7 +249,7 @@ MVP ТЗ-14 = **0 + A + B**.
 - [x] С токеном: создаётся встреча Телемост, URL сохраняется и виден в admin (API 201; persist — через CLI/admin).
 - [x] Исходящее тестовое письмо уходит с `YANDEX_WORKSPACE_EMAIL`.
 - [ ] В payload писем/логов нет СНИЛС / OCR / долгоживущих Storage URL.
-- [x] Диск: `YANDEX_DISK_ENABLED=true` только `SFRFR-ops`; сканы дел не пишутся на Диск.
+- [x] Диск: `YANDEX_DISK_ENABLED=true` → `SFRFR-ops` + best-effort зеркало `SFRFR-cases/{case_id}`.
 - [ ] Действия пишутся в `access_audit`.
 - [ ] Оператор не видит raw OAuth token в UI.
 - [x] Календарь: CalDAV create + dual-write с Google (`calendar-create --mirror-yandex`).

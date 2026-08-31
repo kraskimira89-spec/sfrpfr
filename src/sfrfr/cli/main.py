@@ -1201,16 +1201,23 @@ def calendar_mirror_yandex(
 
 @app.command("yandex-disk-status")
 def yandex_disk_status() -> None:
-    """Статус Яндекс Диска + папка SFRFR-ops."""
+    """Статус Яндекс Диска + папки SFRFR-ops и SFRFR-cases."""
     import json
 
-    from sfrfr.integrations.yandex_workspace import disk_status, ensure_ops_folder, list_ops
+    from sfrfr.integrations.yandex_workspace import (
+        disk_status,
+        ensure_cases_folder,
+        ensure_ops_folder,
+        list_ops,
+    )
 
     status = disk_status()
     if status.get("ok"):
         folder = ensure_ops_folder()
+        cases = ensure_cases_folder()
         listed = list_ops()
         status["ops_folder_ensure"] = folder
+        status["cases_folder_ensure"] = cases
         status["ops_list"] = {
             "ok": listed.get("ok"),
             "count": listed.get("count"),

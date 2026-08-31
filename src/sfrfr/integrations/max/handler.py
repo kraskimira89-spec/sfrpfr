@@ -2120,6 +2120,14 @@ def _ingest_bytes(
     path = save_upload(record.case_id, file_name, data)
     fresh = store.add_document(record.case_id, str(path))
     try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+
+        mirror_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
+        if mirror_id:
+            mirror_case_document_safe(str(mirror_id), file_name, data)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("document yandex disk mirror skipped: %s", exc)
+    try:
         from sfrfr.integrations.max.case_chat_log import (
             append_case_chat_message,
             format_document_event,
