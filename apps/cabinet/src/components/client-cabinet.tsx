@@ -148,7 +148,6 @@ const SITE_URL = "https://proverkastaza.ru";
 const CABINET_PUBLIC_URL =
   process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.proverkastaza.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
-const DEFAULT_MAX_MINIAPP = "https://max.ru/id8905998693_1_bot?startapp";
 
 function BrandHomeLink({
   children,
@@ -2285,10 +2284,8 @@ export function ClientCabinet() {
     );
   }
 
-  const maxChatHref =
-    selectedId
-      ? `${DEFAULT_MAX_MINIAPP}${DEFAULT_MAX_MINIAPP.includes("?") ? "&" : "?"}startapp=case_${selectedId.slice(0, 8)}`
-      : me?.max_miniapp_url || DEFAULT_MAX_MINIAPP;
+  // MAX открывает тот же диалог бота; отдельного клиентского mini-app/кабинета нет.
+  const maxChatHref = chatUrlOnly(me?.max_bot_url || maxBotUrl || DEFAULT_MAX_CHAT);
 
   return (
     <main className="app-layout">
@@ -2566,6 +2563,7 @@ export function ClientCabinet() {
                 messages={messages}
                 body={messageBody}
                 busy={busy}
+                maxHref={maxChatHref}
                 onBodyChange={setMessageBody}
                 onSend={sendMessage}
               />

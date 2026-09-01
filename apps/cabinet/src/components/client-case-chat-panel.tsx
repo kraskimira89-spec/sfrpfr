@@ -5,7 +5,10 @@ import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import {
   CASE_CHAT_DOCUMENTS_RULE,
   CASE_CHAT_EMPTY,
+  CASE_CHAT_EMPTY_HINT,
+  CASE_CHAT_MAX_BUTTON,
   CASE_CHAT_SUBTITLE,
+  CASE_CHAT_SYNC_HINT,
   CASE_CHAT_TITLE,
 } from "../../../../shared/case-chat-copy";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
@@ -119,12 +122,14 @@ export function ClientCaseChatPanel({
   messages,
   body,
   busy,
+  maxHref,
   onBodyChange,
   onSend,
 }: {
   messages: CaseMessage[];
   body: string;
   busy: boolean;
+  maxHref: string;
   onBodyChange: (value: string) => void;
   onSend: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -160,8 +165,17 @@ export function ClientCaseChatPanel({
       <div className="case-chat-head">
         <div className="case-chat-head-row">
           <h2>{CASE_CHAT_TITLE}</h2>
+          <a
+            className="secondary case-chat-max-link"
+            href={maxHref}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {CASE_CHAT_MAX_BUTTON}
+          </a>
         </div>
         <p className="hint">{CASE_CHAT_SUBTITLE}</p>
+        <p className="hint case-chat-sync-hint">{CASE_CHAT_SYNC_HINT}</p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [
@@ -187,6 +201,7 @@ export function ClientCaseChatPanel({
         {chatEmpty ? (
           <div className="case-chat-empty-box">
             <p className="case-chat-empty-title">{CASE_CHAT_EMPTY}</p>
+            <p className="hint">{CASE_CHAT_EMPTY_HINT}</p>
           </div>
         ) : filterEmpty ? (
           <div className="case-chat-empty-box case-chat-empty-box--filter">

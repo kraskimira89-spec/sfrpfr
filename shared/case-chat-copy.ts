@@ -4,10 +4,14 @@ export const CASE_CHAT_TITLE = "Чат по делу";
 
 export const CASE_CHAT_SUBTITLE = "Один чат в кабинете и MAX";
 
+export const CASE_CHAT_SYNC_HINT = "История сообщений синхронизируется.";
+
 export const CASE_CHAT_MAX_BUTTON = "Открыть этот чат в MAX ↗";
 
-export const CASE_CHAT_EMPTY =
-  "Сообщений по делу пока нет. Напишите вопрос здесь или откройте этот же чат в MAX. Ответы и история будут доступны в обоих вариантах.";
+export const CASE_CHAT_EMPTY = "Сообщений по делу пока нет";
+
+export const CASE_CHAT_EMPTY_HINT =
+  "Напишите вопрос здесь или откройте этот же чат в MAX. Ответы и история будут доступны в обоих вариантах.";
 
 export const CASE_CHAT_DOCUMENTS_RULE =
   "В чат можно написать вопрос. Выписку ИЛС, трудовую книжку и другие личные документы загружайте только через раздел «Мои документы».";
