@@ -30,6 +30,18 @@ def test_unified_chat_copy_not_notification_channel() -> None:
             assert phrase not in text, f"{path.name}: запрещено «{phrase}»"
 
 
+def test_quick_question_chips_insert_into_draft_not_send() -> None:
+  panel = (REPO / "apps/cabinet/src/components/client-case-chat-panel.tsx").read_text(
+      encoding="utf-8"
+  )
+  cabinet = (REPO / "apps/cabinet/src/components/client-cabinet.tsx").read_text(
+      encoding="utf-8"
+  )
+  assert "insertDraft(question)" in panel
+  assert "onSendQuick" not in panel
+  assert "onSendQuick" not in cabinet
+
+
 def test_single_max_cta_button_in_chat_header() -> None:
     panel = (REPO / "apps/cabinet/src/components/client-case-chat-panel.tsx").read_text(
         encoding="utf-8"

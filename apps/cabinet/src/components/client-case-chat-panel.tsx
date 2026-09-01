@@ -124,7 +124,6 @@ export function ClientCaseChatPanel({
   maxHref,
   onBodyChange,
   onSend,
-  onSendQuick,
 }: {
   messages: CaseMessage[];
   body: string;
@@ -132,10 +131,10 @@ export function ClientCaseChatPanel({
   maxHref: string;
   onBodyChange: (value: string) => void;
   onSend: (event: FormEvent<HTMLFormElement>) => void;
-  onSendQuick: (text: string) => void;
 }) {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const feedRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
   const { showBotTyping, showBotTypingTimeout, botTypingHint } = useBotTypingIndicator(messages);
   const chatEmpty = messages.length === 0;
@@ -148,6 +147,17 @@ export function ClientCaseChatPanel({
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     });
   }, [feed.length, showBotTyping, showBotTypingTimeout]);
+
+  function insertDraft(text: string) {
+    onBodyChange(text);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const end = text.length;
+      el.setSelectionRange(end, end);
+    });
+  }
 
   function blockFileDrop(event: DragEvent | ClipboardEvent) {
     const items =
@@ -261,6 +271,7 @@ export function ClientCaseChatPanel({
         <label htmlFor="case-chat-input">Ваше сообщение</label>
         <textarea
           id="case-chat-input"
+          ref={inputRef}
           rows={3}
           value={body}
           onChange={(event) => onBodyChange(event.target.value)}
@@ -280,7 +291,8 @@ export function ClientCaseChatPanel({
               type="button"
               className="case-chat-quick-chip"
               disabled={busy}
-              onClick={() => onSendQuick(question)}
+              onClick={() => insertDraft(question)}
+              title="Подставить вопрос в поле ввода — можно отредактировать перед отправкой"
             >
               {question}
             </button>

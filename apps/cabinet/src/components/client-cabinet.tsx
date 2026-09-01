@@ -2424,7 +2424,6 @@ export function ClientCabinet() {
               maxHref={maxChatHref}
               onBodyChange={setMessageBody}
               onSend={sendMessage}
-              onSendQuick={(text) => void sendMessage(undefined, text)}
             />
           </div>
           <a className="case-chat-mobile-open" href="#case-chat">
