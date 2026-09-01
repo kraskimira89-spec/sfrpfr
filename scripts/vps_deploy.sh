@@ -35,6 +35,16 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-document-ingest.service" ]]; then
   systemctl is-active --quiet sfrfr-document-ingest.service
 fi
 
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-case-chat-outbox.service" ]]; then
+  echo "Configuring case chat outbox + bot jobs worker …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-case-chat-outbox.service" \
+    /etc/systemd/system/sfrfr-case-chat-outbox.service
+  systemctl daemon-reload
+  systemctl enable --now sfrfr-case-chat-outbox.service
+  systemctl restart sfrfr-case-chat-outbox.service
+  systemctl is-active --quiet sfrfr-case-chat-outbox.service
+fi
+
 rebuild_next_app() {
   local name="$1"
   local dir="$2"
