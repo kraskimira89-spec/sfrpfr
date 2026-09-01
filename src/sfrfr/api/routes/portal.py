@@ -1473,7 +1473,8 @@ def save_case_scenarios(
     repo.require_case(principal, case_id)
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client or representative only")
-    answers = payload.get("answers") if isinstance(payload.get("answers"), dict) else payload
+    answers_raw = payload.get("answers")
+    answers: dict[str, Any] = answers_raw if isinstance(answers_raw, dict) else payload
     codes = scenarios_from_questionnaire(answers)
     rows = repo.set_case_scenarios(case_id, codes, source="client", actor_id=principal.user_id)
     for spec in checklist_rows_for_scenarios(codes):
