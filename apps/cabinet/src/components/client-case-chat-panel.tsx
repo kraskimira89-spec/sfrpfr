@@ -133,7 +133,7 @@ export function ClientCaseChatPanel({
     <aside className="case-chat panel client-chat-panel" aria-label="Чат по делу">
       <div className="case-chat-head">
         <h2>Чат по делу</h2>
-        <p className="hint">История: ваши сообщения, ответы бота, ответы специалиста и загруженные документы.</p>
+        <p className="hint">Задайте вопрос специалисту. Ответ появится здесь и придёт в MAX.</p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [
@@ -157,7 +157,12 @@ export function ClientCaseChatPanel({
 
       <div className="case-chat-feed" ref={feedRef}>
         {feed.length === 0 ? (
-          <p className="hint case-chat-empty">Сообщений пока нет.</p>
+          <div className="case-chat-empty-box">
+            <p className="case-chat-empty-title">Сообщений по делу пока нет.</p>
+            <p className="hint">
+              Если у вас есть вопрос, напишите его ниже. Ответ специалиста появится здесь, а также придёт уведомление в MAX.
+            </p>
+          </div>
         ) : (
           <ul className="case-chat-list">
             {feed.map((item) => {

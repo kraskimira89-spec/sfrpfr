@@ -38,7 +38,7 @@ const FALLBACK: StatusLabelsBundle = {
   b2c: {
     lead: "Заявка",
     consent_accepted: "Согласие принято",
-    diagnostic_paid: "Диагностика оплачена",
+    diagnostic_paid: "Первичная проверка оплачена",
     contract_accepted: "Заказ принят",
     service_paid: "Услуга оплачена",
     package_delivered: "Пакет выдан",

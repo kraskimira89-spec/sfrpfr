@@ -1118,13 +1118,28 @@ header span { color: var(--muted); font-size: 1rem; }
   color: #fff;
 }
 .case-chat-feed {
-  min-height: 300px;
-  max-height: 62vh;
+  min-height: 220px;
+  max-height: 380px;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f7f9fc;
-  padding: 10px;
+  padding: 12px;
+}
+.case-chat-empty-box {
+  padding: 24px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+.case-chat-empty-title {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  font-size: 0.95rem;
 }
 .case-chat-day {
   list-style: none;

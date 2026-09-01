@@ -2645,7 +2645,7 @@ export function ClientCabinet() {
                     <strong>{packageLabel(order.package_code)}</strong>
                     <span>
                       {order.amount_rub} ₽ · {labelOrderStatus(order.status)}
-                      {isPost ? " · оплата после результата" : " · диагностика"}
+                      {isPost ? " · оплата после результата" : " · первичная проверка"}
                     </span>
                     {(order.payments ?? []).map((payment) => (
                       <span key={payment.id}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useRef } from "react";
+import { type ChangeEvent, useRef, useState } from "react";
 
 export type WorkSlot = {
   key: string;
@@ -113,6 +113,7 @@ export function CaseWorkMap({
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingSlot = useRef<WorkSlot | null>(null);
+  const [showAllScenarios, setShowAllScenarios] = useState(false);
 
   function pickFile(next: WorkSlot) {
     pendingSlot.current = next;
@@ -207,37 +208,32 @@ export function CaseWorkMap({
             {work.required_total}
           </li>
           <li className={diagDone ? "done" : diagNow ? "current" : ""}>
-            {diagDone ? "✓" : diagNow ? "●" : "○"} Диагностика{" "}
+            {diagDone ? "✓" : diagNow ? "●" : "○"} Проверка документов{" "}
             {diagDone
-              ? "готова"
+              ? "завершена"
               : diagNow
                 ? "идёт проверка комплекта"
-                : "начнётся после проверки документов"}
+                : "начнётся после загрузки документов"}
           </li>
           <li className={work.result.ready ? "done" : ""}>
-            {work.result.ready ? "✓" : "○"} Результат {work.result.ready ? "доступен здесь" : "будет доступен здесь"}
+            {work.result.ready ? "✓" : "○"} Итог проверки {work.result.ready ? "доступен здесь" : "будет доступен здесь"}
           </li>
         </ul>
       </header>
 
       {work.consent_ok && onScenarioChange && onSaveScenarios ? (
         <section className="panel">
-          <h2>Короткая анкета</h2>
+          <h2>Короткая анкета по вашей ситуации</h2>
           <p className="hint">
-            Ответьте на вопросы — мы покажем только нужные документы. Сейчас обязательны ИЛС и трудовая.
+            Отметьте, что относится к вашей ситуации (все пункты необязательны). Это поможет показать только нужные документы.
           </p>
           <ul className="plain-list">
             {[
-              ["name_changed", "Менялись ФИО"],
-              ["children_care", "Был уход за ребёнком"],
-              ["adoption_or_guardianship", "Есть опека / попечительство"],
-              ["military_service", "Проходили военную службу"],
+              ["name_changed", "Менялись ФИО (фамилия, имя или отчество)"],
+              ["children_care", "Был уход за ребёнком (до 1,5 лет)"],
               ["northern_or_preferential", "Есть северный или льготный стаж"],
-              ["liquidated_employer", "Работодатель ликвидирован / нужен архив"],
-              ["sfr_response_or_refusal", "Был ответ или отказ СФР"],
-              ["representative", "Действует представитель"],
-              ["pension_assigned", "Пенсия уже назначена"],
-              ["payout_reconciliation", "Нужна сверка фактических выплат (банковская выписка)"],
+              ["liquidated_employer", "Работодатель ликвидирован / закрылся"],
+              ["sfr_response_or_refusal", "Есть официальный ответ или отказ СФР"],
             ].map(([key, label]) => (
               <li key={key}>
                 <label>
@@ -251,8 +247,43 @@ export function CaseWorkMap({
                 </label>
               </li>
             ))}
+            {showAllScenarios ? (
+              <>
+                {[
+                  ["adoption_or_guardianship", "Есть опека / попечительство"],
+                  ["military_service", "Проходили военную службу по призыву"],
+                  ["representative", "Действует представитель по доверенности"],
+                  ["pension_assigned", "Пенсия уже назначена"],
+                  ["payout_reconciliation", "Есть вопрос о фактических суммах выплат"],
+                ].map(([key, label]) => (
+                  <li key={key}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(scenarioAnswers?.[key])}
+                        disabled={busy}
+                        onChange={(e) => onScenarioChange(key, e.target.checked)}
+                      />{" "}
+                      {label}
+                    </label>
+                    {key === "payout_reconciliation" && scenarioAnswers?.payout_reconciliation ? (
+                      <p className="hint doc-alert" style={{ margin: "0.25rem 0 0.25rem 1.4rem" }}>
+                        Не загружайте банковскую выписку самостоятельно. Специалист уточнит, нужен ли финансовый документ и за какой период.
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </>
+            ) : null}
           </ul>
           <p className="home-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setShowAllScenarios((prev) => !prev)}
+            >
+              {showAllScenarios ? "Скрыть дополнительные ситуации" : "Показать другие ситуации"}
+            </button>
             <button type="button" disabled={busy} onClick={onSaveScenarios}>
               Сохранить ответы
             </button>
@@ -290,17 +321,22 @@ export function CaseWorkMap({
 
       <section className="panel my-docs" id="docs-table">
         <div className="docs-table-head">
-          <h2>Мои документы</h2>
-          <p className="docs-count">
-            Загружено: {work.required_uploaded} из {work.required_total} обязательных
-          </p>
-          {uploadSlot ? (
+          <div>
+            <h2>Мои документы</h2>
+            <p className="docs-count">
+              Загружено: {work.required_uploaded} из {work.required_total} обязательных
+            </p>
+          </div>
+          {uploadSlot && work.required_uploaded < work.required_total ? (
             <p className="home-actions">
               <button type="button" disabled={busy} onClick={() => pickFile(uploadSlot)}>
-                Загрузить файл
+                Загрузить обязательные документы
               </button>
+            </p>
+          ) : uploadSlot ? (
+            <p className="home-actions">
               <button type="button" className="secondary" disabled={busy} onClick={() => pickFile(uploadSlot)}>
-                Загрузить несколько файлов
+                Добавить другой документ
               </button>
             </p>
           ) : null}
@@ -420,7 +456,7 @@ export function CaseWorkMap({
       </section>
 
       <section className="panel">
-        <h2>Результат диагностики</h2>
+        <h2>Итог первичной проверки</h2>
         {work.result.ready && work.result.document_id ? (
           <>
             <p>
@@ -443,7 +479,7 @@ export function CaseWorkMap({
             </p>
           </>
         ) : (
-          <p className="hint">Результат появится здесь после завершения диагностики.</p>
+          <p className="hint">Итог проверки документов появится здесь после завершения сверки.</p>
         )}
       </section>
 
