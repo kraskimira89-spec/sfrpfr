@@ -123,7 +123,8 @@ def test_untyped_upload_fills_ils_slot() -> None:
     assert ils["status"] == "awaiting"
     assert ils["document_id"] == "scan"
     assert labor["status"] == "missing"
-    assert extra["status"] == "missing"
+    assert extra["status"] == "optional"
+    assert extra["status_label"] == "Можно добавить"
     assert uploaded == 1
     assert total == 2
 
@@ -150,7 +151,8 @@ def test_full_checklist_shows_only_core_without_scenarios() -> None:
     assert "bank" not in keys
     assert "sfr_pay" not in keys
     assert "military" not in keys
-    assert all(s["status"] == "missing" for s in slots)
+    required = [s for s in slots if s["need"] == "required"]
+    assert all(s["status"] == "missing" for s in required)
     assert uploaded == 0
     assert total == 2
 
@@ -217,4 +219,29 @@ def test_sfr_response_slot_when_scenario_active() -> None:
     assert "sfr" in keys
     sfr_slot = next(s for s in slots if s["key"] == "sfr")
     assert "Ответ или решение СФР" in sfr_slot["title"]
+    assert sfr_slot["status"] == "optional"
+    assert sfr_slot["status_label"] == "Можно добавить"
+
+
+def test_pension_slot_conditional_when_empty() -> None:
+    scenarios = [{"scenario_code": "pension_assigned", "active": True}]
+    slots, _uploaded, _total = document_slots([], [], scenario_rows=scenarios)
+    pay = next(s for s in slots if s["key"] == "sfr_pay")
+    assert pay["status"] == "conditional"
+    assert pay["status_label"] == "Пока не требуется"
+
+
+def test_bank_staff_requested_status() -> None:
+    checklist = [
+        {
+            "title": "Дополнительный финансовый документ",
+            "requirement_code": "bank_statement_limited",
+            "category": "staff_requested",
+            "status": "open",
+        }
+    ]
+    slots, _uploaded, _total = document_slots([], checklist_items=checklist)
+    bank_slot = next(s for s in slots if s["key"] == "bank")
+    assert bank_slot["status"] == "staff_requested"
+    assert bank_slot["status_label"] == "Нужен по запросу специалиста"
 

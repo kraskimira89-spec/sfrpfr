@@ -963,14 +963,19 @@ header span { color: var(--muted); font-size: 1rem; }
   font-weight: 700;
 }
 .doc-status--missing,
-.doc-status--reupload {
+.doc-status--reupload,
+.doc-status--staff_requested {
   color: #c62828;
 }
 .doc-status--awaiting,
 .doc-status--accepted {
   color: #1b6b3a;
 }
-.doc-status--not_needed { color: var(--muted); }
+.doc-status--not_needed,
+.doc-status--optional,
+.doc-status--conditional {
+  color: var(--muted);
+}
 .doc-purpose {
   font-size: 0.875rem;
   color: var(--muted);
@@ -1078,6 +1083,56 @@ header span { color: var(--muted); font-size: 1rem; }
 .client-chat-panel {
   width: 100%;
 }
+#case-chat,
+#case-chat-input,
+#documents {
+  scroll-margin-top: 72px;
+}
+.case-chat-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.case-chat-max-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.case-chat-files-hint {
+  margin: 4px 0 0;
+}
+.case-chat-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.case-chat-quick-chip {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.case-chat-quick-chip:hover:not(:disabled) {
+  background: #f3f6fa;
+}
+.case-chat-quick-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.questionnaire-panel > summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+}
+.questionnaire-panel[open] > summary {
+  margin-bottom: 0.75rem;
+}
 .case-chat {
   display: flex;
   flex-direction: column;
@@ -1127,13 +1182,19 @@ header span { color: var(--muted); font-size: 1rem; }
   padding: 12px;
 }
 .case-chat-empty-box {
-  padding: 24px 12px;
-  text-align: center;
+  min-height: 220px;
+  max-height: 280px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   justify-content: center;
   align-items: center;
+  gap: 8px;
+  padding: 24px 12px;
+  text-align: center;
+}
+.case-chat-empty-box--filter {
+  min-height: 120px;
+  max-height: none;
 }
 .case-chat-empty-title {
   font-weight: 600;

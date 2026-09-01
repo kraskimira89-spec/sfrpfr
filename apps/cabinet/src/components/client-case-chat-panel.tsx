@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from "react";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
@@ -139,7 +139,7 @@ export function ClientCaseChatPanel({
     });
   }, [feed.length, showBotTyping, showBotTypingTimeout]);
 
-  function blockFileDrop(event: React.DragEvent | React.ClipboardEvent) {
+  function blockFileDrop(event: DragEvent | ClipboardEvent) {
     const items =
       "dataTransfer" in event && event.dataTransfer?.items
         ? Array.from(event.dataTransfer.items)

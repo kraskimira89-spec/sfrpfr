@@ -1532,7 +1532,7 @@ export function ClientCabinet() {
         await openCase(selectedId, "case", true);
         if (typeof document !== "undefined") {
           window.setTimeout(() => {
-            document.getElementById("docs-table")?.scrollIntoView({
+            document.getElementById("documents")?.scrollIntoView({
               behavior: "smooth",
               block: "start",
             });
@@ -2450,7 +2450,6 @@ export function ClientCabinet() {
                   caseNumber={caseNumberFromId(detail.id)}
                   work={detail.work}
                   busy={busy}
-                  maxHref={maxChatHref}
                   warning={detail.warning}
                   onConsent={() => void acceptConsent()}
                   onUpload={(file, docType) => void uploadDocument(file, docType)}
@@ -2564,6 +2563,7 @@ export function ClientCabinet() {
               messages={messages}
               body={messageBody}
               busy={busy}
+              maxHref={maxChatHref}
               onBodyChange={setMessageBody}
               onSend={sendMessage}
             />
