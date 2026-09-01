@@ -51,7 +51,15 @@ def test_children_scenario_from_questionnaire() -> None:
 
 
 def test_slot_visible_requires_scenario() -> None:
-    assert slot_visible("children", active_scenarios=set(), staff_codes=set(), has_uploaded=False) is False
+    assert (
+        slot_visible(
+            "children",
+            active_scenarios=set(),
+            staff_codes=set(),
+            has_uploaded=False,
+        )
+        is False
+    )
     assert (
         slot_visible(
             "children",
