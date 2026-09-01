@@ -1083,6 +1083,40 @@ header span { color: var(--muted); font-size: 1rem; }
 .client-chat-panel {
   width: 100%;
 }
+.case-chat-drawer {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.case-chat-drawer-summary {
+  display: none;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  list-style: none;
+}
+.case-chat-drawer-summary::-webkit-details-marker {
+  display: none;
+}
+@media (max-width: 1199px) {
+  .case-chat-drawer-summary {
+    display: block;
+  }
+  .case-chat-drawer:not([open]) .client-chat-panel {
+    display: none;
+  }
+  .case-chat-drawer[open] .client-chat-panel {
+    margin-top: 10px;
+  }
+}
+@media (min-width: 1200px) {
+  .case-chat-drawer {
+    display: contents;
+  }
+}
 #case-chat,
 #case-chat-input,
 #documents {
