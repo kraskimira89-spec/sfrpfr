@@ -15,6 +15,16 @@
 
 Точные имена — в `supabase/migrations/`.
 
+## Проверка (read-only, до apply)
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+# DATABASE_URL из secrets (prod read-only)
+python scripts/verify_prod_migrations_tz27_31.py
+```
+
+**Ревизия 2026-09-01 (Supabase MCP):** таблицы TZ27–31 **отсутствуют** в prod; применены только миграции `20260901*` (customer_journey, case_chat_*).
+
 ## Как применить
 
 ```powershell

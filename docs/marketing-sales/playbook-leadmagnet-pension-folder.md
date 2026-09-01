@@ -1,6 +1,6 @@
 # Playbook: лид-магнит «Папка пенсионных документов»
 
-Стратегия: [strategy-leadmagnet-pension-folder-2026-08.md](strategy-leadmagnet-pension-folder-2026-08.md) · задача [PUB-6](https://tracker.yandex.ru/PUB-6).
+Стратегия: [strategy-leadmagnet-pension-folder-2026-08.md](strategy-leadmagnet-pension-folder-2026-08.md) · задача [PUB-6](https://tracker.yandex.ru/PUB-6) · UTM: [playbook-leadmagnet-utm-tags.md](playbook-leadmagnet-utm-tags.md).
 
 ## URL
 
