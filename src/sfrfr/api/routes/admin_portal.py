@@ -743,6 +743,52 @@ def create_checklist_item(
     )
 
 
+@router.post("/admin/cases/{case_id}/document-requirements", status_code=201)
+def create_document_requirement(
+    case_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """Staff-only запрос дополнительного документа (в т.ч. банковская выписка)."""
+    from sfrfr.services.document_requirements import (
+        BANK_REQUIREMENT_CODE,
+        BANK_STAFF_TITLE,
+        SCENARIO_BANK_LIMITED,
+    )
+
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    requirement_code = str(payload.get("requirement_code") or "").strip()
+    reason = str(payload.get("reason_for_request") or "").strip()
+    if not requirement_code:
+        raise HTTPException(status_code=400, detail="requirement_code required")
+    if not reason:
+        raise HTTPException(status_code=400, detail="reason_for_request required")
+    title = str(payload.get("title") or "").strip()
+    if requirement_code == BANK_REQUIREMENT_CODE:
+        title = title or BANK_STAFF_TITLE
+        repo.set_case_scenarios(
+            case_id, {SCENARIO_BANK_LIMITED}, source="staff", actor_id=principal.user_id
+        )
+    if not title:
+        title = requirement_code
+    return repo.create_document_requirement(
+        case_id,
+        title=title,
+        requirement_code=requirement_code,
+        category=str(payload.get("category") or "staff_requested"),
+        actor_id=principal.user_id,
+        reason_for_request=reason,
+        scenario_code=payload.get("scenario_code"),
+        consent_required=bool(
+            payload.get("consent_required", requirement_code == BANK_REQUIREMENT_CODE)
+        ),
+        period_from=payload.get("period_from"),
+        period_to=payload.get("period_to"),
+    )
+
+
 @router.patch("/admin/cases/{case_id}/checklist/{item_id}")
 def update_checklist_item(
     case_id: str,

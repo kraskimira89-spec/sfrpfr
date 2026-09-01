@@ -78,16 +78,39 @@ def _repo() -> CaseRepository:
     return CaseRepository()
 
 
-def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> CaseSummary:
-    checklist = case.get("checklist_items") or []
-    work = build_client_work_map(
+def _scenario_rows(repo: CaseRepository, case_id: str) -> list[dict[str, Any]]:
+    try:
+        return repo.list_case_scenarios(case_id)
+    except Exception as exc:  # noqa: BLE001 — таблица до миграции
+        logger.info("case_scenarios skipped: %s", exc)
+        return []
+
+
+def _work_map(
+    case: dict,
+    *,
+    consent_accepted: bool,
+    documents: list[Any] | None = None,
+    orders: list[Any] | None = None,
+    scenario_rows: list[Any] | None = None,
+) -> dict[str, Any]:
+    case_id = str(case["id"])
+    repo = _repo()
+    scenarios = scenario_rows if scenario_rows is not None else _scenario_rows(repo, case_id)
+    return build_client_work_map(
         pipeline_status=str(case.get("pipeline_status") or ""),
         b2c_status=str(case.get("b2c_status") or ""),
         consent_accepted=consent_accepted,
-        documents=list(case.get("documents") or []),
-        checklist_items=list(checklist),
-        orders=list(case.get("orders") or []),
+        documents=documents if documents is not None else list(case.get("documents") or []),
+        checklist_items=list(case.get("checklist_items") or []),
+        orders=orders,
+        scenario_rows=scenarios,
     )
+
+
+def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> CaseSummary:
+    checklist = case.get("checklist_items") or []
+    work = _work_map(case, consent_accepted=consent_accepted, orders=list(case.get("orders") or []))
     return CaseSummary(
         id=str(case["id"]),
         pipeline_status=case["pipeline_status"],
@@ -120,12 +143,10 @@ def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) ->
         orders = list(repo.list_orders(case_id) or [])
     except Exception as exc:  # noqa: BLE001
         logger.info("client orders skipped: %s", exc)
-    work = build_client_work_map(
-        pipeline_status=str(status_raw),
-        b2c_status=str(case.get("b2c_status") or ""),
+    work = _work_map(
+        case,
         consent_accepted=consent_accepted,
         documents=documents,
-        checklist_items=list(case.get("checklist_items") or []),
         orders=orders,
     )
     return ClientCaseDetail(
@@ -1426,6 +1447,95 @@ def accept_consent(
     )
 
 
+@router.get("/cases/{case_id}/scenarios")
+def get_case_scenarios(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    rows = _scenario_rows(repo, case_id)
+    return {"scenarios": rows, "active_codes": [r["scenario_code"] for r in rows]}
+
+
+@router.put("/cases/{case_id}/scenarios")
+def save_case_scenarios(
+    case_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    from sfrfr.services.document_requirements import (
+        checklist_rows_for_scenarios,
+        scenarios_from_questionnaire,
+    )
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client or representative only")
+    answers = payload.get("answers") if isinstance(payload.get("answers"), dict) else payload
+    codes = scenarios_from_questionnaire(answers)
+    rows = repo.set_case_scenarios(case_id, codes, source="client", actor_id=principal.user_id)
+    for spec in checklist_rows_for_scenarios(codes):
+        existing = [
+            i
+            for i in (repo.require_case(principal, case_id).get("checklist_items") or [])
+            if str(i.get("requirement_code") or "") == spec.get("requirement_code")
+        ]
+        if not existing:
+            repo.client.table("checklist_items").insert({**spec, "case_id": case_id}).execute()
+    return {"scenarios": rows, "active_codes": [r["scenario_code"] for r in rows]}
+
+
+@router.post("/cases/{case_id}/labor-transcription/estimate")
+def labor_transcription_estimate(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    from sfrfr.services.labor_transcription import estimate_transcription
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    return estimate_transcription(list(case.get("documents") or []))
+
+
+@router.post("/cases/{case_id}/labor-transcription/confirm", status_code=status.HTTP_201_CREATED)
+def labor_transcription_confirm(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    from sfrfr.services.labor_transcription import estimate_transcription
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="client or representative only")
+    estimate = estimate_transcription(list(case.get("documents") or []))
+    if estimate.get("status") != "estimate_ready":
+        raise HTTPException(status_code=400, detail=estimate.get("message") or "no estimate")
+    amount = int(estimate.get("preliminary_total_rub") or 0)
+    spreads = int(estimate.get("pages_count") or 0)
+    order = repo.create_order(
+        case_id,
+        package_code="LABOR_WORD",
+        amount_rub=float(amount),
+        status_value="pending",
+        actor_id=principal.user_id,
+        service_label=f"Перенос трудовой — {spreads} разворотов",
+    )
+    try:
+        repo.client.table("cases").update(
+            {
+                "labor_transcription_status": "awaiting_payment",
+                "labor_transcription_pages": spreads,
+                "labor_transcription_estimate_rub": amount,
+            }
+        ).eq("id", case_id).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.info("labor_transcription case columns skipped: %s", exc)
+    return {"estimate": estimate, "order": order}
+
+
 @router.get("/cases/{case_id}/representatives")
 def list_case_representatives_client(
     case_id: str,
@@ -1518,9 +1628,15 @@ async def upload_case_document(
 ) -> dict:
     """Загрузить разрешённый файл в private bucket через доверенный API."""
     repo = _repo()
-    repo.require_case(principal, case_id)
+    case = repo.require_case(principal, case_id)
     if not principal.is_staff:
         _require_consent_for_upload(repo, case_id)
+        dtype = (doc_type or "").strip().lower()
+        if dtype in {"bank_statement", "bank"} and not repo.bank_statement_requested(case):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="bank statement upload requires staff request and separate consent",
+            )
 
     content_type = file.content_type or ""
     if content_type not in _ALLOWED_CONTENT_TYPES:
@@ -1557,7 +1673,7 @@ async def upload_case_document(
     try:
         from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
 
-        mirror = mirror_case_document_safe(case_id, filename, data)
+        mirror = mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
         if mirror.get("ok"):
             repo.audit(case_id, principal.user_id, "document_mirrored_yandex_disk")
     except Exception as exc:  # noqa: BLE001
@@ -1697,13 +1813,7 @@ def delete_case_document(
         raise HTTPException(status_code=404, detail="document not found")
     if _lower_doc_type(row.get("doc_type")) == "diagnosis_report":
         raise HTTPException(status_code=403, detail="result cannot be deleted")
-    work = build_client_work_map(
-        pipeline_status=str(case.get("pipeline_status") or ""),
-        b2c_status=str(case.get("b2c_status") or ""),
-        consent_accepted=repo.has_consent(case_id),
-        documents=_client_documents(list(case.get("documents") or [])),
-        checklist_items=list(case.get("checklist_items") or []),
-    )
+    work = _work_map(case, consent_accepted=repo.has_consent(case_id))
     allowed = {
         str(slot.get("document_id"))
         for slot in (work.get("documents") or [])

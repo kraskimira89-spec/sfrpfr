@@ -271,6 +271,12 @@ def _is_education(doc: dict[str, Any]) -> bool:
     return dtype == "education" or "образован" in blob or "диплом" in blob or "аттестат" in blob
 
 
+def _is_guardianship(doc: dict[str, Any]) -> bool:
+    blob = _doc_blob(doc)
+    dtype = _lower(doc.get("doc_type"))
+    return dtype in {"guardianship", "adoption"} or "опек" in blob or "попечител" in blob
+
+
 def _is_north(doc: dict[str, Any]) -> bool:
     blob = _doc_blob(doc)
     dtype = _lower(doc.get("doc_type"))
@@ -349,6 +355,7 @@ def _match_docs(docs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
         "marriage": _is_marriage,
         "education": _is_education,
         "north": _is_north,
+        "guardianship": _is_guardianship,
     }
     check = checks.get(key)
     if check:
@@ -385,7 +392,19 @@ def _slot_row(
 def document_slots(
     documents: list[Any] | None,
     checklist_items: list[Any] | None,
+    *,
+    scenario_rows: list[Any] | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
+    from sfrfr.services.document_requirements import (
+        GUARDIANSHIP_SLOT,
+        GUARDIANSHIP_SLOT_KEY,
+        active_scenario_codes,
+        slot_visible,
+        staff_requested_codes,
+    )
+
+    active = active_scenario_codes(scenario_rows)
+    staff_codes = staff_requested_codes(checklist_items)
     docs = _client_docs(list(documents or []))
     items = [i for i in (checklist_items or []) if isinstance(i, dict)]
     used: set[str] = set()
@@ -408,8 +427,11 @@ def document_slots(
             used.add(str(taken.get("id")))
     extra_docs = leftover
     extra_slot = next(s for s in _DOC_SLOTS if s["key"] == "extra")
+    slot_defs: list[dict[str, Any]] = list(_DOC_SLOTS)
+    if GUARDIANSHIP_SLOT_KEY not in {str(s["key"]) for s in slot_defs}:
+        slot_defs.insert(-1, GUARDIANSHIP_SLOT)
     rows: list[dict[str, Any]] = []
-    for slot in _DOC_SLOTS:
+    for slot in slot_defs:
         key = str(slot["key"])
         if key == "extra":
             matched = extra_docs[:1]
@@ -420,9 +442,19 @@ def document_slots(
         elif key == "labor":
             matched = typed.get(key) or []
             check = _checklist_for(items, "труд", "стаж")
+        elif key == GUARDIANSHIP_SLOT_KEY:
+            matched = typed.get(key) or []
+            check = None
         else:
             matched = typed.get(key) or []
             check = None
+        if not slot_visible(
+            key,
+            active_scenarios=active,
+            staff_codes=staff_codes,
+            has_uploaded=bool(matched),
+        ):
+            continue
         rows.append(_slot_row(slot, matched=matched, checklist=check))
     for extra in extra_docs[1:]:
         rows.append(
@@ -574,12 +606,15 @@ def build_client_work_map(
     documents: list[Any] | None,
     checklist_items: list[Any] | None,
     orders: list[Any] | None = None,
+    scenario_rows: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Карта для клиента: статус, шаг, документы, заказ, результат."""
     pipeline = _lower(pipeline_status)
     b2c = _lower(b2c_status)
     docs = [d for d in (documents or []) if isinstance(d, dict)]
-    slots, uploaded, required_total = document_slots(docs, checklist_items)
+    slots, uploaded, required_total = document_slots(
+        docs, checklist_items, scenario_rows=scenario_rows
+    )
     required_ok = uploaded >= required_total and required_total > 0
     reupload = any(s["status"] == "reupload" for s in slots)
     diagnosis_docs = [d for d in docs if _is_diagnosis(d)]

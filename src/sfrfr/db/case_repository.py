@@ -718,7 +718,104 @@ class CaseRepository:
             if item.get("item_type") == "document"
             and item.get("owner") == "client"
             and item.get("status") not in ("done", "cancelled")
+            and item.get("is_required_now", True) is not False
         ]
+
+    def list_case_scenarios(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("case_scenarios")
+            .select("*")
+            .eq("case_id", case_id)
+            .eq("active", True)
+            .execute()
+            .data
+            or []
+        )
+
+    def set_case_scenarios(
+        self,
+        case_id: str,
+        scenario_codes: set[str],
+        *,
+        source: str = "client",
+        actor_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        existing = (
+            self.client.table("case_scenarios")
+            .select("scenario_code")
+            .eq("case_id", case_id)
+            .execute()
+            .data
+            or []
+        )
+        existing_codes = {str(r["scenario_code"]) for r in existing}
+        for code in scenario_codes - existing_codes:
+            self.client.table("case_scenarios").insert(
+                {
+                    "case_id": case_id,
+                    "scenario_code": code,
+                    "source": source,
+                    "active": True,
+                }
+            ).execute()
+        for code in existing_codes - scenario_codes:
+            self.client.table("case_scenarios").update({"active": False}).eq(
+                "case_id", case_id
+            ).eq("scenario_code", code).execute()
+        if actor_id:
+            self.audit(case_id, actor_id, "case_scenarios_updated")
+        return self.list_case_scenarios(case_id)
+
+    def create_document_requirement(
+        self,
+        case_id: str,
+        *,
+        title: str,
+        requirement_code: str,
+        category: str,
+        actor_id: str,
+        reason_for_request: str | None = None,
+        scenario_code: str | None = None,
+        consent_required: bool = False,
+        is_required_now: bool = True,
+        period_from: str | None = None,
+        period_to: str | None = None,
+        sort_order: int = 50,
+    ) -> dict[str, Any]:
+        from datetime import UTC, datetime
+
+        payload: dict[str, Any] = {
+            "case_id": case_id,
+            "title": title,
+            "item_type": "document",
+            "owner": "client",
+            "status": "open",
+            "sort_order": sort_order,
+            "requirement_code": requirement_code,
+            "category": category,
+            "is_required_now": is_required_now,
+            "consent_required": consent_required,
+            "requested_by": actor_id,
+            "requested_at": datetime.now(UTC).isoformat(),
+        }
+        if reason_for_request:
+            payload["reason_for_request"] = reason_for_request
+        if scenario_code:
+            payload["scenario_code"] = scenario_code
+        if period_from:
+            payload["period_from"] = period_from
+        if period_to:
+            payload["period_to"] = period_to
+        response = self.client.table("checklist_items").insert(payload).execute()
+        self.audit(case_id, actor_id, f"document_requirement:{requirement_code}")
+        return response.data[0]
+
+    def bank_statement_requested(self, case: dict[str, Any]) -> bool:
+        for item in case.get("checklist_items") or []:
+            if str(item.get("requirement_code") or "") == "bank_statement_limited":
+                if item.get("status") not in ("done", "cancelled"):
+                    return True
+        return False
 
     def list_audit(self, case_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return (

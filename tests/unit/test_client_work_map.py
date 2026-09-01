@@ -143,20 +143,25 @@ def test_two_untyped_uploads_fill_required_slots() -> None:
     assert uploaded == 2
 
 
-def test_full_checklist_has_core_and_pension_rows() -> None:
+def test_full_checklist_shows_only_core_without_scenarios() -> None:
     slots, uploaded, total = document_slots([], [])
     keys = [s["key"] for s in slots]
     assert keys[:2] == ["ils", "labor"]
-    assert "bank" in keys
-    assert "sfr_pay" in keys
-    assert "sfr_size" in keys
-    assert "military" in keys
-    assert "children" in keys
-    assert "north" in keys
-    assert "sfr" in keys
+    assert "bank" not in keys
+    assert "sfr_pay" not in keys
+    assert "military" not in keys
     assert all(s["status"] == "missing" for s in slots)
     assert uploaded == 0
     assert total == 2
+
+
+def test_pension_rows_when_scenario_active() -> None:
+    scenarios = [{"scenario_code": "pension_assigned", "active": True}]
+    slots, _uploaded, _total = document_slots([], [], scenario_rows=scenarios)
+    keys = [s["key"] for s in slots]
+    assert "sfr_pay" in keys
+    assert "sfr_size" in keys
+    assert "bank" not in keys
 
 
 def test_result_ready_only_with_diagnosis_pdf() -> None:

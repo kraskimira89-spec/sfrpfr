@@ -2119,10 +2119,26 @@ def _ingest_bytes(
 ):  # noqa: ANN001
     path = save_upload(record.case_id, file_name, data)
     fresh = store.add_document(record.case_id, str(path))
+    mirror_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
+    if mirror_id:
+        try:
+            from sfrfr.db.case_repository import CaseRepository
+
+            repo = CaseRepository()
+            if repo.has_consent(mirror_id):
+                from sfrfr.services.max_document_upload import upload_max_document
+
+                upload_max_document(
+                    case_id=mirror_id,
+                    filename=file_name,
+                    data=data,
+                    uploaded_by=f"max:{max_user_id}" if max_user_id else None,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max supabase document upload skipped: %s", exc)
     try:
         from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
 
-        mirror_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
         if mirror_id:
             mirror_case_document_safe(str(mirror_id), file_name, data)
     except Exception as exc:  # noqa: BLE001
@@ -2672,6 +2688,33 @@ def handle_max_update(
         return receipt_handled
     # Канон: предпочтительно кабинет на сайте; вложение в чате — принимаем.
     if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
+        mirror_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        if mirror_id and _supabase_configured():
+            try:
+                from sfrfr.db.case_repository import CaseRepository
+
+                if not CaseRepository().has_consent(mirror_id):
+                    cabinet_url = cabinet_url_for_case(mirror_id)
+                    reply = (
+                        "Чтобы прислать документы, сначала подтвердите согласие "
+                        "на обработку персональных данных в личном кабинете."
+                    )
+                    _reply(
+                        bot,
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        text=reply,
+                        attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
+                        case_id=mirror_id,
+                    )
+                    return MaxHandleResult(
+                        ok=False,
+                        action="upload_consent_required",
+                        case_id=mirror_id,
+                        reply=reply,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("max consent gate check failed: %s", exc)
         fresh = record
         names: list[str] = []
         if max_files:

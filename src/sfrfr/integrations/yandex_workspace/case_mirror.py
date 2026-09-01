@@ -14,8 +14,13 @@ def mirror_case_document_safe(
     case_id: str,
     filename: str,
     data: bytes,
+    *,
+    doc_type: str | None = None,
 ) -> dict[str, Any]:
     """Не бросает наружу: skipped / ok / error в dict + warning в лог при сбое."""
+    dtype = str(doc_type or "").strip().lower()
+    if dtype in {"bank_statement", "bank"}:
+        return {"ok": False, "skipped": True, "reason": "bank_statement_no_mirror"}
     try:
         result = _mirror(case_id, filename, data)
     except Exception as exc:  # noqa: BLE001
