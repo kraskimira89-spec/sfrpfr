@@ -68,7 +68,8 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
         if status_key in {"docs_review", "diagnosis"}:
             return (
                 "Сейчас специалист проверяет комплект документов — обычно до 1 рабочего дня. "
-                "Когда итог будет готов, он появится здесь в чате и в разделе «Итог первичной проверки»."
+                "Когда итог будет готов, он появится здесь в чате "
+                "и в разделе «Итог первичной проверки»."
             )
         if status_key in {"waiting_docs", "need_info"}:
             need = now_need or "загрузить обязательные документы"
@@ -109,7 +110,12 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
 def _llm_reply(user_text: str, work: dict[str, Any]) -> str | None:
     from sfrfr.ai.guardrails import redact_for_llm
     from sfrfr.ai.llm import LLMClient
-    from sfrfr.integrations.max.llm_chat import CLIENT_CHAT_SYSTEM, _parse_llm_payload, llm_chat_enabled, looks_like_pdn
+    from sfrfr.integrations.max.llm_chat import (
+        CLIENT_CHAT_SYSTEM,
+        _parse_llm_payload,
+        llm_chat_enabled,
+        looks_like_pdn,
+    )
 
     if looks_like_pdn(user_text):
         return (
@@ -123,7 +129,8 @@ def _llm_reply(user_text: str, work: dict[str, Any]) -> str | None:
         return None
     safe = redact_for_llm(user_text)[:1500]
     user = (
-        f"Клиент пишет из веб-кабинета (тот же чат, что MAX; документы — только в «Мои документы»).\n"
+        "Клиент пишет из веб-кабинета (тот же чат, что MAX; "
+        "документы — только в «Мои документы»).\n"
         f"Статус дела: {work.get('status_label')}\n"
         f"Сейчас нужно от клиента: {work.get('now_need')}\n"
         f"Документы загружено: {work.get('required_uploaded')}/{work.get('required_total')}\n"
