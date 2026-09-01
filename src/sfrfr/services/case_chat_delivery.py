@@ -33,14 +33,37 @@ def enqueue_max_delivery(
     message_id: str | None,
     max_user_id: str,
     body: str,
-) -> None:
+    attachments: list[dict[str, Any]] | None = None,
+) -> bool:
     """Поставить сообщение из кабинета в outbox для доставки в MAX."""
     from sfrfr.db.session import get_supabase_client
 
     mid = str(max_user_id).strip()
     text = (body or "").strip()
     if not mid or not text:
-        return
+        return False
+    if message_id:
+        try:
+            existing = (
+                get_supabase_client()
+                .table("case_chat_outbox")
+                .select("id, attachments, status")
+                .eq("message_id", str(message_id))
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            if existing:
+                if attachments:
+                    get_supabase_client().table("case_chat_outbox").update(
+                        {"attachments": attachments}
+                    ).eq("id", str(existing[0].get("id") or "")).eq(
+                        "status", "pending"
+                    ).execute()
+                return True
+        except Exception:  # noqa: BLE001 — таблица может быть ещё не накатана
+            pass
     try:
         get_supabase_client().table("case_chat_outbox").insert(
             {
@@ -48,11 +71,36 @@ def enqueue_max_delivery(
                 "message_id": message_id,
                 "max_user_id": mid,
                 "body": text[:4000],
+                "attachments": attachments or [],
                 "status": "pending",
             }
         ).execute()
+        return True
     except Exception as exc:  # noqa: BLE001
+        if message_id:
+            try:
+                existing = (
+                    get_supabase_client()
+                    .table("case_chat_outbox")
+                    .select("id, attachments, status")
+                    .eq("message_id", str(message_id))
+                    .limit(1)
+                    .execute()
+                    .data
+                    or []
+                )
+                if existing:
+                    if attachments:
+                        get_supabase_client().table("case_chat_outbox").update(
+                            {"attachments": attachments}
+                        ).eq("id", str(existing[0].get("id") or "")).eq(
+                            "status", "pending"
+                        ).execute()
+                    return True
+            except Exception:  # noqa: BLE001
+                pass
         logger.warning("case_chat outbox enqueue failed case=%s: %s", case_id[:8], exc)
+        return False
 
 
 def process_pending_outbox(*, limit: int = 20) -> int:
@@ -83,10 +131,14 @@ def process_pending_outbox(*, limit: int = 20) -> int:
         max_uid = str(row.get("max_user_id") or "").strip()
         body = str(row.get("body") or "").strip()
         message_id = row.get("message_id")
+        attachments = row.get("attachments")
         if not oid or not max_uid or not body:
             continue
         try:
-            result = bot.send_message(text=body, user_id=max_uid)
+            send_kwargs: dict[str, Any] = {"text": body, "user_id": max_uid}
+            if isinstance(attachments, list) and attachments:
+                send_kwargs["attachments"] = attachments
+            result = bot.send_message(**send_kwargs)
             if isinstance(result, dict) and (result.get("skipped") or result.get("ok") is False):
                 raise RuntimeError(str(result.get("reason") or "MAX delivery skipped"))
             client.table("case_chat_outbox").update(

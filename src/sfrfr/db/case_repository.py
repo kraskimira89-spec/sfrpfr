@@ -678,25 +678,14 @@ class CaseRepository:
         return rows[0] if rows else None
 
     def unread_staff_messages(self, case_id: str, user_id: str) -> int:
-        last_view = (
-            self.client.table("access_audit")
-            .select("at")
-            .eq("case_id", case_id)
-            .eq("actor_id", user_id)
-            .eq("action", "case_viewed")
-            .order("at", desc=True)
-            .limit(1)
-            .execute()
-            .data
-        )
+        _ = user_id
         query = (
             self.client.table("case_messages")
             .select("id", count="exact")
             .eq("case_id", case_id)
-            .in_("author_kind", ["staff", "system"])
+            .in_("author_kind", ["staff", "system", "expert", "operator"])
+            .is_("read_at_client", "null")
         )
-        if last_view:
-            query = query.gt("created_at", last_view[0]["at"])
         response = query.execute()
         if response.count is not None:
             return int(response.count)

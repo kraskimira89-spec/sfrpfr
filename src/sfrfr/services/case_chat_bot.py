@@ -191,15 +191,26 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> str
     from sfrfr.integrations.max.case_chat_log import append_bot_case_message
 
     max_uid = _max_user_id(case)
-    append_bot_case_message(case_id=case_id, max_user_id=max_uid or None, text=reply)
-
-    if max_uid:
+    message = append_bot_case_message(
+        case_id=case_id,
+        max_user_id=max_uid or None,
+        text=reply,
+        channel_origin="cabinet",
+    )
+    if max_uid and message:
         try:
-            from sfrfr.integrations.max.client import MaxBotClient
+            from sfrfr.services.case_chat_delivery import (
+                enqueue_max_delivery,
+                process_pending_outbox,
+            )
 
-            bot = MaxBotClient()
-            if bot.available:
-                bot.send_message(text=reply, user_id=max_uid)
+            enqueue_max_delivery(
+                case_id=case_id,
+                message_id=str(message.get("id") or "") or None,
+                max_user_id=max_uid,
+                body=reply,
+            )
+            process_pending_outbox(limit=5)
         except Exception as exc:  # noqa: BLE001
             logger.warning("case chat bot MAX mirror failed: %s", exc)
 

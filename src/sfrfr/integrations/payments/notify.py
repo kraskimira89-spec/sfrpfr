@@ -50,16 +50,11 @@ def format_payment_succeeded_message(
             lines.append(f"Сумма: {amount_value} ₽.")
         lines.append("Чек присылать не нужно — уведомление об оплате уже пришло.")
         if receipt_via_yookassa:
-            if customer_email:
-                lines.append(f"Фискальный чек отправлен на email {customer_email}.")
-            else:
-                lines.append(
-                    "Фискальный чек формирует ЮKassa (ОФД); проверьте email из профиля оплаты."
-                )
+            lines.append("Фискальный чек отправлен на email из профиля оплаты.")
     lines.extend(
         [
             "",
-            f"Кабинет (оплаты): {cabinet_case_url(case_id, view='payments')}",
+            "Откройте раздел «Оплаты» в кабинете на сайте.",
             "",
             "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
             "Решение принимает СФР. Результат не гарантирован.",
@@ -107,6 +102,7 @@ def notify_payment_succeeded(
         "ok": True,
         "case_id": case_id,
         "case_message": False,
+        "max_queued": False,
         "max_sent": False,
         "amocrm_note": False,
         "amocrm_sync": False,
@@ -152,31 +148,12 @@ def notify_payment_succeeded(
     )
     result["text"] = text
 
-    try:
-        from sfrfr.db.session import get_supabase_client
-
-        get_supabase_client().table("case_messages").insert(
-            {
-                "case_id": case_id,
-                "author_kind": "system",
-                "author_user_id": None,
-                "body": text,
-            }
-        ).execute()
-        result["case_message"] = True
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("payment notify case_message failed case=%s: %s", case_id[:8], exc)
-
     max_user_id = client_row.get("max_user_id")
+    button_label = "Открыть оплаты"
+    button_url = cabinet_case_url(case_id, view="payments")
+    message_text = text
     if max_user_id:
         try:
-            from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
-
-            bot = MaxBotClient()
-            button_label = "Открыть оплаты"
-            button_url = cabinet_case_url(case_id, view="payments")
-            message_text = text
-
             # Sprint 2: опционально — защищённая ссылка на согласие (без cutover FSM)
             if (
                 settings.max_secure_link_buttons_enabled
@@ -207,17 +184,52 @@ def notify_payment_succeeded(
                         case_id[:8],
                         exc,
                     )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("payment notify secure link failed case=%s: %s", case_id[:8], exc)
 
-            send = bot.send_message(
-                text=message_text,
-                user_id=max_user_id,
+    message_id: str | None = None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        inserted = (
+            get_supabase_client()
+            .table("case_messages")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_kind": "system",
+                    "author_user_id": None,
+                    "body": message_text,
+                    "channel_origin": "bot",
+                }
+            )
+            .execute()
+        )
+        message_id = str((inserted.data or [{}])[0].get("id") or "").strip() or None
+        result["case_message"] = True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("payment notify case_message failed case=%s: %s", case_id[:8], exc)
+
+    if max_user_id and message_id:
+        try:
+            from sfrfr.integrations.max.client import inline_link_keyboard
+            from sfrfr.services.case_chat_delivery import (
+                enqueue_max_delivery,
+                process_pending_outbox,
+            )
+
+            queued = enqueue_max_delivery(
+                case_id=case_id,
+                message_id=message_id,
+                max_user_id=str(max_user_id),
+                body=message_text,
                 attachments=inline_link_keyboard(button_label, button_url),
             )
-            result["max_sent"] = not send.get("skipped")
-            keys = ("ok", "skipped", "reason")
-            result["max_response"] = {k: send.get(k) for k in keys if k in send}
+            result["max_queued"] = queued
+            if queued:
+                result["max_sent"] = process_pending_outbox(limit=5) > 0
         except Exception as exc:  # noqa: BLE001
-            logger.warning("payment notify MAX failed case=%s: %s", case_id[:8], exc)
+            logger.warning("payment notify MAX queue failed case=%s: %s", case_id[:8], exc)
 
     # amoCRM: обновить сделку (b2c уже в БД) + заметка об оплате
     try:

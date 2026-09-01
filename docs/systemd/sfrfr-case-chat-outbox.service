@@ -1,0 +1,19 @@
+[Unit]
+Description=SFRFR unified case chat MAX outbox worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sfrfr
+WorkingDirectory=/opt/sfrfr
+EnvironmentFile=/opt/sfrfr/.env
+ExecStart=/opt/sfrfr/.venv/bin/python /opt/sfrfr/scripts/case_chat_outbox_worker.py
+Restart=always
+RestartSec=5
+Nice=10
+StandardOutput=append:/var/log/sfrfr/case-chat-outbox.log
+StandardError=append:/var/log/sfrfr/case-chat-outbox.err
+
+[Install]
+WantedBy=multi-user.target

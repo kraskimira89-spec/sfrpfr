@@ -156,33 +156,55 @@ def send_pay_link_max(
 
     Дублирует текст в case_messages, чтобы сотрудник видел счёт в ленте дела.
     """
-    bot = MaxBotClient()
-    if not bot.available:
-        raise RuntimeError("max_bot_not_configured")
     text = pay_message_text(service=service, amount_rub=amount_rub, pay_url=pay_url)
     attachments: list[dict[str, Any]] = []
     if qr_url:
         attachments.append({"type": "image", "payload": {"url": qr_url}})
     attachments.extend(inline_link_keyboard("Оплатить", pay_url))
-    bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
     if case_id:
         try:
-            from sfrfr.integrations.max.case_chat_log import append_bot_case_message
-
-            chat_body = text
-            if qr_url:
-                chat_body = f"{text}\nQR: {qr_url}"
-            append_bot_case_message(
-                case_id=case_id,
-                text=chat_body,
-                attachments=attachments,
-                max_user_id=max_user_id,
+            from sfrfr.db.session import get_supabase_client
+            from sfrfr.services.case_chat_delivery import (
+                enqueue_max_delivery,
+                process_pending_outbox,
             )
+
+            inserted = (
+                get_supabase_client()
+                .table("case_messages")
+                .insert(
+                    {
+                        "case_id": case_id,
+                        "author_kind": "system",
+                        "author_user_id": None,
+                        "body": text,
+                        "channel_origin": "bot",
+                    }
+                )
+                .execute()
+            )
+            message_row = (inserted.data or [{}])[0]
+            message_id = str(message_row.get("id") or "").strip() or None
+            if not enqueue_max_delivery(
+                case_id=case_id,
+                message_id=message_id,
+                max_user_id=max_user_id,
+                body=text,
+                attachments=attachments,
+            ):
+                raise RuntimeError("case_chat_outbox_enqueue_failed")
+            process_pending_outbox(limit=5)
         except Exception:  # noqa: BLE001
             logger.exception(
                 "pay_link_case_message_failed case=%s",
                 str(case_id)[:8],
             )
+            raise
+    else:
+        bot = MaxBotClient()
+        if not bot.available:
+            raise RuntimeError("max_bot_not_configured")
+        bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
 
 
 class PayLinkError(Exception):

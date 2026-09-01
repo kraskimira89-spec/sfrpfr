@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     document_ingest_async: bool = True
     document_av_mode: str = "auto"
     document_worker_poll_seconds: float = 3.0
+    case_chat_outbox_poll_seconds: float = 5.0
 
     ai_provider: str = "yandex"
     openai_api_key: str = ""

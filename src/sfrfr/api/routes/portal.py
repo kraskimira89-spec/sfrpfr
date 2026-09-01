@@ -403,6 +403,17 @@ def _is_internal_staff_message(row: dict[str, Any]) -> bool:
     return kind in {"staff", "expert", "operator"} and body.startswith(_INTERNAL_STAFF_PREFIX)
 
 
+def _client_case_message(row: dict[str, Any]) -> dict[str, Any]:
+    """Публичная для участника дела форма сообщения без канальных метаданных."""
+    return {
+        "id": row.get("id"),
+        "case_id": row.get("case_id"),
+        "author_kind": row.get("author_kind"),
+        "body": row.get("body"),
+        "created_at": row.get("created_at"),
+    }
+
+
 def _mirror_client_message_to_max(
     case: dict[str, Any],
     body: str,
@@ -1784,6 +1795,7 @@ async def upload_case_document(
             case_id=case_id,
             author_kind="staff" if principal.is_staff else "client",
             body=format_document_event(filename=filename, doc_type=doc_type),
+            channel_origin="admin" if principal.is_staff else "cabinet",
         )
     except Exception as exc:  # noqa: BLE001
         logger.info("document case_message skipped: %s", exc)
@@ -2429,6 +2441,13 @@ def list_messages(
 ) -> list[dict]:
     """Полная лента: сообщения + события загрузки документов (как в переписке MAX)."""
     case = _repo().require_case(principal, case_id)
+    if not principal.is_staff:
+        try:
+            from sfrfr.services.case_chat_delivery import mark_chat_activity
+
+            mark_chat_activity(case_id, "cabinet")
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("cabinet chat activity skipped case=%s: %s", case_id[:8], exc)
     # Досозданные в буфере реплики (до появления case_id) — слить при открытии карточки.
     try:
         client_row = case.get("clients") or {}
@@ -2505,6 +2524,8 @@ def list_messages(
             mark_messages_read_for_staff(case_id)
         except Exception as exc:  # noqa: BLE001
             logger.info("mark staff read on list_messages skipped: %s", exc)
+    if not principal.is_staff:
+        return [_client_case_message(row) for row in timeline]
     return timeline
 
 
@@ -2538,6 +2559,12 @@ def create_message(
     repo.audit(case_id, principal.user_id, "message_created")
     row = response.data[0]
     if kind == "client" and not _is_internal_staff_message(row):
+        try:
+            from sfrfr.services.case_chat_delivery import mark_chat_activity
+
+            mark_chat_activity(case_id, "cabinet")
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("cabinet chat activity skipped case=%s: %s", case_id[:8], exc)
         _mirror_client_message_to_max(case, body, message_id=str(row.get("id") or "") or None)
         try:
             from sfrfr.services.case_chat_bot import auto_reply_to_client_message
@@ -2552,13 +2579,13 @@ def create_message(
         max_uid = str((client_row or {}).get("max_user_id") or "").strip()
         if max_uid:
             try:
-                from sfrfr.services.case_chat_delivery import notify_client_new_chat_message
+                from sfrfr.services.case_chat_delivery import mirror_staff_message_to_max
 
-                notify_client_new_chat_message(
-                    case_id=case_id,
-                    max_user_id=max_uid,
-                    preview_body=body,
+                mirror_staff_message_to_max(
+                    case,
+                    body,
+                    message_id=str(row.get("id") or "") or None,
                 )
             except Exception as exc:  # noqa: BLE001
-                logger.info("staff chat notify skipped: %s", exc)
-    return row
+                logger.info("staff chat MAX delivery skipped: %s", exc)
+    return row if principal.is_staff else _client_case_message(row)

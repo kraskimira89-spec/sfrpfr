@@ -9,7 +9,7 @@ from typing import Any
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.core.copy import POSITION_SHORT
-from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
+from sfrfr.integrations.max.attachments import extract_downloadable_files
 from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
     MaxBotClient,
@@ -86,8 +86,6 @@ from sfrfr.security.login_pending import (
     parse_confirm_callback,
     parse_manager_callback,
 )
-from sfrfr.storage.local import save_upload
-
 logger = logging.getLogger(__name__)
 
 
@@ -303,11 +301,11 @@ def _append_bot_case_message(
     attachments: list[dict[str, Any]] | None = None,
     max_user_id: str | None = None,
     external_message_id: str | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     """Сохранить ответ бота MAX (текст + подписи кнопок) в ленту дела."""
     from sfrfr.integrations.max.case_chat_log import append_bot_case_message
 
-    append_bot_case_message(
+    return append_bot_case_message(
         case_id=case_id,
         max_user_id=max_user_id,
         text=text,
@@ -2107,16 +2105,15 @@ def _send_confirm_web_login(
 
 
 def _docs_request_text(*, has_docs: bool) -> str:
-    preferred = (
-        "Документы можно прислать прямо сюда в этот чат MAX. "
-        "Предпочтительно также загрузите в личный кабинет на сайте "
-        "(после согласия) — так защищённее."
-    )
     if has_docs:
-        return f"Можно прислать следующий документ (PDF/JPG/PNG) или /run. {preferred}"
+        return (
+            "Откройте раздел «Мои документы» в кабинете на сайте и загрузите "
+            "следующий файл. Вопросы можно писать здесь, в MAX, или в кабинете: "
+            "это один чат по делу."
+        )
     return (
-        "Можно прислать выписку ИЛС (PDF/JPG/PNG) прямо сюда в этот чат "
-        f"или открыть кабинет. {preferred}"
+        "Получите выписку ИЛС, затем загрузите её через раздел «Мои документы» "
+        "в кабинете на сайте. Вопросы можно писать здесь, в MAX, или в кабинете."
     )
 
 
@@ -2128,73 +2125,6 @@ def _draft_preview(record) -> str:  # noqa: ANN001 - CaseRecord
     preview = body[:1500] + ("…" if len(body) > 1500 else "")
     title = draft.title or "Черновик заявления"
     return f"{title}\n\n{preview}"
-
-
-def _ingest_bytes(
-    store,
-    record,
-    file_name: str,
-    data: bytes,
-    *,
-    max_user_id: str | None = None,
-):  # noqa: ANN001
-    path = save_upload(record.case_id, file_name, data)
-    fresh = store.add_document(record.case_id, str(path))
-    mirror_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
-    if mirror_id:
-        try:
-            from sfrfr.db.case_repository import CaseRepository
-
-            repo = CaseRepository()
-            if repo.has_consent(mirror_id):
-                from sfrfr.services.max_document_upload import upload_max_document
-
-                upload_max_document(
-                    case_id=mirror_id,
-                    filename=file_name,
-                    data=data,
-                    uploaded_by=f"max:{max_user_id}" if max_user_id else None,
-                )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("max supabase document upload skipped: %s", exc)
-    try:
-        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
-
-        if mirror_id:
-            mirror_case_document_safe(str(mirror_id), file_name, data)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("document yandex disk mirror skipped: %s", exc)
-    try:
-        from sfrfr.integrations.max.case_chat_log import (
-            append_case_chat_message,
-            format_document_event,
-        )
-
-        # Для ленты — только UUID из Supabase (локальный store id часто фантом).
-        chat_case_id = _chat_case_id(max_user_id, preferred=str(record.case_id))
-        append_case_chat_message(
-            case_id=chat_case_id,
-            max_user_id=max_user_id,
-            author_kind="client",
-            body=format_document_event(filename=file_name),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("document case_message failed: %s", exc)
-    return fresh
-
-
-def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
-    files: list[tuple[str, bytes]] = []
-    file_name = update.get("file_name")
-    file_bytes = update.get("file_bytes")
-    if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
-        files.append((file_name, bytes(file_bytes)))
-    for name, url in extract_downloadable_files(update):
-        try:
-            files.append((name, download_file(url)))
-        except Exception:  # noqa: BLE001
-            continue
-    return files
 
 
 def _handle_marketing_consent(
@@ -2298,59 +2228,6 @@ def _handle_marketing_consent(
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
 
-def _try_max_payment_receipt(
-    bot: MaxBotClient,
-    *,
-    user_id: str,
-    chat_id: int | str | None,
-    files: list[tuple[str, bytes]],
-) -> MaxHandleResult | None:
-    if not files:
-        return None
-    try:
-        from sfrfr.services.payment_receipt import ingest_max_receipt
-    except Exception:  # noqa: BLE001
-        return None
-    case_id = _case_id_for_max_user(user_id)
-    # В ленту дела — что клиент прислал (чек/фото), до OCR.
-    try:
-        from sfrfr.integrations.max.case_chat_log import (
-            append_case_chat_message,
-            format_document_event,
-        )
-
-        for name, _data in files:
-            append_case_chat_message(
-                case_id=case_id,
-                max_user_id=user_id,
-                author_kind="client",
-                body=format_document_event(filename=name, doc_type="чек оплаты"),
-            )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("receipt case_message failed: %s", exc)
-    try:
-        result = ingest_max_receipt(max_user_id=str(user_id), files=files)
-    except Exception:  # noqa: BLE001
-        logging.getLogger(__name__).info("max payment receipt skipped", exc_info=True)
-        return None
-    if not result:
-        return None
-    reply = str(result.get("client_message") or "Чек получили.")
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=reply,
-        case_id=str(result.get("case_id") or case_id or "") or None,
-    )
-    return MaxHandleResult(
-        ok=result.get("status") in {"confirmed", "already_paid"},
-        action=f"payment_receipt_{result.get('status')}",
-        case_id=result.get("case_id"),
-        reply=reply,
-    )
-
-
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -2362,7 +2239,7 @@ def handle_max_update(
     intake:* — цели и вопросы
     /login — вход в веб-кабинет по коду
     /cabinet /status /documents /help — меню вернувшегося клиента
-    вложения — принимаем + CTA кабинета на сайте (предпочтительно)
+    вложения — отклоняем и направляем в раздел «Мои документы» кабинета
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -2405,6 +2282,23 @@ def handle_max_update(
 
     if not user_id:
         return MaxHandleResult(ok=False, action="ignore", detail="no user_id")
+
+    incoming_message_id = _max_message_id(update)
+    if incoming_message_id and not callback:
+        try:
+            from sfrfr.services.case_chat_delivery import find_message_by_external_id
+
+            existing_message = find_message_by_external_id(incoming_message_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("max webhook dedupe lookup skipped: %s", exc)
+            existing_message = None
+        if existing_message:
+            return MaxHandleResult(
+                ok=True,
+                action="duplicate_webhook",
+                case_id=str(existing_message.get("case_id") or "") or None,
+                detail=f"external_message_id={incoming_message_id}",
+            )
 
     store = get_case_store()
     welcome_text = _welcome_for_update(update, user_id)
@@ -2607,10 +2501,10 @@ def handle_max_update(
         )
         cabinet_url = cabinet_url_for_case(case_id)
         reply = (
-            "Откройте личный кабинет на сайте для документов — там файлы "
-            "передаются защищённее (2–3 минуты). "
-            "Документы можно прислать и прямо сюда в этот чат MAX — примем, "
-            f"специалист увидит. Кабинет клиента — только на сайте. {POSITION_SHORT}"
+            "Откройте личный кабинет на сайте и раздел «Мои документы» — "
+            "там файлы передаются защищённо. Вопросы можно писать здесь, "
+            "в MAX, или в кабинете: это один чат по делу. "
+            f"Кабинет клиента — только на сайте. {POSITION_SHORT}"
         )
         _reply(
             bot,
@@ -2692,10 +2586,7 @@ def handle_max_update(
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = (
-                "Пришлите файл сюда в чат (PDF/JPG/PNG) "
-                "или загрузите в кабинет на сайте."
-            )
+            reply = "Загрузите документы через раздел «Мои документы» в кабинете на сайте."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,
@@ -2711,20 +2602,19 @@ def handle_max_update(
 
     file_bytes = update.get("file_bytes")
     downloads = extract_downloadable_files(update)
-    max_files = _collect_max_files(update)
-    if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
+    if isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
         from sfrfr.integrations.max.intake import documents_upload_keyboard
         from sfrfr.services.case_chat_delivery import (
             MAX_FILE_REJECT_TEXT,
             documents_cabinet_url,
         )
 
-        reject_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
-        docs_url = documents_cabinet_url(reject_case_id)
+        case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        docs_url = documents_cabinet_url(case_id)
         reply = MAX_FILE_REJECT_TEXT
         ext_id = _max_message_id(update)
         _append_client_case_message(
-            case_id=reject_case_id,
+            case_id=case_id,
             max_user_id=user_id,
             text="[Вложение отклонено: документы принимаются только через раздел «Мои документы»]",
             external_message_id=ext_id,
@@ -2735,12 +2625,12 @@ def handle_max_update(
             chat_id=chat_id,
             text=reply,
             attachments=documents_upload_keyboard(cabinet_url=docs_url),
-            case_id=reject_case_id,
+            case_id=case_id,
         )
         return MaxHandleResult(
             ok=False,
             action="upload_rejected_unified_chat",
-            case_id=reject_case_id,
+            case_id=case_id,
             reply=reply,
         )
 

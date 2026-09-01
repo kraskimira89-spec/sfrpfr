@@ -1118,7 +1118,6 @@ def send_max_reply_to_client(
     """Отправить сообщение клиенту в его личный чат с клиентским ботом MAX."""
     if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
         raise HTTPException(status_code=403, detail="forbidden")
-    from sfrfr.integrations.max.client import MaxBotClient
     from sfrfr.services.message_dedupe import (
         count_same_messages,
         find_duplicate_staff_message,
@@ -1130,13 +1129,7 @@ def send_max_reply_to_client(
     max_uid = str(client.get("max_user_id") or "").strip()
     if not max_uid:
         raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
-    bot = MaxBotClient()
-    if not bot.available:
-        raise HTTPException(status_code=503, detail="max_bot_not_configured")
     text = payload.message.strip()
-    store_body = text
-    if payload.template_code:
-        store_body = f"{text}\n\n[template:{payload.template_code.strip()}]"
 
     from sfrfr.db.marketing_consent_repository import MarketingConsentRepository
     from sfrfr.integrations.max.marketing_consent_flow import append_unsub_footer
@@ -1181,9 +1174,6 @@ def send_max_reply_to_client(
         )
     if kind == "marketing":
         text = append_unsub_footer(text)
-        store_body = text
-        if payload.template_code:
-            store_body = f"{text}\n\n[template:{payload.template_code.strip()}]"
 
     sb = get_supabase_client()
     recent = (
@@ -1235,34 +1225,37 @@ def send_max_reply_to_client(
             )
 
     try:
-        result = bot.send_message(text=text, user_id=max_uid)
+        inserted = (
+            sb.table("case_messages")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_user_id": principal.user_id,
+                    "author_kind": "staff",
+                    "body": text,
+                    "channel_origin": "admin",
+                }
+            )
+            .execute()
+        )
+        message_row = (inserted.data or [{}])[0]
+        message_id = str(message_row.get("id") or "").strip() or None
+        from sfrfr.services.case_chat_delivery import mirror_staff_message_to_max
+
+        mirror_staff_message_to_max(case, text, message_id=message_id)
     except Exception as exc:  # noqa: BLE001
         detail = (
-            "Не удалось отправить сообщение в MAX. "
-            "Проверьте связь клиента с ботом и повторите."
+            "Не удалось сохранить сообщение общего чата. "
+            "Проверьте связь с базой и повторите."
         )
         raise HTTPException(status_code=502, detail=detail) from exc
-    sb.table("case_messages").insert(
-        {
-            "case_id": case_id,
-            "author_user_id": principal.user_id,
-            "author_kind": "staff",
-            "body": store_body,
-            "channel_origin": "admin",
-        }
-    ).execute()
-    try:
-        from sfrfr.services.case_chat_delivery import notify_client_new_chat_message
-
-        notify_client_new_chat_message(
-            case_id=case_id,
-            max_user_id=max_uid,
-            preview_body=text,
-        )
-    except Exception:  # noqa: BLE001
-        pass
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
-    return {"ok": True, "max_user_id": max_uid, "result": result}
+    return {
+        "ok": True,
+        "max_user_id": max_uid,
+        "message_id": message_id,
+        "queued": True,
+    }
 
 
 @router.post("/admin/cases/{case_id}/telemost")
@@ -1917,7 +1910,6 @@ def request_marketing_consent_max(
     """Отправить в MAX запрос согласия на рекламу (кнопки Да/Нет)."""
     if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
         raise HTTPException(status_code=403, detail="forbidden")
-    from sfrfr.integrations.max.client import MaxBotClient
     from sfrfr.integrations.max.marketing_consent_flow import (
         ASK_MARKETING_CONSENT_TEXT,
         marketing_consent_ask_keyboard,
@@ -1929,23 +1921,53 @@ def request_marketing_consent_max(
     max_uid = str(client.get("max_user_id") or "").strip()
     if not max_uid:
         raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
-    bot = MaxBotClient()
-    if not bot.available:
-        raise HTTPException(status_code=503, detail="max_bot_not_configured")
     text = ASK_MARKETING_CONSENT_TEXT
     attachments = marketing_consent_ask_keyboard()
     try:
-        bot.send_message(text=text, user_id=max_uid, attachments=attachments)
+        inserted = (
+            get_supabase_client()
+            .table("case_messages")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_kind": "system",
+                    "author_user_id": principal.user_id,
+                    "body": text,
+                    "channel_origin": "admin",
+                }
+            )
+            .execute()
+        )
+        message_id = str((inserted.data or [{}])[0].get("id") or "").strip() or None
+        from sfrfr.services.case_chat_delivery import (
+            enqueue_max_delivery,
+            process_pending_outbox,
+        )
+
+        if not enqueue_max_delivery(
+            case_id=case_id,
+            message_id=message_id,
+            max_user_id=max_uid,
+            body=text,
+            attachments=attachments,
+        ):
+            raise RuntimeError("case_chat_outbox_enqueue_failed")
+        process_pending_outbox(limit=5)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=502,
             detail=(
-                "Не удалось отправить сообщение в MAX. "
-                "Проверьте связь клиента с ботом и повторите."
+                "Не удалось поставить сообщение общего чата в очередь. "
+                "Повторите позже."
             ),
         ) from exc
     repo.audit(case_id, principal.audit_actor_id(), "marketing_consent_requested")
-    return {"ok": True, "action": "marketing_consent_requested", "channel": "max"}
+    return {
+        "ok": True,
+        "action": "marketing_consent_requested",
+        "channel": "max",
+        "queued": True,
+    }
 
 
 @router.get("/admin/finance")

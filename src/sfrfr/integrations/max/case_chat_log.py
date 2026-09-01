@@ -258,7 +258,7 @@ def append_case_chat_message(
     body: str,
     channel_origin: str = "max",
     external_message_id: str | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     """Записать в case_messages или в буфер до появления дела.
 
     Важно: при ошибке insert (в т.ч. FK — «дела нет в БД») не терять текст —
@@ -275,24 +275,34 @@ def append_case_chat_message(
         try:
             from sfrfr.services.case_chat_delivery import find_message_by_external_id
 
-            if find_message_by_external_id(ext):
-                return
+            existing = find_message_by_external_id(ext)
+            if existing:
+                return existing
         except Exception:  # noqa: BLE001
             pass
     if cid and len(cid) >= 32:
         try:
-            _insert_case_message(
+            return _insert_case_message(
                 case_id=cid,
                 author_kind=author_kind,
                 body=text,
                 channel_origin=channel_origin,
                 external_message_id=ext or None,
             )
-            return
         except Exception as exc:  # noqa: BLE001
             # FK 23503 = фантомный case_id: ожидаемо → буфер, без ERROR-шума.
             detail = str(exc)
             is_fk = "23503" in detail or "case_messages_case_id_fkey" in detail
+            is_duplicate = (
+                "duplicate" in detail.lower()
+                or "unique" in detail.lower()
+                or "external_message_id" in detail
+            )
+            if ext and is_duplicate:
+                try:
+                    return find_message_by_external_id(ext)
+                except Exception:  # noqa: BLE001
+                    return None
             log_fn = logger.info if is_fk else logger.warning
             log_fn(
                 "case_message append failed case=%s: %s; fallback_buffer=%s",
@@ -308,7 +318,7 @@ def append_case_chat_message(
                     channel_origin=channel_origin,
                     external_message_id=ext or None,
                 )
-            return
+            return None
     if mid:
         _buffer(
             max_user_id=mid,
@@ -317,6 +327,7 @@ def append_case_chat_message(
             channel_origin=channel_origin,
             external_message_id=ext or None,
         )
+    return None
 
 
 def append_bot_case_message(
@@ -326,19 +337,20 @@ def append_bot_case_message(
     text: str,
     attachments: list[dict[str, Any]] | None = None,
     external_message_id: str | None = None,
-) -> None:
+    channel_origin: str = "max",
+) -> dict[str, Any] | None:
     body = (text or "").strip()
     if not body:
         return
     labels = keyboard_button_labels(attachments)
     if labels:
         body = f"{body}\n\n[Кнопки бота: {' · '.join(labels)}]"
-    append_case_chat_message(
+    return append_case_chat_message(
         case_id=case_id,
         max_user_id=max_user_id,
         author_kind="system",
         body=body,
-        channel_origin="bot",
+        channel_origin=channel_origin,
         external_message_id=external_message_id,
     )
 
@@ -349,8 +361,8 @@ def append_client_case_message(
     max_user_id: str | None = None,
     text: str,
     external_message_id: str | None = None,
-) -> None:
-    append_case_chat_message(
+) -> dict[str, Any] | None:
+    return append_case_chat_message(
         case_id=case_id,
         max_user_id=max_user_id,
         author_kind="client",

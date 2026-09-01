@@ -215,5 +215,5 @@ npx supabase db push
 - CORS: `CORS_ALLOWED_ORIGINS` в `.env` (витрина + cabinet + admin).
 - Для корректной работы MAX API нужны сертификаты Минцифры в `certs/` (см. `sfrfr.integrations.max.ssl_context`).
 - Webhook API: `https://api.proverkastaza.ru/api/integrations/max/webhook` (`PUBLIC_BASE_URL` на VPS). Подписка: `sfrfr max-subscribe` после заполнения `MAX_BOT_TOKEN`.
-- ПДн-сканы не через WP-формы; предпочтительно веб-кабинет; вложения в чат MAX — принимаем.
+- ПДн-сканы не через WP-формы и не через чат MAX; документы загружаются только в веб-кабинете.
 - `service_role` только на сервере API, не в JS.

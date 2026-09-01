@@ -53,14 +53,14 @@ def notification_channel_links(
             "channel": "web_cabinet",
             "label": "Кабинет на сайте",
             "url": cabinet,
-            "copy": "Документы — в чат MAX или кабинет на сайте; оплата и статус — в кабинете",
+            "copy": "Документы — только в кабинете на сайте; переписка — один чат в кабинете и MAX",
         },
     ]
     preferred = preferred_channel or "unset"
     return {
         "preferred_channel": preferred,
         "links": links,
-        "note": "Клиентский кабинет — только сайт; в MAX — подсказки и связь",
+        "note": "Клиентский кабинет — только сайт; чат по делу общий в MAX и кабинете",
         "warning": (
             "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
             "Решение принимает СФР. Результат не гарантирован."
@@ -75,22 +75,13 @@ def format_status_change_message(
     max_linked: bool,
     case_id: str,
 ) -> str:
-    """Текст уведомления: статус + две CTA в порядке preferred_channel."""
+    """Нейтральный текст общего чата без номера дела, ПДн и ссылок."""
     label = status_label_ru(status_value)
-    payload = notification_channel_links(
-        preferred_channel=preferred_channel,
-        max_linked=max_linked,
-        case_id=case_id,
+    _ = preferred_channel, max_linked, case_id
+    return (
+        f"Статус вашего дела обновился: {label}.\n\n"
+        "Откройте единый чат по делу в кабинете или MAX."
     )
-    lines = [
-        f"Статус вашего дела обновился: {label}.",
-        "",
-        "Открыть дело:",
-    ]
-    for item in payload["links"]:
-        lines.append(f"• {item['label']}: {item['url']}")
-    lines.extend(["", payload["warning"]])
-    return "\n".join(lines)
 
 
 REVIEW_ASK_AUDIT_ACTION = "max_review_ask_sent"
@@ -169,39 +160,58 @@ def maybe_send_soft_review_ask(
     result: dict[str, Any] = {
         "ok": True,
         "skipped": False,
+        "max_queued": False,
         "max_sent": False,
         "text": text,
     }
     try:
-        from sfrfr.integrations.max.client import MaxBotClient
         from sfrfr.integrations.max.review_flow import soft_ask_attachments
+        from sfrfr.services.case_chat_delivery import (
+            enqueue_max_delivery,
+            process_pending_outbox,
+        )
+        from sfrfr.db.session import get_supabase_client
 
-        bot = MaxBotClient()
-        send = bot.send_message(
-            text=text,
-            user_id=str(max_user_id),
+        inserted = (
+            get_supabase_client()
+            .table("case_messages")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_kind": "system",
+                    "author_user_id": None,
+                    "body": text,
+                    "channel_origin": "bot",
+                }
+            )
+            .execute()
+        )
+        message_row = (inserted.data or [{}])[0]
+        message_id = str(message_row.get("id") or "").strip() or None
+        queued = enqueue_max_delivery(
+            case_id=case_id,
+            message_id=message_id,
+            max_user_id=str(max_user_id),
+            body=text,
             attachments=soft_ask_attachments(),
         )
-        result["max_sent"] = not send.get("skipped")
-        result["max_response"] = send
-        if result["max_sent"]:
+        result["max_queued"] = queued
+        if queued:
+            process_pending_outbox(limit=5)
+            result["max_sent"] = bool(
+                (
+                    get_supabase_client()
+                    .table("case_messages")
+                    .select("delivered_at")
+                    .eq("id", message_id)
+                    .limit(1)
+                    .execute()
+                    .data
+                    or [{}]
+                )[0].get("delivered_at")
+            )
+        if queued:
             _mark_review_ask_sent(case_id)
-            # Системная копия в чат дела (без ПДн).
-            try:
-                from sfrfr.db.session import get_supabase_client
-
-                get_supabase_client().table("case_messages").insert(
-                    {
-                        "case_id": case_id,
-                        "author_kind": "system",
-                        "author_user_id": None,
-                        "body": text,
-                    }
-                ).execute()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "review_ask case_message failed case=%s: %s", case_id[:8], exc
-                )
     except Exception as exc:  # noqa: BLE001
         logger.warning("review_ask MAX failed case=%s: %s", case_id[:8], exc)
         result["ok"] = False
@@ -218,7 +228,8 @@ def notify_case_status_change(
     force: bool = False,
 ) -> dict[str, Any]:
     """
-    Уведомить клиента о смене статуса: MAX (если linked) + системное сообщение в деле.
+    Уведомить клиента о смене статуса: одно системное сообщение общего чата.
+    Если MAX привязан, та же запись отправляется в его диалог без отдельного дубля.
     Email SMTP пока нет — фиксируем intent в результате (и в audit вызывающей стороны).
     После `completed` — одно мягкое приглашение к отзыву (без серии напоминаний).
     """
@@ -241,6 +252,7 @@ def notify_case_status_change(
         "ok": True,
         "status": status_value,
         "preferred_channel": preferred,
+        "max_queued": False,
         "max_sent": False,
         "case_message": False,
         "email_queued": False,
@@ -248,30 +260,58 @@ def notify_case_status_change(
         "review_ask": None,
     }
 
-    # Системное сообщение в чате дела (видно в кабинете и mini-app).
+    # Системное сообщение в чате дела (видно в кабинете и MAX).
+    message_id: str | None = None
     try:
         from sfrfr.db.session import get_supabase_client
 
-        get_supabase_client().table("case_messages").insert(
-            {
-                "case_id": case_id,
-                "author_kind": "system",
-                "author_user_id": None,
-                "body": text,
-            }
-        ).execute()
+        message_result = (
+            get_supabase_client()
+            .table("case_messages")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "author_kind": "system",
+                    "author_user_id": None,
+                    "body": text,
+                    "channel_origin": "bot",
+                }
+            )
+            .execute()
+        )
+        message_id = str((message_result.data or [{}])[0].get("id") or "").strip() or None
         result["case_message"] = True
     except Exception as exc:  # noqa: BLE001 — уведомление не должно ломать смену статуса
         logger.warning("status notify case_message failed case=%s: %s", case_id[:8], exc)
 
-    if max_user_id:
+    if max_user_id and message_id:
         try:
-            from sfrfr.integrations.max.client import MaxBotClient
+            from sfrfr.services.case_chat_delivery import (
+                enqueue_max_delivery,
+                process_pending_outbox,
+            )
 
-            bot = MaxBotClient()
-            send = bot.send_message(text=text, user_id=max_user_id)
-            result["max_sent"] = not send.get("skipped")
-            result["max_response"] = send
+            queued = enqueue_max_delivery(
+                case_id=case_id,
+                message_id=message_id,
+                max_user_id=str(max_user_id),
+                body=text,
+            )
+            result["max_queued"] = queued
+            if queued:
+                process_pending_outbox(limit=5)
+                result["max_sent"] = bool(
+                    (
+                        get_supabase_client()
+                        .table("case_messages")
+                        .select("delivered_at")
+                        .eq("id", message_id)
+                        .limit(1)
+                        .execute()
+                        .data
+                        or [{}]
+                    )[0].get("delivered_at")
+                )
         except Exception as exc:  # noqa: BLE001
             logger.warning("status notify MAX failed case=%s: %s", case_id[:8], exc)
 
