@@ -33,8 +33,9 @@ def test_mirror_client_message_to_max(mock_enqueue: MagicMock, mock_process: Mag
     mock_process.assert_called_once_with(limit=5)
 
 
+@patch("sfrfr.services.case_chat_delivery.is_client_chat_active", return_value=False)
 @patch("sfrfr.integrations.max.client.MaxBotClient")
-def test_notify_client_neutral_no_pii(mock_bot_cls: MagicMock) -> None:
+def test_notify_client_neutral_no_pii(mock_bot_cls: MagicMock, _mock_active: MagicMock) -> None:
     bot = MagicMock()
     bot.available = True
     mock_bot_cls.return_value = bot
@@ -49,6 +50,15 @@ def test_notify_skips_when_already_neutral(mock_bot_cls: MagicMock) -> None:
         max_user_id="u1",
         preview_body=CHAT_NOTIFY_NEUTRAL,
     )
+    mock_bot_cls.assert_not_called()
+
+
+@patch("sfrfr.services.case_chat_delivery.is_client_chat_active", return_value=True)
+@patch("sfrfr.integrations.max.client.MaxBotClient")
+def test_notify_skips_when_client_active(
+    mock_bot_cls: MagicMock, _mock_active: MagicMock
+) -> None:
+    notify_client_new_chat_message(case_id="c1", max_user_id="u1", preview_body="текст специалиста")
     mock_bot_cls.assert_not_called()
 
 

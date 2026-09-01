@@ -5,7 +5,6 @@ import {
   CASE_ACTIONS_CHAT_HINT,
   CASE_ACTIONS_CHAT_LINK,
   CASE_CHAT_DOCUMENTS_RULE,
-  CASE_CHAT_MAX_BUTTON,
   CASE_QUESTIONS_INTRO,
 } from "../../../../shared/case-chat-copy";
 
@@ -55,7 +54,6 @@ type Props = {
   caseNumber: string;
   work: ClientWork;
   busy?: boolean;
-  maxHref: string;
   warning: string;
   onConsent: () => void;
   onUpload: (file: File, docType?: string) => void;
@@ -107,7 +105,6 @@ export function CaseWorkMap({
   caseNumber,
   work,
   busy,
-  maxHref,
   warning,
   onConsent,
   onUpload,
@@ -319,11 +316,10 @@ export function CaseWorkMap({
 
       <section className="panel case-questions-panel">
         <h2>Вопросы по делу</h2>
-        <p className="hint">{CASE_QUESTIONS_INTRO}</p>
-        <p className="home-actions">
-          <a className="secondary" href={maxHref} target="_blank" rel="noopener noreferrer">
-            {CASE_CHAT_MAX_BUTTON}
-          </a>
+        <p>{CASE_QUESTIONS_INTRO}</p>
+        <p className="hint">
+          Чат по делу — один и тот же в кабинете и в MAX. Пишите там, где удобнее:
+          в чате справа или через ссылку в шапке чата.
         </p>
         <p className="hint">{CASE_CHAT_DOCUMENTS_RULE}</p>
       </section>

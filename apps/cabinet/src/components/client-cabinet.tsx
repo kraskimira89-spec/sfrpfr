@@ -2448,7 +2448,6 @@ export function ClientCabinet() {
                   caseNumber={caseNumberFromId(detail.id)}
                   work={detail.work}
                   busy={busy}
-                  maxHref={maxChatHref}
                   warning={detail.warning}
                   onConsent={() => void acceptConsent()}
                   onUpload={(file, docType) => void uploadDocument(file, docType)}
@@ -2568,6 +2567,9 @@ export function ClientCabinet() {
               onSendQuick={(text) => void sendMessage(undefined, text)}
             />
           </div>
+          <a className="case-chat-mobile-open" href="#case-chat">
+            Чат
+          </a>
         </section>
       )}
 

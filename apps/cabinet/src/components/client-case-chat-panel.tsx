@@ -31,7 +31,7 @@ const QUICK_QUESTIONS = [
 function authorLabel(kind: string) {
   if (kind === "client") return "Вы";
   if (kind === "representative") return "Представитель";
-  if (kind === "system") return "Бот MAX";
+  if (kind === "system") return "Бот";
   if (kind === "staff" || kind === "expert" || kind === "operator") return "Специалист";
   return kind;
 }
@@ -175,6 +175,9 @@ export function ClientCaseChatPanel({
           >
             {CASE_CHAT_MAX_BUTTON}
           </a>
+          <a className="case-chat-close-mobile" href="#">
+            Закрыть
+          </a>
         </div>
         <p className="hint">{CASE_CHAT_SUBTITLE}</p>
         <p className="hint case-chat-sync-hint">{CASE_CHAT_SYNC_HINT}</p>
@@ -184,7 +187,7 @@ export function ClientCaseChatPanel({
               ["all", "Все"],
               ["staff", "Специалист"],
               ["client", "Вы"],
-              ["system", "Бот MAX"],
+              ["system", "Бот"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -238,7 +241,7 @@ export function ClientCaseChatPanel({
             })}
             {showBotTyping ? (
               <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
-                <span className="meta">Бот MAX · печатает…</span>
+                <span className="meta">Бот · печатает…</span>
                 <p className="case-chat-typing-dots" aria-hidden="true">
                   <span></span><span></span><span></span>
                 </p>
@@ -246,7 +249,7 @@ export function ClientCaseChatPanel({
             ) : null}
             {showBotTypingTimeout ? (
               <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
-                <span className="meta">Бот MAX</span>
+                <span className="meta">Бот</span>
                 <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
               </li>
             ) : null}

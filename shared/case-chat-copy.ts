@@ -2,7 +2,8 @@
 
 export const CASE_CHAT_TITLE = "Чат по делу";
 
-export const CASE_CHAT_SUBTITLE = "Один чат в кабинете и MAX";
+export const CASE_CHAT_SUBTITLE =
+  "Один чат в кабинете и MAX. Пишите там, где вам удобнее";
 
 export const CASE_CHAT_SYNC_HINT = "История сообщений синхронизируется.";
 
