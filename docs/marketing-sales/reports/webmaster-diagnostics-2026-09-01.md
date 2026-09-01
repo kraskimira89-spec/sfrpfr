@@ -1,6 +1,6 @@
 # Диагностика Яндекс Вебмастера (2026-09-01)
 
-Снято: `2026-09-01T12:16:22+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
+Снято: `2026-09-01T12:29:33+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
 
 **Канон:** смотреть только apex `https://proverkastaza.ru` (без www).
 Зеркала `www` / `http` с 301 — предупреждения там ожидаемы.
@@ -52,7 +52,7 @@ robots.txt 200
 sitemap 200
 home 200
 HTTP/1.1 200 OK
-Date: Tue, 01 Sep 2026 09:16:33 GMT
+Date: Tue, 01 Sep 2026 09:29:43 GMT
 Server: Apache/2.4.52 (Ubuntu)
 OK: vps_webmaster_remediate
 From https://github.com/kraskimira89-spec/sfrpfr
