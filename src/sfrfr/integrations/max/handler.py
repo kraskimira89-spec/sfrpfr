@@ -2716,12 +2716,12 @@ def handle_max_update(
             docs_url = documents_cabinet_url(supabase_case_id)
             reply = MAX_FILE_REJECT_TEXT
             ext_id = _max_message_id(update)
-            names = [n for n, _ in max_files] if max_files else []
+            file_names = [n for n, _ in max_files] if max_files else []
             if isinstance(file_name, str) and file_name.strip():
-                names.append(file_name.strip())
+                file_names.append(file_name.strip())
             log_body = (
-                f"[Файл в MAX] {names[0]}"
-                if names
+                f"[Файл в MAX] {file_names[0]}"
+                if file_names
                 else "[Файл в MAX]"
             )
             _append_client_case_message(

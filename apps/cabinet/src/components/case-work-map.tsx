@@ -55,6 +55,7 @@ type Props = {
   caseNumber: string;
   work: ClientWork;
   busy?: boolean;
+  maxHref: string;
   warning: string;
   onConsent: () => void;
   onUpload: (file: File, docType?: string) => void;
@@ -106,6 +107,7 @@ export function CaseWorkMap({
   caseNumber,
   work,
   busy,
+  maxHref,
   warning,
   onConsent,
   onUpload,
