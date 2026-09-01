@@ -51,7 +51,20 @@ async def max_webhook(
     settings = get_settings()
     if settings.max_webhook_secret:
         if not x_max_bot_api_secret or x_max_bot_api_secret != settings.max_webhook_secret:
+            try:
+                from sfrfr.ops.chat_bot_metrics import MAX_WEBHOOK_SIGNATURE_FAILED
+
+                MAX_WEBHOOK_SIGNATURE_FAILED.inc()
+            except Exception:  # noqa: BLE001
+                pass
             raise HTTPException(status_code=403, detail="invalid webhook secret")
+
+    try:
+        from sfrfr.ops.chat_bot_metrics import MAX_WEBHOOK_TOTAL
+
+        MAX_WEBHOOK_TOTAL.inc()
+    except Exception:  # noqa: BLE001
+        pass
 
     updates = _extract_updates(await request.json())
     results = [handle_max_update(u) for u in updates]

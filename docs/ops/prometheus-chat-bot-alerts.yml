@@ -1,0 +1,32 @@
+# Пример правил алертинга для конвейера bot_reply (Prometheus / Alertmanager).
+# Подключить в scrape_configs + rule_files на стороне мониторинга.
+
+groups:
+  - name: sfrfr_chat_bot
+    rules:
+      - alert: BotQueueStuck
+        expr: bot_queue_depth > 0 and increase(bot_job_completed_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Очередь bot_reply не уменьшается 5 минут
+
+      - alert: BotJobFailureRate
+        expr: |
+          sum(increase(bot_job_failed_total[10m]))
+          / clamp_min(sum(increase(bot_job_completed_total[10m])) + sum(increase(bot_job_failed_total[10m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Ошибки bot_reply выше 5% за 10 минут
+
+      - alert: MaxWebhookSignatureSpike
+        expr: increase(max_webhook_signature_failed_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Всплеск ошибок подписи webhook MAX

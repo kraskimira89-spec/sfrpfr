@@ -130,7 +130,7 @@ export function ClientCaseChatPanel({
   busy: boolean;
   maxHref: string;
   onBodyChange: (value: string) => void;
-  onSend: (event: FormEvent<HTMLFormElement>) => void;
+  onSend: (event: FormEvent<HTMLFormElement>, text: string) => void;
 }) {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const feedRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +147,13 @@ export function ClientCaseChatPanel({
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     });
   }, [feed.length, showBotTyping, showBotTypingTimeout]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const draft = (inputRef.current?.value ?? body).trim();
+    if (!draft || busy) return;
+    onSend(event, draft);
+  }
 
   function insertDraft(text: string) {
     onBodyChange(text);
@@ -267,7 +274,7 @@ export function ClientCaseChatPanel({
         )}
       </div>
 
-      <form className="case-chat-composer" onSubmit={onSend}>
+      <form className="case-chat-composer" onSubmit={handleSubmit}>
         <label htmlFor="case-chat-input">Ваше сообщение</label>
         <textarea
           id="case-chat-input"

@@ -2559,24 +2559,40 @@ def create_message(
     if principal.is_staff and payload.internal and not body.startswith(_INTERNAL_STAFF_PREFIX):
         body = f"{_INTERNAL_STAFF_PREFIX}{body}"
     channel_origin = "admin" if principal.is_staff else "cabinet"
+    client_message_id = (payload.client_message_id or "").strip() or None
+    if client_message_id and kind == "client":
+        from sfrfr.services.case_chat_delivery import find_message_by_client_message_id
+
+        existing = find_message_by_client_message_id(case_id, client_message_id)
+        if existing:
+            client_message = _client_case_message(existing)
+            return client_message
+    insert_row: dict[str, Any] = {
+        "case_id": case_id,
+        "author_user_id": principal.user_id,
+        "author_kind": kind,
+        "body": body,
+        "channel_origin": channel_origin,
+    }
+    if client_message_id:
+        insert_row["client_message_id"] = client_message_id
     response = (
         get_supabase_client()
         .table("case_messages")
-        .insert(
-            {
-                "case_id": case_id,
-                "author_user_id": principal.user_id,
-                "author_kind": kind,
-                "body": body,
-                "channel_origin": channel_origin,
-            }
-        )
+        .insert(insert_row)
         .execute()
     )
     repo.audit(case_id, principal.user_id, "message_created")
     row = response.data[0]
     bot_message_row: dict[str, Any] | None = None
+    client_message_db_id = str(row.get("id") or "")
     if kind == "client" and not _is_internal_staff_message(row):
+        try:
+            from sfrfr.ops.chat_bot_metrics import CHAT_MESSAGE_RECEIVED
+
+            CHAT_MESSAGE_RECEIVED.labels(channel="cabinet").inc()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             from sfrfr.services.case_chat_delivery import mark_chat_activity
 
@@ -2587,7 +2603,11 @@ def create_message(
         try:
             from sfrfr.services.case_chat_bot import try_immediate_rule_reply
 
-            bot_message_row = try_immediate_rule_reply(case=case, user_text=body)
+            bot_message_row = try_immediate_rule_reply(
+                case=case,
+                user_text=body,
+                reply_to_message_id=client_message_db_id or None,
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("case chat bot rule reply skipped: %s", exc)
             bot_message_row = None
@@ -2601,7 +2621,7 @@ def create_message(
                 corr = new_correlation_id()
                 job_id = enqueue_bot_reply_job(
                     case_id=case_id,
-                    message_id=str(row.get("id") or ""),
+                    message_id=client_message_db_id,
                     correlation_id=corr,
                 )
                 logger.info(

@@ -94,6 +94,12 @@ def enqueue_bot_reply_job(
         )
         job_id = str((inserted[0] or {}).get("id") or "") if inserted else ""
         _log(step="enqueue", corr=corr, case_id=cid, job_id=job_id)
+        try:
+            from sfrfr.ops.chat_bot_metrics import BOT_JOB_QUEUED
+
+            BOT_JOB_QUEUED.inc()
+        except Exception:  # noqa: BLE001
+            pass
         return job_id or None
     except Exception as exc:  # noqa: BLE001
         logger.warning("bot_job enqueue failed case=%s: %s", cid[:8], exc)
@@ -121,11 +127,23 @@ def _load_client_text(message_id: str) -> str:
     return str(rows[0].get("body") or "").strip()
 
 
-def _handoff(*, case: dict[str, Any], case_id: str, corr: str, job_id: str) -> str | None:
+def _handoff(
+    *,
+    case: dict[str, Any],
+    case_id: str,
+    corr: str,
+    job_id: str,
+    reply_to_message_id: str | None = None,
+) -> str | None:
     from sfrfr.services.case_chat_bot import _append_bot_reply
 
     _log(step="handoff", corr=corr, case_id=case_id, job_id=job_id)
-    row = _append_bot_reply(case=case, case_id=case_id, reply=HANDOFF_TEXT)
+    row = _append_bot_reply(
+        case=case,
+        case_id=case_id,
+        reply=HANDOFF_TEXT,
+        reply_to_message_id=reply_to_message_id,
+    )
     return str((row or {}).get("id") or "") or None
 
 
@@ -205,6 +223,7 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
                 case_id=case_id,
                 corr=corr,
                 job_id=job_id,
+                reply_to_message_id=message_id,
             )
             _mark(
                 job_id,
@@ -216,10 +235,26 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
             done += 1
             continue
         try:
-            row = auto_reply_to_client_message(case=case, user_text=user_text)
+            row = auto_reply_to_client_message(
+                case=case,
+                user_text=user_text,
+                reply_to_message_id=message_id,
+            )
             reply_id = str((row or {}).get("id") or "") or None
             _mark(job_id, status="completed", attempt_count=attempts, reply_message_id=reply_id)
             _log(step="completed", corr=corr, case_id=case_id, job_id=job_id)
+            try:
+                from sfrfr.ops.chat_bot_metrics import BOT_JOB_COMPLETED, BOT_REPLY_LATENCY
+
+                BOT_JOB_COMPLETED.inc()
+                created = job.get("created_at")
+                if isinstance(created, str):
+                    from datetime import datetime
+
+                    started = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    BOT_REPLY_LATENCY.observe(max(0.0, (_now() - started).total_seconds()))
+            except Exception:  # noqa: BLE001
+                pass
             done += 1
         except Exception as exc:  # noqa: BLE001
             retryable = is_retryable_error(exc) and attempts < MAX_ATTEMPTS
@@ -242,7 +277,13 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
                     extra=type(exc).__name__,
                 )
             else:
-                reply_id = _handoff(case=case, case_id=case_id, corr=corr, job_id=job_id)
+                reply_id = _handoff(
+                    case=case,
+                    case_id=case_id,
+                    corr=corr,
+                    job_id=job_id,
+                    reply_to_message_id=message_id,
+                )
                 _mark(
                     job_id,
                     status="failed",
@@ -251,6 +292,14 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
                     error_category="permanent" if not is_retryable_error(exc) else "exhausted",
                     error_code_internal=type(exc).__name__,
                 )
+                try:
+                    from sfrfr.ops.chat_bot_metrics import BOT_JOB_FAILED, LLM_REQUEST_TOTAL
+
+                    category = "permanent" if not is_retryable_error(exc) else "exhausted"
+                    BOT_JOB_FAILED.labels(error_category=category).inc()
+                    LLM_REQUEST_TOTAL.labels(outcome="error").inc()
+                except Exception:  # noqa: BLE001
+                    pass
                 done += 1
     return done
 
@@ -282,7 +331,14 @@ def expire_stale_bot_jobs() -> int:
         if not job_id or not case_id:
             continue
         case = CaseRepository().get_case_row(case_id) or {"id": case_id}
-        reply_id = _handoff(case=case, case_id=case_id, corr=corr, job_id=job_id)
+        message_id = str(job.get("message_id") or "")
+        reply_id = _handoff(
+            case=case,
+            case_id=case_id,
+            corr=corr,
+            job_id=job_id,
+            reply_to_message_id=message_id or None,
+        )
         _mark(
             job_id,
             status="failed",
@@ -298,6 +354,23 @@ def process_bot_pipeline(*, limit: int = 8) -> int:
     """Expire + due jobs. Вызывать из worker и background после HTTP 201/200."""
     expired = 0
     processed = 0
+    try:
+        from sfrfr.db.session import get_supabase_client
+        from sfrfr.ops.chat_bot_metrics import refresh_queue_depth
+
+        depth_rows = (
+            get_supabase_client()
+            .table("case_chat_bot_jobs")
+            .select("id")
+            .in_("status", ["queued", "retrying", "processing"])
+            .limit(500)
+            .execute()
+            .data
+            or []
+        )
+        refresh_queue_depth(depth=len(depth_rows))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("bot_job queue depth skipped: %s", exc)
     try:
         expired = expire_stale_bot_jobs()
     except Exception as exc:  # noqa: BLE001

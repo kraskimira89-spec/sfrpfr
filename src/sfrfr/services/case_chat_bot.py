@@ -166,7 +166,12 @@ def _max_user_id(case: dict[str, Any]) -> str:
     return str((client_row or {}).get("max_user_id") or "").strip()
 
 
-def try_immediate_rule_reply(*, case: dict[str, Any], user_text: str) -> dict[str, Any] | None:
+def try_immediate_rule_reply(
+    *,
+    case: dict[str, Any],
+    user_text: str,
+    reply_to_message_id: str | None = None,
+) -> dict[str, Any] | None:
     """Быстрый ответ по правилам без LLM — чтобы POST /messages не зависал."""
     body = (user_text or "").strip()
     case_id = str(case.get("id") or "").strip()
@@ -180,10 +185,21 @@ def try_immediate_rule_reply(*, case: dict[str, Any], user_text: str) -> dict[st
     reply = rule_based_reply(body, work)
     if not reply:
         return None
-    return _append_bot_reply(case=case, case_id=case_id, reply=reply)
+    return _append_bot_reply(
+        case=case,
+        case_id=case_id,
+        reply=reply,
+        reply_to_message_id=reply_to_message_id,
+    )
 
 
-def _append_bot_reply(*, case: dict[str, Any], case_id: str, reply: str) -> dict[str, Any] | None:
+def _append_bot_reply(
+    *,
+    case: dict[str, Any],
+    case_id: str,
+    reply: str,
+    reply_to_message_id: str | None = None,
+) -> dict[str, Any] | None:
     from sfrfr.integrations.max.case_chat_log import append_bot_case_message
 
     max_uid = _max_user_id(case)
@@ -192,6 +208,7 @@ def _append_bot_reply(*, case: dict[str, Any], case_id: str, reply: str) -> dict
         max_user_id=max_uid or None,
         text=reply,
         channel_origin="cabinet",
+        reply_to_message_id=reply_to_message_id,
     )
     if max_uid and message:
         try:
@@ -208,7 +225,12 @@ def _append_bot_reply(*, case: dict[str, Any], case_id: str, reply: str) -> dict
     return message
 
 
-def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> dict[str, Any] | None:
+def auto_reply_to_client_message(
+    *,
+    case: dict[str, Any],
+    user_text: str,
+    reply_to_message_id: str | None = None,
+) -> dict[str, Any] | None:
     """Ответ бота в ленту дела (author_kind=system) и в MAX при связке."""
     body = (user_text or "").strip()
     case_id = str(case.get("id") or "").strip()
@@ -227,4 +249,9 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> dic
         reply = _fallback_reply(work) if work else (
             "Понял ваш вопрос. Специалист увидит сообщение в этом чате и ответит здесь."
         )
-    return _append_bot_reply(case=case, case_id=case_id, reply=reply)
+    return _append_bot_reply(
+        case=case,
+        case_id=case_id,
+        reply=reply,
+        reply_to_message_id=reply_to_message_id,
+    )

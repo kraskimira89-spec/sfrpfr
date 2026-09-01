@@ -2662,7 +2662,11 @@ def handle_max_update(
 
                 case_row = CaseRepository().get_case_row(str(case_for_log))
                 if case_row:
-                    immediate = try_immediate_rule_reply(case=case_row, user_text=text)
+                    immediate = try_immediate_rule_reply(
+                        case=case_row,
+                        user_text=text,
+                        reply_to_message_id=str((stored or {}).get("id") or "") or None,
+                    )
                     if immediate:
                         reply = str(immediate.get("body") or "").strip()
                         if reply:

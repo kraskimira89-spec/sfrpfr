@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
 
 from sfrfr.core.config import get_settings
+from sfrfr.ops.chat_bot_metrics import metrics_payload
 from sfrfr.ops.health import ops_status_payload, public_health_payload
 
 router = APIRouter()
@@ -34,3 +35,21 @@ def ops_status(
     if not x_ops_token or x_ops_token != expected:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid ops token")
     return ops_status_payload(failed_alert_threshold=settings.ops_failed_alert_threshold)
+
+
+@router.get("/metrics")
+def prometheus_metrics(
+    x_ops_token: str | None = Header(default=None, alias="X-Ops-Token"),
+) -> Response:
+    """Prometheus scrape endpoint (без ПДн). Тот же OPS_MONITOR_TOKEN, что /ops/status."""
+    settings = get_settings()
+    expected = (settings.ops_monitor_token or "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ops monitor token is not configured",
+        )
+    if not x_ops_token or x_ops_token != expected:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid ops token")
+    payload, media_type = metrics_payload()
+    return Response(content=payload, media_type=media_type)

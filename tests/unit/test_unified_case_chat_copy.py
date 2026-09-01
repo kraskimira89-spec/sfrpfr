@@ -38,8 +38,10 @@ def test_quick_question_chips_insert_into_draft_not_send() -> None:
       encoding="utf-8"
   )
   assert "insertDraft(question)" in panel
+  assert "inputRef.current?.value ?? body" in panel
   assert "onSendQuick" not in panel
   assert "onSendQuick" not in cabinet
+  assert "client_message_id" in cabinet
 
 
 def test_single_max_cta_button_in_chat_header() -> None:

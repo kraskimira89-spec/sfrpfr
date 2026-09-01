@@ -1683,6 +1683,7 @@ export function ClientCabinet() {
     event?.preventDefault();
     const text = (textOverride ?? messageBody).trim();
     if (!token || !selectedId || !text) return;
+    const clientMessageId = crypto.randomUUID();
     setBusy(true);
     try {
       const created = await apiFetch<CaseMessageCreateResponse>(
@@ -1691,7 +1692,7 @@ export function ClientCabinet() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: text }),
+          body: JSON.stringify({ body: text, client_message_id: clientMessageId }),
         },
       );
       setMessageBody("");

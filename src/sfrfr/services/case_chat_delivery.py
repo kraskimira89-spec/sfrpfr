@@ -344,6 +344,58 @@ def find_message_by_external_id(external_message_id: str) -> dict[str, Any] | No
         return None
 
 
+def find_message_by_client_message_id(
+    case_id: str,
+    client_message_id: str,
+) -> dict[str, Any] | None:
+    cid = (case_id or "").strip()
+    mid = (client_message_id or "").strip()
+    if not cid or not mid:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("case_messages")
+            .select("*")
+            .eq("case_id", cid)
+            .eq("client_message_id", mid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+    except Exception as exc:  # noqa: BLE001
+        logger.info("client_message_id lookup skipped case=%s: %s", cid[:8], exc)
+        return None
+
+
+def find_bot_reply_to_message_id(reply_to_message_id: str) -> dict[str, Any] | None:
+    target = (reply_to_message_id or "").strip()
+    if not target:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("case_messages")
+            .select("*")
+            .eq("reply_to_message_id", target)
+            .eq("author_kind", "system")
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+    except Exception as exc:  # noqa: BLE001
+        logger.info("reply_to_message_id lookup skipped: %s", exc)
+        return None
+
+
 def mark_messages_read_for_client(case_id: str) -> None:
     """Отметить входящие для клиента сообщения прочитанными."""
     try:

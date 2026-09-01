@@ -199,6 +199,8 @@ def _insert_case_message(
     created_at: str | None = None,
     channel_origin: str = "bot",
     external_message_id: str | None = None,
+    client_message_id: str | None = None,
+    reply_to_message_id: str | None = None,
 ) -> dict[str, Any] | None:
     from sfrfr.db.session import get_supabase_client
 
@@ -214,6 +216,12 @@ def _insert_case_message(
     ext = (external_message_id or "").strip()
     if ext:
         row["external_message_id"] = ext
+    cmid = (client_message_id or "").strip()
+    if cmid:
+        row["client_message_id"] = cmid
+    reply_to = (reply_to_message_id or "").strip()
+    if reply_to:
+        row["reply_to_message_id"] = reply_to
     response = get_supabase_client().table("case_messages").insert(row).execute()
     data = response.data or []
     return data[0] if data else None
@@ -258,6 +266,8 @@ def append_case_chat_message(
     body: str,
     channel_origin: str = "max",
     external_message_id: str | None = None,
+    client_message_id: str | None = None,
+    reply_to_message_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Записать в case_messages или в буфер до появления дела.
 
@@ -280,6 +290,16 @@ def append_case_chat_message(
                 return existing
         except Exception:  # noqa: BLE001
             pass
+    reply_to = (reply_to_message_id or "").strip()
+    if reply_to and author_kind == "system":
+        try:
+            from sfrfr.services.case_chat_delivery import find_bot_reply_to_message_id
+
+            existing = find_bot_reply_to_message_id(reply_to)
+            if existing:
+                return existing
+        except Exception:  # noqa: BLE001
+            pass
     if cid and len(cid) >= 32:
         try:
             return _insert_case_message(
@@ -288,6 +308,8 @@ def append_case_chat_message(
                 body=text,
                 channel_origin=channel_origin,
                 external_message_id=ext or None,
+                client_message_id=client_message_id,
+                reply_to_message_id=reply_to_message_id,
             )
         except Exception as exc:  # noqa: BLE001
             # FK 23503 = фантомный case_id: ожидаемо → буфер, без ERROR-шума.
@@ -338,6 +360,7 @@ def append_bot_case_message(
     attachments: list[dict[str, Any]] | None = None,
     external_message_id: str | None = None,
     channel_origin: str = "max",
+    reply_to_message_id: str | None = None,
 ) -> dict[str, Any] | None:
     body = (text or "").strip()
     if not body:
@@ -352,6 +375,7 @@ def append_bot_case_message(
         body=body,
         channel_origin=channel_origin,
         external_message_id=external_message_id,
+        reply_to_message_id=reply_to_message_id,
     )
 
 
