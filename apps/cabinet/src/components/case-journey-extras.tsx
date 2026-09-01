@@ -133,12 +133,26 @@ export function CaseJourneyExtras({
     const tick = async () => {
       for (const doc of pending) {
         try {
-          const payload = await apiJson<{ progress_message?: string; status_label?: string }>(
+          const payload = await apiJson<{
+            progress_message?: string;
+            status_label?: string;
+            progress_percent?: number;
+            ingest_status?: string;
+          }>(
             apiBase,
             `/api/portal/cases/${caseId}/documents/${doc.id}/progress`,
             token,
           );
           if (!cancelled) {
+            if (Number(payload.progress_percent ?? 0) >= 100) {
+              setProgressRows((prev) => {
+                const next = { ...prev };
+                delete next[doc.id];
+                return next;
+              });
+              window.setTimeout(() => void onRefresh(), 0);
+              continue;
+            }
             setProgressRows((prev) => ({
               ...prev,
               [doc.id]: payload.progress_message || payload.status_label || "Обрабатываем…",
@@ -155,7 +169,7 @@ export function CaseJourneyExtras({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [apiBase, caseId, documents, token]);
+  }, [apiBase, caseId, documents, onRefresh, token]);
 
   async function loadLaborEstimate() {
     setEstimateBusy(true);

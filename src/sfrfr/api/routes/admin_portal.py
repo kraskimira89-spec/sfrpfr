@@ -8,7 +8,6 @@ from typing import Any, Literal
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -76,7 +75,6 @@ from sfrfr.services.admin_analytics import (
 )
 from sfrfr.services.document_ingest_worker import (
     enqueue_document_ingest_job,
-    process_document_ingest_job,
 )
 from sfrfr.services.public_tariffs import staff_package_label
 from sfrfr.services.staff_finance import (
@@ -333,7 +331,6 @@ def _queue_ingest_again(
     case_id: str,
     document_id: str,
     principal: Principal,
-    background_tasks: BackgroundTasks,
 ) -> str:
     client = get_supabase_client()
     existing = CaseRepository._one_or_none(
@@ -369,7 +366,6 @@ def _queue_ingest_again(
             "ingest_review_required": False,
         }
     ).eq("id", document_id).eq("case_id", case_id).execute()
-    background_tasks.add_task(process_document_ingest_job, job_id)
     _repo().audit(case_id, principal.audit_actor_id(), "ingest_rerun")
     return job_id
 
@@ -552,7 +548,6 @@ def reject_ingest_document(
 def approve_document_security(
     case_id: str,
     document_id: str,
-    background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
     """Ручное подтверждение безопасности, если ClamAV недоступен."""
@@ -573,7 +568,6 @@ def approve_document_security(
         case_id=case_id,
         document_id=document_id,
         principal=principal,
-        background_tasks=background_tasks,
     )
     _repo().audit(case_id, principal.audit_actor_id(), "security_manual_approve")
     return {"ok": True, "document_id": document_id, "job_id": job_id}
@@ -583,7 +577,6 @@ def approve_document_security(
 def rerun_ingest_document(
     case_id: str,
     document_id: str,
-    background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
     """Поставить документ в очередь ingest повторно."""
@@ -595,7 +588,6 @@ def rerun_ingest_document(
         case_id=case_id,
         document_id=document_id,
         principal=principal,
-        background_tasks=background_tasks,
     )
     return {"ok": True, "document_id": document_id, "job_id": job_id}
 

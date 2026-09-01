@@ -6,10 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from sfrfr.services.document_ingest_worker import (
-    create_quarantine_document,
-    process_document_ingest_job,
-)
+from sfrfr.services.document_ingest_worker import create_quarantine_document
 from sfrfr.services.file_security import validate_file_bytes
 
 logger = logging.getLogger(__name__)
@@ -45,7 +42,6 @@ def upload_max_document(
             upload_source="max",
             scenario_rows=scenario_rows,
         )
-        process_document_ingest_job(str(row["job_id"]))
         return row
     except Exception as exc:  # noqa: BLE001
         logger.warning("max supabase upload failed: %s", exc)

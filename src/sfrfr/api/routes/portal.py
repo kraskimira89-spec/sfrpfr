@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Body,
     Depends,
     File,
@@ -68,7 +67,6 @@ from sfrfr.services.client_work_map import build_client_work_map
 from sfrfr.services.document_ingest import client_progress_payload
 from sfrfr.services.document_ingest_worker import (
     create_quarantine_document,
-    process_document_ingest_job,
 )
 from sfrfr.services.document_upload import (
     build_group_pdf_bytes,
@@ -1671,7 +1669,6 @@ def get_result(
 @router.post("/cases/{case_id}/documents", status_code=status.HTTP_201_CREATED)
 async def upload_case_document(
     case_id: str,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     doc_type: str | None = Form(default=None),
     upload_batch_id: str | None = Form(default=None),
@@ -1724,7 +1721,6 @@ async def upload_case_document(
                 client_declared_signed=client_declared_signed,
                 scenario_rows=scenario_rows,
             )
-            background_tasks.add_task(process_document_ingest_job, str(row["job_id"]))
         else:
             content_preview = _extract_upload_preview(data, filename)
             row = store_document(
@@ -1928,7 +1924,6 @@ def delete_case_document(
 @router.post("/cases/{case_id}/documents/batch", status_code=status.HTTP_201_CREATED)
 async def upload_case_documents_batch(
     case_id: str,
-    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     doc_type: str | None = Form(default=None),
     upload_batch_id: str | None = Form(default=None),
@@ -1975,7 +1970,6 @@ async def upload_case_documents_batch(
                     upload_source="cabinet",
                     scenario_rows=scenario_rows,
                 )
-                background_tasks.add_task(process_document_ingest_job, str(row["job_id"]))
             else:
                 preview = _extract_upload_preview(data, filename)
                 row = store_document(
@@ -2194,7 +2188,7 @@ def create_document_group(
         raise HTTPException(status_code=400, detail="invalid document page list")
     documents = (
         client.table("documents")
-        .select("id, document_group_id, doc_type, ingest_status")
+        .select("id, document_group_id, doc_type, ingest_status, mime_verified, storage_path")
         .eq("case_id", case_id)
         .in_("id", document_ids)
         .execute()
@@ -2210,6 +2204,13 @@ def create_document_group(
         for row in documents
     ):
         raise HTTPException(status_code=403, detail="this document type cannot be grouped")
+    if any(
+        not str(row.get("mime_verified") or "").startswith("image/")
+        and Path(str(row.get("storage_path") or "")).suffix.lower()
+        not in {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
+        for row in documents
+    ):
+        raise HTTPException(status_code=400, detail="only image pages can be grouped")
 
     group_id = str(uuid4())
     client.table("document_groups").insert(

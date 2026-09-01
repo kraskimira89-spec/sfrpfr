@@ -29,7 +29,7 @@ def _merge_yandex_env_file(path: Path) -> None:
         value = value.strip().strip('"').strip("'")
         if not key.startswith("YANDEX_"):
             continue
-        if key not in os.environ or not (os.environ.get(key) or "").strip():
+        if key not in os.environ:
             os.environ[key] = value
 
 
