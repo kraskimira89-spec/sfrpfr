@@ -71,14 +71,17 @@ function mark(state: string) {
 
 function firstUploadSlot(work: ClientWork): WorkSlot | undefined {
   return (
-    work.documents.find((row) => row.status === "missing" || row.status === "reupload") ||
-    work.documents.find((row) => row.status === "not_needed") ||
+    work.documents.find(
+      (row) => row.need === "required" && (row.status === "missing" || row.status === "reupload"),
+    ) ||
+    work.documents.find((row) => row.status === "reupload") ||
+    work.documents.find((row) => row.status === "optional" || row.status === "not_needed") ||
     work.documents[0]
   );
 }
 
 const SLOT_PURPOSES: Record<string, string> = {
-  ils: "Выписка из Социального фонда (СЗИ-ИЛС) — основа для анализа стажа, баллов и работодателей.",
+  ils: "Выписка из Социального фонда (СЗИ-ИЛС) — основа для анализа стажа и сведений о работодателях.",
   labor: "Трудовая книжка — все заполненные страницы для построчной сверки с выпиской.",
   archive: "Архивные справки — подтверждают периоды работы при ликвидации или реорганизации.",
   sfr_size: "Справка о размере пенсии — только для действующих пенсионеров при сопоставлении начисленных сумм.",
@@ -178,10 +181,10 @@ export function CaseWorkMap({
             {work.cta_label}
           </button>
         ) : null}
-        {cta === "upload" && uploadSlot ? (
-          <button type="button" disabled={busy} onClick={() => pickFile(uploadSlot)}>
+        {cta === "upload" ? (
+          <a className="button-link" href="#documents">
             {work.cta_label}
-          </button>
+          </a>
         ) : null}
         {cta === "pay" && work.order.order_id ? (
           <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>
@@ -189,7 +192,7 @@ export function CaseWorkMap({
           </button>
         ) : null}
         {cta === "wait" ? (
-          <a className="button-link" href={maxHref} target="_blank" rel="noopener noreferrer">
+          <a className="button-link" href="#case-chat-input">
             {work.cta_label}
           </a>
         ) : null}
@@ -222,10 +225,15 @@ export function CaseWorkMap({
       </header>
 
       {work.consent_ok && onScenarioChange && onSaveScenarios ? (
-        <section className="panel">
-          <h2>Короткая анкета по вашей ситуации</h2>
+        <details className="panel questionnaire-panel">
+          <summary>Ответить на 5 коротких вопросов</summary>
           <p className="hint">
-            Отметьте, что относится к вашей ситуации (все пункты необязательны). Это поможет показать только нужные документы.
+            Отметьте, что относится к вашей ситуации (все пункты необязательны). Это поможет показать только
+            нужные документы.
+          </p>
+          <p className="hint doc-alert">
+            Не загружайте банковскую выписку без запроса специалиста — финансовые документы запрашиваются
+            индивидуально.
           </p>
           <ul className="plain-list">
             {[
@@ -289,7 +297,7 @@ export function CaseWorkMap({
             </button>
             {scenariosSaved ? <span className="hint">Анкета сохранена.</span> : null}
           </p>
-        </section>
+        </details>
       ) : null}
 
       {uploadProgress ? (
@@ -319,7 +327,7 @@ export function CaseWorkMap({
         </ol>
       </section>
 
-      <section className="panel my-docs" id="docs-table">
+      <section className="panel my-docs" id="documents">
         <div className="docs-table-head">
           <div>
             <h2>Мои документы</h2>
@@ -439,7 +447,7 @@ export function CaseWorkMap({
                 <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>
                   Оплатить безопасно
                 </button>
-                <a className="secondary" href={maxHref} target="_blank" rel="noopener noreferrer">
+                <a className="secondary" href="#case-chat-input">
                   Задать вопрос об услуге
                 </a>
               </p>
@@ -473,7 +481,7 @@ export function CaseWorkMap({
               <button type="button" className="secondary" disabled={busy} onClick={() => onDownloadResult(work.result.document_id!)}>
                 Скачать PDF
               </button>
-              <a className="secondary" href={maxHref} target="_blank" rel="noopener noreferrer">
+              <a className="secondary" href="#case-chat-input">
                 Задать вопрос специалисту
               </a>
             </p>
@@ -490,7 +498,7 @@ export function CaseWorkMap({
             <p>
               <strong>Сейчас от вас ничего не требуется.</strong>
             </p>
-            <p>Мы проверяем комплект документов. Следующее сообщение придёт в MAX.</p>
+            <p>Мы проверяем комплект документов. Следующее сообщение появится в чате (кабинет и MAX).</p>
           </>
         ) : (
           <ol className="plain-list next-actions">
@@ -503,22 +511,14 @@ export function CaseWorkMap({
           <a className="secondary" href={work.ils_howto_url} target="_blank" rel="noreferrer">
             Как получить выписку ИЛС
           </a>
-          <a className="button-link" href={maxHref} target="_blank" rel="noopener noreferrer">
-            Открыть чат MAX
+          <a className="secondary" href="#case-chat-input">
+            Задать вопрос в чате
           </a>
         </p>
       </section>
 
-      <section className="panel">
-        <h2>Вопросы по делу — в чате MAX</h2>
-        <p>Ответ специалиста придёт в MAX, а не в форму на этой странице.</p>
-        <a className="button-link" href={maxHref} target="_blank" rel="noopener noreferrer">
-          Открыть чат MAX
-        </a>
-      </section>
-
       <p className="hint safety-note">
-        Не отправляйте документы в чат. Файлы — только в этом кабинете. {warning}
+        Не отправляйте документы в чат. Файлы — только в разделе «Мои документы». {warning}
       </p>
     </div>
   );
@@ -542,6 +542,20 @@ function SlotActions({
     return (
       <button type="button" className="linkish" disabled={busy} onClick={onPick}>
         Добавить
+      </button>
+    );
+  }
+  if (row.status === "optional" || row.status === "conditional") {
+    return (
+      <button type="button" className="linkish" disabled={busy} onClick={onPick}>
+        Добавить, если есть
+      </button>
+    );
+  }
+  if (row.status === "staff_requested") {
+    return (
+      <button type="button" disabled={busy} onClick={onPick}>
+        Загрузить
       </button>
     );
   }

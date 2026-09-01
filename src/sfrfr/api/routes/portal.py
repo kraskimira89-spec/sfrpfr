@@ -403,6 +403,26 @@ def _is_internal_staff_message(row: dict[str, Any]) -> bool:
     return kind in {"staff", "expert", "operator"} and body.startswith(_INTERNAL_STAFF_PREFIX)
 
 
+def _mirror_client_message_to_max(case: dict[str, Any], body: str) -> None:
+    """Дублировать клиентское сообщение из кабинета в MAX при связанном аккаунте."""
+    client_row = case.get("clients") or {}
+    if isinstance(client_row, list):
+        client_row = client_row[0] if client_row else {}
+    max_uid = str((client_row or {}).get("max_user_id") or "").strip()
+    if not max_uid:
+        return
+    try:
+        from sfrfr.integrations.max.client import MaxBotClient
+
+        bot = MaxBotClient()
+        if not bot.available:
+            logger.info("MAX mirror skipped: bot not configured")
+            return
+        bot.send_message(text=body, user_id=max_uid)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("mirror cabinet message to MAX failed: %s", exc)
+
+
 def _resolve_max_user_id(
     *,
     max_user_id: str | None,
@@ -2489,7 +2509,7 @@ def create_message(
     principal: Principal = Depends(get_current_principal),
 ) -> dict:
     repo = _repo()
-    repo.require_case(principal, case_id)
+    case = repo.require_case(principal, case_id)
     kind = "staff" if principal.is_staff else "client"
     body = payload.body.strip()
     if principal.is_staff and payload.internal and not body.startswith(_INTERNAL_STAFF_PREFIX):
@@ -2508,4 +2528,7 @@ def create_message(
         .execute()
     )
     repo.audit(case_id, principal.user_id, "message_created")
-    return response.data[0]
+    row = response.data[0]
+    if kind == "client" and not _is_internal_staff_message(row):
+        _mirror_client_message_to_max(case, body)
+    return row

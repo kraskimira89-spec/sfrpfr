@@ -388,6 +388,18 @@ def _match_docs(docs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
     return [d for d in docs if not any(fn(d) for fn in claimed)]
 
 
+def _slot_display(status: str, need: str, *, staff_requested: bool) -> tuple[str, str]:
+    if status != "missing":
+        return status, _STATUS_LABEL[status]
+    if need == "required":
+        return "missing", "Нужно загрузить"
+    if need == "staff_requested" or staff_requested:
+        return "staff_requested", "Нужен по запросу специалиста"
+    if need in {"if_pension", "conditional"}:
+        return "conditional", "Пока не требуется"
+    return "optional", "Можно добавить"
+
+
 def _slot_row(
     slot: dict[str, Any],
     *,
@@ -395,9 +407,12 @@ def _slot_row(
     checklist: dict[str, Any] | None,
     key_override: str | None = None,
     title_override: str | None = None,
+    staff_requested: bool = False,
 ) -> dict[str, Any]:
     latest = matched[0] if matched else None
-    status = _slot_status(docs=matched, checklist=checklist)
+    raw_status = _slot_status(docs=matched, checklist=checklist)
+    need = str(slot["need"])
+    status, status_label = _slot_display(raw_status, need, staff_requested=staff_requested)
     return {
         "key": key_override or str(slot["key"]),
         "title": title_override or slot["title"],
@@ -405,12 +420,20 @@ def _slot_row(
         "need_label": slot["need_label"],
         "doc_type": slot["doc_type"],
         "status": status,
-        "status_label": _STATUS_LABEL[status],
+        "status_label": status_label,
         "added_at": _format_added(latest.get("created_at") if latest else None),
         "document_id": str(latest["id"]) if latest and latest.get("id") else None,
         "can_replace": status in {"awaiting", "reupload"} and bool(latest),
         "can_delete": status in {"awaiting", "reupload"} and bool(latest),
     }
+
+
+def _slot_staff_requested(key: str, staff_codes: set[str]) -> bool:
+    from sfrfr.services.document_requirements import BANK_REQUIREMENT_CODE
+
+    if key == "bank":
+        return BANK_REQUIREMENT_CODE in staff_codes
+    return False
 
 
 def document_slots(
@@ -479,7 +502,14 @@ def document_slots(
             has_uploaded=bool(matched),
         ):
             continue
-        rows.append(_slot_row(slot, matched=matched, checklist=check))
+        rows.append(
+            _slot_row(
+                slot,
+                matched=matched,
+                checklist=check,
+                staff_requested=_slot_staff_requested(key, staff_codes),
+            )
+        )
     for extra in extra_docs[1:]:
         rows.append(
             _slot_row(
@@ -684,10 +714,10 @@ def build_client_work_map(
             if missing_titles
             else "Загрузить выписку ИЛС и трудовую книжку / сведения о стаже"
         )
-        cta_key, cta_label = "upload", "Загрузить документы"
+        cta_key, cta_label = "upload", "Перейти к загрузке документов"
     elif key in {"docs_review", "diagnosis"}:
         now_need = "Сейчас от вас ничего не требуется"
-        cta_key, cta_label = "wait", "Открыть чат MAX"
+        cta_key, cta_label = "wait", "Задать вопрос в чате"
     elif key == "result_ready":
         now_need = "Открыть результат диагностики"
         cta_key, cta_label = "result", "Открыть результат"
@@ -717,14 +747,17 @@ def build_client_work_map(
         ]
         next_actions.append("Дождаться подтверждения комплекта документов")
         sla_note = (
-            "После загрузки мы проверим комплект и напишем вам в MAX. "
+            "После загрузки мы проверим комплект и напишем в чат (кабинет и MAX). "
             "Срок проверки комплекта: до 1 рабочего дня."
         )
     elif key in {"docs_review", "diagnosis"}:
         next_actions = []
-        sla_note = "Срок проверки комплекта: до 1 рабочего дня. Следующее сообщение придёт в MAX."
+        sla_note = (
+            "Срок проверки комплекта: до 1 рабочего дня. "
+            "Следующее сообщение появится в чате (кабинет и MAX)."
+        )
     elif key == "result_ready":
-        next_actions = ["Открыть результат", "При необходимости задать вопрос в MAX"]
+        next_actions = ["Открыть результат", "При необходимости задать вопрос в чате"]
         sla_note = "Результат доступен в кабинете. Решение о пенсии принимает СФР."
     else:
         next_actions = ["Результат доступен в кабинете"]

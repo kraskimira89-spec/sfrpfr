@@ -13,6 +13,12 @@ type CaseMessage = {
 
 type ChatFilter = "all" | "staff" | "client" | "system";
 
+const QUICK_QUESTIONS = [
+  "Когда будет результат проверки?",
+  "Какой документ загрузить сейчас?",
+  "Можно ли заменить уже загруженный файл?",
+] as const;
+
 function authorLabel(kind: string) {
   if (kind === "client") return "Вы";
   if (kind === "representative") return "Представитель";
@@ -107,12 +113,14 @@ export function ClientCaseChatPanel({
   messages,
   body,
   busy,
+  maxHref,
   onBodyChange,
   onSend,
 }: {
   messages: CaseMessage[];
   body: string;
   busy: boolean;
+  maxHref?: string;
   onBodyChange: (value: string) => void;
   onSend: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -120,6 +128,8 @@ export function ClientCaseChatPanel({
   const feedRef = useRef<HTMLDivElement | null>(null);
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
   const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
+  const chatEmpty = messages.length === 0;
+  const filterEmpty = !chatEmpty && feed.length === 0;
 
   useEffect(() => {
     const el = feedRef.current;
@@ -129,11 +139,32 @@ export function ClientCaseChatPanel({
     });
   }, [feed.length, showBotTyping, showBotTypingTimeout]);
 
+  function blockFileDrop(event: React.DragEvent | React.ClipboardEvent) {
+    const items =
+      "dataTransfer" in event && event.dataTransfer?.items
+        ? Array.from(event.dataTransfer.items)
+        : "clipboardData" in event && event.clipboardData?.items
+          ? Array.from(event.clipboardData.items)
+          : [];
+    if (items.some((item) => item.kind === "file")) {
+      event.preventDefault();
+    }
+  }
+
   return (
-    <aside className="case-chat panel client-chat-panel" aria-label="Чат по делу">
+    <aside id="case-chat" className="case-chat panel client-chat-panel" aria-label="Чат по делу">
       <div className="case-chat-head">
-        <h2>Чат по делу</h2>
-        <p className="hint">Задайте вопрос специалисту. Ответ появится здесь и придёт в MAX.</p>
+        <div className="case-chat-head-row">
+          <h2>Чат по делу</h2>
+          {maxHref ? (
+            <a className="case-chat-max-link" href={maxHref} target="_blank" rel="noopener noreferrer">
+              Открыть этот чат в MAX ↗
+            </a>
+          ) : null}
+        </div>
+        <p className="hint">
+          Один и тот же чат в кабинете и MAX. Сообщения здесь видны специалисту; ответ появится в этой ленте.
+        </p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [
@@ -156,12 +187,18 @@ export function ClientCaseChatPanel({
       </div>
 
       <div className="case-chat-feed" ref={feedRef}>
-        {feed.length === 0 ? (
+        {chatEmpty ? (
           <div className="case-chat-empty-box">
             <p className="case-chat-empty-title">Сообщений по делу пока нет.</p>
             <p className="hint">
-              Если у вас есть вопрос, напишите его ниже. Ответ специалиста появится здесь, а также придёт уведомление в MAX.
+              Задайте вопрос ниже — это тот же чат, что и в MAX. Документы загружайте только в разделе «Мои
+              документы», не в чат.
             </p>
+          </div>
+        ) : filterEmpty ? (
+          <div className="case-chat-empty-box case-chat-empty-box--filter">
+            <p className="case-chat-empty-title">В выбранном фильтре сообщений нет.</p>
+            <p className="hint">Выберите «Все» или другой фильтр, чтобы увидеть переписку.</p>
           </div>
         ) : (
           <ul className="case-chat-list">
@@ -208,17 +245,36 @@ export function ClientCaseChatPanel({
       </div>
 
       <form className="case-chat-composer" onSubmit={onSend}>
-        <label htmlFor="client-case-message">Ваше сообщение</label>
+        <label htmlFor="case-chat-input">Ваше сообщение</label>
         <textarea
-          id="client-case-message"
+          id="case-chat-input"
           rows={3}
           value={body}
           onChange={(event) => onBodyChange(event.target.value)}
+          onPaste={blockFileDrop}
+          onDrop={blockFileDrop}
+          onDragOver={(event) => event.preventDefault()}
           maxLength={4000}
           required
           disabled={busy}
           placeholder="Напишите вопрос специалисту"
         />
+        <p className="hint case-chat-files-hint">
+          Документы и файлы — только в «Мои документы». В чат отправляйте текст.
+        </p>
+        <div className="case-chat-quick" role="group" aria-label="Быстрые вопросы">
+          {QUICK_QUESTIONS.map((question) => (
+            <button
+              key={question}
+              type="button"
+              className="case-chat-quick-chip"
+              disabled={busy}
+              onClick={() => onBodyChange(question)}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
         <div className="case-chat-actions">
           <button type="submit" disabled={busy || !body.trim()}>
             Отправить
