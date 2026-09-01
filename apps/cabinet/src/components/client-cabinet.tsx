@@ -211,15 +211,6 @@ function SiteNavButton({ className }: { className?: string }) {
   );
 }
 
-function SiteReturnPanel() {
-  return (
-    <a className="auth-return-panel" href={SITE_URL}>
-      <span className="auth-return-panel__title">Вернуться на сайт</span>
-      <span className="auth-return-panel__hint">proverkastaza.ru</span>
-    </a>
-  );
-}
-
 function AuthBrandHeader() {
   return (
     <>
@@ -1691,38 +1682,6 @@ export function ClientCabinet() {
   async function sendMessage(event?: FormEvent<HTMLFormElement>, textOverride?: string) {
     event?.preventDefault();
     const text = (textOverride ?? messageBody).trim();
-    // #region agent log
-    const chatDbg = (message: string, hypothesisId: string, data: Record<string, unknown>) => {
-      const payload = {
-        sessionId: "d43d44",
-        runId: "post-fix",
-        hypothesisId,
-        location: "client-cabinet.tsx:sendMessage",
-        message,
-        data,
-        timestamp: Date.now(),
-      };
-      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
-      if (apiBase) {
-        fetch(`${apiBase}/api/public/debug-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
-    };
-    chatDbg("sendMessage called", "H2", {
-      hasTextOverride: Boolean(textOverride),
-      textLen: text.length,
-      hasToken: Boolean(token),
-      hasSelectedId: Boolean(selectedId),
-      busy,
-    });
-    // #endregion
     if (!token || !selectedId || !text) return;
     setBusy(true);
     try {
@@ -1735,38 +1694,14 @@ export function ClientCabinet() {
           body: JSON.stringify({ body: text }),
         },
       );
-      // #region agent log
-      chatDbg("POST messages ok", "H3", {
-        caseId: selectedId.slice(0, 8),
-        hasBotInResponse: Boolean(created && typeof created === "object" && "bot_message" in created),
-      });
-      // #endregion
       setMessageBody("");
       setMessages((previous) => mergeCreatedMessages(previous, created));
       const next = await apiFetch<CaseMessage[]>(
         `/api/portal/cases/${selectedId}/messages`,
         token,
       );
-      const last = next[next.length - 1];
-      const hasBotAfterClient =
-        next.length >= 2 &&
-        next[next.length - 2]?.author_kind === "client" &&
-        last?.author_kind === "system";
-      // #region agent log
-      chatDbg("messages refetched", "H5", {
-        count: next.length,
-        lastAuthor: last?.author_kind ?? null,
-        hasBotAfterClient,
-        kinds: next.slice(-3).map((m) => m.author_kind),
-      });
-      // #endregion
       setMessages(next);
-    } catch (err) {
-      // #region agent log
-      chatDbg("POST or refetch failed", "H3", {
-        err: err instanceof Error ? err.message : String(err),
-      });
-      // #endregion
+    } catch {
       setNotice("Не удалось отправить сообщение.");
     } finally {
       setBusy(false);
@@ -1945,7 +1880,7 @@ export function ClientCabinet() {
               </button>
             </p>
           </section>
-          <SiteReturnPanel />
+          <AuthTrustPanel />
         </div>
       </main>
     );
@@ -2204,7 +2139,7 @@ export function ClientCabinet() {
             </p>
           ) : null}
         </section>
-          <SiteReturnPanel />
+          <AuthTrustPanel />
         </div>
       </main>
     );
