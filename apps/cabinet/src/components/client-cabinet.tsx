@@ -7,6 +7,7 @@ import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
+import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
 
 type CaseSummary = {
   id: string;
@@ -30,11 +31,8 @@ type ChecklistItem = {
   due_at?: string | null;
 };
 
-type CaseDocument = {
-  id: string;
-  storage_path: string;
+type CaseDocument = CabinetDocument & {
   doc_type?: string | null;
-  created_at?: string;
 };
 
 type CaseDetail = {
@@ -277,6 +275,36 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
+function uploadWithProgress(
+  path: string,
+  token: string,
+  form: FormData,
+  onProgress: (percent: number) => void,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${apiBase}${path}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText || "{}"));
+        } catch {
+          resolve({});
+        }
+        return;
+      }
+      reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error("upload failed"));
+    xhr.send(form);
+  });
+}
+
 export function ClientCabinet() {
   const supabase = useMemo(
     () =>
@@ -341,6 +369,12 @@ export function ClientCabinet() {
   const [reviewConsent, setReviewConsent] = useState(false);
   const [reviewPublish, setReviewPublish] = useState(false);
   const [reviewSent, setReviewSent] = useState(false);
+  const [scenarioAnswers, setScenarioAnswers] = useState<Record<string, boolean>>({});
+  const [scenariosSaved, setScenariosSaved] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{ filename: string; percent: number } | null>(
+    null,
+  );
   const [me, setMe] = useState<PortalMe | null>(null);
   const [youAreRepresentative, setYouAreRepresentative] = useState(false);
   const [representatives, setRepresentatives] = useState<
@@ -1535,6 +1569,111 @@ export function ClientCabinet() {
     }
   }
 
+  async function uploadDocumentsMultiple(files: File[], docType?: string) {
+    if (!token || !selectedId || files.length === 0) return;
+    if (!detail?.consent_accepted) {
+      setNotice("Сначала подтвердите согласие.");
+      setView("case");
+      return;
+    }
+    setBusy(true);
+    const batchId = crypto.randomUUID();
+    try {
+      const form = new FormData();
+      for (const file of files) {
+        form.append("files", file);
+      }
+      if (docType) form.append("doc_type", docType);
+      form.append("upload_batch_id", batchId);
+      setUploadProgress({ filename: `${files.length} файлов`, percent: 0 });
+      const payload = (await uploadWithProgress(
+        `/api/portal/cases/${selectedId}/documents/batch`,
+        token,
+        form,
+        (percent) => setUploadProgress({ filename: `${files.length} файлов`, percent }),
+      )) as { uploaded?: CaseDocument[]; errors?: { message?: string }[] };
+      const okCount = payload.uploaded?.length ?? 0;
+      if (payload.errors?.length) {
+        setNotice(
+          `Загружено ${okCount} из ${files.length}. ${payload.errors[0]?.message || ""}`.trim(),
+        );
+      } else if (okCount > 0) {
+        setNotice(`Загружено файлов: ${okCount}. Специалист проверит документы.`);
+      }
+      await openCase(selectedId, "case", true);
+    } catch {
+      setNotice("Не удалось загрузить файлы.");
+    } finally {
+      setUploadProgress(null);
+      setBusy(false);
+    }
+  }
+
+  async function saveScenarios() {
+    if (!token || !selectedId) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/cases/${selectedId}/scenarios`, token, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: scenarioAnswers }),
+      });
+      setScenariosSaved(true);
+      setNotice("Анкета сохранена. Список документов обновлён.");
+      await openCase(selectedId, "case", true);
+    } catch {
+      setNotice("Не удалось сохранить анкету.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleDocSelection(documentId: string) {
+    setSelectedDocIds((prev) =>
+      prev.includes(documentId) ? prev.filter((id) => id !== documentId) : [...prev, documentId],
+    );
+  }
+
+  function toggleAllDocs(checked: boolean) {
+    if (!detail) return;
+    const ids = detail.documents.filter((d) => d.downloadable !== false).map((d) => d.id);
+    setSelectedDocIds(checked ? ids : []);
+  }
+
+  async function bulkDownloadSelected() {
+    if (!token || !selectedId || selectedDocIds.length === 0) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`${apiBase}/api/portal/cases/${selectedId}/documents/bulk-download`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ document_ids: selectedDocIds }),
+      });
+      if (!response.ok) throw new Error("download failed");
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const payload = (await response.json()) as { url: string };
+        window.open(payload.url, "_blank", "noopener,noreferrer");
+      } else {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "documents.zip";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+      setNotice("Скачивание начато.");
+    } catch {
+      setNotice("Не удалось скачать выбранные файлы.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openSignedUrl(documentId: string) {
     if (!token || !selectedId) return;
     try {
@@ -1543,14 +1682,8 @@ export function ClientCabinet() {
         token,
         { method: "POST" },
       );
-      const link = document.createElement("a");
-      link.href = payload.url;
-      link.rel = "noopener noreferrer";
-      link.download = "";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setNotice(`Скачивание начато. Ссылка действует ${payload.expires_in} сек.`);
+      window.open(payload.url, "_blank", "noopener,noreferrer");
+      setNotice(`Файл открыт в новой вкладке. Ссылка действует ${payload.expires_in} сек.`);
     } catch {
       setNotice("Не удалось получить временную ссылку.");
     }
@@ -2314,13 +2447,34 @@ export function ClientCabinet() {
               warning={detail.warning}
               onConsent={() => void acceptConsent()}
               onUpload={(file, docType) => void uploadDocument(file, docType)}
+              onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
               onDelete={(documentId) => void deleteDocument(documentId)}
               onPay={(orderId) => void startPayment(orderId)}
               onDownloadResult={(documentId) => void openSignedUrl(documentId)}
+              scenarioAnswers={scenarioAnswers}
+              onScenarioChange={(key, value) => {
+                setScenariosSaved(false);
+                setScenarioAnswers((prev) => ({ ...prev, [key]: value }));
+              }}
+              onSaveScenarios={() => void saveScenarios()}
+              scenariosSaved={scenariosSaved}
+              uploadProgress={uploadProgress}
             />
           ) : (
             <p className="hint">Загружаем карту дела…</p>
           )}
+
+          {detail.documents.length > 0 ? (
+            <DocumentsTable
+              documents={detail.documents}
+              busy={busy}
+              onOpen={(documentId) => void openSignedUrl(documentId)}
+              selectedIds={selectedDocIds}
+              onToggleSelect={toggleDocSelection}
+              onToggleAll={toggleAllDocs}
+              onBulkDownload={() => void bulkDownloadSelected()}
+            />
+          ) : null}
 
           <details className="home-more" id="messages" ref={messagesPanelRef}>
             <summary>Если MAX недоступен</summary>

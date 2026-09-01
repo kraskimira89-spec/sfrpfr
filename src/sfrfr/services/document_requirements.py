@@ -16,6 +16,7 @@ SCENARIO_SFR_RESPONSE = "sfr_response_or_refusal"
 SCENARIO_REPRESENTATIVE = "representative"
 SCENARIO_PENSION_ASSIGNED = "pension_assigned"
 SCENARIO_BANK_LIMITED = "bank_statement_limited"
+SCENARIO_PAYOUT_RECONCILIATION = "payout_reconciliation"
 
 ALL_SCENARIO_CODES: frozenset[str] = frozenset(
     {
@@ -30,6 +31,7 @@ ALL_SCENARIO_CODES: frozenset[str] = frozenset(
         SCENARIO_REPRESENTATIVE,
         SCENARIO_PENSION_ASSIGNED,
         SCENARIO_BANK_LIMITED,
+        SCENARIO_PAYOUT_RECONCILIATION,
     }
 )
 
@@ -103,7 +105,11 @@ def slot_visible(
     if slot_key in {"ils", "labor", "extra"}:
         return True
     if slot_key == "bank":
-        return SCENARIO_BANK_LIMITED in active_scenarios or BANK_REQUIREMENT_CODE in staff_codes
+        return (
+            SCENARIO_BANK_LIMITED in active_scenarios
+            or SCENARIO_PAYOUT_RECONCILIATION in active_scenarios
+            or BANK_REQUIREMENT_CODE in staff_codes
+        )
     if slot_key == GUARDIANSHIP_SLOT_KEY:
         return SCENARIO_ADOPTION_GUARDIANSHIP in active_scenarios or has_uploaded
     required_scenarios = _SLOT_SCENARIO_MAP.get(slot_key)
@@ -140,6 +146,8 @@ def scenarios_from_questionnaire(answers: dict[str, Any]) -> set[str]:
         out.add(SCENARIO_REPRESENTATIVE)
     if answers.get("pension_assigned"):
         out.add(SCENARIO_PENSION_ASSIGNED)
+    if answers.get("payout_reconciliation"):
+        out.add(SCENARIO_PAYOUT_RECONCILIATION)
     return out & ALL_SCENARIO_CODES
 
 
@@ -183,7 +191,12 @@ def checklist_rows_for_scenarios(
             }
         )
         order += 1
-    if staff_bank or SCENARIO_BANK_LIMITED in scenarios:
+    bank_scenario = (
+        staff_bank
+        or SCENARIO_BANK_LIMITED in scenarios
+        or SCENARIO_PAYOUT_RECONCILIATION in scenarios
+    )
+    if bank_scenario:
         rows.append(
             {
                 "title": BANK_STAFF_TITLE,

@@ -67,3 +67,15 @@
 - MAX после consent — файл в кабинете.
 - Перенос трудовой не стартует без подтверждения цены.
 - ПДн описывают зеркало Диска; банк не зеркалируется без флага.
+
+## Ingest, batch и группы (MVP)
+
+- Magic bytes + лимит 20 МБ на файл; ZIP/RAR/7z и опасные форматы блокируются.
+- После upload: quality report, классификация, `placement_suggestion`; статус `under_review` до проверки специалиста.
+- Batch: `POST /api/portal/cases/{id}/documents/batch` — до 20 файлов, общий `upload_batch_id`.
+- Прогресс: `GET /api/portal/cases/{id}/documents/{doc_id}/progress`.
+- Группы страниц: `POST/GET /api/portal/cases/{id}/document-groups`.
+- Скачивание: `POST /api/portal/cases/{id}/documents/bulk-download` (один файл — signed URL, несколько — ZIP).
+- Подписанные заявления/обращения: `client_signed_application`, `client_signed_appeal` — PDF/DOCX.
+- Черновик хронологии трудовой: `GET /api/portal/cases/{id}/labor-timeline-draft`.
+- Сценарий `payout_reconciliation` — банковская выписка только после явного выбора клиента.

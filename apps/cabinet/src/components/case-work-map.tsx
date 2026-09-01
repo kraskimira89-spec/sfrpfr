@@ -52,9 +52,15 @@ type Props = {
   warning: string;
   onConsent: () => void;
   onUpload: (file: File, docType?: string) => void;
+  onUploadMultiple?: (files: File[], docType?: string) => void;
   onDelete: (documentId: string) => void;
   onPay: (orderId: string) => void;
   onDownloadResult: (documentId: string) => void;
+  scenarioAnswers?: Record<string, boolean>;
+  onScenarioChange?: (key: string, value: boolean) => void;
+  onSaveScenarios?: () => void;
+  scenariosSaved?: boolean;
+  uploadProgress?: { filename: string; percent: number } | null;
 };
 
 function mark(state: string) {
@@ -79,9 +85,15 @@ export function CaseWorkMap({
   warning,
   onConsent,
   onUpload,
+  onUploadMultiple,
   onDelete,
   onPay,
   onDownloadResult,
+  scenarioAnswers,
+  onScenarioChange,
+  onSaveScenarios,
+  scenariosSaved,
+  uploadProgress,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingSlot = useRef<WorkSlot | null>(null);
@@ -95,15 +107,20 @@ export function CaseWorkMap({
     }
   }
 
-  function onFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  function onFiles(event: ChangeEvent<HTMLInputElement>) {
+    const fileList = event.target.files;
     const slotKey = event.currentTarget.dataset.slotKey;
     event.target.value = "";
     const chosen =
       work.documents.find((row) => row.key === slotKey) || pendingSlot.current || firstUploadSlot(work);
     pendingSlot.current = null;
-    if (!file) return;
-    onUpload(file, chosen?.doc_type || undefined);
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    if (files.length > 1 && onUploadMultiple) {
+      onUploadMultiple(files, chosen?.doc_type || undefined);
+      return;
+    }
+    onUpload(files[0], chosen?.doc_type || undefined);
   }
 
   const cta = work.cta_key;
@@ -118,9 +135,10 @@ export function CaseWorkMap({
         ref={fileRef}
         type="file"
         className="sr-only"
-        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+        accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        multiple
         disabled={busy}
-        onChange={onFile}
+        onChange={onFiles}
       />
 
       <header className="case-hero panel accent">
@@ -186,6 +204,57 @@ export function CaseWorkMap({
         </ul>
       </header>
 
+      {work.consent_ok && onScenarioChange && onSaveScenarios ? (
+        <section className="panel">
+          <h2>Короткая анкета</h2>
+          <p className="hint">
+            Ответьте на вопросы — мы покажем только нужные документы. Сейчас обязательны ИЛС и трудовая.
+          </p>
+          <ul className="plain-list">
+            {[
+              ["name_changed", "Менялись ФИО"],
+              ["children_care", "Был уход за ребёнком"],
+              ["adoption_or_guardianship", "Есть опека / попечительство"],
+              ["military_service", "Проходили военную службу"],
+              ["northern_or_preferential", "Есть северный или льготный стаж"],
+              ["liquidated_employer", "Работодатель ликвидирован / нужен архив"],
+              ["sfr_response_or_refusal", "Был ответ или отказ СФР"],
+              ["representative", "Действует представитель"],
+              ["pension_assigned", "Пенсия уже назначена"],
+              ["payout_reconciliation", "Нужна сверка фактических выплат (банковская выписка)"],
+            ].map(([key, label]) => (
+              <li key={key}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(scenarioAnswers?.[key])}
+                    disabled={busy}
+                    onChange={(e) => onScenarioChange(key, e.target.checked)}
+                  />{" "}
+                  {label}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="home-actions">
+            <button type="button" disabled={busy} onClick={onSaveScenarios}>
+              Сохранить ответы
+            </button>
+            {scenariosSaved ? <span className="hint">Анкета сохранена.</span> : null}
+          </p>
+        </section>
+      ) : null}
+
+      {uploadProgress ? (
+        <section className="panel" aria-live="polite">
+          <h2>Загрузка файла</h2>
+          <p>
+            {uploadProgress.filename}: <strong>{uploadProgress.percent}%</strong>
+          </p>
+          <progress max={100} value={uploadProgress.percent} />
+        </section>
+      ) : null}
+
       <section className="panel">
         <h2>Как идёт работа</h2>
         <ol className="work-progress">
@@ -209,6 +278,16 @@ export function CaseWorkMap({
           <p className="docs-count">
             Загружено: {work.required_uploaded} из {work.required_total} обязательных
           </p>
+          {uploadSlot ? (
+            <p className="home-actions">
+              <button type="button" disabled={busy} onClick={() => pickFile(uploadSlot)}>
+                Загрузить файл
+              </button>
+              <button type="button" className="secondary" disabled={busy} onClick={() => pickFile(uploadSlot)}>
+                Загрузить несколько файлов
+              </button>
+            </p>
+          ) : null}
         </div>
         <div className="my-docs-table-wrap">
           <table className="my-docs-table">

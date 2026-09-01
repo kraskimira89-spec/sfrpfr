@@ -12,6 +12,11 @@ export type CabinetDocument = {
   content_preview?: string | null;
   inner_date?: string | null;
   inner_title?: string | null;
+  document_group_id?: string | null;
+  page_index?: number | null;
+  ingest_status?: string | null;
+  progress_message?: string | null;
+  downloadable?: boolean;
 };
 
 type SortKey = "created_at" | "filename" | "inner_date" | "inner_title";
@@ -22,6 +27,10 @@ type Props = {
   onOpen: (documentId: string) => void;
   busy?: boolean;
   emptyHint?: string;
+  selectedIds?: string[];
+  onToggleSelect?: (documentId: string) => void;
+  onToggleAll?: (checked: boolean) => void;
+  onBulkDownload?: () => void;
 };
 
 function formatUploadAt(value?: string) {
@@ -81,6 +90,10 @@ export function DocumentsTable({
   onOpen,
   busy,
   emptyHint = "Пока файлов нет — загрузите выписку ИЛС или трудовую книжку.",
+  selectedIds = [],
+  onToggleSelect,
+  onToggleAll,
+  onBulkDownload,
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("inner_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -135,6 +148,10 @@ export function DocumentsTable({
     { key: "filename", label: "Файл" },
   ];
 
+  const selectable = documents.filter((d) => d.downloadable !== false);
+  const allSelected =
+    selectable.length > 0 && selectable.every((d) => selectedIds.includes(d.id));
+
   return (
     <div className="docs-table-wrap" id="docs-table">
       <div className="docs-table-head">
@@ -143,11 +160,33 @@ export function DocumentsTable({
           Всего: {documents.length}
           {filtered.length !== documents.length ? ` · показано: ${filtered.length}` : ""}
         </p>
+        {onBulkDownload ? (
+          <p className="home-actions">
+            <button
+              type="button"
+              disabled={busy || selectedIds.length === 0}
+              onClick={onBulkDownload}
+            >
+              Скачать выбранные ({selectedIds.length})
+            </button>
+          </p>
+        ) : null}
       </div>
       <div className="docs-table-scroll">
         <table className="docs-table">
           <thead>
             <tr>
+              {onToggleSelect ? (
+                <th scope="col">
+                  <input
+                    type="checkbox"
+                    aria-label="Выбрать все на странице"
+                    checked={allSelected}
+                    disabled={busy || selectable.length === 0}
+                    onChange={(e) => onToggleAll?.(e.target.checked)}
+                  />
+                </th>
+              ) : null}
               <th scope="col" className="docs-table-num">
                 №
               </th>
@@ -185,6 +224,17 @@ export function DocumentsTable({
           <tbody>
             {sorted.map((doc, index) => (
               <tr key={doc.id}>
+                {onToggleSelect ? (
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`Выбрать ${cellValue(doc, "filename")}`}
+                      checked={selectedIds.includes(doc.id)}
+                      disabled={busy || doc.downloadable === false}
+                      onChange={() => onToggleSelect(doc.id)}
+                    />
+                  </td>
+                ) : null}
                 <td className="docs-table-num">{index + 1}</td>
                 {columns.map((col) => (
                   <td key={col.key}>
@@ -207,7 +257,7 @@ export function DocumentsTable({
             ))}
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="hint">
+                <td colSpan={onToggleSelect ? 6 : 5} className="hint">
                   {documents.length === 0 ? emptyHint : "Нет строк по выбранным фильтрам."}
                 </td>
               </tr>
