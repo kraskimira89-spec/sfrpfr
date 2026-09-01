@@ -125,6 +125,7 @@ export function ClientCaseChatPanel({
   maxHref,
   onBodyChange,
   onSend,
+  onSendQuick,
 }: {
   messages: CaseMessage[];
   body: string;
@@ -132,6 +133,7 @@ export function ClientCaseChatPanel({
   maxHref: string;
   onBodyChange: (value: string) => void;
   onSend: (event: FormEvent<HTMLFormElement>) => void;
+  onSendQuick?: (text: string) => void;
 }) {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const feedRef = useRef<HTMLDivElement | null>(null);
@@ -275,7 +277,7 @@ export function ClientCaseChatPanel({
               type="button"
               className="case-chat-quick-chip"
               disabled={busy}
-              onClick={() => onBodyChange(question)}
+              onClick={() => (onSendQuick ? onSendQuick(question) : onBodyChange(question))}
             >
               {question}
             </button>

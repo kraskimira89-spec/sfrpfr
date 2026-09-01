@@ -1709,15 +1709,16 @@ export function ClientCabinet() {
     }
   }
 
-  async function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!token || !selectedId || !messageBody.trim()) return;
+  async function sendMessage(event?: FormEvent<HTMLFormElement>, textOverride?: string) {
+    event?.preventDefault();
+    const text = (textOverride ?? messageBody).trim();
+    if (!token || !selectedId || !text) return;
     setBusy(true);
     try {
       await apiFetch(`/api/portal/cases/${selectedId}/messages`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: messageBody.trim() }),
+        body: JSON.stringify({ body: text }),
       });
       setMessageBody("");
       const next = await apiFetch<CaseMessage[]>(
@@ -2557,17 +2558,15 @@ export function ClientCabinet() {
               </details>
             </div>
 
-            <details className="case-chat-drawer">
-              <summary className="case-chat-drawer-summary">Чат по делу</summary>
-              <ClientCaseChatPanel
-                messages={messages}
-                body={messageBody}
-                busy={busy}
-                maxHref={maxChatHref}
-                onBodyChange={setMessageBody}
-                onSend={sendMessage}
-              />
-            </details>
+            <ClientCaseChatPanel
+              messages={messages}
+              body={messageBody}
+              busy={busy}
+              maxHref={maxChatHref}
+              onBodyChange={setMessageBody}
+              onSend={sendMessage}
+              onSendQuick={(text) => void sendMessage(undefined, text)}
+            />
           </div>
         </section>
       )}
