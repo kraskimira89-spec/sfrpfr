@@ -219,7 +219,9 @@ def checklist_rows_for_scenarios(
                 "is_required_now": True,
                 "consent_required": True,
                 "separate_consent_required": True,
-                "reason_for_request": "Индивидуальный запрос специалиста по сверке пенсионных выплат",
+                "reason_for_request": (
+                    "Индивидуальный запрос специалиста по сверке пенсионных выплат"
+                ),
                 "sort_order": order,
             }
         )
