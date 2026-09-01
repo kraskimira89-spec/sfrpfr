@@ -1972,7 +1972,7 @@ def get_document_progress(
     return client_progress_payload(row)
 
 
-@router.post("/cases/{case_id}/documents/bulk-download")
+@router.post("/cases/{case_id}/documents/bulk-download", response_model=None)
 def bulk_download_documents(
     case_id: str,
     payload: dict[str, Any] = Body(...),
