@@ -243,11 +243,11 @@ def _append_client_case_message(
     text: str,
     max_user_id: str | None = None,
     external_message_id: str | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     """Сохранить текст клиента в ленту дела (или в буфер до появления дела)."""
     from sfrfr.integrations.max.case_chat_log import append_client_case_message
 
-    append_client_case_message(
+    return append_client_case_message(
         case_id=case_id,
         max_user_id=max_user_id,
         text=text,
@@ -2645,12 +2645,55 @@ def handle_max_update(
             preferred=(intake.case_id if intake else None)
             or (record.case_id if record else None),
         )
-        _append_client_case_message(
+        stored = _append_client_case_message(
             case_id=case_for_log,
             max_user_id=user_id,
             text=text,
             external_message_id=_max_message_id(update),
         )
+        if case_for_log and len(str(case_for_log)) >= 32:
+            try:
+                from sfrfr.db.case_repository import CaseRepository
+                from sfrfr.services.case_chat_bot import try_immediate_rule_reply
+                from sfrfr.services.case_chat_bot_jobs import (
+                    enqueue_bot_reply_job,
+                    new_correlation_id,
+                )
+
+                case_row = CaseRepository().get_case_row(str(case_for_log))
+                if case_row:
+                    immediate = try_immediate_rule_reply(case=case_row, user_text=text)
+                    if immediate:
+                        reply = str(immediate.get("body") or "").strip()
+                        if reply:
+                            _reply(
+                                bot,
+                                user_id=user_id,
+                                chat_id=chat_id,
+                                text=reply,
+                                case_id=case_for_log,
+                            )
+                            return MaxHandleResult(
+                                ok=True,
+                                action="bot_rule_reply",
+                                case_id=record.case_id,
+                                reply=reply,
+                            )
+                    stored_id = str((stored or {}).get("id") or "")
+                    if stored_id:
+                        enqueue_bot_reply_job(
+                            case_id=str(case_for_log),
+                            message_id=stored_id,
+                            correlation_id=new_correlation_id(),
+                        )
+                        return MaxHandleResult(
+                            ok=True,
+                            action="bot_reply_queued",
+                            case_id=record.case_id,
+                            reply=None,
+                        )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("max bot_reply queue skipped: %s", exc)
         from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
         reply, attachments, action = reply_to_free_text(user_text=text, intake=intake)

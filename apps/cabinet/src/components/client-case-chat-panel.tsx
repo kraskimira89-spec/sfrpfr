@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from "react";
-import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import {
   CASE_CHAT_DOCUMENTS_RULE,
   CASE_CHAT_EMPTY,
@@ -138,7 +137,7 @@ export function ClientCaseChatPanel({
   const [filter, setFilter] = useState<ChatFilter>("all");
   const feedRef = useRef<HTMLDivElement | null>(null);
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
-  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
+  const { showBotTyping, showBotTypingTimeout, botTypingHint } = useBotTypingIndicator(messages);
   const chatEmpty = messages.length === 0;
   const filterEmpty = !chatEmpty && feed.length === 0;
 
@@ -242,6 +241,7 @@ export function ClientCaseChatPanel({
             {showBotTyping ? (
               <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
                 <span className="meta">Бот · печатает…</span>
+                <p className="hint">{botTypingHint}</p>
                 <p className="case-chat-typing-dots" aria-hidden="true">
                   <span></span><span></span><span></span>
                 </p>
@@ -250,7 +250,7 @@ export function ClientCaseChatPanel({
             {showBotTypingTimeout ? (
               <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
                 <span className="meta">Бот</span>
-                <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
+                <p className="hint">{botTypingHint}</p>
               </li>
             ) : null}
           </ul>

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.handler import handle_max_update
@@ -23,9 +23,25 @@ def _extract_updates(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _drain_case_chat_pipeline() -> None:
+    try:
+        from sfrfr.services.case_chat_bot_jobs import process_bot_pipeline
+
+        process_bot_pipeline(limit=8)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from sfrfr.services.case_chat_delivery import process_pending_outbox
+
+        process_pending_outbox(limit=8)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @router.post("/webhook")
 async def max_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_max_bot_api_secret: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """
@@ -39,6 +55,7 @@ async def max_webhook(
 
     updates = _extract_updates(await request.json())
     results = [handle_max_update(u) for u in updates]
+    background_tasks.add_task(_drain_case_chat_pipeline)
     channel_hints = [
         r.detail
         for r in results

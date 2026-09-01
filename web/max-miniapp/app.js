@@ -110,9 +110,9 @@
   let currentView = "overview";
   let messagesPollTimer = null;
 
-  const BOT_TYPING_TIMEOUT_MS = 50000;
+  const BOT_TYPING_TIMEOUT_MS = 55000;
   const BOT_TYPING_TIMEOUT_HINT =
-    "Бот не ответил. Напишите ещё раз или откройте чат MAX";
+    "Сейчас бот не смог подготовить ответ. Ваше сообщение сохранено и передано специалисту.";
   let botTypingStartedAt = null;
   let botTypingReplyKey = null;
   let botTypingUiTimer = null;

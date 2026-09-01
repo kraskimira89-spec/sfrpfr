@@ -3,7 +3,6 @@
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
 export type CaseChatMessage = {
@@ -214,7 +213,7 @@ export function CaseChatPanel({
     [waitingOn, awaitsStaff, maxLinked],
   );
 
-  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
+  const { showBotTyping, showBotTypingTimeout, botTypingHint } = useBotTypingIndicator(messages);
 
   const lastMessageKey = useMemo(() => {
     const last = messages[messages.length - 1];
@@ -376,6 +375,7 @@ export function CaseChatPanel({
             {showBotTyping ? (
               <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
                 <span className="meta">Бот MAX · печатает…</span>
+                <p className="hint">{botTypingHint}</p>
                 <p className="case-chat-typing-dots" aria-hidden="true">
                   <span></span><span></span><span></span>
                 </p>
@@ -384,7 +384,7 @@ export function CaseChatPanel({
             {showBotTypingTimeout ? (
               <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
                 <span className="meta">Бот MAX</span>
-                <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
+                <p className="hint">{botTypingHint}</p>
               </li>
             ) : null}
           </ul>

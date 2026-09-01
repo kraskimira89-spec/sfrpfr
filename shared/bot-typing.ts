@@ -1,10 +1,18 @@
-export const BOT_TYPING_MS = 8_000;
+export const BOT_TYPING_MS = 3_000;
 
-/** После этого срока индикатор и подсказка скрываются, даже если бот так и не ответил. */
-export const BOT_TYPING_TIMEOUT_MS = 50_000;
+/** Подсказка «дольше обычного», пока бот ещё может ответить. */
+export const BOT_TYPING_SLOW_MS = 25_000;
+
+/** После этого срока UI скрывает индикатор; backend помечает job failed + handoff. */
+export const BOT_TYPING_TIMEOUT_MS = 55_000;
+
+export const BOT_TYPING_PROCESSING_HINT = "Сообщение отправлено. Готовим ответ…";
+
+export const BOT_TYPING_SLOW_HINT =
+  "Ответ занимает больше времени, чем обычно. Ваш вопрос сохранён. Можно подождать или написать специалисту.";
 
 export const BOT_TYPING_TIMEOUT_HINT =
-  "Ответ задерживается. Подождите минуту или напишите ещё раз — сообщение уже в чате по делу.";
+  "Сейчас бот не смог подготовить ответ. Ваше сообщение сохранено и передано специалисту. Мы ответим в этом же чате.";
 
 export type BotTypingMessage = {
   id?: string;
@@ -30,8 +38,10 @@ export function lastClientAwaitAgeMs(
     return null;
   }
   const t = Date.parse(String(last.created_at || ""));
-  if (!Number.isFinite(t)) return 0;
-  return Math.max(0, nowMs - t);
+  if (!Number.isNaN(t) && Number.isFinite(t)) {
+    return Math.max(0, nowMs - t);
+  }
+  return 0;
 }
 
 export function isAwaitingBotReply(
@@ -49,4 +59,12 @@ export function awaitingBotReplyKey(messages: BotTypingMessage[]): string | null
     return null;
   }
   return last.id ?? `${last.created_at ?? ""}:${last.author_kind}`;
+}
+
+export function botTypingHint(ageMs: number | null): string | null {
+  if (ageMs === null) return null;
+  if (ageMs < BOT_TYPING_MS) return BOT_TYPING_PROCESSING_HINT;
+  if (ageMs < BOT_TYPING_SLOW_MS) return BOT_TYPING_PROCESSING_HINT;
+  if (ageMs < BOT_TYPING_TIMEOUT_MS) return BOT_TYPING_SLOW_HINT;
+  return null;
 }

@@ -70,7 +70,12 @@ def enqueue_bot_reply_job(
             or []
         )
         if existing:
-            _log(step="enqueue_dup", corr=corr, case_id=cid, job_id=str(existing[0].get("id") or ""))
+            _log(
+                step="enqueue_dup",
+                corr=corr,
+                case_id=cid,
+                job_id=str(existing[0].get("id") or ""),
+            )
             return str(existing[0].get("id") or "") or None
         inserted = (
             client.table("case_chat_bot_jobs")
@@ -195,7 +200,12 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
         case = CaseRepository().get_case_row(case_id)
         user_text = _load_client_text(message_id)
         if not case or not user_text:
-            reply_id = _handoff(case=case or {"id": case_id}, case_id=case_id, corr=corr, job_id=job_id)
+            reply_id = _handoff(
+                case=case or {"id": case_id},
+                case_id=case_id,
+                corr=corr,
+                job_id=job_id,
+            )
             _mark(
                 job_id,
                 status="failed",
@@ -224,7 +234,13 @@ def process_bot_reply_jobs(*, limit: int = 8) -> int:
                     error_code_internal=type(exc).__name__,
                     next_retry_at=nxt,
                 )
-                _log(step="retry", corr=corr, case_id=case_id, job_id=job_id, extra=type(exc).__name__)
+                _log(
+                    step="retry",
+                    corr=corr,
+                    case_id=case_id,
+                    job_id=job_id,
+                    extra=type(exc).__name__,
+                )
             else:
                 reply_id = _handoff(case=case, case_id=case_id, corr=corr, job_id=job_id)
                 _mark(
