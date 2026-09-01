@@ -487,7 +487,7 @@ def _reply(
     text_format: str | None = None,
 ) -> bool:
     try:
-        bot.send_message(
+        result = bot.send_message(
             text=text,
             user_id=user_id,
             chat_id=chat_id,
@@ -495,11 +495,14 @@ def _reply(
             text_format=text_format,
         )
         cid = _chat_case_id(user_id, preferred=case_id)
+        from sfrfr.services.case_chat_delivery import max_message_id_from_response
+
         _append_bot_case_message(
             case_id=cid,
             text=text,
             attachments=attachments,
             max_user_id=str(user_id) if user_id else None,
+            external_message_id=max_message_id_from_response(result),
         )
         return True
     except Exception as exc:  # noqa: BLE001
@@ -2421,6 +2424,17 @@ def handle_max_update(
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("early case for chat failed max=%s: %s", user_id, exc)
+    try:
+        from sfrfr.services.case_chat_delivery import mark_chat_activity
+
+        active_case_id = _chat_case_id(
+            user_id,
+            preferred=intake_early.case_id if intake_early else None,
+        )
+        if active_case_id:
+            mark_chat_activity(active_case_id, "max")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("max chat activity skipped user=%s: %s", user_id, exc)
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
@@ -2694,126 +2708,40 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
-    file_name = update.get("file_name")
     file_bytes = update.get("file_bytes")
     downloads = extract_downloadable_files(update)
     max_files = _collect_max_files(update)
-    receipt_handled = _try_max_payment_receipt(
-        bot, user_id=user_id, chat_id=chat_id, files=max_files
-    )
-    if receipt_handled is not None:
-        return receipt_handled
-    # Единый чат: при активном деле в кабинете файлы в MAX не принимаем.
     if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
-        supabase_case_id = _resolve_case_id_by_max_user(user_id)
-        if supabase_case_id:
-            from sfrfr.integrations.max.intake import documents_upload_keyboard
-            from sfrfr.services.case_chat_delivery import (
-                MAX_FILE_REJECT_TEXT,
-                documents_cabinet_url,
-            )
+        from sfrfr.integrations.max.intake import documents_upload_keyboard
+        from sfrfr.services.case_chat_delivery import (
+            MAX_FILE_REJECT_TEXT,
+            documents_cabinet_url,
+        )
 
-            docs_url = documents_cabinet_url(supabase_case_id)
-            reply = MAX_FILE_REJECT_TEXT
-            ext_id = _max_message_id(update)
-            file_names = [n for n, _ in max_files] if max_files else []
-            if isinstance(file_name, str) and file_name.strip():
-                file_names.append(file_name.strip())
-            log_body = (
-                f"[Файл в MAX] {file_names[0]}"
-                if file_names
-                else "[Файл в MAX]"
-            )
-            _append_client_case_message(
-                case_id=supabase_case_id,
-                max_user_id=user_id,
-                text=log_body,
-                external_message_id=ext_id,
-            )
-            _reply(
-                bot,
-                user_id=user_id,
-                chat_id=chat_id,
-                text=reply,
-                attachments=documents_upload_keyboard(cabinet_url=docs_url),
-                case_id=supabase_case_id,
-            )
-            return MaxHandleResult(
-                ok=False,
-                action="upload_rejected_unified_chat",
-                case_id=supabase_case_id,
-                reply=reply,
-            )
-    # Канон: предпочтительно кабинет на сайте; вложение в чате — принимаем (intake без дела).
-    if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
-        mirror_id = _chat_case_id(user_id, preferred=str(record.case_id))
-        if mirror_id and _supabase_configured():
-            try:
-                from sfrfr.db.case_repository import CaseRepository
-
-                if not CaseRepository().has_consent(mirror_id):
-                    cabinet_url = cabinet_url_for_case(mirror_id)
-                    reply = (
-                        "Чтобы прислать документы, сначала подтвердите согласие "
-                        "на обработку персональных данных в личном кабинете."
-                    )
-                    _reply(
-                        bot,
-                        user_id=user_id,
-                        chat_id=chat_id,
-                        text=reply,
-                        attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
-                        case_id=mirror_id,
-                    )
-                    return MaxHandleResult(
-                        ok=False,
-                        action="upload_consent_required",
-                        case_id=mirror_id,
-                        reply=reply,
-                    )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("max consent gate check failed: %s", exc)
-        fresh = record
-        names: list[str] = []
-        if max_files:
-            for name, data in max_files:
-                fresh = _ingest_bytes(store, fresh, name, data, max_user_id=user_id)
-                names.append(name)
-        elif isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
-            fresh = _ingest_bytes(
-                store, record, file_name, bytes(file_bytes), max_user_id=user_id
-            )
-            names.append(file_name)
-        else:
-            for name, url in downloads:
-                try:
-                    data = download_file(url)
-                    fresh = _ingest_bytes(store, fresh, name, data, max_user_id=user_id)
-                    names.append(name)
-                except Exception:
-                    continue
-        if names:
-            case_id = fresh.case_id
-            _notify_staff_chat_docs(user_id=user_id, case_id=case_id, filenames=names)
-            cabinet_url = cabinet_url_for_case(case_id)
-            reply = (
-                f"{UPLOAD_ACCEPTED_TEXT}\n"
-                f"В деле файлов: {len(fresh.ctx.document_paths)}."
-            )
-            _reply(
-                bot,
-                user_id=user_id,
-                chat_id=chat_id,
-                text=reply,
-                attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
-                case_id=case_id,
-            )
-            return MaxHandleResult(
-                ok=True,
-                action="upload",
-                case_id=case_id,
-                reply=reply,
-            )
+        case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        docs_url = documents_cabinet_url(case_id)
+        reply = MAX_FILE_REJECT_TEXT
+        ext_id = _max_message_id(update)
+        _append_client_case_message(
+            case_id=case_id,
+            max_user_id=user_id,
+            text="[Вложение отклонено: документы принимаются только через раздел «Мои документы»]",
+            external_message_id=ext_id,
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=documents_upload_keyboard(cabinet_url=docs_url),
+            case_id=case_id,
+        )
+        return MaxHandleResult(
+            ok=False,
+            action="upload_rejected_unified_chat",
+            case_id=case_id,
+            reply=reply,
+        )
 
     # Свободный текст: DeepSeek (Yandex AI Studio) + кнопки шага / fallback nudge (ТЗ-26).
     if text:

@@ -109,6 +109,12 @@ def _load_pending() -> None:
                             "created_at": str(
                                 item.get("created_at") or datetime.now(UTC).isoformat()
                             ),
+                            "channel_origin": str(item.get("channel_origin") or "max"),
+                            **(
+                                {"external_message_id": str(item["external_message_id"]).strip()}
+                                if str(item.get("external_message_id") or "").strip()
+                                else {}
+                            ),
                         }
                     )
                 if cleaned:
@@ -213,20 +219,33 @@ def _insert_case_message(
     return data[0] if data else None
 
 
-def _buffer(*, max_user_id: str, author_kind: str, body: str) -> None:
+def _buffer(
+    *,
+    max_user_id: str,
+    author_kind: str,
+    body: str,
+    channel_origin: str,
+    external_message_id: str | None = None,
+) -> None:
     _load_pending()
     mid = str(max_user_id).strip()
-    if not mid or not body.strip():
+    text = body.strip()
+    ext = str(external_message_id or "").strip()
+    if not mid or not text:
         return
     with _lock:
         bucket = _pending.setdefault(mid, [])
-        bucket.append(
-            {
-                "author_kind": author_kind,
-                "body": body.strip()[:4000],
-                "created_at": datetime.now(UTC).isoformat(),
-            }
-        )
+        if ext and any(item.get("external_message_id") == ext for item in bucket):
+            return
+        item = {
+            "author_kind": author_kind,
+            "body": text[:4000],
+            "created_at": datetime.now(UTC).isoformat(),
+            "channel_origin": channel_origin,
+        }
+        if ext:
+            item["external_message_id"] = ext
+        bucket.append(item)
         _pending[mid] = bucket[-_MAX_PENDING_PER_USER:]
         _save_pending()
 
@@ -282,10 +301,22 @@ def append_case_chat_message(
                 bool(mid),
             )
             if mid:
-                _buffer(max_user_id=mid, author_kind=author_kind, body=text)
+                _buffer(
+                    max_user_id=mid,
+                    author_kind=author_kind,
+                    body=text,
+                    channel_origin=channel_origin,
+                    external_message_id=ext or None,
+                )
             return
     if mid:
-        _buffer(max_user_id=mid, author_kind=author_kind, body=text)
+        _buffer(
+            max_user_id=mid,
+            author_kind=author_kind,
+            body=text,
+            channel_origin=channel_origin,
+            external_message_id=ext or None,
+        )
 
 
 def append_bot_case_message(
@@ -294,6 +325,7 @@ def append_bot_case_message(
     max_user_id: str | None = None,
     text: str,
     attachments: list[dict[str, Any]] | None = None,
+    external_message_id: str | None = None,
 ) -> None:
     body = (text or "").strip()
     if not body:
@@ -306,6 +338,8 @@ def append_bot_case_message(
         max_user_id=max_user_id,
         author_kind="system",
         body=body,
+        channel_origin="bot",
+        external_message_id=external_message_id,
     )
 
 
@@ -342,11 +376,19 @@ def flush_pending_case_chat(*, max_user_id: str | None, case_id: str | None) -> 
     leftover: list[dict[str, str]] = []
     for item in items:
         try:
+            external_id = str(item.get("external_message_id") or "").strip()
+            if external_id:
+                from sfrfr.services.case_chat_delivery import find_message_by_external_id
+
+                if find_message_by_external_id(external_id):
+                    continue
             _insert_case_message(
                 case_id=cid,
                 author_kind=str(item.get("author_kind") or "client"),
                 body=str(item.get("body") or ""),
                 created_at=str(item.get("created_at") or "") or None,
+                channel_origin=str(item.get("channel_origin") or "max"),
+                external_message_id=external_id or None,
             )
             written += 1
         except Exception as exc:  # noqa: BLE001

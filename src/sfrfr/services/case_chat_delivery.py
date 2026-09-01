@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 CHAT_NOTIFY_NEUTRAL = "В чате по делу есть новое сообщение"
+CHAT_ACTIVITY_TTL_SECONDS = 90
+MAX_DELIVERY_ATTEMPTS = 5
 
 MAX_FILE_REJECT_TEXT = (
     "Спасибо. Для защиты данных файл не добавлен к делу. "
@@ -84,7 +86,9 @@ def process_pending_outbox(*, limit: int = 20) -> int:
         if not oid or not max_uid or not body:
             continue
         try:
-            bot.send_message(text=body, user_id=max_uid)
+            result = bot.send_message(text=body, user_id=max_uid)
+            if isinstance(result, dict) and (result.get("skipped") or result.get("ok") is False):
+                raise RuntimeError(str(result.get("reason") or "MAX delivery skipped"))
             client.table("case_chat_outbox").update(
                 {
                     "status": "sent",
@@ -93,16 +97,21 @@ def process_pending_outbox(*, limit: int = 20) -> int:
                 }
             ).eq("id", oid).execute()
             if message_id:
-                client.table("case_messages").update({"delivered_at": now}).eq(
+                message_update: dict[str, Any] = {"delivered_at": now}
+                external_id = max_message_id_from_response(result)
+                if external_id:
+                    message_update["external_message_id"] = external_id
+                client.table("case_messages").update(message_update).eq(
                     "id", str(message_id)
                 ).execute()
             sent += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("case_chat outbox send failed id=%s: %s", oid[:8], exc)
+            attempts = int(row.get("attempts") or 0) + 1
             client.table("case_chat_outbox").update(
                 {
-                    "status": "failed",
-                    "attempts": int(row.get("attempts") or 0) + 1,
+                    "status": "failed" if attempts >= MAX_DELIVERY_ATTEMPTS else "pending",
+                    "attempts": attempts,
                     "last_error": str(exc)[:500],
                 }
             ).eq("id", oid).execute()
@@ -132,6 +141,16 @@ def mirror_client_message_to_max(
     process_pending_outbox(limit=5)
 
 
+def mirror_staff_message_to_max(
+    case: dict[str, Any],
+    body: str,
+    *,
+    message_id: str | None = None,
+) -> None:
+    """Доставить видимое клиенту сообщение специалиста в тот же чат MAX."""
+    mirror_client_message_to_max(case, body, message_id=message_id)
+
+
 def notify_client_new_chat_message(
     *,
     case_id: str,
@@ -145,6 +164,9 @@ def notify_client_new_chat_message(
     # Не дублировать, если текст уже нейтральный системный.
     if (preview_body or "").strip() == CHAT_NOTIFY_NEUTRAL:
         return
+    if is_client_chat_active(case_id):
+        logger.info("chat notify skipped: client active in unified chat case=%s", case_id[:8])
+        return
     try:
         from sfrfr.integrations.max.client import MaxBotClient
 
@@ -154,6 +176,98 @@ def notify_client_new_chat_message(
         bot.send_message(text=CHAT_NOTIFY_NEUTRAL, user_id=mid)
     except Exception as exc:  # noqa: BLE001
         logger.warning("chat notify MAX failed case=%s: %s", case_id[:8], exc)
+
+
+def max_message_id_from_response(payload: Any) -> str | None:
+    """Извлечь внешний id сообщения из ответа MAX без привязки к версии API."""
+    pending: list[Any] = [payload]
+    seen: set[int] = set()
+    preferred_keys = ("message_id", "mid")
+    fallback_keys = ("id",)
+    while pending:
+        current = pending.pop(0)
+        if not isinstance(current, dict) or id(current) in seen:
+            continue
+        seen.add(id(current))
+        for key in preferred_keys:
+            value = current.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        for key in ("message", "result", "data"):
+            nested = current.get(key)
+            if isinstance(nested, dict):
+                pending.append(nested)
+            elif isinstance(nested, list):
+                pending.extend(nested)
+        for key in fallback_keys:
+            value = current.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    return None
+
+
+def mark_chat_activity(case_id: str, channel: str) -> None:
+    """Записать активность клиента в одном из интерфейсов чата."""
+    cid = str(case_id or "").strip()
+    origin = str(channel or "").strip().lower()
+    if not cid or origin not in {"cabinet", "max"}:
+        return
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        get_supabase_client().table("case_chat_presence").upsert(
+            {
+                "case_id": cid,
+                "channel": origin,
+                "last_active_at": datetime.now(UTC).isoformat(),
+            },
+            on_conflict="case_id,channel",
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("chat activity write skipped case=%s channel=%s: %s", cid[:8], origin, exc)
+
+
+def is_client_chat_active(
+    case_id: str,
+    *,
+    now: datetime | None = None,
+    ttl_seconds: int = CHAT_ACTIVITY_TTL_SECONDS,
+) -> bool:
+    """Проверить недавнюю активность клиента в кабинете или MAX."""
+    cid = str(case_id or "").strip()
+    if not cid:
+        return False
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("case_chat_presence")
+            .select("channel,last_active_at")
+            .eq("case_id", cid)
+            .in_("channel", ["cabinet", "max"])
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("chat activity lookup skipped case=%s: %s", cid[:8], exc)
+        return False
+    current = now or datetime.now(UTC)
+    cutoff = current - timedelta(seconds=max(1, ttl_seconds))
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        raw = str(row.get("last_active_at") or "").replace("Z", "+00:00")
+        try:
+            active_at = datetime.fromisoformat(raw)
+        except ValueError:
+            continue
+        if active_at.tzinfo is None:
+            active_at = active_at.replace(tzinfo=UTC)
+        if active_at >= cutoff:
+            return True
+    return False
 
 
 def find_message_by_external_id(external_message_id: str) -> dict[str, Any] | None:
