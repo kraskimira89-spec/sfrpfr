@@ -197,6 +197,32 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> str
         text=reply,
         channel_origin="cabinet",
     )
+    # #region agent log
+    try:
+        import json
+        from pathlib import Path
+        from time import time as _time
+
+        _log = {
+            "sessionId": "d43d44",
+            "runId": "pre-fix",
+            "hypothesisId": "H4",
+            "location": "case_chat_bot.py:auto_reply:append",
+            "message": "bot message appended",
+            "data": {
+                "caseId8": case_id[:8],
+                "messageId": str((message or {}).get("id") or "")[:8] or None,
+                "hasMessage": bool(message),
+                "replyLen": len(reply),
+            },
+            "timestamp": int(_time() * 1000),
+        }
+        Path(__file__).resolve().parents[3].joinpath("debug-d43d44.log").open(
+            "a", encoding="utf-8"
+        ).write(json.dumps(_log, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
     if max_uid and message:
         try:
             from sfrfr.services.case_chat_delivery import (

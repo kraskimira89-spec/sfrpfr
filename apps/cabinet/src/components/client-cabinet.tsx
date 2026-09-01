@@ -1712,6 +1712,27 @@ export function ClientCabinet() {
   async function sendMessage(event?: FormEvent<HTMLFormElement>, textOverride?: string) {
     event?.preventDefault();
     const text = (textOverride ?? messageBody).trim();
+    // #region agent log
+    fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+      body: JSON.stringify({
+        sessionId: "d43d44",
+        runId: "pre-fix",
+        hypothesisId: "H2",
+        location: "client-cabinet.tsx:sendMessage:entry",
+        message: "sendMessage called",
+        data: {
+          hasTextOverride: Boolean(textOverride),
+          textLen: text.length,
+          hasToken: Boolean(token),
+          hasSelectedId: Boolean(selectedId),
+          busy,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (!token || !selectedId || !text) return;
     setBusy(true);
     try {
@@ -1720,13 +1741,68 @@ export function ClientCabinet() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: text }),
       });
+      // #region agent log
+      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+        body: JSON.stringify({
+          sessionId: "d43d44",
+          runId: "pre-fix",
+          hypothesisId: "H3",
+          location: "client-cabinet.tsx:sendMessage:post-ok",
+          message: "POST messages ok",
+          data: { caseId: selectedId.slice(0, 8) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       setMessageBody("");
       const next = await apiFetch<CaseMessage[]>(
         `/api/portal/cases/${selectedId}/messages`,
         token,
       );
+      const last = next[next.length - 1];
+      const hasBotAfterClient =
+        next.length >= 2 &&
+        next[next.length - 2]?.author_kind === "client" &&
+        last?.author_kind === "system";
+      // #region agent log
+      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+        body: JSON.stringify({
+          sessionId: "d43d44",
+          runId: "pre-fix",
+          hypothesisId: "H5",
+          location: "client-cabinet.tsx:sendMessage:after-refetch",
+          message: "messages refetched",
+          data: {
+            count: next.length,
+            lastAuthor: last?.author_kind ?? null,
+            hasBotAfterClient,
+            kinds: next.slice(-3).map((m) => m.author_kind),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       setMessages(next);
-    } catch {
+    } catch (err) {
+      // #region agent log
+      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+        body: JSON.stringify({
+          sessionId: "d43d44",
+          runId: "pre-fix",
+          hypothesisId: "H3",
+          location: "client-cabinet.tsx:sendMessage:error",
+          message: "POST or refetch failed",
+          data: { err: err instanceof Error ? err.message : String(err) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       setNotice("Не удалось отправить сообщение.");
     } finally {
       setBusy(false);
