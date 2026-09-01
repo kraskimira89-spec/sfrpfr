@@ -280,25 +280,7 @@ export function ClientCaseChatPanel({
               type="button"
               className="case-chat-quick-chip"
               disabled={busy}
-              onClick={() => {
-                // #region agent log
-                const payload = {
-                  sessionId: "d43d44",
-                  runId: "post-fix",
-                  hypothesisId: "H1",
-                  location: "client-case-chat-panel.tsx:quick-chip",
-                  message: "quick chip clicked",
-                  data: { questionLen: question.length, busy },
-                  timestamp: Date.now(),
-                };
-                fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-                  body: JSON.stringify(payload),
-                }).catch(() => {});
-                // #endregion
-                onSendQuick(question);
-              }}
+              onClick={() => onSendQuick(question)}
             >
               {question}
             </button>

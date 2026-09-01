@@ -2571,54 +2571,8 @@ def create_message(
             from sfrfr.services.case_chat_bot import auto_reply_to_client_message
 
             bot_message_row = auto_reply_to_client_message(case=case, user_text=body)
-            # #region agent log
-            try:
-                import json
-                from pathlib import Path
-                from time import time as _time
-
-                _log = {
-                    "sessionId": "d43d44",
-                    "runId": "pre-fix",
-                    "hypothesisId": "H4",
-                    "location": "portal.py:create_message:auto_reply",
-                    "message": "auto_reply completed",
-                    "data": {
-                        "caseId8": case_id[:8],
-                        "hasBotRow": bool(bot_message_row),
-                        "botMessageId8": str((bot_message_row or {}).get("id") or "")[:8] or None,
-                    },
-                    "timestamp": int(_time() * 1000),
-                }
-                Path(__file__).resolve().parents[4].joinpath("debug-d43d44.log").open(
-                    "a", encoding="utf-8"
-                ).write(json.dumps(_log, ensure_ascii=False) + "\n")
-            except Exception:
-                pass
-            # #endregion
         except Exception as exc:  # noqa: BLE001
             logger.warning("case chat bot auto-reply skipped: %s", exc)
-            # #region agent log
-            try:
-                import json
-                from pathlib import Path
-                from time import time as _time
-
-                _log = {
-                    "sessionId": "d43d44",
-                    "runId": "pre-fix",
-                    "hypothesisId": "H4",
-                    "location": "portal.py:create_message:auto_reply_error",
-                    "message": "auto_reply exception",
-                    "data": {"err": str(exc)[:200]},
-                    "timestamp": int(_time() * 1000),
-                }
-                Path(__file__).resolve().parents[4].joinpath("debug-d43d44.log").open(
-                    "a", encoding="utf-8"
-                ).write(json.dumps(_log, ensure_ascii=False) + "\n")
-            except Exception:
-                pass
-            # #endregion
     elif kind == "staff" and not _is_internal_staff_message(row):
         client_row = case.get("clients") or {}
         if isinstance(client_row, list):
