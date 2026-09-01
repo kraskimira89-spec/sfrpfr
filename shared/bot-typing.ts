@@ -1,7 +1,7 @@
 export const BOT_TYPING_TIMEOUT_MS = 50_000;
 
 export const BOT_TYPING_TIMEOUT_HINT =
-  "Бот не ответил. Напишите ещё раз или откройте чат MAX";
+  "Ответ задерживается. Подождите минуту или напишите ещё раз — сообщение уже в чате по делу.";
 
 export type BotTypingMessage = {
   id?: string;

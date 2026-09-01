@@ -2539,6 +2539,12 @@ def create_message(
     row = response.data[0]
     if kind == "client" and not _is_internal_staff_message(row):
         _mirror_client_message_to_max(case, body, message_id=str(row.get("id") or "") or None)
+        try:
+            from sfrfr.services.case_chat_bot import auto_reply_to_client_message
+
+            auto_reply_to_client_message(case=case, user_text=body)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("case chat bot auto-reply skipped: %s", exc)
     elif kind == "staff" and not _is_internal_staff_message(row):
         client_row = case.get("clients") or {}
         if isinstance(client_row, list):
