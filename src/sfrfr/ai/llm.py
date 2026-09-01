@@ -192,6 +192,7 @@ class LLMClient:
             kwargs: dict[str, Any] = {
                 "api_key": self.api_key,
                 "base_url": self.base_url,
+                "timeout": 20.0,
             }
             if headers:
                 kwargs["default_headers"] = headers

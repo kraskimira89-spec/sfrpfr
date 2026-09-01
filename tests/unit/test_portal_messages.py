@@ -28,7 +28,7 @@ def test_mirror_client_message_to_max_sends_when_linked(
         max_user_id="12345",
         body="Вопрос из кабинета",
     )
-    mock_process.assert_called_once()
+    mock_process.assert_not_called()
 
 
 @patch("sfrfr.services.case_chat_delivery.enqueue_max_delivery")

@@ -30,7 +30,7 @@ def test_mirror_client_message_to_max(mock_enqueue: MagicMock, mock_process: Mag
     case = {"id": "case-uuid", "clients": {"max_user_id": "max99"}}
     mirror_client_message_to_max(case, "Привет", message_id="msg1")
     mock_enqueue.assert_called_once()
-    mock_process.assert_called_once_with(limit=5)
+    mock_process.assert_not_called()
 
 
 @patch("sfrfr.services.case_chat_delivery.is_client_chat_active", return_value=False)

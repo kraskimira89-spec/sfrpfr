@@ -1,28 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  BOT_TYPING_MS,
   BOT_TYPING_TIMEOUT_MS,
-  awaitingBotReplyKey,
-  isAwaitingBotReply,
+  lastClientAwaitAgeMs,
   type BotTypingMessage,
 } from "../../../../shared/bot-typing";
 
 export function useBotTypingIndicator(messages: BotTypingMessage[]) {
-  const awaiting = useMemo(() => isAwaitingBotReply(messages), [messages]);
-  const replyKey = useMemo(() => awaitingBotReplyKey(messages), [messages]);
-  const [timedOutKey, setTimedOutKey] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  const ageMs = lastClientAwaitAgeMs(messages);
+  const awaiting = ageMs !== null && ageMs < BOT_TYPING_TIMEOUT_MS;
 
   useEffect(() => {
-    if (!replyKey) return;
-    const timer = window.setTimeout(() => setTimedOutKey(replyKey), BOT_TYPING_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [replyKey]);
-
-  const timedOut = replyKey !== null && timedOutKey === replyKey;
+    if (!awaiting) return undefined;
+    const id = window.setInterval(() => setTick((n) => n + 1), 500);
+    return () => window.clearInterval(id);
+  }, [awaiting]);
 
   return {
-    showBotTyping: awaiting && !timedOut,
-    showBotTypingTimeout: awaiting && timedOut,
+    showBotTyping: ageMs !== null && ageMs < BOT_TYPING_MS,
+    showBotTypingTimeout:
+      ageMs !== null && ageMs >= BOT_TYPING_MS && ageMs < BOT_TYPING_TIMEOUT_MS,
   };
 }

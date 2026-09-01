@@ -190,7 +190,6 @@ def mirror_client_message_to_max(
         max_user_id=max_uid,
         body=body,
     )
-    process_pending_outbox(limit=5)
 
 
 def mirror_staff_message_to_max(

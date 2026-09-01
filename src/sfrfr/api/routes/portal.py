@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Body,
     Depends,
     File,
@@ -2529,10 +2530,36 @@ def list_messages(
     return timeline
 
 
+def _drain_case_chat_outbox() -> None:
+    try:
+        from sfrfr.services.case_chat_delivery import process_pending_outbox
+
+        process_pending_outbox(limit=8)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("case chat outbox drain skipped: %s", exc)
+
+
+def _auto_reply_after_client_message(case: dict[str, Any], user_text: str) -> None:
+    """Фон: LLM/fallback и доставка outbox, чтобы чат кабинета не зависал."""
+    try:
+        from sfrfr.services.case_chat_bot import auto_reply_to_client_message
+
+        auto_reply_to_client_message(case=case, user_text=user_text)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("case chat bot auto-reply skipped: %s", exc)
+    try:
+        from sfrfr.services.case_chat_delivery import process_pending_outbox
+
+        process_pending_outbox(limit=8)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("case chat outbox after auto-reply skipped: %s", exc)
+
+
 @router.post("/cases/{case_id}/messages", status_code=status.HTTP_201_CREATED)
 def create_message(
     case_id: str,
     payload: CaseMessageCreate,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_current_principal),
 ) -> dict:
     repo = _repo()
@@ -2568,11 +2595,16 @@ def create_message(
             logger.debug("cabinet chat activity skipped case=%s: %s", case_id[:8], exc)
         _mirror_client_message_to_max(case, body, message_id=str(row.get("id") or "") or None)
         try:
-            from sfrfr.services.case_chat_bot import auto_reply_to_client_message
+            from sfrfr.services.case_chat_bot import try_immediate_rule_reply
 
-            bot_message_row = auto_reply_to_client_message(case=case, user_text=body)
+            bot_message_row = try_immediate_rule_reply(case=case, user_text=body)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("case chat bot auto-reply skipped: %s", exc)
+            logger.warning("case chat bot rule reply skipped: %s", exc)
+            bot_message_row = None
+        if bot_message_row is None:
+            background_tasks.add_task(_auto_reply_after_client_message, case, body)
+        else:
+            background_tasks.add_task(_drain_case_chat_outbox)
     elif kind == "staff" and not _is_internal_staff_message(row):
         client_row = case.get("clients") or {}
         if isinstance(client_row, list):
@@ -2589,6 +2621,8 @@ def create_message(
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.info("staff chat MAX delivery skipped: %s", exc)
+            else:
+                background_tasks.add_task(_drain_case_chat_outbox)
     if principal.is_staff:
         return row
     client_message = _client_case_message(row)

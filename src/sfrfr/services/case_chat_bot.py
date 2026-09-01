@@ -166,13 +166,53 @@ def _max_user_id(case: dict[str, Any]) -> str:
     return str((client_row or {}).get("max_user_id") or "").strip()
 
 
+def try_immediate_rule_reply(*, case: dict[str, Any], user_text: str) -> dict[str, Any] | None:
+    """Быстрый ответ по правилам без LLM — чтобы POST /messages не зависал."""
+    body = (user_text or "").strip()
+    case_id = str(case.get("id") or "").strip()
+    if not body or not case_id:
+        return None
+    try:
+        work = _work_map_for_case(case)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("case chat bot work_map failed case=%s: %s", case_id[:8], exc)
+        return None
+    reply = rule_based_reply(body, work)
+    if not reply:
+        return None
+    return _append_bot_reply(case=case, case_id=case_id, reply=reply)
+
+
+def _append_bot_reply(*, case: dict[str, Any], case_id: str, reply: str) -> dict[str, Any] | None:
+    from sfrfr.integrations.max.case_chat_log import append_bot_case_message
+
+    max_uid = _max_user_id(case)
+    message = append_bot_case_message(
+        case_id=case_id,
+        max_user_id=max_uid or None,
+        text=reply,
+        channel_origin="cabinet",
+    )
+    if max_uid and message:
+        try:
+            from sfrfr.services.case_chat_delivery import enqueue_max_delivery
+
+            enqueue_max_delivery(
+                case_id=case_id,
+                message_id=str(message.get("id") or "") or None,
+                max_user_id=max_uid,
+                body=reply,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("case chat bot MAX mirror failed: %s", exc)
+    return message
+
+
 def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> dict[str, Any] | None:
     """Ответ бота в ленту дела (author_kind=system) и в MAX при связке."""
     body = (user_text or "").strip()
-    if not body:
-        return None
     case_id = str(case.get("id") or "").strip()
-    if not case_id:
+    if not body or not case_id:
         return None
     try:
         work = _work_map_for_case(case)
@@ -187,31 +227,4 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> dic
         reply = _fallback_reply(work) if work else (
             "Понял ваш вопрос. Специалист увидит сообщение в этом чате и ответит здесь."
         )
-
-    from sfrfr.integrations.max.case_chat_log import append_bot_case_message
-
-    max_uid = _max_user_id(case)
-    message = append_bot_case_message(
-        case_id=case_id,
-        max_user_id=max_uid or None,
-        text=reply,
-        channel_origin="cabinet",
-    )
-    if max_uid and message:
-        try:
-            from sfrfr.services.case_chat_delivery import (
-                enqueue_max_delivery,
-                process_pending_outbox,
-            )
-
-            enqueue_max_delivery(
-                case_id=case_id,
-                message_id=str(message.get("id") or "") or None,
-                max_user_id=max_uid,
-                body=reply,
-            )
-            process_pending_outbox(limit=5)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("case chat bot MAX mirror failed: %s", exc)
-
-    return message
+    return _append_bot_reply(case=case, case_id=case_id, reply=reply)
