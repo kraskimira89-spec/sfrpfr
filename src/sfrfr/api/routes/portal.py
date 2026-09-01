@@ -2558,6 +2558,7 @@ def create_message(
     )
     repo.audit(case_id, principal.user_id, "message_created")
     row = response.data[0]
+    bot_message_row: dict[str, Any] | None = None
     if kind == "client" and not _is_internal_staff_message(row):
         try:
             from sfrfr.services.case_chat_delivery import mark_chat_activity
@@ -2569,7 +2570,7 @@ def create_message(
         try:
             from sfrfr.services.case_chat_bot import auto_reply_to_client_message
 
-            bot_reply = auto_reply_to_client_message(case=case, user_text=body)
+            bot_message_row = auto_reply_to_client_message(case=case, user_text=body)
             # #region agent log
             try:
                 import json
@@ -2584,8 +2585,8 @@ def create_message(
                     "message": "auto_reply completed",
                     "data": {
                         "caseId8": case_id[:8],
-                        "replyLen": len(bot_reply or ""),
-                        "hasReply": bool(bot_reply),
+                        "hasBotRow": bool(bot_message_row),
+                        "botMessageId8": str((bot_message_row or {}).get("id") or "")[:8] or None,
                     },
                     "timestamp": int(_time() * 1000),
                 }
@@ -2634,4 +2635,12 @@ def create_message(
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.info("staff chat MAX delivery skipped: %s", exc)
-    return row if principal.is_staff else _client_case_message(row)
+    if principal.is_staff:
+        return row
+    client_message = _client_case_message(row)
+    if bot_message_row:
+        return {
+            "message": client_message,
+            "bot_message": _client_case_message(bot_message_row),
+        }
+    return client_message

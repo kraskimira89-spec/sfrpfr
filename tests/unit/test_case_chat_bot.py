@@ -7,6 +7,11 @@ from unittest.mock import MagicMock, patch
 from sfrfr.services.case_chat_bot import auto_reply_to_client_message, rule_based_reply
 
 
+def test_rule_result_with_empty_work_map() -> None:
+    reply = rule_based_reply("Когда будет результат проверки?", {})
+    assert reply is not None
+
+
 def test_rule_result_when_docs_review() -> None:
     work = {
         "status_key": "docs_review",
@@ -49,8 +54,9 @@ def test_auto_reply_uses_rules_without_llm(
         "required_uploaded": 2,
         "required_total": 2,
     }
+    mock_append.return_value = {"id": "bot-1", "author_kind": "system", "body": "ответ бота"}
     case = {"id": "00000000-0000-0000-0000-000000000099", "clients": {}}
-    text = auto_reply_to_client_message(case=case, user_text="Когда будет результат проверки?")
-    assert text
+    row = auto_reply_to_client_message(case=case, user_text="Когда будет результат проверки?")
+    assert row == mock_append.return_value
     mock_append.assert_called_once()
-    assert mock_append.call_args.kwargs["text"] == text
+    assert mock_append.call_args.kwargs["text"]

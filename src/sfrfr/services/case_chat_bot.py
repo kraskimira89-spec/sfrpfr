@@ -166,7 +166,7 @@ def _max_user_id(case: dict[str, Any]) -> str:
     return str((client_row or {}).get("max_user_id") or "").strip()
 
 
-def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> str | None:
+def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> dict[str, Any] | None:
     """Ответ бота в ленту дела (author_kind=system) и в MAX при связке."""
     body = (user_text or "").strip()
     if not body:
@@ -180,8 +180,8 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> str
         logger.warning("case chat bot work_map failed case=%s: %s", case_id[:8], exc)
         work = {}
 
-    reply = rule_based_reply(body, work) if work else None
-    if not reply and work:
+    reply = rule_based_reply(body, work)
+    if not reply:
         reply = _llm_reply(body, work)
     if not reply:
         reply = _fallback_reply(work) if work else (
@@ -240,4 +240,4 @@ def auto_reply_to_client_message(*, case: dict[str, Any], user_text: str) -> str
         except Exception as exc:  # noqa: BLE001
             logger.warning("case chat bot MAX mirror failed: %s", exc)
 
-    return reply
+    return message

@@ -11,6 +11,15 @@ import {
   CaseJourneyExtras,
   type PendingGroupPage,
 } from "@/components/case-journey-extras";
+import {
+  AUTH_COPY as LOGIN_COPY,
+  AUTH_MESSAGES,
+  isValidEmailAddress,
+  logAuthDiagnostic,
+  mapAuthError,
+  maskEmail,
+  safeAuthNotice,
+} from "@/lib/auth-messages";
 
 type CaseSummary = {
   id: string;
@@ -64,6 +73,24 @@ type CaseMessage = {
   body: string;
   created_at: string;
 };
+
+type CaseMessageCreateResponse =
+  | CaseMessage
+  | { message: CaseMessage; bot_message?: CaseMessage | null };
+
+function mergeCreatedMessages(
+  previous: CaseMessage[],
+  payload: CaseMessageCreateResponse,
+): CaseMessage[] {
+  const inserted =
+    payload && typeof payload === "object" && "message" in payload
+      ? [payload.message, ...(payload.bot_message ? [payload.bot_message] : [])]
+      : [payload as CaseMessage];
+  const ids = new Set(inserted.map((row) => row.id));
+  const merged = [...previous.filter((row) => !ids.has(row.id)), ...inserted];
+  merged.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  return merged;
+}
 
 type ConsentBundle = {
   consents: { id: string; version: string; accepted_at: string }[];
@@ -143,8 +170,13 @@ function caseNumberFromId(caseId: string): string {
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "";
 const SITE_URL = "https://proverkastaza.ru";
+const OTP_RESEND_MS = 60_000;
+const IS_DEV = process.env.NODE_ENV === "development";
 const CABINET_PUBLIC_URL =
   process.env.NEXT_PUBLIC_CABINET_PUBLIC_URL ?? "https://cabinet.proverkastaza.ru";
 const DEFAULT_MAX_CHAT = "https://max.ru/id8905998693_1_bot";
@@ -179,12 +211,64 @@ function SiteNavButton({ className }: { className?: string }) {
   );
 }
 
-function SiteReturnPanel() {
+function AuthBrandHeader() {
   return (
-    <a className="auth-return-panel" href={SITE_URL}>
-      <span className="auth-return-panel__title">Вернуться на сайт</span>
-      <span className="auth-return-panel__hint">proverkastaza.ru</span>
-    </a>
+    <>
+      <a className="auth-back-link" href={SITE_URL}>
+        ← Вернуться на сайт
+      </a>
+      <p className="eyebrow">
+        <BrandHomeLink>
+          <img
+            className="brand-logo"
+            src="/logo-light.png"
+            width={40}
+            height={40}
+            alt="Проверка стажа"
+          />
+          Проверка стажа
+        </BrandHomeLink>
+      </p>
+    </>
+  );
+}
+
+function AuthTrustPanel() {
+  return (
+    <aside className="auth-trust" aria-label={LOGIN_COPY.trustTitle}>
+      <h2>{LOGIN_COPY.trustTitle}</h2>
+      <ul>
+        {LOGIN_COPY.trustItems.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+function AuthHelpLinks() {
+  return (
+    <div className="auth-help">
+      <p className="hint">{LOGIN_COPY.helpTitle}</p>
+      <div className="auth-help__links">
+        <a
+          className="auth-help__link"
+          href={DEFAULT_MAX_CHAT}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {LOGIN_COPY.helpMax}
+        </a>
+        <a
+          className="auth-help__link"
+          href={`${SITE_URL}/#zayavka`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {LOGIN_COPY.helpSite}
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -314,16 +398,18 @@ export function ClientCabinet() {
     [],
   );
   const [session, setSession] = useState<Session | null>(null);
-  const [authScreen, setAuthScreen] = useState<AuthScreen>("max");
-  const [authChannel, setAuthChannel] = useState<AuthChannel>("max");
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("email_otp");
+  const [authChannel, setAuthChannel] = useState<AuthChannel>("email");
   /** true — OTP на почту может создать пользователя (первый раз без MAX). */
-  const [emailCreateUser, setEmailCreateUser] = useState(false);
+  const [emailCreateUser, setEmailCreateUser] = useState(true);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [otpResendUntil, setOtpResendUntil] = useState(0);
+  const [otpResendLeft, setOtpResendLeft] = useState(0);
   const [fullName, setFullName] = useState("");
   /** Контакты уже из заявки с сайта — не спрашиваем повторно. */
   const [fromLeadPrefill, setFromLeadPrefill] = useState(false);
@@ -435,29 +521,48 @@ export function ClientCabinet() {
       if (mode === "recover") {
         setAuthScreen("recover");
         setAuthChannel("email");
-        return;
-      }
-      if (mode === "register") {
-        setAuthScreen("register");
-        setEmailCreateUser(true);
-        setAuthChannel(qEmail && !qPhone ? "email" : qPhone && !qEmail ? "max" : "email");
-        return;
-      }
-      if (mode === "password" || (mode === "login" && !wantMax && channel === "email")) {
+      } else if (mode === "password") {
         setAuthScreen("password");
         setAuthChannel("email");
-        return;
-      }
-      if (mode === "login") {
+      } else if (wantMax) {
         setAuthScreen("max");
         setAuthChannel("max");
-        return;
+      } else {
+        setAuthScreen("email_otp");
+        setEmailCreateUser(true);
+        setAuthChannel("email");
       }
-      setAuthScreen("max");
-      setAuthChannel("max");
+      params.delete("email");
+      params.delete("phone");
+      params.delete("name");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", next);
     }, 0);
     return () => window.clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (supabase) return;
+    logAuthDiagnostic(
+      "AUTH_CONFIG_MISSING",
+      "NEXT_PUBLIC_SUPABASE_URL or publishable/anon key missing",
+    );
+  }, [supabase]);
+
+  useEffect(() => {
+    if (otpResendUntil <= 0) {
+      setOtpResendLeft(0);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((otpResendUntil - Date.now()) / 1000));
+      setOtpResendLeft(left);
+      if (left <= 0) setOtpResendUntil(0);
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [otpResendUntil]);
 
   // Ссылка из MAX с verify_ticket — сразу форма ввода кода
   useEffect(() => {
@@ -849,7 +954,8 @@ export function ClientCabinet() {
     setOtpCode("");
     setPassword("");
     setPasswordConfirm("");
-    setEmailCreateUser(next === "register");
+    setEmailCreateUser(true);
+    setOtpResendUntil(0);
     setMaxVerifyTicket("");
     if (next === "register") {
       setRegisterConsent(false);
@@ -868,7 +974,8 @@ export function ClientCabinet() {
   async function signInWithPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) {
-      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      logAuthDiagnostic("AUTH_CONFIG_MISSING");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     if (!email.trim() || !password) {
@@ -889,7 +996,7 @@ export function ClientCabinet() {
       if (/invalid login|invalid credentials/i.test(msg)) {
         setNotice("Неверная почта или пароль.");
       } else {
-        setNotice(msg || "Не удалось войти. Проверьте данные или войдите по коду / через чат MAX.");
+        setNotice(mapAuthError(err, "AUTH_UNKNOWN"));
       }
     } finally {
       setBusy(false);
@@ -907,20 +1014,26 @@ export function ClientCabinet() {
       return;
     }
     if (!supabase) {
-      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      logAuthDiagnostic("AUTH_CONFIG_MISSING");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     if (!email.trim()) {
-      setNotice("Укажите почту.");
+      setNotice(LOGIN_COPY.emailRequired);
       return;
     }
+    if (!isValidEmailAddress(email)) {
+      setNotice(AUTH_MESSAGES.AUTH_INVALID_EMAIL);
+      return;
+    }
+    const resending = otpSent;
     setBusy(true);
     try {
       if (authChannel === "email") {
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),
           options: {
-            shouldCreateUser: emailCreateUser,
+            shouldCreateUser: true,
             emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
           },
         });
@@ -936,30 +1049,25 @@ export function ClientCabinet() {
         throw new Error("sms_archived");
       }
       setOtpSent(true);
-      setNotice("Код отправлен на почту. Введите его ниже.");
+      setOtpResendUntil(Date.now() + OTP_RESEND_MS);
+      setNotice(resending ? LOGIN_COPY.otpResent : LOGIN_COPY.otpSentGeneric);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       const code =
         err && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code || "")
           : "";
-      if (/rate limit|over_email/i.test(msg) || code.includes("rate_limit")) {
-        setNotice(
-          "Слишком много запросов. Подождите несколько минут и проверьте уже пришедшее письмо.",
-        );
+      if (/signups not allowed|user not found|unable to find/i.test(msg)) {
+        setOtpSent(true);
+        setOtpResendUntil(Date.now() + OTP_RESEND_MS);
+        setNotice(resending ? LOGIN_COPY.otpResent : LOGIN_COPY.otpSentGeneric);
       } else if (
         /phone_provider|unsupported phone|sms|sms_archived/i.test(msg) ||
         code === "phone_provider_disabled"
       ) {
         setNotice("Вход по SMS пока недоступен. Войдите через чат MAX или почту.");
-      } else if (/signups not allowed|user not found|unable to find/i.test(msg)) {
-        setNotice("Аккаунт не найден. Зарегистрируйтесь или войдите через чат MAX.");
       } else {
-        setNotice(
-          authChannel === "email"
-            ? "Не удалось отправить код. Проверьте адрес и попробуйте снова."
-            : "Не удалось отправить код. Войдите через чат MAX или почту.",
-        );
+        setNotice(mapAuthError(err, "AUTH_DELIVERY_FAILED"));
       }
     } finally {
       setBusy(false);
@@ -969,11 +1077,12 @@ export function ClientCabinet() {
   async function requestPasswordReset(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (!supabase) {
-      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      logAuthDiagnostic("AUTH_CONFIG_MISSING");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     if (!email.trim()) {
-      setNotice("Укажите почту.");
+      setNotice(LOGIN_COPY.emailRequired);
       return;
     }
     setBusy(true);
@@ -988,12 +1097,7 @@ export function ClientCabinet() {
         "Если аккаунт с такой почтой есть, мы отправили письмо со ссылкой и кодом для смены пароля.",
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (/rate limit|over_email/i.test(msg)) {
-        setNotice("Слишком много запросов. Подождите несколько минут.");
-      } else {
-        setNotice("Не удалось отправить письмо. Проверьте адрес и попробуйте снова.");
-      }
+      setNotice(mapAuthError(err, "AUTH_DELIVERY_FAILED"));
     } finally {
       setBusy(false);
     }
@@ -1001,7 +1105,11 @@ export function ClientCabinet() {
 
   async function verifyEmailOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase) {
+      logAuthDiagnostic("AUTH_CONFIG_MISSING");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
+      return;
+    }
     if (!otpCode.trim()) {
       setNotice("Введите код из письма.");
       return;
@@ -1041,8 +1149,8 @@ export function ClientCabinet() {
           ? "Код принят. Задайте новый пароль."
           : "Код принят. Задайте пароль для личного кабинета.",
       );
-    } catch {
-      setNotice("Неверный или просроченный код.");
+    } catch (err) {
+      setNotice(mapAuthError(err, "AUTH_CODE_INVALID"));
     } finally {
       setBusy(false);
     }
@@ -1082,7 +1190,7 @@ export function ClientCabinet() {
       }
       setNotice("Пароль сохранён. Добро пожаловать в личный кабинет.");
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось сохранить пароль.");
+      setNotice(mapAuthError(err, "AUTH_UNKNOWN"));
     } finally {
       setSavingPassword(false);
     }
@@ -1090,7 +1198,7 @@ export function ClientCabinet() {
 
   async function requestMaxOtp(withPhone = false) {
     if (!apiBase) {
-      setNotice("API кабинета не настроен.");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     if (withPhone && !phone.trim()) {
@@ -1114,20 +1222,20 @@ export function ClientCabinet() {
         status?: string;
       };
       if (!response.ok) {
-        const detail =
+        throw new Error(
           typeof body.detail === "string"
             ? body.detail
-            : "Не удалось начать вход через чат MAX.";
-        throw new Error(detail);
+            : AUTH_MESSAGES.AUTH_PROVIDER_UNAVAILABLE,
+        );
       }
       setMaxTicket(body.ticket || "");
       setMaxVerifyTicket(body.verify_ticket || "");
       setMaxWaitStatus(body.status || "pending_pair");
       if (body.max_bot_url) setMaxBotUrl(chatUrlOnly(body.max_bot_url));
       setOtpSent(true);
-      setNotice(body.message || `Ожидаем подтверждение в чате MAX…`);
+      setNotice(safeAuthNotice(body.message || LOGIN_COPY.maxWaiting, "AUTH_PROVIDER_UNAVAILABLE"));
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось начать вход через чат MAX.");
+      setNotice(mapAuthError(err, "AUTH_PROVIDER_UNAVAILABLE"));
     } finally {
       setBusy(false);
     }
@@ -1175,11 +1283,12 @@ export function ClientCabinet() {
       return;
     }
     if (!apiBase) {
-      setNotice("API кабинета не настроен.");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     if (!supabase) {
-      setNotice("Кабинет ещё не настроен: нет public ключа Supabase.");
+      logAuthDiagnostic("AUTH_CONFIG_MISSING");
+      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
     setAuthChannel("email");
@@ -1245,10 +1354,8 @@ export function ClientCabinet() {
       setOtpSent(true);
       setMaxVerifyTicket("");
       setAuthChannel("email");
-      setNotice(
-        "Письмо отправлено. Откройте его и нажмите «Войти в кабинет» — " +
-          "или введите код ниже на этой странице.",
-      );
+      setOtpResendUntil(Date.now() + OTP_RESEND_MS);
+      setNotice(LOGIN_COPY.otpSentGeneric);
       // #region agent log
       dbg("register_ui_success", "E", { otpSent: true });
       // #endregion
@@ -1257,15 +1364,7 @@ export function ClientCabinet() {
       // #region agent log
       dbg("register_catch", "B", { errorMsg: msg.slice(0, 160) });
       // #endregion
-      if (/rate limit|over_email/i.test(msg)) {
-        setNotice("Слишком много запросов. Подождите несколько минут.");
-      } else if (!msg || msg === "{}" || /unexpected_failure|Error sending confirmation|AuthRetryableFetchError/i.test(msg)) {
-        setNotice(
-          "Не удалось отправить письмо подтверждения. Попробуйте ещё раз через минуту или войдите через MAX.",
-        );
-      } else {
-        setNotice(msg || "Не удалось отправить код на почту. Проверьте адрес и телефон.");
-      }
+      setNotice(mapAuthError(err, "AUTH_DELIVERY_FAILED"));
     } finally {
       setBusy(false);
     }
@@ -1311,7 +1410,7 @@ export function ClientCabinet() {
       setMaxVerifyTicket("");
       setNotice("");
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Не удалось войти по коду.");
+      setNotice(mapAuthError(err, "AUTH_CODE_INVALID"));
     } finally {
       setBusy(false);
     }
@@ -1365,7 +1464,9 @@ export function ClientCabinet() {
           };
           if (cancelled) return;
           if (body.status) setMaxWaitStatus(body.status);
-          if (body.message) setNotice(body.message);
+          if (body.message) {
+            setNotice(safeAuthNotice(body.message, "AUTH_PROVIDER_UNAVAILABLE"));
+          }
           if (body.verify_ticket) setMaxVerifyTicket(body.verify_ticket);
           if (body.status === "approved" && body.token_hash) {
             const { error } = await supabase.auth.verifyOtp({
@@ -1379,11 +1480,16 @@ export function ClientCabinet() {
             setNotice("");
           }
           if (body.status === "expired") {
-            setNotice(body.message || "Время подтверждения истекло. Начните вход снова.");
+            setNotice(
+              safeAuthNotice(
+                body.message || "Время подтверждения истекло. Начните вход снова.",
+                "AUTH_CODE_EXPIRED",
+              ),
+            );
           }
         } catch (err) {
           if (!cancelled) {
-            setNotice(err instanceof Error ? err.message : "Ошибка ожидания входа.");
+            setNotice(mapAuthError(err, "AUTH_PROVIDER_UNAVAILABLE"));
           }
         }
       })();
@@ -1713,50 +1819,57 @@ export function ClientCabinet() {
     event?.preventDefault();
     const text = (textOverride ?? messageBody).trim();
     // #region agent log
-    fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-      body: JSON.stringify({
+    const chatDbg = (message: string, hypothesisId: string, data: Record<string, unknown>) => {
+      const payload = {
         sessionId: "d43d44",
-        runId: "pre-fix",
-        hypothesisId: "H2",
-        location: "client-cabinet.tsx:sendMessage:entry",
-        message: "sendMessage called",
-        data: {
-          hasTextOverride: Boolean(textOverride),
-          textLen: text.length,
-          hasToken: Boolean(token),
-          hasSelectedId: Boolean(selectedId),
-          busy,
-        },
+        runId: "post-fix",
+        hypothesisId,
+        location: "client-cabinet.tsx:sendMessage",
+        message,
+        data,
         timestamp: Date.now(),
-      }),
-    }).catch(() => {});
+      };
+      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+      if (apiBase) {
+        fetch(`${apiBase}/api/public/debug-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      }
+    };
+    chatDbg("sendMessage called", "H2", {
+      hasTextOverride: Boolean(textOverride),
+      textLen: text.length,
+      hasToken: Boolean(token),
+      hasSelectedId: Boolean(selectedId),
+      busy,
+    });
     // #endregion
     if (!token || !selectedId || !text) return;
     setBusy(true);
     try {
-      await apiFetch(`/api/portal/cases/${selectedId}/messages`, token, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
-      });
+      const created = await apiFetch<CaseMessageCreateResponse>(
+        `/api/portal/cases/${selectedId}/messages`,
+        token,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: text }),
+        },
+      );
       // #region agent log
-      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-        body: JSON.stringify({
-          sessionId: "d43d44",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "client-cabinet.tsx:sendMessage:post-ok",
-          message: "POST messages ok",
-          data: { caseId: selectedId.slice(0, 8) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      chatDbg("POST messages ok", "H3", {
+        caseId: selectedId.slice(0, 8),
+        hasBotInResponse: Boolean(created && typeof created === "object" && "bot_message" in created),
+      });
       // #endregion
       setMessageBody("");
+      setMessages((previous) => mergeCreatedMessages(previous, created));
       const next = await apiFetch<CaseMessage[]>(
         `/api/portal/cases/${selectedId}/messages`,
         token,
@@ -1767,41 +1880,19 @@ export function ClientCabinet() {
         next[next.length - 2]?.author_kind === "client" &&
         last?.author_kind === "system";
       // #region agent log
-      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-        body: JSON.stringify({
-          sessionId: "d43d44",
-          runId: "pre-fix",
-          hypothesisId: "H5",
-          location: "client-cabinet.tsx:sendMessage:after-refetch",
-          message: "messages refetched",
-          data: {
-            count: next.length,
-            lastAuthor: last?.author_kind ?? null,
-            hasBotAfterClient,
-            kinds: next.slice(-3).map((m) => m.author_kind),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      chatDbg("messages refetched", "H5", {
+        count: next.length,
+        lastAuthor: last?.author_kind ?? null,
+        hasBotAfterClient,
+        kinds: next.slice(-3).map((m) => m.author_kind),
+      });
       // #endregion
       setMessages(next);
     } catch (err) {
       // #region agent log
-      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-        body: JSON.stringify({
-          sessionId: "d43d44",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "client-cabinet.tsx:sendMessage:error",
-          message: "POST or refetch failed",
-          data: { err: err instanceof Error ? err.message : String(err) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      chatDbg("POST or refetch failed", "H3", {
+        err: err instanceof Error ? err.message : String(err),
+      });
       // #endregion
       setNotice("Не удалось отправить сообщение.");
     } finally {
