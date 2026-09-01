@@ -299,6 +299,32 @@ body.page-template-default {
   max-width: 38rem;
 }
 
+.sfrfr-hero__more {
+  margin: 0.5rem 0 1rem;
+}
+
+.sfrfr-hero__text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--sfrfr-primary, #1e4e79);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 4px;
+}
+
+.sfrfr-hero__text-link:hover {
+  color: var(--sfrfr-primary-dark, #163a5c);
+  text-decoration: none;
+}
+
+.sfrfr-hero__text-link:focus-visible {
+  outline: 2px solid var(--sfrfr-primary, #1e4e79);
+  outline-offset: 3px;
+}
+
 .sfrfr-hero__identity {
   margin: 0.9rem 0 0;
   max-width: 40rem;
