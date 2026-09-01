@@ -3,11 +3,10 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
-import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
-import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
+import { ClientCaseChatPanel } from "@/components/client-case-chat-panel";
 import {
   CaseJourneyExtras,
   type PendingGroupPage,
@@ -251,14 +250,6 @@ function markSlotUploaded(
   return { ...work, documents: docs, required_uploaded: uploaded };
 }
 
-function authorLabel(kind: string) {
-  if (kind === "client") return "Вы";
-  if (kind === "representative") return "Представитель";
-  if (kind === "system") return "Система";
-  if (kind === "expert" || kind === "operator" || kind === "staff") return "Специалист";
-  return kind;
-}
-
 async function apiFetch<T>(
   path: string,
   token: string,
@@ -387,17 +378,6 @@ export function ClientCabinet() {
     { user_id: string; email?: string | null; full_name?: string | null }[]
   >([]);
   const ensureCaseRef = useRef(false);
-  const messagesPanelRef = useRef<HTMLDetailsElement | null>(null);
-
-  const { showBotTyping, showBotTypingTimeout } = useBotTypingIndicator(messages);
-
-  const scrollMessagesToEnd = useCallback(() => {
-    const el = messagesPanelRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "end" });
-    });
-  }, []);
 
   useEffect(() => {
     if (!apiBase) return;
@@ -720,18 +700,6 @@ export function ClientCabinet() {
     }, 4000);
     return () => window.clearInterval(timer);
   }, [view, selectedId, token]);
-
-  const lastMessageKey = useMemo(() => {
-    const last = messages[messages.length - 1];
-    return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
-  }, [messages]);
-
-  useEffect(() => {
-    if (view !== "case") return;
-    // Не дёргать страницу при опросе, если контент сообщений не менялся —
-    // скролл только при реальном обновлении ленты / typing.
-    scrollMessagesToEnd();
-  }, [lastMessageKey, showBotTyping, showBotTypingTimeout, view, scrollMessagesToEnd]);
 
   // P0: после пароля сразу создать и открыть дело, если списка нет
   useEffect(() => {
@@ -2475,168 +2443,131 @@ export function ClientCabinet() {
               )}
             </div>
           ) : null}
-          {detail.work?.documents ? (
-            <CaseWorkMap
-              caseNumber={caseNumberFromId(detail.id)}
-              work={detail.work}
-              busy={busy}
-              maxHref={maxChatHref}
-              warning={detail.warning}
-              onConsent={() => void acceptConsent()}
-              onUpload={(file, docType) => void uploadDocument(file, docType)}
-              onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
-              onDelete={(documentId) => void deleteDocument(documentId)}
-              onPay={(orderId) => void startPayment(orderId)}
-              onDownloadResult={(documentId) => void openSignedUrl(documentId)}
-              scenarioAnswers={scenarioAnswers}
-              onScenarioChange={(key, value) => {
-                setScenariosSaved(false);
-                setScenarioAnswers((prev) => ({ ...prev, [key]: value }));
-              }}
-              onSaveScenarios={() => void saveScenarios()}
-              scenariosSaved={scenariosSaved}
-              uploadProgress={uploadProgress}
-            />
-          ) : (
-            <p className="hint">Загружаем карту дела…</p>
-          )}
-
-          {detail.documents.length > 0 ? (
-            <DocumentsTable
-              documents={detail.documents}
-              busy={busy}
-              onOpen={(documentId) => void openSignedUrl(documentId)}
-              selectedIds={selectedDocIds}
-              onToggleSelect={toggleDocSelection}
-              onToggleAll={toggleAllDocs}
-              onBulkDownload={() => void bulkDownloadSelected()}
-            />
-          ) : null}
-
-          {selectedId && token ? (
-            <CaseJourneyExtras
-              caseId={selectedId}
-              token={token}
-              apiBase={apiBase}
-              documents={detail.documents}
-              busy={busy}
-              pendingGroupPages={pendingGroupPages}
-              pendingGroupDocType={pendingGroupDocType}
-              onClearPendingGroup={(documentIds) => {
-                const removed = new Set(documentIds);
-                setPendingGroupPages((previous) =>
-                  previous.filter((page) => !removed.has(page.id)),
-                );
-              }}
-              onRefresh={async () => openCase(selectedId, "case", true)}
-              onPay={(orderId) => void startPayment(orderId)}
-              onNotice={setNotice}
-            />
-          ) : null}
-
-          <details className="home-more" id="messages" ref={messagesPanelRef}>
-            <summary>Если MAX недоступен</summary>
-            <p className="hint">
-              Ответ придёт в MAX или на e-mail. Документы через эту форму не принимаем.
-            </p>
-            <ul className="messages">
-              {messages.length === 0 && !showBotTyping && !showBotTypingTimeout && (
-                <li>Сообщений пока нет.</li>
+          <div className="cabinet-case-layout">
+            <div className="cabinet-case-main">
+              {detail.work?.documents ? (
+                <CaseWorkMap
+                  caseNumber={caseNumberFromId(detail.id)}
+                  work={detail.work}
+                  busy={busy}
+                  maxHref={maxChatHref}
+                  warning={detail.warning}
+                  onConsent={() => void acceptConsent()}
+                  onUpload={(file, docType) => void uploadDocument(file, docType)}
+                  onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
+                  onDelete={(documentId) => void deleteDocument(documentId)}
+                  onPay={(orderId) => void startPayment(orderId)}
+                  onDownloadResult={(documentId) => void openSignedUrl(documentId)}
+                  scenarioAnswers={scenarioAnswers}
+                  onScenarioChange={(key, value) => {
+                    setScenariosSaved(false);
+                    setScenarioAnswers((prev) => ({ ...prev, [key]: value }));
+                  }}
+                  onSaveScenarios={() => void saveScenarios()}
+                  scenariosSaved={scenariosSaved}
+                  uploadProgress={uploadProgress}
+                />
+              ) : (
+                <p className="hint">Загружаем карту дела…</p>
               )}
-              {messages.map((message) => (
-                <li key={message.id} className={message.author_kind === "client" ? "mine" : ""}>
-                  <span className="meta">
-                    {authorLabel(message.author_kind)} ·{" "}
-                    {new Date(message.created_at).toLocaleString("ru-RU")}
-                  </span>
-                  <p>{message.body}</p>
-                </li>
-              ))}
-              {showBotTyping ? (
-                <li className="message-typing" aria-live="polite">
-                  <span className="meta">Бот MAX · печатает…</span>
-                  <p className="message-typing-dots" aria-hidden="true">
-                    <span></span><span></span><span></span>
-                  </p>
-                </li>
-              ) : null}
-              {showBotTypingTimeout ? (
-                <li className="message-typing" aria-live="polite">
-                  <span className="meta">Бот MAX</span>
-                  <p className="hint">{BOT_TYPING_TIMEOUT_HINT}</p>
-                </li>
-              ) : null}
-            </ul>
-            <form className="message-form" onSubmit={sendMessage}>
-              <label htmlFor="message">Ваше сообщение</label>
-              <textarea
-                id="message"
-                rows={3}
-                value={messageBody}
-                onChange={(event) => setMessageBody(event.target.value)}
-                maxLength={4000}
-                required
-              />
-              <button type="submit" disabled={busy}>
-                Отправить
-              </button>
-            </form>
-          </details>
 
-          <details className="home-more">
-            <summary>Важно о безопасности и результате</summary>
-            <div className="home-more-links">
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => void openCase(selectedId!, "docs")}
-              >
-                Согласие и договор
-              </button>
-              {!hasPasswordSet(session) ? (
-                <button type="button" className="linkish" onClick={openPasswordSetup}>
-                  Задать пароль
-                </button>
+              {detail.documents.length > 0 ? (
+                <DocumentsTable
+                  documents={detail.documents}
+                  busy={busy}
+                  onOpen={(documentId) => void openSignedUrl(documentId)}
+                  selectedIds={selectedDocIds}
+                  onToggleSelect={toggleDocSelection}
+                  onToggleAll={toggleAllDocs}
+                  onBulkDownload={() => void bulkDownloadSelected()}
+                />
               ) : null}
-            </div>
-            <div className="channel-prefs">
-              <p className="hint">Куда удобнее получать уведомления?</p>
-              <div className="channel-prefs-buttons" role="group" aria-label="Предпочтительный канал">
-                <button
-                  type="button"
-                  className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
-                  disabled={busy}
-                  onClick={() => void setPreferredChannel("web_cabinet")}
-                >
-                  Веб-кабинет
-                </button>
-                <button
-                  type="button"
-                  className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
-                  disabled={busy}
-                  onClick={() => void setPreferredChannel("max_miniapp")}
-                >
-                  Чат MAX
-                </button>
-                <button
-                  type="button"
-                  className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
-                  disabled={busy}
-                  onClick={() => void setPreferredChannel("unset")}
-                >
-                  Не задан
-                </button>
-              </div>
-              {representatives.length > 0 ? (
-                <p className="hint">
-                  Представители:{" "}
-                  {representatives
-                    .map((r) => r.full_name || r.email || r.user_id.slice(0, 8))
-                    .join(", ")}
-                </p>
+
+              {selectedId && token ? (
+                <CaseJourneyExtras
+                  caseId={selectedId}
+                  token={token}
+                  apiBase={apiBase}
+                  documents={detail.documents}
+                  busy={busy}
+                  pendingGroupPages={pendingGroupPages}
+                  pendingGroupDocType={pendingGroupDocType}
+                  onClearPendingGroup={(documentIds) => {
+                    const removed = new Set(documentIds);
+                    setPendingGroupPages((previous) =>
+                      previous.filter((page) => !removed.has(page.id)),
+                    );
+                  }}
+                  onRefresh={async () => openCase(selectedId, "case", true)}
+                  onPay={(orderId) => void startPayment(orderId)}
+                  onNotice={setNotice}
+                />
               ) : null}
+
+              <details className="home-more">
+                <summary>Важно о безопасности и результате</summary>
+                <div className="home-more-links">
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => void openCase(selectedId!, "docs")}
+                  >
+                    Согласие и договор
+                  </button>
+                  {!hasPasswordSet(session) ? (
+                    <button type="button" className="linkish" onClick={openPasswordSetup}>
+                      Задать пароль
+                    </button>
+                  ) : null}
+                </div>
+                <div className="channel-prefs">
+                  <p className="hint">Куда удобнее получать уведомления?</p>
+                  <div className="channel-prefs-buttons" role="group" aria-label="Предпочтительный канал">
+                    <button
+                      type="button"
+                      className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
+                      disabled={busy}
+                      onClick={() => void setPreferredChannel("web_cabinet")}
+                    >
+                      Веб-кабинет
+                    </button>
+                    <button
+                      type="button"
+                      className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
+                      disabled={busy}
+                      onClick={() => void setPreferredChannel("max_miniapp")}
+                    >
+                      Чат MAX
+                    </button>
+                    <button
+                      type="button"
+                      className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
+                      disabled={busy}
+                      onClick={() => void setPreferredChannel("unset")}
+                    >
+                      Не задан
+                    </button>
+                  </div>
+                  {representatives.length > 0 ? (
+                    <p className="hint">
+                      Представители:{" "}
+                      {representatives
+                        .map((r) => r.full_name || r.email || r.user_id.slice(0, 8))
+                        .join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+              </details>
             </div>
-          </details>
+
+            <ClientCaseChatPanel
+              messages={messages}
+              body={messageBody}
+              busy={busy}
+              onBodyChange={setMessageBody}
+              onSend={sendMessage}
+            />
+          </div>
         </section>
       )}
 

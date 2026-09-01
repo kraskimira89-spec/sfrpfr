@@ -26,6 +26,7 @@ class CaseSummary(BaseModel):
 
 class CaseMessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=4_000)
+    internal: bool = False
 
 
 class CaseStatusUpdate(BaseModel):

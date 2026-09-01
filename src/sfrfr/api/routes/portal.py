@@ -97,6 +97,7 @@ _SUBMISSION_INSTRUCTION = (
 )
 
 _SFR_WARNING = WARNING
+_INTERNAL_STAFF_PREFIX = "[[internal]] "
 
 
 def _repo() -> CaseRepository:
@@ -394,6 +395,12 @@ def _client_documents(raw_docs: list[Any] | None) -> list[dict[str, Any]]:
 
 def _channel_repo() -> ClientChannelRepository:
     return ClientChannelRepository()
+
+
+def _is_internal_staff_message(row: dict[str, Any]) -> bool:
+    kind = str(row.get("author_kind") or "").strip().lower()
+    body = str(row.get("body") or "")
+    return kind in {"staff", "expert", "operator"} and body.startswith(_INTERNAL_STAFF_PREFIX)
 
 
 def _resolve_max_user_id(
@@ -2433,6 +2440,8 @@ def list_messages(
         .data
         or []
     )
+    if not principal.is_staff:
+        messages = [row for row in messages if not _is_internal_staff_message(row)]
     docs = (
         client.table("documents")
         .select("id, storage_path, doc_type, created_at, uploaded_by")
@@ -2482,6 +2491,9 @@ def create_message(
     repo = _repo()
     repo.require_case(principal, case_id)
     kind = "staff" if principal.is_staff else "client"
+    body = payload.body.strip()
+    if principal.is_staff and payload.internal and not body.startswith(_INTERNAL_STAFF_PREFIX):
+        body = f"{_INTERNAL_STAFF_PREFIX}{body}"
     response = (
         get_supabase_client()
         .table("case_messages")
@@ -2490,7 +2502,7 @@ def create_message(
                 "case_id": case_id,
                 "author_user_id": principal.user_id,
                 "author_kind": kind,
-                "body": payload.body,
+                "body": body,
             }
         )
         .execute()

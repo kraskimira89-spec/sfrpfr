@@ -320,6 +320,15 @@ header span { color: var(--muted); font-size: 1rem; }
   font-size: 1rem;
 }
 .stack { display: grid; gap: 14px; }
+.cabinet-case-layout {
+  display: grid;
+  gap: 14px;
+}
+.cabinet-case-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
 .muted { color: var(--muted); margin: 0 0 12px; }
 .case-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
 .case-list li { padding: 0; }
@@ -991,6 +1000,7 @@ header span { color: var(--muted); font-size: 1rem; }
   color: var(--muted);
   font-size: 1.15rem;
   letter-spacing: -0.2rem;
+  -webkit-user-select: none;
   user-select: none;
 }
 .photo-group-thumb {
@@ -1042,6 +1052,145 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 .next-actions { padding-left: 1.2rem; }
 .safety-note { margin: 0.25rem 0 0; }
+.client-chat-panel {
+  width: 100%;
+}
+.case-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 10px 28px rgba(20, 32, 51, 0.08);
+  background: var(--surface, #fff);
+}
+.case-chat-head {
+  display: grid;
+  gap: 8px;
+}
+.case-chat-head h2 { margin: 0; font-size: 1.1rem; }
+.case-chat-head .hint { margin: 0; }
+.case-chat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.case-chat-filter {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  min-height: 28px;
+}
+.case-chat-filter:hover {
+  background: #f3f6fa;
+  color: var(--ink);
+}
+.case-chat-filter.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.case-chat-feed {
+  min-height: 300px;
+  max-height: 62vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f9fc;
+  padding: 10px;
+}
+.case-chat-day {
+  list-style: none;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 6px 0;
+  letter-spacing: 0.02em;
+}
+.case-chat-empty { margin: 12px 4px; }
+.case-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.case-chat-bubble {
+  border-radius: 10px;
+  padding: 8px 10px;
+  max-width: 95%;
+  border: 1px solid var(--line);
+}
+.case-chat-bubble p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.case-chat-bubble .meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.case-chat-bubble--staff {
+  margin-left: auto;
+  background: #e8eef8;
+  border-color: #b8c8e0;
+}
+.case-chat-bubble--client {
+  margin-right: auto;
+  background: #fff;
+}
+.case-chat-bubble--system,
+.case-chat-bubble--bot {
+  margin-right: auto;
+  background: #eef6f1;
+  border-color: #9ec3b0;
+}
+.case-chat-doc {
+  font-weight: 600;
+  color: #1a4d3a;
+}
+.case-chat-composer {
+  display: grid;
+  gap: 8px;
+}
+.case-chat-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.case-chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.case-chat-typing-dots {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.case-chat-typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: case-chat-typing-bounce 1.2s ease-in-out infinite;
+}
+.case-chat-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.case-chat-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes case-chat-typing-bounce {
+  0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
 .app-layout--case {
   width: 100%;
   max-width: none;
@@ -1057,6 +1206,13 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 
 @media (max-width: 860px) {
+  .cabinet-case-layout {
+    grid-template-columns: 1fr;
+  }
+  .case-chat-feed {
+    min-height: 220px;
+    max-height: 40vh;
+  }
   .auth-layout--split {
     width: min(520px, calc(100% - 24px));
   }
@@ -1082,5 +1238,16 @@ header span { color: var(--muted); font-size: 1rem; }
   .card { padding: 22px 16px; }
   .auth-return-panel__title {
     font-size: 1.55rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .cabinet-case-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .client-chat-panel {
+    position: sticky;
+    top: 72px;
   }
 }

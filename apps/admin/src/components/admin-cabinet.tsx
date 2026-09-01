@@ -1680,7 +1680,7 @@ export function AdminCabinet() {
     try {
     await apiFetch(`/api/portal/cases/${detail.id}/messages`, token, {
       method: "POST",
-        body: JSON.stringify({ body: maxReplyBody.trim() }),
+        body: JSON.stringify({ body: maxReplyBody.trim(), internal: true }),
     });
       setMaxReplyBody("");
     const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
