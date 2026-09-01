@@ -325,6 +325,79 @@ body.page-template-default {
   outline-offset: 3px;
 }
 
+/* === Таблицы и информационные блоки для блога и инструкций === */
+.sfrfr-table-wrap {
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+table.sfrfr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+table.sfrfr-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  white-space: nowrap;
+}
+
+table.sfrfr-table td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+  color: #334155;
+}
+
+table.sfrfr-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.sfrfr-official-source {
+  background: #f0fdf4;
+  border-left: 4px solid #16a34a;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-radius: 8px;
+}
+
+.sfrfr-official-source p {
+  margin: 0 0 0.75rem;
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.sfrfr-official-source p:last-child {
+  margin-bottom: 0;
+}
+
+.sfrfr-highlight-box {
+  background: #f8fafc;
+  border-left: 4px solid #1e4e79;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-radius: 8px;
+}
+
+.sfrfr-highlight-box p {
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+}
+
+.sfrfr-highlight-box ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .sfrfr-hero__identity {
   margin: 0.9rem 0 0;
   max-width: 40rem;
