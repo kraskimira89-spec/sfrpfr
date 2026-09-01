@@ -28,7 +28,7 @@ CORE_FILES = tuple(BLOG / f"{number:02d}-{name}.html" for number, name in (
     (16, "chek-list-mfc"),
 ))
 
-OFFICIAL_HOSTS = {"sfr.gov.ru", "www.gosuslugi.ru", "gosuslugi.ru", "мфц.рф"}
+OFFICIAL_HOSTS = {"sfr.gov.ru", "www.gosuslugi.ru", "gosuslugi.ru"}
 BANNED = (
     "через 2–3 месяца",
     "через 2-3 месяца",
