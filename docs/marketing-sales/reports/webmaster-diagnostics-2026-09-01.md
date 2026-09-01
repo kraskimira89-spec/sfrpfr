@@ -1,6 +1,6 @@
 # Диагностика Яндекс Вебмастера (2026-09-01)
 
-Снято: `2026-09-01T19:21:53+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
+Снято: `2026-09-01T20:00:06+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
 
 **Канон:** смотреть только apex `https://proverkastaza.ru` (без www).
 Зеркала `www` / `http` с 301 — предупреждения там ожидаемы.
@@ -35,6 +35,8 @@ UI: [диагностика apex](https://webmaster.yandex.ru/site/https%3Aprove
 
 - OK ensure_site
 - OK vps_ssh remediate: robots.txt, sitemap, home и favicon проверены; cache flush выполнен
+- site root: `favicon.ico`, `favicon.svg`, `favicon-120.png` — OK
+- sitemap ensure на VPS: пропущен, так как `secrets/yandex-webmaster.env` на VPS отсутствует
 - live probes: robots.txt 200, sitemap 200, home 200
 
 - after_probe: OK
