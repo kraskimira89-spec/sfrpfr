@@ -96,7 +96,10 @@ def test_try_immediate_rule_reply_none_without_match(
 ) -> None:
     mock_work.return_value = {"status_key": "waiting_docs", "now_need": ""}
     case = {"id": "00000000-0000-0000-0000-000000000099", "clients": {}}
-    assert try_immediate_rule_reply(case=case, user_text="Здравствуйте, подскажите по стажу") is None
+    assert (
+        try_immediate_rule_reply(case=case, user_text="Здравствуйте, подскажите по стажу")
+        is None
+    )
     mock_llm.assert_not_called()
     mock_append.assert_not_called()
 
