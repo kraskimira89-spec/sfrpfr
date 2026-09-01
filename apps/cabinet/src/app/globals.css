@@ -971,6 +971,29 @@ header span { color: var(--muted); font-size: 1rem; }
   color: #1b6b3a;
 }
 .doc-status--not_needed { color: var(--muted); }
+.doc-purpose {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0.2rem 0 0;
+  line-height: 1.35;
+}
+.doc-alert {
+  color: #c62828 !important;
+  font-weight: 500;
+  margin: 0.25rem 0 0;
+}
+.my-docs-guide {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border-radius: var(--radius);
+  border-left: 3px solid var(--brand);
+}
+.my-docs-guide p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
 .slot-actions {
   display: flex;
   flex-wrap: wrap;

@@ -77,6 +77,22 @@ function firstUploadSlot(work: ClientWork): WorkSlot | undefined {
   );
 }
 
+const SLOT_PURPOSES: Record<string, string> = {
+  ils: "Выписка из Социального фонда (СЗИ-ИЛС) — основа для анализа стажа, баллов и работодателей.",
+  labor: "Трудовая книжка — все заполненные страницы для построчной сверки с выпиской.",
+  archive: "Архивные справки — подтверждают периоды работы при ликвидации или реорганизации.",
+  sfr_size: "Справка о размере пенсии — для сопоставления начисленных сумм (если пенсия назначена).",
+  sfr_pay: "Справка о выплатах СФР за 12 месяцев — для проверки начислений.",
+  bank: "Банковская выписка за 12 месяцев — для сравнения начисленной и фактически полученной пенсии.",
+  passport: "Паспорт — для сверки установочных данных и реквизитов при необходимости.",
+  military: "Военный билет — для подтверждения периода службы по призыву (нестраховой период).",
+  children: "Свидетельства о рождении детей — для подтверждения нестраховых периодов ухода.",
+  marriage: "Свидетельство о браке / справка ЗАГС — для подтверждения смены фамилии.",
+  education: "Документы об образовании — при подтверждении периодов обучения.",
+  north: "Подтверждение специального, вредного или северного стажа для досрочной пенсии.",
+  sfr: "Официальный ответ СФР для анализа причин отказа или исключения периодов.",
+};
+
 export function CaseWorkMap({
   caseNumber,
   work,
@@ -303,12 +319,17 @@ export function CaseWorkMap({
             <tbody>
               {work.documents.map((row) => (
                 <tr key={row.key}>
-                  <td>{row.title}</td>
+                  <td>
+                    <strong>{row.title}</strong>
+                    {SLOT_PURPOSES[row.key] ? (
+                      <p className="hint doc-purpose">{SLOT_PURPOSES[row.key]}</p>
+                    ) : null}
+                  </td>
                   <td>{row.need_label}</td>
                   <td>
                     <span className={`doc-status doc-status--${row.status}`}>{row.status_label}</span>
                     {row.status === "reupload" ? (
-                      <p className="hint">Файл не удалось прочитать. Загрузите более чёткое фото или PDF.</p>
+                      <p className="hint doc-alert">Файл не удалось прочитать. Загрузите более чёткое фото или PDF.</p>
                     ) : null}
                   </td>
                   <td>{row.added_at || "—"}</td>
@@ -332,17 +353,28 @@ export function CaseWorkMap({
                 <strong>{row.title}</strong>
                 <span>{row.need_label}</span>
               </div>
+              {SLOT_PURPOSES[row.key] ? (
+                <p className="hint doc-purpose">{SLOT_PURPOSES[row.key]}</p>
+              ) : null}
               <p>
                 Статус: <span className={`doc-status doc-status--${row.status}`}>{row.status_label}</span>
               </p>
               {row.added_at ? <p className="hint">Добавлено: {row.added_at}</p> : null}
               {row.status === "reupload" ? (
-                <p className="hint">Файл не удалось прочитать. Загрузите более чёткое фото или PDF.</p>
+                <p className="hint doc-alert">Файл не удалось прочитать. Загрузите более чёткое фото или PDF.</p>
               ) : null}
               <SlotActions row={row} busy={busy} onPick={() => pickFile(row)} onDelete={onDelete} />
             </li>
           ))}
         </ul>
+        <div className="my-docs-guide">
+          <p className="hint">
+            <strong>Зачем нужны документы:</strong> Каждый файл используется исключительно для построчной сверки и подготовки плана действий.
+          </p>
+          <p className="hint">
+            <strong>Что будет дальше:</strong> Специалист проверит читаемость, сопоставит даты работы с выпиской ИЛС и отметит возможные расхождения.
+          </p>
+        </div>
       </section>
 
       <section className="panel">

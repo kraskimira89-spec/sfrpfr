@@ -162,7 +162,7 @@ _DOC_SLOTS: tuple[dict[str, Any], ...] = (
 )
 
 _STATUS_LABEL = {
-    "missing": "Не загружен",
+    "missing": "Нужно загрузить",
     "awaiting": "Загружен — ожидает проверки",
     "accepted": "Принят специалистом",
     "reupload": "Нужно загрузить повторно",

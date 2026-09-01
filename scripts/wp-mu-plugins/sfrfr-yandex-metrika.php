@@ -388,10 +388,18 @@ add_action('wp_footer', static function (): void {
         });
       });
     });
-    document.querySelectorAll('a[href*="cabinet.proverkastaza.ru"]').forEach(function (a) {
+    document.querySelectorAll('a[href*="cabinet.proverkastaza.ru"], a[data-sfrfr-goal="cabinet_open_click"]').forEach(function (a) {
       once(a, "sfrfrMetrikaCab", function (el) {
         el.addEventListener("click", function () {
+          window.sfrfrMetrikaGoal("cabinet_open_click");
           window.sfrfrMetrikaGoal("cabinet_click");
+        });
+      });
+    });
+    document.querySelectorAll('a[href="#kak-prohodit"], a[href*="#kak-prohodit"], a[data-sfrfr-goal="how_it_works_click"]').forEach(function (a) {
+      once(a, "sfrfrMetrikaHowItWorks", function (el) {
+        el.addEventListener("click", function () {
+          goalWithPlacement("how_it_works_click", el);
         });
       });
     });
