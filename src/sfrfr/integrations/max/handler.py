@@ -244,6 +244,7 @@ def _append_client_case_message(
     case_id: str | None,
     text: str,
     max_user_id: str | None = None,
+    external_message_id: str | None = None,
 ) -> None:
     """Сохранить текст клиента в ленту дела (или в буфер до появления дела)."""
     from sfrfr.integrations.max.case_chat_log import append_client_case_message
@@ -252,6 +253,7 @@ def _append_client_case_message(
         case_id=case_id,
         max_user_id=max_user_id,
         text=text,
+        external_message_id=external_message_id,
     )
 
 
@@ -370,6 +372,21 @@ def _chat_case_id(
         if _case_exists_in_supabase(pref):
             return pref
     return _case_id_for_max_user(user_id)
+
+
+def _max_message_id(update: dict[str, Any]) -> str | None:
+    """Идентификатор входящего сообщения MAX для дедупликации webhook."""
+    message = update.get("message") or update.get("message_created") or {}
+    if isinstance(message, dict):
+        for key in ("message_id", "id", "mid"):
+            raw = message.get(key)
+            if raw is not None:
+                return str(raw).strip() or None
+    for key in ("message_id", "id"):
+        raw = update.get(key)
+        if raw is not None:
+            return str(raw).strip() or None
+    return None
 
 
 def _text(update: dict[str, Any]) -> str:
@@ -2686,7 +2703,48 @@ def handle_max_update(
     )
     if receipt_handled is not None:
         return receipt_handled
-    # Канон: предпочтительно кабинет на сайте; вложение в чате — принимаем.
+    # Единый чат: при активном деле в кабинете файлы в MAX не принимаем.
+    if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
+        supabase_case_id = _resolve_case_id_by_max_user(user_id)
+        if supabase_case_id:
+            from sfrfr.integrations.max.intake import documents_upload_keyboard
+            from sfrfr.services.case_chat_delivery import (
+                MAX_FILE_REJECT_TEXT,
+                documents_cabinet_url,
+            )
+
+            docs_url = documents_cabinet_url(supabase_case_id)
+            reply = MAX_FILE_REJECT_TEXT
+            ext_id = _max_message_id(update)
+            names = [n for n, _ in max_files] if max_files else []
+            if isinstance(file_name, str) and file_name.strip():
+                names.append(file_name.strip())
+            log_body = (
+                f"[Файл в MAX] {names[0]}"
+                if names
+                else "[Файл в MAX]"
+            )
+            _append_client_case_message(
+                case_id=supabase_case_id,
+                max_user_id=user_id,
+                text=log_body,
+                external_message_id=ext_id,
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=documents_upload_keyboard(cabinet_url=docs_url),
+                case_id=supabase_case_id,
+            )
+            return MaxHandleResult(
+                ok=False,
+                action="upload_rejected_unified_chat",
+                case_id=supabase_case_id,
+                reply=reply,
+            )
+    # Канон: предпочтительно кабинет на сайте; вложение в чате — принимаем (intake без дела).
     if max_files or isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
         mirror_id = _chat_case_id(user_id, preferred=str(record.case_id))
         if mirror_id and _supabase_configured():
@@ -2771,6 +2829,7 @@ def handle_max_update(
             case_id=case_for_log,
             max_user_id=user_id,
             text=text,
+            external_message_id=_max_message_id(update),
         )
         from sfrfr.integrations.max.llm_chat import reply_to_free_text
 

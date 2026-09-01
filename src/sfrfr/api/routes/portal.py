@@ -403,24 +403,16 @@ def _is_internal_staff_message(row: dict[str, Any]) -> bool:
     return kind in {"staff", "expert", "operator"} and body.startswith(_INTERNAL_STAFF_PREFIX)
 
 
-def _mirror_client_message_to_max(case: dict[str, Any], body: str) -> None:
-    """Дублировать клиентское сообщение из кабинета в MAX при связанном аккаунте."""
-    client_row = case.get("clients") or {}
-    if isinstance(client_row, list):
-        client_row = client_row[0] if client_row else {}
-    max_uid = str((client_row or {}).get("max_user_id") or "").strip()
-    if not max_uid:
-        return
-    try:
-        from sfrfr.integrations.max.client import MaxBotClient
+def _mirror_client_message_to_max(
+    case: dict[str, Any],
+    body: str,
+    *,
+    message_id: str | None = None,
+) -> None:
+    """Дублировать клиентское сообщение из кабинета в MAX (outbox)."""
+    from sfrfr.services.case_chat_delivery import mirror_client_message_to_max
 
-        bot = MaxBotClient()
-        if not bot.available:
-            logger.info("MAX mirror skipped: bot not configured")
-            return
-        bot.send_message(text=body, user_id=max_uid)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("mirror cabinet message to MAX failed: %s", exc)
+    mirror_client_message_to_max(case, body, message_id=message_id)
 
 
 def _resolve_max_user_id(
@@ -2499,6 +2491,20 @@ def list_messages(
             }
         )
     timeline.sort(key=lambda row: str(row.get("created_at") or ""))
+    if not principal.is_staff:
+        try:
+            from sfrfr.services.case_chat_delivery import mark_messages_read_for_client
+
+            mark_messages_read_for_client(case_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("mark client read on list_messages skipped: %s", exc)
+    else:
+        try:
+            from sfrfr.services.case_chat_delivery import mark_messages_read_for_staff
+
+            mark_messages_read_for_staff(case_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("mark staff read on list_messages skipped: %s", exc)
     return timeline
 
 
@@ -2514,6 +2520,7 @@ def create_message(
     body = payload.body.strip()
     if principal.is_staff and payload.internal and not body.startswith(_INTERNAL_STAFF_PREFIX):
         body = f"{_INTERNAL_STAFF_PREFIX}{body}"
+    channel_origin = "admin" if principal.is_staff else "cabinet"
     response = (
         get_supabase_client()
         .table("case_messages")
@@ -2523,6 +2530,7 @@ def create_message(
                 "author_user_id": principal.user_id,
                 "author_kind": kind,
                 "body": body,
+                "channel_origin": channel_origin,
             }
         )
         .execute()
@@ -2530,5 +2538,21 @@ def create_message(
     repo.audit(case_id, principal.user_id, "message_created")
     row = response.data[0]
     if kind == "client" and not _is_internal_staff_message(row):
-        _mirror_client_message_to_max(case, body)
+        _mirror_client_message_to_max(case, body, message_id=str(row.get("id") or "") or None)
+    elif kind == "staff" and not _is_internal_staff_message(row):
+        client_row = case.get("clients") or {}
+        if isinstance(client_row, list):
+            client_row = client_row[0] if client_row else {}
+        max_uid = str((client_row or {}).get("max_user_id") or "").strip()
+        if max_uid:
+            try:
+                from sfrfr.services.case_chat_delivery import notify_client_new_chat_message
+
+                notify_client_new_chat_message(
+                    case_id=case_id,
+                    max_user_id=max_uid,
+                    preview_body=body,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("staff chat notify skipped: %s", exc)
     return row

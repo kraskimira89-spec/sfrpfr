@@ -2,6 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from "react";
 import { BOT_TYPING_TIMEOUT_HINT } from "../../../../shared/bot-typing";
+import {
+  CASE_CHAT_DOCUMENTS_RULE,
+  CASE_CHAT_EMPTY,
+  CASE_CHAT_SUBTITLE,
+  CASE_CHAT_TITLE,
+} from "../../../../shared/case-chat-copy";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
 type CaseMessage = {
@@ -113,14 +119,12 @@ export function ClientCaseChatPanel({
   messages,
   body,
   busy,
-  maxHref,
   onBodyChange,
   onSend,
 }: {
   messages: CaseMessage[];
   body: string;
   busy: boolean;
-  maxHref?: string;
   onBodyChange: (value: string) => void;
   onSend: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -152,19 +156,12 @@ export function ClientCaseChatPanel({
   }
 
   return (
-    <aside id="case-chat" className="case-chat panel client-chat-panel" aria-label="Чат по делу">
+    <aside id="case-chat" className="case-chat panel client-chat-panel" aria-label={CASE_CHAT_TITLE}>
       <div className="case-chat-head">
         <div className="case-chat-head-row">
-          <h2>Чат по делу</h2>
-          {maxHref ? (
-            <a className="case-chat-max-link" href={maxHref} target="_blank" rel="noopener noreferrer">
-              Открыть этот чат в MAX ↗
-            </a>
-          ) : null}
+          <h2>{CASE_CHAT_TITLE}</h2>
         </div>
-        <p className="hint">
-          Один и тот же чат в кабинете и MAX. Сообщения здесь видны специалисту; ответ появится в этой ленте.
-        </p>
+        <p className="hint">{CASE_CHAT_SUBTITLE}</p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [
@@ -189,11 +186,7 @@ export function ClientCaseChatPanel({
       <div className="case-chat-feed" ref={feedRef}>
         {chatEmpty ? (
           <div className="case-chat-empty-box">
-            <p className="case-chat-empty-title">Сообщений по делу пока нет.</p>
-            <p className="hint">
-              Задайте вопрос ниже — это тот же чат, что и в MAX. Документы загружайте только в разделе «Мои
-              документы», не в чат.
-            </p>
+            <p className="case-chat-empty-title">{CASE_CHAT_EMPTY}</p>
           </div>
         ) : filterEmpty ? (
           <div className="case-chat-empty-box case-chat-empty-box--filter">
@@ -259,9 +252,7 @@ export function ClientCaseChatPanel({
           disabled={busy}
           placeholder="Напишите вопрос специалисту"
         />
-        <p className="hint case-chat-files-hint">
-          Документы и файлы — только в «Мои документы». В чат отправляйте текст.
-        </p>
+        <p className="hint case-chat-files-hint">{CASE_CHAT_DOCUMENTS_RULE}</p>
         <div className="case-chat-quick" role="group" aria-label="Быстрые вопросы">
           {QUICK_QUESTIONS.map((question) => (
             <button

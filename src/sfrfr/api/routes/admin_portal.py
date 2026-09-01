@@ -1248,8 +1248,19 @@ def send_max_reply_to_client(
             "author_user_id": principal.user_id,
             "author_kind": "staff",
             "body": store_body,
+            "channel_origin": "admin",
         }
     ).execute()
+    try:
+        from sfrfr.services.case_chat_delivery import notify_client_new_chat_message
+
+        notify_client_new_chat_message(
+            case_id=case_id,
+            max_user_id=max_uid,
+            preview_body=text,
+        )
+    except Exception:  # noqa: BLE001
+        pass
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
     return {"ok": True, "max_user_id": max_uid, "result": result}
 

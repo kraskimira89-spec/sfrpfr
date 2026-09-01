@@ -1,6 +1,13 @@
 "use client";
 
 import { type ChangeEvent, useRef, useState } from "react";
+import {
+  CASE_ACTIONS_CHAT_HINT,
+  CASE_ACTIONS_CHAT_LINK,
+  CASE_CHAT_DOCUMENTS_RULE,
+  CASE_CHAT_MAX_BUTTON,
+  CASE_QUESTIONS_INTRO,
+} from "../../../../shared/case-chat-copy";
 
 export type WorkSlot = {
   key: string;
@@ -308,6 +315,17 @@ export function CaseWorkMap({
         </section>
       ) : null}
 
+      <section className="panel case-questions-panel">
+        <h2>Вопросы по делу</h2>
+        <p className="hint">{CASE_QUESTIONS_INTRO}</p>
+        <p className="home-actions">
+          <a className="secondary" href={maxHref} target="_blank" rel="noopener noreferrer">
+            {CASE_CHAT_MAX_BUTTON}
+          </a>
+        </p>
+        <p className="hint">{CASE_CHAT_DOCUMENTS_RULE}</p>
+      </section>
+
       <section className="panel">
         <h2>Как идёт работа</h2>
         <ol className="work-progress">
@@ -505,19 +523,18 @@ export function CaseWorkMap({
             ))}
           </ol>
         )}
+        <p className="hint">{CASE_ACTIONS_CHAT_HINT}</p>
         <p className="home-actions">
           <a className="secondary" href={work.ils_howto_url} target="_blank" rel="noreferrer">
             Как получить выписку ИЛС
           </a>
-          <a className="secondary" href="#case-chat-input">
-            Задать вопрос в чате
+          <a className="button-link" href="#case-chat-input">
+            {CASE_ACTIONS_CHAT_LINK}
           </a>
         </p>
       </section>
 
-      <p className="hint safety-note">
-        Не отправляйте документы в чат. Файлы — только в разделе «Мои документы». {warning}
-      </p>
+      <p className="hint safety-note">{CASE_CHAT_DOCUMENTS_RULE}</p>
     </div>
   );
 }

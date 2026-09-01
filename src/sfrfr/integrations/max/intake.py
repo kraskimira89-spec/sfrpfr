@@ -594,6 +594,20 @@ def summary_keyboard(
     return inline_buttons_keyboard(rows)
 
 
+def documents_upload_keyboard(*, cabinet_url: str | None) -> list[dict[str, Any]]:
+    """Кнопка в раздел «Мои документы» (единый чат — файлы только в кабинете)."""
+    from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
+
+    url = (cabinet_url or "").strip()
+    rows: list[list[dict[str, Any]]] = []
+    if url:
+        rows.append([{"type": "link", "text": DOCUMENTS_SECTION_LABEL, "url": url}])
+    rows.append(
+        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
+    )
+    return inline_buttons_keyboard(rows)
+
+
 def upload_blocked_keyboard(
     *,
     cabinet_url: str | None = None,

@@ -191,7 +191,9 @@ def _insert_case_message(
     author_kind: str,
     body: str,
     created_at: str | None = None,
-) -> None:
+    channel_origin: str = "bot",
+    external_message_id: str | None = None,
+) -> dict[str, Any] | None:
     from sfrfr.db.session import get_supabase_client
 
     row: dict[str, Any] = {
@@ -199,10 +201,16 @@ def _insert_case_message(
         "author_kind": author_kind,
         "author_user_id": None,
         "body": body[:4000],
+        "channel_origin": channel_origin,
     }
     if created_at:
         row["created_at"] = created_at
-    get_supabase_client().table("case_messages").insert(row).execute()
+    ext = (external_message_id or "").strip()
+    if ext:
+        row["external_message_id"] = ext
+    response = get_supabase_client().table("case_messages").insert(row).execute()
+    data = response.data or []
+    return data[0] if data else None
 
 
 def _buffer(*, max_user_id: str, author_kind: str, body: str) -> None:
@@ -229,6 +237,8 @@ def append_case_chat_message(
     max_user_id: str | None = None,
     author_kind: str,
     body: str,
+    channel_origin: str = "max",
+    external_message_id: str | None = None,
 ) -> None:
     """Записать в case_messages или в буфер до появления дела.
 
@@ -241,9 +251,24 @@ def append_case_chat_message(
     mid = (max_user_id or "").strip()
     if not text:
         return
+    ext = (external_message_id or "").strip()
+    if ext:
+        try:
+            from sfrfr.services.case_chat_delivery import find_message_by_external_id
+
+            if find_message_by_external_id(ext):
+                return
+        except Exception:  # noqa: BLE001
+            pass
     if cid and len(cid) >= 32:
         try:
-            _insert_case_message(case_id=cid, author_kind=author_kind, body=text)
+            _insert_case_message(
+                case_id=cid,
+                author_kind=author_kind,
+                body=text,
+                channel_origin=channel_origin,
+                external_message_id=ext or None,
+            )
             return
         except Exception as exc:  # noqa: BLE001
             # FK 23503 = фантомный case_id: ожидаемо → буфер, без ERROR-шума.
@@ -289,12 +314,15 @@ def append_client_case_message(
     case_id: str | None,
     max_user_id: str | None = None,
     text: str,
+    external_message_id: str | None = None,
 ) -> None:
     append_case_chat_message(
         case_id=case_id,
         max_user_id=max_user_id,
         author_kind="client",
         body=text,
+        channel_origin="max",
+        external_message_id=external_message_id,
     )
 
 

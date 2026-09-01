@@ -2450,6 +2450,7 @@ export function ClientCabinet() {
                   caseNumber={caseNumberFromId(detail.id)}
                   work={detail.work}
                   busy={busy}
+                  maxHref={maxChatHref}
                   warning={detail.warning}
                   onConsent={() => void acceptConsent()}
                   onUpload={(file, docType) => void uploadDocument(file, docType)}
@@ -2559,14 +2560,16 @@ export function ClientCabinet() {
               </details>
             </div>
 
-            <ClientCaseChatPanel
-              messages={messages}
-              body={messageBody}
-              busy={busy}
-              maxHref={maxChatHref}
-              onBodyChange={setMessageBody}
-              onSend={sendMessage}
-            />
+            <details className="case-chat-drawer">
+              <summary className="case-chat-drawer-summary">Чат по делу</summary>
+              <ClientCaseChatPanel
+                messages={messages}
+                body={messageBody}
+                busy={busy}
+                onBodyChange={setMessageBody}
+                onSend={sendMessage}
+              />
+            </details>
           </div>
         </section>
       )}
