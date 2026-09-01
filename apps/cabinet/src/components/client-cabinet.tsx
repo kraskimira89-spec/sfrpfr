@@ -211,15 +211,6 @@ function SiteNavButton({ className }: { className?: string }) {
   );
 }
 
-function SiteReturnPanel() {
-  return (
-    <a className="auth-return-panel" href={SITE_URL}>
-      <span className="auth-return-panel__title">Вернуться на сайт</span>
-      <span className="auth-return-panel__hint">proverkastaza.ru</span>
-    </a>
-  );
-}
-
 function AuthBrandHeader() {
   return (
     <>
