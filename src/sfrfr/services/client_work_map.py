@@ -84,9 +84,9 @@ _DOC_SLOTS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "bank",
-        "title": "Банковская выписка за 12 месяцев",
-        "need": "if_pension",
-        "need_label": "Если пенсия уже назначена",
+        "title": "Дополнительный финансовый документ (только по запросу)",
+        "need": "staff_requested",
+        "need_label": "Только по запросу специалиста",
         "doc_type": "bank_statement",
     },
     {
@@ -140,7 +140,7 @@ _DOC_SLOTS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "sfr",
-        "title": "Ответ СФР",
+        "title": "Ответ или решение СФР",
         "need": "optional",
         "need_label": "Если уже есть",
         "doc_type": "sfr_decision",

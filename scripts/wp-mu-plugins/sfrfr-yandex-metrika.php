@@ -252,12 +252,28 @@ add_action('wp_footer', static function (): void {
     flushQueue();
   }
 
+  var ALLOWED_PARAM_KEYS = ["placement", "audience_segment", "page_type"];
+  function sanitizeParams(params) {
+    if (!params || typeof params !== "object") return null;
+    var out = {};
+    for (var i = 0; i < ALLOWED_PARAM_KEYS.length; i++) {
+      var k = ALLOWED_PARAM_KEYS[i];
+      if (typeof params[k] === "string" && params[k].length > 0 && params[k].length <= 50) {
+        var val = params[k];
+        if (!/[@?&=#]/.test(val) && !/\d{5,}/.test(val)) {
+          out[k] = val;
+        }
+      }
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  }
+
   function flushQueue() {
     if (typeof ym !== "function") return;
     while (queue.length) {
       var item = queue.shift();
       var name = typeof item === "string" ? item : (item && item.name);
-      var params = item && typeof item === "object" ? item.params : null;
+      var params = item && typeof item === "object" ? sanitizeParams(item.params) : null;
       if (!name) continue;
       try {
         if (params) ym(COUNTER_ID, "reachGoal", String(name), params);
@@ -268,7 +284,7 @@ add_action('wp_footer', static function (): void {
 
   window.sfrfrMetrikaGoal = function (name, params) {
     if (!name || readConsent() !== true) return;
-    var payload = { name: String(name), params: params && typeof params === "object" ? params : null };
+    var payload = { name: String(name), params: sanitizeParams(params) };
     if (!loaded || typeof ym !== "function") {
       queue.push(payload);
       if (readConsent() === true) loadMetrika();
@@ -466,21 +482,26 @@ add_action('wp_footer', static function (): void {
         }, { once: true });
       });
     }
+    var tariffsTracked = false;
     var tarify = document.getElementById("tarify") || (location.pathname.indexOf("/tarify") === 0 ? document.body : null);
     if (tarify && "IntersectionObserver" in window) {
       once(tarify, "sfrfrMetrikaTariff", function (el) {
         var io = new IntersectionObserver(function (entries) {
-          entries.forEach(function (en) {
-            if (en.isIntersecting) {
+          if (tariffsTracked) return;
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting) {
+              tariffsTracked = true;
               window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
               window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
               io.disconnect();
+              break;
             }
-          });
+          }
         }, { threshold: 0.35 });
         io.observe(el);
       });
-    } else if (location.pathname.indexOf("/tarify") === 0) {
+    } else if (location.pathname.indexOf("/tarify") === 0 && !tariffsTracked) {
+      tariffsTracked = true;
       window.sfrfrMetrikaGoal("tariffs_view", { placement: "tariffs" });
       window.sfrfrMetrikaGoal("tariff_view", { placement: "tariffs" });
     }

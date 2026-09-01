@@ -108,9 +108,9 @@ def slot_visible(
         return True
     if slot_key == "bank":
         return (
-            SCENARIO_BANK_LIMITED in active_scenarios
-            or SCENARIO_PAYOUT_RECONCILIATION in active_scenarios
+            (SCENARIO_BANK_LIMITED in active_scenarios and BANK_REQUIREMENT_CODE in staff_codes)
             or BANK_REQUIREMENT_CODE in staff_codes
+            or has_uploaded
         )
     if slot_key == GUARDIANSHIP_SLOT_KEY:
         return SCENARIO_ADOPTION_GUARDIANSHIP in active_scenarios or has_uploaded
@@ -205,8 +205,7 @@ def checklist_rows_for_scenarios(
         order += 1
     bank_scenario = (
         staff_bank
-        or SCENARIO_BANK_LIMITED in scenarios
-        or SCENARIO_PAYOUT_RECONCILIATION in scenarios
+        or (SCENARIO_BANK_LIMITED in scenarios and staff_bank)
     )
     if bank_scenario:
         rows.append(
@@ -219,6 +218,8 @@ def checklist_rows_for_scenarios(
                 "category": "staff_requested",
                 "is_required_now": True,
                 "consent_required": True,
+                "separate_consent_required": True,
+                "reason_for_request": "Индивидуальный запрос специалиста по сверке пенсионных выплат",
                 "sort_order": order,
             }
         )

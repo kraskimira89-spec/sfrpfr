@@ -183,3 +183,38 @@ def test_result_ready_only_with_diagnosis_pdf() -> None:
     assert work["status_key"] in {"result_ready", "done"}
     assert work["result"]["ready"] is True
     assert work["result"]["document_id"] == "pdf"
+
+
+def test_bank_slot_not_visible_without_staff_request() -> None:
+    # Обычный клиент с анкетой о выплатах не видит финансовый слот
+    scenarios = [{"scenario_code": "payout_reconciliation", "active": True}]
+    slots, _uploaded, _total = document_slots([], [], scenario_rows=scenarios)
+    keys = [s["key"] for s in slots]
+    assert "bank" not in keys
+
+
+def test_bank_slot_visible_only_when_staff_requests() -> None:
+    # Специалист создал запрос на финансовый документ
+    checklist = [
+        {
+            "title": "Дополнительный финансовый документ",
+            "requirement_code": "bank_statement_limited",
+            "category": "staff_requested",
+            "status": "open",
+        }
+    ]
+    slots, _uploaded, _total = document_slots([], checklist_items=checklist)
+    keys = [s["key"] for s in slots]
+    assert "bank" in keys
+    bank_slot = next(s for s in slots if s["key"] == "bank")
+    assert "только по запросу" in bank_slot["title"].lower()
+
+
+def test_sfr_response_slot_when_scenario_active() -> None:
+    scenarios = [{"scenario_code": "sfr_response_or_refusal", "active": True}]
+    slots, _uploaded, _total = document_slots([], [], scenario_rows=scenarios)
+    keys = [s["key"] for s in slots]
+    assert "sfr" in keys
+    sfr_slot = next(s for s in slots if s["key"] == "sfr")
+    assert "Ответ или решение СФР" in sfr_slot["title"]
+
