@@ -211,6 +211,15 @@ function SiteNavButton({ className }: { className?: string }) {
   );
 }
 
+function SiteReturnPanel() {
+  return (
+    <a className="auth-return-panel" href={SITE_URL}>
+      <span className="auth-return-panel__title">Вернуться на сайт</span>
+      <span className="auth-return-panel__hint">proverkastaza.ru</span>
+    </a>
+  );
+}
+
 function AuthBrandHeader() {
   return (
     <>
@@ -409,12 +418,10 @@ export function ClientCabinet() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpResendUntil, setOtpResendUntil] = useState(0);
-  const [otpResendLeft, setOtpResendLeft] = useState(0);
+  const [otpClock, setOtpClock] = useState(0);
   const [fullName, setFullName] = useState("");
   /** Контакты уже из заявки с сайта — не спрашиваем повторно. */
   const [fromLeadPrefill, setFromLeadPrefill] = useState(false);
-  const [editLeadContacts, setEditLeadContacts] = useState(false);
-  const [registerConsent, setRegisterConsent] = useState(false);
   const [maxTicket, setMaxTicket] = useState("");
   const [maxVerifyTicket, setMaxVerifyTicket] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
@@ -516,7 +523,6 @@ export function ClientCabinet() {
       if (qName) setFullName(qName);
       if (fromLead && (qEmail || qPhone)) {
         setFromLeadPrefill(true);
-        setEditLeadContacts(!qEmail || !qPhone);
       }
       if (mode === "recover") {
         setAuthScreen("recover");
@@ -550,19 +556,18 @@ export function ClientCabinet() {
   }, [supabase]);
 
   useEffect(() => {
-    if (otpResendUntil <= 0) {
-      setOtpResendLeft(0);
-      return;
-    }
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((otpResendUntil - Date.now()) / 1000));
-      setOtpResendLeft(left);
-      if (left <= 0) setOtpResendUntil(0);
-    };
-    tick();
-    const id = window.setInterval(tick, 250);
+    if (otpResendUntil <= 0) return undefined;
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      setOtpClock(now);
+      if (now >= otpResendUntil) {
+        setOtpResendUntil(0);
+      }
+    }, 250);
     return () => window.clearInterval(id);
   }, [otpResendUntil]);
+  const otpResendLeft =
+    otpResendUntil <= 0 ? 0 : Math.max(0, Math.ceil((otpResendUntil - (otpClock || Date.now())) / 1000));
 
   // Ссылка из MAX с verify_ticket — сразу форма ввода кода
   useEffect(() => {
@@ -957,9 +962,6 @@ export function ClientCabinet() {
     setEmailCreateUser(true);
     setOtpResendUntil(0);
     setMaxVerifyTicket("");
-    if (next === "register") {
-      setRegisterConsent(false);
-    }
     if (next === "max") {
       setAuthChannel("max");
       resetMaxWizard();
@@ -1236,135 +1238,6 @@ export function ClientCabinet() {
       setNotice(safeAuthNotice(body.message || LOGIN_COPY.maxWaiting, "AUTH_PROVIDER_UNAVAILABLE"));
     } catch (err) {
       setNotice(mapAuthError(err, "AUTH_PROVIDER_UNAVAILABLE"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function requestRegister(event?: FormEvent<HTMLFormElement>) {
-    event?.preventDefault();
-    // #region agent log
-    const dbg = (message: string, hypothesisId: string, data: Record<string, unknown>) => {
-      const payload = {
-        sessionId: "d43d44",
-        location: "client-cabinet.tsx:requestRegister",
-        message,
-        hypothesisId,
-        data,
-        timestamp: Date.now(),
-        runId: "pre",
-      };
-      fetch("http://127.0.0.1:7431/ingest/15b5aa1f-f97a-42c4-8de4-bc9cab7ebdc3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d43d44" },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
-      if (apiBase) {
-        fetch(`${apiBase}/api/public/debug-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
-    };
-    // #endregion
-    if (!registerConsent) {
-      setNotice("Отметьте согласие с СОПД — без него регистрацию продолжить нельзя.");
-      return;
-    }
-    const emailTrim = email.trim();
-    const phoneTrim = phone.trim();
-    if (!emailTrim) {
-      setNotice("Укажите электронную почту.");
-      return;
-    }
-    if (!phoneTrim) {
-      setNotice("Укажите телефон.");
-      return;
-    }
-    if (!apiBase) {
-      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
-      return;
-    }
-    if (!supabase) {
-      logAuthDiagnostic("AUTH_CONFIG_MISSING");
-      setNotice(AUTH_MESSAGES.AUTH_CONFIG_MISSING);
-      return;
-    }
-    setAuthChannel("email");
-    setEmailCreateUser(true);
-    setBusy(true);
-    setNotice("");
-    try {
-      // #region agent log
-      dbg("register_start", "B", {
-        hasEmail: Boolean(emailTrim),
-        hasPhone: Boolean(phoneTrim),
-        emailDomain: emailTrim.includes("@") ? emailTrim.split("@")[1] : "",
-      });
-      // #endregion
-      const check = await fetch(`${apiBase}/api/portal/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: emailTrim,
-          phone: phoneTrim,
-          full_name: fullName.trim() || undefined,
-          consent: true,
-        }),
-      });
-      const checkBody = (await check.json().catch(() => ({}))) as {
-        detail?: string;
-        email?: string;
-        phone?: string;
-      };
-      // #region agent log
-      dbg("register_api_result", "B", { status: check.status, ok: check.ok });
-      // #endregion
-      if (!check.ok) {
-        throw new Error(
-          typeof checkBody.detail === "string"
-            ? checkBody.detail
-            : "Проверьте почту и телефон.",
-        );
-      }
-      const normalizedEmail = (checkBody.email || emailTrim).trim();
-      const normalizedPhone = (checkBody.phone || phoneTrim).trim();
-      const meta: Record<string, string> = { phone: normalizedPhone };
-      if (fullName.trim()) meta.full_name = fullName.trim();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: `${CABINET_PUBLIC_URL}/`,
-          data: meta,
-        },
-      });
-      // #region agent log
-      dbg("signInWithOtp_result", "B", {
-        hasError: Boolean(error),
-        errorName: error?.name || "",
-        errorStatus: (error as { status?: number } | null)?.status ?? null,
-        errorMsg: (error?.message || "").slice(0, 160),
-      });
-      // #endregion
-      if (error) throw error;
-      setEmail(normalizedEmail);
-      setPhone(normalizedPhone);
-      setOtpSent(true);
-      setMaxVerifyTicket("");
-      setAuthChannel("email");
-      setOtpResendUntil(Date.now() + OTP_RESEND_MS);
-      setNotice(LOGIN_COPY.otpSentGeneric);
-      // #region agent log
-      dbg("register_ui_success", "E", { otpSent: true });
-      // #endregion
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      // #region agent log
-      dbg("register_catch", "B", { errorMsg: msg.slice(0, 160) });
-      // #endregion
-      setNotice(mapAuthError(err, "AUTH_DELIVERY_FAILED"));
     } finally {
       setBusy(false);
     }
@@ -1933,9 +1806,7 @@ export function ClientCabinet() {
 
     return (
       <>
-        <p className="lead lead-compact">
-          Войдите через чат MAX — подтвердите вход в приложении, кабинет откроется здесь.
-        </p>
+        <p className="lead lead-compact">{LOGIN_COPY.maxLead}</p>
         <div className="max-wizard max-wizard--actions">
           {!otpSent ? (
             <>
@@ -1945,20 +1816,13 @@ export function ClientCabinet() {
                 disabled={busy}
                 onClick={() => void startMaxLogin()}
               >
-                Войти через MAX
+                {LOGIN_COPY.maxContinue}
               </button>
-              <ol className="max-login-steps">
-                <li>Откроется чат MAX</li>
-                <li>Нажмите «Получить код для входа»</li>
-                <li>Кабинет откроется на этой странице</li>
-              </ol>
             </>
           ) : awaitingMaxConfirm && !needsCodeOnSite ? (
             <>
-              <p className="max-wizard-status" role="status">
-                {maxWaitStatus === "pending_confirm"
-                  ? "Подтвердите вход в чате MAX — кабинет откроется автоматически"
-                  : "Откройте чат MAX и нажмите «Получить код для входа»"}
+              <p className="max-wizard-status" role="status" aria-live="polite">
+                {LOGIN_COPY.maxWaiting}
               </p>
               <button
                 type="button"
@@ -1969,7 +1833,14 @@ export function ClientCabinet() {
                 Открыть чат MAX
               </button>
               <button type="button" className="ghost" onClick={resetMaxWizard}>
-                Начать заново
+                {LOGIN_COPY.cancel}
+              </button>
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => goAuthScreen("email_otp")}
+              >
+                {LOGIN_COPY.emailFallback}
               </button>
             </>
           ) : (
@@ -1988,7 +1859,7 @@ export function ClientCabinet() {
                   required
                 />
                 <button type="submit" disabled={busy}>
-                  Войти по коду
+                  {LOGIN_COPY.signIn}
                 </button>
               </form>
               <button
@@ -2000,7 +1871,14 @@ export function ClientCabinet() {
                 Открыть чат MAX снова
               </button>
               <button type="button" className="ghost" onClick={resetMaxWizard}>
-                Начать заново
+                {LOGIN_COPY.cancel}
+              </button>
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => goAuthScreen("email_otp")}
+              >
+                {LOGIN_COPY.emailFallback}
               </button>
             </>
           )}
@@ -2015,18 +1893,7 @@ export function ClientCabinet() {
       <main className="auth-layout auth-layout--split">
         <div className="auth-split">
           <section className="card auth-card">
-            <p className="eyebrow">
-              <BrandHomeLink>
-                <img
-                  className="brand-logo"
-                  src="/logo-light.png"
-                  width={40}
-                  height={40}
-                  alt="Проверка стажа"
-                />
-                Проверка стажа
-              </BrandHomeLink>
-            </p>
+            <AuthBrandHeader />
             <h1>{recoveryMode ? "Новый пароль" : "Пароль — по желанию"}</h1>
             <p className="lead lead-compact">
               {recoveryMode
@@ -2063,7 +1930,11 @@ export function ClientCabinet() {
                 {savingPassword ? "Сохраняем…" : "Сохранить пароль"}
               </button>
             </form>
-            {notice && <p className="notice">{notice}</p>}
+            {notice ? (
+              <p className="notice" role="status" aria-live="polite">
+                {notice}
+              </p>
+            ) : null}
             <p className="hint">
               <button
                 type="button"
@@ -2082,214 +1953,160 @@ export function ClientCabinet() {
 
   if (!session) {
     const showMax = authScreen === "max";
-    const loginTabActive = authScreen !== "register";
+    const showEmail = authScreen === "email_otp" || authScreen === "register";
+    const authReady = Boolean(supabase);
+    const hideEmailForm = !authReady && !IS_DEV;
 
     return (
       <main className="auth-layout auth-layout--split">
         <div className="auth-split">
         <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
-          <p className="eyebrow">
-            <BrandHomeLink>
-              <img
-                className="brand-logo"
-                src="/logo-light.png"
-                width={40}
-                height={40}
-                alt="Проверка стажа"
-              />
-              Проверка стажа
-            </BrandHomeLink>
-          </p>
-          <h1>Личный кабинет</h1>
+          <AuthBrandHeader />
 
-          <div className="auth-tabs" role="tablist" aria-label="Вход или регистрация">
-            <button
-              type="button"
-              role="tab"
-              id="auth-tab-login"
-              aria-selected={loginTabActive}
-              className={loginTabActive ? "auth-tab active" : "auth-tab"}
-              onClick={() => goAuthScreen("max")}
-            >
-              Вход
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="auth-tab-register"
-              aria-selected={!loginTabActive}
-              className={!loginTabActive ? "auth-tab active" : "auth-tab"}
-              onClick={() => goAuthScreen("register")}
-            >
-              Регистрация
-            </button>
-          </div>
-
-          {authScreen === "max" ? (
+          {showMax ? (
             <>
+              <h1>{LOGIN_COPY.maxTitle}</h1>
               {renderMaxWizard()}
-              <div className="auth-alt-hint">
-                <p className="auth-alt-label">Другие способы входа</p>
-                <div className="auth-alt-list" role="group" aria-label="Другие способы входа">
+              {!otpSent ? (
+                <p className="hint">
                   <button
                     type="button"
-                    className="auth-alt-btn"
-                    onClick={() => goAuthScreen("password")}
+                    className="linkish"
+                    onClick={() => goAuthScreen("email_otp")}
                   >
-                    По паролю
+                    {LOGIN_COPY.emailFallback}
                   </button>
-                  <button
-                    type="button"
-                    className="auth-alt-btn"
-                    onClick={() => {
-                      setEmailCreateUser(false);
-                      goAuthScreen("email_otp");
-                    }}
-                  >
-                    Код на почту
-                  </button>
-                </div>
-              </div>
+                </p>
+              ) : null}
+              <AuthHelpLinks />
             </>
           ) : null}
 
-          {authScreen === "register" ? (
-            <>
-              <p className="lead lead-compact">
-                {fromLeadPrefill && !editLeadContacts
-                  ? "Данные из заявки уже подставлены. Нужны почта и телефон. Отметьте согласие — пришлём письмо со ссылкой для входа."
-                  : "Регистрация: укажите электронную почту и телефон. Пришлём письмо со ссылкой для входа — или код для ввода на этой странице."}
-              </p>
-              {!otpSent ? (
-                <form className="auth-form" onSubmit={requestRegister}>
-                  {fromLeadPrefill && !editLeadContacts ? (
-                    <div className="auth-prefill-summary" aria-live="polite">
-                      {fullName.trim() ? (
-                        <p>
-                          <span className="auth-prefill-label">Имя</span>
-                          <strong>{fullName.trim()}</strong>
-                        </p>
-                      ) : null}
-                      {email.trim() ? (
-                        <p>
-                          <span className="auth-prefill-label">Почта</span>
-                          <strong>{email.trim()}</strong>
-                        </p>
-                      ) : null}
-                      {phone.trim() ? (
-                        <p>
-                          <span className="auth-prefill-label">Телефон</span>
-                          <strong>{phone.trim()}</strong>
-                        </p>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="linkish"
-                        onClick={() => setEditLeadContacts(true)}
-                      >
-                        Изменить контакты
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <label htmlFor="reg-name">Имя</label>
-                      <input
-                        id="reg-name"
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        autoComplete="name"
-                      />
-                      <label htmlFor="reg-email">Электронная почта</label>
-                      <input
-                        id="reg-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                        placeholder="name@example.com"
-                        required
-                      />
-                      <label htmlFor="reg-phone">Телефон</label>
-                      <input
-                        id="reg-phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        autoComplete="tel"
-                        placeholder="+7 900 000-00-00"
-                        required
-                      />
-                      <p className="hint">
-                        Нужны и почта, и телефон. На почту придёт ссылка для входа и код.
-                      </p>
-                    </>
-                  )}
-                  <label className="auth-consent" htmlFor="reg-consent">
-                    <input
-                      id="reg-consent"
-                      type="checkbox"
-                      checked={registerConsent}
-                      onChange={(e) => setRegisterConsent(e.target.checked)}
-                      required
-                    />
-                    <span>
-                      Согласен с{" "}
-                      <a
-                        href={`${SITE_URL}/soglasie/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        СОПД
-                      </a>
-                    </span>
-                  </label>
-                  <button type="submit" disabled={busy || !registerConsent}>
-                    Получить ссылку на почту
+          {showEmail ? (
+            hideEmailForm ? (
+              <>
+                <h1>{LOGIN_COPY.title}</h1>
+                <p className="lead lead-compact" role="status" aria-live="polite">
+                  {AUTH_MESSAGES.AUTH_CONFIG_MISSING}
+                </p>
+                <div className="auth-max-alt">
+                  <p className="hint">{LOGIN_COPY.maxHint}</p>
+                  <button
+                    type="button"
+                    className="auth-alt-btn"
+                    onClick={() => goAuthScreen("max")}
+                  >
+                    {LOGIN_COPY.maxCta}
+                  </button>
+                </div>
+                <AuthHelpLinks />
+              </>
+            ) : !otpSent ? (
+              <>
+                <h1>{LOGIN_COPY.title}</h1>
+                <p className="lead lead-compact">{LOGIN_COPY.subtitle}</p>
+                {fromLeadPrefill && fullName.trim() ? (
+                  <p className="hint">Здравствуйте, {fullName.trim()}.</p>
+                ) : null}
+                {IS_DEV && !authReady ? (
+                  <p className="auth-dev-diag">
+                    DEV: AUTH_CONFIG_MISSING. Задайте NEXT_PUBLIC_SUPABASE_URL и
+                    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY или NEXT_PUBLIC_SUPABASE_ANON_KEY в
+                    apps/cabinet/.env.local
+                  </p>
+                ) : null}
+                <form className="auth-form" onSubmit={requestOtp}>
+                  <label htmlFor="otp-email">{LOGIN_COPY.emailLabel}</label>
+                  <input
+                    id="otp-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={busy || !authReady}>
+                    {LOGIN_COPY.getCode}
                   </button>
                 </form>
-              ) : (
+                <div className="auth-max-alt">
+                  <p className="hint">{LOGIN_COPY.maxHint}</p>
+                  <button
+                    type="button"
+                    className="auth-alt-btn"
+                    onClick={() => goAuthScreen("max")}
+                  >
+                    {LOGIN_COPY.maxCta}
+                  </button>
+                </div>
+                <p className="hint">
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => goAuthScreen("password")}
+                  >
+                    {LOGIN_COPY.passwordLink}
+                  </button>
+                </p>
+                <AuthHelpLinks />
+              </>
+            ) : (
+              <>
+                <h1>{LOGIN_COPY.checkInboxTitle}</h1>
+                <p className="lead lead-compact">
+                  {LOGIN_COPY.checkInboxLead} {maskEmail(email)}. {LOGIN_COPY.enterCode}
+                </p>
+                <p className="hint">{LOGIN_COPY.usuallyFast}</p>
                 <form className="auth-form" onSubmit={verifyEmailOtp}>
-                  <p className="max-wizard-status" role="status">
-                    Письмо ушло на {email.trim() || "вашу почту"}. Откройте ссылку «Войти в
-                    кабинет» в письме — или введите код ниже.
-                  </p>
-                  <label htmlFor="reg-email-otp">Код из письма</label>
+                  <label htmlFor="login-otp">Код из письма</label>
                   <input
-                    id="reg-email-otp"
+                    id="login-otp"
                     inputMode="numeric"
                     autoComplete="one-time-code"
+                    autoFocus
+                    maxLength={8}
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
+                    onChange={(e) =>
+                      setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 8))
+                    }
                     required
                   />
                   <button type="submit" disabled={busy}>
-                    Подтвердить код
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={busy}
-                    onClick={() => void requestRegister()}
-                  >
-                    Отправить письмо ещё раз
-                  </button>
-                  <button type="button" className="ghost" onClick={resetMaxWizard}>
-                    Начать заново
+                    {LOGIN_COPY.signIn}
                   </button>
                 </form>
-              )}
-              <p className="auth-links">
-                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                  ← Войти через MAX
+                <p className="hint">{LOGIN_COPY.noInstantPromise}</p>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy || otpResendLeft > 0}
+                  onClick={() => void requestOtp()}
+                >
+                  {otpResendLeft > 0
+                    ? `Отправить код ещё раз через ${otpResendLeft} сек.`
+                    : "Отправить код ещё раз"}
                 </button>
-              </p>
-            </>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtpCode("");
+                    setNotice("");
+                    setOtpResendUntil(0);
+                  }}
+                >
+                  {LOGIN_COPY.changeEmail}
+                </button>
+              </>
+            )
           ) : null}
 
           {authScreen === "password" ? (
             <>
-              <p className="lead lead-compact">Вход по почте и паролю.</p>
+              <h1>Вход по паролю</h1>
+              <p className="lead lead-compact">Если пароль уже задан — войдите по почте и паролю.</p>
               <form className="auth-form" onSubmit={signInWithPassword}>
                 <label htmlFor="login-email">Почта</label>
                 <input
@@ -2318,69 +2135,17 @@ export function ClientCabinet() {
                   Забыли пароль?
                 </button>
                 {" · "}
-                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                  ← Войти через MAX
+                <button type="button" className="linkish" onClick={() => goAuthScreen("email_otp")}>
+                  {LOGIN_COPY.emailFallback}
                 </button>
               </p>
-            </>
-          ) : null}
-
-          {authScreen === "email_otp" ? (
-            <>
-              <p className="lead lead-compact">
-                {emailCreateUser
-                  ? "Первый раз без MAX: код на почту, затем назначите пароль."
-                  : "Одноразовый код письмом на почту."}
-              </p>
-              {!otpSent ? (
-                <form className="auth-form" onSubmit={requestOtp}>
-                  <label htmlFor="otp-email">Почта</label>
-                  <input
-                    id="otp-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <button type="submit" disabled={busy}>
-                    Получить код
-                  </button>
-                </form>
-              ) : (
-                <form className="auth-form" onSubmit={verifyEmailOtp}>
-                  <label htmlFor="login-otp">Код из письма</label>
-                  <input
-                    id="login-otp"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                  />
-                  <button type="submit" disabled={busy}>
-                    Войти по коду
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={busy}
-                    onClick={() => void requestOtp()}
-                  >
-                    Отправить ещё раз
-                  </button>
-                </form>
-              )}
-              <p className="hint">
-                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                  ← Войти через MAX
-                </button>
-              </p>
+              <AuthHelpLinks />
             </>
           ) : null}
 
           {authScreen === "recover" ? (
             <>
+              <h1>Восстановление пароля</h1>
               <p className="lead lead-compact">
                 Укажите почту — пришлём ссылку и код для восстановления пароля.
               </p>
@@ -2426,25 +2191,18 @@ export function ClientCabinet() {
                 </form>
               )}
               <p className="hint">
-                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                  ← Войти через MAX
+                <button type="button" className="linkish" onClick={() => goAuthScreen("email_otp")}>
+                  {LOGIN_COPY.emailFallback}
                 </button>
               </p>
             </>
           ) : null}
 
-          {notice && <p className="notice">{notice}</p>}
-          <div className="auth-site-hint">
-            <p className="hint">Нужна проверка стажа без кабинета?</p>
-            <a
-              className="button-link auth-site-hint__btn"
-              href={`${SITE_URL}/#zayavka`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Оставить заявку на сайте
-            </a>
-          </div>
+          {notice ? (
+            <p className="notice" role="status" aria-live="polite">
+              {notice}
+            </p>
+          ) : null}
         </section>
           <SiteReturnPanel />
         </div>
