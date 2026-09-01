@@ -1,0 +1,31 @@
+{
+  "cases": {
+    "719049c7-430e-4f86-9407-b068bb43d746": {
+      "case_id": "719049c7-430e-4f86-9407-b068bb43d746",
+      "client_name": "MAX user 101",
+      "snils_masked": "***-***-*** **",
+      "consent_given": false,
+      "ctx": {
+        "case_id": "719049c7-430e-4f86-9407-b068bb43d746",
+        "status": "intake",
+        "client_name": "MAX user 101",
+        "max_user_id": "101",
+        "max_chat_id": "1",
+        "document_paths": [],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": {
+          "title": "Заявление",
+          "body": "Прошу перерасчёт пенсии по стажу.",
+          "findings_used": [],
+          "needs_human_review": true
+        },
+        "error": null
+      }
+    }
+  }
+}

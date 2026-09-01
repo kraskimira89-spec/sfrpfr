@@ -31,6 +31,9 @@ class Settings(BaseSettings):
 
     ocr_engine: str = "tesseract"
     tesseract_lang: str = "rus+eng"
+    document_ingest_async: bool = True
+    document_av_mode: str = "auto"
+    document_worker_poll_seconds: float = 3.0
 
     ai_provider: str = "yandex"
     openai_api_key: str = ""

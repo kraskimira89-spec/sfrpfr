@@ -304,7 +304,10 @@ def client_progress_payload(row: dict[str, Any]) -> dict[str, Any]:
         "progress_percent": int(row.get("progress_percent") or 0),
         "current_stage": row.get("current_stage"),
         "progress_message": row.get("progress_message"),
-        "downloadable": is_downloadable_status(status),
+        "downloadable": is_downloadable_status(
+            status,
+            antivirus_status=str(row.get("antivirus_status") or ""),
+        ),
         "placement_suggestion": row.get("placement_suggestion"),
         "updated_at": row.get("updated_at") or datetime.now(UTC).isoformat(),
     }

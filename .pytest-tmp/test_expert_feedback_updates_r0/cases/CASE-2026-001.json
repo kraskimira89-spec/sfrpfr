@@ -1,0 +1,30 @@
+{
+  "case_id": "CASE-2026-001",
+  "problem_type": "expert_feedback",
+  "documents": [
+    "ИЛС",
+    "Трудовая книжка"
+  ],
+  "discrepancy": null,
+  "legal_basis": null,
+  "prepared": [],
+  "sfr_outcome": "granted",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "correct",
+  "verified_at": "2026-09-01",
+  "quality": "rejected",
+  "what_worked": [
+    "ошибка подхода"
+  ],
+  "what_failed": [],
+  "documents_actually_needed": [
+    "ИЛС",
+    "Трудовая книжка"
+  ],
+  "can_be_template": true,
+  "source_file": null,
+  "ops_case_id": "11111111-2222-3333-4444-555555555555",
+  "notes": "ops_case_id=11111111-2222-3333-4444-555555555555",
+  "summary": "ошибка подхода"
+}

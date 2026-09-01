@@ -577,6 +577,55 @@ button.badge--clickable:hover {
 }
 .filters input, .filters select { min-width: 160px; }
 .plain-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.ingest-review-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.ingest-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ingest-review-editor {
+  display: grid;
+  gap: 8px;
+}
+.ingest-review-split {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1fr);
+  gap: 12px;
+}
+.ingest-review-original {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 240px;
+}
+.ingest-review-original iframe {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+.ingest-review-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  margin-top: 4px;
+}
+.ingest-review-pages {
+  margin: 0;
+  font-size: 0.9rem;
+}
+@media (max-width: 900px) {
+  .ingest-review-split { grid-template-columns: 1fr; }
+}
 .draft {
   white-space: pre-wrap;
   background: #f7fafc;

@@ -47,6 +47,8 @@ _SLOT_SCENARIO_MAP: dict[str, frozenset[str]] = {
     "north": frozenset({SCENARIO_NORTHERN}),
     "archive": frozenset({SCENARIO_LIQUIDATED}),
     "sfr": frozenset({SCENARIO_SFR_RESPONSE}),
+    "signed_application": frozenset({SCENARIO_SFR_RESPONSE}),
+    "signed_appeal": frozenset({SCENARIO_SFR_RESPONSE}),
 }
 
 # Дополнительный слот опеки (ключ в work map)
@@ -170,6 +172,16 @@ def checklist_rows_for_scenarios(
         (SCENARIO_NORTHERN, "north_docs", "Справки по северному / льготному стажу"),
         (SCENARIO_LIQUIDATED, "archive_docs", "Архивные справки с мест работы"),
         (SCENARIO_SFR_RESPONSE, "sfr_response", "Ответ / отказ СФР и приложения"),
+        (
+            SCENARIO_SFR_RESPONSE,
+            "client_signed_application",
+            "Подписанное заявление в СФР",
+        ),
+        (
+            SCENARIO_SFR_RESPONSE,
+            "client_signed_appeal",
+            "Подписанное обращение / жалоба",
+        ),
         (SCENARIO_REPRESENTATIVE, "representative_docs", "Доверенность / представительство"),
         (SCENARIO_PENSION_ASSIGNED, "pension_size", "Справка о размере пенсии"),
         (SCENARIO_PENSION_ASSIGNED, "sfr_payments", "Справка о выплатах СФР за период"),

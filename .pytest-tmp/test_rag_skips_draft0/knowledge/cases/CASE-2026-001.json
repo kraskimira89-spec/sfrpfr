@@ -1,0 +1,24 @@
+{
+  "case_id": "CASE-2026-001",
+  "problem_type": "расхождение стажа; расхождение ИЛС",
+  "documents": [
+    "ИЛС"
+  ],
+  "discrepancy": "расхождение стажа; расхождение ИЛС",
+  "legal_basis": null,
+  "prepared": [],
+  "sfr_outcome": "unknown",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "unknown",
+  "verified_at": "2026-09-01",
+  "quality": "verified",
+  "what_worked": [],
+  "what_failed": [],
+  "documents_actually_needed": [],
+  "can_be_template": false,
+  "source_file": "d.md",
+  "ops_case_id": null,
+  "notes": "Автоимпорт: требуется проверка экспертом перед verified/template.",
+  "summary": "черновик про стаж и ИЛС"
+}

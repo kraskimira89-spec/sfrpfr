@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 
 from sfrfr.api.routes.portal import _client_documents
 from sfrfr.api.schemas.admin import (
@@ -57,11 +67,16 @@ from sfrfr.security.auth import (
     require_admin,
     require_staff,
 )
+from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET
 from sfrfr.services.admin_analytics import (
     analytics_export_rows,
     build_admin_analytics,
     rows_to_csv,
     rows_to_json,
+)
+from sfrfr.services.document_ingest_worker import (
+    enqueue_document_ingest_job,
+    process_document_ingest_job,
 )
 from sfrfr.services.public_tariffs import staff_package_label
 from sfrfr.services.staff_finance import (
@@ -299,6 +314,290 @@ def _filter_staff_case(
         base["draft"] = (pipeline or {}).get("draft")
         base["classifications"] = (pipeline or {}).get("classifications") or []
     return base
+
+
+def _load_ingest_document(case_id: str, document_id: str) -> dict[str, Any] | None:
+    return CaseRepository._one_or_none(
+        get_supabase_client()
+        .table("documents")
+        .select("*")
+        .eq("id", document_id)
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+
+
+def _queue_ingest_again(
+    *,
+    case_id: str,
+    document_id: str,
+    principal: Principal,
+    background_tasks: BackgroundTasks,
+) -> str:
+    client = get_supabase_client()
+    existing = CaseRepository._one_or_none(
+        client.table("document_ingest_jobs")
+        .select("id")
+        .eq("document_id", document_id)
+        .eq("job_type", "ingest")
+        .limit(1)
+        .execute()
+    )
+    if existing:
+        job_id = str(existing["id"])
+        client.table("document_ingest_jobs").update(
+            {
+                "status": "queued",
+                "attempts": 0,
+                "progress_percent": 5,
+                "current_stage": "security_check",
+                "last_error": None,
+                "available_at": datetime.now(UTC).isoformat(),
+                "locked_by": None,
+                "locked_at": None,
+            }
+        ).eq("id", job_id).execute()
+    else:
+        job_id = enqueue_document_ingest_job(case_id=case_id, document_id=document_id)
+    client.table("documents").update(
+        {
+            "ingest_status": "security_check",
+            "progress_percent": 5,
+            "current_stage": "security_check",
+            "progress_message": "Повторяем проверку документа.",
+            "ingest_review_required": False,
+        }
+    ).eq("id", document_id).eq("case_id", case_id).execute()
+    background_tasks.add_task(process_document_ingest_job, job_id)
+    _repo().audit(case_id, principal.audit_actor_id(), "ingest_rerun")
+    return job_id
+
+
+@router.get("/admin/cases/{case_id}/ingest-review")
+def list_ingest_review_documents(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Очередь документов, которым нужна проверка безопасности или OCR экспертом."""
+    _repo().require_case(principal, case_id)
+    rows = (
+        get_supabase_client()
+        .table("documents")
+        .select("*")
+        .eq("case_id", case_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+        or []
+    )
+    review_rows = [
+        row
+        for row in rows
+        if bool(row.get("ingest_review_required"))
+        or str(row.get("ingest_status") or "")
+        in {"manual_review", "security_check"}
+        or str(row.get("antivirus_status") or "") in {"pending", "error"}
+    ]
+    return {
+        "case_id": case_id,
+        "documents": _staff_documents(
+            review_rows,
+            can_view_ocr=principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
+        ),
+        "count": len(review_rows),
+    }
+
+
+@router.get("/admin/cases/{case_id}/documents/{document_id}/ingest-artifacts")
+def get_ingest_artifacts(
+    case_id: str,
+    document_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Отдать экспертам extracted.md и ingest.json из private Storage."""
+    _require_expert(principal)
+    _repo().require_case(principal, case_id)
+    row = _load_ingest_document(case_id, document_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    extracted_path = str(row.get("ingest_artifact_path") or "")
+    manifest_path = str(row.get("ingest_manifest_path") or "")
+    if not extracted_path or not manifest_path:
+        raise HTTPException(status_code=404, detail="ingest artifacts not found")
+    storage = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET)
+    try:
+        extracted = storage.download(extracted_path).decode("utf-8", errors="replace")
+        manifest = json.loads(storage.download(manifest_path).decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail="ingest artifacts unavailable") from exc
+    _repo().audit(case_id, principal.audit_actor_id(), "ingest_artifacts_viewed")
+    return {"document_id": document_id, "extracted_text": extracted, "manifest": manifest}
+
+
+@router.post("/admin/cases/{case_id}/documents/{document_id}/ingest-accept")
+def accept_ingest_document(
+    case_id: str,
+    document_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Принять OCR после сверки оригинала и текста."""
+    _require_expert(principal)
+    _repo().require_case(principal, case_id)
+    row = _load_ingest_document(case_id, document_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    if str(row.get("antivirus_status") or "") in {"pending", "error", "infected"}:
+        raise HTTPException(status_code=409, detail="security check must be completed first")
+    text = str(payload.get("extracted_text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="extracted_text required")
+    fields: dict[str, Any] = {
+        "ingest_review_required": False,
+        "ingest_status": "ocr_done",
+        "progress_percent": 100,
+        "current_stage": "ocr_done",
+        "progress_message": "Текст подтверждён экспертом.",
+    }
+    fields["content_preview"] = text[:2000]
+    artifact_path = str(row.get("ingest_artifact_path") or "")
+    manifest_path = str(row.get("ingest_manifest_path") or "")
+    if artifact_path:
+        try:
+            storage = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET)
+            storage.upload(
+                artifact_path,
+                text.encode("utf-8"),
+                {"content-type": "text/markdown; charset=utf-8", "x-upsert": "true"},
+            )
+            if manifest_path:
+                manifest = json.loads(storage.download(manifest_path).decode("utf-8"))
+                if isinstance(manifest, dict):
+                    manifest["needs_ingest_review"] = False
+                    manifest["reviewed_at"] = datetime.now(UTC).isoformat()
+                    storage.upload(
+                        manifest_path,
+                        json.dumps(manifest, ensure_ascii=False).encode("utf-8"),
+                        {"content-type": "application/json", "x-upsert": "true"},
+                    )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=502,
+                detail="ingest artifact update failed",
+            ) from exc
+    client = get_supabase_client()
+    client.table("documents").update(fields).eq(
+        "id", document_id
+    ).eq("case_id", case_id).execute()
+    client.table("document_ingest_jobs").update(
+        {
+            "status": "completed",
+            "progress_percent": 100,
+            "current_stage": "ocr_done",
+            "last_error": None,
+            "locked_by": None,
+            "locked_at": None,
+        }
+    ).eq("document_id", document_id).eq("job_type", "ingest").execute()
+    if bool(payload.get("text_edited")):
+        _repo().audit(case_id, principal.audit_actor_id(), "ingest_edit")
+    _repo().audit(case_id, principal.audit_actor_id(), "ingest_accept")
+    return {"ok": True, "document_id": document_id, "status": fields["ingest_status"]}
+
+
+@router.post("/admin/cases/{case_id}/documents/{document_id}/ingest-reject")
+def reject_ingest_document(
+    case_id: str,
+    document_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Вернуть документ клиенту на повторную загрузку."""
+    _repo().require_case(principal, case_id)
+    row = _load_ingest_document(case_id, document_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    reason = str((payload or {}).get("reason") or "").strip()[:300]
+    message = reason or "Нужна более чёткая копия документа."
+    client = get_supabase_client()
+    client.table("documents").update(
+        {
+            "ingest_status": "needs_reupload",
+            "progress_percent": 100,
+            "current_stage": "needs_reupload",
+            "progress_message": message,
+            "ingest_review_required": False,
+        }
+    ).eq("id", document_id).eq("case_id", case_id).execute()
+    client.table("checklist_items").insert(
+        {
+            "case_id": case_id,
+            "title": "Повторно загрузить документ после проверки ingest",
+            "item_type": "document",
+                   "owner": "client",
+                   "status": "open",
+                   "sort_order": 50,
+            "requirement_code": row.get("requirement_code") or "document_reupload",
+            "reason_for_request": message,
+            "requested_by": principal.audit_actor_id(),
+            "requested_at": datetime.now(UTC).isoformat(),
+        }
+    ).execute()
+    _repo().audit(case_id, principal.audit_actor_id(), "ingest_reject")
+    return {"ok": True, "document_id": document_id, "status": "needs_reupload"}
+
+
+@router.post("/admin/cases/{case_id}/documents/{document_id}/security-approve")
+def approve_document_security(
+    case_id: str,
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Ручное подтверждение безопасности, если ClamAV недоступен."""
+    _require_expert(principal)
+    _repo().require_case(principal, case_id)
+    client = get_supabase_client()
+    row = _load_ingest_document(case_id, document_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="document not found")
+    client.table("documents").update(
+        {
+            "antivirus_status": "clean",
+            "security_reason": "manual_expert_approval",
+            "security_checked_at": datetime.now(UTC).isoformat(),
+        }
+    ).eq("id", document_id).eq("case_id", case_id).execute()
+    job_id = _queue_ingest_again(
+        case_id=case_id,
+        document_id=document_id,
+        principal=principal,
+        background_tasks=background_tasks,
+    )
+    _repo().audit(case_id, principal.audit_actor_id(), "security_manual_approve")
+    return {"ok": True, "document_id": document_id, "job_id": job_id}
+
+
+@router.post("/admin/cases/{case_id}/documents/{document_id}/ingest-rerun")
+def rerun_ingest_document(
+    case_id: str,
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Поставить документ в очередь ingest повторно."""
+    _require_expert(principal)
+    _repo().require_case(principal, case_id)
+    if not _load_ingest_document(case_id, document_id):
+        raise HTTPException(status_code=404, detail="document not found")
+    job_id = _queue_ingest_again(
+        case_id=case_id,
+        document_id=document_id,
+        principal=principal,
+        background_tasks=background_tasks,
+    )
+    return {"ok": True, "document_id": document_id, "job_id": job_id}
 
 
 @router.get("/admin/dashboard", response_model=DashboardResponse)

@@ -1,0 +1,22 @@
+{
+  "case_id": "CASE-2026-002",
+  "problem_type": "расхождение стажа",
+  "documents": [],
+  "discrepancy": "расхождение стажа",
+  "legal_basis": null,
+  "prepared": [],
+  "sfr_outcome": "unknown",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "unknown",
+  "verified_at": null,
+  "quality": "draft",
+  "what_worked": [],
+  "what_failed": [],
+  "documents_actually_needed": [],
+  "can_be_template": false,
+  "source_file": "other.md",
+  "ops_case_id": null,
+  "notes": "Автоимпорт: требуется проверка экспертом перед verified/template.",
+  "summary": "другой draft про стаж"
+}

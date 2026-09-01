@@ -26,6 +26,15 @@ sudo -u "$APP_USER" bash -lc "
 systemctl restart sfrfr-api
 systemctl is-active --quiet sfrfr-api
 
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-document-ingest.service" ]]; then
+  echo "Configuring document ingest worker …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-document-ingest.service" \
+    /etc/systemd/system/sfrfr-document-ingest.service
+  systemctl daemon-reload
+  systemctl enable --now sfrfr-document-ingest.service
+  systemctl is-active --quiet sfrfr-document-ingest.service
+fi
+
 rebuild_next_app() {
   local name="$1"
   local dir="$2"

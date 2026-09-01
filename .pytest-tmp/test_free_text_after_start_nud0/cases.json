@@ -1,12 +1,12 @@
 {
   "cases": {
-    "d00d2d9c-2143-43ec-a3cc-b3c29702fff4": {
-      "case_id": "d00d2d9c-2143-43ec-a3cc-b3c29702fff4",
+    "9f9e15f6-22e9-4b3a-ad2f-e1e2862258f3": {
+      "case_id": "9f9e15f6-22e9-4b3a-ad2f-e1e2862258f3",
       "client_name": "MAX user 23",
       "snils_masked": "***-***-*** **",
       "consent_given": false,
       "ctx": {
-        "case_id": "d00d2d9c-2143-43ec-a3cc-b3c29702fff4",
+        "case_id": "9f9e15f6-22e9-4b3a-ad2f-e1e2862258f3",
         "status": "intake",
         "client_name": "MAX user 23",
         "max_user_id": "23",

@@ -14,6 +14,7 @@ import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/compone
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
 import { CaseFunnelMain, type StepChatMessage } from "@/components/case-funnel-main";
+import { IngestReviewPanel } from "@/components/ingest-review-panel";
 import { StaffRolesPanel } from "@/components/staff-roles-panel";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -2483,6 +2484,17 @@ export function AdminCabinet() {
             onAddRepresentative={(e) => void addRepresentative(e)}
             onRemoveRepresentative={(userId) => void removeRepresentative(userId)}
           />
+
+          {token ? (
+            <IngestReviewPanel
+              caseId={detail.id}
+              token={token}
+              busy={busy}
+              canEdit={detail.role_capabilities.can_view_ocr}
+              onNotice={setNotice}
+              onRefresh={() => void openCase(detail.id)}
+            />
+          ) : null}
 
           <CaseChatPanel
             messages={messages}

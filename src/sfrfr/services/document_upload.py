@@ -211,19 +211,81 @@ def build_zip_bytes(case_id: str, rows: list[dict[str, Any]]) -> bytes:
     client = get_supabase_client()
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        grouped: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
             path = str(row.get("storage_path") or "")
             if not path:
                 continue
+            group_id = str(row.get("document_group_id") or "")
+            if group_id:
+                grouped.setdefault(group_id, []).append(row)
+                continue
             blob = client.storage.from_(PRIVATE_STORAGE_BUCKET).download(path)
-            name = Path(path).name
-            archive.writestr(name, blob)
+            archive.writestr(_safe_archive_name(Path(path).name), blob)
+        for pages in grouped.values():
+            pages.sort(key=lambda row: int(row.get("page_order") or 0))
+            if len(pages) > 1 and all(_is_image_row(row) for row in pages):
+                pdf_name = _safe_archive_name(Path(str(pages[0]["storage_path"])).stem) + ".pdf"
+                archive.writestr(pdf_name, build_group_pdf_bytes(pages))
+                continue
+            for row in pages:
+                path = str(row.get("storage_path") or "")
+                blob = client.storage.from_(PRIVATE_STORAGE_BUCKET).download(path)
+                archive.writestr(_safe_archive_name(Path(path).name), blob)
     buffer.seek(0)
     return buffer.getvalue()
 
 
 def filter_downloadable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [row for row in rows if is_downloadable_status(str(row.get("ingest_status") or ""))]
+    return [row for row in rows if is_document_downloadable(row)]
+
+
+def is_document_downloadable(row: dict[str, Any]) -> bool:
+    return is_downloadable_status(
+        str(row.get("ingest_status") or ""),
+        antivirus_status=str(row.get("antivirus_status") or ""),
+    )
+
+
+def build_group_pdf_bytes(rows: list[dict[str, Any]]) -> bytes:
+    """Собрать страницы одной фото-группы в PDF без сохранения на диске."""
+    from PIL import Image
+
+    client = get_supabase_client()
+    images: list[Image.Image] = []
+    try:
+        for row in sorted(rows, key=lambda item: int(item.get("page_order") or 0)):
+            path = str(row.get("storage_path") or "")
+            if not path:
+                continue
+            opened_image = Image.open(
+                io.BytesIO(client.storage.from_(PRIVATE_STORAGE_BUCKET).download(path))
+            )
+            converted_image = opened_image.convert("RGB")
+            opened_image.close()
+            images.append(converted_image)
+        if not images:
+            raise ValueError("document group has no image pages")
+        result = io.BytesIO()
+        images[0].save(result, format="PDF", save_all=True, append_images=images[1:])
+        result.seek(0)
+        return result.getvalue()
+    finally:
+        for converted_image in images:
+            converted_image.close()
+
+
+def _is_image_row(row: dict[str, Any]) -> bool:
+    mime = str(row.get("mime_verified") or "").lower()
+    if mime.startswith("image/"):
+        return True
+    suffix = Path(str(row.get("storage_path") or "")).suffix.lower()
+    return suffix in {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
+
+
+def _safe_archive_name(name: str) -> str:
+    safe = Path(name or "document").name.replace("\x00", "").strip()
+    return safe or "document"
 
 
 def validate_upload_size(data: bytes) -> None:

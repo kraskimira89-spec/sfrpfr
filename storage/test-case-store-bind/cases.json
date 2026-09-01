@@ -1,12 +1,12 @@
 {
   "cases": {
-    "b55e8516-2360-4398-aff6-78eb951ad90c": {
-      "case_id": "b55e8516-2360-4398-aff6-78eb951ad90c",
+    "0d2d0f74-4f99-435e-9ca9-b7c603cec750": {
+      "case_id": "0d2d0f74-4f99-435e-9ca9-b7c603cec750",
       "client_name": "A",
       "snils_masked": "***",
       "consent_given": true,
       "ctx": {
-        "case_id": "b55e8516-2360-4398-aff6-78eb951ad90c",
+        "case_id": "0d2d0f74-4f99-435e-9ca9-b7c603cec750",
         "status": "intake",
         "client_name": "A",
         "max_user_id": null,
@@ -22,13 +22,13 @@
         "error": null
       }
     },
-    "830e7354-78a7-41c5-8f2a-d5520c54b763": {
-      "case_id": "830e7354-78a7-41c5-8f2a-d5520c54b763",
+    "0d2683b9-c8f2-4e9d-ab4d-4a9e1268dbee": {
+      "case_id": "0d2683b9-c8f2-4e9d-ab4d-4a9e1268dbee",
       "client_name": "B",
       "snils_masked": "***",
       "consent_given": true,
       "ctx": {
-        "case_id": "830e7354-78a7-41c5-8f2a-d5520c54b763",
+        "case_id": "0d2683b9-c8f2-4e9d-ab4d-4a9e1268dbee",
         "status": "intake",
         "client_name": "B",
         "max_user_id": null,

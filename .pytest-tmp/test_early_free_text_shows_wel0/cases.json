@@ -1,12 +1,12 @@
 {
   "cases": {
-    "d823fca2-10bf-4a28-8028-095d7ce21bcf": {
-      "case_id": "d823fca2-10bf-4a28-8028-095d7ce21bcf",
+    "81a31acc-3b86-4cfe-88f4-a6aa92c21e09": {
+      "case_id": "81a31acc-3b86-4cfe-88f4-a6aa92c21e09",
       "client_name": "Тест",
       "snils_masked": "***",
       "consent_given": true,
       "ctx": {
-        "case_id": "d823fca2-10bf-4a28-8028-095d7ce21bcf",
+        "case_id": "81a31acc-3b86-4cfe-88f4-a6aa92c21e09",
         "status": "intake",
         "client_name": "Тест",
         "max_user_id": "22",

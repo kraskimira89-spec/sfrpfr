@@ -8,7 +8,10 @@ import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
-import { CaseJourneyExtras } from "@/components/case-journey-extras";
+import {
+  CaseJourneyExtras,
+  type PendingGroupPage,
+} from "@/components/case-journey-extras";
 
 type CaseSummary = {
   id: string;
@@ -376,7 +379,8 @@ export function ClientCabinet() {
   const [uploadProgress, setUploadProgress] = useState<{ filename: string; percent: number } | null>(
     null,
   );
-  const [pendingGroupIds, setPendingGroupIds] = useState<string[]>([]);
+  const [pendingGroupPages, setPendingGroupPages] = useState<PendingGroupPage[]>([]);
+  const [pendingGroupDocType, setPendingGroupDocType] = useState<string | undefined>();
   const [me, setMe] = useState<PortalMe | null>(null);
   const [youAreRepresentative, setYouAreRepresentative] = useState(false);
   const [representatives, setRepresentatives] = useState<
@@ -1506,8 +1510,17 @@ export function ClientCabinet() {
       return;
     }
     const allowed = ["application/pdf", "image/jpeg", "image/png"];
+    if (["client_signed_application", "client_signed_appeal"].includes(docType || "")) {
+      allowed.push(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+    }
     if (!allowed.includes(file.type)) {
-      setNotice("Допустимы только PDF, JPG и PNG.");
+      setNotice(
+        ["client_signed_application", "client_signed_appeal"].includes(docType || "")
+          ? "Для подписанного документа допустимы PDF или DOCX."
+          : "Допустимы только PDF, JPG и PNG.",
+      );
       return;
     }
     setBusy(true);
@@ -1580,32 +1593,46 @@ export function ClientCabinet() {
     }
     setBusy(true);
     const batchId = crypto.randomUUID();
+    const uploadedRows: CaseDocument[] = [];
+    const errors: { filename?: string; message?: string }[] = [];
     try {
-      const form = new FormData();
       for (const file of files) {
-        form.append("files", file);
+        setUploadProgress({ filename: file.name, percent: 0 });
+        try {
+          const form = new FormData();
+          form.append("files", file);
+          if (docType) form.append("doc_type", docType);
+          form.append("upload_batch_id", batchId);
+          const payload = (await uploadWithProgress(
+            `/api/portal/cases/${selectedId}/documents/batch`,
+            token,
+            form,
+            (percent) => setUploadProgress({ filename: file.name, percent }),
+          )) as { uploaded?: CaseDocument[]; errors?: { filename?: string; message?: string }[] };
+          uploadedRows.push(...(payload.uploaded || []));
+          errors.push(...(payload.errors || []));
+        } catch (error) {
+          errors.push({
+            filename: file.name,
+            message: error instanceof Error ? error.message : "Не удалось загрузить файл.",
+          });
+        }
       }
-      if (docType) form.append("doc_type", docType);
-      form.append("upload_batch_id", batchId);
-      setUploadProgress({ filename: `${files.length} файлов`, percent: 0 });
-      const payload = (await uploadWithProgress(
-        `/api/portal/cases/${selectedId}/documents/batch`,
-        token,
-        form,
-        (percent) => setUploadProgress({ filename: `${files.length} файлов`, percent }),
-      )) as { uploaded?: CaseDocument[]; errors?: { message?: string }[] };
-      const okCount = payload.uploaded?.length ?? 0;
-      const imageIds =
-        payload.uploaded
-          ?.filter((row) => {
-            const name = (row.filename || "").toLowerCase();
-            return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png");
-          })
-          .map((row) => row.id) || [];
-      if (imageIds.length >= 2) setPendingGroupIds(imageIds);
-      if (payload.errors?.length) {
+      const imagePages = uploadedRows
+        .filter((row) => /\.(jpe?g|png)$/i.test(row.filename || ""))
+        .map((row) => ({
+          id: row.id,
+          filename: row.filename || "фото",
+          file: files.find((file) => file.name === row.filename),
+        }));
+      if (imagePages.length >= 2) {
+        setPendingGroupDocType(docType);
+        setPendingGroupPages((previous) => [...previous, ...imagePages]);
+      }
+      const okCount = uploadedRows.length;
+      if (errors.length) {
         setNotice(
-          `Загружено ${okCount} из ${files.length}. ${payload.errors[0]?.message || ""}`.trim(),
+          `Загружено ${okCount} из ${files.length}. ${errors[0]?.message || ""}`.trim(),
         );
       } else if (okCount > 0) {
         setNotice(`Загружено файлов: ${okCount}. Специалист проверит документы.`);
@@ -2493,8 +2520,14 @@ export function ClientCabinet() {
               apiBase={apiBase}
               documents={detail.documents}
               busy={busy}
-              pendingGroupIds={pendingGroupIds}
-              onClearPendingGroup={() => setPendingGroupIds([])}
+              pendingGroupPages={pendingGroupPages}
+              pendingGroupDocType={pendingGroupDocType}
+              onClearPendingGroup={(documentIds) => {
+                const removed = new Set(documentIds);
+                setPendingGroupPages((previous) =>
+                  previous.filter((page) => !removed.has(page.id)),
+                );
+              }}
               onRefresh={async () => openCase(selectedId, "case", true)}
               onPay={(orderId) => void startPayment(orderId)}
               onNotice={setNotice}

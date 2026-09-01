@@ -12,7 +12,18 @@ from typing import Any, NoReturn
 from urllib.parse import quote
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse, StreamingResponse
 
 from sfrfr.api.schemas.portal import (
@@ -55,14 +66,20 @@ from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_S
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
 from sfrfr.services.client_work_map import build_client_work_map
 from sfrfr.services.document_ingest import client_progress_payload
+from sfrfr.services.document_ingest_worker import (
+    create_quarantine_document,
+    process_document_ingest_job,
+)
 from sfrfr.services.document_upload import (
+    build_group_pdf_bytes,
     build_zip_bytes,
     content_type_allowed,
     filter_downloadable_rows,
+    is_document_downloadable,
     store_document,
     validate_upload_size,
 )
-from sfrfr.services.file_security import MAX_FILES_PER_BATCH, is_downloadable_status
+from sfrfr.services.file_security import MAX_FILES_PER_BATCH
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +222,8 @@ _DOC_TYPE_LABELS_RU = {
     "marriage": "Свидетельство о браке",
     "education": "Документ об образовании",
     "north": "Льготный / северный стаж",
+    "client_signed_application": "Подписанное заявление в СФР",
+    "client_signed_appeal": "Подписанное обращение / жалоба",
 }
 
 
@@ -357,7 +376,10 @@ def _client_document(item: dict[str, Any]) -> dict[str, Any]:
         "placement_suggestion": item.get("placement_suggestion"),
         "requirement_code": item.get("requirement_code"),
         "client_declared_signed": item.get("client_declared_signed"),
-        "downloadable": is_downloadable_status(str(item.get("ingest_status") or "")),
+        "antivirus_status": item.get("antivirus_status"),
+        "ingest_review_required": item.get("ingest_review_required"),
+        "ingest_artifact_path": item.get("ingest_artifact_path"),
+        "downloadable": is_document_downloadable(item),
     }
 
 
@@ -1649,6 +1671,7 @@ def get_result(
 @router.post("/cases/{case_id}/documents", status_code=status.HTTP_201_CREATED)
 async def upload_case_document(
     case_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     doc_type: str | None = Form(default=None),
     upload_batch_id: str | None = Form(default=None),
@@ -1682,25 +1705,44 @@ async def upload_case_document(
         raise HTTPException(status_code=code, detail=str(exc)) from exc
 
     filename = Path(file.filename or "document").name
-    content_preview = _extract_upload_preview(data, filename)
     scenario_rows = _scenario_rows(repo, case_id)
+    async_ingest = get_settings().document_ingest_async
     try:
-        row = store_document(
-            case_id=case_id,
-            filename=filename,
-            data=data,
-            content_type=content_type,
-            doc_type=doc_type,
-            uploaded_by=principal.user_id,
-            upload_batch_id=upload_batch_id,
-            document_group_id=document_group_id,
-            page_index=page_index,
-            page_order=page_order or 0,
-            upload_source="cabinet",
-            client_declared_signed=client_declared_signed,
-            preview_text=content_preview or "",
-            scenario_rows=scenario_rows,
-        )
+        if async_ingest:
+            row = create_quarantine_document(
+                case_id=case_id,
+                filename=filename,
+                data=data,
+                content_type=content_type,
+                doc_type=doc_type,
+                uploaded_by=principal.user_id,
+                upload_batch_id=upload_batch_id,
+                document_group_id=document_group_id,
+                page_index=page_index,
+                page_order=page_order or 0,
+                upload_source="cabinet",
+                client_declared_signed=client_declared_signed,
+                scenario_rows=scenario_rows,
+            )
+            background_tasks.add_task(process_document_ingest_job, str(row["job_id"]))
+        else:
+            content_preview = _extract_upload_preview(data, filename)
+            row = store_document(
+                case_id=case_id,
+                filename=filename,
+                data=data,
+                content_type=content_type,
+                doc_type=doc_type,
+                uploaded_by=principal.user_id,
+                upload_batch_id=upload_batch_id,
+                document_group_id=document_group_id,
+                page_index=page_index,
+                page_order=page_order or 0,
+                upload_source="cabinet",
+                client_declared_signed=client_declared_signed,
+                preview_text=content_preview or "",
+                scenario_rows=scenario_rows,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1708,14 +1750,15 @@ async def upload_case_document(
     storage_path = str(row.get("storage_path") or "")
     action = "result_decision_uploaded" if doc_type == "sfr_decision" else "document_uploaded"
     repo.audit(case_id, principal.user_id, action)
-    try:
-        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+    if not async_ingest:
+        try:
+            from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
 
-        mirror = mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
-        if mirror.get("ok"):
-            repo.audit(case_id, principal.user_id, "document_mirrored_yandex_disk")
-    except Exception as exc:  # noqa: BLE001
-        logger.info("document yandex disk mirror skipped: %s", exc)
+            mirror = mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
+            if mirror.get("ok"):
+                repo.audit(case_id, principal.user_id, "document_mirrored_yandex_disk")
+        except Exception as exc:  # noqa: BLE001
+            logger.info("document yandex disk mirror skipped: %s", exc)
     try:
         from sfrfr.integrations.max.case_chat_log import (
             append_case_chat_message,
@@ -1749,24 +1792,25 @@ async def upload_case_document(
         except Exception as exc:  # noqa: BLE001
             logger.info("diagnosis_feedback pdf_issued skipped: %s", exc)
     payment_receipt = None
-    try:
-        from sfrfr.ocr import extract_text_from_bytes
-        from sfrfr.services.payment_receipt import handle_uploaded_receipt
+    if not async_ingest:
+        try:
+            from sfrfr.ocr import extract_text_from_bytes
+            from sfrfr.services.payment_receipt import handle_uploaded_receipt
 
-        ocr_text = extract_text_from_bytes(data, filename)
-        payment_receipt = handle_uploaded_receipt(
-            repo,
-            case_id=case_id,
-            ocr_text=ocr_text,
-            document_id=document_id,
-            actor_id=principal.user_id,
-            doc_type=doc_type,
-        )
-        if payment_receipt and payment_receipt.get("status") == "confirmed":
-            action = "payment_receipt_confirmed"
-            repo.audit(case_id, principal.user_id, action)
-    except Exception as exc:  # noqa: BLE001
-        logger.info("payment receipt check skipped: %s", exc)
+            ocr_text = extract_text_from_bytes(data, filename)
+            payment_receipt = handle_uploaded_receipt(
+                repo,
+                case_id=case_id,
+                ocr_text=ocr_text,
+                document_id=document_id,
+                actor_id=principal.user_id,
+                doc_type=doc_type,
+            )
+            if payment_receipt and payment_receipt.get("status") == "confirmed":
+                action = "payment_receipt_confirmed"
+                repo.audit(case_id, principal.user_id, action)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("payment receipt check skipped: %s", exc)
     row = {**row, "storage_path": storage_path, "doc_type": doc_type}
     if content_preview and not row.get("content_preview"):
         row = {**row, "content_preview": content_preview}
@@ -1798,7 +1842,7 @@ def create_document_signed_url(
     row = CaseRepository._one_or_none(
         get_supabase_client()
         .table("documents")
-        .select("storage_path, ingest_status, mime_verified, doc_type")
+        .select("id, storage_path, ingest_status, mime_verified, doc_type, antivirus_status")
         .eq("id", document_id)
         .eq("case_id", case_id)
         .limit(1)
@@ -1806,7 +1850,7 @@ def create_document_signed_url(
     )
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
-    if not is_downloadable_status(str(row.get("ingest_status") or "")):
+    if not is_document_downloadable(row):
         raise HTTPException(status_code=403, detail="document not available yet")
 
     expires_in = SIGNED_URL_TTL_SECONDS
@@ -1884,6 +1928,7 @@ def delete_case_document(
 @router.post("/cases/{case_id}/documents/batch", status_code=status.HTTP_201_CREATED)
 async def upload_case_documents_batch(
     case_id: str,
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     doc_type: str | None = Form(default=None),
     upload_batch_id: str | None = Form(default=None),
@@ -1906,6 +1951,7 @@ async def upload_case_documents_batch(
     batch_id = upload_batch_id or str(uuid4())
     results: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    scenario_rows = _scenario_rows(repo, case_id)
     for index, upload in enumerate(files):
         try:
             content_type = upload.content_type or ""
@@ -1914,22 +1960,39 @@ async def upload_case_documents_batch(
             data = await upload.read(_MAX_UPLOAD_BYTES + 1)
             validate_upload_size(data)
             filename = Path(upload.filename or f"document-{index + 1}").name
-            preview = _extract_upload_preview(data, filename)
-            row = store_document(
-                case_id=case_id,
-                filename=filename,
-                data=data,
-                content_type=content_type,
-                doc_type=doc_type,
-                uploaded_by=principal.user_id,
-                upload_batch_id=batch_id,
-                document_group_id=document_group_id,
-                page_index=index + 1 if document_group_id else None,
-                page_order=index,
-                upload_source="cabinet",
-                preview_text=preview or "",
-                scenario_rows=_scenario_rows(_repo(), case_id),
-            )
+            if get_settings().document_ingest_async:
+                row = create_quarantine_document(
+                    case_id=case_id,
+                    filename=filename,
+                    data=data,
+                    content_type=content_type,
+                    doc_type=doc_type,
+                    uploaded_by=principal.user_id,
+                    upload_batch_id=batch_id,
+                    document_group_id=document_group_id,
+                    page_index=index + 1 if document_group_id else None,
+                    page_order=index,
+                    upload_source="cabinet",
+                    scenario_rows=scenario_rows,
+                )
+                background_tasks.add_task(process_document_ingest_job, str(row["job_id"]))
+            else:
+                preview = _extract_upload_preview(data, filename)
+                row = store_document(
+                    case_id=case_id,
+                    filename=filename,
+                    data=data,
+                    content_type=content_type,
+                    doc_type=doc_type,
+                    uploaded_by=principal.user_id,
+                    upload_batch_id=batch_id,
+                    document_group_id=document_group_id,
+                    page_index=index + 1 if document_group_id else None,
+                    page_order=index,
+                    upload_source="cabinet",
+                    preview_text=preview or "",
+                    scenario_rows=scenario_rows,
+                )
             results.append(_client_document(row))
         except Exception as exc:  # noqa: BLE001
             errors.append(
@@ -1960,7 +2023,7 @@ def get_document_progress(
         .table("documents")
         .select(
             "id, ingest_status, progress_percent, current_stage, progress_message, "
-            "placement_suggestion, created_at"
+            "placement_suggestion, created_at, antivirus_status"
         )
         .eq("id", document_id)
         .eq("case_id", case_id)
@@ -1986,19 +2049,50 @@ def bulk_download_documents(
     client = get_supabase_client()
     rows = (
         client.table("documents")
-        .select("id, storage_path, ingest_status, mime_verified, doc_type")
+        .select(
+            "id, storage_path, ingest_status, mime_verified, doc_type, antivirus_status, "
+            "document_group_id, page_order"
+        )
         .eq("case_id", case_id)
         .in_("id", ids)
         .execute()
         .data
         or []
     )
-    allowed = filter_downloadable_rows(rows)
+    selected_ids = {str(row.get("id")) for row in rows}
+    group_ids = {
+        str(row.get("document_group_id"))
+        for row in rows
+        if row.get("document_group_id")
+    }
+    expanded_rows = list(rows)
+    if group_ids:
+        grouped_rows = (
+            client.table("documents")
+            .select(
+                "id, storage_path, ingest_status, mime_verified, doc_type, antivirus_status, "
+                "document_group_id, page_order"
+            )
+            .eq("case_id", case_id)
+            .in_("document_group_id", list(group_ids))
+            .execute()
+            .data
+            or []
+        )
+        expanded_rows.extend(
+            row for row in grouped_rows if str(row.get("id")) not in selected_ids
+        )
+    allowed = filter_downloadable_rows(expanded_rows)
     if not allowed:
         raise HTTPException(status_code=403, detail="selected documents not available")
     from sfrfr.services.document_upload import _audit_access
 
-    if len(allowed) == 1:
+    allowed_group_ids = {
+        str(row.get("document_group_id"))
+        for row in allowed
+        if row.get("document_group_id")
+    }
+    if len(allowed) == 1 and not allowed_group_ids:
         row = allowed[0]
         document_id = str(row["id"])
         storage_path = str(row["storage_path"] or "")
@@ -2020,6 +2114,20 @@ def bulk_download_documents(
                 inline=inline,
             ),
             expires_in=SIGNED_URL_TTL_SECONDS,
+        )
+    single_group_download = (
+        len(allowed_group_ids) == 1
+        and len(allowed) > 1
+        and all(str(row.get("document_group_id")) in allowed_group_ids for row in allowed)
+    )
+    if single_group_download:
+        for row in allowed:
+            _audit_access(case_id, str(row.get("id")), principal.user_id, "document_group_download")
+        repo.audit(case_id, principal.user_id, "document_group_download")
+        return StreamingResponse(
+            io.BytesIO(build_group_pdf_bytes(allowed)),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="document-group.pdf"'},
         )
     zip_bytes = build_zip_bytes(case_id, allowed)
     for row in allowed:
@@ -2078,8 +2186,32 @@ def create_document_group(
 ) -> dict:
     repo = _repo()
     repo.require_case(principal, case_id)
-    group_id = str(uuid4())
     client = get_supabase_client()
+    document_ids = [str(item) for item in (payload.get("document_ids") or []) if item]
+    if len(document_ids) < 2:
+        raise HTTPException(status_code=400, detail="at least two document pages required")
+    if len(document_ids) > 100 or len(set(document_ids)) != len(document_ids):
+        raise HTTPException(status_code=400, detail="invalid document page list")
+    documents = (
+        client.table("documents")
+        .select("id, document_group_id, doc_type, ingest_status")
+        .eq("case_id", case_id)
+        .in_("id", document_ids)
+        .execute()
+        .data
+        or []
+    )
+    if {str(row.get("id")) for row in documents} != set(document_ids):
+        raise HTTPException(status_code=404, detail="document page not found")
+    if any(row.get("document_group_id") for row in documents):
+        raise HTTPException(status_code=409, detail="document page already belongs to a group")
+    if any(
+        str(row.get("doc_type") or "") in {"diagnosis_report", "payment_receipt"}
+        for row in documents
+    ):
+        raise HTTPException(status_code=403, detail="this document type cannot be grouped")
+
+    group_id = str(uuid4())
     client.table("document_groups").insert(
         {
             "id": group_id,
@@ -2087,25 +2219,73 @@ def create_document_group(
             "doc_type": payload.get("doc_type"),
             "requirement_code": payload.get("requirement_code"),
             "title": payload.get("title") or "Документ",
+            "page_count_expected": len(document_ids),
+            "is_page_complete": True,
             "grouping_confirmed_by": principal.user_id,
         }
     ).execute()
-    document_ids = [str(i) for i in (payload.get("document_ids") or []) if i]
-    if document_ids:
-        for order, doc_id in enumerate(document_ids):
-            client.table("documents").update(
-                {
-                    "document_group_id": group_id,
-                    "page_index": order + 1,
-                    "page_order": order,
-                    "grouping_confirmed_by": principal.user_id,
-                }
-            ).eq("id", doc_id).eq("case_id", case_id).execute()
-        client.table("document_groups").update({"page_count_expected": len(document_ids)}).eq(
-            "id", group_id
-        ).execute()
+    for order, doc_id in enumerate(document_ids):
+        client.table("documents").update(
+            {
+                "document_group_id": group_id,
+                "page_index": order + 1,
+                "page_order": order,
+                "grouping_confirmed_by": principal.user_id,
+            }
+        ).eq("id", doc_id).eq("case_id", case_id).execute()
     repo.audit(case_id, principal.user_id, "document_group_created")
     return {"document_group_id": group_id, "page_count": len(document_ids)}
+
+
+@router.patch("/cases/{case_id}/document-groups/{group_id}")
+def reorder_document_group(
+    case_id: str,
+    group_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(get_current_principal),
+) -> dict:
+    """Сохранить порядок страниц уже созданной группы."""
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    document_ids = [str(item) for item in (payload.get("document_ids") or []) if item]
+    if not document_ids or len(document_ids) > 100 or len(set(document_ids)) != len(document_ids):
+        raise HTTPException(status_code=400, detail="invalid document page list")
+    client = get_supabase_client()
+    group = CaseRepository._one_or_none(
+        client.table("document_groups")
+        .select("id")
+        .eq("id", group_id)
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="document group not found")
+    rows = (
+        client.table("documents")
+        .select("id")
+        .eq("case_id", case_id)
+        .eq("document_group_id", group_id)
+        .execute()
+        .data
+        or []
+    )
+    existing_ids = {str(row.get("id")) for row in rows}
+    if existing_ids != set(document_ids):
+        raise HTTPException(status_code=400, detail="all group pages must be included")
+    for order, document_id in enumerate(document_ids):
+        client.table("documents").update(
+            {"page_index": order + 1, "page_order": order}
+        ).eq("id", document_id).eq("case_id", case_id).eq("document_group_id", group_id).execute()
+    client.table("document_groups").update(
+        {
+            "page_count_expected": len(document_ids),
+            "is_page_complete": True,
+            "grouping_confirmed_by": principal.user_id,
+        }
+    ).eq("id", group_id).eq("case_id", case_id).execute()
+    repo.audit(case_id, principal.user_id, "document_group_reordered")
+    return {"ok": True, "document_group_id": group_id, "page_count": len(document_ids)}
 
 
 @router.get("/cases/{case_id}/document-groups")

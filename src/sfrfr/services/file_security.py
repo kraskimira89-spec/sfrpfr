@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
+
+from sfrfr.core.config import get_settings
 
 MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_PDF_PAGES = 100
@@ -46,6 +53,68 @@ class FileSecurityResult:
     detected_mime: str | None = None
     client_message: str | None = None
     internal_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class AntivirusResult:
+    status: Literal["clean", "infected", "not_configured", "error"]
+    reason: str | None = None
+
+
+def scan_file_bytes(data: bytes, filename: str) -> AntivirusResult:
+    """Проверить байты ClamAV, если сканер установлен на worker/VPS."""
+    if b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*" in data:
+        return AntivirusResult("infected", "eicar_test_signature")
+    executable = shutil.which(os.getenv("DOCUMENT_AV_SCANNER", "clamdscan"))
+    if not executable:
+        executable = shutil.which("clamscan")
+    if not executable:
+        return AntivirusResult("not_configured", "scanner_not_found")
+
+    suffix = Path(filename or "document.bin").suffix or ".bin"
+    temporary_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+            temporary_path = temporary.name
+            temporary.write(data)
+            temporary.flush()
+        result = subprocess.run(
+            [executable, "--no-summary", temporary_path],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return AntivirusResult("error", type(exc).__name__)
+    finally:
+        if temporary_path:
+            try:
+                Path(temporary_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+    if result.returncode == 0:
+        return AntivirusResult("clean")
+    if result.returncode == 1:
+        return AntivirusResult("infected", "scanner_detected_threat")
+    return AntivirusResult("error", f"scanner_exit:{result.returncode}")
+
+
+def antivirus_allows(result: AntivirusResult) -> bool:
+    """Разрешить обработку только после clean; local auto допускает отсутствие ClamAV."""
+    mode = (
+        os.getenv("DOCUMENT_AV_MODE") or get_settings().document_av_mode or "auto"
+    ).strip().lower()
+    if mode == "disabled":
+        return True
+    if result.status == "clean":
+        return True
+    if (
+        result.status == "not_configured"
+        and mode in {"auto", "observe"}
+        and get_settings().app_env.lower() not in {"production", "prod"}
+    ):
+        return True
+    return False
 
 
 def _detect_magic(data: bytes) -> str | None:
@@ -174,7 +243,11 @@ def is_quarantine_status(status: str | None) -> bool:
     }
 
 
-def is_downloadable_status(status: str | None) -> bool:
+def is_downloadable_status(
+    status: str | None,
+    *,
+    antivirus_status: str | None = None,
+) -> bool:
     blocked = {
         "uploading",
         "security_check",
@@ -182,4 +255,7 @@ def is_downloadable_status(status: str | None) -> bool:
         "quarantine",
         "needs_reupload",
     }
+    av = str(antivirus_status or "").strip().lower()
+    if av and av not in {"clean", "not_configured", "disabled"}:
+        return False
     return str(status or "uploaded") not in blocked

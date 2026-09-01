@@ -1,7 +1,7 @@
 {
   "rows": {
     "7": {
-      "id": "c5b97314-2f96-407f-8384-593b79c909fe",
+      "id": "2f986820-61ab-4189-bcfd-f0faffe3165a",
       "max_user_id": "7",
       "goal": null,
       "for_whom": null,
@@ -14,10 +14,10 @@
       "emp_howto_done": false,
       "status": "started",
       "client_id": null,
-      "case_id": "eaeb7696-469b-4f22-bab7-7db5531cdddf",
-      "started_at": "2026-08-26T09:14:24.035463+00:00",
+      "case_id": "59a36aa5-dea5-498b-ae2d-27db27391866",
+      "started_at": "2026-09-01T08:29:28.510740+00:00",
       "completed_at": null,
-      "updated_at": "2026-08-26T09:14:24.046622+00:00"
+      "updated_at": "2026-09-01T08:29:28.515016+00:00"
     }
   }
 }

@@ -1,0 +1,26 @@
+{
+  "case_id": "CASE-2026-001",
+  "problem_type": "расхождение стажа; расхождение ИЛС; перерасчёт пенсии",
+  "documents": [
+    "ИЛС",
+    "трудовая книжка",
+    "СНИЛС (тип документа)"
+  ],
+  "discrepancy": "расхождение стажа; расхождение ИЛС; перерасчёт пенсии",
+  "legal_basis": null,
+  "prepared": [],
+  "sfr_outcome": "unknown",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "unknown",
+  "verified_at": null,
+  "quality": "draft",
+  "what_worked": [],
+  "what_failed": [],
+  "documents_actually_needed": [],
+  "can_be_template": false,
+  "source_file": "deepseek:aaaaaaaa",
+  "ops_case_id": null,
+  "notes": "Автоимпорт: требуется проверка экспертом перед verified/template. Импорт из DeepSeek conversations.json, id=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.",
+  "summary": "# КЛИ СФР ПФР проверка стажа ## USER Проверь ИЛС и трудовую. СНИЛС ***-***-789 01. ## ASSISTANT Вижу расхождение стажа. Нужен перерасчёт."
+}

@@ -1,0 +1,24 @@
+{
+  "case_id": "CASE-2026-002",
+  "problem_type": "расхождение стажа; расхождение ИЛС; перерасчёт пенсии",
+  "documents": [
+    "ИЛС"
+  ],
+  "discrepancy": "расхождение стажа; расхождение ИЛС; перерасчёт пенсии",
+  "legal_basis": null,
+  "prepared": [],
+  "sfr_outcome": "unknown",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "unknown",
+  "verified_at": "2026-09-01",
+  "quality": "template",
+  "what_worked": [],
+  "what_failed": [],
+  "documents_actually_needed": [],
+  "can_be_template": true,
+  "source_file": "t.md",
+  "ops_case_id": null,
+  "notes": "Автоимпорт: требуется проверка экспертом перед verified/template.",
+  "summary": "шаблон про стаж ИЛС перерасчёт"
+}

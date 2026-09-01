@@ -14,10 +14,17 @@ export type CabinetDocument = {
   inner_title?: string | null;
   document_group_id?: string | null;
   page_index?: number | null;
+  page_order?: number | null;
+  upload_batch_id?: string | null;
   ingest_status?: string | null;
   progress_percent?: number | null;
   progress_message?: string | null;
   placement_suggestion?: Record<string, unknown> | null;
+  requirement_code?: string | null;
+  client_declared_signed?: boolean;
+  antivirus_status?: string | null;
+  ingest_review_required?: boolean;
+  ingest_artifact_path?: string | null;
   downloadable?: boolean;
 };
 

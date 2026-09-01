@@ -6,7 +6,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from sfrfr.services.document_upload import store_document
+from sfrfr.services.document_ingest_worker import (
+    create_quarantine_document,
+    process_document_ingest_job,
+)
 from sfrfr.services.file_security import validate_file_bytes
 
 logger = logging.getLogger(__name__)
@@ -32,7 +35,7 @@ def upload_max_document(
         logger.info("max upload rejected: %s", security.internal_reason)
         return None
     try:
-        return store_document(
+        row = create_quarantine_document(
             case_id=case_id,
             filename=filename,
             data=data,
@@ -40,9 +43,10 @@ def upload_max_document(
             doc_type=doc_type,
             uploaded_by=uploaded_by,
             upload_source="max",
-            preview_text="",
             scenario_rows=scenario_rows,
         )
+        process_document_ingest_job(str(row["job_id"]))
+        return row
     except Exception as exc:  # noqa: BLE001
         logger.warning("max supabase upload failed: %s", exc)
         return None

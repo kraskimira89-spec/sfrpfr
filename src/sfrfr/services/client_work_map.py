@@ -145,6 +145,20 @@ _DOC_SLOTS: tuple[dict[str, Any], ...] = (
         "need_label": "Если уже есть",
         "doc_type": "sfr_decision",
     },
+    {
+        "key": "signed_application",
+        "title": "Подписанное заявление в СФР",
+        "need": "conditional",
+        "need_label": "PDF или DOCX по ситуации",
+        "doc_type": "client_signed_application",
+    },
+    {
+        "key": "signed_appeal",
+        "title": "Подписанное обращение / жалоба",
+        "need": "conditional",
+        "need_label": "PDF или DOCX по ситуации",
+        "doc_type": "client_signed_appeal",
+    },
 )
 
 _STATUS_LABEL = {
@@ -285,6 +299,14 @@ def _is_north(doc: dict[str, Any]) -> bool:
     )
 
 
+def _is_signed_application(doc: dict[str, Any]) -> bool:
+    return _lower(doc.get("doc_type")) == "client_signed_application"
+
+
+def _is_signed_appeal(doc: dict[str, Any]) -> bool:
+    return _lower(doc.get("doc_type")) == "client_signed_appeal"
+
+
 def _is_diagnosis(doc: dict[str, Any]) -> bool:
     return "diagnosis" in _lower(doc.get("doc_type"))
 
@@ -356,6 +378,8 @@ def _match_docs(docs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
         "education": _is_education,
         "north": _is_north,
         "guardianship": _is_guardianship,
+        "signed_application": _is_signed_application,
+        "signed_appeal": _is_signed_appeal,
     }
     check = checks.get(key)
     if check:

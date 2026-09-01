@@ -1,0 +1,23 @@
+{
+  "rows": {
+    "6407832": {
+      "id": "897aad01-5387-4922-9423-d31afcbc0486",
+      "max_user_id": "6407832",
+      "goal": "check_experience",
+      "for_whom": null,
+      "pension_status": null,
+      "problem_type": null,
+      "ils_available": "yes",
+      "employment_records_available": "yes",
+      "device_preference": "max",
+      "ils_howto_done": true,
+      "emp_howto_done": true,
+      "status": "completed",
+      "client_id": null,
+      "case_id": "59a5f1bb-791d-47d6-9308-b26f4798f6a5",
+      "started_at": "2026-09-01T08:29:35.124303+00:00",
+      "completed_at": "2026-09-01T08:29:35.145380+00:00",
+      "updated_at": "2026-09-01T08:29:35.145394+00:00"
+    }
+  }
+}

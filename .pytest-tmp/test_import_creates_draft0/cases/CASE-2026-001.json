@@ -1,0 +1,29 @@
+{
+  "case_id": "CASE-2026-001",
+  "problem_type": "расхождение стажа; расхождение ИЛС",
+  "documents": [
+    "ИЛС",
+    "трудовая книжка",
+    "СНИЛС (тип документа)",
+    "заявление"
+  ],
+  "discrepancy": "расхождение стажа; расхождение ИЛС",
+  "legal_basis": null,
+  "prepared": [
+    "заявление"
+  ],
+  "sfr_outcome": "granted",
+  "pension_increase_range": null,
+  "edv_range": null,
+  "expert_assessment": "unknown",
+  "verified_at": null,
+  "quality": "draft",
+  "what_worked": [],
+  "what_failed": [],
+  "documents_actually_needed": [],
+  "can_be_template": false,
+  "source_file": "pilot.md",
+  "ops_case_id": null,
+  "notes": "Автоимпорт: требуется проверка экспертом перед verified/template.",
+  "summary": "Клиент: расхождение стажа в ИЛС и трудовой книжке. Подготовлено заявление. Результат СФР: удовлетворено. СНИЛС ***-***-333 44 не сохранять."
+}

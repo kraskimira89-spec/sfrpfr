@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import type { CabinetDocument } from "@/components/documents-table";
+
+export type PendingGroupPage = {
+  id: string;
+  filename: string;
+  file?: File;
+};
 
 type LaborEstimate = {
   status?: string;
@@ -11,14 +17,22 @@ type LaborEstimate = {
   message?: string;
 };
 
+type DocumentGroup = {
+  id: string;
+  title?: string | null;
+  page_count?: number;
+  pages: CabinetDocument[];
+};
+
 type Props = {
   caseId: string;
   token: string;
   apiBase: string;
   documents: CabinetDocument[];
   busy?: boolean;
-  pendingGroupIds: string[];
-  onClearPendingGroup: () => void;
+  pendingGroupPages: PendingGroupPage[];
+  pendingGroupDocType?: string;
+  onClearPendingGroup: (documentIds: string[]) => void;
   onRefresh: () => void;
   onPay: (orderId: string) => void;
   onNotice: (text: string) => void;
@@ -49,7 +63,8 @@ export function CaseJourneyExtras({
   apiBase,
   documents,
   busy,
-  pendingGroupIds,
+  pendingGroupPages,
+  pendingGroupDocType,
   onClearPendingGroup,
   onRefresh,
   onPay,
@@ -58,6 +73,44 @@ export function CaseJourneyExtras({
   const [estimate, setEstimate] = useState<LaborEstimate | null>(null);
   const [estimateBusy, setEstimateBusy] = useState(false);
   const [progressRows, setProgressRows] = useState<Record<string, string>>({});
+  const [orderedPages, setOrderedPages] = useState<PendingGroupPage[]>(pendingGroupPages);
+  const [selectedPageIds, setSelectedPageIds] = useState<string[]>(
+    pendingGroupPages.map((page) => page.id),
+  );
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setOrderedPages(pendingGroupPages);
+      setSelectedPageIds((previous) => {
+        const available = new Set(pendingGroupPages.map((page) => page.id));
+        const retained = previous.filter((id) => available.has(id));
+        return retained.length > 0 ? retained : pendingGroupPages.map((page) => page.id);
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pendingGroupPages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadGroups = async () => {
+      try {
+        const payload = await apiJson<{ groups?: DocumentGroup[] }>(
+          apiBase,
+          `/api/portal/cases/${caseId}/document-groups`,
+          token,
+        );
+        if (!cancelled) setGroups(payload.groups || []);
+      } catch {
+        /* Группы недоступны, основной список документов продолжает работать. */
+      }
+    };
+    void loadGroups();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, caseId, documents, token]);
 
   const pendingPlacement = documents.filter((doc) => {
     const suggestion = doc.placement_suggestion as
@@ -164,47 +217,215 @@ export function CaseJourneyExtras({
     }
   }
 
+  function reorderPages(sourceId: string, targetId: string) {
+    if (sourceId === targetId) return;
+    setOrderedPages((previous) => {
+      const sourceIndex = previous.findIndex((page) => page.id === sourceId);
+      const targetIndex = previous.findIndex((page) => page.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return previous;
+      const next = [...previous];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function handlePageDrop(event: DragEvent<HTMLLIElement>, targetId: string) {
+    event.preventDefault();
+    if (draggedPageId) reorderPages(draggedPageId, targetId);
+    setDraggedPageId(null);
+  }
+
+  function movePage(pageId: string, offset: -1 | 1) {
+    setOrderedPages((previous) => {
+      const index = previous.findIndex((page) => page.id === pageId);
+      const nextIndex = index + offset;
+      if (index < 0 || nextIndex < 0 || nextIndex >= previous.length) return previous;
+      const next = [...previous];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  }
+
+  function togglePage(pageId: string) {
+    setSelectedPageIds((previous) =>
+      previous.includes(pageId)
+        ? previous.filter((id) => id !== pageId)
+        : [...previous, pageId],
+    );
+  }
+
   async function groupPendingPhotos() {
-    if (pendingGroupIds.length < 2) return;
+    const selected = orderedPages.filter((page) => selectedPageIds.includes(page.id));
+    if (selected.length < 2) {
+      onNotice("Выберите минимум две страницы для объединения.");
+      return;
+    }
     try {
       await apiJson(apiBase, `/api/portal/cases/${caseId}/document-groups`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "Документ из фотографий",
-          doc_type: "labor",
-          document_ids: pendingGroupIds,
+          doc_type: pendingGroupDocType || "photo_document",
+          document_ids: selected.map((page) => page.id),
         }),
       });
-      onNotice("Страницы объединены в один логический документ.");
-      onClearPendingGroup();
+      onNotice(
+        `Страницы объединены в один логический документ (${selected.length} стр.).`,
+      );
+      onClearPendingGroup(selected.map((page) => page.id));
       await onRefresh();
     } catch {
       onNotice("Не удалось объединить фотографии.");
     }
   }
 
+  async function downloadGroup(group: DocumentGroup) {
+    const documentIds = group.pages.map((page) => page.id);
+    if (documentIds.length === 0) return;
+    try {
+      const response = await fetch(
+        `${apiBase}/api/portal/cases/${caseId}/documents/bulk-download`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ document_ids: documentIds }),
+        },
+      );
+      if (!response.ok) throw new Error("download failed");
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const payload = (await response.json()) as { url?: string };
+        if (payload.url) window.open(payload.url, "_blank", "noopener,noreferrer");
+      } else {
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${group.title || "document-group"}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+      onNotice("Единый PDF документа подготовлен.");
+    } catch {
+      onNotice("Не удалось скачать собранный документ.");
+    }
+  }
+
   const showLabor = documents.some((d) =>
-    ["labor", "workbook"].includes(String(d.doc_type || "").toLowerCase()),
+    ["labor", "labor_book", "workbook"].includes(String(d.doc_type || "").toLowerCase()),
   );
 
   return (
     <>
-      {pendingGroupIds.length >= 2 ? (
+      {orderedPages.length >= 2 ? (
         <section className="panel">
-          <h2>Объединить фотографии</h2>
+          <h2>Соберите страницы в документ</h2>
           <p className="hint">
-            Вы загрузили {pendingGroupIds.length} файла. Можно собрать их в один документ с
-            порядком страниц.
+            Перетащите карточки в правильный порядок. Отмеченные страницы будут объединены в
+            один логический документ; остальные останутся отдельными файлами.
           </p>
+          <ol className="photo-group-list">
+            {orderedPages.map((page, index) => {
+              const checked = selectedPageIds.includes(page.id);
+              return (
+                <li
+                  key={page.id}
+                  className={`photo-group-card${draggedPageId === page.id ? " is-dragged" : ""}`}
+                  draggable={!busy}
+                  onDragStart={() => setDraggedPageId(page.id)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handlePageDrop(event, page.id)}
+                  onDragEnd={() => setDraggedPageId(null)}
+                >
+                  <span className="photo-group-handle" aria-hidden="true">
+                    ⋮⋮
+                  </span>
+                  <input
+                    type="checkbox"
+                    aria-label={`Включить страницу ${index + 1}`}
+                    checked={checked}
+                    disabled={busy}
+                    onChange={() => togglePage(page.id)}
+                  />
+                  <PageThumbnail page={page} />
+                  <span className="photo-group-name">
+                    <strong>Страница {index + 1}</strong>
+                    <span>{page.filename}</span>
+                  </span>
+                  <span className="photo-group-reorder">
+                    <button
+                      type="button"
+                      className="linkish"
+                      aria-label={`Переместить страницу ${index + 1} выше`}
+                      disabled={busy || index === 0}
+                      onClick={() => movePage(page.id, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="linkish"
+                      aria-label={`Переместить страницу ${index + 1} ниже`}
+                      disabled={busy || index === orderedPages.length - 1}
+                      onClick={() => movePage(page.id, 1)}
+                    >
+                      ↓
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
           <p className="home-actions">
-            <button type="button" disabled={busy} onClick={() => void groupPendingPhotos()}>
-              Объединить в один документ
+            <button type="button" disabled={busy || selectedPageIds.length < 2} onClick={() => void groupPendingPhotos()}>
+              Объединить выбранные ({selectedPageIds.length})
             </button>
-            <button type="button" className="secondary" disabled={busy} onClick={onClearPendingGroup}>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => onClearPendingGroup(orderedPages.map((page) => page.id))}
+            >
               Оставить отдельными файлами
             </button>
           </p>
+          <p className="hint">Можно перетаскивать карточки мышью или менять порядок стрелками.</p>
+        </section>
+      ) : null}
+
+      {groups.length > 0 ? (
+        <section className="panel">
+          <h2>Собранные документы</h2>
+          {groups.map((group) => (
+            <div key={group.id} className="photo-group-saved">
+              <div>
+                <strong>{group.title || "Документ из фотографий"}</strong>
+                <span className="hint">
+                  {" "}
+                  · {group.page_count || group.pages.length} стр.
+                </span>
+              </div>
+              <ol className="plain-list photo-group-saved-pages">
+                {group.pages.map((page, index) => (
+                  <li key={page.id}>
+                    Страница {index + 1}: {page.filename || "файл"}
+                  </li>
+                ))}
+              </ol>
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => void downloadGroup(group)}
+              >
+                Скачать единым PDF
+              </button>
+            </div>
+          ))}
         </section>
       ) : null}
 
@@ -289,4 +510,19 @@ export function CaseJourneyExtras({
       ) : null}
     </>
   );
+}
+
+function PageThumbnail({ page }: { page: PendingGroupPage }) {
+  const previewUrl = useMemo(() => {
+    if (!page.file || !page.file.type.startsWith("image/")) return null;
+    return URL.createObjectURL(page.file);
+  }, [page.file]);
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  if (previewUrl) {
+    return <img className="photo-group-thumb" src={previewUrl} alt="" />;
+  }
+  return <span className="photo-group-thumb photo-group-thumb--empty">Фото</span>;
 }
