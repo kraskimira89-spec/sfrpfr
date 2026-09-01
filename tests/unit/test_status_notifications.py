@@ -35,10 +35,9 @@ def test_status_message_website_cabinet_only() -> None:
         case_id="11111111-2222-3333-4444-555555555555",
     )
     assert "На проверке специалиста" in text
-    assert "Кабинет на сайте" in text
+    assert "единый чат" in text.lower()
     assert "Мини-приложение MAX" not in text
     assert "Веб-кабинет" not in text
-    assert text.count("http") >= 1
 
 
 def test_shared_status_labels_payload() -> None:

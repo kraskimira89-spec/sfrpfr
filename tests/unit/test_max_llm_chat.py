@@ -43,7 +43,8 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "свободн" in low
     assert "остановил" in low
     assert "специалист" in low
-    assert "этот чат" in low
+    assert "мои документы" in low
+    assert "чат по делу" in low
     assert "электронн" in low or "трудов" in low
     assert "справка" in low
     assert "банковск" in low

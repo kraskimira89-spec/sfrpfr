@@ -169,8 +169,8 @@ def test_summary_and_upload_keyboards_website_only() -> None:
         assert all("/app/" not in u for u in links)
     assert "сайте" in SUMMARY_TEXT.lower()
     assert "сайте" in UPLOAD_BLOCKED_TEXT.lower()
-    assert "этот чат" in SUMMARY_TEXT.lower() or "сюда" in SUMMARY_TEXT.lower()
-    assert "этот чат" in UPLOAD_BLOCKED_TEXT.lower()
+    assert "мои документы" in SUMMARY_TEXT.lower()
+    assert "мои документы" in UPLOAD_BLOCKED_TEXT.lower()
     assert "кабинет в max" not in SUMMARY_TEXT.lower()
 
 
@@ -179,7 +179,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
 
     low = DOCS_INFO_TEXT.lower()
     assert "кроме" in low and "илс" in low
-    assert "этот чат" in low
+    assert "мои документы" in low
     assert "трудов" in low
     assert "электронн" in low
     assert "справка о размере пенсии" in low
@@ -190,9 +190,9 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "опек" in low or "дет" in low
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
-    assert "этот чат" in WELCOME_TEXT.lower()
+    assert "едином чате" in WELCOME_TEXT.lower() or "чат по делу" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
-    assert "этот чат" in DOCS_STAZH_TEXT.lower()
+    assert "мои документы" in DOCS_STAZH_TEXT.lower()
 
 
 def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
@@ -399,7 +399,7 @@ def test_docs_info_menu_and_special_section(tmp_path: Path, monkeypatch) -> None
     reply = menu.reply or ""
     low = reply.lower()
     assert "кроме" in low and "илс" in low
-    assert "этот чат" in low
+    assert "мои документы" in low
     assert "трудов" in low
 
     special = handle_max_update(_cb(31, "intake:docs:special"), bot=bot)
