@@ -8,6 +8,7 @@ import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
+import { CaseJourneyExtras } from "@/components/case-journey-extras";
 
 type CaseSummary = {
   id: string;
@@ -375,6 +376,7 @@ export function ClientCabinet() {
   const [uploadProgress, setUploadProgress] = useState<{ filename: string; percent: number } | null>(
     null,
   );
+  const [pendingGroupIds, setPendingGroupIds] = useState<string[]>([]);
   const [me, setMe] = useState<PortalMe | null>(null);
   const [youAreRepresentative, setYouAreRepresentative] = useState(false);
   const [representatives, setRepresentatives] = useState<
@@ -1593,6 +1595,14 @@ export function ClientCabinet() {
         (percent) => setUploadProgress({ filename: `${files.length} файлов`, percent }),
       )) as { uploaded?: CaseDocument[]; errors?: { message?: string }[] };
       const okCount = payload.uploaded?.length ?? 0;
+      const imageIds =
+        payload.uploaded
+          ?.filter((row) => {
+            const name = (row.filename || "").toLowerCase();
+            return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png");
+          })
+          .map((row) => row.id) || [];
+      if (imageIds.length >= 2) setPendingGroupIds(imageIds);
       if (payload.errors?.length) {
         setNotice(
           `Загружено ${okCount} из ${files.length}. ${payload.errors[0]?.message || ""}`.trim(),
@@ -2473,6 +2483,21 @@ export function ClientCabinet() {
               onToggleSelect={toggleDocSelection}
               onToggleAll={toggleAllDocs}
               onBulkDownload={() => void bulkDownloadSelected()}
+            />
+          ) : null}
+
+          {selectedId && token ? (
+            <CaseJourneyExtras
+              caseId={selectedId}
+              token={token}
+              apiBase={apiBase}
+              documents={detail.documents}
+              busy={busy}
+              pendingGroupIds={pendingGroupIds}
+              onClearPendingGroup={() => setPendingGroupIds([])}
+              onRefresh={async () => openCase(selectedId, "case", true)}
+              onPay={(orderId) => void startPayment(orderId)}
+              onNotice={setNotice}
             />
           ) : null}
 

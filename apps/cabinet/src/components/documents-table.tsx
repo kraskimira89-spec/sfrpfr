@@ -15,7 +15,9 @@ export type CabinetDocument = {
   document_group_id?: string | null;
   page_index?: number | null;
   ingest_status?: string | null;
+  progress_percent?: number | null;
   progress_message?: string | null;
+  placement_suggestion?: Record<string, unknown> | null;
   downloadable?: boolean;
 };
 
@@ -148,6 +150,13 @@ export function DocumentsTable({
     { key: "filename", label: "Файл" },
   ];
 
+  function statusLabel(doc: CabinetDocument): string {
+    if (doc.progress_message) return doc.progress_message;
+    if (doc.ingest_status === "under_review") return "Файл получен — специалист проверит";
+    if (doc.ingest_status === "needs_reupload") return "Нужна повторная загрузка";
+    return doc.ingest_status || "—";
+  }
+
   const selectable = documents.filter((d) => d.downloadable !== false);
   const allSelected =
     selectable.length > 0 && selectable.every((d) => selectedIds.includes(d.id));
@@ -219,6 +228,7 @@ export function DocumentsTable({
                   </label>
                 </th>
               ))}
+              <th scope="col">Статус</th>
             </tr>
           </thead>
           <tbody>
@@ -253,11 +263,12 @@ export function DocumentsTable({
                     )}
                   </td>
                 ))}
+                <td className="hint">{statusLabel(doc)}</td>
               </tr>
             ))}
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={onToggleSelect ? 6 : 5} className="hint">
+                <td colSpan={onToggleSelect ? 7 : 6} className="hint">
                   {documents.length === 0 ? emptyHint : "Нет строк по выбранным фильтрам."}
                 </td>
               </tr>
