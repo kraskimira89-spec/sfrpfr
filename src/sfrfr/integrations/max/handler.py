@@ -86,6 +86,7 @@ from sfrfr.security.login_pending import (
     parse_confirm_callback,
     parse_manager_callback,
 )
+
 logger = logging.getLogger(__name__)
 
 

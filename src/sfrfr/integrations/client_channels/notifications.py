@@ -165,12 +165,12 @@ def maybe_send_soft_review_ask(
         "text": text,
     }
     try:
+        from sfrfr.db.session import get_supabase_client
         from sfrfr.integrations.max.review_flow import soft_ask_attachments
         from sfrfr.services.case_chat_delivery import (
             enqueue_max_delivery,
             process_pending_outbox,
         )
-        from sfrfr.db.session import get_supabase_client
 
         inserted = (
             get_supabase_client()
