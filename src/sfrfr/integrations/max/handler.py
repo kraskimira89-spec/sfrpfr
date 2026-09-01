@@ -302,6 +302,7 @@ def _append_bot_case_message(
     text: str,
     attachments: list[dict[str, Any]] | None = None,
     max_user_id: str | None = None,
+    external_message_id: str | None = None,
 ) -> None:
     """Сохранить ответ бота MAX (текст + подписи кнопок) в ленту дела."""
     from sfrfr.integrations.max.case_chat_log import append_bot_case_message
@@ -311,6 +312,7 @@ def _append_bot_case_message(
         max_user_id=max_user_id,
         text=text,
         attachments=attachments,
+        external_message_id=external_message_id,
     )
 
 
@@ -2717,12 +2719,12 @@ def handle_max_update(
             documents_cabinet_url,
         )
 
-        case_id = _chat_case_id(user_id, preferred=str(record.case_id))
-        docs_url = documents_cabinet_url(case_id)
+        reject_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        docs_url = documents_cabinet_url(reject_case_id)
         reply = MAX_FILE_REJECT_TEXT
         ext_id = _max_message_id(update)
         _append_client_case_message(
-            case_id=case_id,
+            case_id=reject_case_id,
             max_user_id=user_id,
             text="[Вложение отклонено: документы принимаются только через раздел «Мои документы»]",
             external_message_id=ext_id,
@@ -2733,12 +2735,12 @@ def handle_max_update(
             chat_id=chat_id,
             text=reply,
             attachments=documents_upload_keyboard(cabinet_url=docs_url),
-            case_id=case_id,
+            case_id=reject_case_id,
         )
         return MaxHandleResult(
             ok=False,
             action="upload_rejected_unified_chat",
-            case_id=case_id,
+            case_id=reject_case_id,
             reply=reply,
         )
 
