@@ -275,7 +275,7 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_upload_accepted_in_production(tmp_path: Path, monkeypatch) -> None:
+def test_upload_rejected_in_unified_chat(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
     get_settings.cache_clear()
@@ -293,7 +293,7 @@ def test_upload_accepted_in_production(tmp_path: Path, monkeypatch) -> None:
     ):
         handle_max_update(_cb(12, payload), bot=bot)
 
-    accepted = handle_max_update(
+    rejected = handle_max_update(
         {
             "message": {
                 "sender": {"user_id": 12},
@@ -305,10 +305,9 @@ def test_upload_accepted_in_production(tmp_path: Path, monkeypatch) -> None:
         },
         bot=bot,
     )
-    assert accepted.action == "upload"
-    assert accepted.ok is True
-    assert "приняли" in (accepted.reply or "").lower() or "принят" in (accepted.reply or "").lower()
-    assert "кабинет" in (accepted.reply or "").lower()
+    assert rejected.action == "upload_rejected_unified_chat"
+    assert rejected.ok is False
+    assert "кабинет" in (rejected.reply or "").lower()
     assert bot.attachments[-1]
     get_settings.cache_clear()
 
