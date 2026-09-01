@@ -2610,12 +2610,12 @@ def handle_max_update(
             documents_cabinet_url,
         )
 
-        case_id = _chat_case_id(user_id, preferred=str(record.case_id))
-        docs_url = documents_cabinet_url(case_id)
+        reject_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        docs_url = documents_cabinet_url(reject_case_id)
         reply = MAX_FILE_REJECT_TEXT
         ext_id = _max_message_id(update)
         _append_client_case_message(
-            case_id=case_id,
+            case_id=reject_case_id,
             max_user_id=user_id,
             text="[Вложение отклонено: документы принимаются только через раздел «Мои документы»]",
             external_message_id=ext_id,
@@ -2626,12 +2626,12 @@ def handle_max_update(
             chat_id=chat_id,
             text=reply,
             attachments=documents_upload_keyboard(cabinet_url=docs_url),
-            case_id=case_id,
+            case_id=reject_case_id,
         )
         return MaxHandleResult(
             ok=False,
             action="upload_rejected_unified_chat",
-            case_id=case_id,
+            case_id=reject_case_id,
             reply=reply,
         )
 

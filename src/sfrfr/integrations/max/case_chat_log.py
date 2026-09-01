@@ -269,7 +269,7 @@ def append_case_chat_message(
     text = (body or "").strip()
     mid = (max_user_id or "").strip()
     if not text:
-        return
+        return None
     ext = (external_message_id or "").strip()
     if ext:
         try:
@@ -341,7 +341,7 @@ def append_bot_case_message(
 ) -> dict[str, Any] | None:
     body = (text or "").strip()
     if not body:
-        return
+        return None
     labels = keyboard_button_labels(attachments)
     if labels:
         body = f"{body}\n\n[Кнопки бота: {' · '.join(labels)}]"
