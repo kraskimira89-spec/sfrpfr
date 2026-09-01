@@ -31,7 +31,6 @@ from sfrfr.integrations.max.intake import (
     ILS_HOWTO_TEXT,
     OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
-    UPLOAD_ACCEPTED_TEXT,
     WELCOME_TEXT,
     cabinet_url_for_case,
     device_keyboard,
