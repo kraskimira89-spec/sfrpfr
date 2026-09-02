@@ -12,8 +12,22 @@ cd "$APP_DIR"
 # иначе bash продолжает старую версию (без пересборки Next.js).
 if [[ "${1:-}" != "--post-update" ]]; then
   chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-  sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 git -c credential.helper= fetch origin
-  sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
+  # HTTPS fetch с VPS иногда требует credentials prompt → 128; 3 попытки без helper.
+  fetch_ok=0
+  for _try in 1 2 3; do
+    if sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true \
+      git -C "$APP_DIR" -c credential.helper= fetch --prune origin; then
+      fetch_ok=1
+      break
+    fi
+    echo "WARN: git fetch failed (try ${_try}/3), retry…"
+    sleep 2
+  done
+  if [[ "$fetch_ok" -ne 1 ]]; then
+    echo "ERROR: git fetch origin failed after retries"
+    exit 1
+  fi
+  sudo -u "$APP_USER" git -C "$APP_DIR" reset --hard "origin/$BRANCH"
   exec bash "$APP_DIR/scripts/vps_deploy.sh" --post-update
 fi
 
