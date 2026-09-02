@@ -1,0 +1,2 @@
+week_start,week_end,case_ref,lead_at,first_reply_at,delta_min,sla_ok,notes
+2026-09-01,2026-09-07,,,,,,шаблон — заполнить без ПДн; case_ref = последние 4 id

@@ -16,8 +16,15 @@ MCP **не** создаёт доски и Wiki.
 
 ## Доска FUNNEL
 
-1. https://tracker.yandex.ru/FUNNEL → Доски.
-2. Колонки Open/In Progress/Done или по этапам + теги `funnel-*`.
+**Задача:** [FUNNEL-4](https://tracker.yandex.ru/FUNNEL-4)
+
+1. Открыть https://tracker.yandex.ru/FUNNEL → **Доски** → **Создать доску** (или отредактировать существующую).
+2. **Вариант A (простой):** колонки **Open → In Progress → Done**; фильтр по тегам `funnel-*` / `ops`.
+3. **Вариант B (по этапам):** колонки-статусы или swimlane по тегам:
+   - `funnel-lead` · `funnel-qualify` · `funnel-diag` · `funnel-docs`
+   - `funnel-submit` · `funnel-result` · `funnel-review` · `funnel-loss`
+4. На карточке доски: **Сохранить** → приложить **скрин** в комментарий FUNNEL-4 → закрыть задачу.
+5. Канон тегов: [playbook-funnel-ops.md](playbook-funnel-ops.md).
 
 ## Wiki SFRFR
 

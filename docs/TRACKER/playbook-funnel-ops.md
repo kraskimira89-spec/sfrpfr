@@ -24,6 +24,15 @@
 
 Ops-фокус FUNNEL: SLA первого ответа (цель 30–60 мин в рабочие часы), обязательность next step в процессе, LOSS_REASON, узкие места «не прислали ИЛС / боятся цену / не дошли до оплаты».
 
+**Playbook'и (staff cabinet):**
+
+| Задача | Документ |
+|--------|----------|
+| FUNNEL-2 SLA | [../ops/playbook-funnel-lead-sla.md](../ops/playbook-funnel-lead-sla.md) |
+| FUNNEL-5 clarity | [../ops/playbook-funnel-clarity-dialog-review.md](../ops/playbook-funnel-clarity-dialog-review.md) · [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) |
+| Оператор | [../ops/playbook-staff-new-lead-cheatsheet.md](../ops/playbook-staff-new-lead-cheatsheet.md) |
+| Доска FUNNEL | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) § FUNNEL-4 |
+
 ## Шаблон
 
 **queue:** `FUNNEL`
