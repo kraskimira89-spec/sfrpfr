@@ -156,8 +156,6 @@ export function CaseChatPanel({
   clientName = null,
   caseLabel = null,
   maxLinked,
-  maxUserId,
-  maxBusinessUrl,
   body,
   onBodyChange,
   busy,
@@ -166,7 +164,6 @@ export function CaseChatPanel({
   suggestions,
   onSuggest,
   composerHighlight = false,
-  marketingConsentLabel = null,
   onRequestMarketingConsent,
   waitingOn = null,
 }: {
@@ -176,8 +173,10 @@ export function CaseChatPanel({
   /** Идентификатор дела вида ПС-000123. */
   caseLabel?: string | null;
   maxLinked: boolean;
-  maxUserId: string | null;
-  maxBusinessUrl: string | null;
+  /** @deprecated оставлено для совместимости вызова; в UI не показывается. */
+  maxUserId?: string | null;
+  /** @deprecated оставлено для совместимости вызова; в UI не показывается. */
+  maxBusinessUrl?: string | null;
   body: string;
   onBodyChange: (value: string) => void;
   busy: boolean;
@@ -186,7 +185,7 @@ export function CaseChatPanel({
   suggestions: string[];
   onSuggest: () => void;
   composerHighlight?: boolean;
-  /** Краткий статус marketing consent по MAX (не ПДн). */
+  /** @deprecated статус marketing consent больше не выводится в чате. */
   marketingConsentLabel?: string | null;
   onRequestMarketingConsent?: () => void;
   waitingOn?: string | null;
@@ -468,29 +467,17 @@ export function CaseChatPanel({
             {maxLinked ? "Только в ленту" : "Отправить"}
           </button>
         </div>
-        <p className="hint">
-          Ctrl+Enter — отправить.
-          {maxBusinessUrl && maxUserId
-            ? ` MAX Business · user_id ${maxUserId}.`
-            : ""}
-        </p>
-        {maxLinked ? (
-          <div className="case-chat-marketing" style={{ marginTop: "0.75rem" }}>
-            <p className="hint" style={{ marginBottom: "0.35rem" }}>
-              Маркетинг MAX: {marketingConsentLabel || "нет данных / нет согласия"}. Не путать с
-              согласием на ПДн. Promo-шаблоны (`marketing_*`) без согласия не уйдут.
-            </p>
-            {onRequestMarketingConsent ? (
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={onRequestMarketingConsent}
-                title="Отправить в MAX кнопки «Да, согласен» / «Нет»"
-              >
-                Запросить согласие на рассылку в MAX
-              </button>
-            ) : null}
+        {maxLinked && onRequestMarketingConsent ? (
+          <div className="case-chat-marketing">
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={onRequestMarketingConsent}
+              title="Отправить в MAX кнопки «Да, согласен» / «Нет»"
+            >
+              Запросить согласие на рассылку в MAX
+            </button>
           </div>
         ) : null}
       </div>
