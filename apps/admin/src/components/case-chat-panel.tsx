@@ -258,25 +258,27 @@ export function CaseChatPanel({
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
       <div className="case-chat-head">
-        <h2>Чат с клиентом</h2>
-        <p className="case-chat-client-id" title="Клиент и номер дела">
-          <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
-          {caseLabel ? <span className="case-chat-case-no">{caseLabel}</span> : null}
-        </p>
-        {headBadges.length > 0 ? (
-          <div className="situation-badges" style={{ marginBottom: 6 }}>
-            {headBadges.map((b) => (
-              <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
-                {b.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {awaitsStaff ? (
-          <p className="case-chat-await" role="status">
-            Нужен ответ сотрудника
+        <div className="case-chat-head-row case-chat-head-row--meta">
+          <h2>Чат с клиентом</h2>
+          <p className="case-chat-client-id" title="Клиент и номер дела">
+            <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
+            {caseLabel ? <span className="case-chat-case-no">{caseLabel}</span> : null}
           </p>
-        ) : null}
+          {headBadges.length > 0 ? (
+            <div className="situation-badges case-chat-head-badges">
+              {headBadges.map((b) => (
+                <span key={b.id} className={`badge badge--${b.kind}`} title={b.title}>
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {awaitsStaff ? (
+            <p className="case-chat-await" role="status">
+              Нужен ответ сотрудника
+            </p>
+          ) : null}
+        </div>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [

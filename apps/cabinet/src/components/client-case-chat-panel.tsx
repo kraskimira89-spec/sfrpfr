@@ -181,8 +181,9 @@ export function ClientCaseChatPanel({
   return (
     <aside id="case-chat" className="case-chat panel client-chat-panel" aria-label={CASE_CHAT_TITLE}>
       <div className="case-chat-head">
-        <div className="case-chat-head-row">
-          <h2>{CASE_CHAT_TITLE}</h2>
+        <div className="case-chat-head-row case-chat-head-row--meta">
+          <h2 title={`${CASE_CHAT_SUBTITLE}. ${CASE_CHAT_SYNC_HINT}`}>{CASE_CHAT_TITLE}</h2>
+          <p className="hint case-chat-head-lead">{CASE_CHAT_SUBTITLE}</p>
           <a
             className="secondary case-chat-max-link"
             href={maxHref}
@@ -195,8 +196,6 @@ export function ClientCaseChatPanel({
             Закрыть
           </a>
         </div>
-        <p className="hint">{CASE_CHAT_SUBTITLE}</p>
-        <p className="hint case-chat-sync-hint">{CASE_CHAT_SYNC_HINT}</p>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
           {(
             [

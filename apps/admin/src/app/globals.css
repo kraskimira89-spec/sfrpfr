@@ -842,14 +842,15 @@ button.badge--clickable:hover {
   gap: 5px;
 }
 .case-chat-await {
-  margin: 0 0 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
   background: #fde8e8;
   color: #9b1c1c;
   border: 1px solid #f0b4b4;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 .row-menu {
   display: grid;
@@ -1484,24 +1485,51 @@ button.badge--clickable:hover {
 .case-chat-head {
   flex: 0 0 auto;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
-.case-chat-head h2 { margin: 0; font-size: 1.1rem; }
+.case-chat-head-row--meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.case-chat-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
 .case-chat-head .hint { margin: 0; }
 .case-chat-client-id {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.92rem;
-  line-height: 1.35;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.3;
   color: var(--ink, #142033);
+}
+.case-chat-client-id strong {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
 }
 .case-chat-case-no {
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   white-space: nowrap;
+}
+.case-chat-head-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
 }
 .case-chat-filters {
   display: flex;

@@ -1138,19 +1138,31 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 .case-chat-head-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
+}
+.case-chat-head-row--meta {
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.case-chat-head-lead {
+  margin: 0;
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .case-chat-close-mobile {
   display: none;
 }
 .case-chat-files-hint {
   margin: 4px 0 0;
-}
-.case-chat-sync-hint {
-  margin-top: -4px !important;
 }
 .case-chat-quick {
   display: flex;
@@ -1192,9 +1204,14 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 .case-chat-head {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
-.case-chat-head h2 { margin: 0; font-size: 1.1rem; }
+.case-chat-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
 .case-chat-head .hint { margin: 0; }
 .case-chat-filters {
   display: flex;
