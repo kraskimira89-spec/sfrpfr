@@ -117,6 +117,12 @@
 - Правка вставляется в тот же чат ops — ответ с кнопкой тоже туда.
 - Docs: `docs/ops/max-channel-review.md`.
 
+## 2026-09-02 — STAZH-1 prod smoke DONE
+
+- VPS: `TRACKER_*` в `/opt/sfrfr/.env`, restart API; health JWT `ok:true`.
+- Миграция `case_tracker_issues` на YC (ранее отсутствовала) + RLS.
+- Smoke: [STAZH-4](https://tracker.yandex.ru/STAZH-4); [STAZH-1](https://tracker.yandex.ru/STAZH-1) закрыта.
+
 ## 2026-09-02 — lint 0029: case helpers → private
 
 - WARN `authenticated_security_definer_function_executable` на `can_access_case` / `is_case_*`.

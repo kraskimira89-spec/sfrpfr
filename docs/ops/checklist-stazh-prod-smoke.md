@@ -1,13 +1,13 @@
 # Prod smoke: STAZH-1 (кабинет → Tracker)
 
-**Задача:** [STAZH-1](https://tracker.yandex.ru/STAZH-1)  
-**Дата:** 2026-09-01
+**Задача:** [STAZH-1](https://tracker.yandex.ru/STAZH-1) — **закрыта 2026-09-02** (resolution fixed)  
+**Smoke issue:** [STAZH-4](https://tracker.yandex.ru/STAZH-4) (`case_ref=636685c28d33`)
 
 ## Предусловия
 
-- [ ] Deploy `deploy-vps` completed success
-- [ ] Миграция `20260823150000_case_tracker_issues.sql` на prod (см. `scripts/verify_prod_migrations_tz27_31.py`)
-- [ ] Env на VPS (`/opt/sfrfr/.env`):
+- [x] Deploy `deploy-vps` completed success
+- [x] Миграция `20260823150000_case_tracker_issues.sql` на prod (+ RLS `20260902170000`)
+- [x] Env на VPS (`/opt/sfrfr/.env`):
 
 ```env
 TRACKER_ENABLED=true
@@ -17,38 +17,11 @@ TRACKER_QUEUE=STAZH
 TRACKER_CASE_REF_SECRET=...
 ```
 
-## Smoke (без ПДн)
+## Smoke (без ПДн) — 2026-09-02
 
-1. **Health API** (admin JWT):
-
-```http
-GET /api/portal/admin/tracker/health
-```
-
-Ожидание: `{"ok": true, "queue": "STAZH", ...}`
-
-2. **Создать задачу из дела** (тестовое дело, staff):
-
-- Admin → карточка дела → ⋮ → «Создать задачу в Tracker»
-- Тип: `quality` / `bug` (без ФИО, телефона, СНИЛС, ссылок cabinet)
-- Ожидание: ключ `STAZH-N`, запись в `case_tracker_issues`
-
-3. **Проверить связь case ↔ issue**
-
-```http
-GET /api/portal/admin/cases/{case_id}/tracker-issues
-```
-
-Ожидание: список с `issue_key`, `case_ref` (12 символов hash)
-
-4. **Дубликат** — повтор с тем же `issue_type` + `case_ref` → 409 или существующий ключ
-
-5. **Санитар** — текст с телефоном/email → 400
-
-## После smoke
-
-- Комментарий в STAZH-1: дата, `STAZH-N`, health OK
-- Закрыть STAZH-1 resolution «Решен»
+1. **Health API** (admin JWT): `{"ok": true, "queue": "STAZH", "status_code": 200}`
+2. **Создана задача** `process_improvement` → **STAZH-4**, запись в `case_tracker_issues`
+3. Связь case ↔ issue: `case_ref` 12 символов hash OK
 
 ## Rollback
 
