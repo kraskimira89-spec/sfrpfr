@@ -15,18 +15,23 @@ from sfrfr.core.config import get_settings
 EVENT_MAP: dict[str, tuple[str, str]] = {
     "processed": ("accepted", "info"),
     "accepted": ("accepted", "info"),
+    "send": ("accepted", "info"),  # Postbox
     "delivery": ("delivered", "info"),
     "delivered": ("delivered", "info"),
     "deferred": ("deferred", "warning"),
+    "deliverydelay": ("deferred", "warning"),  # Postbox
     "temporary_fail": ("deferred", "warning"),
     "bounce": ("bounce", "error"),
     "bounced": ("bounce", "error"),
     "failed": ("failed", "error"),
+    "renderingfailure": ("failed", "error"),  # Postbox
     "spamcomplaint": ("complained", "error"),
     "spam_complaint": ("complained", "error"),
+    "complaint": ("complained", "error"),  # Postbox
     "complained": ("complained", "error"),
     "spamreport": ("complained", "error"),
     "subscriptionchange": ("unsubscribed", "warning"),
+    "subscription": ("unsubscribed", "warning"),  # Postbox
     "unsubscribed": ("unsubscribed", "warning"),
     "open": ("opened", "info"),
     "opened": ("opened", "info"),

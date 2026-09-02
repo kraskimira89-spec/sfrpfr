@@ -1,9 +1,9 @@
 # ТЗ-31: webhook-доставка e-mail ≠ открытие PDF
 
-**Версия:** 1.0  
-**Дата:** 2026-08-23  
-**Статус:** MVP — Postmark / Mailgun / SendGrid webhooks + журнал `delivery_events`  
-**Связано:** [ТЗ-28](28-diagnosis-secure-delivery.md) · [ТЗ-30](30-diagnosis-delivery-triggers.md) · [Mailgun securing](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/securing-webhooks) · [SendGrid Event Webhook security](https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features)
+**Версия:** 1.1  
+**Дата:** 2026-09-02  
+**Статус:** MVP — **Yandex Cloud Postbox** (канон) + Postmark / Mailgun / SendGrid (резерв)  
+**Связано:** [ТЗ-28](28-diagnosis-secure-delivery.md) · [ТЗ-30](30-diagnosis-delivery-triggers.md) · [Postbox notifications](https://yandex.cloud/ru/docs/postbox/concepts/notification) · Ops: [`docs/ops/yandex-postbox-setup.md`](../ops/yandex-postbox-setup.md)
 
 ---
 
@@ -21,33 +21,37 @@
 
 ## 2. Провайдеры (схемы подписи разные)
 
-| Провайдер | Auth | Endpoint |
-|-----------|------|----------|
-| **Yandex SMTP** (исходящая диагностика) | OAuth2 XOAUTH2 | исходящий `send_mail` → Message-ID в job |
-| **Postmark** | HTTP Basic | `POST /api/webhooks/email/postmark` |
+| Провайдер | Auth | Endpoint / канал |
+|-----------|------|------------------|
+| **Yandex Cloud Postbox** (канон) | Send: AWS SigV4; Webhook: HTTP Basic (CF→API) | `POST /api/webhooks/email/postbox` |
+| **Yandex SMTP** (fallback) | OAuth2 XOAUTH2 | Workspace `send_mail` |
+| **Postmark** (резерв) | HTTP Basic | `POST /api/webhooks/email/postmark` |
 | **Mailgun** | HMAC-SHA256(`timestamp`+`token`) + freshness ±5 мин | `POST /api/webhooks/email/mailgun` |
 | **SendGrid** | ECDSA по **raw body** + headers Signature/Timestamp | `POST /api/webhooks/email/sendgrid` |
 
-Исходящий канон MVP: **Yandex SMTP**. Webhooks ESP — optional (если письмо ушло через этот ESP).  
+Исходящий канон: **Postbox** при `YANDEX_POSTBOX_ENABLED=true` + ключи; иначе Workspace SMTP.  
 Retry SMTP: `POST /api/portal/admin/notification-jobs/smtp-retry` (backoff 15/60/240 мин, max 3).
 
 Не применять один алгоритм ко всем. Health: `GET /api/webhooks/email/health`.
 
-Env:
+Env (фрагмент):
 
 ```text
-POSTMARK_WEBHOOK_USER=…
-POSTMARK_WEBHOOK_PASSWORD=…
-MAILGUN_WEBHOOK_SIGNING_KEY=…          # HTTP webhook signing key
-SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY=…  # base64 DER или PEM
+YANDEX_POSTBOX_ENABLED=true
+YANDEX_POSTBOX_FROM_EMAIL=…
+YANDEX_POSTBOX_ACCESS_KEY_ID=…
+YANDEX_POSTBOX_SECRET_ACCESS_KEY=…
+YANDEX_POSTBOX_CONFIGURATION_SET=…
+POSTBOX_WEBHOOK_USER=…
+POSTBOX_WEBHOOK_PASSWORD=…
+POSTMARK_WEBHOOK_USER=…          # резерв
+MAILGUN_WEBHOOK_SIGNING_KEY=…
+SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY=…
 EMAIL_DELIVERY_HASH_SALT=…
 ```
 
-**Рекомендация MVP (Python):** Mailgun — простая HMAC-проверка.  
-Если уже SendGrid — только raw body + ECDSA.  
-Postmark остаётся вариантом с Basic Auth.
-
-Исходящая почта диагностики пока может идти через **Yandex SMTP** (`Message-ID` в `notification_jobs.provider_message_id`).
+Postbox события: `Send` → accepted; `Delivery` → delivered; `Bounce` Permanent/Transient → hard/soft;  
+`DeliveryDelay` → deferred; `Complaint` / `Subscription` / `Open` / `Click` / `Rendering Failure` — по таблице §5.
 
 ---
 
@@ -74,9 +78,9 @@ Email job: draft → approved → queued → sent/accepted → delivered
 
 | Webhook | Действие |
 |--------|----------|
-| accepted/processed | job → accepted |
+| accepted/processed / Postbox Send | job → accepted |
 | delivered | job → delivered (**не** PDF opened) |
-| deferred / soft bounce | temporary_problem; retry-метка |
+| deferred / soft bounce / DeliveryDelay | temporary_problem; retry-метка |
 | hard bounce | block channel; cancel pending email; задача сотруднику |
 | complaint | block; cancel; security-задача |
 | unsubscribe | marketing consent revoked (email only) |
@@ -95,14 +99,17 @@ Email job: draft → approved → queued → sent/accepted → delivered
 ## 7. Rollout / rollback
 
 1. Миграция `20260823230000_email_delivery_webhooks.sql` (SFRFR).  
-2. Env на VPS: ключи выбранного провайдера (`POSTMARK_*` / `MAILGUN_*` / `SENDGRID_*`).  
-3. Webhook в кабинете провайдера → `GET /api/webhooks/email/health`.  
-4. Rollback: отключить webhook у провайдера; таблицы оставить.
+2. Postbox в YC + CF bridge (`docs/ops/yandex-postbox-setup.md`).  
+3. Env на VPS → `GET /api/webhooks/email/health` (`yandex_postbox` / `yandex_postbox_send`).  
+4. Rollback: `YANDEX_POSTBOX_ENABLED=false`; таблицы оставить.
 
 ---
 
 ## 8. Приёмка
 
+- [x] Postbox: parse SES-like notifications + YDS wrapper  
+- [x] Postbox: SendEmail SigV4 + `provider=yandex_postbox`  
+- [x] Postbox webhook: Basic Auth  
 - [x] Postmark: Basic Auth до разбора payload  
 - [x] Mailgun: HMAC-SHA256(timestamp+token) + freshness ±5 мин  
 - [x] SendGrid: ECDSA по raw body + Signature/Timestamp headers  
@@ -113,4 +120,4 @@ Email job: draft → approved → queued → sent/accepted → delivered
 - [x] redaction e-mail/UUID из payload  
 - [x] P1 (Yandex): SMTP retry worker (`smtp-retry`, backoff)  
 - [ ] P2: IMAP DSN → delivery_events (optional)  
-- [ ] P2: отправка через API ESP (если сменим исходящий канал)  
+- [ ] Ops: Postbox identity + CF на prod (чеклист setup)  

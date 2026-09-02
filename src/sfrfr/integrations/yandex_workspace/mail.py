@@ -76,13 +76,11 @@ def send_mail(
     html: str | None = None,
     from_name: str | None = None,
 ) -> dict[str, Any]:
-    """Отправить письмо. Без СНИЛС/OCR/signed Storage URL в шаблонах."""
-    settings = get_settings()
-    if not settings.yandex_mail_enabled:
-        return {"ok": False, "skipped": True, "reason": "YANDEX_MAIL_ENABLED=false"}
-    if not token_available():
-        return {"ok": False, "skipped": True, "reason": "no YANDEX_OAUTH_ACCESS_TOKEN"}
+    """Отправить письмо. Без СНИЛС/OCR/signed Storage URL в шаблонах.
 
+    Канал: Yandex Cloud Postbox (если включён и настроен) → иначе Workspace SMTP.
+    """
+    settings = get_settings()
     to_addr = (to or "").strip()
     if "@" not in to_addr:
         return {"ok": False, "error": "invalid_to"}
@@ -98,9 +96,28 @@ def send_mail(
     final_subject = (subject or tpl_subject).format(**fmt)[:200]
     final_body = redact_outbound_body(tpl_body.format(**fmt))
     html_body = redact_outbound_body((html or "").strip()) if (html or "").strip() else ""
+    display = (from_name or "").strip() or "Проверка стажа"
+
+    from sfrfr.integrations.yandex_postbox import postbox_configured, send_email_postbox
+
+    if postbox_configured():
+        result = send_email_postbox(
+            to=to_addr,
+            subject=final_subject,
+            text=final_body,
+            html=html_body or None,
+            from_name=display,
+        )
+        if result.get("ok"):
+            result = {**result, "template": tpl_key}
+        return result
+
+    if not settings.yandex_mail_enabled:
+        return {"ok": False, "skipped": True, "reason": "YANDEX_MAIL_ENABLED=false"}
+    if not token_available():
+        return {"ok": False, "skipped": True, "reason": "no YANDEX_OAUTH_ACCESS_TOKEN"}
 
     from_addr = workspace_email()
-    display = (from_name or "").strip() or "Проверка стажа"
     from_header = formataddr((display, from_addr))
     token = (settings.yandex_oauth_access_token or "").strip()
 

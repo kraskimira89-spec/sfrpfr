@@ -1,6 +1,7 @@
-"""HTTPS webhooks доставки e-mail: Postmark / Mailgun / SendGrid (ТЗ-31).
+"""HTTPS webhooks доставки e-mail: Postbox / Postmark / Mailgun / SendGrid (ТЗ-31).
 
 Схемы подписи разные — не смешивать алгоритмы.
+Канон РФ: Yandex Cloud Postbox (CF → Basic Auth → этот API).
 """
 
 from __future__ import annotations
@@ -22,6 +23,45 @@ _MAX_BODY_BYTES = 1_048_576  # 1 MiB
 def _reject_oversized(raw: bytes) -> None:
     if len(raw) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="payload_too_large")
+
+
+@router.post("/email/postbox")
+async def postbox_email_webhook(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Yandex Cloud Postbox: JSON уведомлений (напрямую или обёртка YDS/CF)."""
+    from sfrfr.integrations.email_webhooks.postbox import (
+        parse_postbox_payload,
+        verify_postbox_basic_auth,
+    )
+    from sfrfr.services.email_delivery_webhook import EmailDeliveryWebhookService
+
+    settings = get_settings()
+    user = (settings.postbox_webhook_user or "").strip()
+    password = (settings.postbox_webhook_password or "").strip()
+    if not user or not password:
+        raise HTTPException(status_code=503, detail="postbox_webhook_not_configured")
+
+    if not verify_postbox_basic_auth(authorization, username=user, password=password):
+        raise HTTPException(status_code=401, detail="Invalid webhook credentials")
+
+    raw = await request.body()
+    _reject_oversized(raw)
+    try:
+        body = json.loads(raw.decode("utf-8") or "{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="invalid_json") from exc
+
+    events = parse_postbox_payload(body)
+    if not events:
+        return {"ok": True, "stored": 0, "note": "no_events"}
+
+    try:
+        return EmailDeliveryWebhookService().process_events(events)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("postbox webhook processing failed")
+        raise HTTPException(status_code=500, detail="processing_failed") from exc
 
 
 @router.post("/email/postmark")
@@ -167,10 +207,17 @@ async def sendgrid_email_webhook(
 @router.get("/email/health")
 def email_webhooks_health() -> dict[str, Any]:
     """Какие провайдеры настроены (без секретов)."""
+    from sfrfr.integrations.yandex_postbox import postbox_configured
+
     s = get_settings()
     return {
         "ok": True,
         "providers": {
+            "yandex_postbox": bool(
+                (s.postbox_webhook_user or "").strip()
+                and (s.postbox_webhook_password or "").strip()
+            ),
+            "yandex_postbox_send": postbox_configured(),
             "postmark": bool(
                 (s.postmark_webhook_user or "").strip()
                 and (s.postmark_webhook_password or "").strip()

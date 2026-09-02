@@ -66,14 +66,23 @@ class Settings(BaseSettings):
     yandex_telemost_enabled: bool = True
     yandex_mail_enabled: bool = True
     yandex_mail_imap_enabled: bool = False
-    # ТЗ-31: Postmark webhooks (Basic Auth). Отправка пока может идти через Yandex SMTP.
+    # ТЗ-31: Postmark webhooks (Basic Auth). Резерв; канон исходящего — Postbox / Yandex SMTP.
     postmark_webhook_user: str = ""
     postmark_webhook_password: str = ""
-    postmark_server_token: str = ""  # опционально, для будущей отправки через Postmark
+    postmark_server_token: str = ""  # опционально
     # ТЗ-31b: Mailgun HMAC signing key; SendGrid Event Webhook public key (base64/PEM)
     mailgun_webhook_signing_key: str = ""
     sendgrid_event_webhook_public_key: str = ""
     email_delivery_hash_salt: str = ""  # пусто = app_secret_key
+    # Yandex Cloud Postbox (канон РФ/YC): отправка + webhook через CF→HTTPS
+    yandex_postbox_enabled: bool = False
+    yandex_postbox_from_email: str = ""
+    yandex_postbox_configuration_set: str = ""
+    yandex_postbox_access_key_id: str = ""
+    yandex_postbox_secret_access_key: str = ""
+    yandex_postbox_endpoint: str = "https://postbox.cloud.yandex.net"
+    postbox_webhook_user: str = ""
+    postbox_webhook_password: str = ""
     yandex_calendar_enabled: bool = True
     yandex_disk_enabled: bool = False
     # Алиасы из раздела «Аналитика» / docs (часто заполнены вместо YANDEX_*)
