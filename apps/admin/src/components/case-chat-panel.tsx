@@ -23,7 +23,7 @@ function splitBody(body: string): {
   qrUrl: string | null;
 } {
   const isDocument = body.startsWith("[Документ] ");
-  let text = body;
+  let text = body.replace(/^\[\[internal\]\]\s*/i, "");
   let qrUrl: string | null = null;
   const qrMatch = text.match(/\nQR:\s*(https?:\/\/\S+)/);
   if (qrMatch) {
@@ -261,7 +261,7 @@ export function CaseChatPanel({
         <h2>Чат с клиентом</h2>
         <p className="case-chat-client-id" title="Клиент и номер дела">
           <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
-          {caseLabel ? <span className="case-chat-case-no"> · {caseLabel}</span> : null}
+          {caseLabel ? <span className="case-chat-case-no">{caseLabel}</span> : null}
         </p>
         {headBadges.length > 0 ? (
           <div className="situation-badges" style={{ marginBottom: 6 }}>

@@ -107,14 +107,24 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
     return None
 
 
-def _llm_reply(user_text: str, work: dict[str, Any]) -> str | None:
-    from sfrfr.ai.guardrails import redact_for_llm
+def _llm_reply(
+    user_text: str,
+    work: dict[str, Any],
+    *,
+    case_id: str | None = None,
+    exclude_message_id: str | None = None,
+    channel: str = "cabinet",
+) -> str | None:
     from sfrfr.ai.llm import LLMClient
     from sfrfr.integrations.max.llm_chat import (
         CLIENT_CHAT_SYSTEM,
         _parse_llm_payload,
         llm_chat_enabled,
         looks_like_pdn,
+    )
+    from sfrfr.services.case_chat_context import (
+        build_client_llm_user_prompt,
+        fetch_recent_case_messages,
     )
 
     if looks_like_pdn(user_text):
@@ -127,15 +137,19 @@ def _llm_reply(user_text: str, work: dict[str, Any]) -> str | None:
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         return None
-    safe = redact_for_llm(user_text)[:1500]
-    user = (
-        "Клиент пишет из веб-кабинета (тот же чат, что MAX; "
-        "документы — только в «Мои документы»).\n"
-        f"Статус дела: {work.get('status_label')}\n"
-        f"Сейчас нужно от клиента: {work.get('now_need')}\n"
-        f"Документы загружено: {work.get('required_uploaded')}/{work.get('required_total')}\n"
-        f"Подсказка SLA: {work.get('sla_note')}\n"
-        f"Сообщение клиента (обезличено):\n{safe}\n"
+    history: list[dict[str, Any]] = []
+    cid = (case_id or "").strip()
+    if cid:
+        history = fetch_recent_case_messages(
+            cid,
+            exclude_message_id=exclude_message_id,
+        )
+    user = build_client_llm_user_prompt(
+        channel=channel,
+        user_text=user_text,
+        work=work,
+        history=history,
+        exclude_message_id=exclude_message_id,
     )
     try:
         raw = llm.chat(system=CLIENT_CHAT_SYSTEM, user=user, temperature=0.3)
@@ -244,7 +258,13 @@ def auto_reply_to_client_message(
 
     reply = rule_based_reply(body, work)
     if not reply:
-        reply = _llm_reply(body, work)
+        reply = _llm_reply(
+            body,
+            work,
+            case_id=case_id,
+            exclude_message_id=reply_to_message_id,
+            channel="cabinet",
+        )
     if not reply:
         reply = _fallback_reply(work) if work else (
             "Понял ваш вопрос. Специалист увидит сообщение в этом чате и ответит здесь."

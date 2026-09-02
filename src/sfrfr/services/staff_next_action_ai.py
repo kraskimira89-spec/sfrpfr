@@ -118,7 +118,11 @@ def _normalize_chat_messages(raw: Any, action: str) -> list[dict[str, str]]:
     return out
 
 
-def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
+def suggest_next_action(
+    case: dict[str, Any],
+    *,
+    messages: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     waiting = derive_waiting_on(case)
     action = derive_next_action(case, waiting)
     fallback = {
@@ -131,10 +135,39 @@ def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
     llm = LLMClient.for_analyze()
     if not llm.available:
         return fallback
+    thread: list[dict[str, Any]] = list(messages or [])
+    case_id = str(case.get("id") or "").strip()
+    if not thread and case_id:
+        try:
+            from sfrfr.services.case_chat_context import fetch_recent_case_messages
+
+            thread = fetch_recent_case_messages(case_id, limit=25)
+        except Exception:  # noqa: BLE001
+            thread = []
+    work: dict[str, Any] | None = None
+    try:
+        from sfrfr.services.case_chat_context import format_deal_context, work_map_from_case
+
+        work = work_map_from_case(case)
+        deal_ctx = format_deal_context(work)
+    except Exception:  # noqa: BLE001
+        deal_ctx = ""
+    from sfrfr.services.case_chat_context import format_thread_for_llm
+
+    thread_text = format_thread_for_llm(thread, max_body_chars=450) if thread else "(история пуста)"
     try:
         raw = llm.chat(
             system=_SYSTEM,
-            user="Обезличенное дело:\n" + json.dumps(_anon_case(case), ensure_ascii=False),
+            user=(
+                "Обезличенное дело:\n"
+                + json.dumps(_anon_case(case), ensure_ascii=False)
+                + "\n\nКонтекст сделки:\n"
+                + (deal_ctx or "—")
+                + "\n\nИстория переписки (хронологически):\n"
+                + thread_text
+                + "\n\nУчти последнюю реплику клиента и стадию оплаты при next_action "
+                "и текстах chat_messages."
+            ),
             temperature=0.1,
         )
     except Exception:  # noqa: BLE001 — 401/timeout: показываем эвристику, не пустой UI

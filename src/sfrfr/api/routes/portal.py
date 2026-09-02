@@ -99,8 +99,12 @@ _SUBMISSION_INSTRUCTION = (
     f"{SUBMISSION_INSTRUCTION} Используйте проект обращения и чек-лист как подсказку."
 )
 
+from sfrfr.services.case_message_text import (
+    mark_internal_staff_body,
+    strip_internal_staff_prefix,
+)
+
 _SFR_WARNING = WARNING
-_INTERNAL_STAFF_PREFIX = "[[internal]] "
 
 
 def _repo() -> CaseRepository:
@@ -403,7 +407,14 @@ def _channel_repo() -> ClientChannelRepository:
 def _is_internal_staff_message(row: dict[str, Any]) -> bool:
     kind = str(row.get("author_kind") or "").strip().lower()
     body = str(row.get("body") or "")
-    return kind in {"staff", "expert", "operator"} and body.startswith(_INTERNAL_STAFF_PREFIX)
+    return kind in {"staff", "expert", "operator"} and body.lstrip().startswith("[[internal]]")
+
+
+def _staff_case_message(row: dict[str, Any]) -> dict[str, Any]:
+    """Лента для сотрудника: без служебного префикса [[internal]]."""
+    out = dict(row)
+    out["body"] = strip_internal_staff_prefix(str(row.get("body") or ""))
+    return out
 
 
 def _client_case_message(row: dict[str, Any]) -> dict[str, Any]:
@@ -2570,7 +2581,7 @@ def list_messages(
             logger.info("mark staff read on list_messages skipped: %s", exc)
     if not principal.is_staff:
         return [_client_case_message(row) for row in timeline]
-    return timeline
+    return [_staff_case_message(row) for row in timeline]
 
 
 def _drain_case_chat_pipeline() -> None:
@@ -2599,8 +2610,8 @@ def create_message(
     case = repo.require_case(principal, case_id)
     kind = "staff" if principal.is_staff else "client"
     body = payload.body.strip()
-    if principal.is_staff and payload.internal and not body.startswith(_INTERNAL_STAFF_PREFIX):
-        body = f"{_INTERNAL_STAFF_PREFIX}{body}"
+    if principal.is_staff and payload.internal:
+        body = mark_internal_staff_body(body)
     channel_origin = "admin" if principal.is_staff else "cabinet"
     client_message_id = (payload.client_message_id or "").strip() or None
     if client_message_id and kind == "client":

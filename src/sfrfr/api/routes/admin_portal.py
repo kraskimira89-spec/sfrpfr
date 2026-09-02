@@ -280,10 +280,6 @@ def _filter_staff_case(
             "max_ops_bot_url": staff_max_login_url(),
         },
         "representatives": representatives if representatives is not None else [],
-        "warning": (
-            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
-            "Решение принимает СФР. Результат не гарантирован."
-        ),
         "role_capabilities": {
             "can_edit_pipeline": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
             "can_edit_checklist": principal.role in (StaffRole.EXPERT, StaffRole.ADMIN),
@@ -923,7 +919,7 @@ def suggest_case_replies(
         .select("author_kind, body, created_at")
         .eq("case_id", case_id)
         .order("created_at")
-        .limit(30)
+        .limit(40)
         .execute()
         .data
         or []
@@ -932,11 +928,19 @@ def suggest_case_replies(
     client_name = ""
     if isinstance(client, dict):
         client_name = str(client.get("full_name") or "").strip()
+    work: dict[str, Any] = {}
+    try:
+        from sfrfr.services.case_chat_context import work_map_from_case
+
+        work = work_map_from_case(case)
+    except Exception:  # noqa: BLE001
+        work = {}
     suggestions = suggest_staff_replies(
         messages=messages,
         pipeline_status=str(case.get("pipeline_status") or ""),
         b2c_status=str(case.get("b2c_status") or ""),
         client_name=client_name or None,
+        work=work or None,
     )
     return {"suggestions": suggestions, "source": "deepseek"}
 
@@ -1129,7 +1133,9 @@ def send_max_reply_to_client(
     max_uid = str(client.get("max_user_id") or "").strip()
     if not max_uid:
         raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
-    text = payload.message.strip()
+    text = strip_internal_staff_prefix(payload.message.strip())
+    if not text:
+        raise HTTPException(status_code=400, detail="empty_message")
 
     from sfrfr.db.marketing_consent_repository import MarketingConsentRepository
     from sfrfr.integrations.max.marketing_consent_flow import append_unsub_footer

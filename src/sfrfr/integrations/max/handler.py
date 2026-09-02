@@ -2746,7 +2746,12 @@ def handle_max_update(
                 logger.warning("max bot_reply queue skipped: %s", exc)
         from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
-        reply, attachments, action = reply_to_free_text(user_text=text, intake=intake)
+        reply, attachments, action = reply_to_free_text(
+            user_text=text,
+            intake=intake,
+            case_id=case_for_log,
+            exclude_message_id=str((stored or {}).get("id") or "") or None,
+        )
         _reply(
             bot,
             user_id=user_id,

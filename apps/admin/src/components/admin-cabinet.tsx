@@ -1575,10 +1575,10 @@ export function AdminCabinet() {
               height={40}
               alt="Проверка стажа"
             />
-            <div>
+            <div className="brand-header-text">
               <strong>Проверка стажа</strong>
               <span>
-                Кабинет сотрудника · {me?.role ? labelStaffRole(me.role) : "…"} · {me?.email ?? ""}
+                · Кабинет сотрудника · {me?.role ? labelStaffRole(me.role) : "…"} · {me?.email ?? ""}
               </span>
             </div>
           </BrandHomeLink>
@@ -1587,10 +1587,6 @@ export function AdminCabinet() {
           Выйти
         </button>
       </header>
-
-      <section className="warning" role="note">
-        Решение принимает СФР. Результат не гарантирован. Функции кабинета сотрудника не переносятся в мини-приложение MAX (ТЗ-09).
-      </section>
 
       <nav className="tabs" aria-label="Разделы">
         <button type="button" className={view === "dashboard" ? "tab active" : "tab"} onClick={() => { setView("dashboard"); void loadDashboard(); }}>

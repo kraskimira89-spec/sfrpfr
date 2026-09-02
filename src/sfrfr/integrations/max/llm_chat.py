@@ -6,7 +6,6 @@ import logging
 import re
 from typing import Any
 
-from sfrfr.ai.guardrails import redact_for_llm
 from sfrfr.ai.llm import LLMClient
 from sfrfr.core.config import get_settings
 from sfrfr.core.copy import POSITION_SHORT
@@ -105,8 +104,8 @@ REPLY: сумму и перерасчёт определяет только СФ
 Диалоги после ручного ведения / свободные вопросы:
 - Отвечай на весь свободный текст клиента — в том числе продолжение диалога
   после того, как чат вели вручную сотрудник/оператор, не только автосценарий кнопок.
-- Не сбрасывай контекст с нуля: опирайся на последнее понятное из сообщения;
-  не требуй заново пройти все кнопки, если клиент уже в середине темы
+- Не сбрасывай контекст с нуля: опирайся на историю переписки и последнее понятное
+  из сообщения; не требуй заново пройти все кнопки, если клиент уже в середине темы
   (ИЛС, оплата, документы, Госуслуги, диагностика).
 - Если состояние неясно — один уточняющий вопрос («на чём остановились?» /
   «выписка уже есть?» / «Госуслуги или загрузка в кабинет на сайте?»), без повторного
@@ -234,6 +233,9 @@ def reply_to_free_text(
     *,
     user_text: str,
     intake: Any | None,
+    case_id: str | None = None,
+    work: dict[str, Any] | None = None,
+    exclude_message_id: str | None = None,
 ) -> tuple[str, list[dict[str, Any]], str]:
     """
     Вернуть (text, attachments, action).
@@ -260,12 +262,33 @@ def reply_to_free_text(
         return nudge_text, nudge_kb, "free_text_nudge"
 
     step = intake.step() if intake is not None else "whom"
-    safe = redact_for_llm(user_text)[:1500]
-    user = (
-        f"Текущий шаг сценария intake: {step}\n"
-        f"Системные кнопки этого шага уже будут под ответом — "
-        f"дополни их мягкими BUTTONS, не заменяй.\n"
-        f"Сообщение клиента (обезличено):\n{safe}\n"
+    cid = (case_id or "").strip()
+    history: list[dict[str, Any]] = []
+    deal_work = work
+    if cid:
+        from sfrfr.services.case_chat_context import (
+            build_client_llm_user_prompt,
+            fetch_recent_case_messages,
+            work_map_from_case,
+        )
+
+        history = fetch_recent_case_messages(cid, exclude_message_id=exclude_message_id)
+        if deal_work is None:
+            try:
+                from sfrfr.db.case_repository import CaseRepository
+
+                case_row = CaseRepository().get_case_row(cid)
+                if case_row:
+                    deal_work = work_map_from_case(case_row)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("max_llm work_map skipped: %s", exc)
+    user = build_client_llm_user_prompt(
+        channel="max",
+        user_text=user_text,
+        work=deal_work,
+        history=history,
+        intake_step=step,
+        exclude_message_id=exclude_message_id,
     )
     try:
         raw = llm.chat(system=CLIENT_CHAT_SYSTEM, user=user, temperature=0.3)

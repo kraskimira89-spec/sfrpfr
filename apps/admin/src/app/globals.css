@@ -519,6 +519,21 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   display: grid;
   gap: 3px;
 }
+.app-header .brand-header-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  min-width: 0;
+  line-height: 1.35;
+}
+.app-header .brand-header-text strong {
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.app-header .brand-header-text span {
+  white-space: nowrap;
+}
 .lead, .hint, .notice, header span { color: var(--muted); }
 .hint { font-size: 0.92rem; }
 
@@ -1475,6 +1490,9 @@ button.badge--clickable:hover {
 .case-chat-head .hint { margin: 0; }
 .case-chat-client-id {
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 0.92rem;
   line-height: 1.35;
   color: var(--ink, #142033);
@@ -1482,6 +1500,7 @@ button.badge--clickable:hover {
 .case-chat-case-no {
   color: var(--muted);
   font-weight: 600;
+  font-size: 0.88rem;
   white-space: nowrap;
 }
 .case-chat-filters {
@@ -1714,12 +1733,17 @@ button.badge--clickable:hover {
 }
 .notice { margin-top: 16px; }
 .notice--sticky {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  margin: 0 0 8px;
+  padding: 5px 12px;
+  border-radius: 6px;
   background: #eef4fb;
   border: 1px solid #c5d6eb;
   color: #1a3352;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   position: sticky;
   top: 0;
   z-index: 5;

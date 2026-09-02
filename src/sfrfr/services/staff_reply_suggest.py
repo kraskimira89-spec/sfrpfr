@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from sfrfr.ai.guardrails import redact_for_llm
 from sfrfr.ai.llm import LLMClient
 from sfrfr.core.copy import POSITION_SHORT
 
@@ -110,26 +109,21 @@ def suggest_staff_replies(
     pipeline_status: str | None = None,
     b2c_status: str | None = None,
     client_name: str | None = None,
+    work: dict[str, Any] | None = None,
 ) -> list[str]:
     salutation = client_salutation(client_name)
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         return _fallback_replies(salutation, pipeline_status=pipeline_status)
 
-    lines: list[str] = []
-    for row in messages[-12:]:
-        kind = str(row.get("author_kind") or "unknown")
-        body = redact_for_llm(str(row.get("body") or ""))[:400]
-        if not body:
-            continue
-        lines.append(f"{kind}: {body}")
-    if not lines:
-        lines.append("(история пуста — предложи вежливое первое сообщение)")
+    from sfrfr.services.case_chat_context import build_staff_llm_user_prompt
 
-    user = (
-        f"Обращение к клиенту (обязательно в каждом варианте): {salutation}\n"
-        f"Этап дела: pipeline={pipeline_status or '—'}, b2c={b2c_status or '—'}\n"
-        f"Лента (без ПДн в тексте):\n" + "\n".join(lines)
+    user = build_staff_llm_user_prompt(
+        salutation=salutation,
+        work=work,
+        messages=messages[-30:],
+        pipeline_status=pipeline_status,
+        b2c_status=b2c_status,
     )
     try:
         raw = llm.chat(system=SYSTEM, user=user, temperature=0.4)

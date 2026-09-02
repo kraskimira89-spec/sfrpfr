@@ -561,11 +561,6 @@ export function CaseFunnelMain({
           Ответственный: {assigned}
           {stageById[current]?.reason ? ` · ${stageById[current].reason}` : ""}
         </p>
-        {detail.warning ? (
-          <p className="warning inline" title="Постоянное предупреждение сервиса">
-            {detail.warning}
-          </p>
-        ) : null}
 
         <div className="panel accent case-card--wide case-action-bar">
           <p className="case-action-bar-line">
