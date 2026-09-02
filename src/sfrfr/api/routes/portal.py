@@ -45,6 +45,8 @@ from sfrfr.api.schemas.portal import (
     MaxOtpRequestResponse,
     MaxOtpVerifyRequest,
     MaxOtpVerifyResponse,
+    StaffEmailOtpRequest,
+    StaffEmailOtpRequestResponse,
     PipelineRunResponse,
     PortalMeResponse,
     PortalSiteReviewRequest,
@@ -736,6 +738,35 @@ def register_cabinet_client(payload: CabinetRegisterRequest) -> CabinetRegisterR
         email=email,
         phone=phone,
         message="Контакты приняты. Код подтверждения отправим на почту.",
+    )
+
+
+@router.post("/auth/staff/email-otp/request", response_model=StaffEmailOtpRequestResponse)
+def request_staff_email_otp(payload: StaffEmailOtpRequest) -> StaffEmailOtpRequestResponse:
+    """Precheck входа сотрудника по почте: OTP только для известных staff + Auth."""
+    from sfrfr.services.staff_email_login import prepare_staff_email_otp
+
+    email = (payload.email or "").strip().lower()
+    if not email or "@" not in email:
+        _raise_auth(
+            400,
+            "Укажите рабочий email сотрудника.",
+            event="staff_email_otp_request",
+            audience="staff",
+            reason="missing_email",
+        )
+    result = prepare_staff_email_otp(email)
+    auth_event(
+        "staff_email_otp_request",
+        outcome="ok" if result.get("allowed") else "denied",
+        audience="staff",
+        reason=str(result.get("reason") or ("allowed" if result.get("allowed") else "blocked")),
+    )
+    return StaffEmailOtpRequestResponse(
+        ok=bool(result.get("ok")),
+        allowed=bool(result.get("allowed")),
+        reason=str(result.get("reason") or ""),
+        message=str(result.get("message") or ""),
     )
 
 

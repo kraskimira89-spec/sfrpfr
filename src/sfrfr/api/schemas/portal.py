@@ -114,6 +114,17 @@ class CabinetRegisterResponse(BaseModel):
     message: str = ""
 
 
+class StaffEmailOtpRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class StaffEmailOtpRequestResponse(BaseModel):
+    ok: bool
+    allowed: bool = False
+    reason: str = ""
+    message: str = ""
+
+
 class MaxOtpRequest(BaseModel):
     """Запрос входа через MAX. phone опционален (номер из дела)."""
 

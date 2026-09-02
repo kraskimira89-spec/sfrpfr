@@ -141,10 +141,37 @@ export function StaffAuthScreen({
       setNotice(STAFF_AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
+    if (!apiBase) {
+      setNotice(STAFF_AUTH_MESSAGES.AUTH_CONFIG_MISSING);
+      return;
+    }
     const resending = otpSent;
     setBusy(true);
     setNotice("");
     try {
+      const precheck = await fetch(`${apiBase}/api/portal/auth/staff/email-otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const precheckBody = (await precheck.json().catch(() => ({}))) as {
+        allowed?: boolean;
+        message?: string;
+      };
+      if (!precheck.ok) {
+        throw new Error(
+          typeof precheckBody.message === "string" ? precheckBody.message : "staff_email_precheck_failed",
+        );
+      }
+      if (!precheckBody.allowed) {
+        setNotice(
+          safeStaffAuthNotice(
+            precheckBody.message || "",
+            STAFF_AUTH_MESSAGES.AUTH_EMAIL_UNKNOWN,
+          ),
+        );
+        return;
+      }
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: { shouldCreateUser: false },
@@ -155,15 +182,7 @@ export function StaffAuthScreen({
       setOtpResendUntil(Date.now() + OTP_RESEND_MS);
       setNotice(resending ? STAFF_LOGIN_COPY.otpResent : STAFF_LOGIN_COPY.otpSentGeneric);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (/signups not allowed|user not found|unable to find/i.test(msg)) {
-        setOtpSent(true);
-        setAuthStep("otp");
-        setOtpResendUntil(Date.now() + OTP_RESEND_MS);
-        setNotice(resending ? STAFF_LOGIN_COPY.otpResent : STAFF_LOGIN_COPY.otpSentGeneric);
-      } else {
-        setNotice(mapStaffAuthError(err, STAFF_AUTH_MESSAGES.AUTH_DELIVERY_FAILED));
-      }
+      setNotice(mapStaffAuthError(err, STAFF_AUTH_MESSAGES.AUTH_DELIVERY_FAILED));
     } finally {
       setBusy(false);
     }
