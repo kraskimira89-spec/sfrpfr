@@ -1,4 +1,4 @@
-"""Сервисные опросы после PDF: clarity + first_step + acquaint (ТЗ-29 / acts_alone)."""
+"""Сервисные опросы после PDF: clarity + first_step + quality + acquaint (ТЗ-29)."""
 
 from __future__ import annotations
 
@@ -21,8 +21,9 @@ CLARITY_DELAY_HOURS = 48
 ACQUAINT_DELAY_HOURS = 60  # ~2.5 суток в окне 2–3 дня
 NOT_VIEWED_RETRY_DAYS = 6
 FIRST_STEP_DELAY_DAYS = 10
+QUALITY_DELAY_DAYS = 7  # после понятности (clarity=clear)
 TOKEN_TTL_DAYS = 14
-MAX_SURVEY_TOUCHES = 2  # только clarity (не acquaint / first_step)
+MAX_SURVEY_TOUCHES = 2  # только clarity (не acquaint / first_step / quality)
 MIN_HOURS_BETWEEN_SERVICE = 48
 
 CLARITY_ANSWERS = {
@@ -43,6 +44,12 @@ ACQUAINT_ANSWERS = {
     "not_yet": "Пока нет",
 }
 
+QUALITY_ANSWERS = {
+    "good": "Всё устроило",
+    "mixed": "В целом ок, есть замечания",
+    "poor": "Не хватило ясности или поддержки",
+}
+
 CLARITY_BODY = (
     "Здравствуйте! Удалось ли посмотреть результат диагностики?\n"
     "Нам важно убедиться, что план действий понятен."
@@ -56,6 +63,11 @@ FIRST_STEP_BODY = (
 ACQUAINT_BODY = (
     "Здравствуйте! Удалось ли ознакомиться с результатом диагностики "
     "в защищённом кабинете?"
+)
+
+QUALITY_BODY = (
+    "Здравствуйте! Коротко: насколько удобной и понятной оказалась "
+    "подготовка документов и плана? Это сервисный вопрос, не реклама."
 )
 
 
@@ -88,6 +100,8 @@ def _answers_for_type(survey_type: str) -> dict[str, str]:
         return FIRST_STEP_ANSWERS
     if survey_type == "acquaint":
         return ACQUAINT_ANSWERS
+    if survey_type == "quality":
+        return QUALITY_ANSWERS
     return CLARITY_ANSWERS
 
 
@@ -99,8 +113,9 @@ def _body_for_type(survey_type: str, campaign: dict[str, Any]) -> str:
         return FIRST_STEP_BODY
     if survey_type == "acquaint":
         return ACQUAINT_BODY
+    if survey_type == "quality":
+        return QUALITY_BODY
     return CLARITY_BODY
-
 
 class DiagnosisSurveyService:
     def __init__(
@@ -340,7 +355,11 @@ class DiagnosisSurveyService:
         if not campaign:
             raise LookupError("campaign_missing")
         survey_type = str(campaign.get("survey_type") or "clarity")
-        question_code = survey_type if survey_type in ("first_step", "acquaint") else "clarity"
+        question_code = (
+            survey_type
+            if survey_type in ("first_step", "acquaint", "quality")
+            else "clarity"
+        )
         answer = str(row["answer_code"])
         expires = datetime.fromisoformat(str(row["expires_at"]).replace("Z", "+00:00"))
         if expires.tzinfo is None:
@@ -385,6 +404,11 @@ class DiagnosisSurveyService:
             side = self._apply_acquaint_answer(
                 case_id=str(campaign["case_id"]),
                 diagnostic_result_id=campaign.get("diagnostic_result_id"),
+                answer=answer,
+            )
+        elif survey_type == "quality":
+            side = self._apply_quality_answer(
+                case_id=str(campaign["case_id"]),
                 answer=answer,
             )
         else:
@@ -475,6 +499,40 @@ class DiagnosisSurveyService:
             )
             effects["first_step_draft"] = True
             effects["pipeline"] = "acts_alone"
+            q_when = datetime.now(UTC) + timedelta(days=QUALITY_DELAY_DAYS)
+            q_when = next_daytime_window(q_when)
+            existing_q = [
+                c
+                for c in self.repo.list_campaigns(case_id)
+                if c.get("survey_type") == "quality"
+                and c.get("status")
+                in ("draft", "scheduled", "approved", "sent", "completed")
+            ]
+            if not existing_q:
+                self.repo.insert_campaign(
+                    {
+                        "id": str(uuid4()),
+                        "case_id": case_id,
+                        "diagnostic_result_id": diagnostic_result_id,
+                        "survey_type": "quality",
+                        "channel": "max",
+                        "status": "scheduled",
+                        "scheduled_at": q_when.isoformat(),
+                        "expires_at": (
+                            q_when + timedelta(days=TOKEN_TTL_DAYS)
+                        ).isoformat(),
+                        "template_version": "survey-quality-v1",
+                        "body": QUALITY_BODY,
+                        "touch_index": 1,
+                        "idempotency_key": (
+                            idempotency_survey(str(diagnostic_result_id), "quality")
+                            if diagnostic_result_id
+                            else None
+                        ),
+                        "updated_at": _now(),
+                    }
+                )
+                effects["quality_draft"] = True
         elif answer in ("needs_help", "question"):
             self.feedback.patch(
                 case_id,
@@ -531,6 +589,25 @@ class DiagnosisSurveyService:
             effects["requires_contact"] = True
         return effects
 
+    def _apply_quality_answer(self, *, case_id: str, answer: str) -> dict[str, Any]:
+        match_map = {"good": "yes", "mixed": "partial", "poor": "no"}
+        patch: dict[str, Any] = {
+            "expectation_match": match_map.get(answer),
+            "feedback_status": "survey_done",
+        }
+        if answer == "poor":
+            patch["feedback_status"] = "need_help"
+        self.feedback.patch(case_id, patch)
+        effects: dict[str, Any] = {
+            "expectation_match": patch["expectation_match"],
+            "answer": answer,
+        }
+        if answer in ("mixed", "poor"):
+            effects["requires_contact"] = True
+            if answer == "poor":
+                effects["priority"] = "normal"
+        return effects
+
     def _apply_acquaint_answer(
         self,
         *,
@@ -580,6 +657,20 @@ def _ack_text(survey_type: str, answer: str) -> str:
         if answer == "deferred":
             return (
                 "Хорошо. Когда будет удобно вернуться к плану — напишите в этот чат."
+            )
+        return "Ответ принят. Спасибо!"
+    if survey_type == "quality":
+        if answer == "good":
+            return "Спасибо за оценку. Рады, что было удобно."
+        if answer == "mixed":
+            return (
+                "Спасибо. Передадим замечание сотруднику — "
+                "уточним, что улучшить в плане."
+            )
+        if answer == "poor":
+            return (
+                "Спасибо, что сказали. Сотрудник свяжется и разберёт, "
+                "где не хватило ясности — без обещания перерасчёта."
             )
         return "Ответ принят. Спасибо!"
     if survey_type == "acquaint":

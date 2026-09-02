@@ -23,6 +23,8 @@
 python scripts/verify_prod_migrations_tz27_31.py
 ```
 
+**Ревизия 2026-09-02 (вечер, self-host YC):** FUNNEL-7 — миграции TZ27–30 реально применены на `supabase.proverkastaza.ru` (ранее в schema_migrations отсутствовали; MCP-ревизия была ошибочной/другой БД). Таблицы `survey_*`, `diagnosis_feedback`, `diagnostic_results`, `secure_share_links`, `notification_jobs` — OK. Добавлен `acquaint` в check + `quality` scheduler.
+
 **Ревизия 2026-09-02 (Supabase MCP):** миграции TZ27–31 **применены** на prod (`case_tracker_issues`, `marketing_consents`, `diagnosis_feedback`, `diagnosis_secure_delivery`, `diagnosis_surveys`, `diagnosis_delivery_state_machine`, `email_delivery_webhooks`, `cases_archive_prep`, `secure_action_links`). Verify: все 13 ожидаемых таблиц + `idempotency_key` / `archive_prep_status` — OK.
 
 **Ревизия 2026-09-01:** таблицы TZ27–31 отсутствовали; были только `20260901*` (customer_journey, case_chat_*).

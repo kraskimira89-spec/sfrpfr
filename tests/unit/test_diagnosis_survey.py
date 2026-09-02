@@ -162,13 +162,33 @@ def test_clear_schedules_first_step_and_cancels_acquaint() -> None:
     repo.update_campaign(cid, {"status": "sent"})
     out = svc.handle_action_token(tokens["clear"])
     assert out["side_effects"].get("first_step_draft")
+    assert out["side_effects"].get("quality_draft")
     assert out["side_effects"].get("pipeline") == "acts_alone"
     assert fb.rows["c4"]["feedback_status"] == "understood"
     assert fb.rows["c4"]["first_plan_step_status"] == "pending"
     types = {c["survey_type"]: c["status"] for c in repo.list_campaigns("c4")}
     assert "first_step" in types
+    assert "quality" in types
     acquaint = [c for c in repo.list_campaigns("c4") if c["survey_type"] == "acquaint"]
     assert all(c["status"] == "cancelled" for c in acquaint)
+
+
+def test_quality_answers() -> None:
+    svc, repo, fb = _svc()
+    camp = svc.schedule_clarity_after_open(case_id="c12", diagnostic_result_id="r12", delay_hours=0)
+    assert camp is not None
+    tokens = svc.prepare_send_tokens(str(camp["id"]))
+    repo.update_campaign(str(camp["id"]), {"status": "sent"})
+    svc.handle_action_token(tokens["clear"])
+    q = [c for c in repo.list_campaigns("c12") if c["survey_type"] == "quality"][0]
+    out = svc.approve_and_mark_sent(campaign_id=str(q["id"]), actor_id="staff")
+    assert out.get("ok")
+    assert set(out["tokens"]) == {"good", "mixed", "poor"}
+    poor = svc.handle_action_token(out["tokens"]["poor"])
+    assert poor["side_effects"]["expectation_match"] == "no"
+    assert poor["side_effects"].get("requires_contact")
+    assert fb.rows["c12"]["expectation_match"] == "no"
+    assert fb.rows["c12"]["feedback_status"] == "need_help"
 
 
 def test_first_step_answers() -> None:

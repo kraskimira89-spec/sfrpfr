@@ -2,7 +2,7 @@
 
 **Версия:** 1.0  
 **Дата:** 2026-08-23  
-**Статус:** MVP — MAX опрос понятности (clarity); e-mail / first_step / quality — P1  
+**Статус:** MVP+P1 — clarity / first_step / quality / e-mail confirm; acquaint — вспомогательный  
 **Связано:** [ТЗ-27](27-diagnosis-pdf-feedback.md) · [ТЗ-28](28-diagnosis-secure-delivery.md) · [marketing consent](../marketing-sales/playbook-marketing-consent.md)
 
 ---
@@ -28,8 +28,8 @@ PDF опубликован → уведомление → открыт / под�
 | Код | Когда | Канал MVP |
 |-----|--------|-----------|
 | `clarity` | PDF открыт (+48ч) или 2–3 дня после выдачи | **MAX кнопки** |
-| `first_step` | 10–14 дней после `clarity=clear` | P1 |
-| `quality` | после понятности | P1 |
+| `first_step` | 10–14 дней после `clarity=clear` | MAX / e-mail confirm |
+| `quality` | +7 дней после `clarity=clear` | MAX / e-mail confirm |
 | `review_request` | только явное согласие на публикацию | выкл. |
 
 ## 4. MAX clarity (этот релиз)
@@ -63,14 +63,14 @@ PDF опубликован → уведомление → открыт / под�
 
 Кнопка → страница подтверждения → «Подтвердить» (не фиксировать ответ одним GET из письма).
 
-## 7. Приёмка MVP
+## 7. Приёмка MVP / P1
 
 - [x] MAX кнопки меняют статус кампании  
 - [x] Callback без case_id/ПДн  
 - [x] Идемпотентность токена  
 - [x] При needs_help/question — отмена других опросов  
 - [x] Draft + staff approve  
-- [ ] E-mail confirm page  
-- [ ] first_step / quality UI  
+- [x] E-mail confirm page (`GET/POST /api/portal/survey/{token}`)  
+- [x] first_step / quality UI (admin `DiagnosisDeliveryPanel` + scheduler)
 
 Код: `src/sfrfr/services/diagnosis_survey.py`, `src/sfrfr/integrations/max/survey_flow.py`.

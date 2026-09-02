@@ -99,6 +99,8 @@ def _render_confirm(*, token: str, survey_type: str, label: str, body_text: str)
         page_title = "Первый шаг плана"
     elif survey_type == "acquaint":
         page_title = "Ознакомление с результатом"
+    elif survey_type == "quality":
+        page_title = "Оценка сервиса"
     else:
         page_title = "Понятность результата"
     return _page_shell(title=page_title, body=inner)

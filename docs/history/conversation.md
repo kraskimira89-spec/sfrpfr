@@ -117,6 +117,12 @@
 - Правка вставляется в тот же чат ops — ответ с кнопкой тоже туда.
 - Docs: `docs/ops/max-channel-review.md`.
 
+## 2026-09-02 — FUNNEL-7: опросы PDF (prod + quality)
+
+- На self-host YC применены миграции diagnosis/survey (ранее отсутствовали).
+- Реализован survey_type `quality` (+7д после clarity=clear); UI label уже был.
+- Тесты survey 13 passed; FUNNEL-7 закрыта.
+
 ## 2026-09-02 — STAZH-1 prod smoke DONE
 
 - VPS: `TRACKER_*` в `/opt/sfrfr/.env`, restart API; health JWT `ok:true`.
