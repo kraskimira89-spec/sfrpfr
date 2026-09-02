@@ -41,15 +41,27 @@ v=spf1 include:_spf.yandex.net include:spf.postbox.yandexcloud.net ~all
 
 | Тип | Хост (subdomain) | Значение |
 |-----|------------------|----------|
-| TXT | `sfrfrpostbox._domainkey` | см. ниже |
+| TXT | `sfrfrpostbox._domainkey` | **полная** строка ниже |
 
-Значение (одна строка, без кавычек или в кавычках — как требует reg.ru):
+⚠️ **Важно:** в DNS должно быть именно `v=DKIM1; k=rsa; p=…` целиком.  
+Если записано только `p=…` — Postbox даёт `DkimStatus=FAILED` / `VerificationStatus=FAILED` (проверено 2026-09-02).
+
+Значение (одна строка; в reg.ru можно в кавычках):
 
 ```text
 v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9gjJllds5GAd/Uq4bHg/r83aE9CVQsdUDxYYfaiOveOj3iwnui/bpzrsQ/YWXQjA8M8U/CQn/Vgf1u2VlcTIWq4N4Y8DQ+rUv/vmRWDJS2AWc3eaF1Lu+WlN4RgNMPrwt48LU+yOFDBLegHvSMsWbZizPGfzJOUgaXOwsiPWSHnrJg5yh2tj1q7H4/l0AJEfm83q8cN9HtMLa/WMZ1wI90wDOTk6fF3Zb3qB7S3ZK6T9vcY1tlTzKHB9WEj8pFqZeyDe3lZcmY6VWsHigmjJhaP3dRhphBt9rlevuXjDo1jO9/LolqQc669aSLLDsKw7P7mpofMmFFAf5oENaZgZEwIDAQAB
 ```
 
 Копия: `secrets/postbox-dkim-dns.txt`.
+
+Проверка:
+
+```powershell
+Resolve-DnsName sfrfrpostbox._domainkey.proverkastaza.ru -Type TXT -Server 8.8.8.8 |
+  ForEach-Object { $_.Strings -join '' }
+```
+
+Ожидание: строка **начинается** с `v=DKIM1; k=rsa; p=`.
 
 Не трогать: `mail._domainkey` (Яндекс 360), A-записи сайта.
 
