@@ -134,7 +134,7 @@ export function mapStaffAuthError(
   return fallback;
 }
 
-export function safeStaffAuthNotice(text: string, fallback = STAFF_AUTH_MESSAGES.AUTH_UNKNOWN): string {
+export function safeStaffAuthNotice(text: string, fallback: string = STAFF_AUTH_MESSAGES.AUTH_UNKNOWN): string {
   const t = String(text || "").trim();
   if (!t || isTechnicalStaffAuthLeak(t) || t.length > 180) {
     return fallback;
