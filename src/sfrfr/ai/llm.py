@@ -192,7 +192,9 @@ class LLMClient:
             kwargs: dict[str, Any] = {
                 "api_key": self.api_key,
                 "base_url": self.base_url,
-                "timeout": 20.0,
+                "timeout": 60.0
+                if self.provider == "yandex" and "deepseek" in (self.model or "").lower()
+                else 20.0,
             }
             if headers:
                 kwargs["default_headers"] = headers
@@ -201,15 +203,28 @@ class LLMClient:
 
     def _chat_once(self, *, system: str, user: str, temperature: float) -> str:
         client = self._get_client()
-        resp = client.chat.completions.create(
-            model=self.model,
-            temperature=temperature,
-            messages=[
+        # DeepSeek V4 Flash в YC сначала пишет reasoning_content; при малом
+        # лимите токенов content остаётся пустым — даём запас на ответ.
+        create_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "temperature": temperature,
+            "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-        )
-        return (resp.choices[0].message.content or "").strip()
+        }
+        if self.provider == "yandex" and "deepseek" in (self.model or "").lower():
+            create_kwargs["max_tokens"] = 2048
+        resp = client.chat.completions.create(**create_kwargs)
+        msg = resp.choices[0].message
+        text = (msg.content or "").strip()
+        if text:
+            return text
+        # Fallback: reasoning-модели иногда отдают только reasoning_content
+        reasoning = getattr(msg, "reasoning_content", None) or ""
+        if isinstance(reasoning, str) and reasoning.strip():
+            return reasoning.strip()
+        return ""
 
     def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
         fallback = self._fallback_client()
