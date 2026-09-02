@@ -15,7 +15,10 @@ Weavix-плагин для Яндекс Трекера: быстрое созд�
 | Data permissions | `tracker:queues:read`, `tracker:issues:read`, `tracker:issues:write`, `tracker:tags:read` |
 | UI permissions | `toaster`, `confirm` |
 | Путь | `plugins/tracker/sfrfr-issue-wizard/` |
-| Version | `0.1.6` (на модерации после `weavix submit`) |
+| Version | `0.1.6` |
+| Plugin status | `PUBLISHED` |
+| Version status | `APPROVED` |
+| В org | с 02.09.2026 17:20 |
 
 Создан по шаблону Weavix CLI `@weavix/cli` (`navigation`): `weavix create` интерактивен (legal + checkbox), поэтому scaffold скопирован из шаблона CLI.
 
@@ -68,8 +71,8 @@ weavix list
 weavix info
 ```
 
-После `IN_REVIEW` → каталог: **Настройки → Плагины**. Админ одобряет запрос на подключение. В общий публичный каталог Трекера — только через [поддержку](https://yandex.ru/support/tracker/ru/feedback.md) + архив исходников.
+Модерация пройдена, плагин в org с **02.09.2026 17:20** (`weavix info`: **PUBLISHED** / **APPROVED**). В общий публичный каталог Трекера — только через [поддержку](https://yandex.ru/support/tracker/ru/feedback.md) + архив исходников.
 
 Секреты / OAuth не коммитить. `paths-ignore`: пуш плагина не деплоит VPS.
 
-См. также: [README плагинов](../../plugins/tracker/README.md), соседний [stazh-quality-wizard](plugin-stazh-quality-wizard.md) (уже `DRAFT` / submit).
+См. также: [README плагинов](../../plugins/tracker/README.md), соседний [stazh-quality-wizard](plugin-stazh-quality-wizard.md) (также **APPROVED** / в org).
