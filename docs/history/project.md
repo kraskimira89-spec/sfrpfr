@@ -128,6 +128,12 @@
 - Единые реквизиты в футере и на `/kontakty/`; `tariff_view` на `/tarify/`.
 - Ops: `docs/ops/seo-trust-commerce-pages.md`; сидер `wp_seed_trust_pages_tz18.sh`.
 
+## 2026-09-02 (SECURITY DEFINER helpers out of Data API)
+
+- Lint 0029: `can_access_case` / `is_case_*` перенесены в schema `private`.
+- RLS без изменений по смыслу; RPC `/rest/v1/rpc/…` больше не отдаёт хелперы.
+- Миграция: `supabase/migrations/20260902163000_private_case_access_helpers.sql`.
+
 ## 2026-08-14 (стоимость YC vs Reg.ru VM)
 
 - Разбор burn ~8500: почти всё — Compute 4/8 + network-ssd + IP (~7.5k), не DBaaS.

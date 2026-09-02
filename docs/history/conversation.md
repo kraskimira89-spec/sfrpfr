@@ -117,6 +117,12 @@
 - Правка вставляется в тот же чат ops — ответ с кнопкой тоже туда.
 - Docs: `docs/ops/max-channel-review.md`.
 
+## 2026-09-02 — lint 0029: case helpers → private
+
+- WARN `authenticated_security_definer_function_executable` на `can_access_case` / `is_case_*`.
+- Миграция `20260902163000_private_case_access_helpers.sql`: функции в `private`, не в Data API `/rpc`.
+- Применено на YC; `/rest/v1/rpc/can_access_case` → 404 PGRST202.
+
 ## 2026-08-14 — сценарии A/B: Reg.ru VM vs downsize YC
 
 - Детализация в `docs/ops/yc-cost-breakdown-vs-regru.md`: cutover только Supabase-ВМ; почему stop ≈2.3k residual; downsize 2/4 ≈ CVoS.
