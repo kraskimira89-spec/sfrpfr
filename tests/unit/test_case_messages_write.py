@@ -6,7 +6,7 @@ from sfrfr.db import case_messages_write as cmw
 
 
 class _FakeTable:
-    def __init__(self, parent: "_FakeSB") -> None:
+    def __init__(self, parent: _FakeSB) -> None:
         self._parent = parent
 
     def insert(self, row: dict):

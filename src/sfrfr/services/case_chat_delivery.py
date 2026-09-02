@@ -221,7 +221,11 @@ def mirror_staff_message_to_max(
             return
         bot.send_message(text=body, user_id=max_uid)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("direct MAX staff mirror failed case=%s: %s", str(case.get("id") or "")[:8], exc)
+        logger.warning(
+            "direct MAX staff mirror failed case=%s: %s",
+            str(case.get("id") or "")[:8],
+            exc,
+        )
 
 
 def notify_client_new_chat_message(

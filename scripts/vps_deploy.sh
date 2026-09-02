@@ -12,7 +12,7 @@ cd "$APP_DIR"
 # иначе bash продолжает старую версию (без пересборки Next.js).
 if [[ "${1:-}" != "--post-update" ]]; then
   chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-  sudo -u "$APP_USER" git fetch origin
+  sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 git -c credential.helper= fetch origin
   sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
   exec bash "$APP_DIR/scripts/vps_deploy.sh" --post-update
 fi
