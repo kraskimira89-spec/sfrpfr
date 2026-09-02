@@ -58,6 +58,8 @@ rebuild_next_app() {
     return 0
   fi
   echo "Building $name in $dir …"
+  # Ручной деплой или CI могут оставить .next/node_modules от root → EACCES при npm run build.
+  chown -R "$APP_USER:$APP_USER" "$dir"
   # На VPS ~2 GiB RAM: без swap npm ci/next часто получают SIGKILL (137).
   # Повторно не гоняем npm ci, если package-lock не менялся.
   sudo -u "$APP_USER" bash -lc "
