@@ -30,19 +30,25 @@ def sigv4_headers(
     region: str = "ru-central1",
     service: str = "ses",
     content_type: str = "application/json",
+    extra_headers: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    """Заголовки Authorization + X-Amz-Date для POST/GET к Postbox."""
+    """Заголовки Authorization + X-Amz-Date для Postbox / YDS (Kinesis)."""
     now = datetime.now(UTC)
     amz_date = now.strftime("%Y%m%dT%H%M%SZ")
     date_stamp = now.strftime("%Y%m%d")
     payload_hash = hashlib.sha256(body).hexdigest()
-    canonical_headers = (
-        f"content-type:{content_type}\n"
-        f"host:{host}\n"
-        f"x-amz-content-sha256:{payload_hash}\n"
-        f"x-amz-date:{amz_date}\n"
-    )
-    signed_headers = "content-type;host;x-amz-content-sha256;x-amz-date"
+    header_map: dict[str, str] = {
+        "content-type": content_type,
+        "host": host,
+        "x-amz-content-sha256": payload_hash,
+        "x-amz-date": amz_date,
+    }
+    if extra_headers:
+        for k, v in extra_headers.items():
+            header_map[k.strip().casefold()] = v
+    signed_names = sorted(header_map)
+    canonical_headers = "".join(f"{n}:{header_map[n]}\n" for n in signed_names)
+    signed_headers = ";".join(signed_names)
     canonical_request = "\n".join(
         [
             method.upper(),
@@ -73,10 +79,13 @@ def sigv4_headers(
         f"SignedHeaders={signed_headers}, "
         f"Signature={signature}"
     )
-    return {
+    out = {
         "Content-Type": content_type,
         "Host": host,
         "X-Amz-Date": amz_date,
         "X-Amz-Content-Sha256": payload_hash,
         "Authorization": authorization,
     }
+    if extra_headers:
+        out.update(extra_headers)
+    return out

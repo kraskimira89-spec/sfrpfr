@@ -7,7 +7,7 @@
 param(
     [string]$FolderId = "b1g0mhpm9tr4lrurk1bu",
     [string]$FunctionName = "sfrfr-postbox-webhook",
-    [string]$StreamName = "sfrfr-postbox-events"
+    [string]$StreamName = "postbox-events-stream"
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,5 +60,4 @@ if ($LASTEXITCODE -ne 0) {
     --environment "SFRFR_POSTBOX_WEBHOOK_URL=$webhookUrl,SFRFR_POSTBOX_BASIC=$basic"
 
 Write-Host "Function $FunctionName version created."
-Write-Host "Next (console or yc): create Data Streams topic '$StreamName', Postbox event destination → stream, trigger function on stream."
-Write-Host "See docs/ops/yandex-postbox-setup.md § CF/YDS."
+Write-Host "YDS stream='$StreamName', trigger=postbox-events-trigger (see docs/ops/yandex-postbox-setup.md §3)."

@@ -10,14 +10,16 @@
 |-----|--------|
 | SA `sfrfr-postbox` + роли `postbox.admin/sender/viewer` | ✅ |
 | Static access key на VPS | ✅ (`YANDEX_POSTBOX_*`) |
-| Domain identity `proverkastaza.ru` (BYODKIM) | ✅ ждёт DNS |
+| Domain identity `proverkastaza.ru` (BYODKIM) | ✅ |
 | Configuration set `sfrfr-default` | ✅ |
-| Cloud Function `sfrfr-postbox-webhook` | ✅ (нужен YDS trigger) |
-| `YANDEX_POSTBOX_ENABLED` | ❌ `false` до Success DKIM |
+| Cloud Function `sfrfr-postbox-webhook` | ✅ `d4ebvqmdt4dr42l0p8oi` |
 | DNS SPF + DKIM TXT на reg.ru | ✅ |
 | Postbox Verification / DKIM SUCCESS | ✅ 2026-09-02 |
 | `YANDEX_POSTBOX_ENABLED` | ✅ `true` |
-| Data Streams + event destination + trigger | ⏳ |
+| YDB `postbox-events-ydb` + stream `postbox-events-stream` | ✅ |
+| Event destination `sfrfr-yds-delivery` → YDS | ✅ |
+| Trigger `postbox-events-trigger` → CF | ✅ ACTIVE |
+| Smoke PutRecord → `delivery_events` | ✅ 2026-09-02 |
 
 ---
 
@@ -80,8 +82,6 @@ nslookup -type=TXT proverkastaza.ru 8.8.8.8
 
 В консоли YC → Postbox → адрес `proverkastaza.ru` → **Запустить проверку**, дождаться `SUCCESS` / `VerifiedForSendingStatus=true`.
 
-После Success — напиши агенту: включим `YANDEX_POSTBOX_ENABLED=true` на VPS.
-
 ---
 
 ## 2. Уже сделано в YC / VPS
@@ -96,15 +96,39 @@ Redeploy CF: `.\scripts\yc_cloud_auth.ps1` затем `.\scripts\yc_postbox_depl
 
 ---
 
-## 3. Data Streams + trigger (после DNS)
+## 3. Data Streams + trigger (live Delivery/Bounce)
 
-1. **YDB / Data Streams**: поток `sfrfr-postbox-events` в том же folder.  
-2. Postbox → configuration set `sfrfr-default` → event destination → этот поток  
-   (типы: Send, Delivery, Bounce, Complaint, DeliveryDelay, …).  
-3. Триггер CF на поток (Data Streams → `sfrfr-postbox-webhook`).  
-4. Гайд: [postbox-webhook](https://yandex.cloud/ru/docs/postbox/tutorials/postbox-webhook).
+Гайд: [postbox-webhook](https://yandex.cloud/ru/docs/postbox/tutorials/postbox-webhook).
 
-Пока триггера нет — smoke вручную:
+| Ресурс | Значение |
+|--------|----------|
+| SA | `sfrfr-postbox-yds` (`aje9vh58c8h5ufi4hh9m`) — `yds.editor` + `functions.functionInvoker` |
+| YDB | `postbox-events-ydb` (`etn1jgp1lvjptniaiu1e`) |
+| Stream | `postbox-events-stream` |
+| Kinesis endpoint | `https://yds.serverless.yandexcloud.net/ru-central1/b1gkscu5sqpjtf5d5rbi/etn1jgp1lvjptniaiu1e` |
+| Config set | `sfrfr-default` → destination `sfrfr-yds-delivery` |
+| Event types | `SEND`, `DELIVERY`, `BOUNCE`, `DELIVERY_DELAY`, `OPEN`, `CLICK`, `SUBSCRIPTION` (без `REJECT`) |
+| Trigger | `postbox-events-trigger` (`a1sqd41mmr16pk5di28n`) → CF `sfrfr-postbox-webhook` |
+| DeliveryStreamArn | `arn:yc:yds:ru-central1::<KinesisEndpoint>:postbox-events-stream` |
+
+Цепочка: Postbox → YDS → CF → `POST /api/webhooks/email/postbox` → `delivery_events` (`provider=yandex_postbox`).
+
+Пересоздать trigger (если сбросили):
+
+```powershell
+.\scripts\yc_cloud_auth.ps1
+$yc = ".\tools\yandex-cloud\bin\yc.exe"
+& $yc serverless trigger create yds postbox-events-trigger `
+  --database /ru-central1/b1gkscu5sqpjtf5d5rbi/etn1jgp1lvjptniaiu1e `
+  --stream postbox-events-stream `
+  --stream-service-account-name sfrfr-postbox-yds `
+  --invoke-function-name sfrfr-postbox-webhook `
+  --invoke-function-service-account-name sfrfr-postbox-yds `
+  --batch-size 1b --batch-cutoff 1s `
+  --retry-attempts 3 --retry-interval 10s
+```
+
+Ручной smoke API (без YDS):
 
 ```text
 POST /api/webhooks/email/postbox  (Basic из secrets)
