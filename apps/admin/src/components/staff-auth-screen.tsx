@@ -85,7 +85,7 @@ export function StaffAuthScreen({
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpResendUntil, setOtpResendUntil] = useState(0);
-  const [otpResendLeft, setOtpResendLeft] = useState(0);
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [maxTicket, setMaxTicket] = useState("");
@@ -97,17 +97,15 @@ export function StaffAuthScreen({
 
   useEffect(() => {
     if (!otpResendUntil) {
-      setOtpResendLeft(0);
       return;
     }
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((otpResendUntil - Date.now()) / 1000));
-      setOtpResendLeft(left);
-    };
-    tick();
-    const timer = window.setInterval(tick, 500);
+    const timer = window.setInterval(() => setClockMs(Date.now()), 500);
     return () => window.clearInterval(timer);
   }, [otpResendUntil]);
+
+  const otpResendLeft = otpResendUntil
+    ? Math.max(0, Math.ceil((otpResendUntil - clockMs) / 1000))
+    : 0;
 
   function resetMax() {
     setMaxTicket("");

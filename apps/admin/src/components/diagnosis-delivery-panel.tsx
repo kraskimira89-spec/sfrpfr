@@ -159,7 +159,10 @@ export function DiagnosisDeliveryPanel({
   }, [apiBase, caseId, onNotice, token]);
 
   useEffect(() => {
-    void reload();
+    const timer = window.setTimeout(() => {
+      void reload();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [reload]);
 
   async function approveJob(jobId: string, channel: string) {

@@ -1730,7 +1730,11 @@ def approve_survey_campaign(
             from sfrfr.services.diagnosis_survey import survey_email_link
 
             out["email_links"] = [
-                {"answer_code": code, "label": labels.get(code, code), "url": survey_email_link(raw)}
+                {
+                    "answer_code": code,
+                    "label": labels.get(code, code),
+                    "url": survey_email_link(raw),
+                }
                 for code, raw in tokens.items()
             ]
         out.pop("tokens", None)
