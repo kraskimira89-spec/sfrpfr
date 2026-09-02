@@ -221,7 +221,8 @@ def try_deliver_pay_link_from_chat(
         return None
 
     case_id = str(case.get("id") or "").strip()
-    order_view = work.get("order") if isinstance(work.get("order"), dict) else {}
+    raw_order = work.get("order")
+    order_view: dict[str, Any] = raw_order if isinstance(raw_order, dict) else {}
     if not case_id or not order_view.get("can_pay"):
         return None
     order_id = str(order_view.get("order_id") or "").strip()

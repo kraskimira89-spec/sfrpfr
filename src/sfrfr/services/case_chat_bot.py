@@ -106,7 +106,8 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
 
     from sfrfr.services.case_chat_payment import payment_intent_detected
 
-    order = work.get("order") if isinstance(work.get("order"), dict) else {}
+    raw_order = work.get("order")
+    order: dict[str, Any] = raw_order if isinstance(raw_order, dict) else {}
     if order.get("can_pay") and payment_intent_detected(text):
         return (
             "Сейчас отправлю ссылку на оплату в этот чат — можно оплатить картой "
@@ -271,7 +272,8 @@ def auto_reply_to_client_message(
         try_deliver_pay_link_from_chat,
     )
 
-    order = work.get("order") if isinstance(work.get("order"), dict) else {}
+    raw_order = work.get("order")
+    order: dict[str, Any] = raw_order if isinstance(raw_order, dict) else {}
     pay_link_sent = False
     if order.get("can_pay") and payment_intent_detected(body):
         delivered = try_deliver_pay_link_from_chat(
