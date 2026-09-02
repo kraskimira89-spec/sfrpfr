@@ -49,3 +49,26 @@ def test_system_docs_channel_canon_max_chat() -> None:
     assert "без обещаний перерасчёта" in SYSTEM
     assert "личн" in DOCS_CHANNEL_CANON.lower()
     assert "альтернатив" in DOCS_CHANNEL_CANON.lower() or "Также можно" in DOCS_CHANNEL_CANON
+
+
+def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
+    class Fake:
+        available = True
+
+        def chat(self, **_kwargs):
+            raise RuntimeError("401 AuthenticationError")
+
+    monkeypatch.setattr(
+        "sfrfr.services.staff_reply_suggest.LLMClient.for_analyze",
+        classmethod(lambda cls, **kwargs: Fake()),
+    )
+    from sfrfr.services.staff_reply_suggest import suggest_staff_replies
+
+    out = suggest_staff_replies(
+        messages=[{"author_kind": "client", "body": "Здравствуйте, хочу проверить стаж"}],
+        pipeline_status="intake",
+        b2c_status="lead",
+        client_name="Иванов Иван Иванович",
+    )
+    assert len(out) >= 2
+    assert all(isinstance(s, str) and s.strip() for s in out)

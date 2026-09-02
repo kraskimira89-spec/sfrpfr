@@ -80,6 +80,30 @@ def _ensure_salutation(text: str, salutation: str) -> str:
     return f"{salutation}, {body[0].lower() + body[1:] if body else body}"
 
 
+def _fallback_replies(salutation: str, *, pipeline_status: str | None) -> list[str]:
+    """Шаблоны, если DeepSeek недоступен — лучше, чем пустой экран."""
+    hello = f"Здравствуйте, {salutation}!" if salutation != "Клиент" else "Здравствуйте!"
+    stage = pipeline_status or "intake"
+    if stage in {"intake", "consent_pending", "docs_pending"}:
+        action = "Пришлите, пожалуйста, выписку ИЛС (PDF) и сканы трудовой"
+    else:
+        action = "Напишите, если по делу остались вопросы — ответим в этом чате"
+    return [
+        (
+            f"{hello} {action} — можно прямо в этот чат MAX или в личный кабинет на сайте. "
+            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами."
+        )[:400],
+        (
+            f"{hello} Напоминаем: {action.lower()}. "
+            "Файлы можно прислать сюда в MAX или загрузить в кабинет на сайте."
+        )[:400],
+        (
+            f"{hello} Если удобнее через сайт: cabinet.proverkastaza.ru → раздел документов. "
+            "Или пришлите файлы PDF/JPG сюда в чат."
+        )[:400],
+    ]
+
+
 def suggest_staff_replies(
     *,
     messages: list[dict[str, Any]],
@@ -87,11 +111,11 @@ def suggest_staff_replies(
     b2c_status: str | None = None,
     client_name: str | None = None,
 ) -> list[str]:
+    salutation = client_salutation(client_name)
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
-        return []
+        return _fallback_replies(salutation, pipeline_status=pipeline_status)
 
-    salutation = client_salutation(client_name)
     lines: list[str] = []
     for row in messages[-12:]:
         kind = str(row.get("author_kind") or "unknown")
@@ -110,7 +134,7 @@ def suggest_staff_replies(
     try:
         raw = llm.chat(system=SYSTEM, user=user, temperature=0.4)
     except Exception:  # noqa: BLE001
-        return []
+        return _fallback_replies(salutation, pipeline_status=pipeline_status)
 
     out: list[str] = []
     for m in re.finditer(r"^\s*\d+[).]\s*(.+)$", raw or "", re.M):
@@ -126,4 +150,4 @@ def suggest_staff_replies(
                 out.append(_ensure_salutation(t, salutation)[:400])
             if len(out) >= 3:
                 break
-    return out
+    return out or _fallback_replies(salutation, pipeline_status=pipeline_status)

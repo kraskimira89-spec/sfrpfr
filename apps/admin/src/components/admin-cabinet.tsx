@@ -522,6 +522,11 @@ export function AdminCabinet() {
     if (opts?.focusMaxReply) {
       setMaxReplyFocus(true);
     }
+    if (!detail || detail.id !== caseId) {
+      setStepHint(null);
+      setStepMessages([]);
+      setReplySuggestions([]);
+    }
     setBusy(true);
     try {
       const caseDetail = await apiFetch<StaffCaseDetail>(
@@ -855,8 +860,12 @@ export function AdminCabinet() {
     }
   }
 
-  async function suggestStep(caseId: string) {
+  async function suggestStep(caseId: string, opts?: { openCaseView?: boolean }) {
     if (!token) return;
+    if (opts?.openCaseView && (!detail || detail.id !== caseId || view !== "case")) {
+      const opened = await openCase(caseId);
+      if (!opened) return;
+    }
     setBusy(true);
     setNotice("DeepSeek думает над следующим шагом…");
     setStepHint(null);
@@ -905,7 +914,9 @@ export function AdminCabinet() {
       });
       setStepMessages(msgs);
       setNotice(
-        "Подсказка готова: выберите тип сообщения и нажмите подстановку, затем отправьте в MAX вручную.",
+        hint.source === "deepseek"
+          ? "Подсказка DeepSeek готова: выберите тип сообщения и подставьте в чат."
+          : "Подсказка по этапу (DeepSeek недоступен): можно подставить шаблон в чат.",
       );
       if (view !== "case") {
         await loadCases();
@@ -1366,7 +1377,7 @@ export function AdminCabinet() {
       );
       setReplySuggestions(result.suggestions ?? []);
       if (!(result.suggestions && result.suggestions.length)) {
-        setNotice("DeepSeek не вернул варианты — проверьте ключ Yandex AI Studio.");
+        setNotice("Не удалось получить варианты ответа.");
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось получить подсказки.");
@@ -1840,7 +1851,7 @@ export function AdminCabinet() {
           onOpen={(id) => void openCase(id)}
           onWriteMax={(id) => void openCase(id, { focusMaxReply: true })}
           onTake={(id) => void takeCase(id)}
-          onSuggest={(id) => void suggestStep(id)}
+          onSuggest={(id) => void suggestStep(id, { openCaseView: true })}
           onRequestDocs={(id) => void requestDocsFor(id)}
           onMarkTest={(id, isTest) => void markTest(id, isTest)}
           onOpenFinance={(opts) => void loadFinance(opts)}

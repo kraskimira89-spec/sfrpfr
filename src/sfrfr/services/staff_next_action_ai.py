@@ -131,11 +131,17 @@ def suggest_next_action(case: dict[str, Any]) -> dict[str, Any]:
     llm = LLMClient.for_analyze()
     if not llm.available:
         return fallback
-    raw = llm.chat(
-        system=_SYSTEM,
-        user="Обезличенное дело:\n" + json.dumps(_anon_case(case), ensure_ascii=False),
-        temperature=0.1,
-    )
+    try:
+        raw = llm.chat(
+            system=_SYSTEM,
+            user="Обезличенное дело:\n" + json.dumps(_anon_case(case), ensure_ascii=False),
+            temperature=0.1,
+        )
+    except Exception:  # noqa: BLE001 — 401/timeout: показываем эвристику, не пустой UI
+        return {
+            **fallback,
+            "reason": "DeepSeek временно недоступен — показан шаблон по этапу.",
+        }
     match = re.search(r"\{.*\}", raw or "", flags=re.S)
     if not match:
         return fallback

@@ -32,3 +32,27 @@ def test_suggest_falls_back_when_llm_unavailable(monkeypatch) -> None:
     assert "cabinet.proverkastaza.ru" in joined or "кабинет на сайте" in joined
     assert "только в личном кабинете" not in joined
     assert "не в этот чат" not in joined.lower()
+
+
+def test_suggest_falls_back_when_llm_errors(monkeypatch) -> None:
+    class Fake:
+        available = True
+
+        def chat(self, **_kwargs):
+            raise RuntimeError("401 AuthenticationError")
+
+    monkeypatch.setattr(
+        "sfrfr.services.staff_next_action_ai.LLMClient.for_analyze",
+        classmethod(lambda cls: Fake()),
+    )
+    out = suggest_next_action(
+        {
+            "pipeline_status": "intake",
+            "b2c_status": "lead",
+            "checklist_items": [],
+            "clients": {},
+            "orders": [],
+        }
+    )
+    assert out["source"] == "heuristic"
+    assert out["next_action"]
