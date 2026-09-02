@@ -104,6 +104,15 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
             "пока специалист не принял файл. Документы в чат не отправляйте."
         )
 
+    from sfrfr.services.case_chat_payment import payment_intent_detected
+
+    order = work.get("order") if isinstance(work.get("order"), dict) else {}
+    if order.get("can_pay") and payment_intent_detected(text):
+        return (
+            "Сейчас отправлю ссылку на оплату в этот чат — можно оплатить картой "
+            "или отсканировать QR. Решение о пенсии принимает только СФР."
+        )
+
     return None
 
 
@@ -256,6 +265,31 @@ def auto_reply_to_client_message(
         logger.warning("case chat bot work_map failed case=%s: %s", case_id[:8], exc)
         work = {}
 
+    from sfrfr.services.case_chat_payment import (
+        bot_reply_suggests_payment,
+        payment_intent_detected,
+        try_deliver_pay_link_from_chat,
+    )
+
+    order = work.get("order") if isinstance(work.get("order"), dict) else {}
+    pay_link_sent = False
+    if order.get("can_pay") and payment_intent_detected(body):
+        delivered = try_deliver_pay_link_from_chat(
+            case=case,
+            work=work,
+            user_text=body,
+            channel="cabinet",
+            source="chat_bot_intent",
+        )
+        if delivered and delivered.get("message_id"):
+            return {
+                "id": delivered["message_id"],
+                "body": delivered.get("body") or "",
+                "author_kind": "system",
+            }
+        if delivered:
+            pay_link_sent = True
+
     reply = rule_based_reply(body, work)
     if not reply:
         reply = _llm_reply(
@@ -269,9 +303,27 @@ def auto_reply_to_client_message(
         reply = _fallback_reply(work) if work else (
             "Понял ваш вопрос. Специалист увидит сообщение в этом чате и ответит здесь."
         )
-    return _append_bot_reply(
+
+    if (
+        not pay_link_sent
+        and order.get("can_pay")
+        and bot_reply_suggests_payment(reply)
+    ):
+        delivered = try_deliver_pay_link_from_chat(
+            case=case,
+            work=work,
+            user_text=body,
+            channel="cabinet",
+            source="chat_bot_nudge",
+            force=True,
+        )
+        if delivered and delivered.get("message_id"):
+            pay_link_sent = True
+
+    bot_message = _append_bot_reply(
         case=case,
         case_id=case_id,
         reply=reply,
         reply_to_message_id=reply_to_message_id,
     )
+    return bot_message

@@ -24,9 +24,15 @@ BOT_REPLY_LATENCY = Histogram(
 BOT_QUEUE_DEPTH = Gauge("bot_queue_depth", "Задач bot_reply в queued/retrying/processing")
 LLM_REQUEST_TOTAL = Counter("llm_request_total", "Запросы LLM для чата", ["outcome"])
 MAX_WEBHOOK_TOTAL = Counter("max_webhook_total", "Входящие webhook MAX")
-MAX_WEBHOOK_SIGNATURE_FAILED = Counter(
-    "max_webhook_signature_failed_total",
-    "Отклонённые webhook MAX (подпись)",
+CHAT_PAYMENT_NUDGE = Counter(
+    "chat_payment_nudge_total",
+    "Бот или чат предложил оплату (pay-link)",
+    ["channel", "source"],
+)
+CHAT_PAYMENT_NUDGE_CONVERTED = Counter(
+    "chat_payment_nudge_converted_total",
+    "Оплата после нуджа из чата",
+    ["channel", "source"],
 )
 
 

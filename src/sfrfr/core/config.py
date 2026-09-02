@@ -179,6 +179,8 @@ class Settings(BaseSettings):
     secure_link_pepper: str = ""
     # После черновика счёта: ЮKassa invoice + кнопка/QR в MAX (нужен max_user_id)
     max_pay_link_auto_send: bool = False
+    # Pay-link из чата бота при готовом счёте и вопросе об оплате
+    case_chat_pay_link_enabled: bool = True
 
     # Эксплуатация / мониторинг (ТЗ-05)
     ops_monitor_token: str = ""

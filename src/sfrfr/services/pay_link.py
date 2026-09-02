@@ -324,6 +324,18 @@ def issue_and_deliver_pay_link(
             case_id[:8],
             created.get("kind"),
         )
+        try:
+            from sfrfr.services.case_chat_payment import record_payment_nudge
+
+            record_payment_nudge(
+                case_id=case_id,
+                order_id=order_id,
+                message_id=None,
+                channel="max" if resolved_channel == "max_auto" else "unified",
+                source="max_auto" if resolved_channel == "max_auto" else "staff",
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     return {
         "pay_url": pay_url,

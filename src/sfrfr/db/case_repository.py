@@ -1054,6 +1054,16 @@ class CaseRepository:
             self.client.table("orders").update({"status": "paid"}).eq("id", oid).execute()
             if resolved_case_id and newly_paid:
                 self.audit(resolved_case_id, None, f"payment_succeeded:{provider_payment_id}")
+                try:
+                    from sfrfr.services.case_chat_payment import mark_payment_nudge_converted
+
+                    mark_payment_nudge_converted(
+                        case_id=resolved_case_id,
+                        order_id=oid,
+                        payment_id=str(row.get("id") or "") or None,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
                 b2c = None
                 if code == "DIAG":
                     b2c = "diagnostic_paid"

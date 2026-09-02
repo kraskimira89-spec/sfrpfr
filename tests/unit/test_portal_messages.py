@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from sfrfr.services.case_message_text import strip_internal_staff_prefix
 from sfrfr.api.routes.portal import _is_internal_staff_message, _mirror_client_message_to_max
 
 

@@ -66,6 +66,10 @@ from sfrfr.ops.auth_log import auth_event
 from sfrfr.security.auth import Principal, get_current_principal, staff_role_capabilities
 from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET, SIGNED_URL_TTL_SECONDS
 from sfrfr.security.max_webapp import extract_max_user_id, verify_max_init_data
+from sfrfr.services.case_message_text import (
+    mark_internal_staff_body,
+    strip_internal_staff_prefix,
+)
 from sfrfr.services.client_work_map import build_client_work_map
 from sfrfr.services.document_ingest import client_progress_payload
 from sfrfr.services.document_ingest_worker import (
@@ -97,11 +101,6 @@ _MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 _SUBMISSION_INSTRUCTION = (
     f"{SUBMISSION_INSTRUCTION} Используйте проект обращения и чек-лист как подсказку."
-)
-
-from sfrfr.services.case_message_text import (
-    mark_internal_staff_body,
-    strip_internal_staff_prefix,
 )
 
 _SFR_WARNING = WARNING

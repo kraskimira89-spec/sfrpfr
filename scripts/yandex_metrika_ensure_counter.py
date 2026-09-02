@@ -41,6 +41,8 @@ GOALS = (
     ("diagnostic_offered", "Предложена диагностика"),
     ("diagnostic_paid", "Оплачена диагностика"),
     ("service_paid", "Оплачена услуга"),
+    ("chat_payment_nudge", "Бот предложил оплату в чате"),
+    ("chat_payment_nudge_paid", "Оплата после нуджа из чата"),
 )
 # Параметры URL, которые вырезаем до сохранения хита (ПДн / секреты).
 CUT_URL_PARAMS = (
