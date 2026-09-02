@@ -1,0 +1,7 @@
+  max_miniapp: "MAX",
+  web_cabinet: "Веб-кабинет",
+  unset: "не выбран",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  urgent: "Срочно",
