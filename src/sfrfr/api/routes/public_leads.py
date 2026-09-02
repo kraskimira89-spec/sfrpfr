@@ -14,7 +14,7 @@ from sfrfr.integrations.amocrm import AmoCrmClient, sync_case_to_amocrm
 from sfrfr.integrations.amocrm.sync import persist_crm_external_id
 from sfrfr.integrations.recaptcha import RecaptchaVerifier
 from sfrfr.integrations.smartcaptcha import SmartCaptchaVerifier
-from sfrfr.utils.case_display import case_catalog_code
+from sfrfr.services.lead_ops_notify import notify_ops_new_lead
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -263,146 +263,6 @@ def _require_amocrm_lead(amocrm: dict[str, Any] | None) -> None:
         )
 
 
-def _lead_notify_text(
-    *,
-    case_id: str,
-    full_name: str,
-    contact: str,
-    channel: str,
-    crm_url: str | None,
-    max_user_id: str | None = None,
-) -> tuple[str, str]:
-    """subject, body для MAX/email."""
-    from sfrfr.integrations.max.ops_client_label import format_ops_client_block
-
-    catalog = case_catalog_code(case_id, full_name=full_name)
-    lines = [
-        "Новая заявка с сайта",
-        format_ops_client_block(max_user_id=max_user_id, full_name=full_name),
-        f"Контакт: {contact}",
-        f"Канал: {_channel_label_ru(channel)}",
-        f"Дело: {catalog}",
-    ]
-    if crm_url:
-        lines.append(f"Сделка: {crm_url}")
-    lines.append(
-        "Клиенту показаны ссылки на мессенджер MAX и личный кабинет. "
-        "Напишите ему в выбранном канале."
-    )
-    return f"Проверка стажа: заявка {catalog}", "\n".join(lines)
-
-
-def _notify_email_ops_new_lead(
-    *,
-    case_id: str,
-    full_name: str,
-    contact: str,
-    channel: str,
-    crm_url: str | None,
-) -> dict[str, Any]:
-    """Письмо о заявке на OPS_NOTIFY_EMAIL (по умолчанию info@proverkastaza.ru)."""
-    settings = get_settings()
-    to_addr = (settings.ops_notify_email or "").strip()
-    if not to_addr or "@" not in to_addr:
-        return {"ok": False, "skipped": True, "reason": "no OPS_NOTIFY_EMAIL"}
-    try:
-        from sfrfr.integrations.yandex_workspace.mail import send_mail
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": type(exc).__name__}
-
-    subject, body = _lead_notify_text(
-        case_id=case_id,
-        full_name=full_name,
-        contact=contact,
-        channel=channel,
-        crm_url=crm_url,
-    )
-    result = send_mail(
-        to=to_addr,
-        template="custom",
-        subject=subject,
-        body=body,
-        from_name="Проверка стажа",
-    )
-    if not result.get("ok"):
-        logger.warning("email lead notify failed: %s", result)
-    return result
-
-
-def _notify_max_managers_new_lead(
-    *,
-    case_id: str,
-    full_name: str,
-    contact: str,
-    channel: str,
-    crm_url: str | None,
-) -> dict[str, Any]:
-    """Уведомить операторов в MAX о новом лиде (ops-бот → DM/группа + канал команды)."""
-    try:
-        from sfrfr.db.staff_roles import list_manager_max_user_ids
-        from sfrfr.integrations.max.ops_bot import get_ops_bot
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": type(exc).__name__}
-
-    settings = get_settings()
-    bot = get_ops_bot()
-    if not bot.available:
-        return {"ok": False, "skipped": True, "reason": "no MAX bot token"}
-
-    manager_ids = list_manager_max_user_ids(
-        extra_ids=settings.staff_login_approver_max_user_ids,
-    )
-    chat_ids = [
-        p.strip()
-        for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
-        if p.strip()
-    ]
-    team_channel = (settings.max_specialists_channel_chat_id or "").strip()
-    if not manager_ids and not chat_ids and not team_channel:
-        return {"ok": False, "skipped": True, "reason": "no managers"}
-
-    _subject, text = _lead_notify_text(
-        case_id=case_id,
-        full_name=full_name,
-        contact=contact,
-        channel=channel,
-        crm_url=crm_url,
-    )
-
-    sent = 0
-    channel_sent = False
-    if manager_ids or chat_ids:
-        targets: list[str | None] = (
-            list(manager_ids) if manager_ids else [None] * len(chat_ids)
-        )
-        for i, mid in enumerate(targets):
-            cid = chat_ids[i] if i < len(chat_ids) else None
-            try:
-                bot.send_message(
-                    text=text,
-                    user_id=str(mid) if mid else None,
-                    chat_id=cid,
-                )
-                sent += 1
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("max lead notify failed: %s", exc)
-                continue
-
-    if team_channel:
-        try:
-            bot.send_message(text=text, chat_id=team_channel)
-            sent += 1
-            channel_sent = True
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("max lead notify team channel failed: %s", exc)
-
-    return {
-        "ok": sent > 0,
-        "sent": sent,
-        "team_channel_sent": channel_sent,
-    }
-
-
 def _captcha_mode() -> str:
     """auto | google | yandex — см. CAPTCHA_PROVIDER."""
     settings = get_settings()
@@ -562,31 +422,34 @@ def _create_lead(
         ).execute()
 
     admin_base = (settings.admin_public_url or "").rstrip("/")
-    amocrm = sync_case_to_amocrm(
-        case_id=case_id,
-        b2c_status="lead",
-        pipeline_status="intake",
-        full_name=payload.full_name.strip(),
-        phone=phone,
-        email=email,
-        channel=preferred,
-        source=attr.source,
-        consent=bool(payload.consent),
-        case_url=f"{admin_base}/?case={case_id}" if admin_base else None,
-        task=f"lead:{attr.source}",
-        first_source=attr.first_source,
-        last_source=attr.last_source,
-        utm_medium=attr.medium,
-        utm_campaign=attr.campaign or None,
-        utm_content=attr.content or None,
-        utm_term=attr.term or None,
-        landing_variant=attr.landing_variant or None,
-        audience_segment=attr.audience_segment,
-        region_bucket=attr.region_bucket,
-        referral_code=attr.referral_code or None,
-        problem_type=problem,
-    )
-    _require_amocrm_lead(amocrm if isinstance(amocrm, dict) else None)
+    if settings.amocrm_enabled:
+        amocrm = sync_case_to_amocrm(
+            case_id=case_id,
+            b2c_status="lead",
+            pipeline_status="intake",
+            full_name=payload.full_name.strip(),
+            phone=phone,
+            email=email,
+            channel=preferred,
+            source=attr.source,
+            consent=bool(payload.consent),
+            case_url=f"{admin_base}/?case={case_id}&focus=chat" if admin_base else None,
+            task=f"lead:{attr.source}",
+            first_source=attr.first_source,
+            last_source=attr.last_source,
+            utm_medium=attr.medium,
+            utm_campaign=attr.campaign or None,
+            utm_content=attr.content or None,
+            utm_term=attr.term or None,
+            landing_variant=attr.landing_variant or None,
+            audience_segment=attr.audience_segment,
+            region_bucket=attr.region_bucket,
+            referral_code=attr.referral_code or None,
+            problem_type=problem,
+        )
+        _require_amocrm_lead(amocrm if isinstance(amocrm, dict) else None)
+    else:
+        amocrm = {"ok": False, "skipped": True, "reason": "amocrm_disabled"}
     lead_id = amocrm.get("lead_id") if isinstance(amocrm, dict) else None
     if lead_id and amocrm.get("ok"):
         persist_crm_external_id(case_id, str(lead_id))
@@ -594,22 +457,18 @@ def _create_lead(
     crm_url = str(amocrm.get("crm_url") or "") if isinstance(amocrm, dict) else ""
     crm_url_opt: str | None = crm_url or None
     lead_name = payload.full_name.strip()
-    max_notify = _notify_max_managers_new_lead(
+    lead_notify = notify_ops_new_lead(
         case_id=case_id,
         full_name=lead_name,
+        phone=phone,
+        email=email,
         contact=contact_display,
         channel=preferred,
-        crm_url=crm_url_opt,
-    )
-    email_notify = _notify_email_ops_new_lead(
-        case_id=case_id,
-        full_name=lead_name,
-        contact=contact_display,
-        channel=preferred,
+        source_label="с сайта",
         crm_url=crm_url_opt,
     )
     if isinstance(amocrm, dict):
-        amocrm = {**amocrm, "max_notify": max_notify, "email_notify": email_notify}
+        amocrm = {**amocrm, "lead_notify": lead_notify}
 
     cabinet = settings.cabinet_public_url.rstrip("/")
     max_url = settings.max_public_bot_url or settings.max_chat_url
