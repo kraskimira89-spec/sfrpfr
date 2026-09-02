@@ -67,6 +67,12 @@ weavix list
 weavix info
 ```
 
+### Статус 2026-09-02 (проверка STAZH-2)
+
+`weavix info` (org `8541157`): Plugin **DRAFT**, version **0.1.1** **`IN_REVIEW`** (с 23.08.2026) — модерация не завершена.
+
+Автопроверки в репо: `npm run typecheck` / `lint` OK, `weavix doctor` 27 pass, `weavix build` OK. Smoke API очереди STAZH: [STAZH-5](https://tracker.yandex.ru/STAZH-5) (создана и закрыта агентом).
+
 ### Статус 2026-08-23 (почему нет рядом с «Мастер задач SFRFR»)
 
 Проверено CLI (`weavix list` / `weavix info`), org `8541157`:

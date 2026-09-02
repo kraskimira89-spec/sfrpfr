@@ -81,9 +81,9 @@ const App = () => {
         type CreateIssueFn = (payload: {
             bodyParams: Record<string, unknown>;
         }) => Promise<{ data: { key?: string } }>;
-        const postIssues = (
-            trackerApi.v3.post as unknown as Record<string, CreateIssueFn>
-        )['/issues'];
+        const postIssues = (trackerApi.v3.post as unknown as Record<string, CreateIssueFn>)[
+            '/issues'
+        ];
 
         const { data: created } = await postIssues({ bodyParams });
 
