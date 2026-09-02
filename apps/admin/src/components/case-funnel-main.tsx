@@ -26,6 +26,7 @@ import {
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
 import { DocumentsTable } from "@/components/documents-table";
+import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -266,6 +267,10 @@ export function CaseFunnelMain({
   onOpenSigned,
   onUploadDiagnosisReport,
   onPublishDiagnosis,
+  staffToken,
+  apiBase,
+  onDeliveryNotice,
+  onDeliveryRefresh,
   onToggleChecklist,
   onAddChecklist,
   onChecklistTitle,
@@ -341,6 +346,10 @@ export function CaseFunnelMain({
   onOpenSigned: (docId: string) => void;
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
+  staffToken?: string | null;
+  apiBase?: string;
+  onDeliveryNotice?: (msg: string) => void;
+  onDeliveryRefresh?: () => void;
   onToggleChecklist: (id: string, status: string) => void;
   onAddChecklist: (e: FormEvent) => void;
   onChecklistTitle: (v: string) => void;
@@ -1140,8 +1149,18 @@ export function CaseFunnelMain({
             </div>
             <p className="hint">
               ТЗ-28: PDF не вложением. Система готовит draft → сотрудник подтверждает отправку.
-              Jobs: GET/approve в API notification-jobs.
             </p>
+            {staffToken && apiBase ? (
+              <DiagnosisDeliveryPanel
+                caseId={detail.id}
+                token={staffToken}
+                apiBase={apiBase}
+                clientEmail={detail.client.email ?? null}
+                busy={busy}
+                onNotice={onDeliveryNotice ?? (() => {})}
+                onRefresh={onDeliveryRefresh ?? (() => {})}
+              />
+            ) : null}
           </StageShell>
         ) : null}
 

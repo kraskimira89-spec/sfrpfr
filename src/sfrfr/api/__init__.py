@@ -17,6 +17,7 @@ from sfrfr.api.routes import (
     public_staff_register,
     secure_actions,
     supabase_auth_email,
+    survey_actions,
 )
 from sfrfr.core.config import get_settings
 from sfrfr.ops.logging import configure_logging
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(portal.router, prefix="/api/portal", tags=["portal"])
     app.include_router(admin_portal.router, prefix="/api/portal", tags=["portal-admin"])
     app.include_router(secure_actions.router, prefix="/api/portal", tags=["secure-actions"])
+    app.include_router(survey_actions.router, prefix="/api/portal", tags=["survey-actions"])
     app.include_router(
         public_leads.router,
         prefix="/api/public",

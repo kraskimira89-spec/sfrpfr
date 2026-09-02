@@ -67,6 +67,14 @@ def new_action_token() -> str:
     return secrets.token_urlsafe(16)
 
 
+def survey_email_link(raw_token: str, *, base_url: str | None = None) -> str:
+    """Публичная ссылка на страницу подтверждения (не фиксирует ответ по GET)."""
+    from sfrfr.core.config import get_settings
+
+    base = (base_url or get_settings().public_base_url or "").rstrip("/")
+    return f"{base}/api/portal/survey/{raw_token}"
+
+
 def is_night_msk(now: datetime | None = None) -> bool:
     return is_quiet_hours(now)
 
@@ -316,7 +324,13 @@ class DiagnosisSurveyService:
             stats["promoted"] += 1
         return stats
 
-    def handle_action_token(self, raw_token: str) -> dict[str, Any]:
+    def handle_action_token(
+        self,
+        raw_token: str,
+        *,
+        channel: str = "max",
+        confirmation_method: str = "max_callback",
+    ) -> dict[str, Any]:
         token_hash = hash_action_token(raw_token)
         row = self.repo.get_token_by_hash(token_hash)
         if not row:
@@ -351,9 +365,9 @@ class DiagnosisSurveyService:
                 "campaign_id": campaign_id,
                 "question_code": question_code,
                 "answer_code": answer,
-                "channel": "max",
+                "channel": channel if channel in ("max", "email", "web") else "max",
                 "submitted_at": now,
-                "confirmation_method": "max_callback",
+                "confirmation_method": confirmation_method,
                 "token_id": row["id"],
             }
         )

@@ -1628,6 +1628,42 @@ def cancel_notification_job(
     return out
 
 
+@router.get("/admin/cases/{case_id}/diagnosis-feedback")
+def get_diagnosis_feedback(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Статус обратной связи после PDF (ТЗ-27), без ПДн."""
+    from sfrfr.db.diagnosis_feedback_repository import DiagnosisFeedbackRepository
+
+    _repo().require_case(principal, case_id)
+    row = DiagnosisFeedbackRepository().get(case_id)
+    if not row:
+        return {"feedback": None}
+    safe = {
+        k: row.get(k)
+        for k in (
+            "case_id",
+            "pdf_issued_at",
+            "pdf_opened_at",
+            "feedback_status",
+            "clarity_score",
+            "expectation_match",
+            "useful_section",
+            "first_plan_step_status",
+            "difficulty_category",
+            "follow_up_service_requested",
+            "review_publication_consent",
+            "touch2_due_at",
+            "touch3_due_at",
+            "touch2_sent_at",
+            "touch3_sent_at",
+            "updated_at",
+        )
+    }
+    return {"feedback": safe}
+
+
 @router.get("/admin/cases/{case_id}/survey-campaigns")
 def list_survey_campaigns(
     case_id: str,
@@ -1689,6 +1725,14 @@ def approve_survey_campaign(
         labels = out.get("labels") or {}
         tokens = out["tokens"]
         out["attachments"] = survey_keyboard(tokens, labels)
+        channel = str(camp.get("channel") or "max")
+        if channel == "email":
+            from sfrfr.services.diagnosis_survey import survey_email_link
+
+            out["email_links"] = [
+                {"answer_code": code, "label": labels.get(code, code), "url": survey_email_link(raw)}
+                for code, raw in tokens.items()
+            ]
         out.pop("tokens", None)
         if not payload.mark_sent:
             DiagnosisSurveyRepository().update_campaign(
