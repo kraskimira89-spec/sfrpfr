@@ -51,8 +51,10 @@ POST /api/portal/admin/diagnosis-surveys/due-tick
 POST /api/portal/admin/notification-jobs/smtp-retry
 ```
 
-Yandex SMTP env уже канон; Mailgun/SendGrid ключи **не** обязательны.
+Yandex SMTP env уже канон; Mailgun/SendGrid ключи **не** обязательны для исходящей почты.
+
+**SFRFR-22 webhook env (2026-09-02):** на VPS `/opt/sfrfr/.env` заданы `POSTMARK_WEBHOOK_USER` / `POSTMARK_WEBHOOK_PASSWORD` / `EMAIL_DELIVERY_HASH_SALT` (копия в `secrets/email-delivery-webhooks.env`, не в git). Health: `postmark: true`. Smoke: `POST /api/webhooks/email/postmark` → строка в `delivery_events`. Когда появится кабинет Postmark — те же Basic Auth в URL webhook. Исходящий канал по-прежнему Yandex SMTP.
 
 ## Tracker
 
-Закрывать SFRFR-17…22 комментарием «миграция применена» + дата после фактического apply.
+Закрывать SFRFR-17…22 комментарием «миграция применена» + дата после фактического apply. SFRFR-22 закрыт после env + health + smoke.
