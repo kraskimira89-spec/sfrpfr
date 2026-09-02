@@ -6,8 +6,8 @@ import html
 import logging
 from typing import Any
 
-from sfrfr.db.staff_roles import _staff_row_by_email, get_staff_role_by_email
 from sfrfr.db.session import get_supabase_client
+from sfrfr.db.staff_roles import _staff_row_by_email, get_staff_role_by_email
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,8 @@ def notify_staff_login_blocked(*, email: str, reason: str) -> dict[str, Any]:
         f"Причина блокировки: {reason_label}\n\n"
         f"Кабинет: {_ADMIN_CABINET_URL}\n"
         "Действия администратора:\n"
-        f"• пригласить сотрудника: sfrfr staff-grant --email {normalized} --role operator --invite\n"
+        f"• пригласить: sfrfr staff-grant --email {normalized} "
+        "--role operator --invite\n"
         "• или одобрить заявку на доступ, если она уже есть.\n"
     )
     html_body = (

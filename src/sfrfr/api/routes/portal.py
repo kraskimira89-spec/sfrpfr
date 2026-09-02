@@ -45,8 +45,6 @@ from sfrfr.api.schemas.portal import (
     MaxOtpRequestResponse,
     MaxOtpVerifyRequest,
     MaxOtpVerifyResponse,
-    StaffEmailOtpRequest,
-    StaffEmailOtpRequestResponse,
     PipelineRunResponse,
     PortalMeResponse,
     PortalSiteReviewRequest,
@@ -54,6 +52,8 @@ from sfrfr.api.schemas.portal import (
     PreferencesUpdateRequest,
     PreferredChannel,
     SignedDocumentResponse,
+    StaffEmailOtpRequest,
+    StaffEmailOtpRequestResponse,
 )
 from sfrfr.core.config import get_settings
 from sfrfr.core.copy import SUBMISSION_INSTRUCTION, WARNING
