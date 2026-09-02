@@ -776,13 +776,25 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             )
         role = get_staff_role_by_email(staff_email)
         if role is None:
-            _raise_auth(
-                403,
-                "Email не найден в staff-ролях. Подайте заявку на доступ "
-                "во вкладке «Запрос доступа» или обратитесь к администратору.",
-                event="otp_request",
+            pending = create_pending(audience="staff", staff_email=staff_email)
+            auth_event(
+                "otp_request",
+                outcome="ok",
                 audience="staff",
+                ticket=pending.ticket_id,
+                status="pending_confirm",
                 reason="staff_email_unknown",
+            )
+            return MaxOtpRequestResponse(
+                ok=True,
+                ticket=pending.ticket_id,
+                pair_code="",
+                expires_in=max(60, int(pending.expires_at - time.time())),
+                max_bot_url=staff_max_login_url(),
+                status="pending_confirm",
+                message=(
+                    "Если этот адрес можно использовать для входа, подтвердите вход в ops-боте MAX."
+                ),
             )
         pending = create_pending(audience="staff", staff_email=staff_email)
         from sfrfr.db.staff_roles import trusted_login_max_user_id

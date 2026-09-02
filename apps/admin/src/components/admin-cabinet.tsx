@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient, type Session } from "@supabase/supabase-js";
+import { type Session } from "@supabase/supabase-js";
 import {
   labelFeedbackQuality,
   labelPackage,
@@ -16,6 +16,11 @@ import { CaseChatPanel } from "@/components/case-chat-panel";
 import { CaseFunnelMain, type StepChatMessage } from "@/components/case-funnel-main";
 import { IngestReviewPanel } from "@/components/ingest-review-panel";
 import { StaffRolesPanel } from "@/components/staff-roles-panel";
+import {
+  StaffAccessGate,
+  StaffAuthScreen,
+  createStaffSupabaseClient,
+} from "@/components/staff-auth-screen";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -207,8 +212,6 @@ type StaffCaseDetail = {
 type View = "dashboard" | "cases" | "case" | "finance" | "analytics" | "roles";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SITE_URL = "https://proverkastaza.ru";
 const DEFAULT_MAX_OPS_BOT = "https://max.ru/id8905998693_3_bot";
 const ADMIN_DEEP_LINK_KEY = "sfrfr_admin_deep_link";
@@ -263,20 +266,6 @@ function clearAdminDeepLink() {
   }
 }
 
-/** ╨н╨║╤А╨░╨╜ ╨▓╤Е╨╛╨┤╨░: MAX (╨╛╤Б╨╜╨╛╨▓╨╜╨╛╨╣) | ╨║╨╛╨┤ ╨╜╨░ ╨┐╨╛╤З╤В╤Г | ╨╖╨░╤П╨▓╨║╨░ ╨╜╨░ ╨┤╨╛╤Б╤В╤Г╨┐. */
-type AuthScreen = "max" | "email_otp" | "register";
-
-function chatUrlOnly(url: string): string {
-  try {
-    const u = new URL(url || DEFAULT_MAX_OPS_BOT);
-    u.search = "";
-    u.hash = "";
-    return u.toString();
-  } catch {
-    return DEFAULT_MAX_OPS_BOT;
-  }
-}
-
 function BrandHomeLink({
   children,
   className,
@@ -288,19 +277,10 @@ function BrandHomeLink({
     <a
       className={className ? `brand-home-link ${className}` : "brand-home-link"}
       href={SITE_URL}
-      title="╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О"
-      aria-label="╨Э╨░ ╨│╨╗╨░╨▓╨╜╤Г╤О"
+      title="На главную"
+      aria-label="На главную"
     >
       {children}
-    </a>
-  );
-}
-
-function SiteReturnPanel() {
-  return (
-    <a className="auth-return-panel" href={SITE_URL}>
-      <span className="auth-return-panel__title">╨Т╨╡╤А╨╜╤Г╤В╤М╤Б╤П ╨╜╨░ ╤Б╨░╨╣╤В</span>
-      <span className="auth-return-panel__hint">proverkastaza.ru</span>
     </a>
   );
 }
@@ -381,47 +361,9 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
   return response.json() as Promise<T>;
 }
 
-async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!response.ok) {
-    const raw = (await response.text()) || `HTTP ${response.status}`;
-    let message = raw;
-    try {
-      const parsed = JSON.parse(raw) as { detail?: unknown };
-      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
-        message = parsed.detail;
-      }
-    } catch {
-      /* ╨╛╤Б╤В╨░╨▓╨╕╤В╤М ╤Б╤Л╤А╨╛╨╣ ╤В╨╡╨║╤Б╤В */
-    }
-    throw new Error(humanizeStaffApiError(message));
-  }
-  return response.json() as Promise<T>;
-}
-
 export function AdminCabinet() {
-  const supabase = useMemo(
-    () => (supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null),
-    [],
-  );
+  const supabase = useMemo(() => createStaffSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [registerConsent, setRegisterConsent] = useState(false);
-  const [registerSent, setRegisterSent] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [authScreen, setAuthScreen] = useState<AuthScreen>("max");
-  const [maxTicket, setMaxTicket] = useState("");
-  const [maxPairCode, setMaxPairCode] = useState("");
-  const [maxWaitStatus, setMaxWaitStatus] = useState("");
-  const [maxBotUrl, setMaxBotUrl] = useState(DEFAULT_MAX_OPS_BOT);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [marketingConsentLabel, setMarketingConsentLabel] = useState<string | null>(null);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
@@ -523,9 +465,6 @@ export function AdminCabinet() {
     if (!token) return;
     const profile = await apiFetch<Me>("/api/portal/me", token);
     setMe(profile);
-    if (!profile.is_staff) {
-      setNotice("╨Э╨╡╤В ╨┤╨╛╤Б╤В╤Г╨┐╨░: ╤В╤А╨╡╨▒╤Г╨╡╤В╤Б╤П ╤А╨╛╨╗╤М ╨╛╨┐╨╡╤А╨░╤В╨╛╤А╨░, ╤Н╨║╤Б╨┐╨╡╤А╤В╨░ ╨╕╨╗╨╕ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░.");
-    }
   }, [token]);
 
   const loadDashboard = useCallback(async () => {
@@ -577,209 +516,6 @@ export function AdminCabinet() {
       }
     })();
   }, [token, loadMe, loadDashboard, loadCases]);
-
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supabase) {
-      setNotice("╨Ъ╨░╨▒╨╕╨╜╨╡╤В ╨╡╤Й╤С ╨╜╨╡ ╨╜╨░╤Б╤В╤А╨╛╨╡╨╜: ╨╜╨╡╤В public ╨║╨╗╤О╤З╨░ Supabase.");
-      return;
-    }
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    });
-    if (error) {
-      const msg =
-        error.message?.toLowerCase().includes("signups not allowed") ||
-        error.message?.toLowerCase().includes("user not found")
-          ? "╨Я╨╛╤З╤В╨░ ╨╜╨╡ ╨╖╨░╤А╨╡╨│╨╕╤Б╤В╤А╨╕╤А╨╛╨▓╨░╨╜╨░ ╨┤╨╗╤П ╨▓╤Е╨╛╨┤╨░. ╨Я╨╛╨┐╤А╨╛╤Б╨╕╤В╨╡ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░ ╨▓╤Л╨┤╨░╤В╤М ╤А╨╛╨╗╤М (staff-grant) ╨╕╨╗╨╕ ╨▓╨╛╨╣╨┤╨╕╤В╨╡ ╤З╨╡╤А╨╡╨╖ MAX."
-          : `╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨║╨╛╨┤: ${error.message}`;
-      setNotice(msg);
-      return;
-    }
-    setOtpSent(true);
-    setNotice("╨Ъ╨╛╨┤ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜ ╨╜╨░ ╤А╨░╨▒╨╛╤З╨╕╨╣ email.");
-  }
-
-  async function requestMaxLogin(): Promise<boolean> {
-    if (!apiBase) {
-      setNotice("API ╨╜╨╡ ╨╜╨░╤Б╤В╤А╨╛╨╡╨╜.");
-      return false;
-    }
-    if (!email.trim() || !email.includes("@")) {
-      setNotice("╨г╨║╨░╨╢╨╕╤В╨╡ ╤А╨░╨▒╨╛╤З╨╕╨╣ email тАФ ╤А╨╛╨╗╤М ╨┤╨╛╨╗╨╢╨╜╨░ ╨▒╤Л╤В╤М ╤Г╨╢╨╡ ╨▓╤Л╨┤╨░╨╜╨░ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨╛╨╝.");
-      return false;
-    }
-    setBusy(true);
-    setNotice("");
-    try {
-      const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audience: "staff", email: email.trim().toLowerCase() }),
-      });
-      const body = (await response.json().catch(() => ({}))) as {
-        detail?: string;
-        ticket?: string;
-        pair_code?: string;
-        max_bot_url?: string;
-        message?: string;
-        status?: string;
-      };
-      if (!response.ok) {
-        throw new Error(
-          typeof body.detail === "string" ? body.detail : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╜╨░╤З╨░╤В╤М ╨▓╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ MAX.",
-        );
-      }
-      setMaxTicket(body.ticket || "");
-      setMaxPairCode(body.pair_code || "");
-      setMaxWaitStatus(body.status || "pending_pair");
-      if (body.max_bot_url) setMaxBotUrl(body.max_bot_url);
-      setOtpSent(true);
-      setNotice(
-        body.message ||
-          "╨Ъ╨╛╨┤ ╨┐╨╛╤П╨▓╨╕╨╗╤Б╤П ╨╜╨╕╨╢╨╡. ╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Я╨╡╤А╨╡╨╣╤В╨╕ ╨▓ MAX┬╗, ╨╛╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨║╨╛╨┤ ╨▓ ops-╨▒╨╛╤В ╨╕ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╡ ╨▓╤Е╨╛╨┤.",
-      );
-      return true;
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╜╨░╤З╨░╤В╤М ╨▓╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ MAX.");
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function getMaxLoginCode() {
-    if (!email.trim() || !email.includes("@")) {
-      setNotice("╨б╨╜╨░╤З╨░╨╗╨░ ╤Г╨║╨░╨╢╨╕╤В╨╡ ╤А╨░╨▒╨╛╤З╨╕╨╣ email.");
-      return;
-    }
-    await requestMaxLogin();
-    }
-
-  function openMaxChat() {
-    window.open(chatUrlOnly(maxBotUrl), "_blank", "noopener,noreferrer");
-  }
-
-  function resetMaxWizard() {
-    setOtpSent(false);
-    setMaxTicket("");
-    setMaxPairCode("");
-    setMaxWaitStatus("");
-    setNotice("");
-  }
-
-  function goAuthScreen(next: AuthScreen) {
-    setAuthScreen(next);
-    setOtpSent(false);
-    setOtpCode("");
-    setRegisterSent(false);
-    setNotice("");
-    if (next === "max") resetMaxWizard();
-  }
-
-  async function requestStaffRegister(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!registerConsent) {
-      setNotice("╨Ю╤В╨╝╨╡╤В╤М╤В╨╡ ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╤Б ╨б╨Ю╨Я╨Ф тАФ ╨▒╨╡╨╖ ╨╜╨╡╨│╨╛ ╨╖╨░╤П╨▓╨║╤Г ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨╜╨╡╨╗╤М╨╖╤П.");
-      return;
-    }
-    if (!fullName.trim()) {
-      setNotice("╨г╨║╨░╨╢╨╕╤В╨╡ ╨╕╨╝╤П ╨╕ ╤Д╨░╨╝╨╕╨╗╨╕╤О.");
-      return;
-    }
-    if (!email.trim() || !email.includes("@")) {
-      setNotice("╨г╨║╨░╨╢╨╕╤В╨╡ ╤А╨░╨▒╨╛╤З╨╕╨╣ e-mail.");
-      return;
-    }
-    if (!apiBase) {
-      setNotice("API ╨║╨░╨▒╨╕╨╜╨╡╤В╨░ ╨╜╨╡ ╨╜╨░╤Б╤В╤А╨╛╨╡╨╜.");
-      return;
-    }
-    setBusy(true);
-    setNotice("");
-    try {
-      const result = await publicFetch<{ ok?: boolean; message?: string }>(
-        "/api/public/staff-register",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: email.trim(),
-            display_name: fullName.trim(),
-            consent: true,
-          }),
-        },
-      );
-      setRegisterSent(true);
-      setNotice(
-        result.message ||
-          "╨Ч╨░╤П╨▓╨║╨░ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨░. ╨Я╨╛╤Б╨╗╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨╛╨╝ ╨╜╨░ proverkastaza@yandex.ru ╨▓╤Л ╨┐╨╛╨╗╤Г╤З╨╕╤В╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╤Б ╨┤╨╛╤Б╤В╤Г╨┐╨╛╨╝.",
-      );
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨╖╨░╤П╨▓╨║╤Г.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ╨Я╨Ъ ╨╢╨┤╤С╤В: ╨║╨╛╨┤ ╨▓ MAX тЖТ (╨┐╤А╨╕ ╨┐╨╡╤А╨▓╨╛╨╝ ╨▓╤Е╨╛╨┤╨╡) ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤М тЖТ ╤Б╨╡╤Б╤Б╨╕╤П
-  useEffect(() => {
-    if (!supabase || !apiBase || !maxTicket || session || authScreen !== "max" || !otpSent) {
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setInterval(() => {
-      void (async () => {
-        try {
-          const response = await fetch(
-            `${apiBase}/api/portal/auth/otp/poll?ticket=${encodeURIComponent(maxTicket)}`,
-          );
-          const body = (await response.json().catch(() => ({}))) as {
-            status?: string;
-            token_hash?: string;
-            type?: "email" | "sms";
-            message?: string;
-          };
-          if (cancelled) return;
-          if (body.status) setMaxWaitStatus(body.status);
-          if (body.message) setNotice(body.message);
-          if (body.status === "approved" && body.token_hash) {
-            const { error } = await supabase.auth.verifyOtp({
-              token_hash: body.token_hash,
-              type: body.type || "email",
-            });
-            if (error) throw error;
-            setOtpSent(false);
-            setMaxTicket("");
-            setMaxPairCode("");
-            setNotice("");
-          }
-          if (body.status === "expired") {
-            setNotice(body.message || "╨Т╤А╨╡╨╝╤П ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П ╨╕╤Б╤В╨╡╨║╨╗╨╛. ╨Э╨░╤З╨╜╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╤Б╨╜╨╛╨▓╨░.");
-          }
-        } catch (err) {
-          if (!cancelled) {
-            setNotice(err instanceof Error ? err.message : "╨Ю╤И╨╕╨▒╨║╨░ ╨╛╨╢╨╕╨┤╨░╨╜╨╕╤П ╨▓╤Е╨╛╨┤╨░.");
-          }
-        }
-      })();
-    }, 2000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [supabase, apiBase, maxTicket, session, authScreen, otpSent]);
-
-  async function verifyOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supabase) return;
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otpCode,
-      type: "email",
-    });
-    setNotice(error ? "╨Э╨╡╨▓╨╡╤А╨╜╤Л╨╣ ╨║╨╛╨┤." : "");
-  }
 
   async function openCase(caseId: string, opts?: { focusMaxReply?: boolean }): Promise<boolean> {
     if (!token) return false;
@@ -1796,282 +1532,23 @@ export function AdminCabinet() {
   }
 
   if (!session) {
-    const showMax = authScreen === "max";
-    const loginTabActive = authScreen !== "register";
-
     return (
-      <main className="auth-layout auth-layout--split">
-        <div className="auth-split">
-        <section className={`card auth-card ${showMax ? "auth-wizard" : ""}`}>
-          <p className="eyebrow">
-            <BrandHomeLink>
-              <img
-                className="brand-logo"
-                src="/logo-light.png"
-                width={40}
-                height={40}
-                alt="╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░"
-              />
-              ╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░ ┬╖ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨╕
-            </BrandHomeLink>
-          </p>
-          <h1>╨Ъ╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░</h1>
-
-          <div className="auth-tabs" role="tablist" aria-label="╨Т╤Е╨╛╨┤ ╨╕╨╗╨╕ ╨╖╨░╤П╨▓╨║╨░ ╨╜╨░ ╨┤╨╛╤Б╤В╤Г╨┐">
-            <button
-              type="button"
-              role="tab"
-              id="auth-tab-login"
-              aria-selected={loginTabActive}
-              className={loginTabActive ? "auth-tab active" : "auth-tab"}
-              onClick={() => goAuthScreen("max")}
-            >
-              ╨Т╤Е╨╛╨┤
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="auth-tab-register"
-              aria-selected={!loginTabActive}
-              className={!loginTabActive ? "auth-tab active" : "auth-tab"}
-              onClick={() => goAuthScreen("register")}
-            >
-              ╨Ч╨░╨┐╤А╨╛╤Б ╨┤╨╛╤Б╤В╤Г╨┐╨░
-            </button>
-          </div>
-
-          {authScreen === "max" ? (
-            <>
-              <p className="lead lead-compact">
-                ╨Т╤Е╨╛╨┤ ╤З╨╡╤А╨╡╨╖ ops-╨▒╨╛╤В MAX ┬л╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░-Ops┬╗: ╨┐╨╛╨╗╤Г╤З╨╕╤В╨╡ ╨║╨╛╨┤ ╨╜╨░ ╤Н╤В╨╛╨╣ ╤Б╤В╤А╨░╨╜╨╕╤Ж╨╡,
-                ╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╡ ╨▓ MAX. ╨Ф╨╛╤Б╤В╤Г╨┐ ╨╛╤В╨║╤А╤Л╨▓╨░╨╡╤В╤Б╤П ╨┐╨╛╤Б╨╗╨╡ ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╤П ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨╛╨╝.
-              </p>
-              <label htmlFor="email-max">╨а╨░╨▒╨╛╤З╨╕╨╣ email</label>
-              <input
-                id="email-max"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                disabled={otpSent && Boolean(maxTicket)}
-                placeholder="name@company.ru"
-              />
-              <div className="max-wizard max-wizard--actions">
-                {!otpSent ? (
-                  <>
-                    <button
-                      type="button"
-                      className="max-action-btn"
-                      disabled={busy}
-                      onClick={() => void getMaxLoginCode()}
-                    >
-                      ╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╨║╨╛╨┤
-                    </button>
-                    <ol className="max-login-steps">
-                      <li>╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╨║╨╛╨┤┬╗ тАФ ╨┐╨╛╤П╨▓╤П╤В╤Б╤П 6 ╤Ж╨╕╤Д╤А</li>
-                      <li>╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Я╨╡╤А╨╡╨╣╤В╨╕ ╨▓ MAX┬╗</li>
-                      <li>╨Т ops-╨▒╨╛╤В╨╡ ╨╛╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨║╨╛╨┤ ╨╕ ╨╜╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Т╨╛╨╣╤В╨╕ ╨▓ ╨║╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░┬╗</li>
-                    </ol>
-                  </>
-                ) : (
-                  <>
-                    <p className="max-wizard-status" role="status">
-                      {maxWaitStatus === "pending_manager"
-                        ? "╨Ъ╨╛╨┤ ╨┐╤А╨╕╨╜╤П╤В. ╨Ц╨┤╤С╨╝ ╤А╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤П ╨▓ ╤З╨░╤В╨╡ MAXтАж"
-                        : maxWaitStatus === "pending_confirm"
-                          ? "╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╨▓ ops-╨▒╨╛╤В╨╡ тАФ ╨║╨░╨▒╨╕╨╜╨╡╤В ╨╛╤В╨║╤А╨╛╨╡╤В╤Б╤П ╨╖╨┤╨╡╤Б╤М"
-                          : maxPairCode
-                            ? "╨Ю╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨║╨╛╨┤ ╨▓ ops-╨▒╨╛╤В MAX"
-                            : "╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╨╡ ╨▓╤Е╨╛╨┤ ╨▓ ops-╨▒╨╛╤В╨╡ MAX"}
-                    </p>
-                    {maxPairCode ? (
-                      <p className="max-code-block">
-                        ╨Ъ╨╛╨┤: <strong className="max-pair-code">{maxPairCode}</strong>
-                      </p>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="max-action-btn"
-                      onClick={openMaxChat}
-                    >
-                      ╨Я╨╡╤А╨╡╨╣╤В╨╕ ╨▓ MAX
-                    </button>
-                    <ol className="max-login-steps">
-                      <li>╨Ю╤В╨║╤А╨╛╨╣╤В╨╡ ops-╨▒╨╛╤В ┬л╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░-Ops┬╗</li>
-                      {maxPairCode ? (
-                        <>
-                          <li>╨Ю╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨║╨╛╨┤ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡╨╝ ╨▓ ╤З╨░╤В</li>
-                          <li>╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Т╨╛╨╣╤В╨╕ ╨▓ ╨║╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░┬╗</li>
-                        </>
-                      ) : (
-                        <li>╨Э╨░╨╢╨╝╨╕╤В╨╡ ┬л╨Т╨╛╨╣╤В╨╕ ╨▓ ╨║╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░┬╗</li>
-                      )}
-                    </ol>
-                    {maxWaitStatus === "pending_manager" ? (
-                      <p className="hint">
-                        ╨а╤Г╨║╨╛╨▓╨╛╨┤╨╕╤В╨╡╨╗╤М ╨╜╨░╨╢╨╝╤С╤В ┬л╨а╨░╨╖╤А╨╡╤И╨╕╤В╤М ╨▓╤Е╨╛╨┤┬╗ тАФ ╨║╨░╨▒╨╕╨╜╨╡╤В ╨╛╤В╨║╤А╨╛╨╡╤В╤Б╤П ╤Б╨░╨╝.
-                      </p>
-                    ) : (
-                      <p className="hint">
-                        ╨Я╨╛╤Б╨╗╨╡ ╨║╨╜╨╛╨┐╨║╨╕ ╨▓ ops-╨▒╨╛╤В╨╡ ╨║╨░╨▒╨╕╨╜╨╡╤В ╨╛╤В╨║╤А╨╛╨╡╤В╤Б╤П ╨╜╨░ ╤Н╤В╨╛╨╣ ╤Б╤В╤А╨░╨╜╨╕╤Ж╨╡.
-                      </p>
-                    )}
-                    <button type="button" className="ghost" onClick={resetMaxWizard}>
-                      ╨Э╨░╤З╨░╤В╤М ╨╖╨░╨╜╨╛╨▓╨╛
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="auth-alt-hint">
-                <p className="auth-alt-label">╨Ф╤А╤Г╨│╨╕╨╡ ╤Б╨┐╨╛╤Б╨╛╨▒╤Л ╨▓╤Е╨╛╨┤╨░</p>
-                <div className="auth-alt-list" role="group" aria-label="╨Ф╤А╤Г╨│╨╕╨╡ ╤Б╨┐╨╛╤Б╨╛╨▒╤Л ╨▓╤Е╨╛╨┤╨░">
-                  <button
-                    type="button"
-                    className="auth-alt-btn"
-                    onClick={() => goAuthScreen("email_otp")}
-                  >
-                    ╨Ъ╨╛╨┤ ╨╜╨░ ╤А╨░╨▒╨╛╤З╤Г╤О ╨┐╨╛╤З╤В╤Г
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          {authScreen === "email_otp" ? (
-            <>
-              {!otpSent ? (
-                <form className="auth-form" onSubmit={signIn}>
-                  <label htmlFor="email">╨а╨░╨▒╨╛╤З╨╕╨╣ email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <button type="submit" disabled={busy}>
-                    ╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╨║╨╛╨┤
-                  </button>
-                </form>
-              ) : (
-                <form className="auth-form" onSubmit={verifyOtp}>
-                  <label htmlFor="otp">╨Ъ╨╛╨┤ ╤Б ╨┐╨╛╤З╤В╤Л</label>
-                  <input
-                    id="otp"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                  />
-                  <button type="submit">╨Т╨╛╨╣╤В╨╕</button>
-                </form>
-              )}
-              <p className="hint">
-                <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                  тЖР ╨Т╨╛╨╣╤В╨╕ ╤З╨╡╤А╨╡╨╖ MAX
-                </button>
-              </p>
-            </>
-          ) : null}
-
-          {authScreen === "register" ? (
-            <>
-              <p className="lead lead-compact">
-                ╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╨╖╨░╤П╨▓╨║╤Г тАФ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А ╨┐╨╛╨╗╤Г╤З╨╕╤В ╨┐╨╕╤Б╤М╨╝╨╛ ╨╜╨░{" "}
-                <strong>proverkastaza@yandex.ru</strong> ╨╕ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В ╨┤╨╛╤Б╤В╤Г╨┐. ╨Я╨╛╤Б╨╗╨╡ ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╤П
-                ╨┐╤А╨╕╨┤╤С╤В ╨┐╤А╨╕╨│╨╗╨░╤И╨╡╨╜╨╕╨╡ ╨╜╨░ ╨▓╨░╤И e-mail.
-              </p>
-              {registerSent ? (
-                <p className="notice" role="status">
-                  {notice ||
-                    "╨Ч╨░╤П╨▓╨║╨░ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨░. ╨Ф╨╛╨╢╨┤╨╕╤В╨╡╤Б╤М ╨┐╨╕╤Б╤М╨╝╨░ ╤Б ╨┤╨╛╤Б╤В╤Г╨┐╨╛╨╝ ╨┐╨╛╤Б╨╗╨╡ ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╤П ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨╛╨╝."}
-                </p>
-              ) : (
-                <form className="auth-form" onSubmit={requestStaffRegister}>
-                  <label htmlFor="reg-name">╨Ш╨╝╤П ╨╕ ╤Д╨░╨╝╨╕╨╗╨╕╤П</label>
-                  <input
-                    id="reg-name"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    autoComplete="name"
-                    required
-                  />
-                  <label htmlFor="reg-email">╨а╨░╨▒╨╛╤З╨╕╨╣ e-mail</label>
-                  <input
-                    id="reg-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                    placeholder="name@company.ru"
-                  />
-                  <label className="auth-consent" htmlFor="reg-consent">
-                    <input
-                      id="reg-consent"
-                      type="checkbox"
-                      checked={registerConsent}
-                      onChange={(e) => setRegisterConsent(e.target.checked)}
-                      required
-                    />
-                    <span>
-                      ╨б╨╛╨│╨╗╨░╤Б╨╡╨╜ ╤Б{" "}
-                      <a href={`${SITE_URL}/soglasie/`} target="_blank" rel="noopener noreferrer">
-                        ╨б╨Ю╨Я╨Ф
-                      </a>{" "}
-                      ╨┤╨╗╤П ╤А╨░╤Б╤Б╨╝╨╛╤В╤А╨╡╨╜╨╕╤П ╨╖╨░╤П╨▓╨║╨╕
-                    </span>
-                  </label>
-                  <button type="submit" disabled={busy || !registerConsent}>
-                    ╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨╖╨░╤П╨▓╨║╤Г
-                  </button>
-                  {notice ? <p className="notice">{notice}</p> : null}
-                </form>
-              )}
-              {!registerSent ? (
-                <p className="hint">
-                  <button type="button" className="linkish" onClick={() => goAuthScreen("max")}>
-                    тЖР ╨г╨╢╨╡ ╨╡╤Б╤В╤М ╨┤╨╛╤Б╤В╤Г╨┐ тАФ ╨▓╨╛╨╣╤В╨╕
-                  </button>
-                </p>
-              ) : null}
-            </>
-          ) : null}
-
-          {authScreen !== "register" && notice ? <p className="notice">{notice}</p> : null}
-          {authScreen !== "register" ? (
-            <p className="hint auth-staff-hint">
-              ╨Э╨╡╤В ╨┤╨╛╤Б╤В╤Г╨┐╨░? ╨Т╨║╨╗╨░╨┤╨║╨░ ┬л╨Ч╨░╨┐╤А╨╛╤Б ╨┤╨╛╤Б╤В╤Г╨┐╨░┬╗ ╨╕╨╗╨╕ ╨┐╨╛╨┐╤А╨╛╤Б╨╕╤В╨╡ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░ ╨┤╨╛╨▒╨░╨▓╨╕╤В╤М ╨▓╨░╤Б ╨▓ ╤А╨░╨╖╨┤╨╡╨╗╨╡ ┬л╨а╨╛╨╗╨╕┬╗.
-            </p>
-          ) : null}
-        </section>
-          <SiteReturnPanel />
-        </div>
-      </main>
+      <StaffAuthScreen
+        supabase={supabase}
+        apiBase={apiBase}
+        defaultMaxBotUrl={DEFAULT_MAX_OPS_BOT}
+        siteUrl={SITE_URL}
+      />
     );
   }
 
   if (me && !me.is_staff) {
     return (
-      <main className="auth-layout auth-layout--split">
-        <div className="auth-split">
-          <section className="card auth-card">
-            <h1>╨Э╨╡╤В ╨┤╨╛╤Б╤В╤Г╨┐╨░</h1>
-            <p className="lead lead-compact">
-              ╨Т╤Е╨╛╨┤ ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜, ╨╜╨╛ ╤А╨╛╨╗╨╕ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨╜╨╡╤В. ╨Я╨╛╨┐╤А╨╛╤Б╨╕╤В╨╡ ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░ ╨┤╨╛╨▒╨░╨▓╨╕╤В╤М ╨▓╨░╤Б ╨▓ ╤А╨░╨╖╨┤╨╡╨╗╨╡
-              ┬л╨а╨╛╨╗╨╕┬╗ тАФ ╨╛╤В╨║╤А╤Л╤В╨╛╨╣ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕ ╨╜╨╡╤В.
-            </p>
-            <button type="button" className="max-action-btn" onClick={() => void supabase?.auth.signOut()}>
-              ╨Т╤Л╨╣╤В╨╕
-            </button>
-          </section>
-          <SiteReturnPanel />
-        </div>
-      </main>
+      <StaffAccessGate
+        supabase={supabase}
+        siteUrl={SITE_URL}
+        onRequestAccess={() => void supabase?.auth.signOut()}
+      />
     );
   }
 

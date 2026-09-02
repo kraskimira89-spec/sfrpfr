@@ -102,22 +102,23 @@ def create_registration_request(*, email: str, display_name: str) -> dict[str, A
 
     existing_staff = get_staff_row_by_email(normalized)
     if existing_staff and str(existing_staff.get("status") or "") != "archived":
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Этот e-mail уже есть в кабинете сотрудников. "
-                "Войдите или обратитесь к администратору."
+        return {
+            "ok": True,
+            "message": (
+                "Запрос отправлен. Доступ не открывается автоматически. "
+                "После решения администратора мы сообщим на рабочую почту "
+                "или в MAX, если он привязан к вашему профилю."
             ),
-        )
+        }
 
     if get_pending_by_email(normalized):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Заявка с этим e-mail уже на рассмотрении. "
-                "Дождитесь ответа администратора."
+        return {
+            "ok": True,
+            "message": (
+                "Ваш запрос доступа находится на рассмотрении. "
+                "Мы сообщим, когда администратор примет решение."
             ),
-        )
+        }
 
     response = (
         get_supabase_client()

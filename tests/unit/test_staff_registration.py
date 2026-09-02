@@ -40,9 +40,23 @@ def test_create_registration_request_duplicate_staff(monkeypatch: pytest.MonkeyP
         "sfrfr.db.staff_registration.get_pending_by_email",
         lambda _email: None,
     )
-    with pytest.raises(HTTPException) as exc:
-        create_registration_request(email="ops@test.ru", display_name="Иван И.")
-    assert exc.value.status_code == 409
+    result = create_registration_request(email="ops@test.ru", display_name="Иван И.")
+    assert result["ok"] is True
+    assert "Запрос отправлен" in result["message"]
+
+
+def test_create_registration_request_pending_duplicate(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "sfrfr.db.staff_registration.get_staff_row_by_email",
+        lambda _email: None,
+    )
+    monkeypatch.setattr(
+        "sfrfr.db.staff_registration.get_pending_by_email",
+        lambda _email: {"status": "pending"},
+    )
+    result = create_registration_request(email="ops@test.ru", display_name="Иван И.")
+    assert result["ok"] is True
+    assert "на рассмотрении" in result["message"]
 
 
 def test_create_registration_request_inserts_and_notifies(monkeypatch: pytest.MonkeyPatch) -> None:
