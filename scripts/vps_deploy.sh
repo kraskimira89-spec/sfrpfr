@@ -12,10 +12,11 @@ cd "$APP_DIR"
 # иначе bash продолжает старую версию (без пересборки Next.js).
 if [[ "${1:-}" != "--post-update" ]]; then
   chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-  # HTTPS fetch с VPS иногда требует credentials prompt → 128; 3 попытки без helper.
+  # HTTPS fetch с VPS иногда даёт 128; 3 попытки. Не задавать GIT_ASKPASS —
+  # пустой Basic auth → HTTP 401 от GitHub на публичный репозиторий.
   fetch_ok=0
   for _try in 1 2 3; do
-    if sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true \
+    if sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 \
       git -C "$APP_DIR" -c credential.helper= fetch --prune origin; then
       fetch_ok=1
       break
