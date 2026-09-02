@@ -213,6 +213,8 @@ def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
 
 def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("AMOCRM_ENABLED", "1")
+    get_settings.cache_clear()
     calls: list[dict] = []
 
     def _fake_push(case, *, task=None):  # noqa: ANN001, ANN202
