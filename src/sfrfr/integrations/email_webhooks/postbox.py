@@ -103,18 +103,22 @@ def _occurred_at(body: dict[str, Any], event_type: str) -> Any:
     return parse_iso(None)
 
 
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _redact_postbox(body: dict[str, Any], domain: str | None) -> dict[str, Any]:
     out = redact_payload(body, recipient_domain_value=domain)
     out["eventType"] = redact_text(str(body.get("eventType") or "")) or None
-    mail = body.get("mail") if isinstance(body.get("mail"), dict) else {}
+    mail = _as_dict(body.get("mail"))
     if mail.get("messageId"):
         out["mail_messageId"] = str(mail["messageId"])[:80]
-    bounce = body.get("bounce") if isinstance(body.get("bounce"), dict) else {}
+    bounce = _as_dict(body.get("bounce"))
     if bounce.get("bounceType"):
         out["bounceType"] = str(bounce["bounceType"])[:40]
     if bounce.get("bounceSubType"):
         out["bounceSubType"] = str(bounce["bounceSubType"])[:40]
-    failure = body.get("failure") if isinstance(body.get("failure"), dict) else {}
+    failure = _as_dict(body.get("failure"))
     if failure.get("errorMessage"):
         out["errorMessage"] = redact_text(str(failure["errorMessage"]))
     return {k: v for k, v in out.items() if v is not None}
@@ -126,10 +130,10 @@ def parse_postbox_event(body: dict[str, Any]) -> list[NormalizedDeliveryEvent]:
     if not raw_type:
         return []
 
-    mail = body.get("mail") if isinstance(body.get("mail"), dict) else {}
+    mail = _as_dict(body.get("mail"))
     message_id = str(mail.get("messageId") or mail.get("message_id") or "").strip()
     if not message_id:
-        ch = mail.get("commonHeaders") if isinstance(mail.get("commonHeaders"), dict) else {}
+        ch = _as_dict(mail.get("commonHeaders"))
         message_id = str(ch.get("messageId") or "").strip()
     if not message_id:
         return []
@@ -148,7 +152,7 @@ def parse_postbox_event(body: dict[str, Any]) -> list[NormalizedDeliveryEvent]:
     if key == "send":
         event_type, severity = "accepted", "info"
     elif key == "bounce":
-        bounce = body.get("bounce") if isinstance(body.get("bounce"), dict) else {}
+        bounce = _as_dict(body.get("bounce"))
         bounce_type = str(bounce.get("bounceType") or "")
         classified = classify_bounce(bounce_type=bounce_type, type_code=None)
         event_type = classified
@@ -162,9 +166,10 @@ def parse_postbox_event(body: dict[str, Any]) -> list[NormalizedDeliveryEvent]:
                 error_code = str(status)[:40]
     elif key == "renderingfailure":
         event_type, severity = "failed", "error"
-        failure = body.get("failure") if isinstance(body.get("failure"), dict) else {}
+        failure = _as_dict(body.get("failure"))
         error_category = "rendering_failure"
-        error_code = redact_text(str(failure.get("errorMessage") or "render"))[:40]
+        err_msg = redact_text(str(failure.get("errorMessage") or "render")) or "render"
+        error_code = err_msg[:40]
     elif key == "deliverydelay":
         event_type, severity = "deferred", "warning"
         error_category = "delivery_delay"

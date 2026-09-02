@@ -60,8 +60,9 @@ def send_email_postbox(
     body_obj: dict[str, Any] = {
         "Text": {"Data": text, "Charset": "UTF-8"},
     }
-    if (html or "").strip():
-        body_obj["Html"] = {"Data": html.strip(), "Charset": "UTF-8"}
+    html_body = (html or "").strip()
+    if html_body:
+        body_obj["Html"] = {"Data": html_body, "Charset": "UTF-8"}
 
     payload: dict[str, Any] = {
         "FromEmailAddress": from_header,
