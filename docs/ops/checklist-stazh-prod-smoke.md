@@ -1,7 +1,7 @@
 # Prod smoke: STAZH-1 (кабинет → Tracker)
 
 **Задача:** [STAZH-1](https://tracker.yandex.ru/STAZH-1) — **закрыта 2026-09-02** (resolution fixed)  
-**Smoke issue:** [STAZH-4](https://tracker.yandex.ru/STAZH-4) (`case_ref=636685c28d33`)
+**Smoke issue:** [STAZH-4](https://tracker.yandex.ru/STAZH-4) (`case_ref=636685c28d33`) — **закрыта 2026-09-02** (resolution fixed)
 
 ## Предусловия
 

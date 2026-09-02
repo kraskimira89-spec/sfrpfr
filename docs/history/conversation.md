@@ -129,6 +129,12 @@
 - Миграция `case_tracker_issues` на YC (ранее отсутствовала) + RLS.
 - Smoke: [STAZH-4](https://tracker.yandex.ru/STAZH-4); [STAZH-1](https://tracker.yandex.ru/STAZH-1) закрыта.
 
+## 2026-09-02 — STAZH-4 prod smoke issue закрыта
+
+- Артефакт smoke из admin-кабинета (`process_improvement`, `case_ref=636685c28d33`).
+- Проверено: метаданные/теги OK, ПДн нет, связь `relates` → STAZH-1; unit-тесты tracker 4 passed.
+- Закрыта resolution fixed после подтверждения критериев STAZH-1.
+
 ## 2026-09-02 — lint 0029: case helpers → private
 
 - WARN `authenticated_security_definer_function_executable` на `can_access_case` / `is_case_*`.
