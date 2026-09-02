@@ -760,19 +760,24 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
         return None
 
 
-def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
+def _notify_operator_staff(*, user_id: str, intake, case_id: str | None) -> None:
+    """Уведомить сотрудников о заявке из чата MAX (email + чат, без amo при выключенном CRM)."""
     if not case_id:
         return
+    settings = get_settings()
     crm_url: str | None = None
+    full_name = ""
+    phone: str | None = None
+    email: str | None = None
+    channel = "max_miniapp"
     try:
         from sfrfr.db.session import get_supabase_client
-        from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm
 
         rows = (
             get_supabase_client()
             .table("cases")
             .select(
-                "id,b2c_status,pipeline_status,crm_external_id,"
+                "id,b2c_status,pipeline_status,crm_external_id,problem_type,"
                 "clients(full_name,phone,email,preferred_channel,max_user_id)"
             )
             .eq("id", case_id)
@@ -782,19 +787,60 @@ def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> Non
             or []
         )
         if rows:
-            case = rows[0]
-            amo = push_case_to_amocrm(case, task="max_operator")
-            lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
-            if lead_id and amo.get("ok"):
-                persist_crm_external_id(case_id, str(lead_id))
-            if isinstance(amo, dict):
-                crm_url = amo.get("crm_url")
+            case_row = rows[0]
+            raw_client = case_row.get("clients")
+            client_row = (
+                raw_client[0]
+                if isinstance(raw_client, list) and raw_client
+                else raw_client if isinstance(raw_client, dict) else {}
+            )
+            full_name = str((client_row or {}).get("full_name") or "").strip()
+            phone = str((client_row or {}).get("phone") or "").strip() or None
+            email = str((client_row or {}).get("email") or "").strip() or None
+            channel = str((client_row or {}).get("preferred_channel") or channel)
+            if settings.amocrm_enabled:
+                from sfrfr.integrations.amocrm.sync import (
+                    persist_crm_external_id,
+                    push_case_to_amocrm,
+                )
+
+                amo = push_case_to_amocrm(case_row, task="max_operator")
+                lead_id = amo.get("lead_id") if isinstance(amo, dict) else None
+                if lead_id and amo.get("ok"):
+                    persist_crm_external_id(case_id, str(lead_id))
+                if isinstance(amo, dict):
+                    crm_url = amo.get("crm_url")
     except Exception:
         import logging
 
-        logging.getLogger(__name__).exception("max_operator_amocrm_failed max=%s", user_id)
-    # Ops-ссылка на дело/чат — всегда, даже если amo недоступен.
-    _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=crm_url)
+        logging.getLogger(__name__).exception("max_operator_case_lookup_failed max=%s", user_id)
+
+    if not full_name:
+        from sfrfr.integrations.max.ops_client_label import lookup_ops_client_full_name
+
+        full_name = lookup_ops_client_full_name(max_user_id=user_id, case_id=case_id)
+
+    try:
+        from sfrfr.services.lead_ops_notify import notify_ops_new_lead
+
+        notify_ops_new_lead(
+            case_id=case_id,
+            full_name=full_name or "Клиент",
+            phone=phone,
+            email=email,
+            channel=channel,
+            source_label="из чата MAX",
+            max_user_id=user_id,
+            crm_url=crm_url,
+        )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("max_operator_ops_notify_failed max=%s", user_id)
+
+
+def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
+    _notify_operator_staff(user_id=user_id, intake=intake, case_id=case_id)
 
 
 def _fanout_ops_text(
