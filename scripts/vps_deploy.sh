@@ -82,7 +82,7 @@ rebuild_next_app() {
       if [[ -f package-lock.json ]]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       if [[ -n \"\${lock_hash:-}\" ]]; then echo \"\$lock_hash\" > \"\$lock_stamp\"; fi
     fi
-    rm -f .next/lock
+    rm -rf .next
     npm run build
   "
   systemctl restart "$unit"
