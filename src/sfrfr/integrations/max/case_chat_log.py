@@ -202,7 +202,7 @@ def _insert_case_message(
     client_message_id: str | None = None,
     reply_to_message_id: str | None = None,
 ) -> dict[str, Any] | None:
-    from sfrfr.db.session import get_supabase_client
+    from sfrfr.db.case_messages_write import insert_case_message
 
     row: dict[str, Any] = {
         "case_id": case_id,
@@ -222,9 +222,7 @@ def _insert_case_message(
     reply_to = (reply_to_message_id or "").strip()
     if reply_to:
         row["reply_to_message_id"] = reply_to
-    response = get_supabase_client().table("case_messages").insert(row).execute()
-    data = response.data or []
-    return data[0] if data else None
+    return insert_case_message(row)
 
 
 def _buffer(

@@ -51,7 +51,7 @@ def test_pending_buffer_flush() -> None:
 
     with patch.dict("os.environ", {"STORAGE_LOCAL_PATH": str(storage.resolve())}):
         cfg.get_settings.cache_clear()
-        with patch("sfrfr.db.session.get_supabase_client", return_value=_FakeClient()):
+        with patch("sfrfr.db.case_messages_write.get_supabase_client", return_value=_FakeClient()):
             append_client_case_message(case_id=None, max_user_id="u1", text="Привет")
             append_bot_case_message(
                 case_id=None,
@@ -124,7 +124,7 @@ def test_append_fk_failure_falls_back_to_buffer() -> None:
 
     with patch.dict("os.environ", {"STORAGE_LOCAL_PATH": str(storage.resolve())}):
         cfg.get_settings.cache_clear()
-        with patch("sfrfr.db.session.get_supabase_client", return_value=_FakeClient()):
+        with patch("sfrfr.db.case_messages_write.get_supabase_client", return_value=_FakeClient()):
             append_bot_case_message(
                 case_id=phantom,
                 max_user_id="max42",
@@ -132,7 +132,7 @@ def test_append_fk_failure_falls_back_to_buffer() -> None:
             )
             assert inserted == []
 
-        with patch("sfrfr.db.session.get_supabase_client", return_value=_OkClient()):
+        with patch("sfrfr.db.case_messages_write.get_supabase_client", return_value=_OkClient()):
             n = flush_pending_case_chat(max_user_id="max42", case_id=real)
             assert n == 1
             assert inserted[0]["body"] == "Робот ответил клиенту"

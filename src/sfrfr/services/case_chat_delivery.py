@@ -199,7 +199,29 @@ def mirror_staff_message_to_max(
     message_id: str | None = None,
 ) -> None:
     """Доставить видимое клиенту сообщение специалиста в тот же чат MAX."""
-    mirror_client_message_to_max(case, body, message_id=message_id)
+    client_row = case.get("clients") or {}
+    if isinstance(client_row, list):
+        client_row = client_row[0] if client_row else {}
+    max_uid = str((client_row or {}).get("max_user_id") or "").strip()
+    if not max_uid:
+        return
+    if enqueue_max_delivery(
+        case_id=str(case.get("id") or "").strip(),
+        message_id=message_id,
+        max_user_id=max_uid,
+        body=body,
+    ):
+        process_pending_outbox(limit=1)
+        return
+    try:
+        from sfrfr.integrations.max.client import MaxBotClient
+
+        bot = MaxBotClient()
+        if not bot.available:
+            return
+        bot.send_message(text=body, user_id=max_uid)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("direct MAX staff mirror failed case=%s: %s", str(case.get("id") or "")[:8], exc)
 
 
 def notify_client_new_chat_message(

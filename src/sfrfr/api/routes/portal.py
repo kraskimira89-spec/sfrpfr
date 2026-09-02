@@ -2619,14 +2619,10 @@ def create_message(
     }
     if client_message_id:
         insert_row["client_message_id"] = client_message_id
-    response = (
-        get_supabase_client()
-        .table("case_messages")
-        .insert(insert_row)
-        .execute()
-    )
+    from sfrfr.db.case_messages_write import insert_case_message
+
+    row = insert_case_message(insert_row)
     repo.audit(case_id, principal.user_id, "message_created")
-    row = response.data[0]
     bot_message_row: dict[str, Any] | None = None
     client_message_db_id = str(row.get("id") or "")
     if kind == "client" and not _is_internal_staff_message(row):

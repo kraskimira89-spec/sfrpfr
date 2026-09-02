@@ -1225,20 +1225,17 @@ def send_max_reply_to_client(
             )
 
     try:
-        inserted = (
-            sb.table("case_messages")
-            .insert(
-                {
-                    "case_id": case_id,
-                    "author_user_id": principal.user_id,
-                    "author_kind": "staff",
-                    "body": text,
-                    "channel_origin": "admin",
-                }
-            )
-            .execute()
+        from sfrfr.db.case_messages_write import insert_case_message
+
+        message_row = insert_case_message(
+            {
+                "case_id": case_id,
+                "author_user_id": principal.user_id,
+                "author_kind": "staff",
+                "body": text,
+                "channel_origin": "admin",
+            }
         )
-        message_row = (inserted.data or [{}])[0]
         message_id = str(message_row.get("id") or "").strip() or None
         from sfrfr.services.case_chat_delivery import mirror_staff_message_to_max
 
