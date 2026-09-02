@@ -19,7 +19,11 @@ OAuth token ... issued after '2026-06-01' is not supported for IAM token exchang
 
 ### 1. Консоль → ключ SA
 
-Облако `sfrfr-ai` (`b1gkscu5sqpjtf5d5rbi`), каталог `default` (`b1g0mhpm9tr4lrurk1bu`):
+Облако `sfrfr-ai` (`b1gkscu5sqpjtf5d5rbi`), каталог `default` (`b1g0mhpm9tr4lrurk1bu`).
+
+Если имени `sfrfr-ai` нет в сайдбаре — откройте каталог напрямую:  
+https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
+(часто мешает другая организация / другой Яндекс ID; см. [yandex-cloud-billing-unblock.md](./yandex-cloud-billing-unblock.md)).
 
 1. **IAM** → **Сервисные аккаунты** → создать `sfrfr-terraform` (или отдельный от AI Studio).
 2. Назначить на каталог роль **`editor`** (для первого staging plan/apply).
