@@ -818,7 +818,7 @@ def _notify_operator_staff(*, user_id: str, intake, case_id: str | None) -> None
     if not full_name:
         from sfrfr.integrations.max.ops_client_label import lookup_ops_client_full_name
 
-        full_name = lookup_ops_client_full_name(max_user_id=user_id, case_id=case_id)
+        full_name = lookup_ops_client_full_name(max_user_id=user_id, case_id=case_id) or full_name
 
     try:
         from sfrfr.services.lead_ops_notify import notify_ops_new_lead
