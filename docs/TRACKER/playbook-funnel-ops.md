@@ -1,7 +1,7 @@
 # Playbook: ops-задачи по воронке клиентов
 
 **Очередь Трекера:** **`FUNNEL`** → https://tracker.yandex.ru/FUNNEL  
-**CRM по людям:** только **amoCRM** (`docs/AMO/`).
+**CRM по людям:** **кабинет сотрудника** ([playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md)). amoCRM в резерв (`AMOCRM_ENABLED=0`, `docs/AMO/`).
 
 ## Назначение
 
@@ -32,8 +32,10 @@ Ops-фокус FUNNEL: SLA первого ответа (цель 30–60 мин 
 
 В description: этап, `case_id` только если нужен (без ФИО/телефона).
 
-## Граница с amo
+## Граница staff cabinet / FUNNEL
 
-| amo | FUNNEL |
-|-----|--------|
-| сделка, контакт, задачи оператора | системные ops, улучшения SLA, баги sync |
+| Кабинет сотрудника | FUNNEL (Трекер) |
+|--------------------|-----------------|
+| дело, этап, next_action, loss_reason | системные ops, SLA, чеклисты, улучшения процесса |
+
+amo (резерв): исторические чеклисты — [../AMO/playbook-funnel-checklists-automation.md](../AMO/playbook-funnel-checklists-automation.md).
