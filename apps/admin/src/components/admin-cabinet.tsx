@@ -287,35 +287,35 @@ function BrandHomeLink({
 
 const CHANNEL_LABELS: Record<string, string> = {
   max_miniapp: "MAX",
-  web_cabinet: "╨Т╨╡╨▒-╨║╨░╨▒╨╕╨╜╨╡╤В",
-  unset: "╨╜╨╡ ╨▓╤Л╨▒╤А╨░╨╜",
+  web_cabinet: "Веб-кабинет",
+  unset: "не выбран",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  urgent: "╨б╤А╨╛╤З╨╜╨╛",
-  today: "╨б╨╡╨│╨╛╨┤╨╜╤П",
-  standard: "╨б╤В╨░╨╜╨┤╨░╤А╤В╨╜╨╛",
+  urgent: "Срочно",
+  today: "Сегодня",
+  standard: "Стандартно",
 };
 
 const DOC_STATUS_LABELS: Record<string, string> = {
-  consent_missing: "╨Э╨╡╤В ╤Б╨╛╨│╨╗╨░╤Б╨╕╤П ╨╜╨░ ╨Я╨Ф╨╜",
-  ils_missing: "╨Э╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨░ ╨▓╤Л╨┐╨╕╤Б╨║╨░ ╨Ш╨Ы╨б",
-  labor_missing: "╨Э╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨░ ╤В╤А╤Г╨┤╨╛╨▓╨░╤П",
-  archive_needed: "╨Ю╨╢╨╕╨┤╨░╨╡╨╝ ╨░╤А╤Е╨╕╨▓╨╜╤Г╤О ╤Б╨┐╤А╨░╨▓╨║╤Г",
-  discrepancy: "╨а╨░╤Б╤Е╨╛╨╢╨┤╨╡╨╜╨╕╤П ╨Ш╨Ы╨б ╨╕ ╤В╤А╤Г╨┤╨╛╨▓╨╛╨╣",
-  extra_info: "╨Э╤Г╨╢╨╜╨░ ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╤П ╨╛╤В ╨║╨╗╨╕╨╡╨╜╤В╨░",
-  project_ready: "╨Я╤А╨╛╨╡╨║╤В ╨╛╨▒╤А╨░╤Й╨╡╨╜╨╕╤П ╨│╨╛╤В╨╛╨▓",
-  sfr_reply: "╨Ю╤В╨▓╨╡╤В ╨б╨д╨а тАФ ╨╜╤Г╨╢╨╡╨╜ ╤А╨░╨╖╨▒╨╛╤А",
+  consent_missing: "Нет согласия на ПДн",
+  ils_missing: "Не получена выписка ИЛС",
+  labor_missing: "Не получена трудовая",
+  archive_needed: "Ожидаем архивную справку",
+  discrepancy: "Расхождения ИЛС и трудовой",
+  extra_info: "Нужна информация от клиента",
+  project_ready: "Проект обращения готов",
+  sfr_reply: "Ответ СФР — нужен разбор",
 };
 
 function formatRub(value: number): string {
-  return `${new Intl.NumberFormat("ru-RU").format(Math.round(value || 0))} тВ╜`;
+  return `${new Intl.NumberFormat("ru-RU").format(Math.round(value || 0))} ₽`;
 }
 
 function formatWhen(value: string | null | undefined): string {
-  if (!value) return "тАФ";
+  if (!value) return "—";
   const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return "тАФ";
+  if (Number.isNaN(dt.getTime())) return "—";
   return dt.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -341,7 +341,7 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
         detail = parsed.detail as Record<string, unknown>;
       }
     } catch {
-      /* ╨╛╤Б╤В╨░╨▓╨╕╤В╤М ╤Б╤Л╤А╨╛╨╣ ╤В╨╡╨║╤Б╤В */
+      /* оставить сырой текст */
     }
     const rawMessage =
       typeof detail === "string"
@@ -407,7 +407,7 @@ export function AdminCabinet() {
   const [trackerForceNew, setTrackerForceNew] = useState(false);
   const [invoiceCaseId, setInvoiceCaseId] = useState("");
   const [invoiceCode, setInvoiceCode] = useState<"DIAG" | "ACCOMP">("DIAG");
-  const [invoiceLabel, setInvoiceLabel] = useState("╨Ф╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░");
+  const [invoiceLabel, setInvoiceLabel] = useState("Диагностика");
   const [invoiceAmount, setInvoiceAmount] = useState("3000");
   const [invoiceDue, setInvoiceDue] = useState("");
   const [markPaidOrder, setMarkPaidOrder] = useState<FinanceOrder | null>(null);
@@ -512,7 +512,7 @@ export function AdminCabinet() {
         await loadDashboard();
         await loadCases();
       } catch {
-        setNotice("╨Э╨╡╤В ╨┤╨╛╤Б╤В╤Г╨┐╨░ ╨╕╨╗╨╕ API ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜.");
+        setNotice("Нет доступа или API недоступен.");
       }
     })();
   }, [token, loadMe, loadDashboard, loadCases]);
@@ -536,7 +536,7 @@ export function AdminCabinet() {
           token,
         );
       } catch {
-        // ╨Ъ╨░╤А╤В╨╛╤З╨║╨░ ╨┤╨╡╨╗╨░ ╨▓╨░╨╢╨╜╨╡╨╡ тАФ ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨║╨░ ╨╝╨╛╨╢╨╡╤В ╨▒╤Л╤В╤М ╨┐╤Г╤Б╤В╨╛╨╣ ╨╜╨░ intake.
+        // Карточка дела важнее — переписка может быть пустой на intake.
       }
       setDetail(caseDetail);
       setMessages(caseMessages);
@@ -558,8 +558,8 @@ export function AdminCabinet() {
       const detail = err instanceof Error ? err.message : "";
       setNotice(
         detail.includes("case not found") || detail.includes("404")
-          ? "╨Ф╨╡╨╗╨╛ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨╛ ╨╕╨╗╨╕ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨╛ ╨┤╨╗╤П ╨▓╨░╤И╨╡╨╣ ╤А╨╛╨╗╨╕."
-          : `╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨║╤А╤Л╤В╤М ╨┤╨╡╨╗╨╛: ${detail || "╨╛╤И╨╕╨▒╨║╨░ API"}`,
+          ? "Дело не найдено или недоступно для вашей роли."
+          : `Не удалось открыть дело: ${detail || "ошибка API"}`,
       );
       return false;
     } finally {
@@ -568,7 +568,7 @@ export function AdminCabinet() {
   }
 
   useEffect(() => {
-    // ╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М deep-link ╨┤╨╛ ╨╗╨╛╨│╨╕╨╜╨░ (MAX ╤З╨░╤Б╤В╨╛ ╨╛╤В╨║╤А╤Л╨▓╨░╨╡╤В URL ╨╜╨░ ╤Н╨║╤А╨░╨╜╨╡ ╨▓╤Е╨╛╨┤╨░).
+    // Сохранить deep-link до логина (MAX часто открывает URL на экране входа).
     captureAdminDeepLink();
   }, []);
 
@@ -578,14 +578,14 @@ export function AdminCabinet() {
     if (!link?.caseId) return;
     let cancelled = false;
     void (async () => {
-      // Deep-link ╨╕╨╖ ops ┬л╨║╨╗╨╕╨╡╨╜╤В ╨╢╨┤╤С╤В┬╗ / ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В ╨▓ ╤З╨░╤В тЖТ ╨┤╨╡╨╗╨╛ + ╤З╨░╤В.
+      // Deep-link из ops «клиент ждёт» / документ в чат → дело + чат.
       const ok = await openCase(link.caseId, { focusMaxReply: true });
       if (ok && !cancelled) clearAdminDeepLink();
     })();
     return () => {
       cancelled = true;
     };
-    // openCase ╨╖╨░╨╝╤Л╨║╨░╨╡╤В╤Б╤П ╨╜╨░ token/state тАФ ╨┤╨╛╤Б╤В╨░╤В╨╛╤З╨╜╨╛ staff-╤Б╨╡╤Б╤Б╨╕╨╕.
+    // openCase замыкается на token/state — достаточно staff-сессии.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, me?.is_staff]);
 
@@ -657,7 +657,7 @@ export function AdminCabinet() {
       setView("finance");
       if (cases.length === 0) await loadCases();
     } catch {
-      setNotice("╨д╨╕╨╜╨░╨╜╤Б╤Л ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Л ╨┤╨╗╤П ╤А╨╛╨╗╨╕ ╨╛╨┐╨╡╤А╨░╤В╨╛╤А╨░.");
+      setNotice("Финансы недоступны для роли оператора.");
     } finally {
       setFinanceLoading(false);
       setBusy(false);
@@ -688,8 +688,8 @@ export function AdminCabinet() {
       const hint = error instanceof Error ? error.message : "";
       setNotice(
         hint && !/operator/i.test(hint)
-          ? `╨Р╨╜╨░╨╗╨╕╤В╨╕╨║╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░: ${hint}`
-          : "╨Р╨╜╨░╨╗╨╕╤В╨╕╨║╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░. ╨Ф╨╗╤П ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░ ╨╕ ╤Б╨┐╨╡╤Ж╨╕╨░╨╗╨╕╤Б╤В╨░ ╤А╨░╨╖╨┤╨╡╨╗ ╨┤╨╛╨╗╨╢╨╡╨╜ ╨╛╤В╨║╤А╤Л╨▓╨░╤В╤М╤Б╤П.",
+          ? `Аналитика недоступна: ${hint}`
+          : "Аналитика недоступна. Для администратора и специалиста раздел должен открываться.",
       );
     } finally {
       setBusy(false);
@@ -716,7 +716,7 @@ export function AdminCabinet() {
   async function requestReview() {
     if (!token || !detail) return;
     await apiFetch(`/api/portal/admin/cases/${detail.id}/request-review`, token, { method: "POST" });
-    setNotice("╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╨╖╨░╨┐╤А╨╛╤И╨╡╨╜╨░.");
+    setNotice("Проверка запрошена.");
     await openCase(detail.id);
   }
 
@@ -733,17 +733,17 @@ export function AdminCabinet() {
         detail?: unknown;
       }>(`/api/portal/admin/cases/${detail.id}/telemost`, token, { method: "POST" });
       if (result.ok && result.join_url) {
-        setNotice(`╨в╨╡╨╗╨╡╨╝╨╛╤Б╤В ╤Б╨╛╨╖╨┤╨░╨╜: ${result.join_url}`);
+        setNotice(`Телемост создан: ${result.join_url}`);
         await openCase(detail.id);
       } else if (result.skipped) {
-        setNotice("╨в╨╡╨╗╨╡╨╝╨╛╤Б╤В ╨┐╤А╨╛╨┐╤Г╤Й╨╡╨╜ (╨╜╨╡╤В ╤В╨╛╨║╨╡╨╜╨░ / ╨▓╤Л╨║╨╗╤О╤З╨╡╨╜).");
+        setNotice("Телемост пропущен (нет токена / выключен).");
       } else {
         setNotice(
-          `╨в╨╡╨╗╨╡╨╝╨╛╤Б╤В: ${result.error || "╨╛╤И╨╕╨▒╨║╨░"}${result.hint ? ` тАФ ${result.hint}` : ""}`,
+          `Телемост: ${result.error || "ошибка"}${result.hint ? ` — ${result.hint}` : ""}`,
         );
       }
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╨╖╨┤╨░╤В╤М ╨в╨╡╨╗╨╡╨╝╨╛╤Б╤В.");
+      setNotice("Не удалось создать Телемост.");
     } finally {
       setBusy(false);
     }
@@ -752,7 +752,7 @@ export function AdminCabinet() {
   async function createTrackerIssue() {
     if (!token || !detail) return;
     if (trackerDesc.trim().length < 10) {
-      setNotice("╨Ю╨┐╨╕╤Б╨░╨╜╨╕╨╡ ╨╖╨░╨┤╨░╤З╨╕: ╨╝╨╕╨╜╨╕╨╝╤Г╨╝ 10 ╤Б╨╕╨╝╨▓╨╛╨╗╨╛╨▓ (╨▒╨╡╨╖ ╨Я╨Ф╨╜).");
+      setNotice("Описание задачи: минимум 10 символов (без ПДн).");
       return;
     }
     setBusy(true);
@@ -786,8 +786,8 @@ export function AdminCabinet() {
       });
       if (result.ok && result.tracker_issue_key) {
         const msg = result.duplicate
-          ? `╨г╨╢╨╡ ╨╡╤Б╤В╤М ╨╛╤В╨║╤А╤Л╤В╨░╤П ╨╖╨░╨┤╨░╤З╨░: ${result.tracker_issue_key}`
-          : `╨б╨╛╨╖╨┤╨░╨╜╨╛ ╨▓ Tracker: ${result.tracker_issue_key}`;
+          ? `Уже есть открытая задача: ${result.tracker_issue_key}`
+          : `Создано в Tracker: ${result.tracker_issue_key}`;
         setNotice(msg);
         setTrackerModalOpen(false);
         setTrackerDesc("");
@@ -799,13 +799,13 @@ export function AdminCabinet() {
         const fields =
           d && typeof d === "object" && Array.isArray(d.fields) ? d.fields.join(", ") : "";
         setNotice(
-          `Tracker: ${(d && typeof d === "object" && d.error) || "╨╛╤И╨╕╨▒╨║╨░"}${
+          `Tracker: ${(d && typeof d === "object" && d.error) || "ошибка"}${
             fields ? ` (${fields})` : ""
           }`,
         );
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "╨╜╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╨╖╨┤╨░╤В╤М";
+      const msg = err instanceof Error ? err.message : "не удалось создать";
       setNotice(`Tracker: ${msg}`);
     } finally {
       setBusy(false);
@@ -815,7 +815,7 @@ export function AdminCabinet() {
   async function sendWorkspaceEmail() {
     if (!token || !detail) return;
     if (!detail.client.email) {
-      setNotice("╨г ╨║╨╗╨╕╨╡╨╜╤В╨░ ╨╜╨╡╤В email тАФ ╨┐╨╕╤Б╤М╨╝╨╛ ╨╜╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М.");
+      setNotice("У клиента нет email — письмо не отправить.");
       return;
     }
     setBusy(true);
@@ -828,11 +828,11 @@ export function AdminCabinet() {
           body: JSON.stringify({ template: "request_docs" }),
         },
       );
-      if (result.ok) setNotice("╨Я╨╕╤Б╤М╨╝╨╛ ┬л╨╖╨░╨┐╤А╨╛╤Б ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓┬╗ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛.");
-      else if (result.skipped) setNotice("╨Я╨╛╤З╤В╨░ ╨┐╤А╨╛╨┐╤Г╤Й╨╡╨╜╨░ (╨╜╨╡╤В ╤В╨╛╨║╨╡╨╜╨░ / ╨▓╤Л╨║╨╗╤О╤З╨╡╨╜╨░).");
-      else setNotice(`╨Я╨╛╤З╤В╨░: ${result.error || "╨╛╤И╨╕╨▒╨║╨░"}`);
+      if (result.ok) setNotice("Письмо «запрос документов» отправлено.");
+      else if (result.skipped) setNotice("Почта пропущена (нет токена / выключена).");
+      else setNotice(`Почта: ${result.error || "ошибка"}`);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨┐╨╕╤Б╤М╨╝╨╛.");
+      setNotice("Не удалось отправить письмо.");
     } finally {
       setBusy(false);
     }
@@ -846,10 +846,10 @@ export function AdminCabinet() {
         method: "PATCH",
         body: JSON.stringify({ expert_user_id: me.user_id }),
       });
-      setNotice("╨Ф╨╡╨╗╨╛ ╨▓╨╖╤П╤В╨╛ ╨▓ ╤А╨░╨▒╨╛╤В╤Г.");
+      setNotice("Дело взято в работу.");
       await loadCases();
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨▓╨╖╤П╤В╤М ╨┤╨╡╨╗╨╛ ╨▓ ╤А╨░╨▒╨╛╤В╤Г.");
+      setNotice("Не удалось взять дело в работу.");
     } finally {
       setBusy(false);
     }
@@ -858,7 +858,7 @@ export function AdminCabinet() {
   async function suggestStep(caseId: string) {
     if (!token) return;
     setBusy(true);
-    setNotice("DeepSeek ╨┤╤Г╨╝╨░╨╡╤В ╨╜╨░╨┤ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╝ ╤И╨░╨│╨╛╨╝тАж");
+    setNotice("DeepSeek думает над следующим шагом…");
     setStepHint(null);
     setStepMessages([]);
     try {
@@ -869,7 +869,7 @@ export function AdminCabinet() {
         source?: string;
         chat_messages?: Array<string | { kind?: string; text?: string }>;
       }>(`/api/portal/admin/cases/${caseId}/suggest-next-action`, token, { method: "POST" });
-      // ╨б╨╛╤Е╤А╨░╨╜╤П╨╡╨╝ ╤И╨░╨│ ╨▓ ╨┤╨╡╨╗╨╡, ╨╜╨╛ ╨Э╨Х ╨╛╤В╨┐╤А╨░╨▓╨╗╤П╨╡╨╝ ╤В╨╡╨║╤Б╤В ╨║╨╗╨╕╨╡╨╜╤В╤Г.
+      // Сохраняем шаг в деле, но НЕ отправляем текст клиенту.
       await apiFetch(`/api/portal/admin/cases/${caseId}/next-action`, token, {
         method: "PATCH",
         body: JSON.stringify({ next_action: hint.next_action, waiting_on: hint.waiting_on }),
@@ -905,7 +905,7 @@ export function AdminCabinet() {
       });
       setStepMessages(msgs);
       setNotice(
-        "╨Я╨╛╨┤╤Б╨║╨░╨╖╨║╨░ ╨│╨╛╤В╨╛╨▓╨░: ╨▓╤Л╨▒╨╡╤А╨╕╤В╨╡ ╤В╨╕╨┐ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П ╨╕ ╨╜╨░╨╢╨╝╨╕╤В╨╡ ╨┐╨╛╨┤╤Б╤В╨░╨╜╨╛╨▓╨║╤Г, ╨╖╨░╤В╨╡╨╝ ╨╛╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨▓ MAX ╨▓╤А╤Г╤З╨╜╤Г╤О.",
+        "Подсказка готова: выберите тип сообщения и нажмите подстановку, затем отправьте в MAX вручную.",
       );
       if (view !== "case") {
         await loadCases();
@@ -914,8 +914,8 @@ export function AdminCabinet() {
     } catch (error) {
       setNotice(
         error instanceof Error
-          ? `╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╤Г ╤И╨░╨│╨░: ${error.message}`
-          : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╤Г ╤И╨░╨│╨░.",
+          ? `Не удалось получить подсказку шага: ${error.message}`
+          : "Не удалось получить подсказку шага.",
       );
     } finally {
       setBusy(false);
@@ -924,7 +924,7 @@ export function AdminCabinet() {
 
   function applyStepMessageToChat(text: string, opts?: { confirmAssign?: boolean }) {
     if (opts?.confirmAssign && detail && !detail.expert_user_id) {
-      if (!window.confirm("╨Э╨░╨╖╨╜╨░╤З╨╕╤В╤М ╤Б╨╡╨▒╨╡ ╨╕ ╨┐╨╛╨┤╤Б╤В╨░╨▓╨╕╤В╤М ╤В╨╡╨║╤Б╤В ╨▓ ╤З╨░╤В?")) return;
+      if (!window.confirm("Назначить себе и подставить текст в чат?")) return;
       void takeCase(detail.id);
     }
     setMaxReplyBody(text);
@@ -932,7 +932,7 @@ export function AdminCabinet() {
     setMaxReplyFocus(true);
     setComposerFlash(true);
     window.setTimeout(() => setComposerFlash(false), 2000);
-    setNotice("╨в╨╡╨║╤Б╤В ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║. ╨Ю╤В╨┐╤А╨░╨▓╤М╤В╨╡ ╨┐╨╛╤Б╨╗╨╡ ╨┐╤А╨╛╨▓╨╡╤А╨║╨╕.");
+    setNotice("Текст добавлен в черновик. Отправьте после проверки.");
   }
 
   async function recordServiceConsent() {
@@ -942,10 +942,10 @@ export function AdminCabinet() {
       await apiFetch(`/api/portal/admin/cases/${detail.id}/service-consent`, token, {
         method: "POST",
       });
-      setNotice("╨б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╨║╨╗╨╕╨╡╨╜╤В╨░ ╨╜╨░ ╤Г╤Б╨╗╤Г╨│╤Г ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨╛.");
+      setNotice("Согласие клиента на услугу зафиксировано.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╤В╤М ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡.");
+      setNotice(error instanceof Error ? error.message : "Не удалось зафиксировать согласие.");
     } finally {
       setBusy(false);
     }
@@ -960,14 +960,14 @@ export function AdminCabinet() {
       }>(`/api/portal/admin/cases/${caseId}/marketing-consent`, token);
       const st = data.channels?.max?.status || "none";
       const map: Record<string, string> = {
-        granted: "╨╡╤Б╤В╤М ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡",
-        denied: "╨╛╤В╨║╨░╨╖",
-        revoked: "╨╛╤В╨╛╨╖╨▓╨░╨╜╨╛",
-        none: "╨╜╨╡╤В ╤Б╨╛╨│╨╗╨░╤Б╨╕╤П",
+        granted: "есть согласие",
+        denied: "отказ",
+        revoked: "отозвано",
+        none: "нет согласия",
       };
       setMarketingConsentLabel(map[st] || st);
     } catch {
-      setMarketingConsentLabel("╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨╛");
+      setMarketingConsentLabel("недоступно");
     }
   }
 
@@ -978,11 +978,11 @@ export function AdminCabinet() {
       await apiFetch(`/api/portal/admin/cases/${detail.id}/marketing-consent/request`, token, {
         method: "POST",
       });
-      setNotice("╨Ч╨░╨┐╤А╨╛╤Б ╤Б╨╛╨│╨╗╨░╤Б╨╕╤П ╨╜╨░ ╤А╨░╤Б╤Б╤Л╨╗╨║╤Г ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜ ╨▓ MAX.");
+      setNotice("Запрос согласия на рассылку отправлен в MAX.");
       await loadMarketingConsent(detail.id);
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╖╨░╨┐╤А╨╛╤Б╨╕╤В╤М ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡ ╨╜╨░ ╤А╨░╤Б╤Б╤Л╨╗╨║╤Г.",
+        error instanceof Error ? error.message : "Не удалось запросить согласие на рассылку.",
       );
     } finally {
       setBusy(false);
@@ -998,11 +998,11 @@ export function AdminCabinet() {
         token,
         { method: "POST", body: JSON.stringify({ template: "request_docs" }) },
       );
-      if (result.ok) setNotice("╨Я╨╕╤Б╤М╨╝╨╛ ┬л╨╖╨░╨┐╤А╨╛╤Б ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓┬╗ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛.");
-      else if (result.skipped) setNotice("╨Я╨╛╤З╤В╨░ ╨┐╤А╨╛╨┐╤Г╤Й╨╡╨╜╨░ (╨╜╨╡╤В ╤В╨╛╨║╨╡╨╜╨░ / ╨▓╤Л╨║╨╗╤О╤З╨╡╨╜╨░).");
-      else setNotice(`╨Я╨╛╤З╤В╨░: ${result.error || "╨╛╤И╨╕╨▒╨║╨░"}`);
+      if (result.ok) setNotice("Письмо «запрос документов» отправлено.");
+      else if (result.skipped) setNotice("Почта пропущена (нет токена / выключена).");
+      else setNotice(`Почта: ${result.error || "ошибка"}`);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨╖╨░╨┐╤А╨╛╤Б ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓.");
+      setNotice("Не удалось отправить запрос документов.");
     } finally {
       setBusy(false);
     }
@@ -1016,10 +1016,10 @@ export function AdminCabinet() {
         method: "PATCH",
         body: JSON.stringify({ is_test: isTest }),
       });
-      setNotice(isTest ? "╨Я╨╛╨╝╨╡╤З╨╡╨╜╨╛ ╨║╨░╨║ ╤В╨╡╤Б╤В╨╛╨▓╨╛╨╡." : "╨г╨▒╤А╨░╨╜╨╛ ╨╕╨╖ ╤В╨╡╤Б╤В╨╛╨▓╤Л╤Е.");
+      setNotice(isTest ? "Помечено как тестовое." : "Убрано из тестовых.");
       await loadCases();
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╨▒╨╜╨╛╨▓╨╕╤В╤М ╤Д╨╗╨░╨│. ╨Э╤Г╨╢╨╜╨░ ╤А╨╛╨╗╤М ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░ ╨╕ ╨╝╨╕╨│╤А╨░╤Ж╨╕╤П is_test.");
+      setNotice("Не удалось обновить флаг. Нужна роль администратора и миграция is_test.");
     } finally {
       setBusy(false);
     }
@@ -1037,11 +1037,11 @@ export function AdminCabinet() {
           waiting_on: waitingOn,
         }),
       });
-      setNotice("╨б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╤И╨░╨│ ╤Б╨╛╤Е╤А╨░╨╜╤С╨╜.");
+      setNotice("Следующий шаг сохранён.");
       await openCase(detail.id);
       await loadDashboard();
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╤И╨░╨│. ╨Х╤Б╨╗╨╕ ╨║╨╛╨╗╨╛╨╜╨║╨╕ ╨╡╤Й╤С ╨╜╨╡ ╨┐╤А╨╕╨╝╨╡╨╜╨╡╨╜╤Л ╨▓ ╨С╨Ф тАФ ╨┐╤А╨╕╨╝╨╡╨╜╨╕╤В╨╡ ╨╝╨╕╨│╤А╨░╤Ж╨╕╤О.");
+      setNotice("Не удалось сохранить следующий шаг. Если колонки ещё не применены в БД — примените миграцию.");
     } finally {
       setBusy(false);
     }
@@ -1061,10 +1061,10 @@ export function AdminCabinet() {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      setNotice("╨Р╤А╤Е╨╕╨▓╨╜╤Л╨╣ ╨▒╨╗╨╛╨║ ╤Б╨╛╤Е╤А╨░╨╜╤С╨╜.");
+      setNotice("Архивный блок сохранён.");
       await openCase(detail.id);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╨░╤А╤Е╨╕╨▓╨╜╤Л╨╣ ╨▒╨╗╨╛╨║. ╨Э╤Г╨╢╨╜╨░ ╨╝╨╕╨│╤А╨░╤Ж╨╕╤П cases_archive_prep.");
+      setNotice("Не удалось сохранить архивный блок. Нужна миграция cases_archive_prep.");
     } finally {
       setBusy(false);
     }
@@ -1083,15 +1083,15 @@ export function AdminCabinet() {
       });
       setNotice(
         payload.outcome === "lost"
-          ? `╨Ю╤В╨║╨░╨╖ ╨╖╨░╤Д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜: ${payload.loss_reason || "тАФ"}`
-          : "╨Ф╨╡╨╗╨╛ ╨╖╨░╨║╤А╤Л╤В╨╛ ╤Г╤Б╨┐╨╡╤И╨╜╨╛.",
+          ? `Отказ зафиксирован: ${payload.loss_reason || "—"}`
+          : "Дело закрыто успешно.",
       );
       await openCase(detail.id);
       await loadDashboard();
       await loadCases();
     } catch {
       setNotice(
-        "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╖╨░╨║╤А╤Л╤В╤М ╨┤╨╡╨╗╨╛. ╨Я╤А╨╛╨▓╨╡╤А╤М╤В╨╡ ╨┐╤А╨╕╤З╨╕╨╜╤Г ╨╛╤В╨║╨░╨╖╨░ ╨╕╨╗╨╕ ╨┐╤А╨╕╨╝╨╡╨╜╨╕╤В╨╡ ╨╝╨╕╨│╤А╨░╤Ж╨╕╤О loss_reason.",
+        "Не удалось закрыть дело. Проверьте причину отказа или примените миграцию loss_reason.",
       );
     } finally {
       setBusy(false);
@@ -1104,7 +1104,7 @@ export function AdminCabinet() {
       method: "PATCH",
       body: JSON.stringify({ pipeline_status: pipelineStatus }),
     });
-    setNotice("╨н╤В╨░╨┐ ╨╛╨▒╨╜╨╛╨▓╨╗╤С╨╜.");
+    setNotice("Этап обновлён.");
     await openCase(detail.id);
   }
 
@@ -1139,7 +1139,7 @@ export function AdminCabinet() {
         lump_sum_rub: Number(lumpRub || 0),
       }),
     });
-    setNotice("╨а╨╡╨╖╤Г╨╗╤М╤В╨░╤В ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╤С╨╜, ╨╖╨░╨┐╨╕╤Б╤М ╨▓ audit.");
+    setNotice("Результат подтверждён, запись в audit.");
     await openCase(detail.id);
   }
 
@@ -1154,10 +1154,10 @@ export function AdminCabinet() {
           amount_rub: Number(orderAmount),
         }),
       });
-      setNotice("╨б╤З╤С╤В ╤Б╨╛╨╖╨┤╨░╨╜.");
+      setNotice("Счёт создан.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╨╖╨┤╨░╤В╤М ╤Б╤З╤С╤В.");
+      setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
     }
   }
 
@@ -1177,10 +1177,10 @@ export function AdminCabinet() {
         }),
       });
       setCreateInvoiceOpen(false);
-      setNotice("╨з╨╡╤А╨╜╨╛╨▓╨╕╨║ ╤Б╤З╤С╤В╨░ ╤Б╨╛╨╖╨┤╨░╨╜.");
+      setNotice("Черновик счёта создан.");
       await loadFinance(financeQueue);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╨╖╨┤╨░╤В╤М ╤Б╤З╤С╤В.");
+      setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
     } finally {
       setBusy(false);
     }
@@ -1196,12 +1196,12 @@ export function AdminCabinet() {
         { method: "POST", body: JSON.stringify({ send_max: false }) },
       );
       const url = result.pay_url || "";
-      if (!url) throw new Error("╨Э╨╡╤В ╤Б╤Б╤Л╨╗╨║╨╕");
+      if (!url) throw new Error("Нет ссылки");
       await navigator.clipboard.writeText(url);
-      setNotice("╨Ъ╨╛╤А╨╛╤В╨║╨░╤П ╤Б╤Б╤Л╨╗╨║╨░ ╨оKassa ╤Б╨║╨╛╨┐╨╕╤А╨╛╨▓╨░╨╜╨░. QR тАФ ╨▓ ╨║╨░╤А╤В╨╛╤З╨║╨╡ ╤Б╤З╤С╤В╨░.");
+      setNotice("Короткая ссылка ЮKassa скопирована. QR — в карточке счёта.");
       await loadFinance(financeQueue);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╤Б╤Б╤Л╨╗╨║╤Г ╨╜╨░ ╨╛╨┐╨╗╨░╤В╤Г.");
+      setNotice("Не удалось получить ссылку на оплату.");
     } finally {
       setBusy(false);
     }
@@ -1216,7 +1216,7 @@ export function AdminCabinet() {
         token,
         { method: "POST", body: JSON.stringify({ send_max: true }) },
       );
-      setNotice(result.sent ? "╨б╤Б╤Л╨╗╨║╨░ ╨╕ QR ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╤Л ╨║╨╗╨╕╨╡╨╜╤В╤Г ╨▓ MAX." : "╨б╤Б╤Л╨╗╨║╨░ ╤Б╨╛╨╖╨┤╨░╨╜╨░, MAX ╨╜╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜.");
+      setNotice(result.sent ? "Ссылка и QR отправлены клиенту в MAX." : "Ссылка создана, MAX не отправлен.");
       await loadFinance(financeQueue);
       if (detail && String(order.case_id) === detail.id) {
         await openCase(detail.id);
@@ -1224,7 +1224,7 @@ export function AdminCabinet() {
         setMessages(next);
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╤Б╤Б╤Л╨╗╨║╤Г ╨▓ MAX.");
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить ссылку в MAX.");
     } finally {
       setBusy(false);
     }
@@ -1241,14 +1241,14 @@ export function AdminCabinet() {
       );
       setNotice(
         result.sent
-          ? "╨б╤З╤С╤В ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜ ╨▓ MAX тАФ ╤В╨╡╨║╤Б╤В, ╨║╨╜╨╛╨┐╨║╨░ ╨╕ QR ╨┐╨╛╤П╨▓╤П╤В╤Б╤П ╨▓ ╨╗╨╡╨╜╤В╨╡ ╤З╨░╤В╨░."
-          : "╨б╤Б╤Л╨╗╨║╨░ ╤Б╨╛╨╖╨┤╨░╨╜╨░, ╨╜╨╛ MAX ╨╜╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜ (╨┐╤А╨╛╨▓╨╡╤А╤М╤В╨╡ ╨┐╤А╨╕╨▓╤П╨╖╨║╤Г ╨║╨╗╨╕╨╡╨╜╤В╨░).",
+          ? "Счёт отправлен в MAX — текст, кнопка и QR появятся в ленте чата."
+          : "Ссылка создана, но MAX не отправлен (проверьте привязку клиента).",
       );
       await openCase(detail.id);
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
       setMessages(next);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╤Б╤З╤С╤В ╨▓ MAX.");
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить счёт в MAX.");
     } finally {
       setBusy(false);
     }
@@ -1264,12 +1264,12 @@ export function AdminCabinet() {
         { method: "POST", body: JSON.stringify({ send_max: false }) },
       );
       const url = result.pay_url || "";
-      if (!url) throw new Error("╨Э╨╡╤В ╤Б╤Б╤Л╨╗╨║╨╕");
+      if (!url) throw new Error("Нет ссылки");
       await navigator.clipboard.writeText(url);
-      setNotice("╨б╤Б╤Л╨╗╨║╨░ ╤Б╨║╨╛╨┐╨╕╤А╨╛╨▓╨░╨╜╨░. QR ╨┐╨╛╤П╨▓╨╕╤В╤Б╤П ╨▓ ╨▒╨╗╨╛╨║╨╡ ╨╛╨┐╨╗╨░╤В╤Л ╨┤╨╡╨╗╨░.");
+      setNotice("Ссылка скопирована. QR появится в блоке оплаты дела.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╤Б╤Б╤Л╨╗╨║╤Г.");
+      setNotice(error instanceof Error ? error.message : "Не удалось получить ссылку.");
     } finally {
       setBusy(false);
     }
@@ -1284,10 +1284,10 @@ export function AdminCabinet() {
         token,
         { method: "POST", body: JSON.stringify({ send_max: sendMax, channel: sendMax ? "max" : "web" }) },
       );
-      setNotice(result.sent ? "╨Э╨░╨┐╨╛╨╝╨╕╨╜╨░╨╜╨╕╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛ ╨▓ MAX." : "╨з╨╡╤А╨╜╨╛╨▓╨╕╨║ ╨╜╨░╨┐╨╛╨╝╨╕╨╜╨░╨╜╨╕╤П ╤Б╨╛╤Е╤А╨░╨╜╤С╨╜.");
+      setNotice(result.sent ? "Напоминание отправлено в MAX." : "Черновик напоминания сохранён.");
       await loadFinance(financeQueue);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨┤╨│╨╛╤В╨╛╨▓╨╕╤В╤М ╨╜╨░╨┐╨╛╨╝╨╕╨╜╨░╨╜╨╕╨╡.");
+      setNotice("Не удалось подготовить напоминание.");
     } finally {
       setBusy(false);
     }
@@ -1308,10 +1308,10 @@ export function AdminCabinet() {
         }),
       });
       setMarkPaidOrder(null);
-      setNotice("╨Ю╨┐╨╗╨░╤В╨░ ╨╛╤В╨╝╨╡╤З╨╡╨╜╨░, ╨╖╨░╨┐╨╕╤Б╤М ╨▓ ╨╢╤Г╤А╨╜╨░╨╗╨╡ ╨░╤Г╨┤╨╕╤В╨░.");
+      setNotice("Оплата отмечена, запись в журнале аудита.");
       await loadFinance(financeQueue);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨╝╨╡╤В╨╕╤В╤М ╨╛╨┐╨╗╨░╤В╤Г.");
+      setNotice("Не удалось отметить оплату.");
     } finally {
       setBusy(false);
     }
@@ -1327,10 +1327,10 @@ export function AdminCabinet() {
         body: JSON.stringify({ reason: cancelReason, comment: cancelComment.trim() || null }),
       });
       setCancelOrder(null);
-      setNotice("╨б╤З╤С╤В ╨╛╤В╨╝╨╡╨╜╤С╨╜.");
+      setNotice("Счёт отменён.");
       await loadFinance(financeQueue);
     } catch {
-      setNotice("╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨╝╨╡╨╜╨╕╤В╤М ╤Б╤З╤С╤В.");
+      setNotice("Не удалось отменить счёт.");
     } finally {
       setBusy(false);
     }
@@ -1348,7 +1348,7 @@ export function AdminCabinet() {
       }),
     });
     setFeedbackText("");
-    setNotice(`╨Ю╨▒╤А╨░╤В╨╜╨░╤П ╤Б╨▓╤П╨╖╤М ╨┤╨╗╤П ╨▒╨░╨╖╤Л ╨╖╨╜╨░╨╜╨╕╨╣ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨░ (${labelFeedbackQuality(feedbackQuality)}).`);
+    setNotice(`Обратная связь для базы знаний сохранена (${labelFeedbackQuality(feedbackQuality)}).`);
   }
 
   function focusMaxReplyPanel() {
@@ -1366,10 +1366,10 @@ export function AdminCabinet() {
       );
       setReplySuggestions(result.suggestions ?? []);
       if (!(result.suggestions && result.suggestions.length)) {
-        setNotice("DeepSeek ╨╜╨╡ ╨▓╨╡╤А╨╜╤Г╨╗ ╨▓╨░╤А╨╕╨░╨╜╤В╤Л тАФ ╨┐╤А╨╛╨▓╨╡╤А╤М╤В╨╡ ╨║╨╗╤О╤З Yandex AI Studio.");
+        setNotice("DeepSeek не вернул варианты — проверьте ключ Yandex AI Studio.");
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╨╕.");
+      setNotice(error instanceof Error ? error.message : "Не удалось получить подсказки.");
     } finally {
       setBusy(false);
     }
@@ -1385,7 +1385,7 @@ export function AdminCabinet() {
       });
       setMaxReplyBody("");
       setDupDialog(null);
-      setNotice("╨б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨╛ ╨║╨╗╨╕╨╡╨╜╤В╤Г ╨▓ MAX.");
+      setNotice("Сообщение отправлено клиенту в MAX.");
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
       setMessages(next);
     } catch (error) {
@@ -1404,7 +1404,7 @@ export function AdminCabinet() {
         });
         return;
       }
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨▓ MAX.");
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить в MAX.");
     } finally {
       setBusy(false);
     }
@@ -1421,9 +1421,9 @@ export function AdminCabinet() {
       setMaxReplyBody("");
     const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
     setMessages(next);
-      setNotice("╨б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╛ ╨▓ ╨╗╨╡╨╜╤В╤Г ╨┤╨╡╨╗╨░.");
+      setNotice("Сообщение сохранено в ленту дела.");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡.");
+      setNotice(error instanceof Error ? error.message : "Не удалось сохранить сообщение.");
     } finally {
       setBusy(false);
     }
@@ -1438,10 +1438,10 @@ export function AdminCabinet() {
         body: JSON.stringify({ email: repEmail.trim() }),
       });
       setRepEmail("");
-      setNotice("╨Я╤А╨╡╨┤╤Б╤В╨░╨▓╨╕╤В╨╡╨╗╤М ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜.");
+      setNotice("Представитель добавлен.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨┤╨╛╨▒╨░╨▓╨╕╤В╤М ╨┐╤А╨╡╨┤╤Б╤В╨░╨▓╨╕╤В╨╡╨╗╤П.");
+      setNotice(error instanceof Error ? error.message : "Не удалось добавить представителя.");
     }
   }
 
@@ -1453,10 +1453,10 @@ export function AdminCabinet() {
         token,
         { method: "DELETE" },
       );
-      setNotice("╨Ф╨╛╤Б╤В╤Г╨┐ ╨┐╤А╨╡╨┤╤Б╤В╨░╨▓╨╕╤В╨╡╨╗╤П ╤Б╨╜╤П╤В.");
+      setNotice("Доступ представителя снят.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╤Б╨╜╤П╤В╤М ╨┤╨╛╤Б╤В╤Г╨┐.");
+      setNotice(error instanceof Error ? error.message : "Не удалось снять доступ.");
     }
   }
 
@@ -1474,13 +1474,13 @@ export function AdminCabinet() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setNotice(`╨б╨║╨░╤З╨╕╨▓╨░╨╜╨╕╨╡ ╨╜╨░╤З╨░╤В╨╛. ╨б╤Б╤Л╨╗╨║╨░ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╨╡╤В ${signed.expires_in} ╤Б╨╡╨║.`);
+    setNotice(`Скачивание начато. Ссылка действует ${signed.expires_in} сек.`);
   }
 
   async function uploadDiagnosisReport(file: File) {
     if (!token || !detail) return;
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-      setNotice("╨Э╤Г╨╢╨╡╨╜ PDF ╤А╨╡╨╖╤Г╨╗╤М╤В╨░╤В╨░ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╕.");
+      setNotice("Нужен PDF результата диагностики.");
       return;
     }
     setBusy(true);
@@ -1492,10 +1492,10 @@ export function AdminCabinet() {
         method: "POST",
         body: form,
       });
-      setNotice("PDF ╤А╨╡╨╖╤Г╨╗╤М╤В╨░╤В╨░ ╨┤╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨╕ ╨╖╨░╨│╤А╤Г╨╢╨╡╨╜ ╨▓ ╨║╨░╨▒╨╕╨╜╨╡╤В.");
+      setNotice("PDF результата диагностики загружен в кабинет.");
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╖╨░╨│╤А╤Г╨╖╨╕╤В╤М PDF.");
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить PDF.");
     } finally {
       setBusy(false);
     }
@@ -1513,19 +1513,19 @@ export function AdminCabinet() {
         body: JSON.stringify({ document_id: documentId, channels: ["email", "max"] }),
       });
       const n = out.jobs?.length ?? 0;
-      let msg = `╨Ю╨┐╤Г╨▒╨╗╨╕╨║╨╛╨▓╨░╨╜╨╛. ╨з╨╡╤А╨╜╨╛╨▓╨╕╨║╨╛╨▓ ╤Г╨▓╨╡╨┤╨╛╨╝╨╗╨╡╨╜╨╕╨╣: ${n}.`;
+      let msg = `Опубликовано. Черновиков уведомлений: ${n}.`;
       if (out.share_url_once) {
         try {
           await navigator.clipboard.writeText(out.share_url_once);
-          msg += " ╨б╤Б╤Л╨╗╨║╨░ ╤Б╨║╨╛╨┐╨╕╤А╨╛╨▓╨░╨╜╨░ ╨▓ ╨▒╤Г╤Д╨╡╤А (╨╛╨┤╨╕╨╜ ╤А╨░╨╖).";
+          msg += " Ссылка скопирована в буфер (один раз).";
         } catch {
-          msg += " ╨б╤Б╤Л╨╗╨║╨░ ╨▓ ╨╛╤В╨▓╨╡╤В╨╡ API (╨╛╨┤╨╕╨╜ ╤А╨░╨╖).";
+          msg += " Ссылка в ответе API (один раз).";
         }
       }
       setNotice(msg);
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "╨Э╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М ╨╛╨┐╤Г╨▒╨╗╨╕╨║╨╛╨▓╨░╤В╤М.");
+      setNotice(error instanceof Error ? error.message : "Не удалось опубликовать.");
     } finally {
       setBusy(false);
     }
@@ -1562,52 +1562,52 @@ export function AdminCabinet() {
               src="/logo-light.png"
               width={40}
               height={40}
-              alt="╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░"
+              alt="Проверка стажа"
             />
             <div>
-              <strong>╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╤Б╤В╨░╨╢╨░</strong>
+              <strong>Проверка стажа</strong>
               <span>
-                ╨Ъ╨░╨▒╨╕╨╜╨╡╤В ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ┬╖ {me?.role ? labelStaffRole(me.role) : "тАж"} ┬╖ {me?.email ?? ""}
+                Кабинет сотрудника · {me?.role ? labelStaffRole(me.role) : "…"} · {me?.email ?? ""}
               </span>
             </div>
           </BrandHomeLink>
         </div>
         <button type="button" className="ghost" onClick={() => void supabase?.auth.signOut()}>
-          ╨Т╤Л╨╣╤В╨╕
+          Выйти
         </button>
       </header>
 
       <section className="warning" role="note">
-        ╨а╨╡╤И╨╡╨╜╨╕╨╡ ╨┐╤А╨╕╨╜╨╕╨╝╨░╨╡╤В ╨б╨д╨а. ╨а╨╡╨╖╤Г╨╗╤М╤В╨░╤В ╨╜╨╡ ╨│╨░╤А╨░╨╜╤В╨╕╤А╨╛╨▓╨░╨╜. ╨д╤Г╨╜╨║╤Ж╨╕╨╕ ╨║╨░╨▒╨╕╨╜╨╡╤В╨░ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨╜╨╡ ╨┐╨╡╤А╨╡╨╜╨╛╤Б╤П╤В╤Б╤П ╨▓ ╨╝╨╕╨╜╨╕-╨┐╤А╨╕╨╗╨╛╨╢╨╡╨╜╨╕╨╡ MAX (╨в╨Ч-09).
+        Решение принимает СФР. Результат не гарантирован. Функции кабинета сотрудника не переносятся в мини-приложение MAX (ТЗ-09).
       </section>
 
-      <nav className="tabs" aria-label="╨а╨░╨╖╨┤╨╡╨╗╤Л">
+      <nav className="tabs" aria-label="Разделы">
         <button type="button" className={view === "dashboard" ? "tab active" : "tab"} onClick={() => { setView("dashboard"); void loadDashboard(); }}>
-          ╨Ф╨░╤И╨▒╨╛╤А╨┤
+          Дашборд
         </button>
         <button type="button" className={view === "cases" || view === "case" ? "tab active" : "tab"} onClick={() => { setView("cases"); void loadCases(); }}>
-          ╨а╨╡╨╡╤Б╤В╤А ╨┤╨╡╨╗
+          Реестр дел
         </button>
         {me?.role !== "operator" && (
           <button type="button" className={view === "finance" ? "tab active" : "tab"} onClick={() => void loadFinance()}>
-            ╨д╨╕╨╜╨░╨╜╤Б╤Л
+            Финансы
           </button>
         )}
         {(me?.role === "admin" || me?.role === "expert" || me?.role_capabilities?.can_view_analytics) && (
           <button type="button" className={view === "analytics" ? "tab active" : "tab"} onClick={() => void loadAnalytics()}>
-            ╨Р╨╜╨░╨╗╨╕╤В╨╕╨║╨░
+            Аналитика
           </button>
         )}
         {(me?.role === "admin" || me?.role_capabilities?.can_manage_roles) && (
           <button type="button" className={view === "roles" ? "tab active" : "tab"} onClick={() => void loadRoles()}>
-            ╨а╨╛╨╗╨╕
+            Роли
           </button>
         )}
       </nav>
 
       {notice && (
         <p
-          className={`notice notice--sticky${/╨╜╨╡ ╤Г╨┤╨░╨╗╨╛╤Б╤М|╨╛╤И╨╕╨▒╨║/i.test(notice) ? " notice--error" : ""}`}
+          className={`notice notice--sticky${/не удалось|ошибк/i.test(notice) ? " notice--error" : ""}`}
           role="status"
         >
           {notice}
@@ -1616,70 +1616,70 @@ export function AdminCabinet() {
 
       {view === "dashboard" && dashboard && (
         <section className="stack">
-          <h1>╨Ф╨░╤И╨▒╨╛╤А╨┤</h1>
+          <h1>Дашборд</h1>
           <p className="lead lead-compact">
-            ╨б╨╡╨│╨╛╨┤╨╜╤П: <strong>{dashboard.greeting_priority_count}</strong>{" "}
-            {dashboard.greeting_priority_count === 1 ? "╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡" : "╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╣"} ╤Б ╨▓╤Л╤Б╨╛╨║╨╕╨╝ ╨┐╤А╨╕╨╛╤А╨╕╤В╨╡╤В╨╛╨╝.
-            ╨б╨╜╨░╤З╨░╨╗╨░ ╨╛╤В╨▓╨╡╤З╨░╨╡╨╝ ╨║╨╗╨╕╨╡╨╜╤В╤Г, ╨╖╨░╤В╨╡╨╝ ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╨╝ ╨┤╨╡╨┤╨╗╨░╨╣╨╜╤Л ╨╕ ╤А╨╕╤Б╨║╨╕ SLA.
+            Сегодня: <strong>{dashboard.greeting_priority_count}</strong>{" "}
+            {dashboard.greeting_priority_count === 1 ? "действие" : "действий"} с высоким приоритетом.
+            Сначала отвечаем клиенту, затем закрываем дедлайны и риски SLA.
           </p>
           <div className="metrics">
             <button type="button" className="metric-card" onClick={() => setQueueFilter("reply")}>
-              <span>╨в╤А╨╡╨▒╤Г╤О╤В ╨╝╨╛╨╡╨│╨╛ ╨╛╤В╨▓╨╡╤В╨░</span>
+              <span>Требуют моего ответа</span>
               <strong>{dashboard.needs_reply}</strong>
-              <em>{dashboard.needs_reply_over_30m} ╨▒╨╡╨╖ ╨╛╤В╨▓╨╡╤В╨░ ╨▒╨╛╨╗╨╡╨╡ 30 ╨╝╨╕╨╜</em>
+              <em>{dashboard.needs_reply_over_30m} без ответа более 30 мин</em>
             </button>
             <button type="button" className="metric-card" onClick={() => setQueueFilter("today")}>
-              <span>╨Ф╨╡╨┤╨╗╨░╨╣╨╜ ╤Б╨╡╨│╨╛╨┤╨╜╤П</span>
+              <span>Дедлайн сегодня</span>
               <strong>{dashboard.deadline_today}</strong>
-              <em>╨Ч╨░╨┤╨░╤З╨╕ ╨╕ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╤И╨░╨│ ╨╜╨░ ╤Б╨╡╨│╨╛╨┤╨╜╤П</em>
+              <em>Задачи и следующий шаг на сегодня</em>
             </button>
             <button type="button" className="metric-card" onClick={() => setQueueFilter("new")}>
-              <span>╨Э╨╛╨▓╤Л╨╡ ╨╛╨▒╤А╨░╤Й╨╡╨╜╨╕╤П</span>
+              <span>Новые обращения</span>
               <strong>{dashboard.new_leads}</strong>
-              <em>╨Ч╨░╤П╨▓╨║╨╕ ╨▒╨╡╨╖ ╨┐╨╡╤А╨╡╨▓╨╛╨┤╨░ ╨▓ ╤А╨░╨▒╨╛╤В╤Г</em>
+              <em>Заявки без перевода в работу</em>
             </button>
             <button type="button" className="metric-card" onClick={() => setQueueFilter("docs")}>
-              <span>╨Ю╨╢╨╕╨┤╨░╨╡╨╝ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л</span>
+              <span>Ожидаем документы</span>
               <strong>{dashboard.waiting_docs}</strong>
               <em>
                 {dashboard.waiting_docs_max_days > 0
-                  ? `╤Б╨░╨╝╨╛╨╡ ╨┤╨╛╨╗╨│╨╛╨╡ ╨╛╨╢╨╕╨┤╨░╨╜╨╕╨╡ ${dashboard.waiting_docs_max_days} ╨┤╨╜.`
-                  : "╨Ш╨Ы╨б, ╤В╤А╤Г╨┤╨╛╨▓╨░╤П, ╤Б╨┐╤А╨░╨▓╨║╨╕, ╤Б╨╛╨│╨╗╨░╤Б╨╕╨╡"}
+                  ? `самое долгое ожидание ${dashboard.waiting_docs_max_days} дн.`
+                  : "ИЛС, трудовая, справки, согласие"}
               </em>
             </button>
             <button type="button" className="metric-card" onClick={() => void loadFinance({ queue: "payable" })}>
-              <span>╨Ю╨╢╨╕╨┤╨░╨╡╨╝ ╨╛╨┐╨╗╨░╤В╤Г</span>
+              <span>Ожидаем оплату</span>
               <strong>{dashboard.payments_pending} / {formatRub(dashboard.payments_pending_amount)}</strong>
               <em>
-                ╨Ю╨┐╨╗╨░╤З╨╡╨╜╨╛ ╤Б╨╡╨│╨╛╨┤╨╜╤П: {dashboard.payments_paid_today} / {formatRub(dashboard.payments_paid_today_amount)}
-                {" ┬╖ "}╤Б╤З╨╡╤В╨░ ╨╜╨░ ╨▓╨║╨╗╨░╨┤╨║╨╡ ╨д╨╕╨╜╨░╨╜╤Б╤Л
+                Оплачено сегодня: {dashboard.payments_paid_today} / {formatRub(dashboard.payments_paid_today_amount)}
+                {" · "}счета на вкладке Финансы
               </em>
             </button>
             <button type="button" className={`metric-card ${dashboard.sla_risk > 0 ? "metric-card--risk" : ""}`} onClick={() => setQueueFilter("sla")}>
-              <span>╨а╨╕╤Б╨║ SLA</span>
+              <span>Риск SLA</span>
               <strong>{dashboard.sla_risk}</strong>
-              <em>╨б╤А╨╛╨║ ╨╛╤В╨▓╨╡╤В╨░ ╤Б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║╨░ ╨╜╨░╤А╤Г╤И╨╡╨╜</em>
+              <em>Срок ответа сотрудника нарушен</em>
             </button>
             <button type="button" className="metric-card" onClick={() => setQueueFilter("conflicts")}>
-              <span>╨Ъ╨╛╨╜╤Д╨╗╨╕╨║╤В╤Л ╨║╨░╨╜╨░╨╗╨╛╨▓</span>
+              <span>Конфликты каналов</span>
               <strong>{dashboard.channel_conflicts}</strong>
-              <em>╨Я╤А╨╡╨┤╨┐╨╛╤З╤В╨╡╨╜╨╕╨╡ MAX/╨▓╨╡╨▒ ╨▒╨╡╨╖ ╨┐╤А╨╕╨▓╤П╨╖╨║╨╕. ╨С╨╡╨╖ MAX / ╨▒╨╡╨╖ ╨▓╨╡╨▒: {dashboard.unlinked_max} / {dashboard.unlinked_web}</em>
+              <em>Предпочтение MAX/веб без привязки. Без MAX / без веб: {dashboard.unlinked_max} / {dashboard.unlinked_web}</em>
             </button>
           </div>
 
           <div className="dashboard-split">
             <div className="panel">
-              <h2>╨Ь╨╛╨╕ ╨╖╨░╨┤╨░╤З╨╕ ╤Б╨╡╨│╨╛╨┤╨╜╤П</h2>
+              <h2>Мои задачи сегодня</h2>
               {dashboard.my_tasks_today.length === 0 ? (
-                <p className="hint">╨б╤А╨╛╤З╨╜╤Л╤Е ╨╖╨░╨┤╨░╤З ╨╜╨╡╤В тАФ ╨╝╨╛╨╢╨╜╨╛ ╤А╨░╨╖╨╛╨▒╤А╨░╤В╤М ╤Б╤В╨░╨╜╨┤╨░╤А╤В╨╜╤Г╤О ╨╛╤З╨╡╤А╨╡╨┤╤М.</p>
+                <p className="hint">Срочных задач нет — можно разобрать стандартную очередь.</p>
               ) : (
                 <ul className="plain-list task-list">
                   {dashboard.my_tasks_today.map((item) => (
                     <li key={item.case_id}>
                       <button type="button" className="linkish" onClick={() => void openCase(item.case_id)}>
                         <strong>{formatWhen(item.next_action_at)}</strong>
-                        {" ┬╖ "}
-                        {item.client_name ?? "╨Ъ╨╗╨╕╨╡╨╜╤В"} тАФ {item.next_action}
+                        {" · "}
+                        {item.client_name ?? "Клиент"} — {item.next_action}
                 </button>
               </li>
             ))}
@@ -1687,20 +1687,20 @@ export function AdminCabinet() {
               )}
             </div>
             <div className="panel">
-              <h2>╨Ъ╨╛╨╜╤В╤А╨╛╨╗╤М ╤Б╤А╨╛╨║╨╛╨▓ ╨╛╤В╨▓╨╡╤В╨░</h2>
-              <p className="hint">╨Ю╨╢╨╕╨┤╨░╨╜╨╕╨╡ ╨░╤А╤Е╨╕╨▓╨░, ╨б╨д╨а ╨╕╨╗╨╕ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓ ╨║╨╗╨╕╨╡╨╜╤В╨░ ╨╜╨╡ ╤Б╤З╨╕╤В╨░╨╡╤В╤Б╤П ┬л╨▒╨╡╨╖ ╨╛╤В╨▓╨╡╤В╨░┬╗.</p>
+              <h2>Контроль сроков ответа</h2>
+              <p className="hint">Ожидание архива, СФР или документов клиента не считается «без ответа».</p>
               <ul className="plain-list sla-list">
-                <li className="tone-risk">╨Я╤А╨╛╤Б╤А╨╛╤З╨╡╨╜╨╛: {dashboard.sla_control.overdue ?? 0}</li>
-                <li className="tone-warn">╨Ю╤В╨▓╨╡╤В ╨╜╤Г╨╢╨╡╨╜ ╨▓ 1 ╤З╨░╤Б: {dashboard.sla_control.due_1h ?? 0}</li>
-                <li className="tone-today">╨Ю╤В╨▓╨╡╤В ╨╜╤Г╨╢╨╡╨╜ ╤Б╨╡╨│╨╛╨┤╨╜╤П: {dashboard.sla_control.due_today ?? 0}</li>
-                <li className="tone-wait">╨Ю╨╢╨╕╨┤╨░╨╡╨╝ ╨║╨╗╨╕╨╡╨╜╤В╨░ / ╨░╤А╤Е╨╕╨▓ / ╨б╨д╨а: {dashboard.sla_control.waiting_external ?? 0}</li>
-                <li className="tone-muted">╨Э╨░ ╨┐╨░╤Г╨╖╨╡: {dashboard.sla_control.paused ?? 0}</li>
+                <li className="tone-risk">Просрочено: {dashboard.sla_control.overdue ?? 0}</li>
+                <li className="tone-warn">Ответ нужен в 1 час: {dashboard.sla_control.due_1h ?? 0}</li>
+                <li className="tone-today">Ответ нужен сегодня: {dashboard.sla_control.due_today ?? 0}</li>
+                <li className="tone-wait">Ожидаем клиента / архив / СФР: {dashboard.sla_control.waiting_external ?? 0}</li>
+                <li className="tone-muted">На паузе: {dashboard.sla_control.paused ?? 0}</li>
               </ul>
             </div>
           </div>
 
           <div className="panel">
-            <h2>╨б╤В╨░╤В╤Г╤Б ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓</h2>
+            <h2>Статус документов</h2>
             <div className="chip-row">
               {Object.entries(DOC_STATUS_LABELS).map(([key, label]) => {
                 const count = dashboard.doc_status[key] ?? 0;
@@ -1719,16 +1719,16 @@ export function AdminCabinet() {
           </div>
 
           <div className="panel">
-            <h2>╨а╨░╨▒╨╛╤З╨░╤П ╨╛╤З╨╡╤А╨╡╨┤╤М</h2>
+            <h2>Рабочая очередь</h2>
             <div className="chip-row">
               {[
-                ["all", "╨Т╤Б╨╡"],
-                ["urgent", "╨б╤А╨╛╤З╨╜╨╛"],
-                ["today", "╨б╨╡╨│╨╛╨┤╨╜╤П"],
-                ["reply", "╨Ь╨╛╨╣ ╨╛╤В╨▓╨╡╤В"],
-                ["docs", "╨Ф╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л"],
-                ["payment", "╨Ю╨┐╨╗╨░╤В╨░"],
-                ["sla", "╨а╨╕╤Б╨║ SLA"],
+                ["all", "Все"],
+                ["urgent", "Срочно"],
+                ["today", "Сегодня"],
+                ["reply", "Мой ответ"],
+                ["docs", "Документы"],
+                ["payment", "Оплата"],
+                ["sla", "Риск SLA"],
               ].map(([id, label]) => (
                   <button
                   key={id}
@@ -1744,13 +1744,13 @@ export function AdminCabinet() {
               <table className="queue-table">
                 <thead>
                   <tr>
-                    <th>╨Я╤А╨╕╨╛╤А╨╕╤В╨╡╤В</th>
-                    <th>╨Ф╨╡╨╗╨╛</th>
-                    <th>╨н╤В╨░╨┐</th>
-                    <th>╨Я╨╛╤Б╨╗╨╡╨┤╨╜╨╡╨╡ ╤Б╨╛╨▒╤Л╤В╨╕╨╡</th>
-                    <th>╨б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╣ ╤И╨░╨│</th>
-                    <th>╨Ф╨╡╨┤╨╗╨░╨╣╨╜</th>
-                    <th>╨Ъ╨░╨╜╨░╨╗</th>
+                    <th>Приоритет</th>
+                    <th>Дело</th>
+                    <th>Этап</th>
+                    <th>Последнее событие</th>
+                    <th>Следующий шаг</th>
+                    <th>Дедлайн</th>
+                    <th>Канал</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1775,7 +1775,7 @@ export function AdminCabinet() {
                     .map((item) => (
                       <tr key={item.case_id} className={`tone-${item.deadline_status}`}>
                         <td>{PRIORITY_LABELS[item.priority]}</td>
-                        <td>{item.client_name ?? "╨Ъ╨╗╨╕╨╡╨╜╤В"}</td>
+                        <td>{item.client_name ?? "Клиент"}</td>
                         <td>{labelPipeline(item.pipeline_status)}</td>
                         <td>{item.last_event}</td>
                         <td>{item.next_action}</td>
@@ -1787,7 +1787,7 @@ export function AdminCabinet() {
                         <td>{CHANNEL_LABELS[item.channel] ?? item.channel}</td>
                         <td>
                           <button type="button" className="ghost" onClick={() => void openCase(item.case_id)}>
-                            ╨Ю╤В╨║╤А╤Л╤В╤М
+                            Открыть
                   </button>
                         </td>
                       </tr>
@@ -1798,7 +1798,7 @@ export function AdminCabinet() {
           </div>
 
               <div className="panel">
-            <h2>╨Ф╨╡╨╗╨░ ╨┐╨╛ ╤Н╤В╨░╨┐╨░╨╝</h2>
+            <h2>Дела по этапам</h2>
                 <ul className="plain-list">
               {Object.entries(dashboard.by_pipeline).map(([k, v]) => (
                 <li key={k}>{labelPipeline(k)}: {v}</li>
@@ -1822,8 +1822,8 @@ export function AdminCabinet() {
           filterPackage={filterPackage}
           onFilterPackage={setFilterPackage}
           packageOptions={[
-            { value: "DIAG", label: "╨Ф╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░" },
-            { value: "ACCOMP", label: "╨б╨╛╨┐╤А╨╛╨▓╨╛╨╢╨┤╨╡╨╜╨╕╨╡" },
+            { value: "DIAG", label: "Диагностика" },
+            { value: "ACCOMP", label: "Сопровождение" },
             { value: "SF_LUMP", label: labelPackage("SF_LUMP") },
             { value: "SF_MONTH", label: labelPackage("SF_MONTH") },
           ]}
@@ -1999,79 +1999,79 @@ export function AdminCabinet() {
           {trackerModalOpen && detail ? (
             <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">
               <div className="dup-dialog" style={{ maxWidth: 520 }}>
-                <h3>╨б╨╛╨╖╨┤╨░╤В╤М ╨╖╨░╨┤╨░╤З╤Г ╨▓ Tracker</h3>
+                <h3>Создать задачу в Tracker</h3>
                 <p className="hint" style={{ color: "#b91c1c" }}>
-                  ╨Э╨╡ ╤Г╨║╨░╨╖╤Л╨▓╨░╨╣╤В╨╡ ╨д╨Ш╨Ю, ╤В╨╡╨╗╨╡╤Д╨╛╨╜, e-mail, ╨б╨Э╨Ш╨Ы╨б, ╨╜╨╛╨╝╨╡╤А╨░ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓, ╤Б╤Б╤Л╨╗╨║╨╕ ╨╜╨░ ╨║╨░╨▒╨╕╨╜╨╡╤В,
-                  ╤Д╨░╨╣╨╗╤Л, ╤В╨╡╨║╤Б╤В ╨┐╨╡╤А╨╡╨┐╨╕╤Б╨║╨╕ ╨╕╨╗╨╕ ╤Б╨╛╨┤╨╡╤А╨╢╨░╨╜╨╕╨╡ ╨Ш╨Ы╨б.
+                  Не указывайте ФИО, телефон, e-mail, СНИЛС, номера документов, ссылки на кабинет,
+                  файлы, текст переписки или содержание ИЛС.
                 </p>
                 <div className="stack-form">
                   <label>
-                    ╨в╨╕╨┐
+                    Тип
                     <select
                       value={trackerIssueType}
                       onChange={(e) => setTrackerIssueType(e.target.value)}
                     >
-                      <option value="bug">╨Ю╤И╨╕╨▒╨║╨░</option>
-                      <option value="sla_incident">╨Ш╨╜╤Ж╨╕╨┤╨╡╨╜╤В SLA</option>
-                      <option value="channel_conflict">╨Ъ╨╛╨╜╤Д╨╗╨╕╨║╤В ╨║╨░╨╜╨░╨╗╨╛╨▓</option>
-                      <option value="process_improvement">╨г╨╗╤Г╤З╤И╨╡╨╜╨╕╨╡ ╨┐╤А╨╛╤Ж╨╡╤Б╤Б╨░</option>
-                      <option value="development">╨а╨░╨╖╤А╨░╨▒╨╛╤В╨║╨░</option>
-                      <option value="content">╨Ъ╨╛╨╜╤В╨╡╨╜╤В</option>
-                      <option value="security_privacy">╨С╨╡╨╖╨╛╨┐╨░╤Б╨╜╨╛╤Б╤В╤М / ╨Я╨Ф╨╜</option>
-                      <option value="analytics_hypothesis">╨Р╨╜╨░╨╗╨╕╤В╨╕╤З╨╡╤Б╨║╨░╤П ╨│╨╕╨┐╨╛╤В╨╡╨╖╨░</option>
-                      <option value="partner_request">╨Я╨░╤А╤В╨╜╤С╤А╤Б╨║╨╕╨╣ ╨╖╨░╨┐╤А╨╛╤Б</option>
+                      <option value="bug">Ошибка</option>
+                      <option value="sla_incident">Инцидент SLA</option>
+                      <option value="channel_conflict">Конфликт каналов</option>
+                      <option value="process_improvement">Улучшение процесса</option>
+                      <option value="development">Разработка</option>
+                      <option value="content">Контент</option>
+                      <option value="security_privacy">Безопасность / ПДн</option>
+                      <option value="analytics_hypothesis">Аналитическая гипотеза</option>
+                      <option value="partner_request">Партнёрский запрос</option>
                     </select>
                   </label>
                   <label>
-                    ╨Я╤А╨╕╨╛╤А╨╕╤В╨╡╤В
+                    Приоритет
                     <select
                       value={trackerPriority}
                       onChange={(e) => setTrackerPriority(e.target.value)}
                     >
-                      <option value="critical">╨Ъ╤А╨╕╤В╨╕╤З╨╡╤Б╨║╨╕╨╣</option>
-                      <option value="high">╨Т╤Л╤Б╨╛╨║╨╕╨╣</option>
-                      <option value="normal">╨Ю╨▒╤Л╤З╨╜╤Л╨╣</option>
-                      <option value="low">╨Э╨╕╨╖╨║╨╕╨╣</option>
+                      <option value="critical">Критический</option>
+                      <option value="high">Высокий</option>
+                      <option value="normal">Обычный</option>
+                      <option value="low">Низкий</option>
                     </select>
                   </label>
                   <label>
-                    ╨Э╨░╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╨╡
+                    Направление
                     <select
                       value={trackerDirection}
                       onChange={(e) => setTrackerDirection(e.target.value)}
                     >
-                      <option value="ops">╨Ю╨┐╨╡╤А╨░╤Ж╨╕╨╕</option>
-                      <option value="product">╨Я╤А╨╛╨┤╤Г╨║╤В</option>
-                      <option value="dev">╨а╨░╨╖╤А╨░╨▒╨╛╤В╨║╨░</option>
-                      <option value="content">╨Ъ╨╛╨╜╤В╨╡╨╜╤В</option>
-                      <option value="security">╨С╨╡╨╖╨╛╨┐╨░╤Б╨╜╨╛╤Б╤В╤М</option>
-                      <option value="partners">╨Я╨░╤А╤В╨╜╤С╤А╤Л</option>
+                      <option value="ops">Операции</option>
+                      <option value="product">Продукт</option>
+                      <option value="dev">Разработка</option>
+                      <option value="content">Контент</option>
+                      <option value="security">Безопасность</option>
+                      <option value="partners">Партнёры</option>
                     </select>
                   </label>
                   <label>
-                    ╨Я╨╛╨▓╤В╨╛╤А╤П╨╡╨╝╨╛╤Б╤В╤М
+                    Повторяемость
                     <select value={trackerRepeat} onChange={(e) => setTrackerRepeat(e.target.value)}>
-                      <option value="once">╨Х╨┤╨╕╨╜╨╕╤З╨╜╨╛</option>
-                      <option value="recurring">╨Я╨╛╨▓╤В╨╛╤А╤П╨╡╤В╤Б╤П</option>
-                      <option value="systemic">╨б╨╕╤Б╤В╨╡╨╝╨╜╨╛</option>
+                      <option value="once">Единично</option>
+                      <option value="recurring">Повторяется</option>
+                      <option value="systemic">Системно</option>
                     </select>
                   </label>
                   <label>
-                    ╨Ъ╤А╨░╤В╨║╨╕╨╣ ╨╖╨░╨│╨╛╨╗╨╛╨▓╨╛╨║ (╨╛╨┐╤Ж╨╕╨╛╨╜╨░╨╗╤М╨╜╨╛)
+                    Краткий заголовок (опционально)
                     <input
                       value={trackerTitle}
                       onChange={(e) => setTrackerTitle(e.target.value)}
-                      placeholder="╨С╨╡╨╖ ╨Я╨Ф╨╜"
+                      placeholder="Без ПДн"
                       maxLength={120}
                     />
                   </label>
                   <label>
-                    ╨Ю╨▒╨╡╨╖╨╗╨╕╤З╨╡╨╜╨╜╨╛╨╡ ╨╛╨┐╨╕╤Б╨░╨╜╨╕╨╡
+                    Обезличенное описание
                     <textarea
                       rows={5}
                       value={trackerDesc}
                       onChange={(e) => setTrackerDesc(e.target.value)}
-                      placeholder="╨з╤В╨╛ ╨╜╨╡ ╤В╨░╨║ / ╤З╤В╨╛ ╤Г╨╗╤Г╤З╤И╨╕╤В╤М тАФ ╨▒╨╡╨╖ ╨┐╨╡╤А╤Б╨╛╨╜╨░╨╗╤М╨╜╤Л╤Е ╨┤╨░╨╜╨╜╤Л╤Е"
+                      placeholder="Что не так / что улучшить — без персональных данных"
                       required
                     />
                   </label>
@@ -2081,19 +2081,19 @@ export function AdminCabinet() {
                       checked={trackerForceNew}
                       onChange={(e) => setTrackerForceNew(e.target.checked)}
                     />
-                    ╨б╨╛╨╖╨┤╨░╤В╤М ╨╜╨╛╨▓╤Г╤О, ╨┤╨░╨╢╨╡ ╨╡╤Б╨╗╨╕ ╨╡╤Б╤В╤М ╨╛╤В╨║╤А╤Л╤В╨░╤П ╤В╨╛╨│╨╛ ╨╢╨╡ ╤В╨╕╨┐╨░
+                    Создать новую, даже если есть открытая того же типа
                   </label>
                   <p className="hint">
-                    ╨Т Tracker ╤Г╨╣╨┤╤С╤В ╨┐╤Б╨╡╨▓╨┤╨╛╨╜╨╕╨╝ ╨┤╨╡╨╗╨░ (case_ref), ╤Н╤В╨░╨┐ {detail.pipeline_status}, ╤В╨╕╨┐ ╨╕
-                    ╨╛╨┐╨╕╤Б╨░╨╜╨╕╨╡. ╨Ю╤З╨╡╤А╨╡╨┤╤М STAZH.
+                    В Tracker уйдёт псевдоним дела (case_ref), этап {detail.pipeline_status}, тип и
+                    описание. Очередь STAZH.
                   </p>
                 </div>
                 <div className="dup-dialog-actions">
                   <button type="button" className="ghost" onClick={() => setTrackerModalOpen(false)}>
-                    ╨Ю╤В╨╝╨╡╨╜╨░
+                    Отмена
                   </button>
                   <button type="button" disabled={busy} onClick={() => void createTrackerIssue()}>
-                    ╨б╨╛╨╖╨┤╨░╤В╤М ╨▓ Tracker
+                    Создать в Tracker
                   </button>
                 </div>
               </div>
@@ -2102,9 +2102,9 @@ export function AdminCabinet() {
           {dupDialog ? (
             <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">
               <div className="dup-dialog">
-                <h3>╨Я╨╛╨▓╤В╨╛╤А ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П</h3>
+                <h3>Повтор сообщения</h3>
                 <p>
-                  ╨н╤В╨╛╤В ╨╖╨░╨┐╤А╨╛╤Б ╤Г╨╢╨╡ ╨╛╤В╨┐╤А╨░╨▓╨╗╤П╨╗╤Б╤П
+                  Этот запрос уже отправлялся
                   {dupDialog.lastAt
                     ? ` ${new Date(dupDialog.lastAt).toLocaleString("ru-RU", {
                         day: "2-digit",
@@ -2112,7 +2112,7 @@ export function AdminCabinet() {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}`
-                    : " ╤Б╨╡╨│╨╛╨┤╨╜╤П"}
+                    : " сегодня"}
                   .
                 </p>
                 {dupDialog.preview ? (
@@ -2130,7 +2130,7 @@ export function AdminCabinet() {
                       });
                     }}
                   >
-                    ╨Ю╤В╨║╤А╤Л╤В╤М ╨┐╨╛╤Б╨╗╨╡╨┤╨╜╨╡╨╡
+                    Открыть последнее
                   </button>
                   <button
                     type="button"
@@ -2142,7 +2142,7 @@ export function AdminCabinet() {
                       if (
                         needExtra &&
                         !window.confirm(
-                          "╨Я╨╛╤Е╨╛╨╢╨╕╤Е ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╣ ╤Г╨╢╨╡ ╨╜╨╡╤Б╨║╨╛╨╗╤М╨║╨╛ ╨╖╨░ 48 ╤З╨░╤Б╨╛╨▓. ╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨┐╨╛╨▓╤В╨╛╤А╨╜╨╛?",
+                          "Похожих сообщений уже несколько за 48 часов. Отправить повторно?",
                         )
                       ) {
                         return;
@@ -2150,10 +2150,10 @@ export function AdminCabinet() {
                       void sendMaxReply({ force: true });
                     }}
                   >
-                    ╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨┐╨╛╨▓╤В╨╛╤А╨╜╨╛
+                    Отправить повторно
                   </button>
                   <button type="button" className="ghost" onClick={() => setDupDialog(null)}>
-                    ╨Ю╤В╨╝╨╡╨╜╨╕╤В╤М
+                    Отменить
                   </button>
           </div>
               </div>
@@ -2216,39 +2216,39 @@ export function AdminCabinet() {
 
           {createInvoiceOpen && (
             <section className="panel stack finance-modal">
-              <h2>╨б╨╛╨╖╨┤╨░╤В╤М ╤Б╤З╤С╤В</h2>
+              <h2>Создать счёт</h2>
               <form className="stack-form" onSubmit={(e) => void createFinanceInvoice(e)}>
                 <label>
-                  ╨Ф╨╡╨╗╨╛
+                  Дело
                   <select value={invoiceCaseId} onChange={(e) => setInvoiceCaseId(e.target.value)} required>
-                    <option value="">╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╨╡╨╗╨╛</option>
+                    <option value="">Выберите дело</option>
                     {cases.filter((c) => !c.is_test).map((c) => (
-                      <option key={c.id} value={c.id}>{c.client_name ?? "╨Ъ╨╗╨╕╨╡╨╜╤В"} ┬╖ {c.id.slice(0, 8)}</option>
+                      <option key={c.id} value={c.id}>{c.client_name ?? "Клиент"} · {c.id.slice(0, 8)}</option>
                     ))}
                 </select>
                 </label>
                 <label>
-                  ╨г╤Б╨╗╤Г╨│╨░ ╤Б /tarify/
+                  Услуга с /tarify/
                   <select
                     value={`${invoiceCode}:${invoiceAmount}:${invoiceLabel}`}
                     onChange={(e) => {
                       const [code, amount, ...rest] = e.target.value.split(":");
                       setInvoiceCode((code as "DIAG" | "ACCOMP") || "DIAG");
                       setInvoiceAmount(amount || "3000");
-                      setInvoiceLabel(rest.join(":") || "╨Ф╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░");
+                      setInvoiceLabel(rest.join(":") || "Диагностика");
                     }}
                   >
-                    <option value="DIAG:3000:╨Ф╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░">╨Ф╨╕╨░╨│╨╜╨╛╤Б╤В╨╕╨║╨░ ┬╖ 3 000 тВ╜</option>
-                    <option value="ACCOMP:5000:╨Я╨╛╨┤╨│╨╛╤В╨╛╨▓╨║╨░ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓">╨Я╨╛╨┤╨│╨╛╤В╨╛╨▓╨║╨░ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓ ┬╖ 5 000 тВ╜</option>
-                    <option value="ACCOMP:8000:╨б╨╛╨┐╤А╨╛╨▓╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨┤╨╛ ╨┐╨╛╨┤╨░╤З╨╕">╨б╨╛╨┐╤А╨╛╨▓╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨┤╨╛ ╨┐╨╛╨┤╨░╤З╨╕ ┬╖ 8 000 тВ╜</option>
+                    <option value="DIAG:3000:Диагностика">Диагностика · 3 000 ₽</option>
+                    <option value="ACCOMP:5000:Подготовка документов">Подготовка документов · 5 000 ₽</option>
+                    <option value="ACCOMP:8000:Сопровождение до подачи">Сопровождение до подачи · 8 000 ₽</option>
                   </select>
                 </label>
-                <label>╨б╤Г╨╝╨╝╨░ тВ╜<input type="number" min={1} step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} required /></label>
-                <label>╨б╤А╨╛╨║ ╨╛╨┐╨╗╨░╤В╤Л<input type="datetime-local" value={invoiceDue} onChange={(e) => setInvoiceDue(e.target.value)} /></label>
-                <p className="hint">╨Ю╨┐╨╗╨░╤В╨░ ╨╖╨░ ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╨╛╨╜╨╜╨╛-╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨░╤А╨╜╤Г╤О ╨┐╨╛╨┤╨┤╨╡╤А╨╢╨║╤Г ╤Б╨╛╨│╨╗╨░╤Б╨╜╨╛ ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨╣ ╤Г╤Б╨╗╤Г╨│╨╡/╨┤╨╛╨│╨╛╨▓╨╛╤А╤Г.</p>
+                <label>Сумма ₽<input type="number" min={1} step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} required /></label>
+                <label>Срок оплаты<input type="datetime-local" value={invoiceDue} onChange={(e) => setInvoiceDue(e.target.value)} /></label>
+                <p className="hint">Оплата за информационно-документарную поддержку согласно выбранной услуге/договору.</p>
                 <div className="inline-form">
-                  <button type="submit">╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤З╨╡╤А╨╜╨╛╨▓╨╕╨║</button>
-                  <button type="button" className="ghost" onClick={() => setCreateInvoiceOpen(false)}>╨Ю╤В╨╝╨╡╨╜╨░</button>
+                  <button type="submit">Сохранить черновик</button>
+                  <button type="button" className="ghost" onClick={() => setCreateInvoiceOpen(false)}>Отмена</button>
             </div>
               </form>
             </section>
@@ -2256,25 +2256,25 @@ export function AdminCabinet() {
 
           {markPaidOrder && (
             <section className="panel stack finance-modal">
-              <h2>╨Ю╤В╨╝╨╡╤В╨╕╤В╤М ╨╛╨┐╨╗╨░╤В╤Г ╨▓╤А╤Г╤З╨╜╤Г╤О</h2>
+              <h2>Отметить оплату вручную</h2>
               <form className="stack-form" onSubmit={(e) => void submitMarkPaid(e)}>
-                <label>╨Ф╨░╤В╨░ ╨╕ ╨▓╤А╨╡╨╝╤П<input type="datetime-local" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} required /></label>
-                <label>╨б╤Г╨╝╨╝╨░ тВ╜<input type="number" min={1} step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} required /></label>
+                <label>Дата и время<input type="datetime-local" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} required /></label>
+                <label>Сумма ₽<input type="number" min={1} step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} required /></label>
                 <label>
-                  ╨б╨┐╨╛╤Б╨╛╨▒
+                  Способ
                   <select value={paidMethod} onChange={(e) => setPaidMethod(e.target.value)}>
-                    <option value="transfer">╨Я╨╡╤А╨╡╨▓╨╛╨┤</option>
-                    <option value="card">╨Ъ╨░╤А╤В╨░</option>
-                    <option value="yookassa">╨оKassa</option>
-                    <option value="cash">╨Э╨░╨╗╨╕╤З╨╜╤Л╨╡</option>
-                    <option value="other">╨Ф╤А╤Г╨│╨╛╨╡</option>
+                    <option value="transfer">Перевод</option>
+                    <option value="card">Карта</option>
+                    <option value="yookassa">ЮKassa</option>
+                    <option value="cash">Наличные</option>
+                    <option value="other">Другое</option>
                 </select>
                 </label>
-                <label>╨Э╨╛╨╝╨╡╤А ╨╛╨┐╨╡╤А╨░╤Ж╨╕╨╕ / ╨║╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣<input value={paidRef} onChange={(e) => setPaidRef(e.target.value)} required /></label>
-                <p className="hint">╨б╨╛╤В╤А╤Г╨┤╨╜╨╕╨║ ╨╕ ╨▓╤А╨╡╨╝╤П ╨┐╨╛╨┐╨░╨┤╤Г╤В ╨▓ ╨╢╤Г╤А╨╜╨░╨╗ ╨░╤Г╨┤╨╕╤В╨░. ╨г╨┤╨░╨╗╨╕╤В╤М ╨╖╨░╨┐╨╕╤Б╤М ╤З╨╡╤А╨╡╨╖ ╨╕╨╜╤В╨╡╤А╤Д╨╡╨╣╤Б ╨╜╨╡╨╗╤М╨╖╤П.</p>
+                <label>Номер операции / комментарий<input value={paidRef} onChange={(e) => setPaidRef(e.target.value)} required /></label>
+                <p className="hint">Сотрудник и время попадут в журнал аудита. Удалить запись через интерфейс нельзя.</p>
                 <div className="inline-form">
-                  <button type="submit">╨Ч╨░╨┐╨╕╤Б╨░╤В╤М ╨╛╨┐╨╗╨░╤В╤Г</button>
-                  <button type="button" className="ghost" onClick={() => setMarkPaidOrder(null)}>╨Ю╤В╨╝╨╡╨╜╨░</button>
+                  <button type="submit">Записать оплату</button>
+                  <button type="button" className="ghost" onClick={() => setMarkPaidOrder(null)}>Отмена</button>
             </div>
             </form>
         </section>
@@ -2282,22 +2282,22 @@ export function AdminCabinet() {
 
           {cancelOrder && (
             <section className="panel stack finance-modal">
-              <h2>╨Ю╤В╨╝╨╡╨╜╨╕╤В╤М ╤Б╤З╤С╤В</h2>
+              <h2>Отменить счёт</h2>
               <form className="stack-form" onSubmit={(e) => void submitCancel(e)}>
                 <label>
-                  ╨Я╤А╨╕╤З╨╕╨╜╨░
+                  Причина
                   <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
-                    <option value="refusal">╨Ю╤В╨║╨░╨╖</option>
-                    <option value="duplicate">╨Ф╤Г╨▒╨╗╤М</option>
-                    <option value="amount_error">╨Ю╤И╨╕╨▒╨║╨░ ╤Б╤Г╨╝╨╝╤Л</option>
-                    <option value="no_contact">╨Э╨╡╤В ╤Б╨▓╤П╨╖╨╕</option>
-                    <option value="other">╨Ф╤А╤Г╨│╨╛╨╡</option>
+                    <option value="refusal">Отказ</option>
+                    <option value="duplicate">Дубль</option>
+                    <option value="amount_error">Ошибка суммы</option>
+                    <option value="no_contact">Нет связи</option>
+                    <option value="other">Другое</option>
                   </select>
                 </label>
-                <label>╨Ъ╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╣<input value={cancelComment} onChange={(e) => setCancelComment(e.target.value)} /></label>
+                <label>Комментарий<input value={cancelComment} onChange={(e) => setCancelComment(e.target.value)} /></label>
                 <div className="inline-form">
-                  <button type="submit">╨Ю╤В╨╝╨╡╨╜╨╕╤В╤М ╤Б╤З╤С╤В</button>
-                  <button type="button" className="ghost" onClick={() => setCancelOrder(null)}>╨Ч╨░╨║╤А╤Л╤В╤М</button>
+                  <button type="submit">Отменить счёт</button>
+                  <button type="button" className="ghost" onClick={() => setCancelOrder(null)}>Закрыть</button>
                 </div>
               </form>
         </section>
@@ -2329,7 +2329,7 @@ export function AdminCabinet() {
         />
       )}
 
-      {busy && <p className="hint">╨Ч╨░╨│╤А╤Г╨╖╨║╨░тАж</p>}
+      {busy && <p className="hint">Загрузка…</p>}
     </main>
   );
 }
