@@ -365,7 +365,6 @@ export function AdminCabinet() {
   const supabase = useMemo(() => createStaffSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [maxReplyBody, setMaxReplyBody] = useState("");
-  const [marketingConsentLabel, setMarketingConsentLabel] = useState<string | null>(null);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [stepHint, setStepHint] = useState<{
     action: string;
@@ -557,7 +556,6 @@ export function AdminCabinet() {
       setLumpRub("");
       setDupDialog(null);
       setView("case");
-      void loadMarketingConsent(caseId);
       return true;
     } catch (err) {
       const detail = err instanceof Error ? err.message : "";
@@ -957,44 +955,6 @@ export function AdminCabinet() {
       await openCase(detail.id);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось зафиксировать согласие.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function loadMarketingConsent(caseId: string) {
-    if (!token) return;
-    try {
-      const data = await apiFetch<{
-        ok?: boolean;
-        channels?: Record<string, { status?: string }>;
-      }>(`/api/portal/admin/cases/${caseId}/marketing-consent`, token);
-      const st = data.channels?.max?.status || "none";
-      const map: Record<string, string> = {
-        granted: "есть согласие",
-        denied: "отказ",
-        revoked: "отозвано",
-        none: "нет согласия",
-      };
-      setMarketingConsentLabel(map[st] || st);
-    } catch {
-      setMarketingConsentLabel("недоступно");
-    }
-  }
-
-  async function requestMarketingConsent() {
-    if (!token || !detail) return;
-    setBusy(true);
-    try {
-      await apiFetch(`/api/portal/admin/cases/${detail.id}/marketing-consent/request`, token, {
-        method: "POST",
-      });
-      setNotice("Запрос согласия на рассылку отправлен в MAX.");
-      await loadMarketingConsent(detail.id);
-    } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Не удалось запросить согласие на рассылку.",
-      );
     } finally {
       setBusy(false);
     }
@@ -1999,8 +1959,6 @@ export function AdminCabinet() {
             suggestions={replySuggestions}
             onSuggest={() => void suggestReplies()}
             composerHighlight={composerFlash || maxReplyFocus}
-            marketingConsentLabel={marketingConsentLabel}
-            onRequestMarketingConsent={() => void requestMarketingConsent()}
             waitingOn={waitingOn}
           />
           {trackerModalOpen && detail ? (

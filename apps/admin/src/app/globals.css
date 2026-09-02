@@ -1739,9 +1739,6 @@ button.badge--clickable:hover {
   flex-wrap: wrap;
   gap: 8px;
 }
-.case-chat-marketing {
-  margin-top: 0.65rem;
-}
 @media (max-width: 900px) {
   .case-page {
     grid-template-columns: 1fr;

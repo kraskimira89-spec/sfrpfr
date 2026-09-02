@@ -164,7 +164,6 @@ export function CaseChatPanel({
   suggestions,
   onSuggest,
   composerHighlight = false,
-  onRequestMarketingConsent,
   waitingOn = null,
 }: {
   messages: CaseChatMessage[];
@@ -185,8 +184,9 @@ export function CaseChatPanel({
   suggestions: string[];
   onSuggest: () => void;
   composerHighlight?: boolean;
-  /** @deprecated статус marketing consent больше не выводится в чате. */
+  /** @deprecated marketing consent UI убран из чата. */
   marketingConsentLabel?: string | null;
+  /** @deprecated marketing consent UI убран из чата. */
   onRequestMarketingConsent?: () => void;
   waitingOn?: string | null;
 }) {
@@ -467,19 +467,6 @@ export function CaseChatPanel({
             {maxLinked ? "Только в ленту" : "Отправить"}
           </button>
         </div>
-        {maxLinked && onRequestMarketingConsent ? (
-          <div className="case-chat-marketing">
-            <button
-              type="button"
-              className="ghost"
-              disabled={busy}
-              onClick={onRequestMarketingConsent}
-              title="Отправить в MAX кнопки «Да, согласен» / «Нет»"
-            >
-              Запросить согласие на рассылку в MAX
-            </button>
-          </div>
-        ) : null}
       </div>
     </aside>
   );
