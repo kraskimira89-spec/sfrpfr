@@ -14,10 +14,10 @@
 | Configuration set `sfrfr-default` | ✅ |
 | Cloud Function `sfrfr-postbox-webhook` | ✅ (нужен YDS trigger) |
 | `YANDEX_POSTBOX_ENABLED` | ❌ `false` до Success DKIM |
-| DNS SPF + DKIM TXT на reg.ru | ⏳ **сделай вручную** |
+| DNS SPF + DKIM TXT на reg.ru | ✅ |
+| Postbox Verification / DKIM SUCCESS | ✅ 2026-09-02 |
+| `YANDEX_POSTBOX_ENABLED` | ✅ `true` |
 | Data Streams + event destination + trigger | ⏳ |
-
-Health сейчас: `yandex_postbox: true`, `yandex_postbox_send: false`.
 
 ---
 
