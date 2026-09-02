@@ -116,12 +116,17 @@ def survey_client() -> tuple[TestClient, _MemSurveyRepo, str]:
     return client, repo, raw
 
 
-def test_survey_get_shows_confirm_page(survey_client: tuple[TestClient, _MemSurveyRepo, str]) -> None:
+SurveyClient = tuple[TestClient, _MemSurveyRepo, str]
+_FEEDBACK_REPO = "sfrfr.services.diagnosis_survey.DiagnosisFeedbackRepository"
+
+
+def test_survey_get_shows_confirm_page(survey_client: SurveyClient) -> None:
     client, repo, raw = survey_client
+    feedback = _MemFeedback()
     with (
         patch("sfrfr.api.routes.survey_actions.DiagnosisSurveyRepository", return_value=repo),
         patch("sfrfr.services.diagnosis_survey.DiagnosisSurveyRepository", return_value=repo),
-        patch("sfrfr.services.diagnosis_survey.DiagnosisFeedbackRepository", return_value=_MemFeedback()),
+        patch(_FEEDBACK_REPO, return_value=feedback),
     ):
         resp = client.get(f"/api/portal/survey/{raw}", headers={"Accept": "text/html"})
     assert resp.status_code == 200
@@ -130,12 +135,13 @@ def test_survey_get_shows_confirm_page(survey_client: tuple[TestClient, _MemSurv
     assert repo.responses == {}
 
 
-def test_survey_post_confirm_records_email(survey_client: tuple[TestClient, _MemSurveyRepo, str]) -> None:
+def test_survey_post_confirm_records_email(survey_client: SurveyClient) -> None:
     client, repo, raw = survey_client
+    feedback = _MemFeedback()
     with (
         patch("sfrfr.api.routes.survey_actions.DiagnosisSurveyRepository", return_value=repo),
         patch("sfrfr.services.diagnosis_survey.DiagnosisSurveyRepository", return_value=repo),
-        patch("sfrfr.services.diagnosis_survey.DiagnosisFeedbackRepository", return_value=_MemFeedback()),
+        patch(_FEEDBACK_REPO, return_value=feedback),
     ):
         resp = client.post(f"/api/portal/survey/{raw}/confirm", headers={"Accept": "text/html"})
     assert resp.status_code == 200

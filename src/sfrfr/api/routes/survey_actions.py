@@ -43,7 +43,8 @@ def _page_shell(*, title: str, body: str) -> str:
     .choice {{ font-size: 1.1rem; color: var(--ink); font-weight: 600; margin: 1rem 0; }}
     button {{ display: inline-flex; align-items: center; justify-content: center;
       width: 100%; min-height: 48px; margin-top: .75rem; border: 0; border-radius: 10px;
-      background: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 600; cursor: pointer; }}
+      background: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 600;
+      cursor: pointer; }}
     .hint {{ font-size: .95rem; margin-top: 1rem; }}
     .ok {{ color: var(--ok); }}
     .warn {{ color: var(--danger); }}
@@ -91,7 +92,8 @@ def _render_confirm(*, token: str, survey_type: str, label: str, body_text: str)
     <form method="post" action="/api/portal/survey/{safe_token}/confirm">
       <button type="submit">Подтвердить</button>
     </form>
-    <p class="hint">Ответ сохранится только после нажатия кнопки. Сканы и персональные данные в чат не отправляйте.</p>
+    <p class="hint">Ответ сохранится только после нажатия кнопки.
+    Сканы и персональные данные в чат не отправляйте.</p>
     """
     if survey_type == "first_step":
         page_title = "Первый шаг плана"
@@ -129,7 +131,10 @@ def open_survey_confirm(token: str, request: Request) -> Response:
         campaign, _row, survey_type, label = _load_token_context(raw)
     except LookupError:
         if _wants_html(request):
-            return HTMLResponse(_render_error("Ссылка недействительна или уже использована."), status_code=404)
+            return HTMLResponse(
+                _render_error("Ссылка недействительна или уже использована."),
+                status_code=404,
+            )
         raise HTTPException(status_code=404, detail="invalid_token") from None
 
     body_text = _body_for_type(survey_type, campaign)
