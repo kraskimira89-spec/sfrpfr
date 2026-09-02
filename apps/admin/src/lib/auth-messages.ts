@@ -16,6 +16,8 @@ export const STAFF_AUTH_MESSAGES = {
 } as const;
 
 export const STAFF_LOGIN_COPY = {
+  brandName: "Проверка стажа",
+  brandContext: "Кабинет сотрудников",
   title: "Вход в кабинет сотрудника",
   subtitle:
     "Введите рабочую почту. Мы отправим одноразовый код для входа. Пароль придумывать не нужно.",
@@ -26,8 +28,25 @@ export const STAFF_LOGIN_COPY = {
   otpSentGeneric: "Код отправлен на рабочую почту. Проверьте входящие и папку «Спам».",
   otpResent: "Новый код отправлен. Проверьте рабочую почту и папку «Спам».",
   checkInboxTitle: "Проверьте рабочую почту",
-  checkInboxLead: "Мы отправили одноразовый код на:",
-  enterCode: "Введите код из письма. Код действует ограниченное время.",
+  checkInboxLead: "Мы отправили одноразовый код на",
+  enterCode: "Введите код из письма, чтобы войти.",
+  otpTtlHint: "Код действует ограниченное время.",
+  stepEmail: "Шаг 1 из 2",
+  stepEmailLabel: "Вход по почте",
+  stepOtp: "Шаг 2 из 2",
+  stepOtpLabel: "Подтверждение входа",
+  otpResendPrompt: "Не получили письмо?",
+  otpResendAction: "Отправить ещё раз",
+  otpResendWait: "Отправить ещё раз через",
+  otpChangeEmailPrompt: "Указали не ту почту?",
+  otpHelpTitle: "Нет доступа к рабочей почте?",
+  otpSubmitIdle: "Введите код",
+  otpSubmitReady: "Войти в кабинет",
+  otpSubmitBusy: "Проверяем код…",
+  otpSubmitSuccess: "Вход выполнен",
+  trustHelpTitle: "Нужна помощь?",
+  trustHelpLead:
+    "Если письмо не приходит или нет доступа к рабочей почте, используйте вход через MAX или обратитесь к администратору.",
   changeEmail: "Изменить почту",
   signIn: "Войти",
   orDivider: "или",
@@ -43,7 +62,7 @@ export const STAFF_LOGIN_COPY = {
   maxCancel: "Отменить вход через MAX",
   maxEmailFallback: "Войти по рабочей почте",
   accessRequestLink: "Нет доступа к кабинету? Запросить доступ",
-  backToSite: "← Вернуться на основной сайт",
+  backToSite: "← На основной сайт",
   registerTitle: "Запросить доступ сотрудника",
   registerLead:
     "Заполните заявку с рабочими данными. Администратор проверит запрос и назначит роль, если доступ согласован.",

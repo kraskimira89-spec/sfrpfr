@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   STAFF_AUTH_MESSAGES,
   STAFF_LOGIN_COPY,
@@ -10,6 +10,13 @@ import {
   maskEmail,
   safeStaffAuthNotice,
 } from "@/lib/auth-messages";
+import {
+  formatResendCountdown,
+  getOtpSubmitLabel,
+  isOtpComplete,
+  normalizeOtpDigits,
+} from "@/lib/staff-otp";
+import { StaffOtpInput, type StaffOtpInputHandle } from "@/components/staff-otp-input";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 const OTP_RESEND_MS = 60_000;
@@ -33,31 +40,77 @@ function BrandHeader({ siteUrl }: { siteUrl: string }) {
       <a className="auth-back-link" href={siteUrl}>
         {STAFF_LOGIN_COPY.backToSite}
       </a>
-      <p className="eyebrow">
-        <a className="brand-home-link" href={siteUrl} title="На главную" aria-label="На главную">
+      <div className="auth-brand">
+        <a
+          className="auth-brand__logo-link"
+          href={siteUrl}
+          title="На главную"
+          aria-label="На главную"
+        >
           <img
             className="brand-logo"
             src="/logo-light.png"
             width={40}
             height={40}
-            alt="Проверка стажа"
+            alt=""
           />
-          Проверка стажа · сотрудники
         </a>
-      </p>
+        <div className="auth-brand__text">
+          <p className="auth-brand__name">{STAFF_LOGIN_COPY.brandName}</p>
+          <p className="auth-brand__context">{STAFF_LOGIN_COPY.brandContext}</p>
+        </div>
+      </div>
     </>
   );
 }
 
-export function StaffAuthTrustPanel() {
+function AuthStepper({ step, label }: { step: string; label: string }) {
+  return (
+    <div className="auth-stepper" aria-label={`${step}. ${label}`}>
+      <span className="auth-step">{step}</span>
+      <span className="auth-step__label">{label}</span>
+    </div>
+  );
+}
+
+type StaffAuthTrustPanelProps = {
+  variant?: "default" | "otp";
+  maxAvailable?: boolean;
+  onMaxLogin?: () => void;
+  onRequestAccess?: () => void;
+};
+
+export function StaffAuthTrustPanel({
+  variant = "default",
+  maxAvailable = true,
+  onMaxLogin,
+  onRequestAccess,
+}: StaffAuthTrustPanelProps) {
   return (
     <aside className="auth-trust" aria-label={STAFF_LOGIN_COPY.trustTitle}>
       <h2>{STAFF_LOGIN_COPY.trustTitle}</h2>
-      <ul>
+      <ul className="auth-trust__list">
         {STAFF_LOGIN_COPY.trustItems.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
+      {variant === "otp" ? (
+        <>
+          <div className="auth-trust__divider" aria-hidden="true" />
+          <h3 className="auth-trust__help-title">{STAFF_LOGIN_COPY.trustHelpTitle}</h3>
+          <p className="auth-trust__help-lead">{STAFF_LOGIN_COPY.trustHelpLead}</p>
+          {maxAvailable && onMaxLogin ? (
+            <button type="button" className="auth-alt-btn auth-trust__max-btn" onClick={onMaxLogin}>
+              {STAFF_LOGIN_COPY.maxCta}
+            </button>
+          ) : null}
+          {onRequestAccess ? (
+            <button type="button" className="linkish auth-trust__access-link" onClick={onRequestAccess}>
+              {STAFF_LOGIN_COPY.accessRequestLink}
+            </button>
+          ) : null}
+        </>
+      ) : null}
     </aside>
   );
 }
@@ -88,6 +141,9 @@ export function StaffAuthScreen({
   const [clockMs, setClockMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpStatus, setOtpStatus] = useState("");
+  const otpInputRef = useRef<StaffOtpInputHandle>(null);
   const [maxTicket, setMaxTicket] = useState("");
   const [maxPairCode, setMaxPairCode] = useState("");
   const [maxWaitStatus, setMaxWaitStatus] = useState("");
@@ -117,6 +173,8 @@ export function StaffAuthScreen({
     setAuthStep("email");
     setOtpSent(false);
     setOtpCode("");
+    setOtpError("");
+    setOtpStatus("");
     setNotice("");
     resetMax();
   }
@@ -179,8 +237,11 @@ export function StaffAuthScreen({
       if (error) throw error;
       setOtpSent(true);
       setAuthStep("otp");
+      setOtpCode("");
+      setOtpError("");
       setOtpResendUntil(Date.now() + OTP_RESEND_MS);
-      setNotice(resending ? STAFF_LOGIN_COPY.otpResent : STAFF_LOGIN_COPY.otpSentGeneric);
+      setOtpStatus(resending ? STAFF_LOGIN_COPY.otpResent : "");
+      setNotice("");
     } catch (err) {
       setNotice(mapStaffAuthError(err, STAFF_AUTH_MESSAGES.AUTH_DELIVERY_FAILED));
     } finally {
@@ -191,29 +252,35 @@ export function StaffAuthScreen({
   async function verifyEmailOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) {
-      setNotice(STAFF_AUTH_MESSAGES.AUTH_CONFIG_MISSING);
+      setOtpError(STAFF_AUTH_MESSAGES.AUTH_CONFIG_MISSING);
       return;
     }
-    if (!otpCode.trim()) {
-      setNotice(STAFF_AUTH_MESSAGES.AUTH_CODE_REQUIRED);
+    const code = normalizeOtpDigits(otpCode);
+    if (!isOtpComplete(code)) {
+      setOtpError(STAFF_AUTH_MESSAGES.AUTH_CODE_REQUIRED);
+      otpInputRef.current?.focusFirst();
       return;
     }
     setBusy(true);
-    setNotice("");
+    setOtpError("");
+    setOtpStatus("");
     try {
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim().toLowerCase(),
-        token: otpCode.trim(),
+        token: code,
         type: "email",
       });
       if (error) throw error;
+      setOtpStatus(STAFF_LOGIN_COPY.otpSubmitSuccess);
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
       if (/expired/.test(msg)) {
-        setNotice(STAFF_AUTH_MESSAGES.AUTH_CODE_EXPIRED);
+        setOtpError(STAFF_AUTH_MESSAGES.AUTH_CODE_EXPIRED);
       } else {
-        setNotice(STAFF_AUTH_MESSAGES.AUTH_CODE_INVALID);
+        setOtpError(STAFF_AUTH_MESSAGES.AUTH_CODE_INVALID);
       }
+      setOtpCode("");
+      otpInputRef.current?.focusFirst();
     } finally {
       setBusy(false);
     }
@@ -378,6 +445,11 @@ export function StaffAuthScreen({
     }
   }
 
+  const otpComplete = isOtpComplete(otpCode);
+  const otpSubmitLabel = getOtpSubmitLabel({ busy, complete: otpComplete });
+  const trustVariant = authStep === "otp" ? "otp" : "default";
+  const maxAvailable = Boolean(apiBase);
+
   if (!authReady && !IS_DEV) {
     return (
       <main className="auth-layout auth-layout--split">
@@ -397,7 +469,7 @@ export function StaffAuthScreen({
               <a href={siteUrl}>{STAFF_LOGIN_COPY.backToSite}</a>
             </p>
           </section>
-          <StaffAuthTrustPanel />
+          <StaffAuthTrustPanel variant="default" maxAvailable={maxAvailable} />
         </div>
       </main>
     );
@@ -411,6 +483,10 @@ export function StaffAuthScreen({
 
           {authStep === "email" ? (
             <>
+              <AuthStepper
+                step={STAFF_LOGIN_COPY.stepEmail}
+                label={STAFF_LOGIN_COPY.stepEmailLabel}
+              />
               <h1>{STAFF_LOGIN_COPY.title}</h1>
               <p className="lead lead-compact">{STAFF_LOGIN_COPY.subtitle}</p>
               {IS_DEV && !authReady ? (
@@ -462,40 +538,87 @@ export function StaffAuthScreen({
 
           {authStep === "otp" ? (
             <>
+              <AuthStepper step={STAFF_LOGIN_COPY.stepOtp} label={STAFF_LOGIN_COPY.stepOtpLabel} />
               <h1>{STAFF_LOGIN_COPY.checkInboxTitle}</h1>
-              <p className="lead lead-compact">
-                {STAFF_LOGIN_COPY.checkInboxLead} {maskEmail(email)}. {STAFF_LOGIN_COPY.enterCode}
+              <p className="lead lead-compact auth-otp-lead">
+                {STAFF_LOGIN_COPY.checkInboxLead}{" "}
+                <strong className="auth-otp-email">{maskEmail(email)}</strong>.{" "}
+                {STAFF_LOGIN_COPY.enterCode}
               </p>
-              <form className="auth-form" onSubmit={verifyEmailOtp}>
-                <label htmlFor="staff-otp">Код из письма</label>
-                <input
-                  id="staff-otp"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  autoFocus
-                  maxLength={8}
+              <p id="otp-help" className="auth-otp-help">
+                {STAFF_LOGIN_COPY.otpTtlHint}
+              </p>
+              <form className="auth-form auth-form--otp" onSubmit={verifyEmailOtp}>
+                <StaffOtpInput
+                  ref={otpInputRef}
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  required
+                  onChange={(value) => {
+                    setOtpCode(value);
+                    if (otpError) setOtpError("");
+                  }}
                   disabled={busy}
+                  invalid={Boolean(otpError)}
+                  autoFocus
                 />
-                <button type="submit" disabled={busy}>
-                  {STAFF_LOGIN_COPY.signIn}
+                <p id="otp-status" className="auth-otp-status" role="status" aria-live="polite">
+                  {otpStatus}
+                </p>
+                {otpError ? (
+                  <p className="auth-otp-error" role="alert" aria-live="assertive">
+                    <span className="auth-otp-error__icon" aria-hidden="true">
+                      !
+                    </span>
+                    {otpError}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  className={busy ? "auth-submit auth-submit--busy" : "auth-submit"}
+                  disabled={busy || !otpComplete}
+                  aria-describedby="otp-help otp-status"
+                >
+                  {otpSubmitLabel}
                 </button>
               </form>
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy || otpResendLeft > 0}
-                onClick={() => void requestEmailOtp()}
-              >
-                {otpResendLeft > 0
-                  ? `Отправить код ещё раз через ${otpResendLeft} сек.`
-                  : "Отправить код ещё раз"}
-              </button>
-              <button type="button" className="linkish" onClick={goEmailStep}>
-                {STAFF_LOGIN_COPY.changeEmail}
-              </button>
+              <div className="auth-actions-row">
+                <div className="auth-actions-row__item">
+                  <p className="auth-actions-row__prompt">{STAFF_LOGIN_COPY.otpResendPrompt}</p>
+                  <button
+                    type="button"
+                    className="linkish"
+                    disabled={busy || otpResendLeft > 0}
+                    onClick={() => void requestEmailOtp()}
+                  >
+                    {otpResendLeft > 0
+                      ? `${STAFF_LOGIN_COPY.otpResendWait} ${formatResendCountdown(otpResendLeft)}`
+                      : STAFF_LOGIN_COPY.otpResendAction}
+                  </button>
+                </div>
+                <div className="auth-actions-row__item">
+                  <p className="auth-actions-row__prompt">{STAFF_LOGIN_COPY.otpChangeEmailPrompt}</p>
+                  <button type="button" className="linkish" disabled={busy} onClick={goEmailStep}>
+                    {STAFF_LOGIN_COPY.changeEmail}
+                  </button>
+                </div>
+              </div>
+              <div className="auth-help-fallback">
+                <p className="auth-help-fallback__title">{STAFF_LOGIN_COPY.otpHelpTitle}</p>
+                <div className="auth-help-fallback__actions">
+                  {maxAvailable ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={busy}
+                      onClick={() => void requestMaxLogin()}
+                    >
+                      {STAFF_LOGIN_COPY.maxCta}
+                    </button>
+                  ) : null}
+                  <button type="button" className="linkish" disabled={busy} onClick={goRegisterStep}>
+                    {STAFF_LOGIN_COPY.accessRequestLink}
+                  </button>
+                </div>
+              </div>
             </>
           ) : null}
 
@@ -622,13 +745,18 @@ export function StaffAuthScreen({
             </>
           ) : null}
 
-          {notice && authStep !== "register_done" ? (
+          {notice && authStep !== "register_done" && authStep !== "otp" ? (
             <p className="notice" role="status" aria-live="polite">
               {safeStaffAuthNotice(notice)}
             </p>
           ) : null}
         </section>
-        <StaffAuthTrustPanel />
+        <StaffAuthTrustPanel
+          variant={trustVariant}
+          maxAvailable={maxAvailable}
+          onMaxLogin={maxAvailable ? () => void requestMaxLogin() : undefined}
+          onRequestAccess={goRegisterStep}
+        />
       </div>
     </main>
   );
@@ -672,7 +800,7 @@ export function StaffAccessGate({
             </button>
           ) : null}
         </section>
-        <StaffAuthTrustPanel />
+        <StaffAuthTrustPanel variant="default" />
       </div>
     </main>
   );

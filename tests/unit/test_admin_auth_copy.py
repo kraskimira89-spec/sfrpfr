@@ -30,13 +30,15 @@ def test_staff_ui_no_technical_auth_leaks() -> None:
 
 def test_staff_login_copy_human() -> None:
     assert "Вход в кабинет сотрудника" in MESSAGES
-    assert "Если этот адрес можно использовать для входа" in MESSAGES
+    assert "Кабинет сотрудников" in MESSAGES
     assert "Безопасный вход" in MESSAGES
     assert "Доступ пока не подтверждён" in MESSAGES
+    assert "Шаг 2 из 2" in MESSAGES
 
 
 def test_staff_auth_screen_uses_trust_panel() -> None:
     assert "StaffAuthTrustPanel" in AUTH_SCREEN
+    assert "StaffOtpInput" in AUTH_SCREEN
     assert "StaffAuthScreen" in UI
     assert "StaffAccessGate" in UI
 
