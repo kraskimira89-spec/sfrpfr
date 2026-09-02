@@ -22,6 +22,7 @@ Secure action link для оплаты **не** используем: стран
 | Staff **«Ссылка»** | То же API, `send_max=false` | Только `pay_url` / QR в карточке (копипаст) |
 | Staff **напоминание** | `POST .../remind` `send_max=true` | Снова кнопка+QR; если ссылки нет — сначала выставит счёт |
 | **Авто** (флаг) | `MAX_PAY_LINK_AUTO_SEND=1` после черновика счёта | То же, что «В MAX», без клика staff |
+| **Чат-бот** | `CASE_CHAT_PAY_LINK_ENABLED=1` + счёт готов + вопрос об оплате | Invoice + сообщение в единый чат (MAX и кабинет) |
 | Клиент сам | Кабинет на сайте «Оплатить онлайн» | Redirect `confirmation_url` (без QR в чат) |
 
 Предусловие для MAX: у клиента заполнен `clients.max_user_id` (диалог с ботом).
@@ -40,9 +41,20 @@ Secure action link для оплаты **не** используем: стран
 
 ```env
 MAX_PAY_LINK_AUTO_SEND=0   # prod: 0; staging: 1 только при готовом MAX+ЮKassa
+CASE_CHAT_PAY_LINK_ENABLED=1   # pay-link из чата бота при готовом счёте (default on)
 ```
 
-Default **off**: поведение как раньше — сотрудник жмёт «В MAX».
+Default **off** для MAX auto: сотрудник жмёт «В MAX». Чат-бот: **on** — при вопросе об оплате.
+
+## Метрики (Prometheus + Метрика)
+
+| Метрика / цель | Назначение |
+|---|---|
+| `chat_payment_nudge_total{channel,source}` | Бот/staff предложил оплату |
+| `chat_payment_nudge_converted_total{channel,source}` | Оплата после нуджа |
+| `chat_payment_nudge` / `chat_payment_nudge_paid` | Цели Яндекс Метрики (`scripts/yandex_metrika_ensure_counter.py`) |
+
+Таблица БД: `case_payment_nudges` (миграция `20260902160000_case_payment_nudges.sql`).
 
 ## Ограничения
 
