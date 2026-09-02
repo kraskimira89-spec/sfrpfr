@@ -13,26 +13,48 @@
 |---------|-------------|
 | **`default`** (выбран) | `b1g0mhpm9tr4lrurk1bu` |
 
-## Не вижу облако `sfrfr-ai` в консоли
+## Не вижу облако / «нет доступа к каталогу»
 
-Облако **не удалено** (через SA ключ `secrets/yc-sa-terraform.json` каталог и VM видны). Обычно проблема — **другой Яндекс ID** или **другая организация** в шапке консоли.
+Облако **не удалено**. Live (2026-09-02): каталог `default` ACTIVE, VM `sfrfr-staging-supabase` RUNNING.
 
-### Прямые ссылки (после входа)
+### Диагноз со скрина (403 на folder)
 
-1. Каталог (надёжнее имени облака):  
-   https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
-2. Облако по id:  
-   https://console.yandex.cloud/cloud?id=b1gkscu5sqpjtf5d5rbi  
-3. VM Supabase staging: в каталоге → Compute → `sfrfr-staging-supabase` (`51.250.13.240`)
+Сообщение *«У вас нет доступа к объектам в данном каталоге»* при открытии  
+https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
+под именем **«Проверка Стажа»** значит:
 
-### Что проверить в UI
+| Факт | Значение |
+|------|----------|
+| Организация Cloud | `proverkastaza` (`bpf25prvoq8uqqlvujim`), title «Проверка стажа» |
+| Логин на скрине | скорее `proverkastaza@yandex.ru` (userAccount `ajeofnteq3gl1j2rsai5`) |
+| Права на каталоге | у **людей** нет; только SA (`sfrfr-terraform`, `sfrfr-ai-studio`, …) |
+| Почему CLI не чинит | `add-access-binding` → *User must be a member of organization* |
 
-1. В шапке [console.yandex.cloud](https://console.yandex.cloud/) — переключатель **организации** (не только список облаков).  
-   Если организаций несколько — перебрать все, пока не откроется folder по ссылке выше.
-2. Войти тем же аккаунтом, которым **создавали** Cloud / биллинг (часто личный Яндекс ID владельца; **не** обязательно `proverkastaza@yandex.ru` — это Workspace).
-3. Если прямая ссылка на folder даёт **403 / нет доступа** — вы под другим логином. Нужен доступ владельца или приглашение в организацию Cloud.
-4. CLI (локально, с SA): `.\scripts\yc_cloud_auth.ps1` →  
-   `yc resource-manager folder get b1g0mhpm9tr4lrurk1bu` — должен вернуть `name=default`, `status=ACTIVE`.
+**Вывод:** `proverkastaza@yandex.ru` **не состоит** в организации Cloud `proverkastaza`.  
+Владелец организации — **другой** Яндекс ID (личный, которым создавали Cloud 2026-07-28 / биллинг).
+
+### Что сделать
+
+**Вариант A — войти владельцем организации (быстро)**
+
+1. Выйти из консоли / сменить пользователя (не «Проверка Стажа» Workspace).
+2. Войти **личным** Яндекс ID, с которого заводили Yandex Cloud / платёжный аккаунт.
+3. Открыть снова: https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
+4. Если открылось — в организации → **Пользователи** → пригласить `proverkastaza@yandex.ru` (роль admin / editor).
+5. После принятия приглашения — снова войти как `proverkastaza` и обновить страницу.
+
+**Вариант B — не помните владельца**
+
+- Почта: письма от `cloud.yandex.ru` / биллинга за июль 2026 («облако создано», счёт).
+- [Биллинг](https://console.yandex.cloud/billing) под каждым вашим Яндекс ID — у кого виден платёжный аккаунт, привязанный к `sfrfr-ai`.
+- Поддержка Cloud: org id `bpf25prvoq8uqqlvujim`, cloud `b1gkscu5sqpjtf5d5rbi`, folder `b1g0mhpm9tr4lrurk1bu`.
+
+### Прямые ссылки
+
+1. Каталог: https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
+2. Облако: https://console.yandex.cloud/cloud?id=b1gkscu5sqpjtf5d5rbi  
+
+> Workspace (`proverkastaza@…` почта/Диск) ≠ членство в **организации Yandex Cloud**. Это разные контуры.
 
 > Это **не** Яндекс Workspace (почта/Диск/Календарь/Телемост) — OAuth ТЗ-14 живёт отдельно.
 
