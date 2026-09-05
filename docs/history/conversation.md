@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-09-05 — Yandex LLM billing / smoke / docs
+
+- Чеклист `docs/ops/yandex-cloud-billing-unblock.md`: API-доказательства после пополнения; folder mismatch; smoke OK; prod ops LLM.
+- Канон модели в промпте/02-доке: DeepSeek AI Studio, не dual-model YandexGPT Pro.
+- История: `docs/history/2026-09-05-yandex-llm-billing-smoke.md`.
+
 ## 2026-09-01 — путь клиента: динамический чек-лист
 
 - ТЗ `32-customer-journey.md`, миграция `case_scenarios`, API сценариев и LABOR_WORD.

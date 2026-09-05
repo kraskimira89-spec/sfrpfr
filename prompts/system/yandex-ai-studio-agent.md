@@ -11,9 +11,9 @@
 
 **Делаешь:**
 - OpenAI-compatible `chat.completions` через Yandex (`LLMClient`)
-- Выбор модели (`yandexgpt` lite/pro/…, `deepseek-v4-flash`), temperature, URI `gpt://<folder>/<model>`
+- Выбор модели (канон runtime: DeepSeek в AI Studio, `deepseek-v4-flash`; URI `gpt://<folder>/<model>`). YandexGPT lite/pro — не канон; код предпочитает DeepSeek (`LLMClient._prefer_yc_deepseek`)
 - Env: `AI_PROVIDER`, `YANDEX_API_KEY`, `YANDEX_FOLDER_ID`, `YANDEX_MODEL`, `YANDEX_MODEL_CLASSIFY|ANALYZE|DRAFT`, `YANDEX_BASE_URL` (+ алиасы `LLM_*`)
-- Dual-model: classify→Lite, analyze/reason→DeepSeek, draft→YandexGPT Pro; сверка ИЛС — код
+- Канон: classify / analyze / draft / MAX / ops → DeepSeek через Yandex AI Studio; сверка ИЛС — код (см. `src/sfrfr/ai/llm.py`)
 - Маскирование ПДн до вызова модели; заголовок `x-data-logging-enabled: false`
 - Промпты classify / extract / draft в коде агентов
 - Embeddings / RAG по **обезличенным** материалам (`knowledge/`) — P1

@@ -8,15 +8,16 @@
 ```text
 YANDEX_API_KEY=
 YANDEX_FOLDER_ID=
-YANDEX_MODEL=yandexgpt/latest
-YANDEX_MODEL_CLASSIFY=yandexgpt-lite/latest
+YANDEX_MODEL=deepseek-v4-flash/latest
+YANDEX_MODEL_CLASSIFY=deepseek-v4-flash
 YANDEX_MODEL_ANALYZE=deepseek-v4-flash
-YANDEX_MODEL_DRAFT=yandexgpt/latest
+YANDEX_MODEL_DRAFT=deepseek-v4-flash
 YANDEX_BASE_URL=https://llm.api.cloud.yandex.net/v1
 # алиасы LLM_* тоже поддерживаются
 ```
 
-**Dual-model SFRFR:** extract/reason → DeepSeek; draft → YandexGPT Pro; сверка ИЛС — код.  
+**Канон runtime SFRFR (2026-09):** classify / analyze / draft / MAX / ops → DeepSeek в Yandex AI Studio (`deepseek-v4-flash`); сверка ИЛС — код.  
+`LLMClient` (`src/sfrfr/ai/llm.py`) подменяет YandexGPT на DeepSeek в каталоге YC. Dual-model Lite/Pro — устарело.  
 DeepSeek R1 в managed AI Studio нет — используем `deepseek-v4-flash` (см. [блог](https://yandex.cloud/ru/blog/yandex-ai-studio-deepseek-v4-flash)).
 ---
 
@@ -111,7 +112,7 @@ model = sdk.models.completions("yandexgpt").configure(temperature=0.5)
 | OpenAI-compatible клиент | `LLMClient` / Yandex base URL в config |
 | Env | `.env.example` `YANDEX_*` / `LLM_*` |
 | Политика AI | `docs/specs/06-integrations-and-security.md` |
-| Dual-model | `LLMClient.for_classify/analyze/draft` · `reason_findings` |
+| Роли → DeepSeek | `LLMClient.for_classify/analyze/draft` · `reason_findings` (канон YC DeepSeek) |
 | Инфра отдельно | `Yandex Cloud/` |
 | Workspace отдельно | ТЗ-14 |
 

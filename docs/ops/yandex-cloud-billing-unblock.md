@@ -7,11 +7,19 @@
 | **`sfrfr-ai`** (рабочее) | `b1gkscu5sqpjtf5d5rbi` | ✅ существует; каталог `default` ACTIVE; VM staging RUNNING |
 | `cloud-infoproverkastazaru` | — | старое; не основное |
 
-**Каталог в `sfrfr-ai`:**
+**Каталоги (важно: два folder_id):**
 
-| Каталог | `folder_id` |
-|---------|-------------|
-| **`default`** (выбран) | `b1g0mhpm9tr4lrurk1bu` |
+| Каталог / роль | `folder_id` |
+|----------------|-------------|
+| **`default`** в billing/Terraform-доках | `b1g0mhpm9tr4lrurk1bu` |
+| **Рабочий LLM / AI Studio ключ** (smoke, `secrets/yandexAI_studio.env`) | `b1gp3rqkf5t6kqmqaf7c` |
+
+### Folder mismatch (зафиксировано 2026-09-05)
+
+- Billing-runbook и ссылки консоли часто указывают на `default` → `b1g0mhpm9tr4lrurk1bu` (инфра / staging VM).
+- API-ключ LLM выпущен в другом каталоге → `b1gp3rqkf5t6kqmqaf7c` (комментарий в secrets, без самого ключа).
+- Runtime: `YANDEX_FOLDER_ID` / URI `gpt://…` должны совпадать с каталогом **ключа**, иначе 403/не тот ресурс.
+- Не подставлять `b1g0mhpm9tr4lrurk1bu` в LLM `.env` «по умолчанию из этого файла» без проверки, где выпущен ключ.
 
 ## Не вижу облако / «нет доступа к каталогу»
 
@@ -47,12 +55,13 @@ https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu
 
 - Почта: письма от `cloud.yandex.ru` / биллинга за июль 2026 («облако создано», счёт).
 - [Биллинг](https://console.yandex.cloud/billing) под каждым вашим Яндекс ID — у кого виден платёжный аккаунт, привязанный к `sfrfr-ai`.
-- Поддержка Cloud: org id `bpf25prvoq8uqqlvujim`, cloud `b1gkscu5sqpjtf5d5rbi`, folder `b1g0mhpm9tr4lrurk1bu`.
+- Поддержка Cloud: org id `bpf25prvoq8uqqlvujim`, cloud `b1gkscu5sqpjtf5d5rbi`, folder `b1g0mhpm9tr4lrurk1bu` (инфра) или LLM-folder `b1gp3rqkf5t6kqmqaf7c`.
 
 ### Прямые ссылки
 
-1. Каталог: https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
-2. Облако: https://console.yandex.cloud/cloud?id=b1gkscu5sqpjtf5d5rbi  
+1. Каталог (инфра `default`): https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu  
+2. Каталог (LLM / AI Studio ключ): https://console.yandex.cloud/folders/b1gp3rqkf5t6kqmqaf7c  
+3. Облако: https://console.yandex.cloud/cloud?id=b1gkscu5sqpjtf5d5rbi  
 
 > Workspace (`proverkastaza@…` почта/Диск) ≠ членство в **организации Yandex Cloud**. Это разные контуры.
 
@@ -60,21 +69,22 @@ https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu
 
 ---
 
-## Сделано
+## Сделано (обновлено 2026-09-05)
 
-- [x] Облако/каталог для AI: `sfrfr-ai` → каталог `default` (`folder_id` выше)
-- [ ] Биллинг разблокирован
-- [ ] SA + API-ключ
+- [x] Облако/каталог для AI: `sfrfr-ai`; инфра `default` (`b1g0mhpm9tr4lrurk1bu`); LLM-ключ в `b1gp3rqkf5t6kqmqaf7c`
+- [x] Биллинг разблокирован **по API-доказательствам** (после пополнения): локальный smoke LLM OK; prod `ops_llm_enabled=yes`
+- [ ] Баннер «Облако заблокировано» в UI консоли — **владелец: подтвердить в консоли** (в этой сессии UI не проверяли)
+- [x] SA + API-ключ работают (ключ в secrets / VPS; значение не в git)
 
 ---
 
-## Сейчас — только биллинг
+## Биллинг (справка)
 
-Каталоги готовы; **создание ресурсов всё ещё недоступно** (жёлтый баннер).
+Каталоги готовы. Раньше блокер был жёлтый баннер / баланс 0 ₽.
 
 ### Вариант A — пополнить (нужен для AI Studio)
 
-1. В шапке — баланс **0,00 ₽** или [Биллинг](https://console.yandex.cloud/billing).
+1. В шапке — баланс или [Биллинг](https://console.yandex.cloud/billing).
 2. Платёжный аккаунт, привязанный к облаку **`sfrfr-ai`** (и при необходимости к старому `cloud-infoproverkastazaru`).
 3. Статус не `SUSPENDED` / не «заблокирован».
 4. Пополнить (даже небольшая сумма).
@@ -91,24 +101,38 @@ https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu
 
 ## После снятия блока — шаг 1 (AI Studio ключ)
 
-Каталог уже выбран: `default` / `folder_id=b1g0mhpm9tr4lrurk1bu`.
+Рабочий LLM-каталог: `folder_id=b1gp3rqkf5t6kqmqaf7c` (не путать с инфра-`default`).
 
-1. В каталоге `default` → **IAM** → **Сервисные аккаунты**.
-2. Создать SA (например `sfrfr-ai-llm`) + роль `ai.languageModels.user`.
-3. **Создать API-ключ** со scope `yc.ai.languageModels.execute`.
+1. В каталоге ключа → **IAM** → **Сервисные аккаунты**.
+2. SA с ролью `ai.languageModels.user` (уже есть для текущего ключа).
+3. **API-ключ** со scope `yc.ai.languageModels.execute`.
 4. Ключ **не** в чат / **не** в git → в `.env` / VPS:
-   - `YANDEX_FOLDER_ID=b1g0mhpm9tr4lrurk1bu`
+   - `YANDEX_FOLDER_ID=<folder ключа>` (сейчас `b1gp3rqkf5t6kqmqaf7c`)
    - `YANDEX_API_KEY=…`
    - при необходимости те же в `LLM_FOLDER_ID` / `LLM_API_KEY`
+5. Канон модели: DeepSeek в AI Studio (`deepseek-v4-flash`), см. `src/sfrfr/ai/llm.py` — не dual-model YandexGPT Pro.
 
 Кнопка **«Перейти в AI Studio»** — шаг 2 (тест в UI), когда ключ уже есть.
 
 ---
 
-## Чеклист
+## Чеклист (2026-09-05)
 
-- [x] Каталог `default` в облаке `sfrfr-ai`, `folder_id` зафиксирован
-- [ ] Баланс / статус платёжного аккаунта ок
-- [ ] Баннер «Облако заблокировано» исчез
-- [ ] Форму гранта закрыли или осознанно отправили
-- [ ] _(дальше)_ SA + API-ключ AI Studio
+- [x] Каталог `default` (инфра) в `sfrfr-ai` зафиксирован: `b1g0mhpm9tr4lrurk1bu`
+- [x] Folder mismatch задокументирован: LLM `b1gp3rqkf5t6kqmqaf7c` vs инфра `b1g0mhpm9tr4lrurk1bu`
+- [x] Баланс / биллинг ок **по API** (после пополнения): локальный smoke + prod ops LLM
+- [ ] Баннер «Облако заблокировано» исчез — **владелец: подтвердить в консоли**
+- [ ] Форму гранта закрыли или осознанно отправили — **владелец**
+- [x] SA + API-ключ AI Studio работают (smoke / prod health)
+- [x] Локальный smoke `scripts/_tmp_check_yandex_llm.py` (2026-09-05): `available=True`, `chat_ok`, model `deepseek-v4-flash` / folder LLM
+- [x] Prod: `ops_llm_enabled=yes` (health; SSH env не перепроверяли в этой сессии)
+- [ ] **VPS / ops:** убедиться, что в `/opt/sfrfr/.env` заданы `YANDEX_API_KEY` + `YANDEX_FOLDER_ID` (= folder ключа) — **владелец/ops**, если SSH недоступен агенту
+
+### Smoke (локально, без печати ключей)
+
+```powershell
+# подгрузить secrets/yandexAI_studio.env в env процесса, затем:
+.\.venv\Scripts\python.exe scripts\_tmp_check_yandex_llm.py
+```
+
+Ожидание: `available True`, `chat_ok`, `resolved_model` с folder `b1gp3rqkf5t6kqmqaf7c` и `deepseek-v4-flash`.

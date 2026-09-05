@@ -1,3 +1,9 @@
+## 2026-09-05 — Yandex LLM: billing unblock + DeepSeek канон
+
+- Runbook billing-unblock обновлён по smoke/API; folder mismatch LLM vs инфра.
+- Runtime-канон в доках: DeepSeek AI Studio (`llm.py`), не dual-model YandexGPT Pro.
+- `docs/history/2026-09-05-yandex-llm-billing-smoke.md`.
+
 ## 2026-08-22 — Яндекс Трекер + MCP (greenfield)
 
 - Замена Notion: Трекер (SFRFR), Wiki, amo; без переноса Notion.
