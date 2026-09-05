@@ -123,6 +123,9 @@ def max_integration_health() -> dict[str, str]:
         ),
         "ops_llm_enabled": "yes" if settings.max_ops_llm_enabled else "no",
         "ops_llm_model": (settings.max_ops_llm_model or "deepseek-v4-flash").strip(),
+        # ТЗ-26: клиентский LLM-чат (не путать с ops_llm)
+        "llm_chat_enabled": "yes" if settings.max_llm_chat_enabled else "no",
+        "llm_chat_model": (settings.max_ops_llm_model or "deepseek-v4-flash").strip(),
     }
 
 

@@ -41,7 +41,6 @@ from sfrfr.integrations.max.intake import (
     employment_keyboard,
     employment_question,
     format_welcome_text,
-    free_text_nudge,
     get_intake_store,
     goal_keyboard,
     ils_howto_keyboard,
@@ -570,16 +569,16 @@ def _ensure_supabase_max_client(max_user_id: str) -> None:
     import threading
 
     def _work() -> None:
-    try:
-        from sfrfr.db.client_channels import ClientChannelRepository
+        try:
+            from sfrfr.db.client_channels import ClientChannelRepository
 
-        ClientChannelRepository().ensure_for_max_user(str(max_user_id))
-    except Exception:
-        import logging
+            ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+        except Exception:
+            import logging
 
-        logging.getLogger(__name__).exception(
-            "ensure_supabase_max_client_failed max=%s", max_user_id
-        )
+            logging.getLogger(__name__).exception(
+                "ensure_supabase_max_client_failed max=%s", max_user_id
+            )
 
     threading.Thread(target=_work, daemon=True, name="max-ensure-client").start()
 
@@ -969,7 +968,7 @@ def _notify_staff_chat_docs(
             if lead_id and amo.get("ok"):
                 persist_crm_external_id(case_id, str(lead_id))
             crm_url = amo.get("crm_url") if isinstance(amo, dict) else None
-    else:
+        else:
             crm_url = None
     except Exception:
         logging.getLogger(__name__).info(
@@ -1233,14 +1232,14 @@ def _handle_intake_callback(
         reply = texts[value]
         attachments = (
             ils_howto_keyboard() if value == "ils_howto" else docs_section_keyboard()
-    )
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=reply,
-        attachments=attachments,
-    )
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=attachments,
+        )
         return MaxHandleResult(
             ok=True, action=f"docs_{value}", case_id=intake.case_id, reply=reply
         )
@@ -1604,13 +1603,13 @@ def _token_hash_for_email(email: str) -> str | None:
         existing = find_user_by_email(normalized)
         if existing is None:
             try:
-            client.auth.admin.create_user(
-                {
-                    "email": normalized,
-                    "email_confirm": True,
-                    "app_metadata": {"role_source": "staff_max_login"},
-                }
-            )
+                client.auth.admin.create_user(
+                    {
+                        "email": normalized,
+                        "email_confirm": True,
+                        "app_metadata": {"role_source": "staff_max_login"},
+                    }
+                )
             except Exception as exc:
                 err = str(exc).lower()
                 if "already" not in err and "registered" not in err:
@@ -1623,7 +1622,7 @@ def _token_hash_for_email(email: str) -> str | None:
                 existing = find_user_by_email(normalized)
             if existing is None:
                 return None
-        link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
+            link = client.auth.admin.generate_link({"type": "magiclink", "email": normalized})
         props = getattr(link, "properties", None)
         if props is None and isinstance(link, dict):
             props = link.get("properties") or link
@@ -1763,17 +1762,17 @@ def _complete_pc_login(
                 _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
                 return MaxHandleResult(ok=False, action="login_staff_no_email", reply=reply)
         else:
-        row = _ensure_client_row(user_id)
-        if not row:
+            row = _ensure_client_row(user_id)
+            if not row:
                 reply = "Не удалось связать аккаунт. Пришлите 6-значный код со страницы входа."
-            _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
-            return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
-        contact = _auth_email_for_row(row, user_id)
+                _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+                return MaxHandleResult(ok=False, action="login_no_client", reply=reply)
+            contact = _auth_email_for_row(row, user_id)
         pending = (
             bind_max_by_code(
-            pair_code=pending.pair_code,
-            max_user_id=user_id,
-            contact=contact,
+                pair_code=pending.pair_code,
+                max_user_id=user_id,
+                contact=contact,
             )
             or pending
         )
@@ -2035,7 +2034,7 @@ def _issue_login_code_to_max(
         ticket_id=pending.ticket_id,
         otp_verify_ticket=issued.ticket,
         otp_code=issued.code,
-            max_user_id=user_id,
+        max_user_id=user_id,
         contact=contact,
     )
     login_url = cabinet_login_with_verify_url(verify_ticket=issued.ticket)
@@ -2047,10 +2046,10 @@ def _issue_login_code_to_max(
         text=reply,
         attachments=inline_link_keyboard(OPEN_CABINET_BUTTON_LABEL, login_url),
     )
-        auth_event(
+    auth_event(
         "max_login_code",
         outcome="ok",
-            max_user_id=user_id,
+        max_user_id=user_id,
         ticket=pending.ticket_id,
         status="code_sent",
     )
@@ -2080,13 +2079,13 @@ def _handle_pair_code(
         pair_code=code, max_user_id=user_id, contact=contact
     )
     if pending:
-    auth_event(
-        "max_pair",
-        outcome="ok",
-        max_user_id=user_id,
-        ticket=pending.ticket_id,
-        status=pending.status,
-    )
+        auth_event(
+            "max_pair",
+            outcome="ok",
+            max_user_id=user_id,
+            ticket=pending.ticket_id,
+            status=pending.status,
+        )
         if pending.audience == "staff":
             from sfrfr.security.login_otp import CONFIRM_STAFF_CABINET_LOGIN_LABEL
 
@@ -2106,12 +2105,12 @@ def _handle_pair_code(
                 ),
             )
             return MaxHandleResult(ok=True, action="staff_pair_accepted", reply=reply)
-    return _complete_pc_login(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        ticket_id=pending.ticket_id,
-    )
+        return _complete_pc_login(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            ticket_id=pending.ticket_id,
+        )
     return _issue_login_code_to_max(bot, user_id=user_id, chat_id=chat_id)
 
 
@@ -2593,8 +2592,15 @@ def handle_max_update(
 
     if record is None:
         # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
+        # Произвольный текст → ТЗ-26 LLM (или nudge при флаге/ошибке).
         if text and intake is not None:
-            reply, attachments = free_text_nudge(intake=intake)
+            from sfrfr.integrations.max.llm_chat import reply_to_free_text
+
+            reply, attachments, action = reply_to_free_text(
+                user_text=text,
+                intake=intake,
+                case_id=None,
+            )
             _reply(
                 bot,
                 user_id=user_id,
@@ -2604,7 +2610,7 @@ def handle_max_update(
             )
             return MaxHandleResult(
                 ok=True,
-                action="free_text_nudge",
+                action=action,
                 case_id=None,
                 reply=reply,
             )
@@ -2701,10 +2707,6 @@ def handle_max_update(
             try:
                 from sfrfr.db.case_repository import CaseRepository
                 from sfrfr.services.case_chat_bot import try_immediate_rule_reply
-                from sfrfr.services.case_chat_bot_jobs import (
-                    enqueue_bot_reply_job,
-                    new_correlation_id,
-                )
 
                 case_row = CaseRepository().get_case_row(str(case_for_log))
                 if case_row:
@@ -2723,27 +2725,16 @@ def handle_max_update(
                                 text=reply,
                                 case_id=case_for_log,
                             )
-            return MaxHandleResult(
+                            return MaxHandleResult(
                                 ok=True,
                                 action="bot_rule_reply",
                                 case_id=record.case_id,
                                 reply=reply,
                             )
-                    stored_id = str((stored or {}).get("id") or "")
-                    if stored_id:
-                        enqueue_bot_reply_job(
-                            case_id=str(case_for_log),
-                            message_id=stored_id,
-                            correlation_id=new_correlation_id(),
-                        )
-                        return MaxHandleResult(
-                            ok=True,
-                            action="bot_reply_queued",
-                            case_id=record.case_id,
-                            reply=None,
-                        )
+                    # Не enqueue bot_reply: в MAX нужен синхронный ТЗ-26 ответ
+                    # с кнопками воронки. Очередь LLM — для веб-кабинета (portal).
             except Exception as exc:  # noqa: BLE001
-                logger.warning("max bot_reply queue skipped: %s", exc)
+                logger.warning("max bot_rule_reply skipped: %s", exc)
         from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
         reply, attachments, action = reply_to_free_text(
