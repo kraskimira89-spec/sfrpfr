@@ -1105,12 +1105,12 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             ),
         )
     if pending.audience == "staff":
-        return MaxOtpPollResponse(
-            ok=True,
-            status="pending_pair",
-            message=(
-                f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
-                "после этого вход откроется сам."
+    return MaxOtpPollResponse(
+        ok=True,
+        status="pending_pair",
+        message=(
+            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
+            "после этого вход откроется сам."
             ),
         )
     return MaxOtpPollResponse(
@@ -2621,9 +2621,9 @@ def create_message(
             client_message = _client_case_message(existing)
             return client_message
     insert_row: dict[str, Any] = {
-        "case_id": case_id,
-        "author_user_id": principal.user_id,
-        "author_kind": kind,
+                "case_id": case_id,
+                "author_user_id": principal.user_id,
+                "author_kind": kind,
         "body": body,
         "channel_origin": channel_origin,
     }
