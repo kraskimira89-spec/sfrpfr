@@ -232,7 +232,7 @@ function captureAdminDeepLink(): AdminDeepLink | null {
     const link: AdminDeepLink = { caseId, focusChat };
     try {
       window.sessionStorage.setItem(ADMIN_DEEP_LINK_KEY, JSON.stringify(link));
-    } catch {
+  } catch {
       // private mode / quota
     }
     return link;
@@ -966,7 +966,7 @@ export function AdminCabinet() {
     try {
       const result = await apiFetch<{ ok?: boolean; skipped?: boolean; error?: string }>(
         `/api/portal/admin/cases/${caseId}/email`,
-        token,
+          token,
         { method: "POST", body: JSON.stringify({ template: "request_docs" }) },
       );
       if (result.ok) setNotice("Письмо «запрос документов» отправлено.");
@@ -1057,7 +1057,7 @@ export function AdminCabinet() {
           ? `Отказ зафиксирован: ${payload.loss_reason || "—"}`
           : "Дело закрыто успешно.",
       );
-      await openCase(detail.id);
+    await openCase(detail.id);
       await loadDashboard();
       await loadCases();
     } catch {
@@ -1672,14 +1672,14 @@ export function AdminCabinet() {
               {Object.entries(DOC_STATUS_LABELS).map(([key, label]) => {
                 const count = dashboard.doc_status[key] ?? 0;
                 return (
-                <button
+                  <button
                     key={key}
-                  type="button"
+                    type="button"
                     className={queueFilter === `doc:${key}` ? "chip active" : "chip"}
                     onClick={() => setQueueFilter(`doc:${key}`)}
-                >
+                  >
                     {label} тАФ {count}
-                </button>
+                  </button>
                 );
               })}
             </div>
@@ -2023,7 +2023,7 @@ export function AdminCabinet() {
                   </label>
                   <label>
                     Краткий заголовок (опционально)
-                    <input
+                <input
                       value={trackerTitle}
                       onChange={(e) => setTrackerTitle(e.target.value)}
                       placeholder="Без ПДн"
@@ -2037,8 +2037,8 @@ export function AdminCabinet() {
                       value={trackerDesc}
                       onChange={(e) => setTrackerDesc(e.target.value)}
                       placeholder="Что не так / что улучшить — без персональных данных"
-                      required
-                    />
+                  required
+                />
                   </label>
                   <label className="inline-form">
                     <input
@@ -2052,7 +2052,7 @@ export function AdminCabinet() {
                     В Tracker уйдёт псевдоним дела (case_ref), этап {detail.pipeline_status}, тип и
                     описание. Очередь STAZH.
                   </p>
-                </div>
+          </div>
                 <div className="dup-dialog-actions">
                   <button type="button" className="ghost" onClick={() => setTrackerModalOpen(false)}>
                     Отмена
@@ -2060,8 +2060,8 @@ export function AdminCabinet() {
                   <button type="button" disabled={busy} onClick={() => void createTrackerIssue()}>
                     Создать в Tracker
                   </button>
-                </div>
               </div>
+            </div>
             </div>
           ) : null}
           {dupDialog ? (
@@ -2120,7 +2120,7 @@ export function AdminCabinet() {
                   <button type="button" className="ghost" onClick={() => setDupDialog(null)}>
                     Отменить
                   </button>
-          </div>
+            </div>
               </div>
             </div>
           ) : null}
