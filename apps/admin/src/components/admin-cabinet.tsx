@@ -559,9 +559,14 @@ export function AdminCabinet() {
       return true;
     } catch (err) {
       const detail = err instanceof Error ? err.message : "";
+      const status = (err as Error & { status?: number }).status;
+      const missing =
+        status === 404 ||
+        detail.includes("case not found") ||
+        detail.includes("404");
       setNotice(
-        detail.includes("case not found") || detail.includes("404")
-          ? "Дело не найдено или недоступно для вашей роли."
+        missing
+          ? "Дела по этой ссылке нет в базе (ссылка устарела или дело ещё не создано). Откройте дело из реестра — у администратора доступ ко всем делам."
           : `Не удалось открыть дело: ${detail || "ошибка API"}`,
       );
       return false;
@@ -583,7 +588,10 @@ export function AdminCabinet() {
     void (async () => {
       // Deep-link из ops «клиент ждёт» / документ в чат → дело + чат.
       const ok = await openCase(link.caseId, { focusMaxReply: true });
-      if (ok && !cancelled) clearAdminDeepLink();
+      if (!cancelled) {
+        clearAdminDeepLink();
+        if (!ok) setView("cases");
+      }
     })();
     return () => {
       cancelled = true;

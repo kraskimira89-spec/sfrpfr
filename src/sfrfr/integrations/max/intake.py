@@ -368,6 +368,17 @@ class MaxIntakeStore:
             encoding="utf-8",
         )
 
+    def find_max_user_id_by_case_id(self, case_id: str) -> str | None:
+        """Найти max_user_id по case_id из локального intake (в т.ч. фантомный id)."""
+        cid = str(case_id or "").strip()
+        if not cid:
+            return None
+        with self._lock:
+            for rec in self._rows.values():
+                if str(rec.case_id or "").strip() == cid:
+                    return str(rec.max_user_id)
+        return None
+
     def get_active(self, max_user_id: str) -> MaxIntakeRecord | None:
         with self._lock:
             rec = self._rows.get(str(max_user_id))

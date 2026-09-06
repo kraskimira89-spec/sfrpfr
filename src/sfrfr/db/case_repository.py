@@ -99,8 +99,44 @@ class CaseRepository:
         )
         return bool(representative)
 
+    def _latest_case_id_for_max_user(self, max_user_id: str) -> str | None:
+        mid = str(max_user_id or "").strip()
+        if not mid:
+            return None
+        client = self._one_or_none(
+            self.client.table("clients").select("id").eq("max_user_id", mid).limit(1).execute()
+        )
+        if not client:
+            return None
+        row = self._one_or_none(
+            self.client.table("cases")
+            .select("id")
+            .eq("client_id", client["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        cid = str((row or {}).get("id") or "").strip()
+        return cid or None
+
+    def _resolve_stale_staff_case_id(self, case_id: str) -> str | None:
+        """Если ссылка из MAX/ops ведёт на несуществующий case_id — найти актуальное дело."""
+        try:
+            from sfrfr.integrations.max.intake import get_intake_store
+
+            mid = get_intake_store().find_max_user_id_by_case_id(case_id)
+        except Exception:  # noqa: BLE001
+            return None
+        if not mid:
+            return None
+        return self._latest_case_id_for_max_user(mid)
+
     def require_case(self, principal: Principal, case_id: str) -> dict[str, Any]:
         case = self._case(case_id)
+        if case is None and principal.is_staff:
+            alt = self._resolve_stale_staff_case_id(case_id)
+            if alt and alt != case_id:
+                case = self._case(alt)
         if case is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
         if not self.can_access(principal, case):

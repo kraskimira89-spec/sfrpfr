@@ -447,3 +447,14 @@ def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
         "Как вам удобнее открыть кабинет на сайте — с телефона или с компьютера?"
     )
     get_settings.cache_clear()
+
+
+def test_find_max_user_id_by_case_id(tmp_path: Path) -> None:
+    from sfrfr.integrations.max.intake import MaxIntakeStore
+
+    store = MaxIntakeStore(tmp_path / "max_intake.json")
+    rec = store.upsert_started("155779318")
+    rec.case_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    store.save(rec)
+    assert store.find_max_user_id_by_case_id(rec.case_id) == "155779318"
+    assert store.find_max_user_id_by_case_id("missing") is None
