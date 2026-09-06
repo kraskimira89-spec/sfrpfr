@@ -291,6 +291,10 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
         "sfrfr.integrations.amocrm.sync.persist_crm_external_id",
         lambda *_a, **_k: None,
     )
+    monkeypatch.setattr(
+        "sfrfr.services.lead_ops_notify.notify_ops_new_lead",
+        lambda **_k: {"ok": False, "skipped": True},
+    )
 
     handle_max_update(_msg(11, "/start"), bot=bot)
     result = handle_max_update(_cb(11, "intake:goal:operator"), bot=bot)

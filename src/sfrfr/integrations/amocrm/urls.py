@@ -14,13 +14,14 @@ def admin_case_url(case_id: str | None) -> str | None:
     base = (get_settings().admin_public_url or "").strip().rstrip("/")
     if not base:
         return None
-    return f"{base}/?case={cid}&view=cases"
+    return f"{base}/c/{cid}?view=cases"
 
 
 def admin_case_max_reply_url(case_id: str | None) -> str | None:
     """Кабинет сотрудника → реестр → дело → чат с клиентом.
 
-    ``view=cases&focus=chat`` в query (не hash): MAX и почта часто отрезают ``#…``.
+    Путь ``/c/{uuid}`` кликабельнее в почте, чем ``/?case=``.
+    ``focus=chat`` в query (не hash): MAX и почта часто отрезают ``#…``.
     """
     base = admin_case_url(case_id)
     if not base:

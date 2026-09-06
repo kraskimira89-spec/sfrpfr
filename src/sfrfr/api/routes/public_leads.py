@@ -422,7 +422,7 @@ def _create_lead(
             source=attr.source,
             consent=bool(payload.consent),
             case_url=(
-                f"{admin_base}/?case={case_id}&view=cases&focus=chat" if admin_base else None
+                f"{admin_base}/c/{case_id}?view=cases&focus=chat" if admin_base else None
             ),
             task=f"lead:{attr.source}",
             first_source=attr.first_source,

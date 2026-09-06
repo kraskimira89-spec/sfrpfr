@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sfrfr.services.lead_ops_notify import build_lead_notify_text
+from sfrfr.services.lead_ops_notify import build_lead_notify_text, notify_ops_new_lead
 
 
 def test_build_lead_notify_text_includes_phone_email_and_staff_chat_url() -> None:
@@ -19,5 +19,24 @@ def test_build_lead_notify_text_includes_phone_email_and_staff_chat_url() -> Non
     assert "Email: client@example.com" in body
     assert "Дело:" in body
     assert staff_url and "focus=chat" in staff_url
+    assert "/c/" in staff_url
     assert "view=cases" in staff_url
     assert "amoCRM" not in body
+
+
+def test_notify_ops_skips_pytest_and_missing_case(monkeypatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    result = notify_ops_new_lead(
+        case_id="d0491474-8618-4615-bfe6-993f645ad740",
+        full_name="MAX 11",
+        channel="max_chat",
+        source_label="из чата MAX",
+        max_user_id="11",
+    )
+    assert result.get("skipped")
+    get_settings.cache_clear()

@@ -18,6 +18,7 @@ def _channel_label_ru(channel: str) -> str:
         "site": "Сайт",
         "web_cabinet": "Веб-кабинет",
         "max_miniapp": "MAX",
+        "max_chat": "MAX",
         "max": "MAX",
         "cabinet": "Кабинет на сайте",
         "admin": "Админ",
@@ -227,6 +228,38 @@ def notify_max_managers_new_lead(
     }
 
 
+def _skip_lead_notify(case_id: str) -> str | None:
+    """Не слать письмо на фантомный UUID (тесты / локальный store без строки в Postgres)."""
+    import os
+
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return "pytest"
+    cid = (case_id or "").strip()
+    if len(cid) < 32:
+        return "invalid_case_id"
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        return "no_supabase"
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("cases")
+            .select("id")
+            .eq("id", cid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+    except Exception:  # noqa: BLE001
+        return "case_lookup_failed"
+    if not rows:
+        return "case_not_in_db"
+    return None
+
+
 def notify_ops_new_lead(
     *,
     case_id: str,
@@ -240,6 +273,10 @@ def notify_ops_new_lead(
     crm_url: str | None = None,
 ) -> dict[str, Any]:
     """Email на OPS_NOTIFY_EMAIL + MAX чат сотрудников."""
+    skip = _skip_lead_notify(case_id)
+    if skip:
+        logger.warning("ops lead notify skipped case=%s reason=%s", (case_id or "")[:8], skip)
+        return {"ok": False, "skipped": True, "reason": skip}
     email_result = notify_email_ops_new_lead(
         case_id=case_id,
         full_name=full_name,

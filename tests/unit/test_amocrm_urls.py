@@ -22,7 +22,7 @@ def test_admin_case_url(monkeypatch) -> None:
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()
-    assert admin_case_url("abc") == "https://admin.example/?case=abc&view=cases"
+    assert admin_case_url("abc") == "https://admin.example/c/abc?view=cases"
     get_settings.cache_clear()
 
 
@@ -31,8 +31,8 @@ def test_admin_case_max_reply_url(monkeypatch) -> None:
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()
-    assert admin_case_max_reply_url("abc") == "https://admin.example/?case=abc&view=cases&focus=chat"
-    assert max_dialog_url("abc") == "https://admin.example/?case=abc&view=cases&focus=chat"
+    assert admin_case_max_reply_url("abc") == "https://admin.example/c/abc?view=cases&focus=chat"
+    assert max_dialog_url("abc") == "https://admin.example/c/abc?view=cases&focus=chat"
     get_settings.cache_clear()
 
 

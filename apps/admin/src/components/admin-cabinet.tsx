@@ -225,31 +225,32 @@ function persistAdminDeepLink(link: AdminDeepLink) {
   } catch {
     // private mode / quota
   }
-  try {
-    window.localStorage.setItem(ADMIN_DEEP_LINK_KEY, raw);
-  } catch {
-    // private mode / quota
-  }
 }
 
 function readStoredAdminDeepLink(): AdminDeepLink | null {
-  for (const store of [window.sessionStorage, window.localStorage]) {
-    try {
-      const raw = store.getItem(ADMIN_DEEP_LINK_KEY);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as AdminDeepLink;
-      if (parsed?.caseId) return parsed;
-    } catch {
-      // ignore
-    }
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_DEEP_LINK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdminDeepLink;
+    if (parsed?.caseId) return parsed;
+  } catch {
+    // ignore
   }
   return null;
+}
+
+function caseIdFromLocation(): string {
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = (params.get("case") || "").trim();
+  if (fromQuery) return fromQuery;
+  const match = window.location.pathname.match(/\/c\/([0-9a-fA-F-]{36})(?:\/|$)/);
+  return match?.[1] ?? "";
 }
 
 function captureAdminDeepLink(): AdminDeepLink | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const caseId = (params.get("case") || "").trim();
+  const caseId = caseIdFromLocation();
   const focusParam = (params.get("focus") || "").trim().toLowerCase();
   const focusChat =
     focusParam !== "none" &&
