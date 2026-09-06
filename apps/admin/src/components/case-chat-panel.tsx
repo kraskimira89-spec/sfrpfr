@@ -66,6 +66,19 @@ function authorLabel(authorKind: string): string {
   return labelAuthorKind(authorKind);
 }
 
+/** Имя вида «MAX 12345» — заглушка, не ФИО. */
+function isMaxPlaceholderName(name: string | null | undefined): boolean {
+  const raw = (name || "").trim();
+  if (!raw) return true;
+  return /^MAX\s+\d+$/i.test(raw);
+}
+
+function displayClientFio(name: string | null | undefined): string | null {
+  const raw = (name || "").trim();
+  if (!raw || isMaxPlaceholderName(raw)) return null;
+  return raw;
+}
+
 function dayKey(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "unknown";
@@ -156,6 +169,7 @@ export function CaseChatPanel({
   clientName = null,
   caseLabel = null,
   maxLinked,
+  maxUserId = null,
   body,
   onBodyChange,
   busy,
@@ -172,7 +186,7 @@ export function CaseChatPanel({
   /** Идентификатор дела вида ПС-000123. */
   caseLabel?: string | null;
   maxLinked: boolean;
-  /** @deprecated оставлено для совместимости вызова; в UI не показывается. */
+  /** MAX user_id клиента (мета под заголовком). */
   maxUserId?: string | null;
   /** @deprecated оставлено для совместимости вызова; в UI не показывается. */
   maxBusinessUrl?: string | null;
@@ -254,15 +268,44 @@ export function CaseChatPanel({
     scrollFeedToEnd();
   }, [lastMessageKey, messages, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
 
+  const fio = displayClientFio(clientName);
+  const maxMeta = (maxUserId || "").trim() || null;
+  const metaBits = [
+    maxMeta ? `MAX ${maxMeta}` : null,
+    caseLabel || null,
+  ].filter(Boolean) as string[];
+
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
       <div className="case-chat-head">
         <div className="case-chat-head-row case-chat-head-row--meta">
-          <h2>Чат с клиентом</h2>
-          <p className="case-chat-client-id" title="Клиент и номер дела">
-            <strong>{(clientName || "").trim() || "Клиент без ФИО"}</strong>
-            {caseLabel ? <span className="case-chat-case-no">{caseLabel}</span> : null}
-          </p>
+          <h2 className="case-chat-title" title="Чат с клиентом">
+            Чат с клиентом
+            {fio ? (
+              <>
+                <span className="case-chat-title-sep" aria-hidden="true">
+                  {" "}
+                  ·{" "}
+                </span>
+                <span className="case-chat-title-fio">{fio}</span>
+              </>
+            ) : (
+              <>
+                <span className="case-chat-title-sep" aria-hidden="true">
+                  {" "}
+                  ·{" "}
+                </span>
+                <span className="case-chat-title-fio case-chat-title-fio--missing">
+                  ФИО не указано
+                </span>
+              </>
+            )}
+          </h2>
+          {metaBits.length > 0 ? (
+            <p className="case-chat-client-id" title="MAX и номер дела">
+              {metaBits.join(" · ")}
+            </p>
+          ) : null}
           {headBadges.length > 0 ? (
             <div className="situation-badges case-chat-head-badges">
               {headBadges.map((b) => (
@@ -394,18 +437,21 @@ export function CaseChatPanel({
 
       <div className={`case-chat-composer${composerHighlight ? " case-chat-composer--flash" : ""}`}>
         {suggestions.length > 0 ? (
-          <div className="case-chat-buttons" aria-label="Варианты ответа DeepSeek">
-            {suggestions.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className="case-chat-btn-chip case-chat-btn-chip--clickable"
-                onClick={() => onBodyChange(item)}
-                title="Подставить этот вариант ответа в поле сообщения ниже"
-              >
-                {item.length > 80 ? `${item.slice(0, 80)}…` : item}
-              </button>
-            ))}
+          <div className="case-chat-suggest case-chat-suggest--client" aria-label="Варианты ответа DeepSeek">
+            <p className="case-chat-suggest-label">Черновики клиенту</p>
+            <div className="case-chat-buttons">
+              {suggestions.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client"
+                  onClick={() => onBodyChange(item)}
+                  title="Подставить этот вариант ответа в поле сообщения ниже"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
         <textarea

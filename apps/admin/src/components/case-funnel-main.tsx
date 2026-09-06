@@ -743,25 +743,31 @@ export function CaseFunnelMain({
           </div>
           {stepHint ? (
             <div className="case-step-hint">
-              <p>
-                <strong>{stepHint.source === "deepseek" ? "DeepSeek" : "По этапу"}:</strong>{" "}
-                {stepHint.action}
-              </p>
-              {stepHint.reason ? <p className="hint">{stepHint.reason}</p> : null}
+              <div className="case-step-hint-staff">
+                <p className="case-step-hint-label">Рекомендация сотруднику</p>
+                <p>
+                  <strong>{stepHint.source === "deepseek" ? "DeepSeek" : "По этапу"}:</strong>{" "}
+                  {stepHint.action}
+                </p>
+                {stepHint.reason ? <p className="hint">{stepHint.reason}</p> : null}
+              </div>
               {stepMessages.length > 0 ? (
-                <div className="case-step-hint-msgs">
-                  {stepMessages.map((msg) => (
-                    <button
-                      key={`${msg.kind}-${msg.text.slice(0, 40)}`}
-                      type="button"
-                      className="case-chat-btn-chip case-chat-btn-chip--clickable"
-                      onClick={() => applyTemplate(msg.text)}
-                      title="Подставить в поле чата. Отправка в MAX — отдельно"
-                    >
-                      {KIND_LABEL[msg.kind]}:{" "}
-                      {msg.text.length > 60 ? `${msg.text.slice(0, 60)}…` : msg.text}
-                    </button>
-                  ))}
+                <div className="case-step-hint-client">
+                  <p className="case-step-hint-label">Черновики клиенту</p>
+                  <div className="case-step-hint-msgs">
+                    {stepMessages.map((msg) => (
+                      <button
+                        key={`${msg.kind}-${msg.text.slice(0, 40)}`}
+                        type="button"
+                        className="case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client"
+                        onClick={() => applyTemplate(msg.text)}
+                        title="Подставить в поле чата. Отправка в MAX — отдельно"
+                      >
+                        <span className="case-step-hint-kind">{KIND_LABEL[msg.kind]}</span>
+                        {msg.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : null}
               <button type="button" className="linkish" onClick={onDismissHint}>
