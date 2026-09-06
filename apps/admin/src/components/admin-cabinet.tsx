@@ -218,37 +218,56 @@ const ADMIN_DEEP_LINK_KEY = "sfrfr_admin_deep_link";
 
 type AdminDeepLink = { caseId: string; focusChat: boolean };
 
+function persistAdminDeepLink(link: AdminDeepLink) {
+  const raw = JSON.stringify(link);
+  try {
+    window.sessionStorage.setItem(ADMIN_DEEP_LINK_KEY, raw);
+  } catch {
+    // private mode / quota
+  }
+  try {
+    window.localStorage.setItem(ADMIN_DEEP_LINK_KEY, raw);
+  } catch {
+    // private mode / quota
+  }
+}
+
+function readStoredAdminDeepLink(): AdminDeepLink | null {
+  for (const store of [window.sessionStorage, window.localStorage]) {
+    try {
+      const raw = store.getItem(ADMIN_DEEP_LINK_KEY);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as AdminDeepLink;
+      if (parsed?.caseId) return parsed;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
 function captureAdminDeepLink(): AdminDeepLink | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
   const caseId = (params.get("case") || "").trim();
   const focusParam = (params.get("focus") || "").trim().toLowerCase();
   const focusChat =
-    focusParam === "chat" ||
-    focusParam === "max-reply" ||
-    focusParam === "max_reply" ||
-    window.location.hash === "#max-reply";
+    focusParam !== "none" &&
+    (focusParam === "" ||
+      focusParam === "chat" ||
+      focusParam === "max-reply" ||
+      focusParam === "max_reply" ||
+      params.get("view") === "cases" ||
+      window.location.hash === "#max-reply");
   if (caseId) {
     const link: AdminDeepLink = { caseId, focusChat };
-    try {
-      window.sessionStorage.setItem(ADMIN_DEEP_LINK_KEY, JSON.stringify(link));
-  } catch {
-      // private mode / quota
-    }
+    persistAdminDeepLink(link);
     return link;
   }
-  try {
-    const raw = window.sessionStorage.getItem(ADMIN_DEEP_LINK_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AdminDeepLink;
-    if (parsed?.caseId) return parsed;
-  } catch {
-    // ignore
-  }
-  return null;
+  return readStoredAdminDeepLink();
 }
 
-function clearAdminDeepLink() {
+function clearAdminDeepLinkStorage() {
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.removeItem(ADMIN_DEEP_LINK_KEY);
@@ -256,9 +275,20 @@ function clearAdminDeepLink() {
     // ignore
   }
   try {
+    window.localStorage.removeItem(ADMIN_DEEP_LINK_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function clearAdminDeepLink() {
+  if (typeof window === "undefined") return;
+  clearAdminDeepLinkStorage();
+  try {
     const u = new URL(window.location.href);
     u.searchParams.delete("case");
     u.searchParams.delete("focus");
+    u.searchParams.delete("view");
     if (u.hash === "#max-reply") u.hash = "";
     window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
   } catch {
@@ -586,12 +616,27 @@ export function AdminCabinet() {
     if (!link?.caseId) return;
     let cancelled = false;
     void (async () => {
-      // Deep-link из ops «клиент ждёт» / документ в чат → дело + чат.
-      const ok = await openCase(link.caseId, { focusMaxReply: true });
-      if (!cancelled) {
-        clearAdminDeepLink();
-        if (!ok) setView("cases");
+      try {
+        await loadCases();
+      } catch {
+        // реестр подтянется повторно; дело важнее
       }
+      if (cancelled) return;
+      setView("cases");
+      let ok = await openCase(link.caseId, { focusMaxReply: true });
+      if (!ok && !cancelled) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        if (!cancelled) {
+          ok = await openCase(link.caseId, { focusMaxReply: true });
+        }
+      }
+      if (cancelled) return;
+      if (ok) {
+        clearAdminDeepLinkStorage();
+        return;
+      }
+      clearAdminDeepLink();
+      setView("cases");
     })();
     return () => {
       cancelled = true;

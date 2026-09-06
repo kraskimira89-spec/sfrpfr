@@ -607,6 +607,7 @@ def _ensure_case_for_intake(
     chat_id: int | str | None,
     intake,
     store,
+    timeout: float | None = 15.0,
 ) -> str:
     """Создать или найти дело: с /start для ленты чата; также кабинет / оператор.
 
@@ -657,7 +658,9 @@ def _ensure_case_for_intake(
         )
         store.clear_max_binding(user_id)
 
-    supabase_case = _try_create_supabase_case(user_id=user_id, intake=intake)
+    supabase_case = _try_create_supabase_case(
+        user_id=user_id, intake=intake, timeout=timeout
+    )
     if supabase_case:
         case_id, client_id = supabase_case
         intake.case_id = case_id
@@ -667,14 +670,13 @@ def _ensure_case_for_intake(
             client_name=f"MAX user {user_id}",
             snils_masked="***-***-*** **",
             consent_given=False,
+            case_id=case_id,
         )
-        # Сохраняем локальную привязку; id может отличаться — для бота важен bind_max.
         store.bind_max(
             record.case_id,
             max_user_id=user_id,
             max_chat_id=str(chat_id) if chat_id is not None else None,
         )
-        # Предпочитаем supabase case_id в deep-link и ленте чата.
         intake.case_id = case_id
         get_intake_store().save(intake)
         return _finish(case_id)
@@ -726,8 +728,13 @@ def _case_exists_in_supabase(case_id: str | None) -> bool:
         return False
 
 
-def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None:
-    """Best-effort создание дела в Postgres с коротким таймаутом."""
+def _try_create_supabase_case(
+    *,
+    user_id: str,
+    intake,
+    timeout: float | None = 15.0,
+) -> tuple[str, str] | None:
+    """Создать дело в Postgres. Таймаут 15 с — иначе письмо уходит на пустую ссылку."""
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_service_role_key:
         return None
@@ -750,8 +757,10 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
         return str(created["id"]), client_id
 
     try:
+        if timeout is None:
+            return _work()
         with ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(_work).result(timeout=5.0)
+            return pool.submit(_work).result(timeout=timeout)
     except (FuturesTimeout, Exception):
         import logging
 
@@ -759,7 +768,13 @@ def _try_create_supabase_case(*, user_id: str, intake) -> tuple[str, str] | None
         return None
 
 
-def _notify_operator_staff(*, user_id: str, intake, case_id: str | None) -> None:
+def _notify_operator_staff(
+    *,
+    user_id: str,
+    intake,
+    case_id: str | None,
+    source_label: str = "из чата MAX",
+) -> None:
     """Уведомить сотрудников о заявке из чата MAX (email + чат, без amo при выключенном CRM)."""
     if not case_id:
         return
@@ -828,7 +843,7 @@ def _notify_operator_staff(*, user_id: str, intake, case_id: str | None) -> None
             phone=phone,
             email=email,
             channel=channel,
-            source_label="из чата MAX",
+            source_label=source_label,
             max_user_id=user_id,
             crm_url=crm_url,
         )
@@ -840,6 +855,61 @@ def _notify_operator_staff(*, user_id: str, intake, case_id: str | None) -> None
 
 def _notify_operator_amocrm(*, user_id: str, intake, case_id: str | None) -> None:
     _notify_operator_staff(user_id=user_id, intake=intake, case_id=case_id)
+
+
+def _mark_staff_notified(intake) -> None:
+    from datetime import UTC, datetime
+
+    if intake is None:
+        return
+    intake.staff_notified_at = datetime.now(UTC).isoformat()
+    get_intake_store().save(intake)
+
+
+def _notify_staff_max_started(*, user_id: str, intake, case_id: str | None) -> None:
+    """Письмо сотруднику сразу после «Начать» — ссылка на уже созданное дело."""
+    if not case_id or intake is None:
+        return
+    if getattr(intake, "staff_notified_at", None):
+        return
+    _notify_operator_staff(
+        user_id=user_id,
+        intake=intake,
+        case_id=case_id,
+        source_label="из чата MAX (нажал «Начать»)",
+    )
+    _mark_staff_notified(intake)
+
+
+def _schedule_case_create_and_notify(
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    intake,
+    store,
+) -> None:
+    """Если webhook не успел создать дело — досоздать и только потом слать письмо."""
+    if not _supabase_configured():
+        return
+
+    import threading
+
+    def _work() -> None:
+        try:
+            fresh = get_intake_store().get_active(user_id) or intake
+            cid = _ensure_case_for_intake(
+                user_id=user_id,
+                chat_id=chat_id,
+                intake=fresh,
+                store=store,
+                timeout=None,
+            )
+            if cid:
+                _notify_staff_max_started(user_id=user_id, intake=fresh, case_id=cid)
+        except Exception:
+            logger.exception("background ensure_case failed max=%s", user_id)
+
+    threading.Thread(target=_work, daemon=True, name="max-ensure-case-start").start()
 
 
 def _fanout_ops_text(
@@ -1532,17 +1602,19 @@ def _handle_bot_start(
     store,
     welcome_text: str | None = None,
 ) -> MaxHandleResult:
-    """Старт: меню диагностики и раннее дело — переписка сразу в карточке."""
+    """Старт: сразу дело в реестре, лента чата и письмо сотруднику со ссылкой."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None:
         return resumed
 
-    _ensure_supabase_max_client(user_id)
     intake = get_intake_store().upsert_started(user_id)
-    # Дело с /start: сотрудник видит бота/кнопки до кабинета и «Позвать специалиста».
     case_id = _ensure_case_for_intake(
         user_id=user_id, chat_id=chat_id, intake=intake, store=store
     )
+    if not case_id:
+        _schedule_case_create_and_notify(
+            user_id=user_id, chat_id=chat_id, intake=intake, store=store
+        )
     text = welcome_text or WELCOME_TEXT
     _reply(
         bot,
@@ -1550,12 +1622,14 @@ def _handle_bot_start(
         chat_id=chat_id,
         text=text,
         attachments=goal_keyboard(),
-        case_id=case_id,
+        case_id=case_id or None,
     )
+    if case_id:
+        _notify_staff_max_started(user_id=user_id, intake=intake, case_id=case_id)
     return MaxHandleResult(
         ok=True,
         action="max_intake_started",
-        case_id=case_id,
+        case_id=case_id or None,
         reply=text,
     )
 

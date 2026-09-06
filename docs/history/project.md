@@ -1,3 +1,8 @@
+## 2026-09-06 — дело сразу по «Начать» в MAX
+
+Клиент нажал «Начать» → дело в реестре + лента чата + письмо со ссылкой на карточку.
+Сотрудник и бот отвечают на любом этапе. `docs/history/2026-09-06-max-start-creates-case.md`.
+
 ## 2026-09-05 — Yandex LLM: billing unblock + DeepSeek канон
 
 - Runbook billing-unblock обновлён по smoke/API; folder mismatch LLM vs инфра.

@@ -283,6 +283,7 @@ class MaxIntakeRecord:
     status: IntakeStatus = "started"
     client_id: str | None = None
     case_id: str | None = None
+    staff_notified_at: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())

@@ -68,7 +68,10 @@ def build_lead_notify_text(
         lines.append(f"Чат сотрудника: {staff_url}")
     if settings.amocrm_enabled and crm_url:
         lines.append(f"amoCRM: {crm_url}")
-    lines.append("Ответьте клиенту в чате кабинета сотрудника — ссылка выше.")
+    lines.append(
+        "Откройте ссылку: реестр дел → это дело → переписка с клиентом. "
+        "Ответить можно сразу; бот тоже продолжает диалог."
+    )
     subject = f"Проверка стажа: заявка {catalog}"
     return subject, "\n".join(lines), staff_url
 

@@ -19,4 +19,5 @@ def test_build_lead_notify_text_includes_phone_email_and_staff_chat_url() -> Non
     assert "Email: client@example.com" in body
     assert "Дело:" in body
     assert staff_url and "focus=chat" in staff_url
+    assert "view=cases" in staff_url
     assert "amoCRM" not in body

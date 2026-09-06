@@ -139,17 +139,21 @@ class CaseStore:
         client_name: str,
         snils_masked: str,
         consent_given: bool = True,
+        case_id: str | None = None,
     ) -> CaseRecord:
-        case_id = str(uuid.uuid4())
+        cid = (case_id or "").strip() or str(uuid.uuid4())
         record = CaseRecord(
-            case_id=case_id,
+            case_id=cid,
             client_name=client_name,
             snils_masked=snils_masked,
             consent_given=consent_given,
-            ctx=CaseContext(case_id=case_id, client_name=client_name, status=CaseStatus.INTAKE),
+            ctx=CaseContext(case_id=cid, client_name=client_name, status=CaseStatus.INTAKE),
         )
         with self._lock:
-            self._cases[case_id] = record
+            existing = self._cases.get(cid)
+            if existing:
+                return existing
+            self._cases[cid] = record
             self._save()
         return record
 

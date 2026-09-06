@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-09-06 — дело сразу по «Начать» в MAX
+
+- Кнопка «Начать» в личном боте сразу создаёт дело; письмо сотруднику — только после дела.
+- Ссылка: реестр → карточка → чат. Сотрудник и бот пишут на любом этапе.
+- История: `docs/history/2026-09-06-max-start-creates-case.md`.
+
 ## 2026-09-05 — Yandex LLM billing / smoke / docs
 
 - Чеклист `docs/ops/yandex-cloud-billing-unblock.md`: API-доказательства после пополнения; folder mismatch; smoke OK; prod ops LLM.

@@ -71,6 +71,7 @@ def _setup(tmp_path: Path, monkeypatch) -> _SilentBot:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("OPS_NOTIFY_EMAIL", "")
     monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
@@ -88,6 +89,29 @@ def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
     assert get_case_store().find_by_max_user("7") is not None
     intake = get_intake_store().get_active("7")
     assert intake is not None and intake.case_id == result.case_id
+    get_settings.cache_clear()
+
+
+def test_start_notifies_staff_once(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    calls: list[dict] = []
+
+    def _fake_notify(**kwargs):  # noqa: ANN003
+        calls.append(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        "sfrfr.services.lead_ops_notify.notify_ops_new_lead",
+        _fake_notify,
+    )
+    first = handle_max_update(_msg(21, "/start"), bot=bot)
+    handle_max_update(_msg(21, "/start"), bot=bot)
+    assert first.case_id
+    assert len(calls) == 1
+    assert calls[0]["case_id"] == first.case_id
+    assert "Начать" in str(calls[0]["source_label"])
+    intake = get_intake_store().get_active("21")
+    assert intake is not None and intake.staff_notified_at
     get_settings.cache_clear()
 
 
