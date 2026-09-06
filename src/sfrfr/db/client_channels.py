@@ -118,6 +118,9 @@ class ClientChannelRepository:
         mid = str(max_user_id).strip()
         existing = self.get_by_max_user_id(mid)
         if existing:
+            if full_name:
+                upgraded = self.apply_max_display_name(mid, full_name)
+                return upgraded or existing
             return existing
         email = f"max_{mid}@clients.sfrfr.local"
         auth_uid = self._ensure_auth_user_for_max(mid, email)
@@ -139,6 +142,23 @@ class ClientChannelRepository:
         if again:
             return again
         raise RuntimeError(f"clients insert returned empty for max_user_id={mid}")
+
+    def apply_max_display_name(self, max_user_id: str, full_name: str) -> dict[str, Any] | None:
+        """Подставить имя из профиля MAX вместо заглушки «MAX {id}»."""
+        from sfrfr.integrations.max.ops_client_label import should_store_max_display_name
+
+        mid = str(max_user_id).strip()
+        name = (full_name or "").strip()
+        row = self.get_by_max_user_id(mid)
+        if not row or not should_store_max_display_name(row.get("full_name"), name):
+            return row
+        updated = self._one_or_none(
+            self.client.table("clients")
+            .update({"full_name": name})
+            .eq("id", row["id"])
+            .execute()
+        )
+        return updated or {**row, "full_name": name}
 
     def set_preferred_channel(self, client_id: str, channel: str) -> dict[str, Any]:
         if channel not in _CHANNELS:

@@ -192,6 +192,24 @@ def _display_name_from_update(update: dict[str, Any], user_id: str | None = None
 def _welcome_for_update(update: dict[str, Any], user_id: str | None) -> str:
     return format_welcome_text(display_name=_display_name_from_update(update, user_id))
 
+
+_last_max_display_names: dict[str, str] = {}
+
+
+def _remember_max_display_name(user_id: str | None, display_name: str | None) -> None:
+    """Имя из MAX (Владимир) — в clients.full_name, чтобы шапка чата совпала с приветствием."""
+    mid = str(user_id or "").strip()
+    name = (display_name or "").strip()
+    if not mid or not name:
+        return
+    _last_max_display_names[mid] = name
+    try:
+        from sfrfr.db.client_channels import ClientChannelRepository
+
+        ClientChannelRepository().apply_max_display_name(mid, name)
+    except Exception:  # noqa: BLE001
+        logger.debug("remember max display name skipped max=%s", mid, exc_info=True)
+
 def _chat_id(update: dict[str, Any]) -> int | str | None:
     if update.get("chat_id") is not None:
         return update["chat_id"]
@@ -546,7 +564,10 @@ def _reply_need_start(
     )
 
 
-def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
+def _ensure_client_row(
+    max_user_id: str,
+    full_name: str | None = None,
+) -> dict[str, Any] | None:
     """Гарантированно получить/создать строку clients для max_user_id."""
     import logging
 
@@ -554,7 +575,10 @@ def _ensure_client_row(max_user_id: str) -> dict[str, Any] | None:
     try:
         from sfrfr.db.client_channels import ClientChannelRepository
 
-        return ClientChannelRepository().ensure_for_max_user(str(max_user_id))
+        return ClientChannelRepository().ensure_for_max_user(
+            str(max_user_id),
+            full_name=full_name or _last_max_display_names.get(str(max_user_id).strip()),
+        )
     except Exception as exc:  # noqa: BLE001
         log.exception("ensure_client_row_failed max=%s: %s", max_user_id, exc)
         return _client_row_by_max(max_user_id)
@@ -2421,7 +2445,9 @@ def handle_max_update(
             )
 
     store = get_case_store()
-    welcome_text = _welcome_for_update(update, user_id)
+    display_name = _display_name_from_update(update, user_id)
+    welcome_text = format_welcome_text(display_name=display_name)
+    _remember_max_display_name(user_id, display_name)
 
     # Раннее дело для ленты: даже до кабинета / оператора переписка видна в карточке.
     intake_early = get_intake_store().get_active(user_id)

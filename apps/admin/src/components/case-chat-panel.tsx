@@ -1,5 +1,6 @@
 "use client";
 
+import { clientNameForChatHeader } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -66,18 +67,6 @@ function authorLabel(authorKind: string): string {
   return labelAuthorKind(authorKind);
 }
 
-/** Имя вида «MAX 12345» — заглушка, не ФИО. */
-function isMaxPlaceholderName(name: string | null | undefined): boolean {
-  const raw = (name || "").trim();
-  if (!raw) return true;
-  return /^MAX\s+\d+$/i.test(raw);
-}
-
-function displayClientFio(name: string | null | undefined): string | null {
-  const raw = (name || "").trim();
-  if (!raw || isMaxPlaceholderName(raw)) return null;
-  return raw;
-}
 
 function dayKey(iso: string): string {
   const d = new Date(iso);
@@ -268,7 +257,7 @@ export function CaseChatPanel({
     scrollFeedToEnd();
   }, [lastMessageKey, messages, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
 
-  const fio = displayClientFio(clientName);
+  const fio = clientNameForChatHeader(clientName, messages);
   const maxMeta = (maxUserId || "").trim() || null;
   const metaBits = [
     maxMeta ? `MAX ${maxMeta}` : null,

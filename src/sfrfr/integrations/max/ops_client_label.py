@@ -26,6 +26,17 @@ def normalize_ops_full_name(full_name: str | None) -> str | None:
     return name
 
 
+def should_store_max_display_name(current: str | None, incoming: str | None) -> bool:
+    """Записать имя из MAX, только если в карточке ещё заглушка «MAX 123»."""
+    name = (incoming or "").strip()
+    if not name or is_placeholder_client_name(name):
+        return False
+    first = name.split()[0]
+    if len(first) < 2 or len(first) > 40 or not first[0].isalpha():
+        return False
+    return is_placeholder_client_name(current)
+
+
 def format_ops_client_block(
     *,
     max_user_id: str | int | None,

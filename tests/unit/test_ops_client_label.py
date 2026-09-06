@@ -7,6 +7,7 @@ from sfrfr.integrations.max.ops_client_label import (
     is_placeholder_client_name,
     lookup_ops_client_full_name,
     normalize_ops_full_name,
+    should_store_max_display_name,
 )
 
 
@@ -34,6 +35,13 @@ def test_format_ops_client_block_without_max() -> None:
     )
     assert text.startswith("Клиент: Петрова Анна")
     assert "MAX user_id: не привязан" in text
+
+
+def test_should_store_max_display_name_only_over_placeholder() -> None:
+    assert should_store_max_display_name("MAX 177840706", "Владимир") is True
+    assert should_store_max_display_name("", "Оксана") is True
+    assert should_store_max_display_name("Иванов Иван", "Владимир") is False
+    assert should_store_max_display_name("MAX 1", "MAX 2") is False
 
 
 def test_placeholder_names_rejected() -> None:
