@@ -8,7 +8,7 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
-from sfrfr.integrations.max.attachments import extract_downloadable_files
+from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
 from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
     MaxBotClient,
@@ -31,6 +31,8 @@ from sfrfr.integrations.max.intake import (
     ILS_HOWTO_TEXT,
     OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
+    UPLOAD_ACCEPTED_TEXT,
+    UPLOAD_BLOCKED_TEXT,
     WELCOME_TEXT,
     cabinet_url_for_case,
     device_keyboard,
@@ -1115,6 +1117,92 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
         import logging
 
         logging.getLogger(__name__).exception("max_operator_ops_notify_failed max=%s", user_id)
+
+
+def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
+    """Скачать вложения из апдейта MAX (file_bytes и url)."""
+    files: list[tuple[str, bytes]] = []
+    file_name = update.get("file_name")
+    file_bytes = update.get("file_bytes")
+    if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
+        files.append((file_name, bytes(file_bytes)))
+    for name, url in extract_downloadable_files(update):
+        try:
+            files.append((name, download_file(url)))
+        except Exception:  # noqa: BLE001
+            continue
+    return files
+
+
+def _try_max_payment_receipt(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    files: list[tuple[str, bytes]],
+) -> MaxHandleResult | None:
+    if not files:
+        return None
+    try:
+        from sfrfr.services.payment_receipt import ingest_max_receipt
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        result = ingest_max_receipt(max_user_id=str(user_id), files=files)
+    except Exception:  # noqa: BLE001
+        logger.info("max payment receipt skipped", exc_info=True)
+        return None
+    if not result:
+        return None
+    reply = str(result.get("client_message") or "Чек получили.")
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
+    return MaxHandleResult(
+        ok=result.get("status") in {"confirmed", "already_paid"},
+        action=f"payment_receipt_{result.get('status')}",
+        case_id=result.get("case_id"),
+        reply=reply,
+    )
+
+
+def _ingest_max_file(
+    *,
+    case_id: str,
+    filename: str,
+    data: bytes,
+    store: Any,
+    record: Any,
+) -> bool:
+    """Сохранить файл дела из MAX (Supabase quarantine или локальный store)."""
+    from sfrfr.integrations.max.case_chat_log import (
+        append_case_chat_message,
+        format_document_event,
+    )
+    from sfrfr.services.max_document_upload import upload_max_document
+    from sfrfr.storage.local import save_upload
+
+    row = upload_max_document(
+        case_id=case_id,
+        filename=filename,
+        data=data,
+        uploaded_by=f"max:{getattr(record, 'case_id', case_id)}",
+    )
+    if row is None:
+        try:
+            path = save_upload(record.case_id, filename, data)
+            store.add_document(record.case_id, str(path))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max local upload failed: %s", exc)
+            return False
+    try:
+        append_case_chat_message(
+            case_id=case_id,
+            author_kind="client",
+            body=format_document_event(filename=filename),
+            channel_origin="max",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("document case_message failed: %s", exc)
+    return True
 
 
 def _notify_staff_chat_docs(
@@ -2526,7 +2614,7 @@ def handle_max_update(
     intake:* — цели и вопросы
     /login — вход в веб-кабинет по коду
     /cabinet /status /documents /help — меню вернувшегося клиента
-    вложения — отклоняем и направляем в раздел «Мои документы» кабинета
+    вложения — принимаем в дело (канал чат-бот MAX); кабинет — альтернатива
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -2805,7 +2893,8 @@ def handle_max_update(
             "Команды: /start — диагностика, /cabinet — кабинет на сайте, "
             "/documents — какие документы нужны, /status — статус дела, "
             "/login — вход в кабинет с компьютера. Всегда можно позвать специалиста. "
-            "Документы загружайте только через раздел «Мои документы» в кабинете."
+            "Документы можно прислать прямо в этот чат (PDF/JPG/PNG) "
+            "или через раздел «Мои документы» на сайте."
         )
         _reply(
             bot,
@@ -2829,8 +2918,9 @@ def handle_max_update(
         )
         cabinet_url = cabinet_url_for_case(case_id)
         reply = (
-            "Откройте раздел «Мои документы» на сайте — "
-            "там файлы передаются защищённо. Вопросы пишите в этом чате."
+            "Документы можно прислать прямо в этот чат (PDF или фото) "
+            "или открыть раздел «Мои документы» на сайте. "
+            "Вопросы по делу пишите здесь."
         )
         _reply(
             bot,
@@ -2919,7 +3009,7 @@ def handle_max_update(
 
     if lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = "Загрузите документы через раздел «Мои документы» в кабинете на сайте."
+            reply = "Пришлите документы в этот чат или загрузите через «Мои документы» на сайте."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,
@@ -2933,24 +3023,58 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
-    file_bytes = update.get("file_bytes")
-    downloads = extract_downloadable_files(update)
-    if isinstance(file_bytes, (bytes, bytearray)) or bool(downloads):
-        from sfrfr.integrations.max.intake import documents_upload_keyboard
-        from sfrfr.services.case_chat_delivery import (
-            MAX_FILE_REJECT_TEXT,
-            documents_cabinet_url,
-        )
+    max_files = _collect_max_files(update)
+    receipt_handled = _try_max_payment_receipt(
+        bot, user_id=user_id, chat_id=chat_id, files=max_files
+    )
+    if receipt_handled is not None:
+        return receipt_handled
 
-        reject_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
-        docs_url = documents_cabinet_url(reject_case_id)
-        reply = MAX_FILE_REJECT_TEXT
-        ext_id = _max_message_id(update)
+    # Канал чат-бот MAX: документы принимаем сюда (кабинет — удобная альтернатива).
+    if max_files:
+        from sfrfr.integrations.max.intake import documents_upload_keyboard
+        from sfrfr.services.case_chat_delivery import documents_cabinet_url
+
+        upload_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        names: list[str] = []
+        if upload_case_id:
+            for name, data in max_files:
+                if _ingest_max_file(
+                    case_id=upload_case_id,
+                    filename=name,
+                    data=data,
+                    store=store,
+                    record=record,
+                ):
+                    names.append(name)
+        if names:
+            _notify_staff_chat_docs(
+                user_id=user_id, case_id=upload_case_id, filenames=names
+            )
+            reply = (
+                f"{UPLOAD_ACCEPTED_TEXT}\n"
+                f"Принято файлов: {len(names)}."
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                case_id=upload_case_id,
+            )
+            return MaxHandleResult(
+                ok=True,
+                action="upload",
+                case_id=upload_case_id or record.case_id,
+                reply=reply,
+            )
+        docs_url = documents_cabinet_url(upload_case_id)
+        reply = UPLOAD_BLOCKED_TEXT
         _append_client_case_message(
-            case_id=reject_case_id,
+            case_id=upload_case_id,
             max_user_id=user_id,
-            text="[Вложение отклонено: документы принимаются только через раздел «Мои документы»]",
-            external_message_id=ext_id,
+            text="[Вложение не принято: формат или ошибка загрузки]",
+            external_message_id=_max_message_id(update),
         )
         _reply(
             bot,
@@ -2958,12 +3082,12 @@ def handle_max_update(
             chat_id=chat_id,
             text=reply,
             attachments=documents_upload_keyboard(cabinet_url=docs_url),
-            case_id=reject_case_id,
+            case_id=upload_case_id,
         )
         return MaxHandleResult(
             ok=False,
-            action="upload_rejected_unified_chat",
-            case_id=reject_case_id,
+            action="upload_rejected",
+            case_id=upload_case_id or record.case_id,
             reply=reply,
         )
 
@@ -2994,6 +3118,7 @@ def handle_max_update(
                         case=case_row,
                         user_text=text,
                         reply_to_message_id=str((stored or {}).get("id") or "") or None,
+                        channel="max",
                     )
                     if immediate:
                         reply = str(immediate.get("body") or "").strip()

@@ -44,7 +44,9 @@ def test_client_chat_system_prompt_rules() -> None:
     assert "остановил" in low
     assert "специалист" in low
     assert "мои документы" in low
-    assert "чат по делу" in low
+    assert "чат" in low
+    assert "присл" in low or "можно прислать" in low
+    assert "не по теме" in low or "вне темы" in low or "не отвечай по существу" in low
     assert "электронн" in low or "трудов" in low
     assert "справка" in low
     assert "банковск" in low

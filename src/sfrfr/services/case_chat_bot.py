@@ -50,14 +50,29 @@ def _work_map_for_case(case: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
-    """Быстрые ответы по статусу дела без LLM."""
+def rule_based_reply(
+    user_text: str,
+    work: dict[str, Any],
+    *,
+    channel: str = "cabinet",
+) -> str | None:
+    """Быстрые ответы по статусу дела без LLM.
+
+    channel: cabinet — чат на сайте; max — личный чат MAX (файлы можно сюда).
+    """
     text = (user_text or "").strip()
     if not text:
         return None
     status_key = str(work.get("status_key") or "")
     now_need = str(work.get("now_need") or "").strip()
     sla = str(work.get("sla_note") or "").strip()
+    in_max = channel == "max"
+    docs_hint = (
+        "Можно прислать файлы прямо в этот чат (PDF/JPG/PNG) "
+        "или через «Мои документы» на сайте."
+        if in_max
+        else "Файлы — в разделе «Мои документы» на этой странице."
+    )
 
     if _RESULT_QUESTION.search(text):
         if status_key in {"result_ready", "done"}:
@@ -74,7 +89,7 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
         if status_key in {"waiting_docs", "need_info"}:
             need = now_need or "загрузить обязательные документы"
             return (
-                f"Сначала нужно: {need}. Файлы — в разделе «Мои документы» на этой странице. "
+                f"Сначала нужно: {need}. {docs_hint} "
                 "После загрузки комплекта проверка обычно занимает до 1 рабочего дня."
             )
         if status_key == "consent":
@@ -89,19 +104,25 @@ def rule_based_reply(user_text: str, work: dict[str, Any]) -> str | None:
 
     if _DOC_QUESTION.search(text):
         if now_need:
-            return (
-                f"Сейчас нужно: {now_need}. "
-                "Загрузите файлы в разделе «Мои документы» на этой странице — не в чат."
-            )
+            return f"Сейчас нужно: {now_need}. {docs_hint}"
         return (
             "Обязательный минимум — выписка ИЛС и трудовая книжка / сведения о стаже. "
-            "Загрузите их в «Мои документы»."
+            + (
+                "Пришлите их сюда в чат или через «Мои документы»."
+                if in_max
+                else "Загрузите их в «Мои документы»."
+            )
         )
 
     if _REPLACE_QUESTION.search(text):
+        if in_max:
+            return (
+                "Можно прислать новый файл сюда в чат — подпишите, какой документ заменяет. "
+                "Или в кабинете на сайте в «Мои документы» нажмите «Заменить файл»."
+            )
         return (
             "Да — в «Мои документы» нажмите «Заменить файл» у нужного документа, "
-            "пока специалист не принял файл. Документы в чат не отправляйте."
+            "пока специалист не принял файл."
         )
 
     from sfrfr.services.case_chat_payment import payment_intent_detected
@@ -138,6 +159,11 @@ def _llm_reply(
     )
 
     if looks_like_pdn(user_text):
+        if channel == "max":
+            return (
+                "Лучше не писать СНИЛС и паспорт цифрами в чат. "
+                "Пришлите скан файла сюда (PDF/JPG/PNG) или через «Мои документы» на сайте."
+            )
         return (
             "Лучше не писать СНИЛС и паспорт цифрами в чат. "
             "Документы загружайте только в «Мои документы» на этой странице."
@@ -200,6 +226,7 @@ def try_immediate_rule_reply(
     case: dict[str, Any],
     user_text: str,
     reply_to_message_id: str | None = None,
+    channel: str = "cabinet",
 ) -> dict[str, Any] | None:
     """Быстрый ответ по правилам без LLM — чтобы POST /messages не зависал."""
     body = (user_text or "").strip()
@@ -211,7 +238,7 @@ def try_immediate_rule_reply(
     except Exception as exc:  # noqa: BLE001
         logger.warning("case chat bot work_map failed case=%s: %s", case_id[:8], exc)
         return None
-    reply = rule_based_reply(body, work)
+    reply = rule_based_reply(body, work, channel=channel)
     if not reply:
         return None
     return _append_bot_reply(

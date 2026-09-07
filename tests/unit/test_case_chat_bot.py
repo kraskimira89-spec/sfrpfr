@@ -44,6 +44,14 @@ def test_rule_which_document() -> None:
     assert "Мои документы" in reply
 
 
+def test_rule_which_document_in_max() -> None:
+    work = {"status_key": "waiting_docs", "now_need": "Загрузить выписку ИЛС"}
+    reply = rule_based_reply("Какой документ загрузить сейчас?", work, channel="max")
+    assert reply is not None
+    assert "ИЛС" in reply
+    assert "чат" in reply.lower()
+
+
 @patch("sfrfr.services.case_chat_bot._work_map_for_case")
 @patch("sfrfr.integrations.max.case_chat_log.append_bot_case_message")
 def test_auto_reply_uses_rules_without_llm(

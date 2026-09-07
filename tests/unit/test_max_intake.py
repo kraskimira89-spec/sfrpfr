@@ -221,6 +221,7 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
 def test_summary_and_upload_keyboards_website_only() -> None:
     from sfrfr.integrations.max.intake import (
         SUMMARY_TEXT,
+        UPLOAD_ACCEPTED_TEXT,
         UPLOAD_BLOCKED_TEXT,
         cabinet_url_for_case,
         summary_keyboard,
@@ -241,9 +242,8 @@ def test_summary_and_upload_keyboards_website_only() -> None:
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
         assert links and all("cabinet." in u or "proverkastaza.ru" in u for u in links)
         assert all("/app/" not in u for u in links)
-    assert "сайте" in SUMMARY_TEXT.lower()
-    assert "сайте" in UPLOAD_BLOCKED_TEXT.lower()
-    assert "мои документы" in SUMMARY_TEXT.lower()
+    assert "чат" in SUMMARY_TEXT.lower()
+    assert "получили" in UPLOAD_ACCEPTED_TEXT.lower() or "добавили" in UPLOAD_ACCEPTED_TEXT.lower()
     assert "мои документы" in UPLOAD_BLOCKED_TEXT.lower()
     assert "кабинет в max" not in SUMMARY_TEXT.lower()
 
@@ -253,7 +253,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
 
     low = DOCS_INFO_TEXT.lower()
     assert "кроме" in low and "илс" in low
-    assert "мои документы" in low
+    assert "чат" in low or "мои документы" in low
     assert "трудов" in low
     assert "электронн" in low
     assert "справка о размере пенсии" in low
@@ -266,7 +266,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "перерасчёт" not in low
     assert "едином чате" in WELCOME_TEXT.lower() or "чат по делу" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
-    assert "мои документы" in DOCS_STAZH_TEXT.lower()
+    assert "чат" in DOCS_STAZH_TEXT.lower() or "мои документы" in DOCS_STAZH_TEXT.lower()
 
 
 def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
@@ -355,12 +355,16 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_upload_rejected_in_unified_chat(tmp_path: Path, monkeypatch) -> None:
+def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
     get_settings.cache_clear()
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._notify_staff_chat_docs",
+        lambda **_k: None,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.max_document_upload.upload_max_document",
         lambda **_k: None,
     )
 
@@ -369,11 +373,11 @@ def test_upload_rejected_in_unified_chat(tmp_path: Path, monkeypatch) -> None:
         "intake:goal:check_experience",
         "intake:ils:yes",
         "intake:emp:yes",
-        "intake:device:web",
+        "intake:device:max",
     ):
         handle_max_update(_cb(12, payload), bot=bot)
 
-    rejected = handle_max_update(
+    accepted = handle_max_update(
         {
             "message": {
                 "sender": {"user_id": 12},
@@ -381,14 +385,13 @@ def test_upload_rejected_in_unified_chat(tmp_path: Path, monkeypatch) -> None:
                 "body": {"text": ""},
             },
             "file_name": "scan.pdf",
-            "file_bytes": b"%PDF",
+            "file_bytes": b"%PDF-1.4 minimal",
         },
         bot=bot,
     )
-    assert rejected.action == "upload_rejected_unified_chat"
-    assert rejected.ok is False
-    assert "кабинет" in (rejected.reply or "").lower()
-    assert bot.attachments[-1]
+    assert accepted.action == "upload"
+    assert accepted.ok is True
+    assert "получили" in (accepted.reply or "").lower() or "приняли" in (accepted.reply or "").lower()
     get_settings.cache_clear()
 
 
