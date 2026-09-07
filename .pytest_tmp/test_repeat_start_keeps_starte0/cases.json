@@ -1,0 +1,26 @@
+{
+  "cases": {
+    "a0e054b3-3e66-4533-8790-264dd04afc3d": {
+      "case_id": "a0e054b3-3e66-4533-8790-264dd04afc3d",
+      "client_name": "MAX user 8",
+      "snils_masked": "***-***-*** **",
+      "consent_given": false,
+      "ctx": {
+        "case_id": "a0e054b3-3e66-4533-8790-264dd04afc3d",
+        "status": "intake",
+        "client_name": "MAX user 8",
+        "max_user_id": "8",
+        "max_chat_id": "1",
+        "document_paths": [],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": null,
+        "error": null
+      }
+    }
+  }
+}

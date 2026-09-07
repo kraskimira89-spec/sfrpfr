@@ -1,0 +1,24 @@
+{
+  "rows": {
+    "9": {
+      "id": "bbe229d8-f565-48bf-a193-cbbcdb282fd3",
+      "max_user_id": "9",
+      "goal": "check_experience",
+      "for_whom": "self",
+      "pension_status": "before",
+      "problem_type": "ils_stazh",
+      "ils_available": "need",
+      "employment_records_available": null,
+      "device_preference": "max",
+      "ils_howto_done": true,
+      "emp_howto_done": false,
+      "status": "completed",
+      "client_id": null,
+      "case_id": "87c96837-c07e-4b27-ae8b-01a7d10edda8",
+      "staff_notified_at": "2026-09-07T13:17:14.422794+00:00",
+      "started_at": "2026-09-07T13:17:14.415725+00:00",
+      "completed_at": "2026-09-07T13:17:14.433946+00:00",
+      "updated_at": "2026-09-07T13:17:14.435378+00:00"
+    }
+  }
+}
