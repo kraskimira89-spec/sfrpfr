@@ -48,10 +48,9 @@ WELCOME_PART_1 = (
 )
 
 WELCOME_PART_2 = (
-    "Чат по делу — один и тот же в кабинете на сайте и в MAX. "
-    "Пишите там, где удобнее: все сообщения будут в одной истории.\n\n"
     "Выписку ИЛС, трудовую и другие личные документы загружайте только "
-    "через раздел «Мои документы» в кабинете на сайте."
+    "через раздел «Мои документы» на сайте — в этот чат файлы не отправляйте. "
+    "Вопросы пишите прямо здесь."
 )
 
 WELCOME_PART_3 = "Для кого проверка? Выберите кнопку ниже."
@@ -82,16 +81,13 @@ FALLBACK_MENU_TEXT = (
     "Спасибо за сообщение.\n\n"
     "Сейчас удобнее отвечать кнопками ниже — так мы быстрее поймём ситуацию. "
     "Если хотите поговорить с человеком, нажмите «Позвать специалиста».\n\n"
-    "Чат по делу — один и тот же в MAX и кабинете на сайте. "
-    "История сообщений синхронизируется.\n"
-    "Документы загружайте только через раздел «Мои документы» в кабинете."
+    "Документы загружайте только через раздел «Мои документы» на сайте."
 )
 
 SUMMARY_TEXT = (
     "Поняли. Для начала нужно загрузить доступные документы и сверить их с данными ИЛС. "
-    "Откройте раздел «Мои документы» в кабинете на сайте — там файлы передаются защищённо. "
-    "Вопросы можно писать в этом же чате MAX или в кабинете: история будет общей. "
-    "Кабинет клиента — только на сайте."
+    "Откройте раздел «Мои документы» на сайте — там файлы передаются защищённо. "
+    "Вопросы по делу пишите в этом чате — мы ответим здесь."
 )
 
 DOCS_INFO_TEXT = (
@@ -111,8 +107,8 @@ DOCS_INFO_TEXT = (
     "4) Особые периоды — военный билет; дети (число детей / свидетельства); "
     "опекунство; льготный/северный/вредный стаж; смена фамилии "
     "(кнопка «Дети, опека, справки»).\n\n"
-    "Документы загружайте только через раздел «Мои документы» в кабинете на сайте. "
-    "Вопросы по делу можно писать в MAX или в кабинете — это одна история. "
+    "Документы загружайте только через раздел «Мои документы» на сайте. "
+    "Вопросы по делу пишите в этом чате. "
     "Подробности — кнопками ниже."
 )
 
@@ -588,7 +584,9 @@ def summary_keyboard(
     cabinet_max_url: str | None = None,
     cabinet_web_url: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Одна CTA в веб-кабинет. Устар. cabinet_max_url/cabinet_web_url — для совместимости."""
+    """CTA на загрузку документов (не «перейти в чат кабинета»)."""
+    from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
+
     url = (cabinet_url or cabinet_web_url or cabinet_max_url or "").strip()
     rows: list[list[dict[str, Any]]] = []
     if device == "help":
@@ -596,7 +594,7 @@ def summary_keyboard(
             [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
         )
     if url:
-        rows.append([{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}])
+        rows.append([{"type": "link", "text": DOCUMENTS_SECTION_LABEL, "url": url}])
     rows.extend(
         [
             [{"type": "callback", "text": DOCS_INFO_LABEL, "payload": "intake:docs_info"}],
@@ -627,10 +625,12 @@ def upload_blocked_keyboard(
     cabinet_max_url: str | None = None,
     cabinet_web_url: str | None = None,
 ) -> list[dict[str, Any]]:
+    from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
+
     url = (cabinet_url or cabinet_web_url or cabinet_max_url or "").strip()
     rows: list[list[dict[str, Any]]] = []
     if url:
-        rows.append([{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}])
+        rows.append([{"type": "link", "text": DOCUMENTS_SECTION_LABEL, "url": url}])
     rows.append(
         [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
     )
@@ -656,9 +656,11 @@ def docs_info_keyboard(
         [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
     ]
     if url:
+        from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
+
         rows.insert(
             -1,
-            [{"type": "link", "text": OPEN_CABINET_LABEL, "url": url}],
+            [{"type": "link", "text": DOCUMENTS_SECTION_LABEL, "url": url}],
         )
     return inline_buttons_keyboard(rows)
 
@@ -724,7 +726,7 @@ def free_text_nudge(*, intake: MaxIntakeRecord | None = None) -> tuple[str, list
         hint = device_question()
         keyboard = device_keyboard()
     elif step == "summary":
-        hint = "Можно открыть кабинет на сайте или позвать специалиста."
+        hint = "Можно открыть «Мои документы» на сайте или позвать специалиста."
         case_id = intake.case_id if intake else None
         cabinet_url = cabinet_url_for_case(case_id)
         device = intake.device_preference if intake else None

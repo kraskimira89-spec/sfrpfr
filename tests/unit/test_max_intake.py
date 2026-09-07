@@ -212,7 +212,7 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
     blob = str(last_att)
     assert case_id in blob
     assert "cabinet.proverkastaza.ru" in blob
-    assert "Кабинет на сайте" in blob
+    assert "Мои документы" in blob
     assert "В MAX — кабинет" not in blob
     assert "/app/" not in blob
     get_settings.cache_clear()
@@ -220,13 +220,13 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
 
 def test_summary_and_upload_keyboards_website_only() -> None:
     from sfrfr.integrations.max.intake import (
-        OPEN_CABINET_LABEL,
         SUMMARY_TEXT,
         UPLOAD_BLOCKED_TEXT,
         cabinet_url_for_case,
         summary_keyboard,
         upload_blocked_keyboard,
     )
+    from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
 
     url = cabinet_url_for_case("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
     assert url.startswith("https://cabinet.proverkastaza.ru")
@@ -235,7 +235,7 @@ def test_summary_and_upload_keyboards_website_only() -> None:
     uk = upload_blocked_keyboard(cabinet_url=url)
     for kb in (sk, uk):
         labels = [btn["text"] for row in kb[0]["payload"]["buttons"] for btn in row]
-        assert OPEN_CABINET_LABEL in labels
+        assert DOCUMENTS_SECTION_LABEL in labels
         assert "В MAX — кабинет" not in labels
         assert "В браузере — кабинет" not in labels
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
@@ -393,11 +393,12 @@ def test_upload_rejected_in_unified_chat(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_summary_keyboard_single_web_cabinet() -> None:
-    from sfrfr.integrations.max.intake import OPEN_CABINET_LABEL, summary_keyboard
+    from sfrfr.integrations.max.intake import summary_keyboard
+    from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
 
     kb = summary_keyboard(device="max", cabinet_url="https://cabinet.example/?case=1")
     blob = str(kb)
-    assert OPEN_CABINET_LABEL in blob
+    assert DOCUMENTS_SECTION_LABEL in blob
     assert "В MAX — кабинет" not in blob
     assert blob.count("https://cabinet.example") == 1
 
