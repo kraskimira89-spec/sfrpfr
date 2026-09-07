@@ -93,7 +93,8 @@ def _render_confirm(*, token: str, survey_type: str, label: str, body_text: str)
       <button type="submit">Подтвердить</button>
     </form>
     <p class="hint">Ответ сохранится только после нажатия кнопки.
-    Сканы и персональные данные в чат не отправляйте.</p>
+    СНИЛС и паспорт цифрами в чат не пишите — файлы можно прислать в MAX
+    или загрузить в кабинете.</p>
     """
     if survey_type == "first_step":
         page_title = "Первый шаг плана"

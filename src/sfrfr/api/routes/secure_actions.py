@@ -137,7 +137,8 @@ def _render_consent(ctx: dict[str, Any], token: str, *, error: str | None = None
       </label>
       <button type="submit">Подтвердить согласие</button>
     </form>
-    <p class="hint">Регистрация и пароль не нужны. Сканы в чат не отправляйте.</p>
+    <p class="hint">Регистрация и пароль не нужны. Документы можно прислать в чат MAX
+    или загрузить в кабинете на сайте.</p>
     """
     return _page_shell(title=ctx["title"], body=inner)
 
