@@ -4,37 +4,27 @@ from __future__ import annotations
 
 from typing import Any
 
+from sfrfr.utils.person_name import (
+    display_person_name,
+    is_placeholder_name,
+    parse_person_name,
+    should_accept_incoming_display_name,
+)
+
 
 def is_placeholder_client_name(full_name: str | None) -> bool:
     """True для пустых и служебных имён вроде «MAX user 123» / «MAX 123»."""
-    name = (full_name or "").strip()
-    if not name:
-        return True
-    low = name.lower()
-    if low.startswith("max user") or low.startswith("max "):
-        return True
-    if "@" in name:
-        return True
-    return False
+    return is_placeholder_name(full_name)
 
 
 def normalize_ops_full_name(full_name: str | None) -> str | None:
-    """Вернуть ФИО для ops или None, если имя-заглушка."""
-    name = (full_name or "").strip()
-    if is_placeholder_client_name(name):
-        return None
-    return name
+    """Вернуть ФИО для ops или None, если имя-заглушка / мусор."""
+    return display_person_name(full_name)
 
 
 def should_store_max_display_name(current: str | None, incoming: str | None) -> bool:
-    """Записать имя из MAX, только если в карточке ещё заглушка «MAX 123»."""
-    name = (incoming or "").strip()
-    if not name or is_placeholder_client_name(name):
-        return False
-    first = name.split()[0]
-    if len(first) < 2 or len(first) > 40 or not first[0].isalpha():
-        return False
-    return is_placeholder_client_name(current)
+    """Записать имя из MAX, только если в карточке ещё заглушка и имя правдоподобно."""
+    return should_accept_incoming_display_name(current, incoming)
 
 
 def format_ops_client_block(
@@ -132,3 +122,8 @@ def lookup_ops_client_full_name(
             pass
 
     return None
+
+
+def name_needs_confirm(full_name: str | None) -> bool:
+    """True — лучше переспросить ФИО и поправить карточку."""
+    return parse_person_name(full_name).needs_confirm

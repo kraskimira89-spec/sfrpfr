@@ -1552,6 +1552,12 @@ button.badge--clickable:hover {
   font-weight: 600;
   color: var(--muted);
 }
+.case-chat-fio-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--muted, #6b7280);
+}
 .case-chat-head .hint { margin: 0; }
 .case-chat-client-id {
   margin: 0;

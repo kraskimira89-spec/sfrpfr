@@ -63,12 +63,12 @@ WELCOME_PART_DELAY_SECONDS = 60
 
 def welcome_parts(*, display_name: str | None = None) -> list[str]:
     """Короткие части приветствия без длинного дисклеймера в каждом сообщении."""
+    from sfrfr.utils.person_name import welcome_first_name
+
     part1 = WELCOME_PART_1
-    name = (display_name or "").strip()
-    if name and not name.lower().startswith("max ") and "@" not in name:
-        first = name.split()[0]
-        if 2 <= len(first) <= 40 and first[0].isalpha():
-            part1 = WELCOME_PART_1.replace("Здравствуйте!", f"Здравствуйте, {first}!", 1)
+    first = welcome_first_name(display_name)
+    if first:
+        part1 = WELCOME_PART_1.replace("Здравствуйте!", f"Здравствуйте, {first}!", 1)
     return [part1, WELCOME_PART_2, WELCOME_PART_3]
 
 

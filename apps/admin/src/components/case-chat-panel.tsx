@@ -1,6 +1,6 @@
 "use client";
 
-import { clientNameForChatHeader } from "@/lib/client-display-name";
+import { clientNameForChatHeader, clientNameNeedsConfirm } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -258,6 +258,7 @@ export function CaseChatPanel({
   }, [lastMessageKey, messages, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
 
   const fio = clientNameForChatHeader(clientName, messages);
+  const fioNeedsConfirm = clientNameNeedsConfirm(clientName);
   const maxMeta = (maxUserId || "").trim() || null;
   const metaBits = [
     maxMeta ? `MAX ${maxMeta}` : null,
@@ -290,6 +291,12 @@ export function CaseChatPanel({
               </>
             )}
           </h2>
+          {fioNeedsConfirm ? (
+            <p className="case-chat-fio-hint" role="status">
+              ФИО сомнительное или неполное — уточните у клиента имя и отчество и
+              поправьте карточку.
+            </p>
+          ) : null}
           {metaBits.length > 0 ? (
             <p className="case-chat-client-id" title="MAX и номер дела">
               {metaBits.join(" · ")}

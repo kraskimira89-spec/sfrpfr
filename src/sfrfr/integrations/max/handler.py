@@ -174,20 +174,32 @@ def _user_dict(update: dict[str, Any]) -> dict[str, Any]:
 
 
 def _display_name_from_update(update: dict[str, Any], user_id: str | None = None) -> str | None:
+    from sfrfr.utils.person_name import display_person_name, welcome_first_name
+
     user = _user_dict(update)
-    for key in ("first_name", "firstName", "name", "username"):
+    candidates: list[str] = []
+    for key in ("first_name", "firstName", "name"):
         val = user.get(key)
         if isinstance(val, str) and val.strip():
-            return val.strip()
+            candidates.append(val.strip())
     last = user.get("last_name") or user.get("lastName")
     first = user.get("first_name") or user.get("firstName")
-    if isinstance(first, str) and isinstance(last, str) and first.strip():
-        return f"{first.strip()} {last.strip()}".strip()
+    if isinstance(first, str) and first.strip():
+        if isinstance(last, str) and last.strip():
+            candidates.append(f"{first.strip()} {last.strip()}")
+        candidates.append(first.strip())
+    # username часто ник — не берём без проверки
+    username = user.get("username")
+    if isinstance(username, str) and username.strip():
+        candidates.append(username.strip())
+    for cand in candidates:
+        if welcome_first_name(cand) or display_person_name(cand):
+            return display_person_name(cand) or welcome_first_name(cand)
     if user_id:
         row = _client_row_by_max(user_id)
         if row:
-            full = (row.get("full_name") or "").strip()
-            if full and not full.lower().startswith("max "):
+            full = display_person_name(row.get("full_name"))
+            if full:
                 return full
     return None
 

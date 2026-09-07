@@ -7,6 +7,8 @@ from typing import Any
 
 from sfrfr.ai.llm import LLMClient
 from sfrfr.core.copy import POSITION_SHORT
+from sfrfr.utils.person_name import client_salutation as _parse_salutation
+from sfrfr.utils.person_name import parse_person_name
 
 # Канон вложений для подсказок сотруднику (чат MAX / кабинет на сайте).
 DOCS_CHANNEL_CANON = (
@@ -45,22 +47,17 @@ SYSTEM = f"""Ты помощник сотрудника сервиса «Про�
 - в КАЖДОМ варианте обратись к человеку по имени/отчеству из поля «Обращение»
   (например: «Здравствуйте, Иван Иванович!» или «Иван Иванович, …»);
 - если обращение «Клиент» — начни с «Здравствуйте,» без выдуманного имени;
+  при сомнительном ФИО в одном из вариантов мягко уточни, как правильно обращаться
+  (имя и отчество), и напомни сотруднику поправить карточку клиента;
+- не подставляй фамилию, ники, латиницу-мусор и случайные символы как обращение;
 - без телефона, e-mail, СНИЛС, номера дела, без обещаний перерасчёта и сумм;
 - не обещай, что сервис подаёт в СФР / Госуслуги вместо клиента.
 """
 
 
 def client_salutation(full_name: str | None) -> str:
-    """Имя + отчество для обращения; без фамилии, если есть полное ФИО."""
-    parts = [p for p in re.split(r"\s+", (full_name or "").strip()) if p]
-    if len(parts) >= 3:
-        return f"{parts[1]} {parts[2]}"
-    if len(parts) == 2:
-        # Фамилия Имя → обращение по имени
-        return parts[1]
-    if len(parts) == 1:
-        return parts[0]
-    return "Клиент"
+    """Имя + отчество для обращения; без фамилии; мусор → «Клиент»."""
+    return _parse_salutation(full_name)
 
 
 def _ensure_salutation(text: str, salutation: str) -> str:
@@ -118,12 +115,20 @@ def suggest_staff_replies(
     work: dict[str, Any] | None = None,
 ) -> list[str]:
     salutation = client_salutation(client_name)
+    parsed = parse_person_name(client_name)
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         return _fallback_replies(salutation, pipeline_status=pipeline_status)
 
     from sfrfr.services.case_chat_context import build_staff_llm_user_prompt
 
+    confirm_note = ""
+    if parsed.needs_confirm:
+        confirm_note = (
+            "\nВнимание: ФИО в карточке сомнительное или отсутствует. "
+            "Не выдумывай имя. В одном варианте мягко уточни, как правильно "
+            "обращаться (имя и отчество), чтобы сотрудник мог поправить карточку.\n"
+        )
     user = build_staff_llm_user_prompt(
         salutation=salutation,
         work=work,
@@ -131,6 +136,8 @@ def suggest_staff_replies(
         pipeline_status=pipeline_status,
         b2c_status=b2c_status,
     )
+    if confirm_note:
+        user = confirm_note + user
     try:
         raw = llm.chat(system=SYSTEM, user=user, temperature=0.4)
     except Exception:  # noqa: BLE001
