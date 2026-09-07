@@ -93,7 +93,7 @@ function sfrfr_cf7_panel_html(string $topic): string
     return sprintf(
         '<div class="sfrfr-cf7-feedback" id="obratnaya-svyaz" data-sfrfr-cf7-topic="%s">'
         . '<h2>Написать нам</h2>'
-        . '<p class="sfrfr-section__lead">Короткий вопрос по теме страницы. Документы и сканы сюда не отправляйте — после диалога загрузите их в кабинет.</p>'
+        . '<p class="sfrfr-section__lead">Короткий вопрос по теме страницы. Документы и сканы сюда не отправляйте — после диалога и согласия пришлите их в личный чат MAX или загрузите в кабинет.</p>'
         . '%s'
         . '</div>',
         esc_attr($topic),
