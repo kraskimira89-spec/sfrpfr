@@ -419,7 +419,7 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
     )
     assert result.action == "max_intake_started"
     assert result.case_id
-    from sfrfr.integrations.max.intake import WELCOME_PART_1, welcome_parts
+    from sfrfr.integrations.max.intake import welcome_parts
 
     assert result.reply == welcome_parts(display_name="Ирина")[0]
     assert "Здравствуйте, Ирина!" in (result.reply or "")
