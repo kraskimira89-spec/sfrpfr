@@ -299,11 +299,16 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("MAX_WELCOME_PART_DELAY_SECONDS", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     from sfrfr.integrations.max.intake import reset_intake_store
 
     reset_intake_store(tmp_path / "max_intake.json")
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: True,
+    )
     bot = _SilentBot()
 
     handle_max_update(
@@ -334,8 +339,9 @@ def test_max_docs_and_draft_commands(tmp_path: Path, monkeypatch) -> None:
         )
     assert done.case_id
     assert done.action == "max_intake_completed"
-    assert any("защищённо" in t.lower() for _, t in bot.sent)
-
+    assert any(
+        "чат" in t.lower() or "мои документы" in t.lower() for _, t in bot.sent
+    )
     docs = handle_max_update(
         {
             "message": {

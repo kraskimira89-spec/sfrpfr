@@ -166,11 +166,16 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path / "uploads"))
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("MAX_WELCOME_PART_DELAY_SECONDS", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     from sfrfr.integrations.max.intake import reset_intake_store
 
     reset_intake_store(tmp_path / "max_intake.json")
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: True,
+    )
     bot = _SilentBot()
 
     started = handle_max_update(
@@ -231,11 +236,16 @@ def test_max_webhook_endpoint(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
     monkeypatch.setenv("MAX_WEBHOOK_SECRET", "sec")
     monkeypatch.setenv("MAX_BOT_TOKEN", "")
+    monkeypatch.setenv("MAX_WELCOME_PART_DELAY_SECONDS", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     from sfrfr.integrations.max.intake import reset_intake_store
 
     reset_intake_store(tmp_path / "max_intake.json")
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: True,
+    )
 
     client = TestClient(create_app())
     forbidden = client.post(
