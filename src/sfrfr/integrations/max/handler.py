@@ -8,11 +8,11 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
-from sfrfr.core.copy import POSITION_SHORT
 from sfrfr.integrations.max.attachments import extract_downloadable_files
 from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
     MaxBotClient,
+    inline_buttons_keyboard,
     inline_callback_keyboard,
     inline_channel_choice_keyboard,
     inline_confirm_login_keyboard,
@@ -53,6 +53,7 @@ from sfrfr.integrations.max.intake import (
     problem_type_for_goal,
     summary_keyboard,
     upload_blocked_keyboard,
+    welcome_parts,
     whom_keyboard,
 )
 from sfrfr.models.case_status import CaseStatus, status_label_ru
@@ -540,7 +541,115 @@ def _login_menu_keyboard() -> list[dict[str, Any]]:
 
 
 def _start_dialog_keyboard() -> list[dict[str, Any]]:
-    return inline_callback_keyboard(START_DIALOG_LABEL, START_DIALOG_CALLBACK)
+    from sfrfr.services.client_pdn_consent import PDN_CONSENT_DECLINE_CALLBACK
+
+    return inline_buttons_keyboard(
+        [
+            [{"type": "callback", "text": START_DIALOG_LABEL, "payload": START_DIALOG_CALLBACK}],
+            [
+                {
+                    "type": "callback",
+                    "text": "Не согласен",
+                    "payload": PDN_CONSENT_DECLINE_CALLBACK,
+                }
+            ],
+        ]
+    )
+
+
+def _client_has_pdn_consent(max_user_id: str) -> bool:
+    from sfrfr.services.client_pdn_consent import client_has_pdn_consent
+
+    row = _client_row_by_max(max_user_id)
+    if client_has_pdn_consent(row):
+        return True
+    # Согласие уже на деле
+    case_id = _case_id_for_max_user(max_user_id)
+    if case_id:
+        try:
+            from sfrfr.db.case_repository import CaseRepository
+
+            if CaseRepository().has_consent(case_id):
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+    return False
+
+
+def _reply_consent_gate(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+) -> MaxHandleResult:
+    """Один раз: согласие ПДн перед кнопкой «Начать»."""
+    from sfrfr.services.client_pdn_consent import CONSENT_GATE_TEXT
+
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=CONSENT_GATE_TEXT,
+        attachments=_start_dialog_keyboard(),
+        case_id=_case_id_for_max_user(user_id),
+    )
+    return MaxHandleResult(ok=True, action="pdn_consent_gate", reply=CONSENT_GATE_TEXT)
+
+
+def _send_welcome_sequence(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    case_id: str | None,
+    display_name: str | None = None,
+) -> str:
+    """Приветствие частями: первая сразу, остальные с паузой 1 минута."""
+    import threading
+
+    parts = welcome_parts(display_name=display_name)
+    first = parts[0]
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=first,
+        case_id=case_id,
+    )
+
+    delay = float(get_settings().max_welcome_part_delay_seconds)
+    if delay <= 0:
+        for idx, part in enumerate(parts[1:], start=1):
+            attachments = goal_keyboard() if idx == len(parts) - 1 else None
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=part,
+                attachments=attachments,
+                case_id=case_id,
+            )
+        return first
+
+    def _later(part: str, with_keyboard: bool) -> None:
+        try:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=part,
+                attachments=goal_keyboard() if with_keyboard else None,
+                case_id=case_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("welcome_part_failed: %s", exc)
+
+    for idx, part in enumerate(parts[1:], start=1):
+        with_kb = idx == len(parts) - 1
+        timer = threading.Timer(delay * idx, _later, args=(part, with_kb))
+        timer.daemon = True
+        timer.start()
+    return first
 
 
 def _channel_choice_text() -> str:
@@ -554,13 +663,16 @@ def _reply_need_start(
     chat_id: int | str | None,
     welcome_text: str | None = None,
 ) -> MaxHandleResult:
-    """Просьба начать диалог — стартовое меню диагностики."""
+    """Первый контакт: согласие один раз, иначе приветствие частями."""
+    if not _client_has_pdn_consent(user_id):
+        return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
     return _handle_bot_start(
         bot,
         user_id=user_id,
         chat_id=chat_id,
         store=get_case_store(),
         welcome_text=welcome_text,
+        accept_consent=False,
     )
 
 
@@ -1625,11 +1737,16 @@ def _handle_bot_start(
     chat_id: int | str | None,
     store,
     welcome_text: str | None = None,
+    accept_consent: bool = False,
+    display_name: str | None = None,
 ) -> MaxHandleResult:
-    """Старт: сразу дело в реестре, лента чата и письмо сотруднику со ссылкой."""
+    """Старт после согласия: дело → приветствие частями с паузой 1 мин."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
     if resumed is not None:
         return resumed
+
+    if not accept_consent and not _client_has_pdn_consent(user_id):
+        return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
 
     intake = get_intake_store().upsert_started(user_id)
     case_id = _ensure_case_for_intake(
@@ -1639,15 +1756,42 @@ def _handle_bot_start(
         _schedule_case_create_and_notify(
             user_id=user_id, chat_id=chat_id, intake=intake, store=store
         )
-    text = welcome_text or WELCOME_TEXT
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=text,
-        attachments=goal_keyboard(),
-        case_id=case_id or None,
-    )
+
+    client_row = _ensure_client_row(user_id) or _client_row_by_max(user_id)
+    client_id = str((client_row or {}).get("id") or "") or None
+    if accept_consent or not _client_has_pdn_consent(user_id):
+        from sfrfr.services.client_pdn_consent import accept_pdn_once
+
+        accept_pdn_once(
+            case_id=case_id or None,
+            client_id=client_id,
+            max_user_id=user_id,
+            actor_id=None,
+        )
+    elif case_id and client_id:
+        from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
+
+        ensure_case_consent_from_client(case_id=case_id, client_id=client_id)
+
+    name = display_name or _last_max_display_names.get(str(user_id).strip())
+    if welcome_text:
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=welcome_text,
+            attachments=goal_keyboard(),
+            case_id=case_id or None,
+        )
+        text = welcome_text
+    else:
+        text = _send_welcome_sequence(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            case_id=case_id or None,
+            display_name=name,
+        )
     if case_id:
         _notify_staff_max_started(user_id=user_id, intake=intake, case_id=case_id)
     return MaxHandleResult(
@@ -2508,6 +2652,25 @@ def handle_max_update(
     if mkt is not None:
         return mkt
 
+    # Отказ от согласия ПДн (кнопка «Не согласен»).
+    from sfrfr.services.client_pdn_consent import (
+        CONSENT_DECLINED_TEXT,
+        PDN_CONSENT_DECLINE_CALLBACK,
+    )
+
+    if callback == PDN_CONSENT_DECLINE_CALLBACK:
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=CONSENT_DECLINED_TEXT,
+            attachments=_start_dialog_keyboard(),
+            case_id=_case_id_for_max_user(user_id),
+        )
+        return MaxHandleResult(
+            ok=True, action="pdn_consent_declined", reply=CONSENT_DECLINED_TEXT
+        )
+
     if _update_expects_bot_reply(
         update_type=update_type,
         text=text,
@@ -2520,12 +2683,16 @@ def handle_max_update(
 
     # Нажатие «Начать» в MAX приходит как bot_started — раньше падало в сухой fallback.
     if "bot_started" in update_type:
+        if not _client_has_pdn_consent(user_id):
+            return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
         return _handle_bot_start(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             store=store,
-            welcome_text=welcome_text,
+            welcome_text=None,
+            accept_consent=False,
+            display_name=display_name,
         )
 
     if manager_ticket:
@@ -2537,12 +2704,28 @@ def handle_max_update(
         )
 
     if start_hit:
+        # Кнопка «Начать» = согласие + старт; /start без согласия → ворота.
+        pressed_start = callback == START_DIALOG_CALLBACK or lower == START_DIALOG_LABEL.lower()
+        if pressed_start:
+            return _handle_bot_start(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                store=store,
+                welcome_text=None,
+                accept_consent=True,
+                display_name=display_name,
+            )
+        if not _client_has_pdn_consent(user_id):
+            return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
         return _handle_bot_start(
             bot,
             user_id=user_id,
             chat_id=chat_id,
             store=store,
-            welcome_text=welcome_text,
+            welcome_text=None,
+            accept_consent=False,
+            display_name=display_name,
         )
 
     intake_result = _handle_intake_callback(
@@ -2622,8 +2805,8 @@ def handle_max_update(
         reply = (
             "Команды: /start — диагностика, /cabinet — кабинет на сайте, "
             "/documents — какие документы нужны, /status — статус дела, "
-            f"/login — вход в кабинет с компьютера. Всегда можно позвать специалиста. "
-            f"{POSITION_SHORT}"
+            "/login — вход в кабинет с компьютера. Всегда можно позвать специалиста. "
+            "Документы загружайте только через раздел «Мои документы» в кабинете."
         )
         _reply(
             bot,
@@ -2650,7 +2833,7 @@ def handle_max_update(
             "Откройте личный кабинет на сайте и раздел «Мои документы» — "
             "там файлы передаются защищённо. Вопросы можно писать здесь, "
             "в MAX, или в кабинете: это один чат по делу. "
-            f"Кабинет клиента — только на сайте. {POSITION_SHORT}"
+            "Кабинет клиента — только на сайте."
         )
         _reply(
             bot,
@@ -2732,7 +2915,7 @@ def handle_max_update(
         reply = (
             f"{status_label_ru(record.ctx.status)}. "
             f"Документов: {len(record.ctx.document_paths)}. "
-            f"Дальше: /documents или /cabinet. {POSITION_SHORT}"
+            "Дальше: /documents или /cabinet."
         )
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)

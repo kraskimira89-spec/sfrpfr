@@ -73,9 +73,19 @@ def _setup(tmp_path: Path, monkeypatch) -> _SilentBot:
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
     monkeypatch.setenv("OPS_NOTIFY_EMAIL", "")
     monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "0")
+    monkeypatch.setenv("MAX_WELCOME_PART_DELAY_SECONDS", "0")
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     reset_intake_store(tmp_path / "max_intake.json")
+    # С уже принятым согласием — чтобы сценарии intake не упирались в ворота.
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.client_pdn_consent.accept_pdn_once",
+        lambda **_kwargs: None,
+    )
     return _SilentBot()
 
 
@@ -85,10 +95,50 @@ def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
     result = handle_max_update(_msg(7, "/start"), bot=bot)
     assert result.action == "max_intake_started"
     assert result.case_id
-    assert result.reply == WELCOME_TEXT
+    from sfrfr.integrations.max.intake import WELCOME_PART_1, welcome_parts
+
+    assert result.reply == WELCOME_PART_1
+    assert len(bot.sent) == len(welcome_parts())
     assert get_case_store().find_by_max_user("7") is not None
     intake = get_intake_store().get_active("7")
     assert intake is not None and intake.case_id == result.case_id
+    get_settings.cache_clear()
+
+
+def test_start_without_consent_shows_gate(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: False,
+    )
+    from sfrfr.services.client_pdn_consent import CONSENT_GATE_TEXT
+
+    result = handle_max_update(_msg(70, "/start"), bot=bot)
+    assert result.action == "pdn_consent_gate"
+    assert result.reply == CONSENT_GATE_TEXT
+    assert "Нажимая «Начать»" in (result.reply or "")
+    get_settings.cache_clear()
+
+
+def test_start_button_accepts_consent_and_welcomes(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: False,
+    )
+    accepted: list[dict] = []
+
+    def _accept(**kwargs):  # noqa: ANN003
+        accepted.append(kwargs)
+
+    monkeypatch.setattr("sfrfr.services.client_pdn_consent.accept_pdn_once", _accept)
+    from sfrfr.integrations.max.intake import WELCOME_PART_1
+    from sfrfr.security.login_otp import START_DIALOG_CALLBACK
+
+    result = handle_max_update(_cb(71, START_DIALOG_CALLBACK), bot=bot)
+    assert result.action == "max_intake_started"
+    assert result.reply == WELCOME_PART_1
+    assert accepted
     get_settings.cache_clear()
 
 
@@ -364,10 +414,14 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
     )
     assert result.action == "max_intake_started"
     assert result.case_id
-    assert result.reply == format_welcome_text(display_name="Ирина")
+    from sfrfr.integrations.max.intake import WELCOME_PART_1, welcome_parts
+
+    assert result.reply == welcome_parts(display_name="Ирина")[0]
     assert "Здравствуйте, Ирина!" in (result.reply or "")
     assert "Я бот сервиса" in (result.reply or "")
     assert "Выберите пункт меню ниже" not in (result.reply or "")
+    assert len(bot.sent) == 3
+    assert "Для кого проверка" in bot.sent[-1][1]
     get_settings.cache_clear()
 
 

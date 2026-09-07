@@ -464,7 +464,38 @@ class CaseRepository:
             .limit(1)
             .execute()
         )
-        return bool(response.data)
+        if response.data:
+            return True
+        # Один раз на клиента: согласие с другого дела / профиля
+        try:
+            case_rows = (
+                self.client.table("cases")
+                .select("client_id")
+                .eq("id", case_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            client_id = str((case_rows[0] or {}).get("client_id") or "") if case_rows else ""
+            if not client_id:
+                return False
+            client_rows = (
+                self.client.table("clients")
+                .select("pdn_consent_version, pdn_consent_accepted_at")
+                .eq("id", client_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            if not client_rows:
+                return False
+            from sfrfr.services.client_pdn_consent import client_has_pdn_consent
+
+            return client_has_pdn_consent(client_rows[0])
+        except Exception:  # noqa: BLE001
+            return False
 
     def list_consents(self, case_id: str) -> list[dict[str, Any]]:
         return (
@@ -496,6 +527,23 @@ class CaseRepository:
             "id", case_id
         ).eq("b2c_status", "lead").execute()
         self.audit(case_id, actor_id, "consent_accepted")
+        try:
+            case_rows = (
+                self.client.table("cases")
+                .select("client_id")
+                .eq("id", case_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            client_id = str((case_rows[0] or {}).get("client_id") or "") if case_rows else ""
+            if client_id:
+                from sfrfr.services.client_pdn_consent import mark_client_pdn_consent
+
+                mark_client_pdn_consent(client_id=client_id, version=version)
+        except Exception:  # noqa: BLE001
+            pass
         return response.data[0]
 
     def list_contract_acceptances(self, case_id: str) -> list[dict[str, Any]]:

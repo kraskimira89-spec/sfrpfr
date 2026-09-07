@@ -167,7 +167,12 @@ def _llm_reply(
         logger.warning("cabinet case chat llm failed: %s", exc)
         return None
     reply, _buttons = _parse_llm_payload(raw)
-    return reply[:700].strip() if reply else None
+    text = (reply or "").strip()[:700]
+    if not text:
+        return None
+    from sfrfr.services.position_throttle import apply_position_policy
+
+    return apply_position_policy(text, case_id=case_id)
 
 
 def _fallback_reply(work: dict[str, Any]) -> str:

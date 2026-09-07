@@ -25,8 +25,12 @@ CLIENT_CHAT_SYSTEM = f"""Ты — вежливый агент сервиса «�
 Дерево кнопок сценария и «Позвать специалиста» важнее твоих мягких подсказок:
 не противоречь системным кнопкам и не проси их игнорировать.
 
-Позиция сервиса:
+Позиция сервиса (не повторяй в каждом ответе):
 {POSITION_SHORT}
+Упоминай позицию сервиса редко: примерно в одном ответе из десяти
+(или если клиент прямо спрашивает «кто вы / вы СФР / гарантия»).
+В остальных ответах не пиши про «не СФР», «не гарантируем перерасчёт»
+и «подаёте сами» — это уже сказано при старте.
 
 Кабинет и документы (канон):
 - Личного кабинета клиента в MAX нет и не будет.
@@ -300,6 +304,9 @@ def reply_to_free_text(
     if not reply:
         return nudge_text, nudge_kb, "free_text_nudge"
 
+    from sfrfr.services.position_throttle import apply_position_policy
+
+    reply = apply_position_policy(reply, case_id=cid or None)
     text = f"{reply}\n\nМожно ответить кнопками ниже."
     attachments = list(nudge_kb)
     soft = _soft_buttons(soft_labels)

@@ -109,6 +109,8 @@ class Settings(BaseSettings):
     # ТЗ-26: LLM-ответ на свободный текст в MAX (DeepSeek via YC)
     max_llm_chat_enabled: bool = True
     max_llm_chat_max_turns: int = 5
+    # Пауза между частями приветствия в MAX (секунды); 0 = сразу все части
+    max_welcome_part_delay_seconds: int = 60
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""
