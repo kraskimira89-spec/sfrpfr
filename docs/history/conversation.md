@@ -1,5 +1,9 @@
 # История бесед
 
+## 2026-09-07 — сайт: документы MAX + кабинет
+
+Публичный сайт и CI-чекер запрещённых фраз: канон «личный чат MAX или кабинет». См. `docs/history/2026-09-07-site-docs-max-cabinet.md`.
+
 ## 2026-09-07 — синхронизация docs под сентябрь
 
 - Индексы/playbook’и/prompts/rules: DeepSeek + MAX free text сразу; staff CRM; плагины APPROVED; TZ27–31 applied.
