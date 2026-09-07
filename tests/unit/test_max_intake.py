@@ -391,7 +391,8 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     )
     assert accepted.action == "upload"
     assert accepted.ok is True
-    assert "получили" in (accepted.reply or "").lower() or "приняли" in (accepted.reply or "").lower()
+    reply_low = (accepted.reply or "").lower()
+    assert "получили" in reply_low or "приняли" in reply_low
     get_settings.cache_clear()
 
 
