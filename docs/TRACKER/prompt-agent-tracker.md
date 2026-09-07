@@ -43,7 +43,7 @@
 - T2 — issues MCP (указать queue: SFRFR|PUB|FUNNEL)
 - T3 — доски + Wiki (UI)
 - T4 — **PUB** (публикации)
-- T5 — **FUNNEL** (воронка ops; CRM — amo)
+- T5 — **FUNNEL** (воронка ops; CRM — кабинет сотрудника; amo резерв)
 - T6 — правило / greenfield / scripts/create_yandex_tracker_queues.py
 
 ## Жёсткие правила

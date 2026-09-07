@@ -41,11 +41,11 @@
 - **Обратная связь после PDF:** [playbook-diagnosis-feedback.md](playbook-diagnosis-feedback.md) · [ТЗ-27](../specs/27-diagnosis-pdf-feedback.md) · [`diagnosis-feedback-messages.md`](../../scripts/assets/copy/diagnosis-feedback-messages.md).
 - **Безопасная выдача PDF:** [ТЗ-28](../specs/28-diagnosis-secure-delivery.md) · [`diagnosis-secure-delivery-messages.md`](../../scripts/assets/copy/diagnosis-secure-delivery-messages.md) — draft → approve, без вложений.
 - **Сервисные опросы после PDF:** [ТЗ-29](../specs/29-diagnosis-surveys.md) · [`diagnosis-survey-messages.md`](../../scripts/assets/copy/diagnosis-survey-messages.md) — понятность плана (MAX кнопки); не маркетинг.
-- **amoCRM (чат AMO):** [`docs/AMO/`](../AMO/README.md) — ТЗ-12, ops, QA, промпт агента.
-- **Задачи и wiki (Notion не используем):** Яндекс Трекер (очередь `SFRFR`) + MCP [yandex-tracker-mcp](../ops/yandex-tracker-mcp.md); Wiki SFRFR; SoT — [yandex-tracker-ops.md](../ops/yandex-tracker-ops.md).
-- **Стек автоматизации (без Make/Albato):** [`docs/ops/automation-stack-ru.md`](../ops/automation-stack-ru.md) — лиды, amo, AI, n8n P2.
+- **Ops CRM (кабинет сотрудника):** [playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md). **amoCRM — резерв** (`AMOCRM_ENABLED=0`): [`docs/AMO/`](../AMO/README.md).
+- **Задачи и wiki (Notion не используем):** Яндекс Трекер (очереди `SFRFR` / `PUB` / `FUNNEL` / `STAZH`) + MCP [yandex-tracker-mcp](../ops/yandex-tracker-mcp.md); Wiki SFRFR; SoT — [yandex-tracker-ops.md](../ops/yandex-tracker-ops.md).
+- **Стек автоматизации (без Make/Albato):** [`docs/ops/automation-stack-ru.md`](../ops/automation-stack-ru.md) — лиды, staff CRM, AI, n8n P2.
 - **ВКонтакте (чат VK):** [`docs/VK/`](../VK/README.md) — сообщество, пошаговое создание, ритм/CTA/лид-форма/UTM под тарифы 3/5/8, копипаст запуска, обзор API, промпт агента.
-- **MAX (клиентский чат):** [`docs/MAX/`](../MAX/README.md) — системный промпт LLM-агента (кнопки intake + soft-ответы).
+- **MAX (клиентский чат):** [`docs/MAX/`](../MAX/README.md) — DeepSeek free text сразу (`reply_to_free_text`); системный промпт LLM-агента.
 - **Бренд и визуализация смыслов:** [`docs/brand/`](../brand/README.md) — миссия, ценности, ассоциации, брифы на символы. Чат бренда: [`prompt-agent-brand-rollout.md`](../brand/prompt-agent-brand-rollout.md).
 
 ## Правила хранения
@@ -79,7 +79,7 @@
 2. **Канал документов (MAX + кабинет):** `scripts/assets/copy/docs-channel-canon.md` · перечень файлов — `scripts/assets/copy/documents-checklist.md`.
 2. **Публичные цены:** опубликованные `scripts/assets/trust/tarify.html`, главная страница и `scripts/assets/yandex-business/price-list.yml`. Сейчас это поэтапно **3 000 ₽ / 5 000 ₽ / 8 000 ₽** (диагностика → подготовка документов → сопровождение до подачи) и доп. перенос трудовой в Word — **100 ₽ за разворот**.
 3. **Путь через MAX:** ТЗ-20, ТЗ-21 и ТЗ-24 новее ТЗ-10. Документы — в личном чате MAX (PDF/JPG/PNG) или в защищённом кабинете на сайте после согласия; не через форму WordPress и не в публичный канал MAX.
-4. **Данные дела и оплаты:** приложение SFRFR — источник истины; amoCRM ведёт продажи и задачи, но не хранит файлы дела.
+4. **Данные дела и оплаты:** приложение SFRFR + **кабинет сотрудника** — источник истины; amoCRM в резерве и не хранит файлы дела.
 5. **Управленческая аналитика:** модели dbt и Яндекс DataLens. Таблицы допустимы только как временная обезличенная выгрузка.
 6. **Вознаграждение за подтверждённый результат:** ранняя модель и договоры считаются черновиками до единого решения владельца и юридической проверки.
 7. **Яндекс Бизнес:** единая карточка `82469923047` (4 позиции = YML/сайт); дубликат удалён. Форма отзывов и QR на этот ID. См. `docs/ops/yandex-business-profile.md`.

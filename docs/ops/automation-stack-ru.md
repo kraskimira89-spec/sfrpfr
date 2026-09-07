@@ -1,8 +1,8 @@
 # Стек автоматизации SFRFR (РФ, без Make/Albato)
 
-**Дата:** 2026-08-22  
+**Дата:** 2026-08-22 / актуализация 2026-09-07  
 **Статус:** канон  
-**Связано:** [playbook-funnel-checklists-automation.md](../AMO/playbook-funnel-checklists-automation.md) · [ops-amocrm-task-templates.md](../AMO/ops-amocrm-task-templates.md) · [how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)
+**Связано:** [playbook-staff-cabinet-crm.md](./playbook-staff-cabinet-crm.md) · резерв amo: [how-we-work-amocrm.md](../AMO/how-we-work-amocrm.md)
 
 ---
 
@@ -13,12 +13,12 @@
 | Причина | Пояснение |
 |---------|-----------|
 | Доступность в РФ | Make.com недоступен; Albato нестабилен |
-| ПДн и документы | Лиды, телефоны, дела — только в SFRFR + amo без сканов |
+| ПДн и документы | Лиды, телефоны, дела — только в SFRFR (+ amo только если снова включат, без сканов) |
 | Предсказуемость | Критичные цепочки — код с тестами, не no-code |
-| Уже есть контур | FastAPI webhooks, amo API, GitHub Actions |
+| Уже есть контур | FastAPI webhooks, GitHub Actions; amo API — резерв |
 
-**Источник истины по делу:** Supabase + кабинет SFRFR.  
-**amoCRM:** продажи, задачи оператору, атрибуция — без СНИЛС/ИЛС/сканов.
+**Источник истины по делу:** Supabase + кабинет сотрудника.  
+**amoCRM:** резерв (`AMOCRM_ENABLED=0`); при включении — mirror продаж без СНИЛС/ИЛС/сканов.
 
 ---
 
@@ -28,7 +28,8 @@
 Сайт / MAX / оплата
   → FastAPI (public_leads, payments, notifications)
   → Supabase (case, orders)
-  → amoCRM sync (AmoCrmClient.sync_case)
+  → кабинет сотрудника (этапы / next_action / LOSS)
+  → [опц.] amoCRM sync при AMOCRM_ENABLED=1
   → MAX уведомления клиенту
 
 Обработка документов (отдельный контур):
@@ -36,8 +37,8 @@
   → сверка ИЛС↔трудовая — детерминированный код (не LLM)
 ```
 
-Код amo: `src/sfrfr/integrations/amocrm/`  
-AI: `src/sfrfr/ai/orchestrator.py`
+Код amo (резерв): `src/sfrfr/integrations/amocrm/`  
+AI: `src/sfrfr/ai/orchestrator.py` (DeepSeek / AI Studio)
 
 ---
 

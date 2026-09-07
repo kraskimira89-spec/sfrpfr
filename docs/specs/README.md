@@ -13,8 +13,8 @@
 9. [09-client-channels-parity.md](09-client-channels-parity.md) — паритет MAX mini-app и веб-кабинета, выбор канала.
 10. [10-landing-audit-and-implementation.md](10-landing-audit-and-implementation.md) — аудит и внедрение лендинга.
 11. [11-blog.md](11-blog.md) — блог: SEO-справочник, рубрики, шаблон статей, CTA в каналы.
-12. [12-amocrm.md](12-amocrm.md) — amoCRM: custom fields, sync лидов/этапов, CLI.  
-    Пошаговая настройка UI: [../ops/amocrm-setup.md](../ops/amocrm-setup.md).
+12. [12-amocrm.md](12-amocrm.md) — amoCRM **резерв** (`AMOCRM_ENABLED=0`); ops CRM = кабинет сотрудника.  
+    Пакет: [../AMO/README.md](../AMO/README.md) · staff: [../ops/playbook-staff-cabinet-crm.md](../ops/playbook-staff-cabinet-crm.md).
 13. [13-document-ingest-v2.md](13-document-ingest-v2.md) — ingest документов: text layer / Vision / Tesseract, артефакты, HITL сверка.
 14. [14-yandex-workspace.md](14-yandex-workspace.md) — Яндекс ID: почта, Телемост, календарь (аккаунт `proverkastaza@…`).  
     Настройка OAuth: [../ops/yandex-workspace-setup.md](../ops/yandex-workspace-setup.md).
@@ -33,8 +33,8 @@
 24. [24-max-client-boundaries-home.md](24-max-client-boundaries-home.md) — понятный блок на главной: канал MAX, личный чат и защищённый кабинет.
 25. [25-max-ops-bot.md](25-max-ops-bot.md) — Ops-бот MAX «Проверка стажа-Ops» (`id8905998693_3_bot`, `MAX_OPS_BOT_TOKEN`) для лидов и approve staff.  
     Ops: [../ops/max-ops-bot-setup.md](../ops/max-ops-bot-setup.md).
-26. [26-max-llm-chat.md](26-max-llm-chat.md) — черновик: ограниченный LLM-ответ на свободный текст в личном чате MAX (пока не к реализации).
-27. [27-diagnosis-pdf-feedback.md](27-diagnosis-pdf-feedback.md) — обратная связь после PDF-диагностики: понятность и первый шаг, отдельно от публичного отзыва.
+26. [26-max-llm-chat.md](26-max-llm-chat.md) — **реализовано:** свободный текст MAX → сразу `reply_to_free_text` (DeepSeek V4 Flash / AI Studio); health: `llm_chat_*`.
+27. [27-diagnosis-pdf-feedback.md](27-diagnosis-pdf-feedback.md) — обратная связь после PDF-диагностики: понятность и первый шаг, отдельно от публичного отзыва. **Миграции TZ27–31 на prod — 2026-09-02.**
 28. [28-diagnosis-secure-delivery.md](28-diagnosis-secure-delivery.md) — безопасная выдача PDF: draft-уведомления, сотрудник подтверждает, без вложений.
 29. [29-diagnosis-surveys.md](29-diagnosis-surveys.md) — сервисные опросы после PDF (MAX clarity MVP; не маркетинг).
 30. [30-diagnosis-delivery-triggers.md](30-diagnosis-delivery-triggers.md) — машина состояний и триггеры 1–4 (publish / approve / open / unread).

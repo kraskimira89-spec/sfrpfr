@@ -21,7 +21,7 @@
 | Публикации контента | **PUB** |
 | Ops по этапам воронки (без ПДн) | **FUNNEL** |
 | Wiki / оглавление | **Яндекс Wiki** (раздел SFRFR) |
-| CRM по лиду/сделке | **amoCRM** |
+| CRM по лиду/сделке | **кабинет сотрудника** (amo — резерв, `AMOCRM_ENABLED=0`) |
 | Код, ТЗ, канон | **git** |
 | ПДн и дела клиентов | **Supabase + кабинеты** |
 
@@ -33,7 +33,7 @@ Notion в процесс **не** входит.
 |---------|-----|------------|
 | **SFRFR** | https://tracker.yandex.ru/SFRFR | Продукт, деплой, infra, доска/Wiki, agent-lifecycle |
 | **PUB** | https://tracker.yandex.ru/PUB | Слоты MAX / VK / blog / SEO / Директ |
-| **FUNNEL** | https://tracker.yandex.ru/FUNNEL | Ops по этапам воронки; CRM детали — в amo |
+| **FUNNEL** | https://tracker.yandex.ru/FUNNEL | Ops по этапам воронки; CRM детали — в кабинете сотрудника |
 
 Очередь org. **`TRACKER`** — не для продуктовых задач.
 

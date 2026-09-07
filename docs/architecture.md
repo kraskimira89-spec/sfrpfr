@@ -3,7 +3,7 @@
 ## Каналы и AI
 
 - **Диалог с клиентом:** мессенджер [MAX](https://dev.max.ru/docs-api) (Bot API / webhook → наш backend).
-- **LLM:** [Yandex AI Studio](https://aistudio.yandex.ru/) (OpenAI-compatible API).
+- **LLM:** [Yandex AI Studio](https://aistudio.yandex.ru/) → **DeepSeek V4 Flash** (`llm.api.cloud.yandex.net`; не YandexGPT как канон).
 - **Сайт:** WordPress на VPS; **API** на поддомене (`api.…`). DNS — reg.ru. См. [deploy-vps.md](deploy-vps.md).
 
 ```text
@@ -43,7 +43,7 @@ CLI: `sfrfr case-*`, `sfrfr max-subscribe`
 - [contracts/offer-draft.md](contracts/offer-draft.md)
 - [contracts/individual-order-template.md](contracts/individual-order-template.md)
 
-CRM: [amoCRM](https://proverkastaza.amocrm.ru/).  
+Ops CRM: [кабинет сотрудника](ops/playbook-staff-cabinet-crm.md). amoCRM — резерв (`AMOCRM_ENABLED=0`, [AMO/](AMO/README.md)).  
 Google Sheets — только обезличенные метрики.  
 Подача в СФР — клиентом самостоятельно. Success fee: 10% ЕДВ + 50% × 3 мес. прибавки, оплата через 2–3 мес. после результата.
 

@@ -22,9 +22,9 @@ Notion **не** переносим — только новый контур.
 - [ ] Раздел **SFRFR** в Яндекс Wiki (оглавление, без импорта Notion)
 - [ ] Ссылки на ключевые `docs/` репо (marketing-sales, ops, AMO)
 
-## amoCRM
+## CRM (кабинет сотрудника)
 
-- [ ] Новые CRM-заметки — только в amo ([`docs/AMO/`](../AMO/README.md))
+- [x] Ops CRM — admin / staff cabinet ([`playbook-staff-cabinet-crm.md`](./playbook-staff-cabinet-crm.md)); amo выключена (`AMOCRM_ENABLED=0`, резерв [`docs/AMO/`](../AMO/README.md))
 - [ ] В Трекер/Wiki нет ФИО/телефонов клиентов
 
 ## Notion off
@@ -40,5 +40,5 @@ Notion **не** переносим — только новый контур.
 
 ## Критерий «готово»
 
-Задачи ведутся в Трекере; Cursor создаёт issues через MCP; wiki/ТЗ — Wiki + git; CRM — amo; Notion вне процесса.
+Задачи ведутся в Трекере; Cursor создаёт issues через MCP; wiki/ТЗ — Wiki + git; CRM — кабинет сотрудника (amo резерв); Notion вне процесса.
 Пакет `docs/TRACKER/` — канон: **SFRFR** + **PUB** + **FUNNEL**.

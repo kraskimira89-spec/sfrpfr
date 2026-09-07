@@ -4,9 +4,19 @@
 - Эксперт / черновики: `ASSISTANT_SYSTEM` в `src/sfrfr/ai/prompts/__init__.py` (сверка документов, не клиентский чат).
 - Сценарий кнопок: [ТЗ-20](../specs/20-max-private-chat-funnel.md).
 - LLM-контур: [ТЗ-26](../specs/26-max-llm-chat.md).
-- Первое сообщение оператора: [AMO](../AMO/playbook-operator-first-message-max.md).
+- Первое сообщение оператора: [AMO](../AMO/playbook-operator-first-message-max.md) (текст шаблона; ops CRM = staff cabinet).
 
-## Канон (с 2026-08-26)
+## Runtime LLM (канон 2026-09)
+
+| Что | Канон |
+|-----|--------|
+| Провайдер | Yandex AI Studio → **DeepSeek V4 Flash** (`llm.api.cloud.yandex.net`), не YandexGPT |
+| Свободный текст | сразу `reply_to_free_text` (не queue); queue — portal / вложения |
+| Health | `llm_chat_enabled`, `llm_chat_model` (отдельно от ops LLM) |
+| Флаг | `MAX_LLM_CHAT_ENABLED` |
+| Фикс | `docs/history/2026-09-05-max-llm-free-text-fix.md` (`c29ce3ff`+) |
+
+## Канон каналов (с 2026-08-26)
 
 **Личного кабинета клиента в MAX нет и не будет.**
 

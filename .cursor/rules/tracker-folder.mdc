@@ -24,6 +24,6 @@ Weavix-плагин качества: `plugins/tracker/stazh-quality-wizard/` (`
 
 При завершении работы — issue в **нужной** очереди + комментарий + статус.
 Качество/инциденты из дела → **STAZH**; публикации → **PUB**; воронка ops → **FUNNEL**; код/деплой → **SFRFR**.
-CRM по клиенту — amo (`docs/AMO/`).
+CRM по клиенту — кабинет сотрудника (`docs/ops/playbook-staff-cabinet-crm.md`); amo — резерв (`docs/AMO/`).
 
 Секреты только `secrets/yandex-tracker.env` / VPS `.env` (`TRACKER_*`).

@@ -16,7 +16,7 @@ MCP **не** создаёт доски и Wiki.
 
 ## Доска FUNNEL
 
-**Задача:** [FUNNEL-4](https://tracker.yandex.ru/FUNNEL-4)
+**Задача:** [FUNNEL-4](https://tracker.yandex.ru/FUNNEL-4) — часто ждёт **owner UI** (скрин доски); не закрывать агентом без подтверждения.
 
 1. Открыть https://tracker.yandex.ru/FUNNEL → **Доски** → **Создать доску** (или отредактировать существующую).
 2. **Вариант A (простой):** колонки **Open → In Progress → Done**; фильтр по тегам `funnel-*` / `ops`.

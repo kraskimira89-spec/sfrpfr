@@ -9,7 +9,7 @@
 | API | FastAPI |
 | Авторизация и БД | Supabase (MVP: Cloud; целевой: self-hosted в Yandex Cloud, ТЗ-15) |
 | Документы | Supabase Storage, private bucket (целевой: Object Storage в РФ, ТЗ-15) |
-| CRM | amoCRM (ТЗ-12) |
+| CRM | кабинет сотрудника (ops); amoCRM резерв, ТЗ-12, `AMOCRM_ENABLED=0` |
 | Сообщения | MAX Bot API |
 | AI | Yandex AI Studio |
 | Captcha | MVP: Google reCAPTCHA Enterprise; пилот/целевой: Yandex SmartCaptcha (`CAPTCHA_PROVIDER`, `integrations/smartcaptcha`, ТЗ-15) |
