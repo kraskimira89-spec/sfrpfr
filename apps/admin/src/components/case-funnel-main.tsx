@@ -522,7 +522,7 @@ export function CaseFunnelMain({
         </div>
         <div className="case-funnel-title-row">
           <h1>
-            {detail.client.full_name ?? "Клиент"} · {caseCatalogLabel(detail.id)}
+            {displayClientFio(detail.client.full_name) ?? "Клиент"} · {caseCatalogLabel(detail.id)}
           </h1>
           <div className="case-funnel-badges">
             <span
