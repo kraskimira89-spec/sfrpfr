@@ -25,6 +25,7 @@ import {
   pipelineStageOptions,
 } from "@/lib/ui-labels";
 import { caseCatalogLabel } from "@/components/cases-registry";
+import { displayClientFio } from "@/lib/client-display-name";
 import { DocumentsTable } from "@/components/documents-table";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
