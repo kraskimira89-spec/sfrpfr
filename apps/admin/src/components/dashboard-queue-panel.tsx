@@ -5,7 +5,8 @@ import {
   type DashboardQueueKey,
   type QueueWorkItem,
 } from "@/lib/dashboard-queue";
-import { caseCatalogLabel, labelPipeline } from "@/lib/ui-labels";
+import { caseCatalogLabel } from "@/components/cases-registry";
+import { labelPipeline } from "@/lib/ui-labels";
 
 const QUEUE_TITLES: Record<string, string> = {
   new: "Новые обращения",

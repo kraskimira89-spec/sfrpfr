@@ -1683,7 +1683,7 @@ export function AdminCabinet() {
           <div className="metrics">
             <button
               type="button"
-              className={`metric-card${activeQueue === "reply" && view === "queue" ? " is-active" : ""}`}
+              className="metric-card"
               onClick={() => openDashboardQueue("reply")}
             >
               <span>Требуют моего ответа</span>
@@ -1692,7 +1692,7 @@ export function AdminCabinet() {
             </button>
             <button
               type="button"
-              className={`metric-card${activeQueue === "today" && view === "queue" ? " is-active" : ""}`}
+              className="metric-card"
               onClick={() => openDashboardQueue("today")}
             >
               <span>Дедлайн сегодня</span>
@@ -1701,7 +1701,7 @@ export function AdminCabinet() {
             </button>
             <button
               type="button"
-              className={`metric-card${activeQueue === "new" && view === "queue" ? " is-active" : ""}`}
+              className="metric-card"
               onClick={() => openDashboardQueue("new")}
             >
               <span>Новые обращения</span>
@@ -1710,7 +1710,7 @@ export function AdminCabinet() {
             </button>
             <button
               type="button"
-              className={`metric-card${activeQueue === "docs" && view === "queue" ? " is-active" : ""}`}
+              className="metric-card"
               onClick={() => openDashboardQueue("docs")}
             >
               <span>Ожидаем документы</span>
@@ -1731,7 +1731,7 @@ export function AdminCabinet() {
             </button>
             <button
               type="button"
-              className={`metric-card${dashboard.sla_risk > 0 ? " metric-card--risk" : ""}${activeQueue === "sla" && view === "queue" ? " is-active" : ""}`}
+              className={`metric-card${dashboard.sla_risk > 0 ? " metric-card--risk" : ""}`}
               onClick={() => openDashboardQueue("sla")}
             >
               <span>Риск SLA</span>
@@ -1740,7 +1740,7 @@ export function AdminCabinet() {
             </button>
             <button
               type="button"
-              className={`metric-card${activeQueue === "conflicts" && view === "queue" ? " is-active" : ""}`}
+              className="metric-card"
               onClick={() => openDashboardQueue("conflicts")}
             >
               <span>Конфликты каналов</span>
@@ -1790,7 +1790,7 @@ export function AdminCabinet() {
                   <button
                     key={key}
                     type="button"
-                    className={activeQueue === `doc:${key}` && view === "queue" ? "chip active" : "chip"}
+                    className="chip"
                     onClick={() => openDashboardQueue(`doc:${key}`)}
                   >
                     {label} — {count}
@@ -1820,7 +1820,7 @@ export function AdminCabinet() {
                 <button
                   key={id}
                   type="button"
-                  className={activeQueue === id && view === "queue" ? "chip active" : "chip"}
+                  className="chip"
                   onClick={() => openDashboardQueue(id)}
                 >
                   {label}
