@@ -148,7 +148,14 @@ def test_llm_deepseek_fallback_when_primary_unavailable(monkeypatch) -> None:
 
     called: dict[str, str] = {}
 
-    def _fake_chat(*, system: str, user: str, temperature: float = 0.0) -> str:
+    def _fake_chat(
+        *,
+        system: str,
+        user: str,
+        temperature: float = 0.0,
+        stream: bool = False,
+        on_partial: object | None = None,
+    ) -> str:
         called["system"] = system
         return "fallback-ok"
 
