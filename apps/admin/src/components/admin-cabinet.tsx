@@ -418,6 +418,8 @@ export function AdminCabinet() {
   const [session, setSession] = useState<Session | null>(null);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  /** Какую подсказку сотрудник выбрал в чипах (чтобы убрать после отправки в MAX). */
+  const [pickedReplySuggestion, setPickedReplySuggestion] = useState<string | null>(null);
   const [stepHint, setStepHint] = useState<{
     action: string;
     reason: string;
@@ -579,6 +581,7 @@ export function AdminCabinet() {
       setStepHint(null);
       setStepMessages([]);
       setReplySuggestions([]);
+      setPickedReplySuggestion(null);
     }
     setBusy(true);
     try {
@@ -1029,6 +1032,7 @@ export function AdminCabinet() {
     }
     setMaxReplyBody(text);
     setReplySuggestions([]);
+    setPickedReplySuggestion(null);
     setMaxReplyFocus(true);
     setComposerFlash(true);
     window.setTimeout(() => setComposerFlash(false), 2000);
@@ -1427,6 +1431,7 @@ export function AdminCabinet() {
         { method: "POST" },
       );
       setReplySuggestions(result.suggestions ?? []);
+      setPickedReplySuggestion(null);
       if (!(result.suggestions && result.suggestions.length)) {
         setNotice("Не удалось получить варианты ответа.");
       }
@@ -1441,12 +1446,24 @@ export function AdminCabinet() {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
     setBusy(true);
     try {
+      const sent = maxReplyBody.trim();
       await apiFetch(`/api/portal/admin/cases/${detail.id}/max-reply`, token, {
         method: "POST",
-        body: JSON.stringify({ message: maxReplyBody.trim(), force: Boolean(opts?.force) }),
+        body: JSON.stringify({ message: sent, force: Boolean(opts?.force) }),
       });
       setMaxReplyBody("");
       setDupDialog(null);
+      setReplySuggestions((prev) => {
+        const drop =
+          (pickedReplySuggestion && prev.includes(pickedReplySuggestion)
+            ? pickedReplySuggestion
+            : null) ??
+          prev.find((s) => s.trim() === sent) ??
+          null;
+        if (!drop) return prev;
+        return prev.filter((s) => s !== drop);
+      });
+      setPickedReplySuggestion(null);
       setNotice("Сообщение отправлено клиенту в MAX.");
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
       setMessages(next);
@@ -2027,11 +2044,17 @@ export function AdminCabinet() {
             maxUserId={detail.client.max_user_id ?? null}
             maxBusinessUrl={detail.channels.max_ops_bot_url ?? detail.channels.max_reply_url ?? null}
             body={maxReplyBody}
-            onBodyChange={setMaxReplyBody}
+            onBodyChange={(value) => {
+              setMaxReplyBody(value);
+              if (replySuggestions.includes(value)) {
+                setPickedReplySuggestion(value);
+              }
+            }}
             busy={busy}
             onSendMax={() => void sendMaxReply()}
             onSendInternal={() => void sendMessage()}
             suggestions={replySuggestions}
+            pickedSuggestion={pickedReplySuggestion}
             onSuggest={() => void suggestReplies()}
             composerHighlight={composerFlash || maxReplyFocus}
             waitingOn={waitingOn}

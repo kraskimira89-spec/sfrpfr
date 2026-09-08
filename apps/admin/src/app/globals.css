@@ -1703,12 +1703,36 @@ button.badge--clickable:hover {
   border: 1px solid #b7d9c6;
 }
 .case-chat-suggest-label {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #1a5c3f;
+}
+.case-chat-suggest-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.case-chat-suggest-count {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.85;
+}
+.case-chat-suggest-regen {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  min-height: 28px;
+  font-size: 0.78rem;
+}
+.case-chat-btn-chip--picked {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(26, 92, 63, 0.18);
+  background: #f3faf6;
 }
 .case-chat-btn-chip {
   display: inline-flex;

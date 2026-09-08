@@ -165,6 +165,7 @@ export function CaseChatPanel({
   onSendMax,
   onSendInternal,
   suggestions,
+  pickedSuggestion = null,
   onSuggest,
   composerHighlight = false,
   waitingOn = null,
@@ -185,6 +186,8 @@ export function CaseChatPanel({
   onSendMax: () => void;
   onSendInternal: () => void;
   suggestions: string[];
+  /** Выбранный чип черновика (подсветка). */
+  pickedSuggestion?: string | null;
   onSuggest: () => void;
   composerHighlight?: boolean;
   /** @deprecated marketing consent UI убран из чата. */
@@ -434,13 +437,30 @@ export function CaseChatPanel({
       <div className={`case-chat-composer${composerHighlight ? " case-chat-composer--flash" : ""}`}>
         {suggestions.length > 0 ? (
           <div className="case-chat-suggest case-chat-suggest--client" aria-label="Варианты ответа DeepSeek">
-            <p className="case-chat-suggest-label">Черновики клиенту</p>
+            <div className="case-chat-suggest-head">
+              <p className="case-chat-suggest-label">
+                Черновики клиенту
+                <span className="case-chat-suggest-count"> · осталось {suggestions.length}</span>
+              </p>
+              <button
+                type="button"
+                className="ghost case-chat-suggest-regen"
+                disabled={busy}
+                onClick={onSuggest}
+                title="Сгенерировать новые варианты по актуальной истории чата"
+              >
+                Перегенерировать
+              </button>
+            </div>
             <div className="case-chat-buttons">
-              {suggestions.map((item) => (
+              {suggestions.map((item, idx) => (
                 <button
-                  key={item}
+                  key={`${idx}:${item.slice(0, 48)}`}
                   type="button"
-                  className="case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client"
+                  className={
+                    "case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client" +
+                    (pickedSuggestion === item ? " case-chat-btn-chip--picked" : "")
+                  }
                   onClick={() => onBodyChange(item)}
                   title="Подставить этот вариант ответа в поле сообщения ниже"
                 >
@@ -480,11 +500,14 @@ export function CaseChatPanel({
             className="ghost"
             disabled={busy}
             onClick={onSuggest}
-            title="DeepSeek предложит 2–3 варианта ответа по истории чата. Не отправляет само — только варианты для выбора"
+            title={
+              suggestions.length > 0
+                ? "Сгенерировать новые черновики по истории чата"
+                : "DeepSeek предложит 2–3 варианта ответа по истории чата. Не отправляет само — только варианты для выбора"
+            }
           >
-            Подсказать ответы (DeepSeek)
-          </button>
-          {maxLinked ? (
+            {suggestions.length > 0 ? "Перегенерировать подсказки" : "Подсказать ответы (DeepSeek)"}
+          </button>          {maxLinked ? (
             <button
               type="button"
               className="max-action-btn max-action-btn--inline"
