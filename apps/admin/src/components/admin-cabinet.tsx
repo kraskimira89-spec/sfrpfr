@@ -234,6 +234,15 @@ function writeQueueQuery(queue: string | null) {
   }
 }
 
+function queueFromLocation(): DashboardQueueKey | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parseDashboardQueueParam(new URLSearchParams(window.location.search).get("queue"));
+  } catch {
+    return null;
+  }
+}
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const SITE_URL = "https://proverkastaza.ru";
 const DEFAULT_MAX_OPS_BOT = "https://max.ru/id8905998693_3_bot";
@@ -426,7 +435,7 @@ export function AdminCabinet() {
   const [sfrReceived, setSfrReceived] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setView] = useState<View>(() => (queueFromLocation() ? "queue" : "dashboard"));
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [cases, setCases] = useState<StaffCaseSummary[]>([]);
   const [detail, setDetail] = useState<StaffCaseDetail | null>(null);
@@ -475,7 +484,9 @@ export function AdminCabinet() {
   const [filterPipeline, setFilterPipeline] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
-  const [activeQueue, setActiveQueue] = useState<DashboardQueueKey | string>("all");
+  const [activeQueue, setActiveQueue] = useState<DashboardQueueKey | string>(
+    () => queueFromLocation() ?? "all",
+  );
   const [registryQueue, setRegistryQueue] = useState("active");
   const [casesLoading, setCasesLoading] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -640,47 +651,34 @@ export function AdminCabinet() {
   useEffect(() => {
     if (!token || !me?.is_staff) return;
     const link = captureAdminDeepLink();
-    if (link?.caseId) {
-      let cancelled = false;
-      void (async () => {
-        try {
-          await loadCases();
-        } catch {
-          // реестр подтянется повторно; дело важнее
-        }
-        if (cancelled) return;
-        setView("cases");
-        let ok = await openCase(link.caseId, { focusMaxReply: true });
-        if (!ok && !cancelled) {
-          await new Promise((resolve) => window.setTimeout(resolve, 1500));
-          if (!cancelled) {
-            ok = await openCase(link.caseId, { focusMaxReply: true });
-          }
-        }
-        if (cancelled) return;
-        if (ok) {
-          clearAdminDeepLinkStorage();
-          return;
-        }
-        clearAdminDeepLink();
-        setView("cases");
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }
-    try {
-      const queue = parseDashboardQueueParam(
-        new URLSearchParams(window.location.search).get("queue"),
-      );
-      if (queue) {
-        setActiveQueue(queue);
-        setView("queue");
-        void loadDashboard();
+    if (!link?.caseId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await loadCases();
+      } catch {
+        // реестр подтянется повторно; дело важнее
       }
-    } catch {
-      // ignore
-    }
+      if (cancelled) return;
+      setView("cases");
+      let ok = await openCase(link.caseId, { focusMaxReply: true });
+      if (!ok && !cancelled) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        if (!cancelled) {
+          ok = await openCase(link.caseId, { focusMaxReply: true });
+        }
+      }
+      if (cancelled) return;
+      if (ok) {
+        clearAdminDeepLinkStorage();
+        return;
+      }
+      clearAdminDeepLink();
+      setView("cases");
+    })();
+    return () => {
+      cancelled = true;
+    };
     // openCase замыкается на token/state — достаточно staff-сессии.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, me?.is_staff]);
