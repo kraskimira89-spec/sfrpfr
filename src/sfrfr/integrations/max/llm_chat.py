@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
+import time
 from typing import Any
 
 from sfrfr.ai.llm import LLMClient
@@ -253,6 +255,45 @@ def _soft_buttons(labels: list[str]) -> list[dict[str, Any]]:
     return inline_buttons_keyboard(rows) if rows else []
 
 
+def stream_preview_text(raw: str, *, limit: int = 3800) -> str:
+    """Текст для промежуточного edit: REPLY без BUTTONS, без сырого JSON."""
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    reply_m = re.search(r"REPLY:\s*(.+?)(?:\n\s*BUTTONS:|\Z)", text, re.I | re.S)
+    if reply_m:
+        preview = reply_m.group(1).strip()
+    else:
+        # Пока модель не дописала REPLY: — показываем хвост без строки BUTTONS
+        preview = re.split(r"\n\s*BUTTONS:", text, maxsplit=1, flags=re.I)[0].strip()
+        preview = re.sub(r"^REPLY:\s*", "", preview, flags=re.I).strip()
+    preview = preview[:limit].rstrip()
+    if preview and not preview.endswith(("…", "...")):
+        preview = f"{preview}…"
+    return preview
+
+
+def _merge_attachments(
+    soft_labels: list[str],
+    nudge_kb: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    attachments = list(nudge_kb)
+    soft = _soft_buttons(soft_labels)
+    if soft and nudge_kb:
+        try:
+            base_rows = (nudge_kb[0].get("payload") or {}).get("buttons") or []
+            soft_rows = (soft[0].get("payload") or {}).get("buttons") or []
+            merged = list(base_rows) + list(soft_rows)
+            from sfrfr.integrations.max.client import inline_buttons_keyboard
+
+            return inline_buttons_keyboard(merged)
+        except Exception:  # noqa: BLE001
+            return nudge_kb
+    if soft:
+        return soft
+    return attachments
+
+
 def reply_to_free_text(
     *,
     user_text: str,
@@ -260,6 +301,8 @@ def reply_to_free_text(
     case_id: str | None = None,
     work: dict[str, Any] | None = None,
     exclude_message_id: str | None = None,
+    stream: bool | None = None,
+    on_partial: Any | None = None,
 ) -> tuple[str, list[dict[str, Any]], str]:
     """
     Вернуть (text, attachments, action).
@@ -288,9 +331,10 @@ def reply_to_free_text(
     cid = (case_id or "").strip()
     history: list[dict[str, Any]] = []
     deal_work = work
+    from sfrfr.services.case_chat_context import build_client_llm_user_prompt
+
     if cid:
         from sfrfr.services.case_chat_context import (
-            build_client_llm_user_prompt,
             fetch_recent_case_messages,
             work_map_from_case,
         )
@@ -313,8 +357,15 @@ def reply_to_free_text(
         intake_step=step,
         exclude_message_id=exclude_message_id,
     )
+    use_stream = bool(stream) if stream is not None else bool(on_partial)
     try:
-        raw = llm.chat(system=CLIENT_CHAT_SYSTEM, user=user, temperature=0.3)
+        raw = llm.chat(
+            system=CLIENT_CHAT_SYSTEM,
+            user=user,
+            temperature=0.3,
+            stream=use_stream,
+            on_partial=on_partial,
+        )
     except Exception as exc:  # noqa: BLE001
         logger.warning("max_llm_chat failed: %s", exc)
         return nudge_text, nudge_kb, "free_text_nudge"
@@ -327,18 +378,180 @@ def reply_to_free_text(
 
     reply = apply_position_policy(reply, case_id=cid or None)
     text = f"{reply}\n\nМожно ответить кнопками ниже."
-    attachments = list(nudge_kb)
-    soft = _soft_buttons(soft_labels)
-    if soft and nudge_kb:
-        try:
-            base_rows = (nudge_kb[0].get("payload") or {}).get("buttons") or []
-            soft_rows = (soft[0].get("payload") or {}).get("buttons") or []
-            merged = list(base_rows) + list(soft_rows)
-            from sfrfr.integrations.max.client import inline_buttons_keyboard
-
-            attachments = inline_buttons_keyboard(merged)
-        except Exception:  # noqa: BLE001
-            attachments = nudge_kb
-    elif soft:
-        attachments = soft
+    attachments = _merge_attachments(soft_labels, nudge_kb)
     return text, attachments, "max_llm_reply"
+
+
+class TypingPulse:
+    """Периодический typing_on, пока LLM генерирует ответ."""
+
+    def __init__(
+        self,
+        bot: Any,
+        *,
+        chat_id: int | str | None,
+        interval_seconds: float | None = None,
+    ) -> None:
+        settings = get_settings()
+        self._bot = bot
+        self._chat_id = chat_id
+        self._interval = float(
+            interval_seconds
+            if interval_seconds is not None
+            else settings.max_llm_typing_pulse_seconds
+            or 3.0
+        )
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _tick_once(self) -> None:
+        if self._chat_id is None:
+            return
+        try:
+            self._bot.send_chat_action(chat_id=self._chat_id, action="typing_on")
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("typing_pulse failed: %s", exc)
+
+    def _run(self) -> None:
+        self._tick_once()
+        while not self._stop.wait(self._interval):
+            self._tick_once()
+
+    def start(self) -> None:
+        if self._chat_id is None or not get_settings().max_llm_typing_pulse_enabled:
+            return
+        if self._thread is not None:
+            return
+        self._thread = threading.Thread(target=self._run, name="max-typing-pulse", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        thread = self._thread
+        self._thread = None
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=1.0)
+
+
+def deliver_free_text_reply(
+    *,
+    bot: Any,
+    user_id: str | None,
+    chat_id: int | str | None,
+    user_text: str,
+    intake: Any | None,
+    case_id: str | None = None,
+    exclude_message_id: str | None = None,
+    append_bot_message: Any | None = None,
+) -> tuple[str, list[dict[str, Any]], str]:
+    """
+    Сгенерировать ответ LLM и доставить в MAX:
+    typing pulse + опциональный псевдо-стрим через edit_message.
+    """
+    from sfrfr.services.case_chat_delivery import max_message_id_from_response
+
+    settings = get_settings()
+    pulse = TypingPulse(bot, chat_id=chat_id)
+    pulse.start()
+
+    stream_edit = bool(settings.max_llm_stream_edit_enabled)
+    min_interval = float(settings.max_llm_stream_edit_min_interval_seconds or 0.6)
+    state: dict[str, Any] = {"mid": None, "last_edit": 0.0, "sent": False}
+
+    def _on_partial(accumulated: str) -> None:
+        preview = stream_preview_text(accumulated)
+        if not preview or not stream_edit:
+            return
+        now = time.monotonic()
+        mid = state.get("mid")
+        if mid is None and not state["sent"]:
+            try:
+                result = bot.send_message(
+                    text=preview,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                state["mid"] = max_message_id_from_response(result)
+                state["sent"] = True
+                state["last_edit"] = now
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("max stream placeholder send failed: %s", exc)
+                state["sent"] = True  # не спамить повторными send
+            return
+        if not mid or (now - float(state["last_edit"])) < min_interval:
+            return
+        try:
+            bot.edit_message(message_id=str(mid), text=preview, notify=False)
+            state["last_edit"] = now
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("max stream edit failed: %s", exc)
+
+    try:
+        text, attachments, action = reply_to_free_text(
+            user_text=user_text,
+            intake=intake,
+            case_id=case_id,
+            exclude_message_id=exclude_message_id,
+            stream=stream_edit,
+            on_partial=_on_partial if stream_edit else None,
+        )
+    finally:
+        pulse.stop()
+
+    mid = state.get("mid")
+    if mid:
+        try:
+            bot.edit_message(
+                message_id=str(mid),
+                text=text,
+                attachments=attachments,
+                notify=False,
+            )
+            if append_bot_message is not None:
+                append_bot_message(
+                    case_id=case_id,
+                    text=text,
+                    attachments=attachments,
+                    max_user_id=str(user_id) if user_id else None,
+                    external_message_id=str(mid),
+                )
+            return text, attachments, action
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max final stream edit failed: %s", exc)
+            if append_bot_message is not None:
+                try:
+                    append_bot_message(
+                        case_id=case_id,
+                        text=text,
+                        attachments=attachments,
+                        max_user_id=str(user_id) if user_id else None,
+                        external_message_id=str(mid),
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+            return text, attachments, action
+
+    # Нет mid — одно обычное сообщение (или nudge / pdn без стрима)
+    try:
+        result = bot.send_message(
+            text=text,
+            user_id=user_id,
+            chat_id=chat_id,
+            attachments=attachments,
+        )
+        if append_bot_message is not None:
+            append_bot_message(
+                case_id=case_id,
+                text=text,
+                attachments=attachments,
+                max_user_id=str(user_id) if user_id else None,
+                external_message_id=max_message_id_from_response(result),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "max deliver_free_text send failed user_id=%s chat_id=%s err=%s",
+            user_id,
+            chat_id,
+            exc,
+        )
+    return text, attachments, action

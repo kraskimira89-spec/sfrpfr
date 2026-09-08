@@ -275,7 +275,7 @@ def max_message_id_from_response(payload: Any) -> str | None:
             value = current.get(key)
             if value is not None and str(value).strip():
                 return str(value).strip()
-        for key in ("message", "result", "data"):
+        for key in ("message", "result", "data", "body"):
             nested = current.get(key)
             if isinstance(nested, dict):
                 pending.append(nested)

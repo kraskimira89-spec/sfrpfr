@@ -192,6 +192,40 @@ class MaxBotClient:
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}
 
+    def edit_message(
+        self,
+        *,
+        message_id: str,
+        text: str | None = None,
+        attachments: list[dict[str, Any]] | None = None,
+        notify: bool = False,
+        text_format: str | None = None,
+    ) -> dict[str, Any]:
+        """PUT /messages?message_id=… — правка сообщения бота (псевдо-стрим)."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "no MAX_BOT_TOKEN"}
+        mid = (message_id or "").strip()
+        if not mid:
+            return {"ok": False, "skipped": True, "reason": "no message_id"}
+        payload: dict[str, Any] = {"notify": bool(notify)}
+        if text is not None:
+            payload["text"] = text
+        if attachments is not None:
+            payload["attachments"] = attachments
+        if text_format:
+            payload["format"] = text_format
+        url = f"{self.api_base}/messages"
+        with self._client() as client:
+            resp = client.put(
+                url,
+                headers=self._headers(),
+                params={"message_id": mid},
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            return data if isinstance(data, dict) else {"raw": data}
+
     def answer_callback(
         self,
         callback_id: str,
