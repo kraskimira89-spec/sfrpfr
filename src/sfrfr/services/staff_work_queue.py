@@ -242,6 +242,36 @@ def doc_flags(case: dict[str, Any], waiting_on: str) -> dict[str, bool]:
     }
 
 
+def channel_link_flags(client: dict[str, Any] | None) -> dict[str, Any]:
+    """Привязки каналов и конфликт предпочтения без факта связи."""
+    row = client if isinstance(client, dict) else {}
+    preferred = str(row.get("preferred_channel") or "unset").strip() or "unset"
+    max_linked = bool(str(row.get("max_user_id") or "").strip())
+    web_linked = bool(str(row.get("user_id") or "").strip())
+    conflict_kind: str | None = None
+    conflict_detail: str | None = None
+    if preferred == "max_miniapp" and not max_linked:
+        conflict_kind = "prefer_max_unlinked"
+        conflict_detail = (
+            "Клиент выбрал MAX, но аккаунт MAX не привязан к делу. "
+            "Нужно: попросить написать боту «Начать» или привязать MAX в карточке."
+        )
+    elif preferred == "web_cabinet" and not web_linked:
+        conflict_kind = "prefer_web_unlinked"
+        conflict_detail = (
+            "Клиент выбрал кабинет на сайте, но веб-аккаунт не привязан. "
+            "Нужно: отправить ссылку на кабинет / помочь войти по почте или MAX-коду."
+        )
+    return {
+        "channel": preferred,
+        "max_linked": max_linked,
+        "web_linked": web_linked,
+        "channel_conflict": conflict_kind is not None,
+        "conflict_kind": conflict_kind,
+        "conflict_detail": conflict_detail,
+    }
+
+
 def build_work_item(
     case: dict[str, Any],
     *,
@@ -257,6 +287,7 @@ def build_work_item(
     created = parse_dt(case.get("first_contact_at")) or parse_dt(case.get("created_at"))
     status = deadline_status(waiting_on, next_at, now=now)
     client = case.get("clients") or {}
+    links = channel_link_flags(client if isinstance(client, dict) else {})
     return {
         "case_id": str(case.get("id") or ""),
         "client_name": client.get("full_name") if show_contact else None,
@@ -268,7 +299,12 @@ def build_work_item(
         "next_action": next_action,
         "next_action_at": next_at.isoformat() if next_at else None,
         "deadline_status": status,
-        "channel": client.get("preferred_channel") or "unset",
+        "channel": links["channel"],
+        "max_linked": links["max_linked"],
+        "web_linked": links["web_linked"],
+        "channel_conflict": links["channel_conflict"],
+        "conflict_kind": links["conflict_kind"],
+        "conflict_detail": links["conflict_detail"],
         "expert_user_id": str(case["expert_user_id"]) if case.get("expert_user_id") else None,
         "created_at": case.get("created_at"),
         "doc_flags": doc_flags(case, waiting_on),

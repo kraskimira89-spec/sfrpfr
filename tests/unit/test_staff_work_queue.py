@@ -111,3 +111,112 @@ def test_snapshot_cards_and_queue_order() -> None:
     assert snap["payments_pending_amount"] == 3000
     assert snap["work_queue"][0]["case_id"] == "a"
     assert all(row["case_id"] != "c" for row in snap["work_queue"])
+
+
+def test_channel_conflict_prefer_max_without_link() -> None:
+    case = {
+        "id": "cf1",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "created_at": NOW.isoformat(),
+        "checklist_items": [],
+        "clients": {
+            "full_name": "Сидоров",
+            "preferred_channel": "max_miniapp",
+            "max_user_id": None,
+            "user_id": "auth-1",
+        },
+    }
+    item = build_work_item(case, now=NOW)
+    assert item is not None
+    assert item["channel_conflict"] is True
+    assert item["conflict_kind"] == "prefer_max_unlinked"
+    assert item["max_linked"] is False
+    assert item["web_linked"] is True
+    assert "MAX" in (item["conflict_detail"] or "")
+
+
+def test_channel_conflict_prefer_web_without_link() -> None:
+    case = {
+        "id": "cf2",
+        "pipeline_status": "documents_received",
+        "b2c_status": "consent_accepted",
+        "waiting_on": "client",
+        "created_at": NOW.isoformat(),
+        "checklist_items": [],
+        "clients": {
+            "full_name": "Козлова",
+            "preferred_channel": "web_cabinet",
+            "max_user_id": "12345",
+            "user_id": None,
+        },
+    }
+    item = build_work_item(case, now=NOW)
+    assert item is not None
+    assert item["channel_conflict"] is True
+    assert item["conflict_kind"] == "prefer_web_unlinked"
+    assert item["max_linked"] is True
+    assert item["web_linked"] is False
+
+
+def test_no_conflict_when_preferred_channel_linked() -> None:
+    case = {
+        "id": "cf3",
+        "pipeline_status": "intake",
+        "b2c_status": "lead",
+        "created_at": NOW.isoformat(),
+        "checklist_items": [],
+        "clients": {
+            "full_name": "Ок",
+            "preferred_channel": "max_miniapp",
+            "max_user_id": "99",
+            "user_id": None,
+        },
+    }
+    item = build_work_item(case, now=NOW)
+    assert item is not None
+    assert item["channel_conflict"] is False
+    assert item["conflict_kind"] is None
+    assert item["max_linked"] is True
+
+
+def test_conflicts_queue_filter_uses_channel_conflict_not_any_channel() -> None:
+    """Контракт UI: conflicts = channel_conflict, не «канал != unset»."""
+    conflict = build_work_item(
+        {
+            "id": "f1",
+            "pipeline_status": "intake",
+            "b2c_status": "lead",
+            "created_at": NOW.isoformat(),
+            "checklist_items": [],
+            "clients": {
+                "full_name": "Конфликт",
+                "preferred_channel": "max_miniapp",
+                "max_user_id": None,
+                "user_id": "u1",
+            },
+        },
+        now=NOW,
+    )
+    linked = build_work_item(
+        {
+            "id": "f2",
+            "pipeline_status": "intake",
+            "b2c_status": "lead",
+            "created_at": NOW.isoformat(),
+            "checklist_items": [],
+            "clients": {
+                "full_name": "Ок",
+                "preferred_channel": "max_miniapp",
+                "max_user_id": "42",
+                "user_id": None,
+            },
+        },
+        now=NOW,
+    )
+    assert conflict is not None and linked is not None
+    items = [conflict, linked]
+    broken = [i for i in items if i["channel"] != "unset"]
+    correct = [i for i in items if i["channel_conflict"]]
+    assert len(broken) == 2
+    assert [i["case_id"] for i in correct] == ["f1"]

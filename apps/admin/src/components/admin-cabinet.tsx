@@ -22,6 +22,11 @@ import {
   createStaffSupabaseClient,
 } from "@/components/staff-auth-screen";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
+import {
+  parseDashboardQueueParam,
+  type DashboardQueueKey,
+} from "@/lib/dashboard-queue";
+import { DashboardQueuePanel } from "@/components/dashboard-queue-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -78,6 +83,12 @@ type WorkQueueItem = {
   channel: string;
   expert_user_id: string | null;
   doc_flags?: Record<string, boolean>;
+  max_linked?: boolean;
+  web_linked?: boolean;
+  channel_conflict?: boolean;
+  conflict_kind?: string | null;
+  conflict_detail?: string | null;
+  waiting_days?: number;
 };
 
 type Dashboard = {
@@ -209,7 +220,19 @@ type StaffCaseDetail = {
   warning: string;
 };
 
-type View = "dashboard" | "cases" | "case" | "finance" | "analytics" | "roles";
+type View = "dashboard" | "queue" | "cases" | "case" | "finance" | "analytics" | "roles";
+
+function writeQueueQuery(queue: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    const u = new URL(window.location.href);
+    if (queue) u.searchParams.set("queue", queue);
+    else u.searchParams.delete("queue");
+    window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    // ignore
+  }
+}
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const SITE_URL = "https://proverkastaza.ru";
@@ -290,6 +313,7 @@ function clearAdminDeepLink() {
     u.searchParams.delete("case");
     u.searchParams.delete("focus");
     u.searchParams.delete("view");
+    u.searchParams.delete("queue");
     if (u.hash === "#max-reply") u.hash = "";
     window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
   } catch {
@@ -315,18 +339,6 @@ function BrandHomeLink({
     </a>
   );
 }
-
-const CHANNEL_LABELS: Record<string, string> = {
-  max_miniapp: "MAX",
-  web_cabinet: "Веб-кабинет",
-  unset: "не выбран",
-};
-
-const PRIORITY_LABELS: Record<string, string> = {
-  urgent: "Срочно",
-  today: "Сегодня",
-  standard: "Стандартно",
-};
 
 const DOC_STATUS_LABELS: Record<string, string> = {
   consent_missing: "Нет согласия на ПДн",
@@ -463,7 +475,7 @@ export function AdminCabinet() {
   const [filterPipeline, setFilterPipeline] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
-  const [queueFilter, setQueueFilter] = useState("all");
+  const [activeQueue, setActiveQueue] = useState<DashboardQueueKey | string>("all");
   const [registryQueue, setRegistryQueue] = useState("active");
   const [casesLoading, setCasesLoading] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -611,37 +623,64 @@ export function AdminCabinet() {
     captureAdminDeepLink();
   }, []);
 
+  function openDashboardQueue(queue: DashboardQueueKey | string) {
+    setActiveQueue(queue);
+    setView("queue");
+    writeQueueQuery(queue);
+    if (!dashboard) void loadDashboard();
+  }
+
+  function backToDashboard() {
+    setView("dashboard");
+    setActiveQueue("all");
+    writeQueueQuery(null);
+    void loadDashboard();
+  }
+
   useEffect(() => {
     if (!token || !me?.is_staff) return;
     const link = captureAdminDeepLink();
-    if (!link?.caseId) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await loadCases();
-      } catch {
-        // реестр подтянется повторно; дело важнее
-      }
-      if (cancelled) return;
-      setView("cases");
-      let ok = await openCase(link.caseId, { focusMaxReply: true });
-      if (!ok && !cancelled) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
-        if (!cancelled) {
-          ok = await openCase(link.caseId, { focusMaxReply: true });
+    if (link?.caseId) {
+      let cancelled = false;
+      void (async () => {
+        try {
+          await loadCases();
+        } catch {
+          // реестр подтянется повторно; дело важнее
         }
+        if (cancelled) return;
+        setView("cases");
+        let ok = await openCase(link.caseId, { focusMaxReply: true });
+        if (!ok && !cancelled) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+          if (!cancelled) {
+            ok = await openCase(link.caseId, { focusMaxReply: true });
+          }
+        }
+        if (cancelled) return;
+        if (ok) {
+          clearAdminDeepLinkStorage();
+          return;
+        }
+        clearAdminDeepLink();
+        setView("cases");
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+    try {
+      const queue = parseDashboardQueueParam(
+        new URLSearchParams(window.location.search).get("queue"),
+      );
+      if (queue) {
+        setActiveQueue(queue);
+        setView("queue");
+        void loadDashboard();
       }
-      if (cancelled) return;
-      if (ok) {
-        clearAdminDeepLinkStorage();
-        return;
-      }
-      clearAdminDeepLink();
-      setView("cases");
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      // ignore
+    }
     // openCase замыкается на token/state — достаточно staff-сессии.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, me?.is_staff]);
@@ -1603,7 +1642,7 @@ export function AdminCabinet() {
       </header>
 
       <nav className="tabs" aria-label="Разделы">
-        <button type="button" className={view === "dashboard" ? "tab active" : "tab"} onClick={() => { setView("dashboard"); void loadDashboard(); }}>
+        <button type="button" className={view === "dashboard" || view === "queue" ? "tab active" : "tab"} onClick={() => { backToDashboard(); }}>
           Дашборд
         </button>
         <button type="button" className={view === "cases" || view === "case" ? "tab active" : "tab"} onClick={() => { setView("cases"); void loadCases(); }}>
@@ -1644,22 +1683,38 @@ export function AdminCabinet() {
             Сначала отвечаем клиенту, затем закрываем дедлайны и риски SLA.
           </p>
           <div className="metrics">
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("reply")}>
+            <button
+              type="button"
+              className={`metric-card${activeQueue === "reply" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("reply")}
+            >
               <span>Требуют моего ответа</span>
               <strong>{dashboard.needs_reply}</strong>
               <em>{dashboard.needs_reply_over_30m} без ответа более 30 мин</em>
             </button>
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("today")}>
+            <button
+              type="button"
+              className={`metric-card${activeQueue === "today" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("today")}
+            >
               <span>Дедлайн сегодня</span>
               <strong>{dashboard.deadline_today}</strong>
               <em>Задачи и следующий шаг на сегодня</em>
             </button>
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("new")}>
+            <button
+              type="button"
+              className={`metric-card${activeQueue === "new" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("new")}
+            >
               <span>Новые обращения</span>
               <strong>{dashboard.new_leads}</strong>
               <em>Заявки без перевода в работу</em>
             </button>
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("docs")}>
+            <button
+              type="button"
+              className={`metric-card${activeQueue === "docs" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("docs")}
+            >
               <span>Ожидаем документы</span>
               <strong>{dashboard.waiting_docs}</strong>
               <em>
@@ -1676,12 +1731,20 @@ export function AdminCabinet() {
                 {" · "}счета на вкладке Финансы
               </em>
             </button>
-            <button type="button" className={`metric-card ${dashboard.sla_risk > 0 ? "metric-card--risk" : ""}`} onClick={() => setQueueFilter("sla")}>
+            <button
+              type="button"
+              className={`metric-card${dashboard.sla_risk > 0 ? " metric-card--risk" : ""}${activeQueue === "sla" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("sla")}
+            >
               <span>Риск SLA</span>
               <strong>{dashboard.sla_risk}</strong>
               <em>Срок ответа сотрудника нарушен</em>
             </button>
-            <button type="button" className="metric-card" onClick={() => setQueueFilter("conflicts")}>
+            <button
+              type="button"
+              className={`metric-card${activeQueue === "conflicts" && view === "queue" ? " is-active" : ""}`}
+              onClick={() => openDashboardQueue("conflicts")}
+            >
               <span>Конфликты каналов</span>
               <strong>{dashboard.channel_conflicts}</strong>
               <em>Предпочтение MAX/веб без привязки. Без MAX / без веб: {dashboard.unlinked_max} / {dashboard.unlinked_web}</em>
@@ -1729,10 +1792,10 @@ export function AdminCabinet() {
                   <button
                     key={key}
                     type="button"
-                    className={queueFilter === `doc:${key}` ? "chip active" : "chip"}
-                    onClick={() => setQueueFilter(`doc:${key}`)}
+                    className={activeQueue === `doc:${key}` && view === "queue" ? "chip active" : "chip"}
+                    onClick={() => openDashboardQueue(`doc:${key}`)}
                   >
-                    {label} тАФ {count}
+                    {label} — {count}
                   </button>
                 );
               })}
@@ -1741,80 +1804,30 @@ export function AdminCabinet() {
 
           <div className="panel">
             <h2>Рабочая очередь</h2>
+            <p className="hint">
+              Откройте карточку метрики выше или чип ниже — откроется экран очереди со списком и
+              рекомендациями.
+            </p>
             <div className="chip-row">
               {[
-                ["all", "Все"],
                 ["urgent", "Срочно"],
                 ["today", "Сегодня"],
                 ["reply", "Мой ответ"],
                 ["docs", "Документы"],
                 ["payment", "Оплата"],
                 ["sla", "Риск SLA"],
+                ["new", "Новые"],
+                ["conflicts", "Конфликты"],
               ].map(([id, label]) => (
-                  <button
+                <button
                   key={id}
-                    type="button"
-                  className={queueFilter === id ? "chip active" : "chip"}
-                  onClick={() => setQueueFilter(id)}
-                  >
+                  type="button"
+                  className={activeQueue === id && view === "queue" ? "chip active" : "chip"}
+                  onClick={() => openDashboardQueue(id)}
+                >
                   {label}
-                  </button>
+                </button>
               ))}
-          </div>
-            <div className="queue-wrap">
-              <table className="queue-table">
-                <thead>
-                  <tr>
-                    <th>Приоритет</th>
-                    <th>Дело</th>
-                    <th>Этап</th>
-                    <th>Последнее событие</th>
-                    <th>Следующий шаг</th>
-                    <th>Дедлайн</th>
-                    <th>Канал</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(dashboard.work_queue || [])
-                    .filter((item) => {
-                      if (queueFilter === "all") return true;
-                      if (queueFilter === "urgent") return item.priority === "urgent";
-                      if (queueFilter === "today") return item.priority === "today" || item.deadline_status === "today";
-                      if (queueFilter === "reply") return item.waiting_on === "staff";
-                      if (queueFilter === "docs") return item.waiting_on === "client" || item.waiting_on === "archive";
-                      if (queueFilter === "payment") return item.waiting_on === "payment";
-                      if (queueFilter === "sla") return item.deadline_status === "overdue";
-                      if (queueFilter === "new") return item.pipeline_status === "intake" || item.b2c_status === "lead";
-                      if (queueFilter === "conflicts") return item.channel !== "unset";
-                      if (queueFilter.startsWith("doc:")) {
-                        const key = queueFilter.slice(4);
-                        return Boolean(item.doc_flags?.[key]);
-                      }
-                      return true;
-                    })
-                    .map((item) => (
-                      <tr key={item.case_id} className={`tone-${item.deadline_status}`}>
-                        <td>{PRIORITY_LABELS[item.priority]}</td>
-                        <td>{item.client_name ?? "Клиент"}</td>
-                        <td>{labelPipeline(item.pipeline_status)}</td>
-                        <td>{item.last_event}</td>
-                        <td>{item.next_action}</td>
-                        <td>
-                          <span className={`deadline deadline--${item.deadline_status}`}>
-                            {formatWhen(item.next_action_at)}
-                          </span>
-                        </td>
-                        <td>{CHANNEL_LABELS[item.channel] ?? item.channel}</td>
-                        <td>
-                          <button type="button" className="ghost" onClick={() => void openCase(item.case_id)}>
-                            Открыть
-                  </button>
-                        </td>
-                      </tr>
-              ))}
-                </tbody>
-              </table>
             </div>
           </div>
 
@@ -1827,6 +1840,16 @@ export function AdminCabinet() {
                 </ul>
               </div>
         </section>
+      )}
+
+      {view === "queue" && dashboard && (
+        <DashboardQueuePanel
+          queue={activeQueue}
+          items={dashboard.work_queue || []}
+          onBack={backToDashboard}
+          onOpenCase={(caseId) => void openCase(caseId)}
+          busy={busy}
+        />
       )}
 
       {view === "cases" && (

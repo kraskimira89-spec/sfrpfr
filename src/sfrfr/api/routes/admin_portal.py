@@ -605,21 +605,19 @@ def admin_dashboard(principal: Principal = Depends(require_staff)) -> DashboardR
         show_contact=principal.role in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT),
     )
 
+    from sfrfr.services.staff_work_queue import channel_link_flags
+
     channel_conflicts = 0
     unlinked_max = 0
     unlinked_web = 0
     for case in cases:
         client = case.get("clients") or {}
-        max_linked = bool(client.get("max_user_id"))
-        web_linked = bool(client.get("user_id"))
-        if not max_linked:
+        links = channel_link_flags(client if isinstance(client, dict) else {})
+        if not links["max_linked"]:
             unlinked_max += 1
-        if not web_linked:
+        if not links["web_linked"]:
             unlinked_web += 1
-        preferred = client.get("preferred_channel") or "unset"
-        if preferred == "max_miniapp" and not max_linked:
-            channel_conflicts += 1
-        if preferred == "web_cabinet" and not web_linked:
+        if links["channel_conflict"]:
             channel_conflicts += 1
 
     return DashboardResponse(

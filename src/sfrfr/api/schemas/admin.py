@@ -58,8 +58,14 @@ class WorkQueueItem(BaseModel):
     next_action_at: str | None = None
     deadline_status: Literal["overdue", "soon", "today", "ok", "waiting"]
     channel: str = "unset"
+    max_linked: bool = False
+    web_linked: bool = False
+    channel_conflict: bool = False
+    conflict_kind: str | None = None
+    conflict_detail: str | None = None
     expert_user_id: str | None = None
     doc_flags: dict[str, bool] = Field(default_factory=dict)
+    waiting_days: int = 0
 
 
 class CaseFlagsUpdate(BaseModel):
