@@ -351,23 +351,23 @@ def _extract_upload_preview(data: bytes, filename: str) -> str:
 
 
 def _client_document(item: dict[str, Any]) -> dict[str, Any]:
-        storage_path = str(item.get("storage_path") or "")
+    storage_path = str(item.get("storage_path") or "")
     filename = _document_filename(storage_path)
     type_label = _document_type_label(str(item["doc_type"]) if item.get("doc_type") else None)
-        preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
+    preview = _sanitize_content_preview(str(item.get("content_preview") or ""))
     inner_date, inner_title = _meta_from_preview(
         preview,
         filename=filename,
         type_label=type_label,
     )
     return {
-                "id": item.get("id"),
-                "storage_path": storage_path,
-                "doc_type": item.get("doc_type"),
+        "id": item.get("id"),
+        "storage_path": storage_path,
+        "doc_type": item.get("doc_type"),
         "doc_type_label": type_label,
-                "created_at": item.get("created_at"),
+        "created_at": item.get("created_at"),
         "filename": filename,
-                "content_preview": preview or None,
+        "content_preview": preview or None,
         "inner_date": inner_date,
         "inner_title": inner_title,
         "document_group_id": item.get("document_group_id"),
@@ -1105,12 +1105,12 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             ),
         )
     if pending.audience == "staff":
-    return MaxOtpPollResponse(
-        ok=True,
-        status="pending_pair",
-        message=(
-            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
-            "после этого вход откроется сам."
+        return MaxOtpPollResponse(
+            ok=True,
+            status="pending_pair",
+            message=(
+                f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
+                "после этого вход откроется сам."
             ),
         )
     return MaxOtpPollResponse(
@@ -1806,7 +1806,7 @@ async def upload_case_document(
                 scenario_rows=scenario_rows,
             )
         else:
-    content_preview = _extract_upload_preview(data, filename)
+            content_preview = _extract_upload_preview(data, filename)
             row = store_document(
                 case_id=case_id,
                 filename=filename,
