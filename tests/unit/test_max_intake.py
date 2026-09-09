@@ -47,14 +47,15 @@ class _SilentBot:
         return {"ok": True}
 
 
-def _cb(user_id: int, payload: str, chat_id: int = 1) -> dict:
-    return {
-        "callback": {
-            "user": {"user_id": user_id},
-            "chat_id": chat_id,
-            "payload": payload,
-        }
+def _cb(user_id: int, payload: str, chat_id: int = 1, callback_id: str | None = None) -> dict:
+    block: dict = {
+        "user": {"user_id": user_id},
+        "chat_id": chat_id,
+        "payload": payload,
     }
+    if callback_id:
+        block["callback_id"] = callback_id
+    return {"callback": block}
 
 
 def _msg(user_id: int, text: str, chat_id: int = 1) -> dict:
@@ -77,6 +78,9 @@ def _setup(tmp_path: Path, monkeypatch) -> _SilentBot:
     get_settings.cache_clear()
     reset_case_store(tmp_path / "cases.json")
     reset_intake_store(tmp_path / "max_intake.json")
+    from sfrfr.integrations.max.webhook_dedupe import reset_callback_dedupe_for_tests
+
+    reset_callback_dedupe_for_tests()
     # С уже принятым согласием — чтобы сценарии intake не упирались в ворота.
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._client_has_pdn_consent",
@@ -139,6 +143,37 @@ def test_start_button_accepts_consent_and_welcomes(tmp_path: Path, monkeypatch) 
     assert result.action == "max_intake_started"
     assert result.reply == WELCOME_PART_1
     assert accepted
+    get_settings.cache_clear()
+
+
+def test_start_dialog_welcome_once_even_without_callback_id(
+    tmp_path: Path, monkeypatch
+) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    from sfrfr.security.login_otp import START_DIALOG_CALLBACK
+
+    first = handle_max_update(_cb(72, START_DIALOG_CALLBACK), bot=bot)
+    assert first.action == "max_intake_started"
+    sent_after_first = len(bot.sent)
+    assert sent_after_first >= 1
+    second = handle_max_update(_cb(72, START_DIALOG_CALLBACK), bot=bot)
+    assert second.action == "max_intake_already_started"
+    assert len(bot.sent) == sent_after_first
+    get_settings.cache_clear()
+
+
+def test_duplicate_callback_id_skipped(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    from sfrfr.security.login_otp import START_DIALOG_CALLBACK
+
+    first = handle_max_update(
+        _cb(73, START_DIALOG_CALLBACK, callback_id="cb-same-1"), bot=bot
+    )
+    assert first.action == "max_intake_started"
+    again = handle_max_update(
+        _cb(73, START_DIALOG_CALLBACK, callback_id="cb-same-1"), bot=bot
+    )
+    assert again.action == "duplicate_callback"
     get_settings.cache_clear()
 
 

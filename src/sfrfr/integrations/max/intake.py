@@ -289,6 +289,7 @@ class MaxIntakeRecord:
     client_id: str | None = None
     case_id: str | None = None
     staff_notified_at: str | None = None
+    welcome_sent_at: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
@@ -426,6 +427,21 @@ class MaxIntakeStore:
             self._rows[str(rec.max_user_id)] = rec
             self._save()
             return rec
+
+    def claim_welcome(self, max_user_id: str) -> bool:
+        """Атомарно: True если приветствие ещё не отправляли (можно слать)."""
+        with self._lock:
+            mid = str(max_user_id)
+            rec = self._rows.get(mid)
+            if rec is None:
+                rec = MaxIntakeRecord(id=str(uuid.uuid4()), max_user_id=mid, status="started")
+                self._rows[mid] = rec
+            if rec.welcome_sent_at:
+                return False
+            rec.welcome_sent_at = datetime.now(UTC).isoformat()
+            rec.updated_at = rec.welcome_sent_at
+            self._save()
+            return True
 
 
 _store: MaxIntakeStore | None = None
