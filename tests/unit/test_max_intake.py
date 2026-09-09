@@ -21,6 +21,7 @@ class _SilentBot:
         self.sent: list[tuple[object, str]] = []
         self.attachments: list[object] = []
         self.typing: list[tuple[object, str]] = []
+        self.callback_acks: list[dict[str, object]] = []
 
     @property
     def available(self) -> bool:
@@ -44,6 +45,9 @@ class _SilentBot:
         return {"ok": True}
 
     def answer_callback(self, callback_id: str, **kwargs):  # noqa: ANN003
+        self.callback_acks.append(
+            {"callback_id": callback_id, "notification": kwargs.get("notification")}
+        )
         return {"ok": True}
 
 
@@ -507,6 +511,38 @@ def test_typing_on_before_callback_reply(tmp_path: Path, monkeypatch) -> None:
     handle_max_update(_cb(24, "intake:whom:self"), bot=bot)
     assert bot.typing
     assert bot.typing[-1] == (1, "typing_on")
+    get_settings.cache_clear()
+
+
+def test_callback_ack_contains_notification(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(26, "/start"), bot=bot)
+    handle_max_update(
+        _cb(26, "intake:docs_info", callback_id="cb-docs-1"),
+        bot=bot,
+    )
+    assert bot.callback_acks
+    assert bot.callback_acks[-1]["callback_id"] == "cb-docs-1"
+    assert "Готовлю ответ" in str(bot.callback_acks[-1]["notification"])
+    get_settings.cache_clear()
+
+
+def test_duplicate_payload_with_new_callback_id_is_cooled_down(
+    tmp_path: Path, monkeypatch
+) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(27, "/start"), bot=bot)
+    first = handle_max_update(
+        _cb(27, "intake:docs_info", callback_id="cb-docs-2"),
+        bot=bot,
+    )
+    second = handle_max_update(
+        _cb(27, "intake:docs_info", callback_id="cb-docs-3"),
+        bot=bot,
+    )
+    assert first.action == "docs_info"
+    assert second.action == "duplicate_payload_cooldown"
+    assert "обрабатываю" in (second.reply or "").lower()
     get_settings.cache_clear()
 
 

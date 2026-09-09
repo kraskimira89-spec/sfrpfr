@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -90,6 +92,10 @@ from sfrfr.security.login_pending import (
 )
 
 logger = logging.getLogger(__name__)
+
+_RECENT_CALLBACK_LOCK = threading.RLock()
+_RECENT_CALLBACKS: dict[tuple[str, str], float] = {}
+_RECENT_CALLBACK_TTL_SEC = 12.0
 
 
 @dataclass
@@ -497,15 +503,44 @@ def _update_expects_bot_reply(
 def _ack_message_callback(
     bot: MaxBotClient,
     update: dict[str, Any],
+    *,
+    notification: str | None = None,
 ) -> None:
     """Быстрый ACK нажатия inline-кнопки — MAX перестаёт «ждать» ответ."""
     cid = _callback_id(update)
     if not cid:
         return
     try:
-        bot.answer_callback(cid)
+        bot.answer_callback(cid, notification=notification)
     except Exception as exc:  # noqa: BLE001
         logger.debug("max_answer_callback failed id=%s err=%s", cid, exc)
+
+
+def _callback_ack_notification(payload: str) -> str:
+    low = (payload or "").strip().lower()
+    if low.startswith("intake:docs") or low in {"intake:docs_info", "intake:restart"}:
+        return "Принято. Готовлю ответ…"
+    if low.startswith("intake:operator"):
+        return "Принято. Передаю специалисту…"
+    if low.startswith("intake:"):
+        return "Выбор принят"
+    return "Принято"
+
+
+def _is_rapid_repeat_callback(*, user_id: str, payload: str) -> bool:
+    key = (str(user_id), str(payload).strip())
+    if not key[1] or key[1] == START_DIALOG_CALLBACK:
+        return False
+    now = time.monotonic()
+    with _RECENT_CALLBACK_LOCK:
+        expired = [k for k, ts in _RECENT_CALLBACKS.items() if now - ts > _RECENT_CALLBACK_TTL_SEC]
+        for old in expired:
+            _RECENT_CALLBACKS.pop(old, None)
+        seen = _RECENT_CALLBACKS.get(key)
+        if seen is not None and now - seen <= _RECENT_CALLBACK_TTL_SEC:
+            return True
+        _RECENT_CALLBACKS[key] = now
+        return False
 
 
 def _reply(
@@ -2737,12 +2772,24 @@ def handle_max_update(
 
         callback_event_id = _callback_id(update)
         # ACK сразу — иначе MAX шлёт тот же callback повторно.
-        _ack_message_callback(bot, update)
+        _ack_message_callback(
+            bot,
+            update,
+            notification=_callback_ack_notification(callback),
+        )
         if callback_event_id and not claim_callback_id(callback_event_id):
             return MaxHandleResult(
                 ok=True,
                 action="duplicate_callback",
                 detail=f"callback_id={callback_event_id}",
+            )
+        if _is_rapid_repeat_callback(user_id=user_id, payload=callback):
+            # Пользователь нажал ту же кнопку повторно: подтверждаем и не плодим одинаковые шаги.
+            return MaxHandleResult(
+                ok=True,
+                action="duplicate_payload_cooldown",
+                detail=f"payload={callback}",
+                reply="Уже обрабатываю этот выбор. Если ответ не появился сразу, подождите пару секунд.",
             )
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
