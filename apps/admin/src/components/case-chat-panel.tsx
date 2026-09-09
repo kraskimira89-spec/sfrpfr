@@ -224,6 +224,13 @@ export function CaseChatPanel({
     return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
   }, [messages]);
 
+  const lastFeedKey = useMemo(() => {
+    for (let i = feed.length - 1; i >= 0; i -= 1) {
+      if (feed[i].type !== "day") return feed[i].key;
+    }
+    return null;
+  }, [feed]);
+
   const scrollFeedToLatest = useCallback((behavior: ScrollBehavior = "smooth") => {
     const run = () => {
       const bubble = lastBubbleRef.current;
@@ -332,7 +339,7 @@ export function CaseChatPanel({
         </div>
       </div>
 
-      <div className="case-chat-feed" ref={feedRef} onScroll={onFeedScroll}>
+      <div className="case-chat-feed" ref={feedRef}>
         {feed.length === 0 ? (
           <p className="hint case-chat-empty">
             Пока пусто. Здесь появятся сообщения бота, нажатия клиента и ответы сотрудника.
@@ -353,8 +360,14 @@ export function CaseChatPanel({
                 : item.messages.length > 1 && item.collapsedExtra > 0
                   ? item.messages
                   : item.messages;
+              const isLastBubble =
+                !showBotTyping && !showBotTypingTimeout && item.key === lastFeedKey;
               return (
-                <li key={item.key} className={bubbleClass(item.author_kind)}>
+                <li
+                  key={item.key}
+                  ref={isLastBubble ? lastBubbleRef : undefined}
+                  className={bubbleClass(item.author_kind)}
+                >
                   <span className="meta">
                     {authorLabel(item.author_kind)} ·{" "}
                     {new Date(item.created_at).toLocaleString("ru-RU", {
@@ -407,7 +420,11 @@ export function CaseChatPanel({
               );
             })}
             {showBotTyping ? (
-              <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
+              <li
+                ref={lastBubbleRef}
+                className="case-chat-bubble case-chat-bubble--bot case-chat-typing"
+                aria-live="polite"
+              >
                 <span className="meta">Бот MAX · печатает…</span>
                 <p className="hint">{botTypingHint}</p>
                 <p className="case-chat-typing-dots" aria-hidden="true">
@@ -416,7 +433,11 @@ export function CaseChatPanel({
               </li>
             ) : null}
             {showBotTypingTimeout ? (
-              <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
+              <li
+                ref={!showBotTyping ? lastBubbleRef : undefined}
+                className="case-chat-bubble case-chat-bubble--bot"
+                aria-live="polite"
+              >
                 <span className="meta">Бот MAX</span>
                 <p className="hint">{botTypingHint}</p>
               </li>

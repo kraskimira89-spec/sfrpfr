@@ -1,6 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import {
   CASE_CHAT_DOCUMENTS_RULE,
   CASE_CHAT_EMPTY,
@@ -134,19 +144,48 @@ export function ClientCaseChatPanel({
 }) {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const feedRef = useRef<HTMLDivElement | null>(null);
+  const lastBubbleRef = useRef<HTMLLIElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
   const { showBotTyping, showBotTypingTimeout, botTypingHint } = useBotTypingIndicator(messages);
   const chatEmpty = messages.length === 0;
   const filterEmpty = !chatEmpty && feed.length === 0;
 
-  useEffect(() => {
-    const el = feedRef.current;
-    if (!el) return;
+  const lastMessageKey = useMemo(() => {
+    const last = messages[messages.length - 1];
+    return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
+  }, [messages]);
+
+  const lastFeedKey = useMemo(() => {
+    for (let i = feed.length - 1; i >= 0; i -= 1) {
+      if (feed[i].type !== "day") return feed[i].key;
+    }
+    return null;
+  }, [feed]);
+
+  const scrollFeedToLatest = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const run = () => {
+      const bubble = lastBubbleRef.current;
+      if (bubble) {
+        bubble.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+        return;
+      }
+      const el = feedRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    };
     requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      requestAnimationFrame(run);
     });
-  }, [feed.length, showBotTyping, showBotTypingTimeout]);
+  }, []);
+
+  useEffect(() => {
+    scrollFeedToLatest("auto");
+  }, [filter, scrollFeedToLatest]);
+
+  useEffect(() => {
+    scrollFeedToLatest("smooth");
+  }, [lastMessageKey, showBotTyping, showBotTypingTimeout, scrollFeedToLatest]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -239,8 +278,14 @@ export function ClientCaseChatPanel({
                 );
               }
               const isDocument = item.body.startsWith("[Документ] ");
+              const isLastBubble =
+                !showBotTyping && !showBotTypingTimeout && item.key === lastFeedKey;
               return (
-                <li key={item.key} className={bubbleClass(item.author_kind)}>
+                <li
+                  key={item.key}
+                  ref={isLastBubble ? lastBubbleRef : undefined}
+                  className={bubbleClass(item.author_kind)}
+                >
                   <span className="meta">
                     {authorLabel(item.author_kind)} ·{" "}
                     {new Date(item.created_at).toLocaleString("ru-RU", {
@@ -255,7 +300,11 @@ export function ClientCaseChatPanel({
               );
             })}
             {showBotTyping ? (
-              <li className="case-chat-bubble case-chat-bubble--bot case-chat-typing" aria-live="polite">
+              <li
+                ref={lastBubbleRef}
+                className="case-chat-bubble case-chat-bubble--bot case-chat-typing"
+                aria-live="polite"
+              >
                 <span className="meta">Бот · печатает…</span>
                 <p className="hint">{botTypingHint}</p>
                 <p className="case-chat-typing-dots" aria-hidden="true">
@@ -264,7 +313,11 @@ export function ClientCaseChatPanel({
               </li>
             ) : null}
             {showBotTypingTimeout ? (
-              <li className="case-chat-bubble case-chat-bubble--bot" aria-live="polite">
+              <li
+                ref={!showBotTyping ? lastBubbleRef : undefined}
+                className="case-chat-bubble case-chat-bubble--bot"
+                aria-live="polite"
+              >
                 <span className="meta">Бот</span>
                 <p className="hint">{botTypingHint}</p>
               </li>
