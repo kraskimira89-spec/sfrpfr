@@ -183,6 +183,9 @@ def test_duplicate_callback_id_skipped(tmp_path: Path, monkeypatch) -> None:
 
 def test_start_notifies_staff_once(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
+    # Вне bot_owned старт по-прежнему уведомляет staff один раз
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "0")
+    get_settings.cache_clear()
     calls: list[dict] = []
 
     def _fake_notify(**kwargs):  # noqa: ANN003
@@ -201,6 +204,22 @@ def test_start_notifies_staff_once(tmp_path: Path, monkeypatch) -> None:
     assert "Начать" in str(calls[0]["source_label"])
     intake = get_intake_store().get_active("21")
     assert intake is not None and intake.staff_notified_at
+    get_settings.cache_clear()
+
+
+def test_start_bot_owned_skips_staff_notify(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    get_settings.cache_clear()
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        "sfrfr.services.lead_ops_notify.notify_ops_new_lead",
+        lambda **kwargs: calls.append(kwargs) or {"ok": True},
+    )
+    handle_max_update(_msg(31, "/start"), bot=bot)
+    assert calls == []
+    intake = get_intake_store().get_active("31")
+    assert intake is not None and not intake.staff_notified_at
     get_settings.cache_clear()
 
 
