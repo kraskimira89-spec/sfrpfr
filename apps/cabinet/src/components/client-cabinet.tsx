@@ -1371,7 +1371,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/consents`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: "pdn-consent-2026-08-22" }),
+        body: JSON.stringify({ version: "pdn-consent-2026-09-09" }),
       });
       setNotice("Согласие на обработку ПДн зафиксировано.");
       await openCase(selectedId, view === "docs" ? "docs" : "case");
@@ -1389,7 +1389,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/contract-acceptances`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offer_version: "offer-2026-08-14" }),
+        body: JSON.stringify({ offer_version: "offer-2026-09-09" }),
       });
       setNotice("Акцепт оферты и индивидуального заказа зафиксирован.");
       await openCase(selectedId, "docs");

@@ -40,7 +40,7 @@ def test_client_has_pdn_consent() -> None:
     assert (
         client_has_pdn_consent(
             {
-                "pdn_consent_version": "pdn-consent-2026-08-22",
+                "pdn_consent_version": "pdn-consent-2026-09-09",
                 "pdn_consent_accepted_at": "2026-09-01T00:00:00Z",
             }
         )

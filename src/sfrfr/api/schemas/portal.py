@@ -40,11 +40,11 @@ class SignedDocumentResponse(BaseModel):
 
 
 class ConsentAcceptRequest(BaseModel):
-    version: str = Field(default="pdn-consent-2026-08-22", min_length=1, max_length=64)
+    version: str = Field(default="pdn-consent-2026-09-09", min_length=1, max_length=64)
 
 
 class ContractAcceptRequest(BaseModel):
-    offer_version: str = Field(default="offer-2026-08-14", min_length=1, max_length=64)
+    offer_version: str = Field(default="offer-2026-09-09", min_length=1, max_length=64)
     order_id: str | None = None
 
 
