@@ -40,6 +40,7 @@
 30. [30-diagnosis-delivery-triggers.md](30-diagnosis-delivery-triggers.md) — машина состояний и триггеры 1–4 (publish / approve / open / unread).
 31. [31-email-delivery-webhooks.md](31-email-delivery-webhooks.md) — webhook доставки e-mail (канон: Yandex Cloud Postbox; резерв Postmark/Mailgun/SendGrid).
 32. [32-customer-journey.md](32-customer-journey.md) — путь клиента: динамический чек-лист, сценарии, MAX consent-gate, банк staff-only, перенос трудовой.
+33. [33-staff-kanban-llm-stages.md](33-staff-kanban-llm-stages.md) — kanban этапов воронки (3/5/8 тыс.): автоперенос карточек правилами; LLM не пишет колонку.
 
 ## Принцип
 
