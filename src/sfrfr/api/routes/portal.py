@@ -1105,12 +1105,12 @@ def poll_max_otp(ticket: str) -> MaxOtpPollResponse:
             ),
         )
     if pending.audience == "staff":
-        return MaxOtpPollResponse(
-            ok=True,
-            status="pending_pair",
-            message=(
-                f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
-                "после этого вход откроется сам."
+    return MaxOtpPollResponse(
+        ok=True,
+        status="pending_pair",
+        message=(
+            f"Отправьте в чат MAX код {pending.pair_code} со страницы входа — "
+            "после этого вход откроется сам."
             ),
         )
     return MaxOtpPollResponse(
