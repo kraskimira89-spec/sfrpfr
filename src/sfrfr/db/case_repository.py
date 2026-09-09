@@ -584,6 +584,14 @@ class CaseRepository:
             ensure_agreement_draft_invoice(self, case_id, actor_id)
         except Exception:  # noqa: BLE001 — соглашение важнее черновика счёта
             pass
+        try:
+            from sfrfr.services.max_bot_invoice import maybe_send_pay_link_after_contract
+
+            maybe_send_pay_link_after_contract(
+                repo=self, case_id=case_id, actor_id=actor_id
+            )
+        except Exception:  # noqa: BLE001
+            pass
         return response.data[0]
 
     def list_orders(self, case_id: str) -> list[dict[str, Any]]:

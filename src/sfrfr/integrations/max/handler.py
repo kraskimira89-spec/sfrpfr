@@ -1057,6 +1057,11 @@ def _notify_staff_max_started(*, user_id: str, intake, case_id: str | None) -> N
         return
     if getattr(intake, "staff_notified_at", None):
         return
+    from sfrfr.integrations.max.bot_owned import is_bot_owned
+
+    # В bot_owned не дёргаем staff на каждый старт — только при «Позвать специалиста».
+    if is_bot_owned(intake):
+        return
     _notify_operator_staff(
         user_id=user_id,
         intake=intake,
@@ -1260,6 +1265,11 @@ def _notify_staff_chat_docs(
 ) -> None:
     """Вложение в чат MAX принято → очередь сотруднику (ops + checklist + amo)."""
     if not case_id:
+        return
+    from sfrfr.integrations.max.bot_owned import is_bot_owned
+
+    intake = get_intake_store().get_active(user_id)
+    if is_bot_owned(intake):
         return
     label = filenames[0] if filenames else "файл"
     extra = f" (+{len(filenames) - 1})" if len(filenames) > 1 else ""
@@ -2661,6 +2671,75 @@ def _handle_marketing_consent(
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=reply)
 
 
+def _handle_client_free_text(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    text: str,
+    intake,
+    case_id: str | None,
+    exclude_message_id: str | None = None,
+) -> MaxHandleResult:
+    """Свободный текст: стоп после специалиста / intake из фразы / LLM ТЗ-26."""
+    from sfrfr.integrations.max.bot_owned import (
+        WAITING_FOR_STAFF_TEXT,
+        is_handed_to_operator,
+    )
+    from sfrfr.integrations.max.intake_from_text import try_resolve_from_user_text
+
+    if is_handed_to_operator(intake):
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=WAITING_FOR_STAFF_TEXT,
+            case_id=case_id,
+        )
+        return MaxHandleResult(
+            ok=True,
+            action="waiting_for_staff",
+            case_id=case_id,
+            reply=WAITING_FOR_STAFF_TEXT,
+        )
+
+    intake_pl = try_resolve_from_user_text(user_text=text, intake=intake)
+    if intake_pl:
+        handled = _handle_intake_callback(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            payload=intake_pl,
+        )
+        if handled is not None:
+            return handled
+
+    from sfrfr.integrations.max.llm_chat import reply_to_free_text
+
+    reply, attachments, action = reply_to_free_text(
+        user_text=text,
+        intake=intake,
+        case_id=case_id,
+        exclude_message_id=exclude_message_id,
+    )
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=reply,
+        attachments=attachments,
+        case_id=case_id,
+    )
+    return MaxHandleResult(
+        ok=True,
+        action=action,
+        case_id=case_id,
+        reply=reply,
+    )
+
+
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -2805,14 +2884,21 @@ def handle_max_update(
                 f"max_cb:{callback_event_id}" if callback_event_id else None
             ),
         )
-        # Soft-кнопки от DeepSeek → дальше как свободный текст
+        # Soft-кнопки от DeepSeek → intake FSM если канон шага, иначе свободный текст
         if callback.startswith("llmsoft:"):
             parts = callback.split(":", 2)
             soft = parts[2].strip() if len(parts) > 2 else ""
             if soft:
-                text = soft
-                callback = ""
-                lower = text.lower()
+                from sfrfr.integrations.max.intake_from_text import try_resolve_from_user_text
+
+                soft_intake = get_intake_store().get_active(user_id)
+                intake_pl = try_resolve_from_user_text(user_text=soft, intake=soft_intake)
+                if intake_pl:
+                    callback = intake_pl
+                else:
+                    text = soft
+                    callback = ""
+                    lower = text.lower()
 
     # Marketing consent: кнопки + команда СТОП (отдельно от ПДн).
     mkt = _handle_marketing_consent(
@@ -3048,27 +3134,16 @@ def handle_max_update(
 
     if record is None:
         # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
-        # Произвольный текст → ТЗ-26 LLM (или nudge при флаге/ошибке).
+        # Произвольный текст → intake из фразы / ТЗ-26 LLM.
         if text and intake is not None:
-            from sfrfr.integrations.max.llm_chat import reply_to_free_text
-
-            reply, attachments, action = reply_to_free_text(
-                user_text=text,
-                intake=intake,
-                case_id=None,
-            )
-            _reply(
+            return _handle_client_free_text(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
-                text=reply,
-                attachments=attachments,
-            )
-            return MaxHandleResult(
-                ok=True,
-                action=action,
+                store=store,
+                text=text,
+                intake=intake,
                 case_id=None,
-                reply=reply,
             )
         return _reply_need_start(
             bot, user_id=user_id, chat_id=chat_id, welcome_text=welcome_text
@@ -3137,10 +3212,17 @@ def handle_max_update(
             _notify_staff_chat_docs(
                 user_id=user_id, case_id=upload_case_id, filenames=names
             )
-            reply = (
-                f"{UPLOAD_ACCEPTED_TEXT}\n"
-                f"Принято файлов: {len(names)}."
+            from sfrfr.integrations.max.bot_owned import (
+                UPLOAD_ACCEPTED_BOT_OWNED_TEXT,
+                is_bot_owned,
             )
+
+            accept_text = (
+                UPLOAD_ACCEPTED_BOT_OWNED_TEXT
+                if is_bot_owned(intake)
+                else UPLOAD_ACCEPTED_TEXT
+            )
+            reply = f"{accept_text}\nПринято файлов: {len(names)}."
             _reply(
                 bot,
                 user_id=user_id,
@@ -3226,27 +3308,15 @@ def handle_max_update(
                     # с кнопками воронки. Очередь LLM — для веб-кабинета (portal).
             except Exception as exc:  # noqa: BLE001
                 logger.warning("max bot_rule_reply skipped: %s", exc)
-        from sfrfr.integrations.max.llm_chat import reply_to_free_text
-
-        reply, attachments, action = reply_to_free_text(
-            user_text=text,
-            intake=intake,
-            case_id=case_for_log,
-            exclude_message_id=str((stored or {}).get("id") or "") or None,
-        )
-        _reply(
+        return _handle_client_free_text(
             bot,
             user_id=user_id,
             chat_id=chat_id,
-            text=reply,
-            attachments=attachments,
+            store=store,
+            text=text,
+            intake=intake,
             case_id=case_for_log,
-        )
-        return MaxHandleResult(
-            ok=True,
-            action=action,
-            case_id=record.case_id,
-            reply=reply,
+            exclude_message_id=str((stored or {}).get("id") or "") or None,
         )
 
     reply = FALLBACK_MENU_TEXT

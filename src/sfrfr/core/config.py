@@ -113,6 +113,10 @@ class Settings(BaseSettings):
     max_llm_typing_pulse_seconds: float = 3.0
     max_llm_stream_edit_enabled: bool = False
     max_llm_stream_edit_min_interval_seconds: float = 0.6
+    # До «Позвать специалиста»: бот ведёт воронку без ops-пинга на каждый файл
+    max_bot_owned_enabled: bool = True
+    # После оферты в bot_owned — точечная отправка pay link в MAX (не MAX_PAY_LINK_AUTO_SEND)
+    max_bot_owned_pay_link: bool = True
     # Пауза между частями приветствия в MAX (секунды); 0 = сразу все части
     max_welcome_part_delay_seconds: int = 60
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт

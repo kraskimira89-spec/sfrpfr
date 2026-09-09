@@ -128,6 +128,8 @@ def max_integration_health() -> dict[str, str]:
         "llm_chat_model": (settings.max_ops_llm_model or "deepseek-v4-flash").strip(),
         "llm_typing_pulse": "yes" if settings.max_llm_typing_pulse_enabled else "no",
         "llm_stream_edit": "yes" if settings.max_llm_stream_edit_enabled else "no",
+        "bot_owned": "yes" if settings.max_bot_owned_enabled else "no",
+        "bot_owned_pay_link": "yes" if settings.max_bot_owned_pay_link else "no",
     }
 
 

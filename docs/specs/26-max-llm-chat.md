@@ -2,11 +2,11 @@
 
 **Статус:** реализовано (go): провайдер — **DeepSeek V4 Flash в Yandex AI Studio** (`llm.api.cloud.yandex.net`), не YandexGPT.  
 Свободный текст → сразу `reply_to_free_text` (не queue); очередь остаётся у portal/вложений.  
-Health: `llm_chat_enabled`, `llm_chat_model` (отдельно от ops LLM).  
-Флаги: `MAX_LLM_CHAT_ENABLED`, `MAX_LLM_CHAT_MAX_TURNS`.  
-**Дата:** 2026-08-11 / обновлено 2026-09-05 (fix free text)  
+Health: `llm_chat_enabled`, `llm_chat_model`, `bot_owned` (отдельно от ops LLM).  
+Флаги: `MAX_LLM_CHAT_ENABLED`, `MAX_LLM_CHAT_MAX_TURNS`, `MAX_BOT_OWNED_ENABLED`, `MAX_BOT_OWNED_PAY_LINK`.  
+**Дата:** 2026-08-11 / обновлено 2026-09-09 (bot_owned funnel)  
 **Связано:** [ТЗ-20](20-max-private-chat-funnel.md), [ТЗ-08](08-knowledge-rag.md), [ТЗ-12](12-amocrm.md) (резерв), [ТЗ-06](06-integrations-and-security.md), [ТЗ-25](25-max-ops-bot.md)  
-**История фикса:** `docs/history/2026-09-05-max-llm-free-text-fix.md` (коммит `c29ce3ff`+)
+**История фикса:** `docs/history/2026-09-09-max-bot-owned-funnel.md`
 
 ## 1. Проблема
 
@@ -92,6 +92,19 @@ MAX_LLM_CHAT_MAX_TURNS=5
 ## 9. Решение (зафиксировано 2026-09)
 
 1. LLM на свободном тексте — **сразу** (`reply_to_free_text`), в т.ч. до создания дела.
-2. Лимит ходов — `MAX_LLM_CHAT_MAX_TURNS`.
+2. Лимит ходов — `MAX_LLM_CHAT_MAX_TURNS` (счётчик `llm_turn_count` на intake; после лимита — короткий nudge + кнопки, не молчание).
 3. Провайдер — DeepSeek V4 Flash / AI Studio; биллинг YC разблокирован (см. `docs/ops/yandex-cloud-billing-unblock.md`).
 4. Промпт канон — [`docs/MAX/prompt-agent-client-chat.md`](../MAX/prompt-agent-client-chat.md) ↔ `CLIENT_CHAT_SYSTEM`.
+
+## 10. Режим bot_owned (2026-09-09)
+
+Пока `intake.status != handed_to_operator` и `MAX_BOT_OWNED_ENABLED=1`:
+
+- бот ведёт воронку (кнопки + фразы → `intake:` payload);
+- старт и файлы **не** шлют ops/staff-задачу на каждый шаг;
+- после ingest — короткий статус комплекта без OCR-текста;
+- комплект ИЛС+трудовая → черновик DIAG 3000 ₽ + ссылка на оферту в кабинете;
+- pay link в MAX только после `contract_accepted` (`MAX_BOT_OWNED_PAY_LINK`, не глобальный `MAX_PAY_LINK_AUTO_SEND`).
+
+После «Позвать специалиста» свободный текст **не** идёт в LLM (`waiting_for_staff`).
+Диагностика 5/8 тыс. и PDF результата — человек.

@@ -239,14 +239,16 @@ def _parse_llm_payload(raw: str) -> tuple[str, list[str]]:
     return reply, buttons
 
 
-def _soft_buttons(labels: list[str]) -> list[dict[str, Any]]:
-    """Доп. кнопки: нажатие приходит как свободный текст (payload soft:…)."""
+def _soft_buttons(labels: list[str], *, step: str = "whom") -> list[dict[str, Any]]:
+    """Доп. кнопки: канон шага → intake:, иначе soft (свободный текст)."""
     from sfrfr.integrations.max.client import inline_buttons_keyboard
+    from sfrfr.integrations.max.intake_from_text import soft_button_payload
 
     rows: list[list[dict[str, Any]]] = []
     row: list[dict[str, Any]] = []
     for i, label in enumerate(labels):
-        row.append({"type": "callback", "text": label, "payload": f"llmsoft:{i}:{label[:32]}"})
+        payload = soft_button_payload(label=label, step=step, index=i)
+        row.append({"type": "callback", "text": label, "payload": payload})
         if len(row) >= 2:
             rows.append(row)
             row = []
@@ -276,9 +278,11 @@ def stream_preview_text(raw: str, *, limit: int = 3800) -> str:
 def _merge_attachments(
     soft_labels: list[str],
     nudge_kb: list[dict[str, Any]],
+    *,
+    step: str = "whom",
 ) -> list[dict[str, Any]]:
     attachments = list(nudge_kb)
-    soft = _soft_buttons(soft_labels)
+    soft = _soft_buttons(soft_labels, step=step)
     if soft and nudge_kb:
         try:
             base_rows = (nudge_kb[0].get("payload") or {}).get("buttons") or []
@@ -294,6 +298,18 @@ def _merge_attachments(
     return attachments
 
 
+def _turn_limit_reply(
+    nudge_text: str,
+    nudge_kb: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]], str]:
+    text = (
+        "Давайте по шагам кнопками ниже — так быстрее и понятнее. "
+        "Или позовите специалиста, если нужна помощь человека.\n\n"
+        + nudge_text
+    )
+    return text, nudge_kb, "max_llm_turn_limit"
+
+
 def reply_to_free_text(
     *,
     user_text: str,
@@ -306,7 +322,7 @@ def reply_to_free_text(
 ) -> tuple[str, list[dict[str, Any]], str]:
     """
     Вернуть (text, attachments, action).
-    action: max_llm_reply | max_llm_blocked_pdn | max_llm_fallback_nudge
+    action: max_llm_reply | max_llm_blocked_pdn | max_llm_fallback_nudge | max_llm_turn_limit
     """
     nudge_text, nudge_kb = free_text_nudge(intake=intake)
     if looks_like_pdn(user_text):
@@ -321,6 +337,12 @@ def reply_to_free_text(
 
     if not llm_chat_enabled():
         return nudge_text, nudge_kb, "free_text_nudge"
+
+    settings = get_settings()
+    max_turns = int(settings.max_llm_chat_max_turns or 0)
+    turns = int(getattr(intake, "llm_turn_count", 0) or 0) if intake is not None else 0
+    if max_turns > 0 and turns >= max_turns:
+        return _turn_limit_reply(nudge_text, nudge_kb)
 
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
@@ -378,7 +400,15 @@ def reply_to_free_text(
 
     reply = apply_position_policy(reply, case_id=cid or None)
     text = f"{reply}\n\nМожно ответить кнопками ниже."
-    attachments = _merge_attachments(soft_labels, nudge_kb)
+    attachments = _merge_attachments(soft_labels, nudge_kb, step=step)
+    if intake is not None:
+        try:
+            intake.llm_turn_count = turns + 1
+            from sfrfr.integrations.max.intake import get_intake_store
+
+            get_intake_store().save(intake)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("llm_turn_count save skipped: %s", exc)
     return text, attachments, "max_llm_reply"
 
 

@@ -293,6 +293,8 @@ class MaxIntakeRecord:
     case_id: str | None = None
     staff_notified_at: str | None = None
     welcome_sent_at: str | None = None
+    # Счётчик успешных max_llm_reply в рамках активного intake (ТЗ-26 / bot_owned)
+    llm_turn_count: int = 0
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())

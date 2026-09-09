@@ -347,6 +347,19 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "last_error": None,
             },
         )
+        try:
+            from sfrfr.services.max_kit_status import notify_kit_status_after_ingest
+
+            placement = fields.get("placement_suggestion")
+            if not isinstance(placement, dict):
+                placement = dict(result.get("placement_suggestion") or {})
+            notify_kit_status_after_ingest(
+                case_id=str(row.get("case_id") or ""),
+                placement_suggestion=placement,
+                doc_type=row.get("doc_type"),
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug("kit status notify skipped", exc_info=True)
         return {"status": job_status, "document_id": document_id}
     except Exception as exc:  # noqa: BLE001
         logger.exception("document ingest job failed: %s", job_id)
