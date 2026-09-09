@@ -1874,6 +1874,15 @@ def _handle_bot_start(
         ensure_case_consent_from_client(case_id=case_id, client_id=client_id)
 
     name = display_name or _last_max_display_names.get(str(user_id).strip())
+    if not get_intake_store().claim_welcome(user_id):
+        # Повторный webhook / повторное «Начать» — не дублируем приветствие.
+        return MaxHandleResult(
+            ok=True,
+            action="max_intake_already_started",
+            case_id=case_id or None,
+            reply=None,
+        )
+
     if welcome_text:
         _reply(
             bot,
@@ -2724,7 +2733,17 @@ def handle_max_update(
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
+        from sfrfr.integrations.max.webhook_dedupe import claim_callback_id
+
+        callback_event_id = _callback_id(update)
+        # ACK сразу — иначе MAX шлёт тот же callback повторно.
         _ack_message_callback(bot, update)
+        if callback_event_id and not claim_callback_id(callback_event_id):
+            return MaxHandleResult(
+                ok=True,
+                action="duplicate_callback",
+                detail=f"callback_id={callback_event_id}",
+            )
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
 
@@ -2732,6 +2751,9 @@ def handle_max_update(
             case_id=_case_id_for_max_user(user_id),
             max_user_id=user_id,
             text=format_button_press(callback),
+            external_message_id=(
+                f"max_cb:{callback_event_id}" if callback_event_id else None
+            ),
         )
         # Soft-кнопки от DeepSeek → дальше как свободный текст
         if callback.startswith("llmsoft:"):
