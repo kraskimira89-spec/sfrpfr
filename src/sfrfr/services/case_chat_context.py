@@ -90,20 +90,30 @@ def format_thread_for_llm(
     return "\n".join(lines)
 
 
-def format_deal_context(work: dict[str, Any] | None) -> str:
+def format_deal_context(work: dict[str, Any] | None, *, staff_chat: bool = False) -> str:
     """Стадия дела, CTA и оплата — для клиентского и staff LLM."""
     if not work:
         return "Стадия дела: неизвестна (дело ещё не создано или нет данных)."
     order = work.get("order") if isinstance(work.get("order"), dict) else {}
+    now_need = str(work.get("now_need") or "—")
+    cta_key = str(work.get("cta_key") or "—")
+    cta_label = str(work.get("cta_label") or "—")
+    if staff_chat and (
+        cta_key == "consent"
+        or "соглас" in now_need.lower()
+        or "соглас" in cta_label.lower()
+    ):
+        now_need = "Документы / следующий шаг по делу (согласие на ПДн уже получено в MAX)"
+        cta_key = "docs_max"
+        cta_label = "Прислать файлы в чат MAX"
     parts = [
         f"Статус: {work.get('status_label') or '—'} ({work.get('status_key') or '—'})",
-        f"Сейчас нужно от клиента: {work.get('now_need') or '—'}",
+        f"Сейчас нужно от клиента: {now_need}",
         (
             f"Документы (обязательные): "
             f"{work.get('required_uploaded', 0)}/{work.get('required_total', 0)}"
         ),
-        f"Следующий шаг (cta): {work.get('cta_key') or '—'} — "
-        f"{work.get('cta_label') or '—'}",
+        f"Следующий шаг (cta): {cta_key} — {cta_label}",
         f"SLA: {work.get('sla_note') or '—'}",
     ]
     if order:
@@ -115,7 +125,15 @@ def format_deal_context(work: dict[str, Any] | None) -> str:
         )
     next_actions = work.get("next_actions") or []
     if isinstance(next_actions, list) and next_actions:
-        parts.append("Плановые шаги: " + "; ".join(str(a) for a in next_actions[:4]))
+        cleaned = [str(a) for a in next_actions[:4]]
+        if staff_chat:
+            cleaned = [
+                a
+                for a in cleaned
+                if "соглас" not in a.lower() and "кабинет" not in a.lower()
+            ]
+        if cleaned:
+            parts.append("Плановые шаги: " + "; ".join(cleaned))
     return "\n".join(parts)
 
 
@@ -181,7 +199,7 @@ def build_staff_llm_user_prompt(
 ) -> str:
     """User-prompt для подсказок ответов специалисту."""
     thread = format_thread_for_llm(messages, max_body_chars=500)
-    deal = format_deal_context(work)
+    deal = format_deal_context(work, staff_chat=True)
     return (
         f"Обращение к клиенту (обязательно в каждом варианте): {salutation}\n"
         f"Этап: pipeline={pipeline_status or '—'}, b2c={b2c_status or '—'}\n\n"

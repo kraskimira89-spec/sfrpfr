@@ -29,7 +29,9 @@ def test_suggest_falls_back_when_llm_unavailable(monkeypatch) -> None:
     assert all(m["text"] for m in out["chat_messages"])
     joined = " ".join(m["text"] for m in out["chat_messages"])
     assert "этот чат MAX" in joined
-    assert "cabinet.proverkastaza.ru" in joined or "кабинет на сайте" in joined
+    assert "cabinet.proverkastaza.ru" not in joined
+    assert "кабинет на сайте" not in joined.lower()
+    assert "согласи" not in joined.lower()
     assert "только в личном кабинете" not in joined
     assert "не в этот чат" not in joined.lower()
 

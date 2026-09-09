@@ -39,16 +39,17 @@ def test_ensure_salutation_fixes_zdravstvuyte() -> None:
 
 
 def test_system_docs_channel_canon_max_chat() -> None:
-    """Подсказки: чат MAX и кабинет на сайте; не «только в ЛК»."""
+    """Подсказки сотруднику: только чат MAX; без кабинета и повторного согласия."""
     assert "чат MAX" in DOCS_CHANNEL_CANON
-    assert "cabinet.proverkastaza.ru" in DOCS_CHANNEL_CANON
-    assert "загружайте только в личный кабинет" in DOCS_CHANNEL_CANON
-    assert "Не пиши «загружайте только в личный кабинет»" in DOCS_CHANNEL_CANON
+    assert "cabinet.proverkastaza.ru" not in DOCS_CHANNEL_CANON
+    assert "не проси согласие" in DOCS_CHANNEL_CANON.lower() or "не проси согласие" in DOCS_CHANNEL_CANON
+    assert "Не предлагай личный кабинет" in DOCS_CHANNEL_CANON
     assert DOCS_CHANNEL_CANON in SYSTEM
     assert "этот чат MAX" in SYSTEM
     assert "без обещаний перерасчёта" in SYSTEM
-    assert "личн" in DOCS_CHANNEL_CANON.lower()
-    assert "альтернатив" in DOCS_CHANNEL_CANON.lower() or "Также можно" in DOCS_CHANNEL_CANON
+    low = DOCS_CHANNEL_CANON.lower()
+    assert "согласие" in low
+    assert "«начать»" in low or "начать" in low
 
 
 def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
@@ -72,3 +73,7 @@ def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
     )
     assert len(out) >= 2
     assert all(isinstance(s, str) and s.strip() for s in out)
+    joined = " ".join(out).lower()
+    assert "кабинет" not in joined
+    assert "cabinet.proverkastaza.ru" not in joined
+    assert "согласи" not in joined
