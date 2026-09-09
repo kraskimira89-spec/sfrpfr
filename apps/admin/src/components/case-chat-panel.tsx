@@ -197,8 +197,7 @@ export function CaseChatPanel({
   waitingOn?: string | null;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
-  /** Автоскролл вниз только если пользователь уже у низа ленты (иначе история «отскакивает»). */
-  const stickToBottomRef = useRef(true);
+  const lastBubbleRef = useRef<HTMLLIElement | null>(null);
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [expandedDup, setExpandedDup] = useState<Record<string, boolean>>({});
 
@@ -225,40 +224,32 @@ export function CaseChatPanel({
     return last ? `${last.id}:${last.created_at}:${messages.length}` : `0:${messages.length}`;
   }, [messages]);
 
-  const isNearBottom = useCallback((el: HTMLElement, thresholdPx = 96) => {
-    return el.scrollHeight - el.scrollTop - el.clientHeight <= thresholdPx;
-  }, []);
-
-  const scrollFeedToEnd = useCallback((behavior: ScrollBehavior = "smooth") => {
-    const el = feedRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
+  const scrollFeedToLatest = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const run = () => {
+      const bubble = lastBubbleRef.current;
+      if (bubble) {
+        bubble.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+        return;
+      }
+      const el = feedRef.current;
+      if (!el) return;
       el.scrollTo({ top: el.scrollHeight, behavior });
+    };
+    // Два кадра: сначала DOM, затем layout (typing / картинки).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(run);
     });
   }, []);
 
-  const onFeedScroll = useCallback(() => {
-    const el = feedRef.current;
-    if (!el) return;
-    stickToBottomRef.current = isNearBottom(el);
-  }, [isNearBottom]);
-
-  // Смена фильтра — снова к низу.
+  // Смена фильтра — к последнему сообщению.
   useEffect(() => {
-    stickToBottomRef.current = true;
-    scrollFeedToEnd("auto");
-  }, [filter, scrollFeedToEnd]);
+    scrollFeedToLatest("auto");
+  }, [filter, scrollFeedToLatest]);
 
-  // Новые сообщения / typing — только если пользователь у низа.
-  // Своё сообщение сотрудника всегда показывает низ (после «Отправить в MAX»).
+  // Любое новое сообщение / typing — всегда к нему (бот, клиент, сотрудник, подсказка).
   useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (last?.author_kind === "staff") {
-      stickToBottomRef.current = true;
-    }
-    if (!stickToBottomRef.current) return;
-    scrollFeedToEnd();
-  }, [lastMessageKey, messages, showBotTyping, showBotTypingTimeout, scrollFeedToEnd]);
+    scrollFeedToLatest("smooth");
+  }, [lastMessageKey, showBotTyping, showBotTypingTimeout, scrollFeedToLatest]);
 
   const fio = clientNameForChatHeader(clientName, messages);
   const fioNeedsConfirm = clientNameNeedsConfirm(clientName);
