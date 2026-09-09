@@ -1,0 +1,25 @@
+{
+  "rows": {
+    "26": {
+      "id": "b81a5c97-e4b7-4984-99ad-734c5a858ac0",
+      "max_user_id": "26",
+      "goal": null,
+      "for_whom": null,
+      "pension_status": null,
+      "problem_type": null,
+      "ils_available": null,
+      "employment_records_available": null,
+      "device_preference": null,
+      "ils_howto_done": false,
+      "emp_howto_done": false,
+      "status": "started",
+      "client_id": null,
+      "case_id": "1a57d01a-f813-4ec3-bcdf-56585b989838",
+      "staff_notified_at": "2026-09-09T16:02:01.979394+00:00",
+      "welcome_sent_at": "2026-09-09T16:02:01.976455+00:00",
+      "started_at": "2026-09-09T16:02:01.970836+00:00",
+      "completed_at": null,
+      "updated_at": "2026-09-09T16:02:01.979401+00:00"
+    }
+  }
+}

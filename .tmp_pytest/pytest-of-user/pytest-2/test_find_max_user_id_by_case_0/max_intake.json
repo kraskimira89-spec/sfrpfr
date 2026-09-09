@@ -1,0 +1,25 @@
+{
+  "rows": {
+    "155779318": {
+      "id": "1f9d0589-e2a0-4c49-9bb8-39c13d3ef188",
+      "max_user_id": "155779318",
+      "goal": null,
+      "for_whom": null,
+      "pension_status": null,
+      "problem_type": null,
+      "ils_available": null,
+      "employment_records_available": null,
+      "device_preference": null,
+      "ils_howto_done": false,
+      "emp_howto_done": false,
+      "status": "started",
+      "client_id": null,
+      "case_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "staff_notified_at": null,
+      "welcome_sent_at": null,
+      "started_at": "2026-09-09T16:02:15.668426+00:00",
+      "completed_at": null,
+      "updated_at": "2026-09-09T16:02:15.668928+00:00"
+    }
+  }
+}

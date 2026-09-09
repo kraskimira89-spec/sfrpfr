@@ -1,0 +1,28 @@
+{
+  "cases": {
+    "1c8350a7-15b8-4d64-8b95-3d8933ed3d4d": {
+      "case_id": "1c8350a7-15b8-4d64-8b95-3d8933ed3d4d",
+      "client_name": "MAX user 12",
+      "snils_masked": "***-***-*** **",
+      "consent_given": false,
+      "ctx": {
+        "case_id": "1c8350a7-15b8-4d64-8b95-3d8933ed3d4d",
+        "status": "documents_received",
+        "client_name": "MAX user 12",
+        "max_user_id": "12",
+        "max_chat_id": "1",
+        "document_paths": [
+          "C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.tmp_pytest\\pytest-of-user\\pytest-2\\test_upload_accepted_in_max_ch0\\uploads\\1c8350a7-15b8-4d64-8b95-3d8933ed3d4d\\949735d6_scan.pdf"
+        ],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": null,
+        "error": null
+      }
+    }
+  }
+}

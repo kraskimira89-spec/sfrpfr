@@ -1,0 +1,26 @@
+{
+  "cases": {
+    "4f2c34f8-568d-4494-b05e-880f1ad02ebb": {
+      "case_id": "4f2c34f8-568d-4494-b05e-880f1ad02ebb",
+      "client_name": "Тест",
+      "snils_masked": "***",
+      "consent_given": true,
+      "ctx": {
+        "case_id": "4f2c34f8-568d-4494-b05e-880f1ad02ebb",
+        "status": "intake",
+        "client_name": "Тест",
+        "max_user_id": "22",
+        "max_chat_id": null,
+        "document_paths": [],
+        "ocr_texts": [],
+        "classifications": [],
+        "ils_periods": [],
+        "labor_periods": [],
+        "findings": [],
+        "analysis_notes": null,
+        "draft": null,
+        "error": null
+      }
+    }
+  }
+}
