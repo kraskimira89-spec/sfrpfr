@@ -1,7 +1,7 @@
 {
   "rows": {
     "155779318": {
-      "id": "dba3cd40-57aa-496c-80a7-478b74b9131c",
+      "id": "ebe84705-4aef-415d-a830-5a905ba6e83d",
       "max_user_id": "155779318",
       "goal": null,
       "for_whom": null,
@@ -16,9 +16,10 @@
       "client_id": null,
       "case_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
       "staff_notified_at": null,
-      "started_at": "2026-09-07T13:27:59.031625+00:00",
+      "welcome_sent_at": null,
+      "started_at": "2026-09-09T15:07:05.231370+00:00",
       "completed_at": null,
-      "updated_at": "2026-09-07T13:27:59.032047+00:00"
+      "updated_at": "2026-09-09T15:07:05.231728+00:00"
     }
   }
 }

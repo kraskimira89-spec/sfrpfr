@@ -1,8 +1,3 @@
-## 2026-09-07 — docs sync под факты сентября
-
-Инструкции/playbook’и/prompts/rules приведены к канону: DeepSeek + MAX free text сразу; staff CRM; Weavix APPROVED; TZ27–31 на prod.
-`docs/history/2026-09-07-docs-sync-sep2026.md`.
-
 ## 2026-09-06 — дело сразу по «Начать» в MAX
 
 Клиент нажал «Начать» → дело в реестре + лента чата + письмо со ссылкой на карточку.

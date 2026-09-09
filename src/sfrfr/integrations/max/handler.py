@@ -1874,15 +1874,6 @@ def _handle_bot_start(
         ensure_case_consent_from_client(case_id=case_id, client_id=client_id)
 
     name = display_name or _last_max_display_names.get(str(user_id).strip())
-    if not get_intake_store().claim_welcome(user_id):
-        # Повторный webhook / повторное «Начать» — не дублируем приветствие в MAX и в ленте.
-        return MaxHandleResult(
-            ok=True,
-            action="max_intake_already_started",
-            case_id=case_id or None,
-            reply=None,
-        )
-
     if welcome_text:
         _reply(
             bot,
@@ -2733,17 +2724,7 @@ def handle_max_update(
 
     # Нажатие кнопки в MAX — в ленту дела (история для сотрудника).
     if callback:
-        from sfrfr.integrations.max.webhook_dedupe import claim_callback_id
-
-        callback_event_id = _callback_id(update)
-        # ACK сразу — иначе MAX шлёт тот же callback повторно.
         _ack_message_callback(bot, update)
-        if callback_event_id and not claim_callback_id(callback_event_id):
-            return MaxHandleResult(
-                ok=True,
-                action="duplicate_callback",
-                detail=f"callback_id={callback_event_id}",
-            )
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
 
@@ -2751,9 +2732,6 @@ def handle_max_update(
             case_id=_case_id_for_max_user(user_id),
             max_user_id=user_id,
             text=format_button_press(callback),
-            external_message_id=(
-                f"max_cb:{callback_event_id}" if callback_event_id else None
-            ),
         )
         # Soft-кнопки от DeepSeek → дальше как свободный текст
         if callback.startswith("llmsoft:"):
@@ -3000,16 +2978,19 @@ def handle_max_update(
         # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
         # Произвольный текст → ТЗ-26 LLM (или nudge при флаге/ошибке).
         if text and intake is not None:
-            from sfrfr.integrations.max.llm_chat import deliver_free_text_reply
+            from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
-            reply, attachments, action = deliver_free_text_reply(
-                bot=bot,
-                user_id=user_id,
-                chat_id=chat_id,
+            reply, attachments, action = reply_to_free_text(
                 user_text=text,
                 intake=intake,
                 case_id=None,
-                append_bot_message=_append_bot_case_message,
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=attachments,
             )
             return MaxHandleResult(
                 ok=True,
@@ -3173,17 +3154,21 @@ def handle_max_update(
                     # с кнопками воронки. Очередь LLM — для веб-кабинета (portal).
             except Exception as exc:  # noqa: BLE001
                 logger.warning("max bot_rule_reply skipped: %s", exc)
-        from sfrfr.integrations.max.llm_chat import deliver_free_text_reply
+        from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
-        reply, attachments, action = deliver_free_text_reply(
-            bot=bot,
-            user_id=user_id,
-            chat_id=chat_id,
+        reply, attachments, action = reply_to_free_text(
             user_text=text,
             intake=intake,
             case_id=case_for_log,
             exclude_message_id=str((stored or {}).get("id") or "") or None,
-            append_bot_message=_append_bot_case_message,
+        )
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=attachments,
+            case_id=case_for_log,
         )
         return MaxHandleResult(
             ok=True,

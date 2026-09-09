@@ -22,11 +22,6 @@ import {
   createStaffSupabaseClient,
 } from "@/components/staff-auth-screen";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
-import {
-  parseDashboardQueueParam,
-  type DashboardQueueKey,
-} from "@/lib/dashboard-queue";
-import { DashboardQueuePanel } from "@/components/dashboard-queue-panel";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type StaffRole = "operator" | "expert" | "admin";
@@ -83,12 +78,6 @@ type WorkQueueItem = {
   channel: string;
   expert_user_id: string | null;
   doc_flags?: Record<string, boolean>;
-  max_linked?: boolean;
-  web_linked?: boolean;
-  channel_conflict?: boolean;
-  conflict_kind?: string | null;
-  conflict_detail?: string | null;
-  waiting_days?: number;
 };
 
 type Dashboard = {
@@ -220,28 +209,7 @@ type StaffCaseDetail = {
   warning: string;
 };
 
-type View = "dashboard" | "queue" | "cases" | "case" | "finance" | "analytics" | "roles";
-
-function writeQueueQuery(queue: string | null) {
-  if (typeof window === "undefined") return;
-  try {
-    const u = new URL(window.location.href);
-    if (queue) u.searchParams.set("queue", queue);
-    else u.searchParams.delete("queue");
-    window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
-  } catch {
-    // ignore
-  }
-}
-
-function queueFromLocation(): DashboardQueueKey | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return parseDashboardQueueParam(new URLSearchParams(window.location.search).get("queue"));
-  } catch {
-    return null;
-  }
-}
+type View = "dashboard" | "cases" | "case" | "finance" | "analytics" | "roles";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const SITE_URL = "https://proverkastaza.ru";
@@ -322,7 +290,6 @@ function clearAdminDeepLink() {
     u.searchParams.delete("case");
     u.searchParams.delete("focus");
     u.searchParams.delete("view");
-    u.searchParams.delete("queue");
     if (u.hash === "#max-reply") u.hash = "";
     window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
   } catch {
@@ -348,6 +315,18 @@ function BrandHomeLink({
     </a>
   );
 }
+
+const CHANNEL_LABELS: Record<string, string> = {
+  max_miniapp: "MAX",
+  web_cabinet: "Веб-кабинет",
+  unset: "не выбран",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  urgent: "Срочно",
+  today: "Сегодня",
+  standard: "Стандартно",
+};
 
 const DOC_STATUS_LABELS: Record<string, string> = {
   consent_missing: "Нет согласия на ПДн",
@@ -418,8 +397,6 @@ export function AdminCabinet() {
   const [session, setSession] = useState<Session | null>(null);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
-  /** Какую подсказку сотрудник выбрал в чипах (чтобы убрать после отправки в MAX). */
-  const [pickedReplySuggestion, setPickedReplySuggestion] = useState<string | null>(null);
   const [stepHint, setStepHint] = useState<{
     action: string;
     reason: string;
@@ -437,7 +414,7 @@ export function AdminCabinet() {
   const [sfrReceived, setSfrReceived] = useState(false);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
-  const [view, setView] = useState<View>(() => (queueFromLocation() ? "queue" : "dashboard"));
+  const [view, setView] = useState<View>("dashboard");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [cases, setCases] = useState<StaffCaseSummary[]>([]);
   const [detail, setDetail] = useState<StaffCaseDetail | null>(null);
@@ -486,9 +463,7 @@ export function AdminCabinet() {
   const [filterPipeline, setFilterPipeline] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
-  const [activeQueue, setActiveQueue] = useState<DashboardQueueKey | string>(
-    () => queueFromLocation() ?? "all",
-  );
+  const [queueFilter, setQueueFilter] = useState("all");
   const [registryQueue, setRegistryQueue] = useState("active");
   const [casesLoading, setCasesLoading] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -581,7 +556,6 @@ export function AdminCabinet() {
       setStepHint(null);
       setStepMessages([]);
       setReplySuggestions([]);
-      setPickedReplySuggestion(null);
     }
     setBusy(true);
     try {
@@ -636,20 +610,6 @@ export function AdminCabinet() {
     // Сохранить deep-link до логина (MAX часто открывает URL на экране входа).
     captureAdminDeepLink();
   }, []);
-
-  function openDashboardQueue(queue: DashboardQueueKey | string) {
-    setActiveQueue(queue);
-    setView("queue");
-    writeQueueQuery(queue);
-    if (!dashboard) void loadDashboard();
-  }
-
-  function backToDashboard() {
-    setView("dashboard");
-    setActiveQueue("all");
-    writeQueueQuery(null);
-    void loadDashboard();
-  }
 
   useEffect(() => {
     if (!token || !me?.is_staff) return;
@@ -1032,7 +992,6 @@ export function AdminCabinet() {
     }
     setMaxReplyBody(text);
     setReplySuggestions([]);
-    setPickedReplySuggestion(null);
     setMaxReplyFocus(true);
     setComposerFlash(true);
     window.setTimeout(() => setComposerFlash(false), 2000);
@@ -1431,7 +1390,6 @@ export function AdminCabinet() {
         { method: "POST" },
       );
       setReplySuggestions(result.suggestions ?? []);
-      setPickedReplySuggestion(null);
       if (!(result.suggestions && result.suggestions.length)) {
         setNotice("Не удалось получить варианты ответа.");
       }
@@ -1446,24 +1404,12 @@ export function AdminCabinet() {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
     setBusy(true);
     try {
-      const sent = maxReplyBody.trim();
       await apiFetch(`/api/portal/admin/cases/${detail.id}/max-reply`, token, {
         method: "POST",
-        body: JSON.stringify({ message: sent, force: Boolean(opts?.force) }),
+        body: JSON.stringify({ message: maxReplyBody.trim(), force: Boolean(opts?.force) }),
       });
       setMaxReplyBody("");
       setDupDialog(null);
-      setReplySuggestions((prev) => {
-        const drop =
-          (pickedReplySuggestion && prev.includes(pickedReplySuggestion)
-            ? pickedReplySuggestion
-            : null) ??
-          prev.find((s) => s.trim() === sent) ??
-          null;
-        if (!drop) return prev;
-        return prev.filter((s) => s !== drop);
-      });
-      setPickedReplySuggestion(null);
       setNotice("Сообщение отправлено клиенту в MAX.");
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
       setMessages(next);
@@ -1657,7 +1603,7 @@ export function AdminCabinet() {
       </header>
 
       <nav className="tabs" aria-label="Разделы">
-        <button type="button" className={view === "dashboard" || view === "queue" ? "tab active" : "tab"} onClick={() => { backToDashboard(); }}>
+        <button type="button" className={view === "dashboard" ? "tab active" : "tab"} onClick={() => { setView("dashboard"); void loadDashboard(); }}>
           Дашборд
         </button>
         <button type="button" className={view === "cases" || view === "case" ? "tab active" : "tab"} onClick={() => { setView("cases"); void loadCases(); }}>
@@ -1698,38 +1644,22 @@ export function AdminCabinet() {
             Сначала отвечаем клиенту, затем закрываем дедлайны и риски SLA.
           </p>
           <div className="metrics">
-            <button
-              type="button"
-              className="metric-card"
-              onClick={() => openDashboardQueue("reply")}
-            >
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("reply")}>
               <span>Требуют моего ответа</span>
               <strong>{dashboard.needs_reply}</strong>
               <em>{dashboard.needs_reply_over_30m} без ответа более 30 мин</em>
             </button>
-            <button
-              type="button"
-              className="metric-card"
-              onClick={() => openDashboardQueue("today")}
-            >
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("today")}>
               <span>Дедлайн сегодня</span>
               <strong>{dashboard.deadline_today}</strong>
               <em>Задачи и следующий шаг на сегодня</em>
             </button>
-            <button
-              type="button"
-              className="metric-card"
-              onClick={() => openDashboardQueue("new")}
-            >
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("new")}>
               <span>Новые обращения</span>
               <strong>{dashboard.new_leads}</strong>
               <em>Заявки без перевода в работу</em>
             </button>
-            <button
-              type="button"
-              className="metric-card"
-              onClick={() => openDashboardQueue("docs")}
-            >
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("docs")}>
               <span>Ожидаем документы</span>
               <strong>{dashboard.waiting_docs}</strong>
               <em>
@@ -1746,20 +1676,12 @@ export function AdminCabinet() {
                 {" · "}счета на вкладке Финансы
               </em>
             </button>
-            <button
-              type="button"
-              className={`metric-card${dashboard.sla_risk > 0 ? " metric-card--risk" : ""}`}
-              onClick={() => openDashboardQueue("sla")}
-            >
+            <button type="button" className={`metric-card ${dashboard.sla_risk > 0 ? "metric-card--risk" : ""}`} onClick={() => setQueueFilter("sla")}>
               <span>Риск SLA</span>
               <strong>{dashboard.sla_risk}</strong>
               <em>Срок ответа сотрудника нарушен</em>
             </button>
-            <button
-              type="button"
-              className="metric-card"
-              onClick={() => openDashboardQueue("conflicts")}
-            >
+            <button type="button" className="metric-card" onClick={() => setQueueFilter("conflicts")}>
               <span>Конфликты каналов</span>
               <strong>{dashboard.channel_conflicts}</strong>
               <em>Предпочтение MAX/веб без привязки. Без MAX / без веб: {dashboard.unlinked_max} / {dashboard.unlinked_web}</em>
@@ -1807,10 +1729,10 @@ export function AdminCabinet() {
                   <button
                     key={key}
                     type="button"
-                    className="chip"
-                    onClick={() => openDashboardQueue(`doc:${key}`)}
+                    className={queueFilter === `doc:${key}` ? "chip active" : "chip"}
+                    onClick={() => setQueueFilter(`doc:${key}`)}
                   >
-                    {label} — {count}
+                    {label} тАФ {count}
                   </button>
                 );
               })}
@@ -1819,30 +1741,80 @@ export function AdminCabinet() {
 
           <div className="panel">
             <h2>Рабочая очередь</h2>
-            <p className="hint">
-              Откройте карточку метрики выше или чип ниже — откроется экран очереди со списком и
-              рекомендациями.
-            </p>
             <div className="chip-row">
               {[
+                ["all", "Все"],
                 ["urgent", "Срочно"],
                 ["today", "Сегодня"],
                 ["reply", "Мой ответ"],
                 ["docs", "Документы"],
                 ["payment", "Оплата"],
                 ["sla", "Риск SLA"],
-                ["new", "Новые"],
-                ["conflicts", "Конфликты"],
               ].map(([id, label]) => (
-                <button
+                  <button
                   key={id}
-                  type="button"
-                  className="chip"
-                  onClick={() => openDashboardQueue(id)}
-                >
+                    type="button"
+                  className={queueFilter === id ? "chip active" : "chip"}
+                  onClick={() => setQueueFilter(id)}
+                  >
                   {label}
-                </button>
+                  </button>
               ))}
+          </div>
+            <div className="queue-wrap">
+              <table className="queue-table">
+                <thead>
+                  <tr>
+                    <th>Приоритет</th>
+                    <th>Дело</th>
+                    <th>Этап</th>
+                    <th>Последнее событие</th>
+                    <th>Следующий шаг</th>
+                    <th>Дедлайн</th>
+                    <th>Канал</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(dashboard.work_queue || [])
+                    .filter((item) => {
+                      if (queueFilter === "all") return true;
+                      if (queueFilter === "urgent") return item.priority === "urgent";
+                      if (queueFilter === "today") return item.priority === "today" || item.deadline_status === "today";
+                      if (queueFilter === "reply") return item.waiting_on === "staff";
+                      if (queueFilter === "docs") return item.waiting_on === "client" || item.waiting_on === "archive";
+                      if (queueFilter === "payment") return item.waiting_on === "payment";
+                      if (queueFilter === "sla") return item.deadline_status === "overdue";
+                      if (queueFilter === "new") return item.pipeline_status === "intake" || item.b2c_status === "lead";
+                      if (queueFilter === "conflicts") return item.channel !== "unset";
+                      if (queueFilter.startsWith("doc:")) {
+                        const key = queueFilter.slice(4);
+                        return Boolean(item.doc_flags?.[key]);
+                      }
+                      return true;
+                    })
+                    .map((item) => (
+                      <tr key={item.case_id} className={`tone-${item.deadline_status}`}>
+                        <td>{PRIORITY_LABELS[item.priority]}</td>
+                        <td>{item.client_name ?? "Клиент"}</td>
+                        <td>{labelPipeline(item.pipeline_status)}</td>
+                        <td>{item.last_event}</td>
+                        <td>{item.next_action}</td>
+                        <td>
+                          <span className={`deadline deadline--${item.deadline_status}`}>
+                            {formatWhen(item.next_action_at)}
+                          </span>
+                        </td>
+                        <td>{CHANNEL_LABELS[item.channel] ?? item.channel}</td>
+                        <td>
+                          <button type="button" className="ghost" onClick={() => void openCase(item.case_id)}>
+                            Открыть
+                  </button>
+                        </td>
+                      </tr>
+              ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1855,16 +1827,6 @@ export function AdminCabinet() {
                 </ul>
               </div>
         </section>
-      )}
-
-      {view === "queue" && dashboard && (
-        <DashboardQueuePanel
-          queue={activeQueue}
-          items={dashboard.work_queue || []}
-          onBack={backToDashboard}
-          onOpenCase={(caseId) => void openCase(caseId)}
-          busy={busy}
-        />
       )}
 
       {view === "cases" && (
@@ -2044,17 +2006,11 @@ export function AdminCabinet() {
             maxUserId={detail.client.max_user_id ?? null}
             maxBusinessUrl={detail.channels.max_ops_bot_url ?? detail.channels.max_reply_url ?? null}
             body={maxReplyBody}
-            onBodyChange={(value) => {
-              setMaxReplyBody(value);
-              if (replySuggestions.includes(value)) {
-                setPickedReplySuggestion(value);
-              }
-            }}
+            onBodyChange={setMaxReplyBody}
             busy={busy}
             onSendMax={() => void sendMaxReply()}
             onSendInternal={() => void sendMessage()}
             suggestions={replySuggestions}
-            pickedSuggestion={pickedReplySuggestion}
             onSuggest={() => void suggestReplies()}
             composerHighlight={composerFlash || maxReplyFocus}
             waitingOn={waitingOn}

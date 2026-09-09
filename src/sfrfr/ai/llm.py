@@ -201,7 +201,8 @@ class LLMClient:
             self._client = OpenAI(**kwargs)
         return self._client
 
-    def _create_kwargs(self, *, system: str, user: str, temperature: float) -> dict[str, Any]:
+    def _chat_once(self, *, system: str, user: str, temperature: float) -> str:
+        client = self._get_client()
         # DeepSeek V4 Flash в YC сначала пишет reasoning_content; при малом
         # лимите токенов content остаётся пустым — даём запас на ответ.
         create_kwargs: dict[str, Any] = {
@@ -214,13 +215,7 @@ class LLMClient:
         }
         if self.provider == "yandex" and "deepseek" in (self.model or "").lower():
             create_kwargs["max_tokens"] = 2048
-        return create_kwargs
-
-    def _chat_once(self, *, system: str, user: str, temperature: float) -> str:
-        client = self._get_client()
-        resp = client.chat.completions.create(
-            **self._create_kwargs(system=system, user=user, temperature=temperature)
-        )
+        resp = client.chat.completions.create(**create_kwargs)
         msg = resp.choices[0].message
         text = (msg.content or "").strip()
         if text:
@@ -231,59 +226,7 @@ class LLMClient:
             return reasoning.strip()
         return ""
 
-    def _chat_stream_once(
-        self,
-        *,
-        system: str,
-        user: str,
-        temperature: float,
-        on_partial: Any | None = None,
-    ) -> str:
-        """Стрим токенов; on_partial(accumulated) вызывается по мере роста текста."""
-        client = self._get_client()
-        kwargs = self._create_kwargs(system=system, user=user, temperature=temperature)
-        kwargs["stream"] = True
-        stream = client.chat.completions.create(**kwargs)
-        parts: list[str] = []
-        reasoning_parts: list[str] = []
-        last_emitted = ""
-        for event in stream:
-            try:
-                choice = event.choices[0] if event.choices else None
-            except Exception:  # noqa: BLE001
-                choice = None
-            if choice is None:
-                continue
-            delta = getattr(choice, "delta", None)
-            if delta is None:
-                continue
-            piece = getattr(delta, "content", None) or ""
-            if piece:
-                parts.append(str(piece))
-            rpiece = getattr(delta, "reasoning_content", None) or ""
-            if rpiece:
-                reasoning_parts.append(str(rpiece))
-            accumulated = "".join(parts).strip() or "".join(reasoning_parts).strip()
-            if accumulated and accumulated != last_emitted and on_partial is not None:
-                try:
-                    on_partial(accumulated)
-                except Exception as exc:  # noqa: BLE001
-                    logger.debug("llm on_partial failed: %s", exc)
-                last_emitted = accumulated
-        text = "".join(parts).strip()
-        if text:
-            return text
-        return "".join(reasoning_parts).strip()
-
-    def chat(
-        self,
-        *,
-        system: str,
-        user: str,
-        temperature: float = 0.0,
-        stream: bool = False,
-        on_partial: Any | None = None,
-    ) -> str:
+    def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
         fallback = self._fallback_client()
         if not self.available:
             if fallback is not None and fallback.available:
@@ -291,22 +234,9 @@ class LLMClient:
                     "LLM primary unavailable (provider=%s); using DeepSeek fallback",
                     self.provider,
                 )
-                return fallback.chat(
-                    system=system,
-                    user=user,
-                    temperature=temperature,
-                    stream=stream,
-                    on_partial=on_partial,
-                )
+                return fallback.chat(system=system, user=user, temperature=temperature)
             return ""
         try:
-            if stream:
-                return self._chat_stream_once(
-                    system=system,
-                    user=user,
-                    temperature=temperature,
-                    on_partial=on_partial,
-                )
             return self._chat_once(system=system, user=user, temperature=temperature)
         except Exception as exc:  # noqa: BLE001 — запасной провайдер при сбое основного
             if fallback is None or not fallback.available:
@@ -317,10 +247,4 @@ class LLMClient:
                 self.purpose,
                 exc,
             )
-            return fallback.chat(
-                system=system,
-                user=user,
-                temperature=temperature,
-                stream=stream,
-                on_partial=on_partial,
-            )
+            return fallback.chat(system=system, user=user, temperature=temperature)
