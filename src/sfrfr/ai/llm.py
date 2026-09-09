@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any, Literal
 
 from sfrfr.core.config import get_settings
@@ -226,7 +227,15 @@ class LLMClient:
             return reasoning.strip()
         return ""
 
-    def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+    def chat(
+        self,
+        *,
+        system: str,
+        user: str,
+        temperature: float = 0.0,
+        stream: bool = False,
+        on_partial: Callable[[str], None] | None = None,
+    ) -> str:
         fallback = self._fallback_client()
         if not self.available:
             if fallback is not None and fallback.available:
@@ -234,10 +243,16 @@ class LLMClient:
                     "LLM primary unavailable (provider=%s); using DeepSeek fallback",
                     self.provider,
                 )
-                return fallback.chat(system=system, user=user, temperature=temperature)
+                return fallback.chat(
+                    system=system,
+                    user=user,
+                    temperature=temperature,
+                    stream=stream,
+                    on_partial=on_partial,
+                )
             return ""
         try:
-            return self._chat_once(system=system, user=user, temperature=temperature)
+            text = self._chat_once(system=system, user=user, temperature=temperature)
         except Exception as exc:  # noqa: BLE001 — запасной провайдер при сбое основного
             if fallback is None or not fallback.available:
                 raise
@@ -247,4 +262,13 @@ class LLMClient:
                 self.purpose,
                 exc,
             )
-            return fallback.chat(system=system, user=user, temperature=temperature)
+            return fallback.chat(
+                system=system,
+                user=user,
+                temperature=temperature,
+                stream=stream,
+                on_partial=on_partial,
+            )
+        if text and on_partial is not None:
+            on_partial(text)
+        return text

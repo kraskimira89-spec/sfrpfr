@@ -109,6 +109,10 @@ class Settings(BaseSettings):
     # ТЗ-26: LLM-ответ на свободный текст в MAX (DeepSeek via YC)
     max_llm_chat_enabled: bool = True
     max_llm_chat_max_turns: int = 5
+    max_llm_typing_pulse_enabled: bool = True
+    max_llm_typing_pulse_seconds: float = 3.0
+    max_llm_stream_edit_enabled: bool = False
+    max_llm_stream_edit_min_interval_seconds: float = 0.6
     # Пауза между частями приветствия в MAX (секунды); 0 = сразу все части
     max_welcome_part_delay_seconds: int = 60
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
