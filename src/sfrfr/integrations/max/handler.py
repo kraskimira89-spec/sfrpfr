@@ -2789,7 +2789,10 @@ def handle_max_update(
                 ok=True,
                 action="duplicate_payload_cooldown",
                 detail=f"payload={callback}",
-                reply="Уже обрабатываю этот выбор. Если ответ не появился сразу, подождите пару секунд.",
+                reply=(
+                    "Уже обрабатываю этот выбор. "
+                    "Если ответ не появился сразу, подождите пару секунд."
+                ),
             )
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
