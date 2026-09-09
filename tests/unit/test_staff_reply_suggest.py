@@ -40,16 +40,16 @@ def test_ensure_salutation_fixes_zdravstvuyte() -> None:
 
 def test_system_docs_channel_canon_max_chat() -> None:
     """Подсказки сотруднику: только чат MAX; без кабинета и повторного согласия."""
+    low = DOCS_CHANNEL_CANON.lower()
     assert "чат MAX" in DOCS_CHANNEL_CANON
     assert "cabinet.proverkastaza.ru" not in DOCS_CHANNEL_CANON
-    assert "не проси согласие" in DOCS_CHANNEL_CANON.lower() or "не проси согласие" in DOCS_CHANNEL_CANON
+    assert "не проси согласие" in low
     assert "Не предлагай личный кабинет" in DOCS_CHANNEL_CANON
     assert DOCS_CHANNEL_CANON in SYSTEM
     assert "этот чат MAX" in SYSTEM
     assert "без обещаний перерасчёта" in SYSTEM
-    low = DOCS_CHANNEL_CANON.lower()
     assert "согласие" in low
-    assert "«начать»" in low or "начать" in low
+    assert "начать" in low
 
 
 def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
