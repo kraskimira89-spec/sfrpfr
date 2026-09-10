@@ -40,6 +40,18 @@ _CTA_DOCS = frozenset(
         "5000",
     }
 )
+_CTA_APPEALS = frozenset(
+    {
+        "составьте обращения",
+        "составить обращения",
+        "да, составьте",
+        "да составьте",
+        "хочу обращения",
+        "подготовьте обращения",
+        "проекты обращений",
+        "обращения в сфр",
+    }
+)
 _CTA_SUPPORT = frozenset(
     {
         "сопровождение 8000",
@@ -285,22 +297,13 @@ def maybe_offer_docs_invoice(
         return None
 
     cab = cabinet_url_for_case(cid)
-    body = (
-        "По итогам диагностики понятен следующий объём: собрать комплект и черновики запросов.\n"
-        f"Шаг 2 — подготовка документов, {int(amount)} ₽. "
-        "Можно остановиться здесь или идти дальше позже.\n"
-        "Решение о пенсии принимает только СФР; мы готовим документы и план — "
-        "подаёте через СФР/Госуслуги вы сами.\n"
-        "Чтобы выставить счёт, примите условия в кабинете — "
-        f"после этого пришлём ссылку на оплату в этот чат.\n"
-        f"Кабинет: {cab}"
-    )
+    from sfrfr.services.max_post_diagnosis import build_docs_invoice_after_appeals_text
+
+    body = build_docs_invoice_after_appeals_text(amount=int(amount), cabinet_url=cab)
     from sfrfr.integrations.max.client import inline_buttons_keyboard
 
     attachments = inline_buttons_keyboard(
         [
-            [{"type": "callback", "text": "Готов к шагу 2", "payload": "offer:docs"}],
-            [{"type": "callback", "text": "Сам по плану", "payload": "offer:docs_skip"}],
             [
                 {
                     "type": "callback",
@@ -408,7 +411,7 @@ def maybe_offer_support_invoice(
 
 
 def resolve_offer_cta(label: str) -> str | None:
-    """offer:docs | offer:support | offer:docs_skip | None."""
+    """offer:appeals | offer:docs | offer:support | offer:docs_skip | None."""
     low = " ".join(str(label or "").lower().split())
     if not low:
         return None
@@ -416,9 +419,47 @@ def resolve_offer_cta(label: str) -> str | None:
         return "offer:docs_skip"
     if low in _CTA_SUPPORT or "сопровожден" in low or "шаг 3" in low:
         return "offer:support"
+    if low in _CTA_APPEALS or "обращени" in low or "составьт" in low:
+        return "offer:appeals"
     if low in _CTA_DOCS or "шаг 2" in low or "подготовк" in low:
         return "offer:docs"
     return None
+
+
+def _offer_docs_or_remind(
+    *,
+    case_id: str,
+    max_user_id: str,
+    intake: Any | None,
+) -> dict[str, Any] | None:
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.case_chat_delivery import enqueue_max_delivery
+
+    repo = CaseRepository()
+    try:
+        orders = repo.list_orders(case_id)
+    except Exception:  # noqa: BLE001
+        orders = []
+    existing = _find_open_order(orders, tariff="DOCS")
+    if existing:
+        cab = cabinet_url_for_case(case_id)
+        enqueue_max_delivery(
+            case_id=case_id,
+            message_id=None,
+            max_user_id=max_user_id,
+            body=(
+                "Счёт на подготовку документов и проектов обращений уже подготовлен. "
+                f"Примите условия в кабинете, затем оплатите: {cab}"
+            ),
+            attachments=None,
+        )
+        return {"order": existing, "reminded": True, "tariff": "DOCS"}
+    return maybe_offer_docs_invoice(
+        case_id=case_id,
+        max_user_id=max_user_id,
+        intake=intake,
+        require_cta=True,
+    )
 
 
 def handle_offer_callback(
@@ -432,34 +473,9 @@ def handle_offer_callback(
     pl = str(payload or "").strip().lower()
     if pl == "offer:docs_skip":
         return {"skipped": True, "tariff": "DOCS"}
-    if pl == "offer:docs":
-        from sfrfr.db.case_repository import CaseRepository
-        from sfrfr.services.case_chat_delivery import enqueue_max_delivery
-
-        repo = CaseRepository()
-        try:
-            orders = repo.list_orders(case_id)
-        except Exception:  # noqa: BLE001
-            orders = []
-        existing = _find_open_order(orders, tariff="DOCS")
-        if existing:
-            cab = cabinet_url_for_case(case_id)
-            enqueue_max_delivery(
-                case_id=case_id,
-                message_id=None,
-                max_user_id=max_user_id,
-                body=(
-                    "Счёт на подготовку документов уже подготовлен. "
-                    f"Примите условия в кабинете, затем оплатите: {cab}"
-                ),
-                attachments=None,
-            )
-            return {"order": existing, "reminded": True, "tariff": "DOCS"}
-        return maybe_offer_docs_invoice(
-            case_id=case_id,
-            max_user_id=max_user_id,
-            intake=intake,
-            require_cta=True,
+    if pl in {"offer:docs", "offer:appeals"}:
+        return _offer_docs_or_remind(
+            case_id=case_id, max_user_id=max_user_id, intake=intake
         )
     if pl == "offer:support":
         from sfrfr.db.case_repository import CaseRepository
@@ -551,8 +567,9 @@ def maybe_send_pay_link_after_contract(
 
 
 def maybe_offer_after_diagnosis_delivered(*, case_id: str) -> dict[str, Any] | None:
-    """Хук после link_issued / MAX notify: оффер DOCS 5000."""
+    """Хук после link_issued: рекомендации + оффер отдельных обращений (без счёта)."""
     from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.max_post_diagnosis import maybe_send_post_diagnosis_next_steps
 
     cid = str(case_id or "").strip()
     if not cid:
@@ -562,13 +579,15 @@ def maybe_offer_after_diagnosis_delivered(*, case_id: str) -> dict[str, Any] | N
         row = repo.get_case_row(cid) or {}
     except Exception:  # noqa: BLE001
         row = {}
-    # get_case_row может не подтянуть diagnostic_results — факт выдачи уже известен вызывающему.
     enriched = dict(row)
     enriched["diagnosis_delivered"] = True
-    return maybe_offer_docs_invoice(case_id=cid, case=enriched, require_cta=False)
+    return maybe_send_post_diagnosis_next_steps(case_id=cid, case=enriched)
 
 
 def reset_offer_cache() -> None:
     _OFFERED.clear()
     _OFFERED_DOCS.clear()
     _OFFERED_SUPPORT.clear()
+    from sfrfr.services.max_post_diagnosis import reset_post_diagnosis_cache
+
+    reset_post_diagnosis_cache()
