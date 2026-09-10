@@ -1,7 +1,8 @@
 """Автопредложение DIAG/DOCS/SUPPORT и pay link после оферты (bot_owned).
 
 Стратегия: docs/marketing-sales/strategy-llm-tariffs-5000-8000.md
-DIAG — комплект ИЛС+трудовая; DOCS — после выдачи диагностики; SUPPORT — после DOCS paid + проект обращения.
+DIAG — после ИЛС+трудовая; DOCS — после выдачи диагностики;
+SUPPORT — после DOCS paid + проект обращения.
 """
 
 from __future__ import annotations

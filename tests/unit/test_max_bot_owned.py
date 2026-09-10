@@ -200,6 +200,14 @@ def test_diag_offer_requires_consent(monkeypatch) -> None:
     repo.create_order.assert_not_called()
 
 
+def test_pay_link_not_without_flag(monkeypatch) -> None:
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    monkeypatch.setenv("MAX_BOT_OWNED_PAY_LINK", "0")
+    get_settings.cache_clear()
+    repo = MagicMock()
+    assert maybe_send_pay_link_after_contract(repo=repo, case_id="c1", actor_id="x") is None
+
+
 def test_docs_offer_requires_diag_delivered(monkeypatch) -> None:
     repo = MagicMock()
     repo.has_consent.return_value = True
