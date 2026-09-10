@@ -132,6 +132,8 @@ def ensure_yookassa_pay_url(
 
 
 def pay_message_text(*, service: str, amount_rub: float, pay_url: str) -> str:
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
     return (
         "Здравствуйте! Счёт на оплату информационно-документарной поддержки "
         f"({service}, {int(amount_rub)} ₽).\n"
@@ -139,6 +141,7 @@ def pay_message_text(*, service: str, amount_rub: float, pay_url: str) -> str:
         "Можно открыть ссылку или отсканировать QR. "
         "Если оплатите переводом — пришлите фото чека в этот чат или в кабинет (Оплаты). "
         "Если оплата пройдёт по ссылке ЮKassa, чек присылать не нужно. "
+        f"{PAYMENT_LEGAL_ACCEPTANCE} "
         "Решение о пенсии и перерасчёте принимает СФР, результат не гарантирован."
     )
 

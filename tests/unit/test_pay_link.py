@@ -50,6 +50,9 @@ def test_pay_message_no_recalculation_promise() -> None:
     assert "результат не гарантирован" in text.lower()
     assert "чек" in text.lower()
     assert "увеличим" not in text.lower()
+    assert "оплата счёта означает согласие" in text.lower()
+    assert "оферт" in text.lower()
+    assert "cookies" in text.lower() or "cookie" in text.lower()
 
 
 def test_parse_invoice_paid_event() -> None:

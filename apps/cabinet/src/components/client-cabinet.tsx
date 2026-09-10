@@ -2490,7 +2490,20 @@ export function ClientCabinet() {
           <h1>Оплаты</h1>
           <p className="lead">
             Диагностика — фиксированный счёт. Оплата после результата появляется только после
-            подтверждения.
+            подтверждения. Оплата счёта означает согласие с обработкой персональных данных (ПДн),
+            политикой{" "}
+            <a href="https://proverkastaza.ru/cookies/" target="_blank" rel="noreferrer">
+              cookies
+            </a>{" "}
+            и условиями{" "}
+            <a href="https://proverkastaza.ru/oferta/" target="_blank" rel="noreferrer">
+              публичной оферты
+            </a>
+            {" "}(
+            <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noreferrer">
+              согласие на ПДн
+            </a>
+            ).
           </p>
           {orders.length === 0 ? (
             <p>Счетов пока нет.</p>

@@ -457,14 +457,20 @@ export function CaseWorkMap({
               Статус оплаты: <strong>{work.order.status_label}</strong>
             </p>
             {work.order.can_pay && work.order.order_id ? (
-              <p className="home-actions">
-                <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>
-                  Оплатить безопасно
-                </button>
-                <a className="secondary" href="#case-chat-input">
-                  Задать вопрос об услуге
-                </a>
-              </p>
+              <>
+                <p className="hint">
+                  Оплата счёта означает согласие с обработкой персональных данных (ПДн), политикой
+                  cookies и условиями публичной оферты.
+                </p>
+                <p className="home-actions">
+                  <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>
+                    Оплатить безопасно
+                  </button>
+                  <a className="secondary" href="#case-chat-input">
+                    Задать вопрос об услуге
+                  </a>
+                </p>
+              </>
             ) : (
               <p className="home-actions">
                 <a className="secondary" href={work.offer_url} target="_blank" rel="noreferrer">

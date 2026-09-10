@@ -170,10 +170,13 @@ def maybe_offer_diag_invoice(
 
     amount = int(float(draft.get("amount_rub") or 3000))
     cab = cabinet_url_for_case(cid)
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
     body = (
         f"Для диагностики стоимость {amount} ₽. "
         "Чтобы выставить счёт, примите условия оказания услуг в кабинете на сайте — "
         f"после этого пришлём ссылку на оплату в этот чат.\n"
+        f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
         f"Кабинет: {cab}"
     )
     enqueue_max_delivery(
@@ -391,12 +394,15 @@ def maybe_offer_support_invoice(
         return None
 
     cab = cabinet_url_for_case(cid)
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
     body = (
         f"Шаг 3 — сопровождение до подачи, {int(amount)} ₽: "
         "доводим проект обращения и пошаговый план.\n"
         "Подачу через СФР / Госуслуги / МФЦ делаете вы; мы рядом с планом и ответами по шагам.\n"
         "Можно остаться на шаге 2, если хотите подать сами по уже готовому комплекту.\n"
         "Чтобы выставить счёт, примите условия в кабинете.\n"
+        f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
         f"Кабинет: {cab}"
     )
     enqueue_max_delivery(
@@ -432,6 +438,7 @@ def _offer_docs_or_remind(
     max_user_id: str,
     intake: Any | None,
 ) -> dict[str, Any] | None:
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.services.case_chat_delivery import enqueue_max_delivery
 
@@ -449,7 +456,8 @@ def _offer_docs_or_remind(
             max_user_id=max_user_id,
             body=(
                 "Счёт на подготовку документов и проектов обращений уже подготовлен. "
-                f"Примите условия в кабинете, затем оплатите: {cab}"
+                f"Примите условия в кабинете, затем оплатите: {cab}\n"
+                f"{PAYMENT_LEGAL_ACCEPTANCE}"
             ),
             attachments=None,
         )
@@ -488,6 +496,8 @@ def handle_offer_callback(
             orders = []
         existing = _find_open_order(orders, tariff="SUPPORT")
         if existing:
+            from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
             cab = cabinet_url_for_case(case_id)
             enqueue_max_delivery(
                 case_id=case_id,
@@ -495,7 +505,8 @@ def handle_offer_callback(
                 max_user_id=max_user_id,
                 body=(
                     "Счёт на сопровождение уже подготовлен. "
-                    f"Примите условия в кабинете: {cab}"
+                    f"Примите условия в кабинете: {cab}\n"
+                    f"{PAYMENT_LEGAL_ACCEPTANCE}"
                 ),
                 attachments=None,
             )

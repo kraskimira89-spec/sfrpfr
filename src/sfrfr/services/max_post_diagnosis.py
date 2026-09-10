@@ -109,6 +109,8 @@ def build_post_diagnosis_next_steps_text(
 
 
 def build_docs_invoice_after_appeals_text(*, amount: int, cabinet_url: str) -> str:
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
     return (
         "Хорошо — подготовим проекты обращений в СФР: каждое обращение "
         "по одному вопросу или периоду, без «сборной» заявки.\n"
@@ -117,6 +119,7 @@ def build_docs_invoice_after_appeals_text(*, amount: int, cabinet_url: str) -> s
         "подаёте вы сами.\n"
         "Чтобы выставить счёт, примите условия в кабинете — "
         f"после этого пришлём ссылку на оплату в этот чат.\n"
+        f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
         f"Кабинет: {cabinet_url}"
     )
 

@@ -44,6 +44,8 @@ def test_invoice_text_after_consent() -> None:
     text = build_docs_invoice_after_appeals_text(amount=5000, cabinet_url="https://example/")
     assert "5000" in text or "5 000" in text
     assert "одному вопросу" in text.lower() or "по одному" in text.lower()
+    assert "оплата счёта означает согласие" in text.lower()
+    assert "оферт" in text.lower()
 
 
 def test_post_diagnosis_does_not_create_order(monkeypatch) -> None:

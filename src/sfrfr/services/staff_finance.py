@@ -125,10 +125,13 @@ def derive_finance_next_action(order: dict[str, Any], status: str) -> str:
 
 
 def reminder_draft_text(*, service: str, amount_rub: float, pay_url: str | None) -> str:
+    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+
     link = f" Ссылка на оплату: {pay_url}." if pay_url else ""
     return (
         "Здравствуйте! Напоминаем об оплате информационно-документарной поддержки "
         f"({service}, {int(amount_rub)} ₽).{link} "
+        f"{PAYMENT_LEGAL_ACCEPTANCE} "
         "Решение о пенсии и перерасчёте принимает СФР, результат не гарантирован."
     )
 

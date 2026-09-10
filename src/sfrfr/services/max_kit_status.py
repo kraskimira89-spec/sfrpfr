@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
 from sfrfr.integrations.max.bot_owned import is_bot_owned
 from sfrfr.integrations.max.intake import CALL_OPERATOR_LABEL
 
@@ -65,7 +66,8 @@ def build_kit_message(
         lines.append(
             "Базовый комплект для диагностики есть. "
             "Следующий шаг — диагностика 3 000 ₽: примите условия в кабинете на сайте, "
-            "после этого пришлём ссылку на оплату в этот чат."
+            "после этого пришлём ссылку на оплату в этот чат. "
+            f"{PAYMENT_LEGAL_ACCEPTANCE}"
         )
     lines.append("Можно позвать специалиста кнопкой ниже.")
     return "\n".join(lines)
