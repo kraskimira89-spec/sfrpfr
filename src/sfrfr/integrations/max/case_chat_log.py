@@ -69,6 +69,10 @@ CALLBACK_LABELS: dict[str, str] = {
     "intake:docs:ils_howto": "Как получить ИЛС",
     "intake:restart": RESTART_LABEL,
     "intake:back": BACK_LABEL,
+    "offer:appeals": "Составьте обращения",
+    "offer:docs": "Готов к шагу 2",
+    "offer:docs_skip": "Сам по плану",
+    "offer:support": "Сопровождение 8000",
 }
 
 
