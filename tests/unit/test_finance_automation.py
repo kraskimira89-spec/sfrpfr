@@ -73,7 +73,11 @@ def test_suggest_diag_when_no_orders() -> None:
 
 
 def test_suggest_docs_after_paid_diag_and_contract() -> None:
-    case = {"b2c_status": "contract_accepted", "clients": {"full_name": "Сергей"}}
+    case = {
+        "b2c_status": "contract_accepted",
+        "clients": {"full_name": "Сергей"},
+        "diagnostic_results": [{"status": "link_issued"}],
+    }
     orders = [{"package_code": "DIAG", "status": "paid"}]
     out = suggest_agreement_draft(case, orders)
     assert out is not None
@@ -82,11 +86,21 @@ def test_suggest_docs_after_paid_diag_and_contract() -> None:
 
 
 def test_suggest_docs_after_webhook_sets_diagnostic_paid() -> None:
-    case = {"b2c_status": "diagnostic_paid", "clients": {"full_name": "Сергей"}}
+    case = {
+        "b2c_status": "diagnostic_paid",
+        "clients": {"full_name": "Сергей"},
+        "diagnosis_delivered": True,
+    }
     orders = [{"package_code": "DIAG", "status": "paid"}]
     out = suggest_agreement_draft(case, orders)
     assert out is not None
     assert out["package_code"] == "ACCOMP"
+
+
+def test_no_docs_before_diagnosis_delivered() -> None:
+    case = {"b2c_status": "diagnostic_paid", "clients": {"full_name": "Сергей"}}
+    orders = [{"package_code": "DIAG", "status": "paid"}]
+    assert suggest_agreement_draft(case, orders) is None
 
 
 def test_no_accomp_without_agreement() -> None:
@@ -126,7 +140,8 @@ def test_paid_diag_moves_intake_and_sets_action() -> None:
     on_order_fully_paid(repo, "c1", "DIAG")
     assert repo.next_action == "Провести диагностику"
     assert repo.pipeline == "documents_received"
-    assert any(o.get("package_code") == "ACCOMP" for o in repo.orders)
+    # DOCS не создаём до выдачи PDF
+    assert not any(o.get("package_code") == "ACCOMP" for o in repo.orders)
 
 
 def test_paid_accomp_does_not_jump_pipeline() -> None:

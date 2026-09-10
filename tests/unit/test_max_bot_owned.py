@@ -200,9 +200,56 @@ def test_diag_offer_requires_consent(monkeypatch) -> None:
     repo.create_order.assert_not_called()
 
 
-def test_pay_link_not_without_flag(monkeypatch) -> None:
-    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
-    monkeypatch.setenv("MAX_BOT_OWNED_PAY_LINK", "0")
-    get_settings.cache_clear()
+def test_docs_offer_requires_diag_delivered(monkeypatch) -> None:
     repo = MagicMock()
-    assert maybe_send_pay_link_after_contract(repo=repo, case_id="c1", actor_id="x") is None
+    repo.has_consent.return_value = True
+    repo.get_case_row.return_value = {
+        "id": "c1",
+        "b2c_status": "diagnostic_paid",
+        "clients": {"max_user_id": "99"},
+    }
+    repo.list_orders.return_value = [{"package_code": "DIAG", "status": "paid"}]
+    reset_offer_cache()
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    get_settings.cache_clear()
+    from sfrfr.services.max_bot_invoice import maybe_offer_docs_invoice
+
+    with patch("sfrfr.db.case_repository.CaseRepository", return_value=repo):
+        out = maybe_offer_docs_invoice(case_id="c1", max_user_id="99")
+    assert out is None
+    repo.create_order.assert_not_called()
+
+
+def test_docs_offer_after_delivery(monkeypatch) -> None:
+    repo = MagicMock()
+    repo.has_consent.return_value = True
+    repo.get_case_row.return_value = {
+        "id": "c1",
+        "b2c_status": "diagnostic_paid",
+        "clients": {"max_user_id": "99"},
+        "diagnosis_delivered": True,
+    }
+    repo.list_orders.return_value = [{"package_code": "DIAG", "status": "paid"}]
+    repo.create_order.return_value = {"id": "o1", "package_code": "ACCOMP"}
+    reset_offer_cache()
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    get_settings.cache_clear()
+    from sfrfr.services.max_bot_invoice import maybe_offer_docs_invoice
+
+    with (
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch("sfrfr.services.case_chat_delivery.enqueue_max_delivery", return_value=True),
+    ):
+        out = maybe_offer_docs_invoice(
+            case_id="c1",
+            max_user_id="99",
+            case={
+                "id": "c1",
+                "b2c_status": "diagnostic_paid",
+                "clients": {"max_user_id": "99"},
+                "diagnosis_delivered": True,
+            },
+        )
+    assert out is not None
+    assert out.get("tariff") == "DOCS"
+    repo.create_order.assert_called_once()

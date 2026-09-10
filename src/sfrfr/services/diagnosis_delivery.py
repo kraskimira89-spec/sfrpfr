@@ -334,6 +334,14 @@ class DiagnosisDeliveryService:
                     {"status": "link_issued", "updated_at": _now()},
                 )
                 self.feedback.patch(case_id, {"feedback_status": "nav_sent"})
+                try:
+                    from sfrfr.services.max_bot_invoice import (
+                        maybe_offer_after_diagnosis_delivered,
+                    )
+
+                    maybe_offer_after_diagnosis_delivered(case_id=case_id)
+                except Exception:  # noqa: BLE001
+                    pass
             return {"ok": True, "send": result, "job_id": job_id, "audit": "notification_sent"}
 
         self.repo.update_job(
@@ -471,6 +479,16 @@ class DiagnosisDeliveryService:
                 {"status": "link_issued", "updated_at": _now()},
             )
             self.feedback.patch(str(job["case_id"]), {"feedback_status": "nav_sent"})
+            try:
+                from sfrfr.services.max_bot_invoice import (
+                    maybe_offer_after_diagnosis_delivered,
+                )
+
+                maybe_offer_after_diagnosis_delivered(
+                    case_id=str(job["case_id"])
+                )
+            except Exception:  # noqa: BLE001
+                pass
         return {"ok": True, "audit": "notification_sent"}
 
     def cancel_job(self, job_id: str) -> dict[str, Any]:

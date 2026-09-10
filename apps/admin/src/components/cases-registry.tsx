@@ -31,6 +31,13 @@ export type RegistryCase = {
   finance_attention?: "awaiting_invoice" | "payable" | null;
   loss_reason?: string | null;
   sales_board_column?: string | null;
+  active_tariff?: string | null;
+  order_summary?: {
+    tariff?: string;
+    amount_rub?: number;
+    status?: string;
+    invoice_status?: string;
+  } | null;
 };
 
 const QUEUES: Array<{ id: string; label: string }> = [
@@ -367,6 +374,17 @@ export function CasesRegistry({
                             <span className="hint">
                               {item.next_action || humanCaseStage(item.pipeline_status, item.b2c_status)}
                             </span>
+                            {item.active_tariff ? (
+                              <span className="badge badge--muted">{item.active_tariff}</span>
+                            ) : null}
+                            {item.order_summary && item.sales_board_column?.startsWith("pay_") ? (
+                              <span className="hint">
+                                {Math.round(item.order_summary.amount_rub || 0)} ₽
+                                {item.order_summary.invoice_status
+                                  ? ` · ${item.order_summary.invoice_status}`
+                                  : ""}
+                              </span>
+                            ) : null}
                             {item.loss_reason ? (
                               <span className="badge badge--muted">{item.loss_reason}</span>
                             ) : null}

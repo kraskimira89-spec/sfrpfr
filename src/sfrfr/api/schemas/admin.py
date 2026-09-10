@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -39,6 +39,8 @@ class StaffCaseSummary(BaseModel):
     finance_attention: Literal["awaiting_invoice", "payable"] | None = None
     loss_reason: str | None = None
     sales_board_column: str | None = None
+    active_tariff: str | None = None
+    order_summary: dict[str, Any] | None = None
 
 
 class CaseCloseRequest(BaseModel):

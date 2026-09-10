@@ -152,6 +152,11 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
     orders = case.get("orders") or []
     show_contact = role in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT)
     work = build_work_item(case, show_contact=show_contact)
+    from sfrfr.services.funnel_board import (
+        active_tariff_badge,
+        order_summary_for_board,
+    )
+
     return StaffCaseSummary(
         id=str(case["id"]),
         pipeline_status=case["pipeline_status"],
@@ -181,19 +186,20 @@ def _staff_summary(case: dict[str, Any], *, role: StaffRole | None) -> StaffCase
         finance_attention=derive_finance_attention(case),
         loss_reason=str(case.get("loss_reason") or "") or None,
         sales_board_column=_sales_column(case, work),
+        active_tariff=active_tariff_badge(orders),
+        order_summary=order_summary_for_board(orders),
     )
 
 
 def _sales_column(case: dict[str, Any], work: dict[str, Any] | None) -> str:
-    from sfrfr.services.sales_board import sales_board_column
+    from sfrfr.services.funnel_board import compute_funnel_column
 
     waiting = (work or {}).get("waiting_on") or derive_waiting_on(case)
-    return sales_board_column(
-        pipeline_status=str(case.get("pipeline_status") or ""),
-        b2c_status=str(case.get("b2c_status") or ""),
+    return compute_funnel_column(
+        case,
+        case.get("orders") or [],
         waiting_on=str(waiting or ""),
         finance_attention=derive_finance_attention(case),
-        loss_reason=str(case.get("loss_reason") or "") or None,
     )
 
 
@@ -700,6 +706,57 @@ def admin_list_cases(
             continue
         result.append(summary)
     return result
+
+
+@router.get("/admin/funnel-board/columns")
+def admin_funnel_board_columns(
+    principal: Principal = Depends(require_staff),
+) -> list[dict[str, str]]:
+    """Метаданные колонок kanban (ТЗ-33)."""
+    _ = principal
+    from sfrfr.services.funnel_board import funnel_columns_meta
+
+    return funnel_columns_meta()
+
+
+@router.get("/admin/funnel-board")
+def admin_funnel_board(
+    include_test: bool = False,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Колонки + карточки для kanban (тот же источник, что /admin/cases)."""
+    from sfrfr.services.funnel_board import FUNNEL_BOARD_COLUMNS
+
+    cases = admin_list_cases(include_test=include_test, principal=principal)
+    grouped: dict[str, list[StaffCaseSummary]] = {cid: [] for cid, _ in FUNNEL_BOARD_COLUMNS}
+    for item in cases:
+        key = item.sales_board_column or "qualify"
+        if key not in grouped:
+            grouped[key] = []
+        grouped[key].append(item)
+    return {
+        "columns": [
+            {
+                "id": cid,
+                "label": label,
+                "items": grouped.get(cid) or [],
+            }
+            for cid, label in FUNNEL_BOARD_COLUMNS
+        ]
+    }
+
+
+@router.post("/admin/cases/{case_id}/funnel-column/recompute")
+def admin_recompute_funnel_column(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Пересчёт колонки (без persist — колонка вычисляемая)."""
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    work = build_work_item(case, show_contact=False)
+    column = _sales_column(case, work)
+    return {"case_id": case_id, "funnel_column": column}
 
 
 def _queue_match(item: StaffCaseSummary, queue: str, principal: Principal) -> bool:

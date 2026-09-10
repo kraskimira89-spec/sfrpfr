@@ -703,17 +703,20 @@ header div { display: grid; gap: 3px; }
   gap: 8px;
 }
 .sales-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  display: flex;
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 8px;
+  align-items: stretch;
 }
 .sales-board__col {
   background: #f4f7fb;
   border: 1px solid #d9e2ec;
   border-radius: 8px;
   min-height: 200px;
+  min-width: 160px;
+  max-width: 200px;
+  flex: 0 0 170px;
   display: flex;
   flex-direction: column;
 }

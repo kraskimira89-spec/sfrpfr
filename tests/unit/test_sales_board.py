@@ -18,7 +18,7 @@ def test_sales_board_payment() -> None:
             b2c_status="consent_accepted",
             waiting_on="payment",
         )
-        == "payment"
+        == "pay_diag"
     )
 
 

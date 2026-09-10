@@ -1,4 +1,4 @@
-/** Канбан продаж в реестре staff (вместо воронки amo). */
+/** Канбан воронки 3/5/8 тыс. в реестре staff (ТЗ-33). */
 
 export const LOSS_REASON_VALUES = [
   "нецелевой вопрос",
@@ -17,10 +17,16 @@ export type LossReason = (typeof LOSS_REASON_VALUES)[number];
 
 export const SALES_BOARD_COLUMNS: Array<{ id: string; label: string }> = [
   { id: "new", label: "Новый лид" },
-  { id: "in_touch", label: "В работе" },
-  { id: "docs", label: "Документы" },
-  { id: "payment", label: "Оплата" },
-  { id: "delivery", label: "Выдача / СФР" },
+  { id: "qualify", label: "Квалификация" },
+  { id: "docs_collect", label: "Сбор документов" },
+  { id: "pay_diag", label: "Оплата 3 000" },
+  { id: "diag_work", label: "Диагностика" },
+  { id: "diag_done", label: "Результат выдан" },
+  { id: "pay_docs", label: "Оплата 5 000" },
+  { id: "docs_work", label: "Подготовка документов" },
+  { id: "pay_support", label: "Оплата 8 000" },
+  { id: "support", label: "Сопровождение" },
+  { id: "delivery", label: "Подача клиентом" },
   { id: "closed", label: "Закрыто" },
   { id: "lost", label: "Отказ" },
 ];
@@ -43,23 +49,23 @@ export function salesBoardColumn(input: {
   if (b === "closed" || p === "completed" || p === "failed") {
     return loss ? "lost" : "closed";
   }
+  if (b === "awaiting_client_submission" || w === "sfr") return "delivery";
   if (fin === "payable" || fin === "awaiting_invoice" || w === "payment" || b === "success_fee_due") {
-    return "payment";
+    return "pay_diag";
   }
   if (w === "client" || w === "archive" || p === "documents_received") {
-    return "docs";
+    return "docs_collect";
   }
   if (
-    b === "awaiting_client_submission" ||
     b === "result_pending" ||
     p === "draft_ready" ||
     p === "human_review" ||
     p === "audited"
   ) {
-    return "delivery";
+    return "docs_work";
   }
   if (p === "intake" || b === "lead" || b === "") {
     return "new";
   }
-  return "in_touch";
+  return "qualify";
 }

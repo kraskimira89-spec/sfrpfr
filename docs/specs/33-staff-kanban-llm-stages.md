@@ -1,7 +1,7 @@
 # ТЗ-33: Kanban этапов воронки + автоперенос карточек
 
-**Статус:** к реализации  
-**Дата:** 2026-09-09  
+**Статус:** реализовано (v1)  
+**Дата:** 2026-09-09 · **Обновлено:** 2026-09-10  
 **Для кого:** backend / admin frontend / QA  
 **Связано:** [strategy 5/8](../marketing-sales/strategy-llm-tariffs-5000-8000.md) · [04-admin-cabinet](04-admin-cabinet.md) · [26-max-llm-chat](26-max-llm-chat.md) · `sales_board.py` · `cases-registry.tsx`  
 **История:** `docs/history/2026-09-09-kanban-llm-stages-tz.md`

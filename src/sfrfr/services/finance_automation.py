@@ -1,7 +1,10 @@
 """Автоматизация счетов: черновик после соглашения, срок, этап после оплаты.
 
-По умолчанию не шлёт MAX и не создаёт платёж ЮKassa — только черновик, задача и next_action.
+По умолчанию не шлёт MAX и не создаёт платёж ЮKassa — только черновик, задачу и next_action.
 При MAX_PAY_LINK_AUTO_SEND=1 после черновика: invoice ЮKassa + кнопка/QR в MAX.
+
+DOCS 5000 — только после выдачи диагностики (ворота стратегии 5/8).
+SUPPORT 8000 — не автосоздаём здесь; bot/staff после проекта обращения.
 """
 
 from __future__ import annotations
@@ -9,6 +12,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sfrfr.services.funnel_board import (
+    classify_accomp_tariff,
+    diagnosis_delivered_from_case,
+    tariff_states,
+)
 from sfrfr.services.public_tariffs import public_tariff, staff_package_label
 from sfrfr.services.staff_finance import parse_dt, reminder_draft_text
 from sfrfr.services.staff_work_queue import is_test_case
@@ -30,7 +38,7 @@ def _load_case(repo: Any, case_id: str) -> dict[str, Any] | None:
 
 
 def _pkg_state(orders: list[dict[str, Any]], code: str) -> str:
-    """paid | open | none."""
+    """paid | open | none. Для ACCOMP смотрите tariff_states (DOCS/SUPPORT)."""
     rows = [o for o in orders if str(o.get("package_code") or "").upper() == code]
     if any(str(o.get("status") or "") == "paid" for o in rows):
         return "paid"
@@ -49,20 +57,22 @@ def suggest_agreement_draft(
     if is_test_case(case):
         return None
     b2c = str(case.get("b2c_status") or "")
-    diag = _pkg_state(orders, "DIAG")
-    accomp = _pkg_state(orders, "ACCOMP")
-    if diag == "none":
+    states = tariff_states(orders)
+    if states["DIAG"] == "none":
         tariff = public_tariff("DIAG") or {}
         return {
             "package_code": "DIAG",
             "amount_rub": float(tariff.get("amount_rub") or 3000),
             "service_label": str(tariff.get("name") or "Диагностика"),
         }
-    # После webhook оплаты DIAG b2c уже diagnostic_paid, не contract_accepted.
-    if diag == "paid" and accomp == "none" and b2c in {
-        "contract_accepted",
-        "diagnostic_paid",
-    }:
+    # DOCS только после выдачи результата диагностики (не сразу после оплаты DIAG).
+    if (
+        states["DIAG"] == "paid"
+        and states["DOCS"] == "none"
+        and states["SUPPORT"] == "none"
+        and b2c in {"contract_accepted", "diagnostic_paid", "service_paid"}
+        and diagnosis_delivered_from_case(case)
+    ):
         tariff = public_tariff("DOCS") or {}
         return {
             "package_code": "ACCOMP",
@@ -134,14 +144,33 @@ def on_order_fully_paid(
     package_code: str,
     *,
     actor_id: str | None = None,
+    order: dict[str, Any] | None = None,
 ) -> None:
-    """После полной оплаты: next_action, этап, черновик следующего счёта."""
+    """После полной оплаты: next_action, этап. Следующий счёт DOCS/SUPPORT — по воротам."""
     code = (package_code or "").upper()
+    tariff = None
     if code == "DIAG":
         action = "Провести диагностику"
         pipeline = "documents_received"
     elif code == "ACCOMP":
-        action = "Готовить документы и проект обращения"
+        tariff = classify_accomp_tariff(order or {}) if order else None
+        if tariff is None:
+            try:
+                orders = repo.list_orders(case_id)
+            except Exception:  # noqa: BLE001
+                orders = []
+            paid = [
+                o
+                for o in orders
+                if str(o.get("package_code") or "").upper() == "ACCOMP"
+                and str(o.get("status") or "") == "paid"
+            ]
+            if paid:
+                tariff = classify_accomp_tariff(paid[0])
+        if tariff == "SUPPORT":
+            action = "Сопровождение до подачи — план для клиента"
+        else:
+            action = "Готовить документы и проект обращения"
         pipeline = None
     else:
         action = "Закрыть этап оплаты"
@@ -165,11 +194,12 @@ def on_order_fully_paid(
                 )
         except Exception:  # noqa: BLE001
             pass
-    if code == "DIAG":
+    # После DIAG не создаём DOCS до выдачи PDF (ворота стратегии).
+    if code == "ACCOMP" and tariff != "SUPPORT":
         try:
-            ensure_agreement_draft_invoice(
-                repo, case_id, actor_id, update_queue=False
-            )
+            from sfrfr.services.max_bot_invoice import maybe_offer_support_invoice
+
+            maybe_offer_support_invoice(case_id=case_id)
         except Exception:  # noqa: BLE001
             pass
 

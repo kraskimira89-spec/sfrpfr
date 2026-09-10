@@ -1,6 +1,16 @@
-"""Канон причин отказа и колонок канбана продаж (кабинет staff, без amo)."""
+"""Канон причин отказа и колонок канбана продаж (кабинет staff, без amo).
+
+ТЗ-33: колонки воронки 3/5/8 — см. funnel_board.compute_funnel_column.
+"""
 
 from __future__ import annotations
+
+from typing import Any
+
+from sfrfr.services.funnel_board import (
+    FUNNEL_BOARD_COLUMNS,
+    compute_funnel_column,
+)
 
 # Совпадает с sfrfr.integrations.amocrm.fields.LOSS_REASON_VALUES (резерв amo).
 LOSS_REASON_VALUES: tuple[str, ...] = (
@@ -16,16 +26,8 @@ LOSS_REASON_VALUES: tuple[str, ...] = (
     "другое",
 )
 
-# Колонки канбана реестра (упрощённая воронка продаж).
-SALES_BOARD_COLUMNS: tuple[tuple[str, str], ...] = (
-    ("new", "Новый лид"),
-    ("in_touch", "В работе"),
-    ("docs", "Документы"),
-    ("payment", "Оплата"),
-    ("delivery", "Выдача / СФР"),
-    ("closed", "Закрыто"),
-    ("lost", "Отказ"),
-)
+# Колонки канбана реестра (= FUNNEL_BOARD_COLUMNS, ТЗ-33).
+SALES_BOARD_COLUMNS: tuple[tuple[str, str], ...] = FUNNEL_BOARD_COLUMNS
 
 
 def sales_board_column(
@@ -35,26 +37,26 @@ def sales_board_column(
     waiting_on: str | None = None,
     finance_attention: str | None = None,
     loss_reason: str | None = None,
+    orders: list[dict[str, Any]] | None = None,
+    diagnosis_delivered: bool | None = None,
+    docs_package_ready: bool | None = None,
+    case: dict[str, Any] | None = None,
 ) -> str:
-    """Ключ колонки канбана для дела."""
-    p = (pipeline_status or "").strip().lower()
-    b = (b2c_status or "").strip().lower()
-    w = (waiting_on or "").strip().lower()
-    fin = (finance_attention or "").strip().lower()
-    loss = (loss_reason or "").strip()
-
-    if b == "closed" or p in {"completed", "failed"}:
-        return "lost" if loss else "closed"
-    if fin in {"payable", "awaiting_invoice"} or w == "payment" or b == "success_fee_due":
-        return "payment"
-    if w in {"client", "archive"} or p == "documents_received":
-        return "docs"
-    if b in {"awaiting_client_submission", "result_pending"} or p in {
-        "draft_ready",
-        "human_review",
-        "audited",
-    }:
-        return "delivery"
-    if p == "intake" or b in {"lead", ""}:
-        return "new"
-    return "in_touch"
+    """Ключ колонки канбана для дела (делегирует в compute_funnel_column)."""
+    row = dict(case or {})
+    if pipeline_status is not None:
+        row["pipeline_status"] = pipeline_status
+    if b2c_status is not None:
+        row["b2c_status"] = b2c_status
+    if loss_reason is not None:
+        row["loss_reason"] = loss_reason
+    if waiting_on is not None:
+        row["waiting_on"] = waiting_on
+    return compute_funnel_column(
+        row,
+        orders,
+        diagnosis_delivered=diagnosis_delivered,
+        docs_package_ready=docs_package_ready,
+        waiting_on=waiting_on,
+        finance_attention=finance_attention,
+    )

@@ -149,7 +149,9 @@ class CaseRepository:
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
             "checklist_items(id, status, owner, title, item_type, due_at), "
             "documents(id, doc_type, created_at), "
-            "orders(package_code, status, amount_rub, created_at)"
+            "orders(package_code, status, amount_rub, service_label, invoice_status, created_at), "
+            "diagnostic_results(status), "
+            "diagnosis_feedback(pdf_issued_at, feedback_status)"
         )
         if principal.role in (StaffRole.ADMIN, StaffRole.OPERATOR):
             return query.order("created_at", desc=True).execute().data or []
