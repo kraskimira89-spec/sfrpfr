@@ -34,10 +34,14 @@ def send_draft_for_review(
     to_channel: bool = False,
 ) -> dict[str, Any]:
     """
-    Черновик на одобрение.
+    Черновик на одобрение для постов клиентского канала.
 
-    По умолчанию — в личку ops-бота каждому из STAFF_LOGIN_APPROVER_MAX_USER_IDS.
-    Канал команды — только при to_channel=True или явном chat_id.
+    По умолчанию — dual:
+    1) канал специалистов (MAX_SPECIALISTS_CHANNEL_CHAT_ID), если задан;
+    2) лички STAFF_LOGIN_APPROVER_MAX_USER_IDS через ops-бот.
+
+    to_channel=True / явный chat_id — только в указанный чат/канал команды
+    (без обязательных DM).
     """
     settings = get_settings()
     if ops_bot is None:
@@ -53,50 +57,50 @@ def send_draft_for_review(
     attachments = review_keyboard(draft)
     store = get_draft_store()
 
-    # Явный chat_id или флаг — в канал / указанный чат.
-    if to_channel or (chat_id or "").strip():
-        target = (chat_id or settings.max_specialists_channel_chat_id or "").strip()
-        if not target:
-            return {
-                "ok": False,
-                "error": "MAX_SPECIALISTS_CHANNEL_CHAT_ID не задан",
-            }
+    channel_only = to_channel or bool((chat_id or "").strip())
+    target_channel = (chat_id or settings.max_specialists_channel_chat_id or "").strip()
+    recipients = list(user_ids) if user_ids is not None else review_recipient_user_ids()
+
+    channel_result: dict[str, Any] | None = None
+    channel_error: str | None = None
+    dm_results: list[dict[str, Any]] = []
+    dm_errors: list[str] = []
+
+    def _send_channel(target: str) -> dict[str, Any] | None:
+        nonlocal channel_error
         try:
             result = bot.send_message(
                 text=text,
                 chat_id=target,
                 attachments=attachments,
             )
+            return {
+                "ok": True,
+                "mode": "channel",
+                "chat_id": target,
+                "draft_id": draft.id,
+                "result": result,
+            }
         except Exception as exc:  # noqa: BLE001
             logger.warning("channel_draft_review_send_failed: %s", exc)
-            return {"ok": False, "error": str(exc)}
-        return {
-            "ok": True,
-            "mode": "channel",
-            "chat_id": target,
-            "draft_id": draft.id,
-            "result": result,
-        }
+            channel_error = str(exc)
+            return None
 
-    recipients = list(user_ids) if user_ids is not None else review_recipient_user_ids()
-    if not recipients:
-        # Запасной путь — канал команды, если лички не настроены.
-        channel = (settings.max_specialists_channel_chat_id or "").strip()
-        if channel:
-            return send_draft_for_review(
-                draft,
-                ops_bot=bot,
-                chat_id=channel,
-                to_channel=True,
-            )
-        return {
-            "ok": False,
-            "error": "Задайте STAFF_LOGIN_APPROVER_MAX_USER_IDS "
-            "(личка ops) или MAX_SPECIALISTS_CHANNEL_CHAT_ID",
-        }
+    if channel_only:
+        if not target_channel:
+            return {
+                "ok": False,
+                "error": "MAX_SPECIALISTS_CHANNEL_CHAT_ID не задан",
+            }
+        channel_result = _send_channel(target_channel)
+        if channel_result is None:
+            return {"ok": False, "error": channel_error or "не удалось отправить"}
+        return channel_result
 
-    results: list[dict[str, Any]] = []
-    errors: list[str] = []
+    # Dual по умолчанию: канал команды + лички.
+    if target_channel:
+        channel_result = _send_channel(target_channel)
+
     for uid in recipients:
         try:
             result = bot.send_message(
@@ -105,20 +109,36 @@ def send_draft_for_review(
                 attachments=attachments,
             )
             store.mark_waiting_edit(draft.id, uid)
-            results.append({"user_id": uid, "result": result})
+            dm_results.append({"user_id": uid, "result": result})
         except Exception as exc:  # noqa: BLE001
             logger.warning("channel_draft_review_dm_failed user_id=%s: %s", uid, exc)
-            errors.append(f"{uid}:{exc}")
+            dm_errors.append(f"{uid}:{exc}")
 
-    if not results:
+    if channel_result is None and not dm_results:
+        errors = [e for e in (channel_error, *dm_errors) if e]
+        if not target_channel and not recipients:
+            return {
+                "ok": False,
+                "error": "Задайте MAX_SPECIALISTS_CHANNEL_CHAT_ID "
+                "и/или STAFF_LOGIN_APPROVER_MAX_USER_IDS",
+            }
         return {"ok": False, "error": "; ".join(errors) or "не удалось отправить"}
+
+    modes: list[str] = []
+    if channel_result is not None:
+        modes.append("channel")
+    if dm_results:
+        modes.append("ops_dm")
+    mode = "dual" if len(modes) > 1 else (modes[0] if modes else "none")
     return {
         "ok": True,
-        "mode": "ops_dm",
-        "user_ids": [r["user_id"] for r in results],
+        "mode": mode,
+        "chat_id": (channel_result or {}).get("chat_id"),
+        "user_ids": [r["user_id"] for r in dm_results],
         "draft_id": draft.id,
-        "results": results,
-        "errors": errors,
+        "channel": channel_result,
+        "results": dm_results,
+        "errors": [e for e in (channel_error, *dm_errors) if e],
     }
 
 

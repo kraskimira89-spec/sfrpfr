@@ -1,7 +1,7 @@
 # Ежедневные черновики канала MAX (полуавто)
 
-**Дата:** 2026-08-22  
-**Режим:** cron/systemd шлёт **один** пост в личку ops → человек жмёт **Опубликовать**.  
+**Дата:** 2026-09-13  
+**Режим:** cron/systemd шлёт **один** пост на review → канал специалистов и/или личка ops → человек жмёт **Опубликовать**.  
 **Не** `--direct` в клиентский канал.
 
 ## Очередь
@@ -33,12 +33,17 @@ journalctl -u sfrfr-max-channel-daily.service -n 50 --no-pager
 
 Расписание: **ежедневно 10:00 Europe/Moscow**.
 
-## Env (уже нужны для review)
+Если `next_id` пустой (очередь исчерпана) — tick тихо завершается; нужно расширить `daily-queue.json` или сбросить state.
+
+При `ok: false` на отправке id **не** помечается `sent` (чтобы cron повторил).
+
+## Env
 
 | Переменная | Роль |
 |---|---|
 | `MAX_OPS_BOT_TOKEN` | Ops-бот |
-| `STAFF_LOGIN_APPROVER_MAX_USER_IDS` | Кому слать черновик |
+| `MAX_SPECIALISTS_CHANNEL_CHAT_ID` | Канал специалистов |
+| `STAFF_LOGIN_APPROVER_MAX_USER_IDS` | Кому слать черновик в личку |
 | `MAX_BOT_TOKEN` | Клиентский бот (кнопка «Опубликовать») |
 | `MAX_CHANNEL_CHAT_ID` | Клиентский канал |
 | `MAX_CHAT_URL` | CTA chat |
