@@ -75,6 +75,7 @@ storage/max_channel_daily_state.json
 .idea/
 .vscode/*
 !.vscode/settings.json
+!.vscode/tasks.json
 *.swp
 .DS_Store
 Thumbs.db
