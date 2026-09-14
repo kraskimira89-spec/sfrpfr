@@ -121,7 +121,6 @@ def test_pipeline_run_advances_documents_received_to_human_review() -> None:
 def test_require_consent_gates_client_run() -> None:
     """Consent-гейт: клиент без согласия получает 403 до запуска проверки."""
     from sfrfr.api.routes.portal import _require_consent_for_upload
-    from sfrfr.db.case_repository import CaseRepository
 
     class _NoConsentRepo(_RunRepo):
         def has_consent(self, case_id: str) -> bool:
