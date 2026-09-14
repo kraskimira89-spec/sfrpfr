@@ -897,6 +897,33 @@ export function ClientCabinet() {
     }
   }
 
+  async function runCheck() {
+    if (!token || !selectedId || busy) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const payload = await apiFetch<{ ok?: boolean; message?: string }>(
+        `/api/portal/cases/${selectedId}/run`,
+        token,
+        { method: "POST" },
+      );
+      setNotice(payload?.message || "Проверка запущена.");
+      await openCase(selectedId, "case", true);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "";
+      let detail = "";
+      try {
+        const parsed = JSON.parse(raw) as { detail?: unknown };
+        if (parsed && typeof parsed.detail === "string") detail = parsed.detail;
+      } catch {
+        /* ответ не JSON — используем fallback */
+      }
+      setNotice(detail || "Не удалось запустить проверку. Попробуйте ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadResult(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -2316,6 +2343,8 @@ export function ClientCabinet() {
                   onDelete={(documentId) => void deleteDocument(documentId)}
                   onPay={(orderId) => void startPayment(orderId)}
                   onDownloadResult={(documentId) => void openSignedUrl(documentId)}
+                  onRunCheck={() => void runCheck()}
+                  pipelineStatus={detail.pipeline_status}
                   scenarioAnswers={scenarioAnswers}
                   onScenarioChange={(key, value) => {
                     setScenariosSaved(false);

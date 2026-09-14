@@ -61,6 +61,8 @@ type Props = {
   onDelete: (documentId: string) => void;
   onPay: (orderId: string) => void;
   onDownloadResult: (documentId: string) => void;
+  onRunCheck?: () => void;
+  pipelineStatus?: string | null;
   scenarioAnswers?: Record<string, boolean>;
   onScenarioChange?: (key: string, value: boolean) => void;
   onSaveScenarios?: () => void;
@@ -112,6 +114,8 @@ export function CaseWorkMap({
   onDelete,
   onPay,
   onDownloadResult,
+  onRunCheck,
+  pipelineStatus,
   scenarioAnswers,
   onScenarioChange,
   onSaveScenarios,
@@ -204,6 +208,17 @@ export function CaseWorkMap({
           <button type="button" disabled={busy} onClick={() => onDownloadResult(work.result.document_id!)}>
             {work.cta_label}
           </button>
+        ) : null}
+        {onRunCheck &&
+        work.consent_ok &&
+        work.required_total > 0 &&
+        work.required_uploaded >= work.required_total &&
+        !["human_review", "completed"].includes((pipelineStatus || "").toLowerCase()) ? (
+          <p className="home-actions">
+            <button type="button" disabled={busy} onClick={onRunCheck}>
+              Запустить проверку
+            </button>
+          </p>
         ) : null}
         <p className="hint">{work.sla_note}</p>
         <ul className="case-ticks">
