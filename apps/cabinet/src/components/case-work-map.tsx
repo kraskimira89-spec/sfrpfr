@@ -38,6 +38,7 @@ export type ClientWork = {
   order: {
     state: string;
     title: string;
+    package_code?: string | null;
     amount_rub: number;
     status_label: string;
     can_pay: boolean;
@@ -56,6 +57,7 @@ type Props = {
   busy?: boolean;
   warning: string;
   onConsent: () => void;
+  onContract?: () => void;
   onUpload: (file: File, docType?: string) => void;
   onUploadMultiple?: (files: File[], docType?: string) => void;
   onDelete: (documentId: string) => void;
@@ -109,6 +111,7 @@ export function CaseWorkMap({
   busy,
   warning,
   onConsent,
+  onContract,
   onUpload,
   onUploadMultiple,
   onDelete,
@@ -189,6 +192,17 @@ export function CaseWorkMap({
             {work.cta_label}
           </button>
         ) : null}
+        {cta === "contract" ? (
+          <>
+            <button type="button" disabled={busy} onClick={onContract}>
+              {work.cta_label}
+            </button>
+            <p className="hint">
+              После принятия условий будет сформирован счёт на диагностику — {""}
+              {work.order.amount_rub.toLocaleString("ru-RU")} ₽. Оплатить можно будет сразу здесь же.
+            </p>
+          </>
+        ) : null}
         {cta === "upload" ? (
           <a className="button-link" href="#documents">
             {work.cta_label}
@@ -215,7 +229,7 @@ export function CaseWorkMap({
         work.required_uploaded >= work.required_total &&
         !["human_review", "completed"].includes((pipelineStatus || "").toLowerCase()) ? (
           <p className="home-actions">
-            <button type="button" disabled={busy} onClick={onRunCheck}>
+            <button type="button" className="secondary" disabled={busy} onClick={onRunCheck}>
               Запустить проверку
             </button>
           </p>
@@ -453,7 +467,39 @@ export function CaseWorkMap({
       <section className="panel">
         <h2>Ваш заказ</h2>
         {work.order.state === "not_agreed" ? (
-          <p>Услуга ещё не согласована. Сначала специалист объяснит состав работ и стоимость.</p>
+          cta === "contract" && onContract ? (
+            <>
+              <p>
+                <strong>Услуга:</strong> {work.order.title}
+              </p>
+              <p>Что входит:</p>
+              <ul className="plain-list">
+                {work.order.includes.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <p>
+                Стоимость: <strong>{work.order.amount_rub.toLocaleString("ru-RU")} ₽</strong>
+              </p>
+              <p className="hint">
+                Примите условия услуги — счёт на диагностику будет сформирован автоматически и
+                появится здесь же.
+              </p>
+              <p className="home-actions">
+                <button type="button" disabled={busy} onClick={onContract}>
+                  {work.cta_label}
+                </button>
+                <a className="secondary" href={work.offer_url} target="_blank" rel="noreferrer">
+                  Открыть условия услуги
+                </a>
+              </p>
+            </>
+          ) : (
+            <p>
+              Счёт на диагностику формируется после принятия условий услуги. Шаг принятия
+              появится выше, как только будет готов полный комплект обязательных документов.
+            </p>
+          )
         ) : (
           <>
             <p>

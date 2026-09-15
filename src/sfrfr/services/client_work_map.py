@@ -532,6 +532,7 @@ def _order_view(orders: list[Any] | None) -> dict[str, Any]:
         return {
             "state": "not_agreed",
             "title": "Диагностика сведений о стаже и пенсионных документах",
+            "package_code": None,
             "amount_rub": 3000,
             "status_label": "Услуга ещё не согласована",
             "can_pay": False,
@@ -581,6 +582,7 @@ def _order_view(orders: list[Any] | None) -> dict[str, Any]:
         "title": staff_package_label(code)
         if code != "DIAG"
         else "Диагностика сведений о стаже и пенсионных документах",
+        "package_code": code,
         "amount_rub": amount_i,
         "status_label": _CLIENT_ORDER_STATUS.get(raw_status, "Услуга ещё не согласована"),
         "can_pay": can_pay,
@@ -661,6 +663,7 @@ def build_client_work_map(
     checklist_items: list[Any] | None,
     orders: list[Any] | None = None,
     scenario_rows: list[Any] | None = None,
+    contract_accepted: bool = False,
 ) -> dict[str, Any]:
     """Карта для клиента: статус, шаг, документы, заказ, результат."""
     pipeline = _lower(pipeline_status)
@@ -726,11 +729,32 @@ def build_client_work_map(
         cta_key, cta_label = "done", "Открыть результат"
 
     order = _order_view(orders)
-    if order.get("can_pay") and required_ok and key in {"docs_review", "diagnosis", "waiting_docs"}:
+    # B1: после полного комплекта главный шаг — принять оферту и получить счёт DIAG.
+    # Взаимоисключён с pay: contract требует отсутствия видимых заказов (not_agreed).
+    contract_cta = (
+        consent_accepted
+        and required_ok
+        and not contract_accepted
+        and key in {"docs_review", "diagnosis"}
+        and order.get("state") == "not_agreed"
+    )
+    if contract_cta:
+        now_need = "Принять условия и получить счёт на диагностику"
+        cta_key, cta_label = "contract", "Принять условия и получить счёт на диагностику"
+    elif (
+        order.get("can_pay")
+        and required_ok
+        and key in {"docs_review", "diagnosis", "waiting_docs"}
+    ):
         # Оплата не перебивает загрузку обязательных файлов
         if key != "waiting_docs":
-            now_need = "Оплатить диагностику"
-            cta_key, cta_label = "pay", "Оплатить безопасно"
+            if order.get("package_code") == "DIAG":
+                amount_text = f"{int(order.get('amount_rub') or 0):,}".replace(",", " ")
+                now_need = "Оплатить диагностику"
+                cta_key, cta_label = "pay", f"Оплатить диагностику — {amount_text} ₽"
+            else:
+                now_need = "Оплатить диагностику"
+                cta_key, cta_label = "pay", "Оплатить безопасно"
 
     next_actions: list[str]
     if key == "consent":
@@ -754,11 +778,19 @@ def build_client_work_map(
             "Срок проверки комплекта: до 1 рабочего дня."
         )
     elif key in {"docs_review", "diagnosis"}:
-        next_actions = []
-        sla_note = (
-            "Срок проверки комплекта: до 1 рабочего дня. "
-            "Следующее сообщение появится в едином чате (кабинет и MAX)."
-        )
+        if contract_cta:
+            amount_text = f"{int(order.get('amount_rub') or 0):,}".replace(",", " ")
+            next_actions = ["Принять условия и получить счёт на диагностику"]
+            sla_note = (
+                "После принятия условий будет сформирован счёт на диагностику — "
+                f"{amount_text} ₽. Оплата — по ссылке ЮKassa, статус обновится здесь."
+            )
+        else:
+            next_actions = []
+            sla_note = (
+                "Срок проверки комплекта: до 1 рабочего дня. "
+                "Следующее сообщение появится в едином чате (кабинет и MAX)."
+            )
     elif key == "result_ready":
         next_actions = ["Открыть результат", "При необходимости задать вопрос в чате"]
         sla_note = "Результат доступен в кабинете. Решение о пенсии принимает СФР."

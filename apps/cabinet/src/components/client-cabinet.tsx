@@ -353,6 +353,19 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
+// Достает русское сообщение detail из ошибки apiFetch (FastAPI отдаёт JSON {"detail": "..."}).
+function serverErrorMessage(err: unknown, fallback: string): string {
+  const text = err instanceof Error ? err.message : "";
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as { detail?: unknown };
+    if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
+  } catch {
+    // тело не JSON — используем fallback
+  }
+  return fallback;
+}
+
 function uploadWithProgress(
   path: string,
   token: string,
@@ -885,7 +898,14 @@ export function ClientCabinet() {
       setOrders(rows);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("503") || msg.toLowerCase().includes("not configured")) {
+      if (msg.includes("409") || msg.includes("Платёж уже")) {
+        setNotice(
+          serverErrorMessage(
+            err,
+            "Платёж уже создаётся или ожидает оплаты. Обновите страницу и используйте существующую ссылку.",
+          ),
+        );
+      } else if (msg.includes("503") || msg.toLowerCase().includes("not configured")) {
         setNotice(
           "Онлайн-оплата пока недоступна. Счёт выставит оператор вручную — статус появится здесь.",
         );
@@ -1419,9 +1439,9 @@ export function ClientCabinet() {
         body: JSON.stringify({ offer_version: "offer-2026-09-09" }),
       });
       setNotice("Акцепт оферты и индивидуального заказа зафиксирован.");
-      await openCase(selectedId, "docs");
-    } catch {
-      setNotice("Не удалось сохранить акцепт оферты.");
+      await openCase(selectedId, "case", true);
+    } catch (err) {
+      setNotice(serverErrorMessage(err, "Не удалось сохранить акцепт оферты."));
     } finally {
       setBusy(false);
     }
@@ -2338,6 +2358,7 @@ export function ClientCabinet() {
                   busy={busy}
                   warning={detail.warning}
                   onConsent={() => void acceptConsent()}
+                  onContract={() => void acceptContract()}
                   onUpload={(file, docType) => void uploadDocument(file, docType)}
                   onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
                   onDelete={(documentId) => void deleteDocument(documentId)}
@@ -2499,9 +2520,13 @@ export function ClientCabinet() {
                 Публичная оферта
               </a>
             </p>
-            <button type="button" onClick={() => void acceptContract()} disabled={busy}>
-              Принять условия услуги
-            </button>
+            {consents.contract_acceptances.length === 0 ? (
+              <button type="button" onClick={() => void acceptContract()} disabled={busy}>
+                Принять условия услуги
+              </button>
+            ) : (
+              <p className="ok">Условия услуги приняты.</p>
+            )}
             <ul className="plain-list">
               {consents.contract_acceptances.length === 0 && <li>Пока не принято.</li>}
               {consents.contract_acceptances.map((row) => (
