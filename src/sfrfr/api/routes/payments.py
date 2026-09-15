@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from sfrfr.core.config import get_settings
-from sfrfr.db.case_repository import CaseRepository
+from sfrfr.db.case_repository import CaseRepository, PaymentSlotConflict
 from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.security.auth import Principal, get_current_principal
 from sfrfr.services.public_tariffs import PAYMENT_PURPOSE
@@ -52,7 +53,13 @@ def start_order_payment(
     return_channel: ReturnChannel = Query(default="web_cabinet"),
     principal: Principal = Depends(get_current_principal),
 ) -> dict[str, Any]:
-    """Создать платёж ЮKassa и вернуть confirmation_url."""
+    """Создать платёж ЮKassa и вернуть confirmation_url.
+
+    Follow-up к B1: сначала атомарно захватываем слот активного платежа
+    (reservation-row, provider_payment_id=NULL, status=pending), и только
+    затем вызываем провайдера. Partial unique index на уровне БД гарантирует
+    максимум один active payment на заказ независимо от числа воркеров.
+    """
     repo = _repo()
     repo.require_case(principal, case_id)
     order = repo.get_order(case_id, order_id)
@@ -60,16 +67,6 @@ def start_order_payment(
         raise HTTPException(status_code=404, detail="order not found")
     if order.get("status") == "paid":
         raise HTTPException(status_code=400, detail="order already paid")
-    # B1: у заказа уже есть незавершённый платёж — второй create_payment не отправляем.
-    # confirmation_url в БД не храним, поэтому отдаём явный конфликт (409).
-    if repo.find_active_payment(order_id):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Платёж уже создаётся или ожидает оплаты. "
-                "Обновите страницу и используйте существующую ссылку."
-            ),
-        )
 
     client = YooKassaClient()
     if not client.available:
@@ -88,31 +85,58 @@ def start_order_payment(
             detail="customer email required for fiscal receipt (54-FZ)",
         )
 
-    result = client.create_payment(
-        amount_rub=amount,
-        description=PAYMENT_PURPOSE,
-        return_url=_return_url(case_id, channel),
-        metadata={
-            "order_id": order_id,
-            "case_id": case_id,
-            "package_code": str(order.get("package_code") or ""),
-            "channel": channel,
-        },
-        customer_email=email,
-    )
+    # Атомарный захват слота: unique conflict / существующий active → 409 без provider call.
+    try:
+        reservation = repo.create_payment_reservation(
+            order_id=order_id,
+            case_id=case_id,
+            actor_id=principal.audit_actor_id(),
+        )
+    except PaymentSlotConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Платёж уже создаётся или ожидает оплаты. "
+                "Обновите страницу и используйте существующую ссылку."
+            ),
+        ) from exc
+
+    reservation_id = str(reservation.get("id") or "")
+    try:
+        result = client.create_payment(
+            amount_rub=amount,
+            description=PAYMENT_PURPOSE,
+            return_url=_return_url(case_id, channel),
+            metadata={
+                "order_id": order_id,
+                "case_id": case_id,
+                "package_code": str(order.get("package_code") or ""),
+                "channel": channel,
+            },
+            customer_email=email,
+        )
+    except httpx.HTTPError as exc:
+        # Неоднозначный транспортный сбой: провайдер мог создать платёж.
+        # Reservation остаётся active — повторный provider call запрещён;
+        # webhook или ручная сверка закроют платёж.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="payment provider unavailable; payment may be pending, retry later",
+        ) from exc
+
+    # Достоверная ошибка провайдера ДО создания внешнего платежа:
+    # HTTP-ответ с ok=False и без payment_id → слот освобождаем (failed).
     if not result.get("ok") or not result.get("payment_id"):
+        repo.mark_payment_failed(reservation_id)
         raise HTTPException(
             status_code=502,
             detail=result.get("error") or result.get("reason") or "yookassa create failed",
         )
 
-    payment_row = repo.create_payment_record(
-        order_id=order_id,
-        case_id=case_id,
-        provider="yookassa",
+    payment_row = repo.update_payment_reservation(
+        reservation_id,
         provider_payment_id=str(result["payment_id"]),
         status_value=str(result.get("status") or "pending"),
-        actor_id=principal.audit_actor_id(),
     )
     return {
         "payment": payment_row,

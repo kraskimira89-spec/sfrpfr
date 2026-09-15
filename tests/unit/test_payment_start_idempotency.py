@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from sfrfr.api.routes import payments as payments_route
 from sfrfr.api.routes.payments import PayOrderRequest, start_order_payment
+from sfrfr.db.case_repository import PaymentSlotConflict
 
 
 class FakePrincipal:
@@ -25,6 +26,9 @@ class FakeRepo:
         self.order = order
         self.active_payment = active_payment
         self.created_records: list[dict[str, Any]] = []
+        self.reservation_id = "res-1"
+        self.failed_ids: list[str] = []
+        self.updated: list[dict[str, Any]] = []
 
     def require_case(self, _principal: Any, case_id: str) -> dict:
         return {"id": case_id}
@@ -32,12 +36,19 @@ class FakeRepo:
     def get_order(self, _case_id: str, _order_id: str) -> dict | None:
         return self.order
 
-    def find_active_payment(self, _order_id: str) -> dict | None:
-        return self.active_payment
-
-    def create_payment_record(self, **kwargs: Any) -> dict:
+    def create_payment_reservation(self, **kwargs: Any) -> dict:
+        if self.active_payment:
+            raise PaymentSlotConflict("active payment already exists for order")
         self.created_records.append(kwargs)
-        return {"id": "pay-1", **kwargs}
+        return {"id": self.reservation_id, "status": "pending", **kwargs}
+
+    def update_payment_reservation(self, payment_id: str, **kwargs: Any) -> dict:
+        self.updated.append({"id": payment_id, **kwargs})
+        return {"id": payment_id, **kwargs}
+
+    def mark_payment_failed(self, payment_id: str) -> dict:
+        self.failed_ids.append(payment_id)
+        return {"id": payment_id, "status": "failed"}
 
 
 class FakeYooKassa:

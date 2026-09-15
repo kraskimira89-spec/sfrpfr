@@ -17,6 +17,10 @@ from sfrfr.security.auth import Principal, StaffRole
 CURRENT_CONSENT_VERSION = "pdn-consent-2026-09-09"
 
 
+class PaymentSlotConflict(Exception):
+    """Активный платёж заказа уже существует (unique index, follow-up к B1)."""
+
+
 class CaseRepository:
     def __init__(self) -> None:
         self.client = get_supabase_client()
@@ -1080,12 +1084,18 @@ class CaseRepository:
     )
 
     def find_active_payment(self, order_id: str) -> dict[str, Any] | None:
-        """Последний не завершённый платёж заказа (защита от дубля при /pay, B1)."""
+        """Последний не завершённый платёж заказа (защита от дубля при /pay, B1).
+
+        Сортировка по id (uuid), а не по created_at: миграция
+        20260915090000_payments_one_active_per_order.sql добавляет created_at,
+        но код обязан корректно работать и на окружениях, где она ещё не
+        применена (иначе guard падает 500 вместо 409).
+        """
         rows = (
             self.client.table("payments")
             .select("*")
             .eq("order_id", order_id)
-            .order("created_at", desc=True)
+            .order("id", desc=True)
             .limit(25)
             .execute()
             .data
@@ -1095,6 +1105,118 @@ class CaseRepository:
             if str(row.get("status") or "").lower() not in self._TERMINAL_PAYMENT_STATUSES:
                 return row
         return None
+
+    def create_payment_reservation(
+        self,
+        *,
+        order_id: str,
+        case_id: str,
+        actor_id: str | None,
+    ) -> dict[str, Any]:
+        """Атомарно захватить слот активного платежа заказа (reservation-row).
+
+        Вставляет payments(order_id, status='pending', provider_payment_id=NULL)
+        ДО вызова провайдера: partial unique index
+        payments_one_active_per_order_uidx гарантирует максимум один active
+        payment на заказ независимо от числа воркеров.
+
+        Возвращает строку reservation; при unique conflict (23505) бросает
+        PaymentSlotConflict — вызывающий код отвечает 409 без provider call.
+        """
+        from postgrest.exceptions import APIError
+
+        try:
+            response = (
+                self.client.table("payments")
+                .insert(
+                    {
+                        "order_id": order_id,
+                        "provider": "yookassa",
+                        "provider_payment_id": None,
+                        "status": "pending",
+                    }
+                )
+                .execute()
+            )
+        except APIError as exc:
+            if str(getattr(exc, "code", "")) == "23505":
+                raise PaymentSlotConflict(
+                    "active payment already exists for order"
+                ) from exc
+            raise
+        row = response.data[0]
+        self.audit(case_id, actor_id, "payment_reservation_created:yookassa")
+        return row
+
+    def update_payment_reservation(
+        self,
+        payment_id: str,
+        *,
+        provider_payment_id: str,
+        status_value: str,
+    ) -> dict[str, Any] | None:
+        """Привязать ответ провайдера к созданной reservation-row."""
+        response = (
+            self.client.table("payments")
+            .update(
+                {
+                    "provider_payment_id": provider_payment_id,
+                    "status": status_value,
+                }
+            )
+            .eq("id", payment_id)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
+    def mark_payment_failed(self, payment_id: str) -> dict[str, Any] | None:
+        """Пометить reservation терминальной: слот освобождается для повторной попытки."""
+        response = (
+            self.client.table("payments")
+            .update({"status": "failed"})
+            .eq("id", payment_id)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
+    def _bind_reservation(
+        self,
+        *,
+        order_id: str,
+        provider_payment_id: str,
+        status_value: str,
+    ) -> dict[str, Any] | None:
+        """Привязать provider_payment_id к reservation заказа (provider_payment_id IS NULL).
+
+        Используется reconciliation-path: webhook мог прийти раньше, чем
+        /pay сохранил provider_payment_id в reservation-row.
+        """
+        candidates = (
+            self.client.table("payments")
+            .select("*")
+            .eq("order_id", order_id)
+            .is_("provider_payment_id", "null")
+            .order("id", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not candidates:
+            return None
+        target = candidates[0]
+        response = (
+            self.client.table("payments")
+            .update(
+                {
+                    "provider_payment_id": provider_payment_id,
+                    "status": status_value,
+                }
+            )
+            .eq("id", target["id"])
+            .execute()
+        )
+        return response.data[0] if response.data else None
 
     def create_payment_record(
         self,
@@ -1107,19 +1229,28 @@ class CaseRepository:
         actor_id: str | None,
         fiscal_status: str | None = None,
     ) -> dict[str, Any]:
-        response = (
-            self.client.table("payments")
-            .insert(
-                {
-                    "order_id": order_id,
-                    "provider": provider,
-                    "provider_payment_id": provider_payment_id,
-                    "status": status_value,
-                    "fiscal_status": fiscal_status,
-                }
+        from postgrest.exceptions import APIError
+
+        try:
+            response = (
+                self.client.table("payments")
+                .insert(
+                    {
+                        "order_id": order_id,
+                        "provider": provider,
+                        "provider_payment_id": provider_payment_id,
+                        "status": status_value,
+                        "fiscal_status": fiscal_status,
+                    }
+                )
+                .execute()
             )
-            .execute()
-        )
+        except APIError as exc:
+            if str(getattr(exc, "code", "")) == "23505":
+                raise PaymentSlotConflict(
+                    "active payment already exists for order"
+                ) from exc
+            raise
         self.audit(case_id, actor_id, f"payment_created:{provider}")
         return response.data[0]
 
@@ -1146,18 +1277,35 @@ class CaseRepository:
             query = query.eq("order_id", order_id)
         rows = query.limit(1).execute().data or []
         if not rows and order_id:
-            order_row = self.get_order_by_id(order_id)
-            if order_row:
-                resolved = str(case_id or order_row.get("case_id") or "")
-                self.create_payment_record(
-                    order_id=order_id,
-                    case_id=resolved,
-                    provider="yookassa",
-                    provider_payment_id=provider_payment_id,
-                    status_value="pending",
-                    actor_id=None,
-                )
-                rows = query.limit(1).execute().data or []
+            # Webhook пришёл раньше ответа /pay (reservation ещё без
+            # provider_payment_id). Пробуем привязать существующую reservation,
+            # иначе — создать запись с обработкой unique conflict.
+            bound = self._bind_reservation(
+                order_id=order_id,
+                provider_payment_id=provider_payment_id,
+                status_value=status_value,
+            )
+            if not bound:
+                order_row = self.get_order_by_id(order_id)
+                if order_row:
+                    resolved = str(case_id or order_row.get("case_id") or "")
+                    try:
+                        self.create_payment_record(
+                            order_id=order_id,
+                            case_id=resolved,
+                            provider="yookassa",
+                            provider_payment_id=provider_payment_id,
+                            status_value="pending",
+                            actor_id=None,
+                        )
+                    except PaymentSlotConflict:
+                        # Уже есть активный платёж заказа — привязываем его.
+                        self._bind_reservation(
+                            order_id=order_id,
+                            provider_payment_id=provider_payment_id,
+                            status_value=status_value,
+                        )
+            rows = query.limit(1).execute().data or []
         if not rows:
             raise HTTPException(status_code=404, detail="payment not found")
         row = rows[0]
