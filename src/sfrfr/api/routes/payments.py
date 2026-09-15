@@ -60,6 +60,16 @@ def start_order_payment(
         raise HTTPException(status_code=404, detail="order not found")
     if order.get("status") == "paid":
         raise HTTPException(status_code=400, detail="order already paid")
+    # B1: у заказа уже есть незавершённый платёж — второй create_payment не отправляем.
+    # confirmation_url в БД не храним, поэтому отдаём явный конфликт (409).
+    if repo.find_active_payment(order_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Платёж уже создаётся или ожидает оплаты. "
+                "Обновите страницу и используйте существующую ссылку."
+            ),
+        )
 
     client = YooKassaClient()
     if not client.available:

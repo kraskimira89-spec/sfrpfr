@@ -109,6 +109,78 @@ def test_no_raw_pipeline_codes_in_client_copy() -> None:
     assert work["cta_key"] == "pay"
 
 
+def test_contract_cta_after_full_docs_without_acceptance() -> None:
+    # B1: consent + полный комплект + нет заказа и акцепта → главный CTA «contract»
+    work = build_client_work_map(
+        pipeline_status="intake",
+        b2c_status="consent_accepted",
+        consent_accepted=True,
+        contract_accepted=False,
+        documents=[
+            {"id": "a", "doc_type": "ils"},
+            {"id": "b", "doc_type": "workbook"},
+        ],
+        checklist_items=[],
+        orders=[],
+    )
+    assert work["cta_key"] == "contract"
+    assert work["cta_label"] == "Принять условия и получить счёт на диагностику"
+    assert work["now_need"] == "Принять условия и получить счёт на диагностику"
+    assert work["order"]["state"] == "not_agreed"
+    assert work["order"]["can_pay"] is False
+
+
+def test_no_contract_cta_when_contract_accepted() -> None:
+    work = build_client_work_map(
+        pipeline_status="intake",
+        b2c_status="contract_accepted",
+        consent_accepted=True,
+        contract_accepted=True,
+        documents=[
+            {"id": "a", "doc_type": "ils"},
+            {"id": "b", "doc_type": "workbook"},
+        ],
+        checklist_items=[],
+        orders=[],
+    )
+    assert work["cta_key"] != "contract"
+
+
+def test_pay_cta_not_simultaneously_with_contract() -> None:
+    # Открытый DIAG-заказ исключает contract CTA: главный CTA — оплата
+    work = build_client_work_map(
+        pipeline_status="intake",
+        b2c_status="contract_accepted",
+        consent_accepted=True,
+        contract_accepted=True,
+        documents=[
+            {"id": "a", "doc_type": "ils"},
+            {"id": "b", "doc_type": "workbook"},
+        ],
+        checklist_items=[],
+        orders=[{"id": "o1", "package_code": "DIAG", "amount_rub": 3000, "status": "draft"}],
+    )
+    assert work["cta_key"] == "pay"
+    assert work["cta_label"] == "Оплатить диагностику — 3 000 ₽"
+    assert work["order"]["can_pay"] is True
+
+
+def test_pay_cta_non_diag_keeps_generic_label() -> None:
+    work = build_client_work_map(
+        pipeline_status="human_review",
+        b2c_status="service_paid",
+        consent_accepted=True,
+        documents=[
+            {"id": "a", "doc_type": "ils"},
+            {"id": "b", "doc_type": "workbook"},
+        ],
+        checklist_items=[],
+        orders=[{"id": "o2", "package_code": "ACCOMP", "amount_rub": 5000, "status": "pending"}],
+    )
+    assert work["cta_key"] == "pay"
+    assert work["cta_label"] == "Оплатить безопасно"
+
+
 def test_untyped_upload_fills_ils_slot() -> None:
     slots, uploaded, total = document_slots(
         [{"id": "scan", "doc_type": None, "created_at": "2026-08-31T15:40:00+00:00"}],

@@ -559,6 +559,17 @@ class CaseRepository:
             or []
         )
 
+    def has_contract(self, case_id: str) -> bool:
+        """Принимал ли клиент оферту по делу (минимальный признак для work map, B1)."""
+        response = (
+            self.client.table("contract_acceptances")
+            .select("id")
+            .eq("case_id", case_id)
+            .limit(1)
+            .execute()
+        )
+        return bool(response.data)
+
     def accept_contract(
         self,
         case_id: str,
@@ -1062,6 +1073,28 @@ class CaseRepository:
             .limit(1)
             .execute()
         )
+
+    # Статусы платежей ЮKassa, после которых платёж больше не активен.
+    _TERMINAL_PAYMENT_STATUSES = frozenset(
+        {"succeeded", "paid", "canceled", "cancelled", "failed", "expired", "refunded"}
+    )
+
+    def find_active_payment(self, order_id: str) -> dict[str, Any] | None:
+        """Последний не завершённый платёж заказа (защита от дубля при /pay, B1)."""
+        rows = (
+            self.client.table("payments")
+            .select("*")
+            .eq("order_id", order_id)
+            .order("created_at", desc=True)
+            .limit(25)
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            if str(row.get("status") or "").lower() not in self._TERMINAL_PAYMENT_STATUSES:
+                return row
+        return None
 
     def create_payment_record(
         self,
