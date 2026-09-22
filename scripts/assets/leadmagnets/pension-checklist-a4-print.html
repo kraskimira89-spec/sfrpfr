@@ -16,161 +16,169 @@
 html, body {
   margin: 0;
   padding: 0;
-  color: var(--a4-ink);
-  font-family: Arial, "PT Sans", "Noto Sans", sans-serif;
-  font-size: 11.5pt;
-  line-height: 1.38;
   background: #fff;
+  color: var(--a4-ink);
+  font-family: "PT Sans", "Noto Sans", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.35;
 }
-html.bw, html.bw * {
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-html.bw .a4-page {
-  filter: grayscale(100%);
-}
+html.bw, html.bw body { filter: grayscale(1); }
 .a4-page {
   width: 210mm;
   min-height: 297mm;
-  padding: 14mm 16mm 12mm;
   margin: 0 auto;
+  padding: 11mm 13mm 9mm;
 }
 .a4-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--a4-line);
+  margin-bottom: 5px;
 }
-.a4-logo { display: block; height: 28px; width: auto; }
-.a4-brand { font-weight: 700; color: var(--a4-navy); font-size: 11pt; }
+.a4-logo { display: block; height: 26px; width: auto; }
+.a4-brand { font-weight: 700; color: var(--a4-navy); font-size: 12pt; }
 .a4-badge {
-  border: 1px solid var(--a4-line);
+  display: inline-block;
+  padding: 3px 10px;
   border-radius: 999px;
-  padding: 2px 9px;
+  background: var(--a4-soft);
+  color: var(--a4-navy);
   font-size: 9pt;
-  white-space: nowrap;
+  font-weight: 700;
 }
 h1 {
-  margin: 0 0 6px;
+  margin: 3px 0 5px;
+  font-size: 16.5pt;
+  line-height: 1.12;
   color: var(--a4-navy);
-  font-size: 22pt;
-  line-height: 1.1;
-  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.01em;
 }
-.a4-sub { margin: 0 0 10px; font-size: 11pt; max-width: 96%; }
-.a4-block { margin-bottom: 8px; }
-.a4-block h2, .a4-warn h2 {
-  margin: 0 0 4px;
+.a4-sub { margin: 0 0 6px; font-size: 10pt; color: #44515c; }
+.a4-block { margin: 0 0 5px; }
+.a4-block h2 {
+  margin: 0 0 3px;
+  font-size: 11.5pt;
   color: var(--a4-navy);
-  font-size: 14pt;
-  font-weight: 700;
 }
 .a4-check { list-style: none; margin: 0; padding: 0; }
 .a4-check li {
   display: flex;
-  align-items: flex-start;
   gap: 8px;
+  align-items: flex-start;
   margin: 0 0 2px;
-  font-size: 11pt;
+  font-size: 10pt;
 }
 .a4-box {
-  flex: 0 0 5mm;
-  width: 5mm;
-  height: 5mm;
+  flex: 0 0 4.2mm;
+  width: 4.2mm;
+  height: 4.2mm;
   margin-top: 2px;
-  border: 1.8px solid var(--a4-ink);
+  border: 1.4px solid var(--a4-navy);
   border-radius: 1px;
-  background: #fff;
 }
 .a4-card {
-  margin: 7px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--a4-line);
-  border-left: 4px solid var(--a4-navy);
-  border-radius: 8px;
+  margin: 5px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
   background: var(--a4-soft);
-  font-size: 10.5pt;
 }
 .a4-card__title {
-  margin: 0 0 5px;
-  font-size: 11pt;
+  margin: 0 0 3px;
+  font-size: 10pt;
   color: var(--a4-navy);
-  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
-.a4-card p { margin: 0 0 4px; }
-.a4-line {
-  display: inline-block;
-  min-width: 3.5em;
-  border-bottom: 1.4px solid var(--a4-ink);
-}
+.a4-card p { margin: 0 0 2px; font-size: 9.5pt; }
+.a4-line { letter-spacing: 0.08em; }
 .a4-uline {
   display: inline-block;
-  min-width: 58%;
-  border-bottom: 1.4px solid var(--a4-ink);
-  min-height: 1.1em;
+  min-width: 90mm;
+  border-bottom: 1px solid var(--a4-line);
+  height: 1.05em;
+  vertical-align: bottom;
 }
-.a4-uline--short { min-width: 72%; display: block; margin-top: 1px; }
-.a4-opt { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }
-.a4-opt .a4-box { margin-top: 0; }
+.a4-uline--short { min-width: 65mm; }
+.a4-opt { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
 .a4-warn {
-  margin: 7px 0;
-  padding: 7px 9px;
+  margin: 5px 0;
+  padding: 5px 7px;
   border-left: 4px solid #b77b16;
   border-radius: 6px;
   background: var(--a4-warn-bg);
   color: var(--a4-warn);
-  font-size: 10.5pt;
+  font-size: 9.5pt;
 }
 .a4-warn p { margin: 0; }
 .a4-cta {
-  margin: 7px 0 0;
-  padding-top: 7px;
+  margin: 5px 0 0;
+  padding-top: 5px;
   border-top: 1px solid var(--a4-line);
-  font-size: 10.8pt;
+  font-size: 9.5pt;
 }
-.a4-cta p { margin: 0 0 4px; }
-.a4-cta__action { color: var(--a4-navy); font-size: 11.5pt; }
-.a4-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-end;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--a4-line);
+.a4-cta p { margin: 0 0 2px; }
+.a4-cta__action { color: var(--a4-navy); font-size: 10.5pt; }
+.a4-links {
+  margin: 5px 0 4px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: #f7fafc;
+  border: 1px solid var(--a4-line);
+  font-size: 9pt;
 }
-.a4-foot__site {
+.a4-links h2 {
   margin: 0 0 3px;
-  font-weight: 700;
-  color: var(--a4-navy);
   font-size: 10.5pt;
+  color: var(--a4-navy);
+}
+.a4-links ul { margin: 0; padding-left: 15px; }
+.a4-links li { margin: 0 0 1px; }
+.a4-links a { color: var(--a4-navy); text-decoration: none; word-break: break-all; }
+.a4-foot {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--a4-line);
 }
 .a4-foot__legal {
-  margin: 0;
-  font-size: 9pt;
-  line-height: 1.32;
+  margin: 0 0 5px;
+  font-size: 8pt;
+  line-height: 1.28;
   color: #52616d;
-  max-width: 125mm;
 }
-.a4-foot__qr {
-  flex: 0 0 auto;
+.a4-qr-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+}
+.a4-qr-cell {
+  flex: 1 1 0;
   text-align: center;
-  min-width: 34mm;
+  min-width: 0;
 }
-.a4-foot__qr svg { display: block; width: 28mm; height: 28mm; margin: 0 auto; }
-.a4-foot__qr-label { margin: 2px 0 0; font-size: 8pt; color: #52616d; }
+.a4-qr-cell svg {
+  display: block;
+  width: 20mm;
+  height: 20mm;
+  margin: 0 auto;
+}
+.a4-qr-cell__label {
+  margin: 2px 0 0;
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--a4-navy);
+}
+.a4-qr-cell__url {
+  margin: 0;
+  font-size: 6pt;
+  line-height: 1.15;
+  color: #52616d;
+  word-break: break-all;
+}
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
   html, body { background: #fff !important; }
-  .a4-page { padding: 14mm 16mm 12mm; }
+  .a4-page { padding: 11mm 13mm 9mm; }
 }
 </style>
 </head>
@@ -194,8 +202,6 @@ h1 {
       <li><span class="a4-box"></span> Трудовая книжка или сведения о трудовой деятельности</li>
       <li><span class="a4-box"></span> Справки, договоры, приказы, архивные ответы — если есть</li>
       <li><span class="a4-box"></span> Документы о смене ФИО — если фамилия менялась</li>
-      <li><span class="a4-box"></span> Если пенсия назначена: справка СФР о размере / выплатах + банковская выписка за 12 месяцев</li>
-      <li><span class="a4-box"></span> Дети / опека / льготный или северный стаж — по вашей ситуации</li>
     </ul>
   </section>
 
@@ -230,8 +236,9 @@ h1 {
   <section class="a4-warn">
     <h2>Важно</h2>
     <p>
-      Не отправляйте в открытые чаты паспорт, СНИЛС, трудовую книжку,
+      Не отправляйте в открытые чаты и в канал паспорт, СНИЛС, трудовую книжку,
       выписку ИЛС или архивные справки. Оригиналы храните у себя.
+      Файлы — только в личный чат MAX после согласия или в кабинет на сайте.
     </p>
   </section>
 
@@ -241,24 +248,34 @@ h1 {
       Диагностика документов помогает сверить ИЛС, трудовую историю и справки,
       отметить возможные расхождения и подготовить план действий.
     </p>
-    <p class="a4-cta__action">Напишите в MAX: <strong>«Нужна проверка документов»</strong></p>
+    <p class="a4-cta__action">Напишите в личный чат MAX: <strong>«Нужна проверка документов»</strong></p>
+  </section>
+
+  <section class="a4-links" aria-label="Ссылки и QR">
+    <h2>Куда обратиться</h2>
+    <ul>
+      <li><strong>Сайт:</strong> <a href="https://proverkastaza.ru/">https://proverkastaza.ru/</a></li>
+      <li><strong>Чат-бот MAX:</strong> <a href="https://max.ru/id8905998693_1_bot?startapp">https://max.ru/id8905998693_1_bot?startapp</a></li>
+      <li><strong>Канал MAX:</strong> <a href="https://max.ru/channel_proverkastaza">https://max.ru/channel_proverkastaza</a></li>
+      <li><strong>Личный чат с ботом:</strong> <a href="https://max.ru/id8905998693_1_bot">https://max.ru/id8905998693_1_bot</a></li>
+    </ul>
   </section>
 
   <footer class="a4-foot">
-    <div class="a4-foot__left">
-      <p class="a4-foot__site">proverkastaza.ru</p>
-      <p class="a4-foot__legal">
-        Решение о назначении или перерасчёте пенсии принимает СФР.
-        Сервис не гарантирует размер выплат или результат обращения.
-        Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.
-      </p>
-    </div>
-    <div class="a4-foot__qr">
-      <?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="105" height="105" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h35v35h-35z"/><path class="qrline" stroke="#1b486c" d="M1 1.5h7m2 0h4m3 0h1m1 0h1m1 0h4m2 0h7m-33 1h1m5 0h1m2 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2m3 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h3m1 0h1m3 0h1m1 0h2m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m3 0h1m3 0h1m5 0h1m2 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h4m3 0h4m4 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h2m1 0h1m2 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-19 1h1m1 0h2m1 0h6m-24 1h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h4m2 0h3m1 0h2m1 0h2m1 0h1m-30 1h3m4 0h2m1 0h2m2 0h1m1 0h1m3 0h1m1 0h1m1 0h1m3 0h3m-32 1h1m1 0h5m1 0h1m2 0h3m2 0h1m1 0h1m3 0h2m1 0h2m2 0h1m1 0h1m-32 1h2m2 0h1m4 0h3m1 0h3m1 0h3m1 0h1m2 0h1m6 0h2m-32 1h1m3 0h3m1 0h1m4 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h2m-30 1h1m1 0h4m2 0h3m1 0h1m1 0h1m1 0h3m2 0h3m1 0h1m1 0h1m2 0h1m-31 1h1m2 0h1m1 0h2m2 0h5m2 0h1m5 0h5m1 0h1m1 0h2m-32 1h4m1 0h1m1 0h1m1 0h1m3 0h2m2 0h2m1 0h2m1 0h4m-27 1h3m2 0h7m5 0h3m1 0h3m2 0h1m1 0h1m2 0h1m-31 1h2m1 0h1m6 0h1m1 0h1m1 0h3m5 0h1m5 0h3m-32 1h2m3 0h2m1 0h1m4 0h2m3 0h1m1 0h2m1 0h2m1 0h2m1 0h1m-30 1h1m11 0h3m2 0h1m3 0h1m2 0h2m1 0h1m3 0h1m-31 1h1m2 0h1m1 0h3m1 0h6m3 0h1m1 0h4m1 0h1m1 0h2m2 0h1m-33 1h2m1 0h1m1 0h1m2 0h3m1 0h1m1 0h3m6 0h2m6 0h1m-29 1h2m1 0h1m4 0h4m1 0h1m4 0h3m5 0h1m1 0h1m-30 1h1m2 0h1m1 0h1m1 0h4m1 0h8m1 0h2m2 0h1m4 0h1m-33 1h2m2 0h3m1 0h2m1 0h1m2 0h3m3 0h3m1 0h5m-21 1h1m2 0h1m2 0h1m2 0h2m2 0h2m1 0h1m3 0h1m1 0h1m-31 1h7m2 0h4m4 0h2m2 0h1m2 0h1m1 0h1m1 0h2m1 0h1m-32 1h1m5 0h1m2 0h2m3 0h1m5 0h2m2 0h1m3 0h1m3 0h1m-33 1h1m1 0h3m1 0h1m1 0h3m1 0h2m2 0h2m1 0h4m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h1m2 0h1m7 0h6m-32 1h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h1m1 0h2m3 0h1m1 0h2m1 0h4m-29 1h1m5 0h1m1 0h1m2 0h1m1 0h1m1 0h2m1 0h1m1 0h2m2 0h1m-25 1h7m3 0h1m1 0h4m1 0h3m1 0h4m7 0h1"/></g></svg>
-
-      <p class="a4-foot__qr-label">Страница чек-листа на сайте</p>
-    </div>
+    <p class="a4-foot__legal">
+      Решение о назначении или перерасчёте пенсии принимает СФР.
+      Сервис не гарантирует размер выплат или результат обращения.
+      Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.
+    </p>
+    <div class="a4-qr-grid"><div class="a4-qr-cell"><?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="81" height="81" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h27v27h-27z"/><path class="qrline" stroke="#1b486c" d="M1 1.5h7m1 0h1m3 0h2m4 0h7m-25 1h1m5 0h1m3 0h3m1 0h1m1 0h1m1 0h1m5 0h1m-25 1h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h2m1 0h1m1 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m4 0h4m1 0h1m1 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m3 0h1m2 0h2m3 0h1m1 0h3m1 0h1m-25 1h1m5 0h1m1 0h1m2 0h1m4 0h1m1 0h1m5 0h1m-25 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-16 1h2m3 0h1m-15 1h1m1 0h1m3 0h2m1 0h1m1 0h1m3 0h2m2 0h1m2 0h1m1 0h1m-23 1h2m1 0h1m2 0h3m1 0h8m1 0h1m1 0h2m-25 1h1m1 0h1m3 0h1m1 0h2m4 0h2m1 0h6m1 0h1m-23 1h3m2 0h1m2 0h1m1 0h1m2 0h1m2 0h1m2 0h1m-22 1h2m1 0h6m3 0h1m3 0h1m1 0h1m5 0h1m-22 1h3m1 0h1m1 0h2m4 0h2m1 0h2m3 0h2m-25 1h3m1 0h5m1 0h7m4 0h2m1 0h1m-23 1h1m4 0h4m3 0h2m1 0h5m-22 1h3m1 0h1m1 0h2m2 0h3m1 0h7m2 0h1m-16 1h1m4 0h1m1 0h2m3 0h1m3 0h1m-25 1h7m1 0h2m1 0h1m4 0h1m1 0h1m1 0h1m3 0h1m-25 1h1m5 0h1m3 0h3m2 0h2m3 0h1m2 0h1m-24 1h1m1 0h3m1 0h1m2 0h2m1 0h1m2 0h6m2 0h1m-24 1h1m1 0h3m1 0h1m4 0h1m2 0h2m1 0h1m2 0h1m1 0h2m-24 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h1m1 0h1m2 0h3m1 0h2m-25 1h1m5 0h1m2 0h1m2 0h1m3 0h2m1 0h2m-21 1h7m1 0h1m1 0h2m4 0h2m3 0h1m2 0h1"/></g></svg>
+<p class="a4-qr-cell__label">Сайт</p><p class="a4-qr-cell__url">proverkastaza.ru/</p></div><div class="a4-qr-cell"><?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="93" height="93" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h31v31h-31z"/><path class="qrline" stroke="#1b486c" d="M1 1.5h7m2 0h1m1 0h2m1 0h2m1 0h1m1 0h2m1 0h7m-29 1h1m5 0h1m2 0h2m4 0h3m2 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m5 0h1m1 0h1m2 0h1m4 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m4 0h3m3 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m4 0h1m1 0h1m1 0h3m2 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h5m1 0h3m2 0h1m2 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-19 1h1m5 0h2m2 0h1m-21 1h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h3m3 0h1m1 0h2m1 0h1m-24 1h1m1 0h3m4 0h1m1 0h1m1 0h2m1 0h3m3 0h1m2 0h1m2 0h1m-29 1h8m1 0h1m1 0h3m2 0h2m1 0h2m4 0h3m-27 1h1m2 0h1m2 0h1m1 0h2m2 0h2m1 0h1m2 0h6m1 0h2m-28 1h5m1 0h1m5 0h2m1 0h1m1 0h2m2 0h2m2 0h1m1 0h2m-29 1h4m1 0h1m2 0h1m2 0h1m4 0h1m1 0h2m3 0h1m-22 1h1m2 0h3m2 0h2m4 0h3m1 0h9m-28 1h2m1 0h2m1 0h2m4 0h7m3 0h3m1 0h1m-28 1h1m2 0h4m2 0h1m1 0h1m4 0h3m4 0h1m3 0h1m-27 1h5m4 0h1m1 0h2m2 0h1m1 0h1m1 0h4m1 0h1m2 0h1m-29 1h1m3 0h1m1 0h5m3 0h1m2 0h2m1 0h2m1 0h2m2 0h2m-27 1h4m3 0h1m2 0h1m4 0h2m4 0h1m3 0h2m-29 1h1m3 0h1m1 0h4m2 0h6m1 0h6m1 0h1m-19 1h2m3 0h2m1 0h1m1 0h1m1 0h1m3 0h1m1 0h3m-29 1h7m2 0h1m1 0h4m2 0h1m2 0h1m1 0h1m1 0h1m2 0h1m-28 1h1m5 0h1m1 0h1m1 0h1m2 0h2m3 0h3m3 0h5m-29 1h1m1 0h3m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m1 0h5m-25 1h1m1 0h3m1 0h1m1 0h1m3 0h1m4 0h2m3 0h6m-28 1h1m1 0h3m1 0h1m4 0h1m1 0h1m3 0h3m4 0h3m1 0h1m-29 1h1m5 0h1m3 0h1m1 0h3m1 0h7m4 0h1m-28 1h7m1 0h1m1 0h1m4 0h2m3 0h2m1 0h1m1 0h1m1 0h1"/></g></svg>
+<p class="a4-qr-cell__label">Чат-бот</p><p class="a4-qr-cell__url">max.ru/id8905998693_1_bot?startapp</p></div><div class="a4-qr-cell"><?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="93" height="93" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h31v31h-31z"/><path class="qrline" stroke="#1b486c" d="M1 1.5h7m3 0h2m1 0h4m2 0h1m2 0h7m-29 1h1m5 0h1m1 0h3m5 0h2m4 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m1 0h1m3 0h1m4 0h1m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h5m1 0h1m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m4 0h1m1 0h1m2 0h1m2 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m4 0h4m3 0h1m1 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-21 1h2m2 0h2m1 0h1m2 0h1m1 0h1m-21 1h1m5 0h1m1 0h5m1 0h1m1 0h2m3 0h2m2 0h3m-28 1h4m3 0h2m1 0h1m1 0h1m1 0h2m3 0h1m1 0h1m1 0h2m1 0h2m-28 1h1m1 0h3m1 0h4m5 0h4m2 0h1m-22 1h1m2 0h2m2 0h1m1 0h2m3 0h1m3 0h3m1 0h2m1 0h1m-25 1h1m2 0h4m1 0h1m1 0h6m3 0h1m1 0h2m4 0h1m-29 1h3m1 0h2m1 0h3m3 0h10m1 0h1m2 0h2m-29 1h1m1 0h1m2 0h4m1 0h6m1 0h1m6 0h3m-26 1h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h3m4 0h1m1 0h2m3 0h1m1 0h1m-28 1h1m2 0h1m1 0h1m2 0h4m1 0h4m1 0h1m1 0h1m1 0h1m1 0h2m-27 1h1m2 0h2m3 0h1m1 0h1m4 0h2m2 0h2m1 0h3m1 0h3m-29 1h2m1 0h2m1 0h1m1 0h8m3 0h1m4 0h2m2 0h1m-29 1h1m2 0h1m4 0h1m1 0h1m3 0h2m2 0h1m2 0h2m1 0h1m-25 1h1m1 0h2m2 0h5m4 0h3m2 0h5m1 0h3m-21 1h1m2 0h1m1 0h1m1 0h1m2 0h1m1 0h1m3 0h2m-26 1h7m2 0h1m2 0h5m2 0h2m1 0h1m1 0h3m-27 1h1m5 0h1m2 0h3m1 0h1m5 0h2m3 0h1m-25 1h1m1 0h3m1 0h1m3 0h1m1 0h2m1 0h2m2 0h7m2 0h1m-29 1h1m1 0h3m1 0h1m5 0h1m2 0h2m4 0h1m3 0h2m1 0h1m-29 1h1m1 0h3m1 0h1m2 0h4m1 0h5m1 0h8m-28 1h1m5 0h1m3 0h1m1 0h1m1 0h3m1 0h1m3 0h5m1 0h1m-29 1h7m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m2 0h2m2 0h1"/></g></svg>
+<p class="a4-qr-cell__label">Канал</p><p class="a4-qr-cell__url">max.ru/channel_proverkastaza</p></div><div class="a4-qr-cell"><?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="93" height="93" class="segno"><g transform="scale(3)"><path fill="#fff" d="M0 0h31v31h-31z"/><path class="qrline" stroke="#1b486c" d="M1 1.5h7m1 0h1m1 0h1m2 0h3m1 0h1m1 0h1m2 0h7m-29 1h1m5 0h1m1 0h2m2 0h2m2 0h2m4 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m2 0h4m3 0h1m1 0h2m2 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m3 0h1m3 0h1m1 0h1m1 0h3m1 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m2 0h2m2 0h1m1 0h2m2 0h2m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-21 1h1m1 0h1m4 0h3m-18 1h1m1 0h2m1 0h3m1 0h3m1 0h1m1 0h3m1 0h2m1 0h1m2 0h1m1 0h2m-29 1h6m1 0h9m3 0h1m2 0h3m3 0h1m-27 1h2m2 0h4m3 0h1m4 0h1m1 0h1m2 0h2m1 0h2m-28 1h2m1 0h1m1 0h1m1 0h1m1 0h1m2 0h1m3 0h1m2 0h1m3 0h2m3 0h1m-28 1h3m1 0h5m4 0h2m1 0h2m1 0h1m4 0h2m-27 1h3m1 0h2m3 0h2m3 0h1m3 0h6m2 0h3m-27 1h3m1 0h3m1 0h4m2 0h1m2 0h4m3 0h3m-28 1h3m6 0h1m3 0h3m10 0h1m-27 1h1m1 0h1m1 0h5m1 0h2m1 0h1m1 0h1m2 0h1m4 0h2m1 0h1m-26 1h2m1 0h1m1 0h2m3 0h1m1 0h2m2 0h1m4 0h1m1 0h3m-28 1h1m3 0h1m1 0h2m2 0h2m1 0h6m3 0h3m1 0h1m-24 1h1m3 0h3m1 0h1m1 0h6m1 0h4m2 0h1m-26 1h9m3 0h4m1 0h1m1 0h7m-19 1h1m3 0h1m3 0h2m1 0h2m3 0h5m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m3 0h3m1 0h1m1 0h2m1 0h1m-28 1h1m5 0h1m1 0h1m2 0h1m1 0h4m1 0h3m3 0h2m1 0h2m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m2 0h1m1 0h2m1 0h5m1 0h2m-28 1h1m1 0h3m1 0h1m1 0h1m2 0h1m3 0h4m1 0h2m1 0h3m2 0h1m-29 1h1m1 0h3m1 0h1m1 0h3m1 0h1m10 0h1m2 0h1m1 0h1m-29 1h1m5 0h1m2 0h2m2 0h1m2 0h1m3 0h6m1 0h1m-28 1h7m1 0h4m1 0h9m2 0h1m2 0h1"/></g></svg>
+<p class="a4-qr-cell__label">Личный чат</p><p class="a4-qr-cell__url">max.ru/id8905998693_1_bot</p></div></div>
   </footer>
 </article>
 </body>

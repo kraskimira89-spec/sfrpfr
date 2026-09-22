@@ -1,4 +1,4 @@
-"""Сборка PDF лид-магнита A4 (1 стр.) из HTML через Edge/wkhtmltopdf.
+"""Сборка PDF лид-магнита A4 (1 стр.) из HTML через Chrome/Edge/wkhtmltopdf.
 
 Выход (канон рассылки):
   scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf
@@ -22,16 +22,30 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "scripts" / "assets" / "leadmagnets"
 HTML = OUT_DIR / "pension-checklist-a4-print.html"
 LOGO = ROOT / "scripts" / "assets" / "sfrfr-logo-light.png"
-QR_URL = "https://proverkastaza.ru/chek-list-dokumentov/"
+# Публичные URL (канон config / ТЗ-23/24) — ссылки и QR на листе.
+URL_SITE = "https://proverkastaza.ru/"
+URL_BOT = "https://max.ru/id8905998693_1_bot?startapp"
+URL_CHANNEL = "https://max.ru/channel_proverkastaza"
+URL_CHAT = "https://max.ru/id8905998693_1_bot"
+QR_LINKS: tuple[tuple[str, str], ...] = (
+    ("Сайт", URL_SITE),
+    ("Чат-бот", URL_BOT),
+    ("Канал", URL_CHANNEL),
+    ("Личный чат", URL_CHAT),
+)
 PDF_STANDARD = OUT_DIR / "pension-checklist-a4-standard.pdf"
 PDF_BW = OUT_DIR / "pension-checklist-a4-bw.pdf"
 PNG_PREVIEW = OUT_DIR / "pension-checklist-a4-preview.png"
 
 
-def _edge_path() -> Path | None:
+def _chromium_path() -> Path | None:
+    """Edge или Chrome (headless --print-to-pdf)."""
     for candidate in (
         Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft/Edge/Application/msedge.exe",
         Path(os.environ.get("ProgramFiles", "")) / "Microsoft/Edge/Application/msedge.exe",
+        Path(os.environ.get("ProgramFiles", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
     ):
         if candidate.is_file():
             return candidate
@@ -45,11 +59,25 @@ def _logo_data_uri() -> str:
     return f"data:image/png;base64,{encoded}"
 
 
-def _qr_svg() -> str:
-    qr = segno.make(QR_URL, error="m")
+def _qr_svg(url: str) -> str:
+    qr = segno.make(url, error="m")
     buf = io.BytesIO()
     qr.save(buf, kind="svg", scale=3, border=1, dark="#1b486c", light="#ffffff")
     return buf.getvalue().decode("utf-8")
+
+
+def _qr_grid_html() -> str:
+    cells: list[str] = []
+    for label, url in QR_LINKS:
+        short = url.replace("https://", "")
+        cells.append(
+            "<div class=\"a4-qr-cell\">"
+            f"{_qr_svg(url)}"
+            f"<p class=\"a4-qr-cell__label\">{label}</p>"
+            f"<p class=\"a4-qr-cell__url\">{short}</p>"
+            "</div>"
+        )
+    return '<div class="a4-qr-grid">' + "".join(cells) + "</div>"
 
 
 def _html(*, grayscale: bool = False) -> str:
@@ -60,7 +88,7 @@ def _html(*, grayscale: bool = False) -> str:
         else '<span class="a4-brand">Проверка стажа</span>'
     )
     bw = " bw" if grayscale else ""
-    qr = _qr_svg()
+    qr_grid = _qr_grid_html()
     return f"""<!DOCTYPE html>
 <html lang="ru" class="a4-root{bw}">
 <head>
@@ -79,161 +107,169 @@ def _html(*, grayscale: bool = False) -> str:
 html, body {{
   margin: 0;
   padding: 0;
-  color: var(--a4-ink);
-  font-family: Arial, "PT Sans", "Noto Sans", sans-serif;
-  font-size: 11.5pt;
-  line-height: 1.38;
   background: #fff;
+  color: var(--a4-ink);
+  font-family: "PT Sans", "Noto Sans", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.35;
 }}
-html.bw, html.bw * {{
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}}
-html.bw .a4-page {{
-  filter: grayscale(100%);
-}}
+html.bw, html.bw body {{ filter: grayscale(1); }}
 .a4-page {{
   width: 210mm;
   min-height: 297mm;
-  padding: 14mm 16mm 12mm;
   margin: 0 auto;
+  padding: 11mm 13mm 9mm;
 }}
 .a4-top {{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--a4-line);
+  margin-bottom: 5px;
 }}
-.a4-logo {{ display: block; height: 28px; width: auto; }}
-.a4-brand {{ font-weight: 700; color: var(--a4-navy); font-size: 11pt; }}
+.a4-logo {{ display: block; height: 26px; width: auto; }}
+.a4-brand {{ font-weight: 700; color: var(--a4-navy); font-size: 12pt; }}
 .a4-badge {{
-  border: 1px solid var(--a4-line);
+  display: inline-block;
+  padding: 3px 10px;
   border-radius: 999px;
-  padding: 2px 9px;
+  background: var(--a4-soft);
+  color: var(--a4-navy);
   font-size: 9pt;
-  white-space: nowrap;
+  font-weight: 700;
 }}
 h1 {{
-  margin: 0 0 6px;
+  margin: 3px 0 5px;
+  font-size: 16.5pt;
+  line-height: 1.12;
   color: var(--a4-navy);
-  font-size: 22pt;
-  line-height: 1.1;
-  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.01em;
 }}
-.a4-sub {{ margin: 0 0 10px; font-size: 11pt; max-width: 96%; }}
-.a4-block {{ margin-bottom: 8px; }}
-.a4-block h2, .a4-warn h2 {{
-  margin: 0 0 4px;
+.a4-sub {{ margin: 0 0 6px; font-size: 10pt; color: #44515c; }}
+.a4-block {{ margin: 0 0 5px; }}
+.a4-block h2 {{
+  margin: 0 0 3px;
+  font-size: 11.5pt;
   color: var(--a4-navy);
-  font-size: 14pt;
-  font-weight: 700;
 }}
 .a4-check {{ list-style: none; margin: 0; padding: 0; }}
 .a4-check li {{
   display: flex;
-  align-items: flex-start;
   gap: 8px;
+  align-items: flex-start;
   margin: 0 0 2px;
-  font-size: 11pt;
+  font-size: 10pt;
 }}
 .a4-box {{
-  flex: 0 0 5mm;
-  width: 5mm;
-  height: 5mm;
+  flex: 0 0 4.2mm;
+  width: 4.2mm;
+  height: 4.2mm;
   margin-top: 2px;
-  border: 1.8px solid var(--a4-ink);
+  border: 1.4px solid var(--a4-navy);
   border-radius: 1px;
-  background: #fff;
 }}
 .a4-card {{
-  margin: 7px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--a4-line);
-  border-left: 4px solid var(--a4-navy);
-  border-radius: 8px;
+  margin: 5px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
   background: var(--a4-soft);
-  font-size: 10.5pt;
 }}
 .a4-card__title {{
-  margin: 0 0 5px;
-  font-size: 11pt;
+  margin: 0 0 3px;
+  font-size: 10pt;
   color: var(--a4-navy);
-  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
 }}
-.a4-card p {{ margin: 0 0 4px; }}
-.a4-line {{
-  display: inline-block;
-  min-width: 3.5em;
-  border-bottom: 1.4px solid var(--a4-ink);
-}}
+.a4-card p {{ margin: 0 0 2px; font-size: 9.5pt; }}
+.a4-line {{ letter-spacing: 0.08em; }}
 .a4-uline {{
   display: inline-block;
-  min-width: 58%;
-  border-bottom: 1.4px solid var(--a4-ink);
-  min-height: 1.1em;
+  min-width: 90mm;
+  border-bottom: 1px solid var(--a4-line);
+  height: 1.05em;
+  vertical-align: bottom;
 }}
-.a4-uline--short {{ min-width: 72%; display: block; margin-top: 1px; }}
-.a4-opt {{ display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }}
-.a4-opt .a4-box {{ margin-top: 0; }}
+.a4-uline--short {{ min-width: 65mm; }}
+.a4-opt {{ display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }}
 .a4-warn {{
-  margin: 7px 0;
-  padding: 7px 9px;
+  margin: 5px 0;
+  padding: 5px 7px;
   border-left: 4px solid #b77b16;
   border-radius: 6px;
   background: var(--a4-warn-bg);
   color: var(--a4-warn);
-  font-size: 10.5pt;
+  font-size: 9.5pt;
 }}
 .a4-warn p {{ margin: 0; }}
 .a4-cta {{
-  margin: 7px 0 0;
-  padding-top: 7px;
+  margin: 5px 0 0;
+  padding-top: 5px;
   border-top: 1px solid var(--a4-line);
-  font-size: 10.8pt;
+  font-size: 9.5pt;
 }}
-.a4-cta p {{ margin: 0 0 4px; }}
-.a4-cta__action {{ color: var(--a4-navy); font-size: 11.5pt; }}
-.a4-foot {{
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-end;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--a4-line);
+.a4-cta p {{ margin: 0 0 2px; }}
+.a4-cta__action {{ color: var(--a4-navy); font-size: 10.5pt; }}
+.a4-links {{
+  margin: 5px 0 4px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: #f7fafc;
+  border: 1px solid var(--a4-line);
+  font-size: 9pt;
 }}
-.a4-foot__site {{
+.a4-links h2 {{
   margin: 0 0 3px;
-  font-weight: 700;
-  color: var(--a4-navy);
   font-size: 10.5pt;
+  color: var(--a4-navy);
+}}
+.a4-links ul {{ margin: 0; padding-left: 15px; }}
+.a4-links li {{ margin: 0 0 1px; }}
+.a4-links a {{ color: var(--a4-navy); text-decoration: none; word-break: break-all; }}
+.a4-foot {{
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--a4-line);
 }}
 .a4-foot__legal {{
-  margin: 0;
-  font-size: 9pt;
-  line-height: 1.32;
+  margin: 0 0 5px;
+  font-size: 8pt;
+  line-height: 1.28;
   color: #52616d;
-  max-width: 125mm;
 }}
-.a4-foot__qr {{
-  flex: 0 0 auto;
+.a4-qr-grid {{
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+}}
+.a4-qr-cell {{
+  flex: 1 1 0;
   text-align: center;
-  min-width: 34mm;
+  min-width: 0;
 }}
-.a4-foot__qr svg {{ display: block; width: 28mm; height: 28mm; margin: 0 auto; }}
-.a4-foot__qr-label {{ margin: 2px 0 0; font-size: 8pt; color: #52616d; }}
+.a4-qr-cell svg {{
+  display: block;
+  width: 20mm;
+  height: 20mm;
+  margin: 0 auto;
+}}
+.a4-qr-cell__label {{
+  margin: 2px 0 0;
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--a4-navy);
+}}
+.a4-qr-cell__url {{
+  margin: 0;
+  font-size: 6pt;
+  line-height: 1.15;
+  color: #52616d;
+  word-break: break-all;
+}}
 
 @page {{ size: A4 portrait; margin: 0; }}
 @media print {{
   html, body {{ background: #fff !important; }}
-  .a4-page {{ padding: 14mm 16mm 12mm; }}
+  .a4-page {{ padding: 11mm 13mm 9mm; }}
 }}
 </style>
 </head>
@@ -291,8 +327,9 @@ h1 {{
   <section class="a4-warn">
     <h2>Важно</h2>
     <p>
-      Не отправляйте в открытые чаты паспорт, СНИЛС, трудовую книжку,
+      Не отправляйте в открытые чаты и в канал паспорт, СНИЛС, трудовую книжку,
       выписку ИЛС или архивные справки. Оригиналы храните у себя.
+      Файлы — только в личный чат MAX после согласия или в кабинет на сайте.
     </p>
   </section>
 
@@ -302,22 +339,26 @@ h1 {{
       Диагностика документов помогает сверить ИЛС, трудовую историю и справки,
       отметить возможные расхождения и подготовить план действий.
     </p>
-    <p class="a4-cta__action">Напишите в MAX: <strong>«Нужна проверка документов»</strong></p>
+    <p class="a4-cta__action">Напишите в личный чат MAX: <strong>«Нужна проверка документов»</strong></p>
+  </section>
+
+  <section class="a4-links" aria-label="Ссылки и QR">
+    <h2>Куда обратиться</h2>
+    <ul>
+      <li><strong>Сайт:</strong> <a href="{URL_SITE}">{URL_SITE}</a></li>
+      <li><strong>Чат-бот MAX:</strong> <a href="{URL_BOT}">{URL_BOT}</a></li>
+      <li><strong>Канал MAX:</strong> <a href="{URL_CHANNEL}">{URL_CHANNEL}</a></li>
+      <li><strong>Личный чат с ботом:</strong> <a href="{URL_CHAT}">{URL_CHAT}</a></li>
+    </ul>
   </section>
 
   <footer class="a4-foot">
-    <div class="a4-foot__left">
-      <p class="a4-foot__site">proverkastaza.ru</p>
-      <p class="a4-foot__legal">
-        Решение о назначении или перерасчёте пенсии принимает СФР.
-        Сервис не гарантирует размер выплат или результат обращения.
-        Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.
-      </p>
-    </div>
-    <div class="a4-foot__qr">
-      {qr}
-      <p class="a4-foot__qr-label">Страница чек-листа на сайте</p>
-    </div>
+    <p class="a4-foot__legal">
+      Решение о назначении или перерасчёте пенсии принимает СФР.
+      Сервис не гарантирует размер выплат или результат обращения.
+      Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами.
+    </p>
+    {qr_grid}
   </footer>
 </article>
 </body>
@@ -348,15 +389,15 @@ def _print_pdf(html_path: Path, pdf_path: Path) -> bool:
         )
         return pdf_path.is_file()
 
-    edge = _edge_path()
-    if edge:
+    browser = _chromium_path()
+    if browser:
         subprocess.run(
             [
-                str(edge),
-                "--headless",
+                str(browser),
+                "--headless=new",
                 "--disable-gpu",
                 "--run-all-compositor-stages-before-draw",
-                "--virtual-time-budget=3000",
+                "--virtual-time-budget=5000",
                 "--no-pdf-header-footer",
                 f"--print-to-pdf={pdf_path}",
                 html_path.resolve().as_uri(),
@@ -369,13 +410,13 @@ def _print_pdf(html_path: Path, pdf_path: Path) -> bool:
 
 
 def _screenshot_png(html_path: Path, png_path: Path) -> bool:
-    edge = _edge_path()
-    if not edge:
+    browser = _chromium_path()
+    if not browser:
         return False
     subprocess.run(
         [
-            str(edge),
-            "--headless",
+            str(browser),
+            "--headless=new",
             "--disable-gpu",
             "--hide-scrollbars",
             "--window-size=794,1123",
@@ -397,7 +438,7 @@ def main() -> None:
 
     if not _print_pdf(HTML, PDF_STANDARD):
         raise SystemExit(
-            f"Не удалось собрать PDF (нужен Edge или wkhtmltopdf). HTML: {HTML}"
+            f"Не удалось собрать PDF (нужен Chrome, Edge или wkhtmltopdf). HTML: {HTML}"
         )
     print(f"Wrote {PDF_STANDARD} ({PDF_STANDARD.stat().st_size // 1024} KiB)")
 

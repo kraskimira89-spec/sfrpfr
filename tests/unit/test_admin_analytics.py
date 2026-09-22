@@ -21,7 +21,7 @@ from sfrfr.services.admin_analytics import (
     rows_to_json,
 )
 
-NOW = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+NOW = datetime.now(UTC).replace(microsecond=0)
 
 
 def _sample_case(**overrides: object) -> dict:
