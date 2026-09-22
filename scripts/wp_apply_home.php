@@ -3,6 +3,9 @@
  * Обновить контент главной из scripts/assets/sfrfr-home.html (с формой WPForms).
  * wp eval-file scripts/wp_apply_home.php
  * Env: SFRFR_HOME_PATH, MAX_PUBLIC_BOT_URL / MAX_CHAT_URL, MAX_CHANNEL_URL
+ *
+ * Канон 2026-09: primary CTA — подписка на канал (UTM на site CTA);
+ * личный чат — secondary / заявка с поста.
  */
 $home_path = getenv('SFRFR_HOME_PATH') ?: dirname(__FILE__) . '/assets/sfrfr-home.html';
 if (!is_readable($home_path)) {
@@ -11,10 +14,28 @@ if (!is_readable($home_path)) {
     return;
 }
 
+/**
+ * Добавить UTM к URL канала (base env без query не меняем).
+ */
+$sfrfr_channel_utm = static function (string $base, string $content): string {
+    $base = trim($base);
+    if ($base === '') {
+        return $base;
+    }
+    $sep = str_contains($base, '?') ? '&' : '?';
+    $query = http_build_query([
+        'utm_source' => 'site',
+        'utm_medium' => 'cta',
+        'utm_campaign' => 'max_channel_subscribe',
+        'utm_content' => $content,
+    ]);
+    return $base . $sep . $query;
+};
+
 $max_url = getenv('MAX_CHAT_URL')
     ?: getenv('MAX_PUBLIC_BOT_URL')
     ?: 'https://max.ru/id8905998693_1_bot';
-// ТЗ-20/21: CTA лендинга — личный чат, не mini-app (?startapp)
+// Личный чат: без mini-app (?startapp)
 $max_url = preg_replace('/\?startapp.*$/i', '', $max_url) ?: $max_url;
 if ($max_url === '') {
     $max_url = 'https://max.ru/id8905998693_1_bot';
@@ -30,6 +51,16 @@ if ($max_channel_url === '') {
 
 $text = file_get_contents($home_path);
 $text = str_replace('{{MAX_BTN_URL}}', $max_url, $text);
+$text = str_replace(
+    '{{MAX_CHANNEL_URL_HERO}}',
+    $sfrfr_channel_utm($max_channel_url, 'home_hero'),
+    $text,
+);
+$text = str_replace(
+    '{{MAX_CHANNEL_URL_GUIDE}}',
+    $sfrfr_channel_utm($max_channel_url, 'home_max_guide'),
+    $text,
+);
 $text = str_replace('{{MAX_CHANNEL_URL}}', $max_channel_url, $text);
 $cabinet_url = rtrim(
     (string) (getenv('SFRFR_CABINET_PUBLIC_URL')

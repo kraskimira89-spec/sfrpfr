@@ -48,14 +48,16 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     home = (REPO / "scripts/assets/sfrfr-home.html").read_text(encoding="utf-8")
     assert 'id="zayavka"' in home  # форма заявки остаётся
     assert 'id="kak-rabotat"' in home
-    # ТЗ-20/21: первичный CTA — личный чат MAX, не кабинет/канал; нейтральный текст
-    assert "Уточнить ситуацию в MAX" in home
+    # Канон 2026-09: primary CTA — подписка на канал; чат — secondary
+    assert "Подписаться на канал MAX" in home
     assert "Начать проверку в MAX" not in home
     assert "Позвонить" in home
     assert "tel:+79091950408" in home
     assert "sfrfr-hero__identity" in home
     assert "8905066468" in home
     assert "{{MAX_BTN_URL}}" in home
+    assert "{{MAX_CHANNEL_URL_HERO}}" in home
+    assert "{{MAX_CHANNEL_URL_GUIDE}}" in home
     assert "cabinet.proverkastaza.ru/?channel=max" not in home
     assert "Открыть кабинет на сайте" not in home
     assert "Сканы — только в MAX или кабинете" not in home
@@ -89,14 +91,14 @@ def test_stage1_wp_cta_points_to_application_and_cabinet() -> None:
     assert "sfrfr_search_per_page" in search_mu
     assert "sfrfr-search-item--" in search_mu
     assert "Показывать по" in search_mu
-    # На главной — тизер тарифов; primary CTA = MAX, страница тарифов — secondary
+    # На главной — тизер тарифов; primary CTA = канал MAX
     assert 'id="tarify"' in home
     assert "Страница тарифов" in home
     assert "Открыть страницу тарифов" not in home
     assert "Написать в личный чат MAX" not in home
     assert "sfrfr-max-guide__links" in home
     assert 'class="sfrfr-card sfrfr-card--link"' in home
-    assert "{{MAX_CHANNEL_URL}}" in home
+    assert "{{MAX_CHANNEL_URL}}" in home or "{{MAX_CHANNEL_URL_GUIDE}}" in home
     assert 'id="komu"' in home
     # Manrope локально, без Google Fonts (152-ФЗ / скорость)
     css = (REPO / "scripts/assets/sfrfr-landing.css").read_text(encoding="utf-8")

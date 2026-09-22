@@ -11,12 +11,15 @@ from pathlib import Path
 from typing import Any, Literal
 
 from sfrfr.core.config import get_settings
+from sfrfr.integrations.max.client import inline_buttons_keyboard, inline_link_keyboard
 
 DraftStatus = Literal["pending", "published", "cancelled"]
 
 # payload callback ≤ ~100 символов: id короткий
 _PAYLOAD_PREFIX = "chdraft"
 
+# Канон 2026-09: реклама → канал; на каждом посте заявка в личный чат.
+DEFAULT_APPLY_CTA_LABEL = "Подать заявку"
 
 @dataclass
 class ChannelDraft:
@@ -275,9 +278,18 @@ def format_review_message(draft: ChannelDraft) -> str:
         "—" * 12,
         "",
     ]
-    if draft.cta_label:
-        target = draft.cta_url if draft.cta_kind == "url" else "личный чат MAX"
-        lines.append(f"Кнопка у клиентов: «{draft.cta_label}» -> {target}")
+    if draft.cta_label or draft.cta_kind:
+        if draft.cta_kind == "url" and draft.cta_url:
+            lines.append(
+                f"Кнопки у клиентов: «{DEFAULT_APPLY_CTA_LABEL}» → личный чат; "
+                f"«{(draft.cta_label or 'Читать на сайте').strip()}» → сайт"
+            )
+        else:
+            label = (draft.cta_label or DEFAULT_APPLY_CTA_LABEL).strip()
+            lines.append(f"Кнопка у клиентов: «{label}» → личный чат MAX")
+        lines.append("")
+    else:
+        lines.append(f"Кнопка у клиентов: «{DEFAULT_APPLY_CTA_LABEL}» → личный чат MAX")
         lines.append("")
     lines.extend(
         [
@@ -301,16 +313,25 @@ def looks_like_channel_post(text: str) -> bool:
 
 
 def client_cta_attachments(draft: ChannelDraft) -> list[dict[str, Any]] | None:
-    from sfrfr.integrations.max.client import inline_link_keyboard
-
+    """Клавиатура клиента: всегда «Подать заявку» → чат; опционально вторая кнопка на URL."""
     settings = get_settings()
-    label = draft.cta_label
-    if not label:
+    chat_url = (settings.max_chat_url or "").strip()
+    rows: list[list[dict[str, Any]]] = []
+
+    apply_label = DEFAULT_APPLY_CTA_LABEL
+    if chat_url:
+        rows.append([{"type": "link", "text": apply_label, "url": chat_url}])
+
+    if draft.cta_kind == "url" and (draft.cta_url or "").strip():
+        site_label = (draft.cta_label or "").strip() or "Читать на сайте"
+        if site_label in {apply_label, "Подать заявку", "Уточнить ситуацию в MAX"}:
+            site_label = "Читать на сайте"
+        rows.append([{"type": "link", "text": site_label, "url": draft.cta_url.strip()}])
+    elif draft.cta_kind == "chat" and not chat_url and draft.cta_url:
+        rows.append([{"type": "link", "text": apply_label, "url": draft.cta_url.strip()}])
+
+    if not rows:
         return None
-    if draft.cta_kind == "chat":
-        chat_url = (settings.max_chat_url or "").strip()
-        if chat_url:
-            return inline_link_keyboard(label, chat_url)
-    if draft.cta_kind == "url" and draft.cta_url:
-        return inline_link_keyboard(label, draft.cta_url)
-    return None
+    if len(rows) == 1 and len(rows[0]) == 1:
+        return inline_link_keyboard(rows[0][0]["text"], rows[0][0]["url"])
+    return inline_buttons_keyboard(rows)

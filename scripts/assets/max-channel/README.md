@@ -2,6 +2,8 @@
 
 Канал: https://max.ru/channel_proverkastaza  
 ТЗ: `docs/specs/23-max-channel-promotion.md`  
+Стратегия входа: `docs/marketing-sales/strategy-ads-to-max-channel-2026-09.md`  
+  (реклама → подписка на канал → на каждом посте «Подать заявку» → личный чат)  
 Ops: `docs/ops/max-channel-chat-id.md`  
 Сегмент (Launchi): `docs/marketing-sales/research-launchi-max-1000-subscribers.md`
 

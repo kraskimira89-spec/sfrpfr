@@ -98,9 +98,28 @@ HOME_FILE="$(mktemp)"
 HOME_SRC="${SCRIPT_DIR}/assets/sfrfr-home.html"
 python3 - "$HOME_SRC" "$HOME_FILE" "$MAX_BTN_URL" "$MAX_CHANNEL_URL" "${CABINET_URL:-https://cabinet.proverkastaza.ru/}" "$FORM_FILE" <<'PY'
 import sys
+from urllib.parse import urlencode
 src, dst, max_url, max_channel_url, cabinet_url, form_path = sys.argv[1:7]
 text = open(src, encoding="utf-8").read()
+
+def channel_utm(base: str, content: str) -> str:
+    base = (base or "").strip()
+    if not base:
+        return base
+    sep = "&" if "?" in base else "?"
+    q = urlencode(
+        {
+            "utm_source": "site",
+            "utm_medium": "cta",
+            "utm_campaign": "max_channel_subscribe",
+            "utm_content": content,
+        }
+    )
+    return f"{base}{sep}{q}"
+
 text = text.replace("{{MAX_BTN_URL}}", max_url)
+text = text.replace("{{MAX_CHANNEL_URL_HERO}}", channel_utm(max_channel_url, "home_hero"))
+text = text.replace("{{MAX_CHANNEL_URL_GUIDE}}", channel_utm(max_channel_url, "home_max_guide"))
 text = text.replace("{{MAX_CHANNEL_URL}}", max_channel_url)
 cab = cabinet_url.rstrip("/") + "/"
 text = text.replace("{{CABINET_URL}}", cab)
@@ -264,7 +283,7 @@ echo "==> Тема: без сайдбара"
 "${WP[@]}" theme mod set site-sidebar-layout "no-sidebar" 2>/dev/null || true
 
 chown -R www-data:www-data "$SITE_DIR"
-echo "==> OK ТЗ-02/07/20: CTA → личный чат MAX (${MAX_BTN_URL}), кабинет в primary и footer"
+echo "==> OK ТЗ-02/24: primary CTA → канал MAX (${MAX_CHANNEL_URL}), чат secondary (${MAX_BTN_URL})"
 
 if [ -x "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ] || [ -f "${SCRIPT_DIR}/wp_seed_blog_tz11.sh" ]; then
   echo "==> Блог ТЗ-11"
