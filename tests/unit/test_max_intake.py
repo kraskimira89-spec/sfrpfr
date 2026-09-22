@@ -107,6 +107,9 @@ def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
 
     assert result.reply == WELCOME_PART_1
     assert len(bot.sent) == len(welcome_parts())
+    # Кнопки сразу на первом сообщении (не ждать 2-ю/3-ю часть).
+    assert bot.attachments[0]
+    assert "За себя" in str(bot.attachments[0])
     assert get_case_store().find_by_max_user("7") is not None
     intake = get_intake_store().get_active("7")
     assert intake is not None and intake.case_id == result.case_id

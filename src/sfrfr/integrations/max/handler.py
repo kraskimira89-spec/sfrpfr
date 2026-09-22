@@ -653,7 +653,11 @@ def _send_welcome_sequence(
     case_id: str | None,
     display_name: str | None = None,
 ) -> str:
-    """Приветствие частями: первая сразу, остальные с паузой 1 минута."""
+    """Приветствие частями: первая сразу С кнопками, остальные с паузой.
+
+    Кнопки на первом сообщении — чтобы клиент сразу видел шаги, не ждал 1–2 мин.
+    На последней части кнопки дублируем (на случай если первая ушла вверх ленты).
+    """
     import threading
 
     parts = welcome_parts(display_name=display_name)
@@ -663,6 +667,7 @@ def _send_welcome_sequence(
         user_id=user_id,
         chat_id=chat_id,
         text=first,
+        attachments=goal_keyboard(),
         case_id=case_id,
     )
 

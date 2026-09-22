@@ -1,7 +1,7 @@
 {
   "timezone": "Europe/Moscow",
   "mode": "ops_review",
-  "note": "Полуавто: cron шлёт один пост в личку ops; в канал — только после кнопки «Опубликовать». Без --direct.",
+  "note": "Полуавто: cron шлёт один пост на review (канал специалистов + лички ops); в клиентский канал — только после кнопки «Опубликовать». Без --direct. После 08–18 — ротация 01–07 и блок 19–30.",
   "queue": [
     "08-ils",
     "09-sverka",
@@ -13,6 +13,25 @@
     "15-family",
     "16-pered",
     "17-kak",
-    "18-invite"
+    "18-invite",
+    "01-colleagues",
+    "02-checklist",
+    "03-reduced",
+    "04-boundaries",
+    "05-invite",
+    "06-four-checks",
+    "07-no-calc",
+    "19-ne-uchli",
+    "20-fio",
+    "21-lgotnyy",
+    "22-invalidnost",
+    "23-edv",
+    "24-reshenie-sfr",
+    "25-mfc",
+    "26-diagnostika",
+    "27-max-kabinet",
+    "28-situacii",
+    "29-faq",
+    "30-invite"
   ]
 }

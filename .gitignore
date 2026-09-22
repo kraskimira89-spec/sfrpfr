@@ -75,6 +75,7 @@ storage/max_channel_daily_state.json
 .idea/
 .vscode/*
 !.vscode/settings.json
+!.vscode/tasks.json
 *.swp
 .DS_Store
 Thumbs.db
@@ -142,6 +143,14 @@ secrets/smartcaptcha-create-response.json
 secrets/smartcaptcha.env
 
 .tmp-pytest/
+
+# Pytest basetemp: временные артефакты прогонов (не коммитить)
+.pytest-tmp/
+.pytest_tmp/
+.tmp_pytest*/
+tests/.pytest_basetemp/
+storage/pytest-tmp*/
+/UsersuserDocumentsCursorSFRFR.pytest-tmpbasetemp/
 
 # Weavix Tracker plugin: локальный debug (не в git)
 plugins/tracker/**/config.json

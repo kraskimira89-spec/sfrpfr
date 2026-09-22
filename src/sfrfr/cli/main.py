@@ -1377,8 +1377,9 @@ def max_channel_daily_tick(
         help="Только отметить id как отправленный (без публикации), напр. после ручного review",
     ),
 ) -> None:
-    """Ежедневный полуавто: один пост из daily-queue → личка ops (кнопка Опубликовать).
+    """Ежедневный полуавто: один пост из daily-queue → review специалистам.
 
+    Уходит в канал специалистов и/или личку ops (кнопка «Опубликовать»).
     Не публикует сразу в клиентский канал. Cron/systemd: раз в сутки.
     """
     import json
@@ -1424,6 +1425,16 @@ def max_channel_daily_tick(
         draft_id=str(next_id),
         to_channel=False,
     )
+    if not out.get("ok"):
+        typer.echo(
+            json.dumps(
+                {"ok": False, "sent_id": next_id, "review": out},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        raise typer.Exit(code=1)
+
     state = mark_sent(str(next_id))
     typer.echo(
         json.dumps(

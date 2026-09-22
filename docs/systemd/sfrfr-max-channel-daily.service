@@ -1,5 +1,5 @@
 [Unit]
-Description=SFRFR MAX channel daily draft → ops review
+Description=SFRFR MAX channel daily draft → specialists review
 Wants=network-online.target
 After=network-online.target
 ConditionPathExists=/opt/sfrfr/.venv/bin/python

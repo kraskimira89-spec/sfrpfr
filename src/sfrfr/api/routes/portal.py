@@ -105,6 +105,10 @@ _SUBMISSION_INSTRUCTION = (
 
 _SFR_WARNING = WARNING
 
+# B1: единственная поддерживаемая версия оферты для акцепта в кабинете.
+# Техдолг: отдавать актуальную версию с сервера (следующая короткая задача).
+SUPPORTED_OFFER_VERSION = "offer-2026-09-09"
+
 
 def _repo() -> CaseRepository:
     return CaseRepository()
@@ -125,6 +129,7 @@ def _work_map(
     documents: list[Any] | None = None,
     orders: list[Any] | None = None,
     scenario_rows: list[Any] | None = None,
+    contract_accepted: bool = False,
 ) -> dict[str, Any]:
     case_id = str(case["id"])
     repo = _repo()
@@ -133,6 +138,7 @@ def _work_map(
         pipeline_status=str(case.get("pipeline_status") or ""),
         b2c_status=str(case.get("b2c_status") or ""),
         consent_accepted=consent_accepted,
+        contract_accepted=contract_accepted,
         documents=documents if documents is not None else list(case.get("documents") or []),
         checklist_items=list(case.get("checklist_items") or []),
         orders=orders,
@@ -140,9 +146,20 @@ def _work_map(
     )
 
 
-def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> CaseSummary:
+def _summary(
+    case: dict,
+    *,
+    unread: int = 0,
+    consent_accepted: bool = False,
+    contract_accepted: bool = False,
+) -> CaseSummary:
     checklist = case.get("checklist_items") or []
-    work = _work_map(case, consent_accepted=consent_accepted, orders=list(case.get("orders") or []))
+    work = _work_map(
+        case,
+        consent_accepted=consent_accepted,
+        contract_accepted=contract_accepted,
+        orders=list(case.get("orders") or []),
+    )
     return CaseSummary(
         id=str(case["id"]),
         pipeline_status=case["pipeline_status"],
@@ -158,7 +175,9 @@ def _summary(case: dict, *, unread: int = 0, consent_accepted: bool = False) -> 
     )
 
 
-def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) -> ClientCaseDetail:
+def _client_detail(
+    case: dict, *, consent_accepted: bool, draft: dict | None, contract_accepted: bool = False
+) -> ClientCaseDetail:
     repo = _repo()
     case_id = str(case["id"])
     status_raw = case.get("pipeline_status") or "intake"
@@ -178,6 +197,7 @@ def _client_detail(case: dict, *, consent_accepted: bool, draft: dict | None) ->
     work = _work_map(
         case,
         consent_accepted=consent_accepted,
+        contract_accepted=contract_accepted,
         documents=documents,
         orders=orders,
     )
@@ -1336,6 +1356,7 @@ def list_my_cases(
                 case,
                 unread=unread,
                 consent_accepted=repo.has_consent(case_id),
+                contract_accepted=repo.has_contract(case_id),
             )
         )
     return summaries
@@ -1395,6 +1416,7 @@ def get_case(
         case,
         consent_accepted=repo.has_consent(case_id),
         draft=repo.get_pipeline_draft(case_id),
+        contract_accepted=repo.has_contract(case_id),
     )
     return detail.model_dump(mode="json")
 
@@ -1708,6 +1730,14 @@ def accept_contract(
     repo.require_case(principal, case_id)
     if principal.is_staff:
         raise HTTPException(status_code=403, detail="client or representative only")
+    if payload.offer_version != SUPPORTED_OFFER_VERSION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Неподдерживаемая версия оферты. Обновите страницу и примите "
+                "условия актуальной редакции."
+            ),
+        )
     return repo.accept_contract(
         case_id,
         offer_version=payload.offer_version,
