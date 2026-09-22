@@ -60,6 +60,19 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-case-chat-outbox.service" ]]; then
   systemctl is-active --quiet sfrfr-case-chat-outbox.service
 fi
 
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-case-reactivation.timer" ]]; then
+  echo "Configuring case reactivation timer …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-case-reactivation.service" \
+    /etc/systemd/system/sfrfr-case-reactivation.service
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-case-reactivation.timer" \
+    /etc/systemd/system/sfrfr-case-reactivation.timer
+  if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^CASE_REACTIVATION_AUTO_SEND=' "$APP_DIR/.env"; then
+    echo 'CASE_REACTIVATION_AUTO_SEND=1' >> "$APP_DIR/.env"
+  fi
+  systemctl daemon-reload
+  systemctl enable --now sfrfr-case-reactivation.timer
+fi
+
 rebuild_next_app() {
   local name="$1"
   local dir="$2"
