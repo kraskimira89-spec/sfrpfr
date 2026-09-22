@@ -1518,5 +1518,32 @@ def tech_debt_due_tick(
     typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
 
 
+@app.command("wiki-docs-sync")
+def wiki_docs_sync_cmd(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Только список страниц, без записи в Wiki",
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        help="Ограничить число страниц (для пробы)",
+    ),
+) -> None:
+    """Синк docs/specs|ops|history|marketing-sales → Wiki (без сайта, без ПДн)."""
+    import json
+    from pathlib import Path
+
+    from sfrfr.services.wiki_docs_sync import run_wiki_docs_sync
+
+    stats = run_wiki_docs_sync(
+        repo_root=Path.cwd(),
+        dry_run=dry_run,
+        limit=limit,
+    )
+    typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
+
+
 if __name__ == "__main__":
     app()

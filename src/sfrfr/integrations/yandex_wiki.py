@@ -53,7 +53,7 @@ def get_page_by_slug(slug: str) -> dict[str, Any] | None:
             resp = client.get(
                 f"{WIKI_API_BASE}/pages",
                 headers=_wiki_headers(),
-                params={"slug": s, "fields": "slug,title,id"},
+                params={"slug": s, "fields": "attributes,content"},
             )
         if resp.status_code == 404:
             return None
@@ -61,7 +61,11 @@ def get_page_by_slug(slug: str) -> dict[str, Any] | None:
             logger.warning("wiki_get_failed status=%s slug=%s", resp.status_code, s)
             return None
         data = resp.json() if resp.content else {}
-        return data if isinstance(data, dict) and data.get("id") is not None else None
+        if not isinstance(data, dict) or data.get("id") is None:
+            return None
+        # API может не вернуть slug в fields — дополним
+        data.setdefault("slug", s)
+        return data
     except Exception as exc:  # noqa: BLE001
         logger.warning("wiki_get_failed err=%s", type(exc).__name__)
         return None
@@ -101,7 +105,50 @@ def create_page(
                 "slug": slug_out,
                 "url": wiki_page_url(slug_out),
             }
-        # 401/403 — нет wiki:write; вызывающий делает soft-skip
+        return {
+            "ok": False,
+            "status_code": resp.status_code,
+            "error": str(
+                (data.get("message") if isinstance(data, dict) else None)
+                or (data.get("error") if isinstance(data, dict) else None)
+                or data
+            )[:300],
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__}
+
+
+def update_page(
+    *,
+    page_id: int | str,
+    title: str,
+    content: str,
+) -> dict[str, Any]:
+    body = {
+        "title": title[:255],
+        "content": content[:50000],
+    }
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                f"{WIKI_API_BASE}/pages/{page_id}",
+                headers=_wiki_headers(),
+                json=body,
+                params={"is_silent": "true"},
+            )
+        data: Any
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:  # noqa: BLE001
+            data = {"text": (resp.text or "")[:200]}
+        if resp.status_code in (200, 201) and isinstance(data, dict) and data.get("id") is not None:
+            slug_out = str(data.get("slug") or "")
+            return {
+                "ok": True,
+                "id": data["id"],
+                "slug": slug_out,
+                "url": wiki_page_url(slug_out) if slug_out else None,
+            }
         return {
             "ok": False,
             "status_code": resp.status_code,
