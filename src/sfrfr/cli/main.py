@@ -1460,5 +1460,29 @@ def finance_due_tick() -> None:
     typer.echo(json.dumps(stats, ensure_ascii=False))
 
 
+@app.command("case-reactivation-due-tick")
+def case_reactivation_due_tick(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Только план кандидатов, без отправки и записи касаний",
+    ),
+    send: bool = typer.Option(
+        False,
+        "--send",
+        help="Принудительно разрешить MAX-отправку (иначе CASE_REACTIVATION_AUTO_SEND)",
+    ),
+    limit: int = typer.Option(40, "--limit", min=1, max=200, help="Максимум кандидатов за тик"),
+) -> None:
+    """Реанимация CRM-дел и orphan MAX (см. docs/ops/playbook-case-reactivation.md)."""
+    import json
+
+    from sfrfr.services.case_reactivation import run_due_tick
+
+    force: bool | None = True if send else None
+    stats = run_due_tick(dry_run=dry_run, force_send=force, limit=limit)
+    typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
+
+
 if __name__ == "__main__":
     app()

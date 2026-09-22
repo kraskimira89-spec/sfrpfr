@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SFRFR case reactivation tick on weekdays morning MSK
+
+[Timer]
+OnCalendar=Mon..Fri 10:15:00 Europe/Moscow
+Persistent=true
+AccuracySec=1min
+Unit=sfrfr-case-reactivation.service
+
+[Install]
+WantedBy=timers.target

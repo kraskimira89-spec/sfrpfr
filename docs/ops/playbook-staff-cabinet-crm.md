@@ -22,6 +22,8 @@
 
 После сверки документов — краткий **[архив дела](template-case-archive.md)** в заметке / next_action (без лишних ПДн).
 
+Зависшие и «мёртвые» лиды: **[реанимация](playbook-case-reactivation.md)** (автотик + чеклист FUNNEL).
+
 ## Закрытие
 
 `POST /api/portal/admin/cases/{id}/close`  
