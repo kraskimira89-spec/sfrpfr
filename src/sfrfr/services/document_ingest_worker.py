@@ -18,6 +18,12 @@ from sfrfr.services.document_ingest import sha256_hex
 from sfrfr.services.document_ingest_v2 import run_document_ingest_v2
 from sfrfr.services.document_requirements import active_scenario_codes
 from sfrfr.services.document_upload import ensure_document_group, find_duplicate_checksum
+from sfrfr.services.documents_schema import (
+    document_ingest_jobs_available,
+    documents_has_ingest_columns,
+    insert_document_row,
+    normalize_uploaded_by,
+)
 from sfrfr.services.file_security import (
     AntivirusResult,
     antivirus_allows,
@@ -67,30 +73,39 @@ def create_quarantine_document(
     safe_name = Path(filename or "document").name
     group_id = document_group_id
     if document_group_id or page_index is not None:
-        group_id = ensure_document_group(
-            case_id=case_id,
-            group_id=document_group_id,
-            doc_type=doc_type,
-            requirement_code=None,
-            title=safe_name,
-        )
-    quarantine_path = f"{QUARANTINE_PREFIX}/{case_id}/{document_id}/{safe_name}"
+        try:
+            group_id = ensure_document_group(
+                case_id=case_id,
+                group_id=document_group_id,
+                doc_type=doc_type,
+                requirement_code=None,
+                title=safe_name,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("document_groups unavailable: %s", exc)
+            group_id = document_group_id
+    use_full = documents_has_ingest_columns() and document_ingest_jobs_available()
+    storage_path = (
+        f"{QUARANTINE_PREFIX}/{case_id}/{document_id}/{safe_name}"
+        if use_full
+        else f"{case_id}/{document_id}/{safe_name}"
+    )
     client = get_supabase_client()
     try:
         client.storage.from_(PRIVATE_STORAGE_BUCKET).upload(
-            quarantine_path,
+            storage_path,
             data,
             {
                 "content-type": security.detected_mime or content_type,
                 "x-upsert": "false",
             },
         )
-        row = {
+        row: dict[str, Any] = {
             "id": document_id,
             "case_id": case_id,
-            "storage_path": quarantine_path,
+            "storage_path": storage_path,
             "doc_type": doc_type,
-            "uploaded_by": uploaded_by,
+            "uploaded_by": normalize_uploaded_by(uploaded_by),
             "upload_batch_id": upload_batch_id,
             "document_group_id": group_id,
             "page_index": page_index,
@@ -99,27 +114,32 @@ def create_quarantine_document(
             "checksum_sha256": checksum,
             "duplicate_checksum": duplicate,
             "mime_verified": security.detected_mime,
-            "ingest_status": "security_check",
-            "progress_percent": 5,
-            "current_stage": "security_check",
-            "progress_message": "Файл получен. Проверяем безопасность.",
+            "ingest_status": "security_check" if use_full else "uploaded",
+            "progress_percent": 5 if use_full else 100,
+            "current_stage": "security_check" if use_full else "done",
+            "progress_message": (
+                "Файл получен. Проверяем безопасность."
+                if use_full
+                else "Файл сохранён."
+            ),
             "client_declared_signed": client_declared_signed,
-            "antivirus_status": "pending",
+            "antivirus_status": "pending" if use_full else "not_configured",
             "ingest_review_required": False,
         }
-        response = client.table("documents").insert(row).execute()
-        saved = response.data[0] if response.data else row
+        saved = insert_document_row(row)
     except Exception:
         try:
-            client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([quarantine_path])
+            client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([storage_path])
         except Exception:  # noqa: BLE001
             pass
         raise
 
-    job_id = enqueue_document_ingest_job(
-        case_id=case_id,
-        document_id=document_id,
-    )
+    job_id = ""
+    if use_full:
+        job_id = enqueue_document_ingest_job(
+            case_id=case_id,
+            document_id=document_id,
+        )
     return {**saved, "job_id": job_id}
 
 

@@ -17,6 +17,7 @@ from sfrfr.services.document_ingest import (
     sha256_hex,
 )
 from sfrfr.services.document_requirements import active_scenario_codes
+from sfrfr.services.documents_schema import insert_document_row, normalize_uploaded_by
 from sfrfr.services.file_security import (
     MAX_FILE_BYTES,
     is_downloadable_status,
@@ -167,7 +168,7 @@ def store_document(
         "case_id": case_id,
         "storage_path": storage_path,
         "doc_type": doc_type,
-        "uploaded_by": uploaded_by,
+        "uploaded_by": normalize_uploaded_by(uploaded_by),
         "upload_batch_id": upload_batch_id,
         "document_group_id": group_id,
         "page_index": page_index,
@@ -189,8 +190,7 @@ def store_document(
     if preview_text:
         insert_row["content_preview"] = preview_text[:2000]
 
-    response = client.table("documents").insert(insert_row).execute()
-    row = response.data[0] if response.data else insert_row
+    row = insert_document_row(insert_row)
 
     labor_rows = ingest.get("labor_timeline_drafts") or []
     if labor_rows:

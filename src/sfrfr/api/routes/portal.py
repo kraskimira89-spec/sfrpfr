@@ -1383,6 +1383,13 @@ def create_my_case(
         problem_type=body.problem_type,
     )
     case_id = str(case["id"])
+    from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
+
+    ensure_case_consent_from_client(
+        case_id=case_id,
+        client_id=str(client_row["id"]),
+        actor_id=principal.audit_actor_id(),
+    )
     refreshed = repo.require_case(principal, case_id)
     detail = _client_detail(
         refreshed,
@@ -1411,6 +1418,20 @@ def get_case(
         )
         case["pipeline_data"] = pipeline
         return case
+
+    from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
+
+    client_id = str(case.get("client_id") or "") or None
+    if not client_id:
+        clients = case.get("clients") or {}
+        if isinstance(clients, list):
+            clients = clients[0] if clients else {}
+        client_id = str((clients or {}).get("id") or "") or None
+    ensure_case_consent_from_client(
+        case_id=case_id,
+        client_id=client_id,
+        actor_id=principal.audit_actor_id(),
+    )
 
     detail = _client_detail(
         case,

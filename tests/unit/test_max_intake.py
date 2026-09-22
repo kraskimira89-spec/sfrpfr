@@ -428,7 +428,15 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "sfrfr.services.max_document_upload.upload_max_document",
+        lambda **_k: {"id": "doc-1", "case_id": "x"},
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.case_chat_log.append_case_chat_message",
         lambda **_k: None,
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.case_chat_log.format_document_event",
+        lambda **_k: "doc event",
     )
 
     handle_max_update(_msg(12, "/start"), bot=bot)
@@ -456,6 +464,46 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     assert accepted.ok is True
     reply_low = (accepted.reply or "").lower()
     assert "получили" in reply_low or "приняли" in reply_low
+    get_settings.cache_clear()
+
+
+def test_upload_rejected_when_supabase_fails(tmp_path: Path, monkeypatch) -> None:
+    """Без silent local: ошибка Supabase → upload_rejected, не «принято»."""
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._notify_staff_chat_docs",
+        lambda **_k: None,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.max_document_upload.upload_max_document",
+        lambda **_k: None,
+    )
+
+    handle_max_update(_msg(13, "/start"), bot=bot)
+    for payload in (
+        "intake:goal:check_experience",
+        "intake:ils:yes",
+        "intake:emp:yes",
+        "intake:device:max",
+    ):
+        handle_max_update(_cb(13, payload), bot=bot)
+
+    rejected = handle_max_update(
+        {
+            "message": {
+                "sender": {"user_id": 13},
+                "recipient": {"chat_id": 1},
+                "body": {"text": ""},
+            },
+            "file_name": "scan.pdf",
+            "file_bytes": b"%PDF-1.4 minimal",
+        },
+        bot=bot,
+    )
+    assert rejected.action == "upload_rejected"
+    assert rejected.ok is False
     get_settings.cache_clear()
 
 
