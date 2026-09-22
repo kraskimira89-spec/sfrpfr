@@ -185,7 +185,8 @@ sfrfr case-reactivation-due-tick --limit 40
 CASE_REACTIVATION_AUTO_SEND=1 sfrfr case-reactivation-due-tick --send --limit 40
 ```
 
-Unit: `docs/systemd/sfrfr-case-reactivation.service` + `.timer`.
+Unit: `docs/systemd/sfrfr-case-reactivation.service` + `.timer`  
+На VPS ставится из `scripts/vps_deploy.sh` (`enable --now sfrfr-case-reactivation.timer`).
 
 ---
 
