@@ -279,7 +279,12 @@ def notify_analysis_findings(
     have = collect_case_doc_buckets(list(docs or []))
     missing = _missing_docs_hints(findings=rows, have_buckets=have)
 
-    fp = f"{len(rows)}:{'|'.join(sanitize_finding_line(str(r.get('detail') or ''), max_len=40) for r in rows[:5] if isinstance(r, dict))}"
+    detail_bits = [
+        sanitize_finding_line(str(r.get("detail") or ""), max_len=40)
+        for r in rows[:5]
+        if isinstance(r, dict)
+    ]
+    fp = f"{len(rows)}:{'|'.join(detail_bits)}"
     if not force and _FINDINGS_SENT.get(cid) == fp:
         return None
 

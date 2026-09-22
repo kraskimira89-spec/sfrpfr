@@ -21,8 +21,16 @@ from sfrfr.services.max_bot_funnel import (
 def test_build_findings_message_bullets() -> None:
     text = build_findings_message(
         findings=[
-            {"type": "missing_in_ils", "detail": "Период 1998–2001 не учтён в ИЛС", "severity": "warn"},
-            {"type": "gap", "detail": "Есть разрыв стажа в трудовой", "severity": "warning"},
+            {
+                "type": "missing_in_ils",
+                "detail": "Период 1998–2001 не учтён в ИЛС",
+                "severity": "warn",
+            },
+            {
+                "type": "gap",
+                "detail": "Есть разрыв стажа в трудовой",
+                "severity": "warning",
+            },
         ],
         missing_docs=["архивная справка по спорному периоду (если есть)"],
     )
