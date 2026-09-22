@@ -19,6 +19,36 @@ def test_label_for_callback_human() -> None:
     assert label_for_callback("intake:whom:self") == "За себя"
     assert "Нажал кнопку: За себя" == format_button_press("intake:whom:self")
     assert label_for_callback("llmsoft:1:Нужна помощь") == "Нужна помощь"
+    assert label_for_callback("pdn_consent:no") == "Не согласен на обработку ПДн"
+    assert "отказ от согласия" in format_button_press("pdn_consent:no").lower()
+    assert "Начать" in format_button_press("start_dialog")
+    assert "pdn_consent:no" not in format_button_press("pdn_consent:no")
+    assert label_for_callback("intake:ils:no") == "Нет выписки ИЛС"
+    assert label_for_callback("intake:emp:no") == "Документов о работе нет"
+    assert "рассылк" in format_button_press("marketing_consent:yes").lower()
+    assert "отзыв" in label_for_callback("review:start").lower()
+    assert "код входа" in format_button_press("get_login_code").lower()
+    assert "unknown:weird:payload" not in format_button_press("unknown:weird:payload")
+    assert "Кнопка" in label_for_callback("unknown:weird:payload")
+
+
+def test_format_button_press_never_raw_client_payloads() -> None:
+    """Ключевые клиентские payload не должны светиться в ленте как есть."""
+    for payload in (
+        "pdn_consent:no",
+        "start_dialog",
+        "get_login_code",
+        "marketing_consent:no",
+        "funnel:agree_plan",
+        "offer:appeals",
+        "intake:ils:no",
+        "intake:emp:yes",
+        "review:cancel",
+    ):
+        text = format_button_press(payload)
+        assert payload not in text, payload
+        assert text.strip()
+        assert not text.startswith("Нажал кнопку: " + payload)
 
 
 def test_format_document_event() -> None:

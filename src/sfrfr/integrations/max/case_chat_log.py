@@ -35,12 +35,13 @@ _lock = threading.RLock()
 _pending: dict[str, list[dict[str, str]]] = {}
 _loaded = False
 
-# Подписи кнопок сценария (payload → текст, как в MAX).
+# Подписи кнопок сценария (payload → текст для ленты дела).
 CALLBACK_LABELS: dict[str, str] = {
     "intake:whom:self": "За себя",
     "intake:whom:relative": "Помогаю близкому",
     "intake:operator": CALL_OPERATOR_LABEL,
     "intake:goal:operator": CALL_OPERATOR_LABEL,
+    "intake:agree_plan": "Согласовать план со специалистом",
     "intake:pension:before": "До пенсии",
     "intake:pension:assigned": "Пенсия назначена",
     "intake:problem:ils_stazh": "ИЛС и стаж",
@@ -48,18 +49,18 @@ CALLBACK_LABELS: dict[str, str] = {
     "intake:problem:documents": "Документы",
     "intake:problem:sfr_refusal": "Отказ СФР",
     "intake:ils:yes": "Есть выписка ИЛС",
-    "intake:ils:need": "Нужно получить",
-    "intake:ils:no": "Нет",
-    "intake:ils:unknown": "Не знаю, как получить",
+    "intake:ils:need": "Нужно получить выписку ИЛС",
+    "intake:ils:no": "Нет выписки ИЛС",
+    "intake:ils:unknown": "Не знаю, как получить ИЛС",
     "intake:ils_guide:done": ILS_GOT_LABEL,
     "intake:ils_guide:mfc": ILS_MFC_LABEL,
-    "intake:emp:yes": "Да",
-    "intake:emp:partial": "Часть документов",
-    "intake:emp:no": "Нет",
+    "intake:emp:yes": "Документы о работе есть",
+    "intake:emp:partial": "Часть документов о работе",
+    "intake:emp:no": "Документов о работе нет",
     "intake:emp_guide:done": EMP_CONTINUE_LABEL,
     "intake:device:max": "С телефона",
     "intake:device:web": "С компьютера",
-    "intake:device:help": "Нужна помощь",
+    "intake:device:help": "Нужна помощь с устройством",
     "intake:docs_info": DOCS_INFO_LABEL,
     "intake:docs:base": DOCS_BASE_LABEL,
     "intake:docs:stazh": DOCS_STAZH_LABEL,
@@ -73,6 +74,15 @@ CALLBACK_LABELS: dict[str, str] = {
     "offer:docs": "Готов к шагу 2",
     "offer:docs_skip": "Сам по плану",
     "offer:support": "Сопровождение 8000",
+    "funnel:agree_plan": "Согласовать план со специалистом",
+    "start_dialog": "Начать",
+    "pdn_consent:no": "Не согласен на обработку ПДн",
+    "get_login_code": "Получить код входа",
+    "marketing_consent:yes": "Согласен на рассылку в MAX",
+    "marketing_consent:no": "Отказ от рассылки в MAX",
+    "marketing_consent:unsub": "Отписаться от рассылки",
+    "review:start": "Сформулировать отзыв",
+    "review:cancel": "Отмена отзыва",
 }
 
 
@@ -151,13 +161,42 @@ def label_for_callback(payload: str) -> str:
         soft = parts[2].strip() if len(parts) > 2 else ""
         return soft or "вариант ответа"
     if raw.startswith("svy:"):
-        return "опрос понятности"
+        return "Ответ в опросе понятности"
+    if raw.startswith("review:a:"):
+        return "Ответ в опросе отзыва"
     if raw.startswith("review:"):
-        return f"отзыв ({raw.split(':', 1)[-1]})"
+        return CALLBACK_LABELS.get(raw, f"Отзыв ({raw.split(':', 1)[-1]})")
+    if raw.startswith("marketing_consent:"):
+        return CALLBACK_LABELS.get(raw, "Согласие на рассылку")
+    if raw.startswith("funnel:"):
+        return CALLBACK_LABELS.get(raw, "Шаг воронки")
+    if raw.startswith("offer:"):
+        return CALLBACK_LABELS.get(raw, "Предложение тарифа")
+    if raw.startswith("confirm_web_login"):
+        return "Подтверждение входа на сайт"
+    # Не отдаём сырой payload в ленту — запасная формулировка.
+    if ":" in raw or "_" in raw:
+        return f"Кнопка ({raw.replace(':', ' → ')})"
     return raw
 
 
 def format_button_press(payload: str) -> str:
+    """Событие для ленты дела: понятно сотруднику, без сырого payload."""
+    raw = (payload or "").strip()
+    if raw == "pdn_consent:no":
+        return "Клиент нажал «Не согласен» — отказ от согласия на обработку ПДн"
+    if raw == "start_dialog":
+        return "Клиент нажал «Начать» — согласие на ПДн и cookies"
+    if raw == "marketing_consent:yes":
+        return "Клиент согласился на информационную рассылку в MAX"
+    if raw == "marketing_consent:no":
+        return "Клиент отказался от информационной рассылки в MAX"
+    if raw == "marketing_consent:unsub":
+        return "Клиент отписался от информационной рассылки в MAX"
+    if raw == "get_login_code":
+        return "Клиент запросил код входа в кабинет"
+    if raw.startswith("confirm_web_login"):
+        return "Клиент подтвердил вход на сайт из MAX"
     return f"Нажал кнопку: {label_for_callback(payload)}"
 
 
