@@ -31,6 +31,7 @@ MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/ya
 | [playbook-publish-queue.md](playbook-publish-queue.md) | Очередь **PUB** |
 | [playbook-funnel-ops.md](playbook-funnel-ops.md) | Очередь **FUNNEL** |
 | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) | Доски + Wiki (UI) |
+| [../ops/tech-debt-2026-09-22.md](../ops/tech-debt-2026-09-22.md) | Срез техдолга: ТЗ + открытые задачи Tracker |
 | [mcp-tools-map.md](mcp-tools-map.md) | Карта MCP |
 | [plugin-sfrfr-issue-wizard.md](plugin-sfrfr-issue-wizard.md) | Weavix: мастер SFRFR / PUB / FUNNEL |
 | [plugin-stazh-quality-wizard.md](plugin-stazh-quality-wizard.md) | Weavix: качество → **STAZH** |

@@ -164,6 +164,7 @@ def build_issue_body(
 
 
 def _headers() -> dict[str, str]:
+    _maybe_load_tracker_secrets_file()
     settings = get_settings()
     token = (settings.tracker_oauth_token or settings.tracker_token or "").strip()
     if not token:
@@ -181,6 +182,32 @@ def _headers() -> dict[str, str]:
     else:
         raise RuntimeError("TRACKER_ORG_ID or TRACKER_CLOUD_ORG_ID required")
     return headers
+
+
+def _maybe_load_tracker_secrets_file() -> None:
+    """Подтянуть secrets/yandex-tracker.env, если TRACKER_* ещё нет в окружении."""
+    import os
+    from pathlib import Path
+
+    if (os.environ.get("TRACKER_TOKEN") or os.environ.get("YANDEX_TRACKER_OAUTH_TOKEN") or "").strip():
+        return
+    for candidate in (
+        Path("secrets/yandex-tracker.env"),
+        Path("/opt/sfrfr/secrets/yandex-tracker.env"),
+    ):
+        if not candidate.is_file():
+            continue
+        for line in candidate.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+        try:
+            get_settings.cache_clear()  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001
+            pass
+        return
 
 
 def tracker_configured() -> bool:
@@ -300,3 +327,122 @@ def summary_for_issue(*, issue_type: str, case_ref: str, title_hint: str | None)
         hint = sanitize_description(hint).split("\n")[0][:80]
         return f"[{label}] {hint} · {case_ref}"
     return f"[{label}] case_ref={case_ref}"
+
+
+_CLOSED_STATUS = frozenset(
+    {
+        "closed",
+        "resolved",
+        "done",
+        "cancelled",
+        "canceled",
+    }
+)
+
+
+def list_open_issues_by_queues(queues: list[str]) -> dict[str, list[dict[str, Any]]]:
+    """Открытые задачи по очередям (без ПДн)."""
+    out: dict[str, list[dict[str, Any]]] = {}
+    for q in queues:
+        out[q] = []
+        try:
+            with httpx.Client(timeout=45.0) as client:
+                resp = client.post(
+                    f"{API_BASE}/issues/_search",
+                    headers=_headers(),
+                    json={"query": f"Queue: {q}", "perPage": 100},
+                )
+            data = resp.json() if resp.content else []
+            if not isinstance(data, list):
+                continue
+            for item in data:
+                st = item.get("status") or {}
+                sk = str(st.get("key") or "").lower()
+                sd = str(st.get("display") or "").lower()
+                if sk in _CLOSED_STATUS:
+                    continue
+                if any(x in sd for x in ("закрыт", "реш", "отмен")):
+                    continue
+                out[q].append(
+                    {
+                        "key": item.get("key"),
+                        "summary": item.get("summary"),
+                        "status": st.get("display") or st.get("key"),
+                        "priority": (item.get("priority") or {}).get("display")
+                        or (item.get("priority") or {}).get("key"),
+                        "tags": item.get("tags") or [],
+                    }
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("tracker_list_open_failed queue=%s err=%s", q, type(exc).__name__)
+    return out
+
+
+def list_issue_comment_texts(issue_key: str, *, limit: int = 30) -> list[str]:
+    key = (issue_key or "").strip()
+    if not key:
+        return []
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            resp = client.get(
+                f"{API_BASE}/issues/{key}/comments",
+                headers=_headers(),
+                params={"perPage": limit},
+            )
+        if resp.status_code != 200:
+            return []
+        data = resp.json() if resp.content else []
+        if not isinstance(data, list):
+            return []
+        texts: list[str] = []
+        for row in data:
+            if isinstance(row, dict):
+                texts.append(str(row.get("text") or ""))
+        return texts
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("tracker_list_comments_failed key=%s err=%s", key, type(exc).__name__)
+        return []
+
+
+def add_issue_comment(issue_key: str, text: str) -> dict[str, Any]:
+    key = (issue_key or "").strip()
+    body = (text or "").strip()
+    if not key or not body:
+        return {"ok": False, "error": "empty"}
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            resp = client.post(
+                f"{API_BASE}/issues/{key}/comments",
+                headers=_headers(),
+                json={"text": body[:15000]},
+            )
+        if resp.status_code in (200, 201):
+            return {"ok": True, "key": key}
+        detail = ""
+        try:
+            detail = _safe_error_detail(resp.json() if resp.content else {})
+        except Exception:  # noqa: BLE001
+            detail = (resp.text or "")[:200]
+        return {"ok": False, "status_code": resp.status_code, "error": detail}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__}
+
+
+def find_issue_key_by_tag(tag: str) -> str | None:
+    t = (tag or "").strip()
+    if not t:
+        return None
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                f"{API_BASE}/issues/_search",
+                headers=_headers(),
+                json={"query": f'Tags: "{t}"', "perPage": 5},
+            )
+        data = resp.json() if resp.content else []
+        if isinstance(data, list) and data:
+            key = data[0].get("key")
+            return str(key) if key else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("tracker_find_tag_failed tag=%s err=%s", t, type(exc).__name__)
+    return None

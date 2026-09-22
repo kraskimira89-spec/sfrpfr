@@ -1,0 +1,128 @@
+{
+  "STAZH": {
+    "http": 200,
+    "open_n": 0,
+    "issues": []
+  },
+  "SFRFR": {
+    "http": 200,
+    "open_n": 5,
+    "issues": [
+      {
+        "key": "SFRFR-23",
+        "summary": "[Архитектура] MAX-first: Sprint 1–2 готовы, Sprint 3–4 открыты",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "max",
+          "ops"
+        ]
+      },
+      {
+        "key": "SFRFR-40",
+        "summary": "Yandex Cloud Postbox: отправка + webhook delivery (канон вместо Postmark)",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": []
+      },
+      {
+        "key": "SFRFR-4",
+        "summary": "[AGENTS] Обязательный цикл задач через MCP",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "ops",
+          "tracker",
+          "agents"
+        ]
+      },
+      {
+        "key": "SFRFR-5",
+        "summary": "[OPS] Wiki SFRFR: оглавление и ссылки на docs/",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "ops",
+          "tracker",
+          "agents"
+        ]
+      },
+      {
+        "key": "SFRFR-3",
+        "summary": "[OPS] Доска SFRFR: колонки Open / In Progress / Done",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "ops",
+          "tracker",
+          "agents"
+        ]
+      }
+    ]
+  },
+  "PUB": {
+    "http": 200,
+    "open_n": 0,
+    "issues": []
+  },
+  "FUNNEL": {
+    "http": 200,
+    "open_n": 5,
+    "issues": [
+      {
+        "key": "FUNNEL-11",
+        "summary": "Недельный чеклист реанимации CRM + orphan MAX",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "funnel-reactivation",
+          "funnel-lead",
+          "funnel-qualify"
+        ]
+      },
+      {
+        "key": "FUNNEL-5",
+        "summary": "Канон воронки: ясность вместо обещания прибавки (staff cabinet)",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "funnel-qualify",
+          "funnel-diag"
+        ]
+      },
+      {
+        "key": "FUNNEL-2",
+        "summary": "[FUNNEL] SLA первого ответа lead/qualify (staff cabinet)",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "funnel",
+          "funnel-lead",
+          "funnel-qualify",
+          "ops"
+        ]
+      },
+      {
+        "key": "FUNNEL-4",
+        "summary": "[OPS] Доска FUNNEL: колонки ops-воронки",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "ops",
+          "tracker"
+        ]
+      },
+      {
+        "key": "FUNNEL-1",
+        "summary": "[FUNNEL] Эпик: ops воронки (staff cabinet CRM)",
+        "status": "Открыт",
+        "priority": "Средний",
+        "tags": [
+          "ops",
+          "tracker",
+          "funnel"
+        ]
+      }
+    ]
+  }
+}

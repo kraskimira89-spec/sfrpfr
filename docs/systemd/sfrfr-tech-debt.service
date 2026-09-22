@@ -1,0 +1,16 @@
+[Unit]
+Description=SFRFR tech-debt weekly tick (Tracker snapshot + reminders)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/sfrfr/.venv/bin/python
+
+[Service]
+Type=oneshot
+User=sfrfr
+Group=sfrfr
+WorkingDirectory=/opt/sfrfr
+EnvironmentFile=/opt/sfrfr/.env
+Environment=TECH_DEBT_AUTO_COMMENT=1
+ExecStart=/opt/sfrfr/.venv/bin/python -m sfrfr tech-debt-due-tick
+TimeoutStartSec=15min
+Nice=10
