@@ -1,48 +1,55 @@
-# Чеклист UI: доски и Wiki
+# Чеклист: доски и Wiki
 
-MCP **не** создаёт доски и Wiki.
+**Обновление 2026-09-22:** доски и Wiki-индекс создаются **через API** в weekly tick
+(`sfrfr tech-debt-due-tick` → `TECH_DEBT_ENSURE_BOARDS=1`, `TECH_DEBT_ENSURE_WIKI=1`).
+MCP по-прежнему **не** создаёт доски; ручной UI — только fallback / тонкая настройка колонок.
 
-## Доска SFRFR
+Канон авто: [../ops/playbook-tech-debt-automation.md](../ops/playbook-tech-debt-automation.md).
 
-1. https://tracker.yandex.ru/SFRFR → Доски.
-2. Колонки: **Open → In Progress → Done**.
-3. Задачи продукта, infra, agents.
+## Доска SFRFR (авто)
 
-## Доска PUB
+- Имя / очередь: `SFRFR` · board id **4** · https://tracker.yandex.ru/SFRFR/agile/4
+- Seed: [SFRFR-3](https://tracker.yandex.ru/SFRFR-3) — закрывать после комментария «Авто: доска создана»
 
-1. https://tracker.yandex.ru/PUB → Доски.
-2. Колонки: **Backlog → Draft → Ready → Published** (или Open/In Progress/Done).
-3. Фильтр по тегам `publish-*` при необходимости.
+Ручной fallback: https://tracker.yandex.ru/SFRFR → Доски → колонки Open / In Progress / Done.
 
-## Доска FUNNEL
+## Доска PUB (авто)
 
-**Задача:** [FUNNEL-4](https://tracker.yandex.ru/FUNNEL-4) — часто ждёт **owner UI** (скрин доски); не закрывать агентом без подтверждения.
+- Имя / очередь: `PUB` · board id **5** · https://tracker.yandex.ru/PUB/agile/5
+- Seed: [PUB-5](https://tracker.yandex.ru/PUB-5)
 
-1. Открыть https://tracker.yandex.ru/FUNNEL → **Доски** → **Создать доску** (или отредактировать существующую).
-2. **Вариант A (простой):** колонки **Open → In Progress → Done**; фильтр по тегам `funnel-*` / `ops`.
-3. **Вариант B (по этапам):** колонки-статусы или swimlane по тегам:
-   - `funnel-lead` · `funnel-qualify` · `funnel-diag` · `funnel-docs`
-   - `funnel-submit` · `funnel-result` · `funnel-review` · `funnel-loss`
-4. На карточке доски: **Сохранить** → приложить **скрин** в комментарий FUNNEL-4 → закрыть задачу.
-5. Канон тегов: [playbook-funnel-ops.md](playbook-funnel-ops.md).
+Опционально вручную: колонки Backlog → Draft → Ready → Published.
 
-## Wiki SFRFR
+## Доска FUNNEL (авто)
 
-1. Раздел **SFRFR** в Яндекс Wiki.
-2. Индекс: `docs/TRACKER/`, `docs/ops/`, `docs/AMO/`, `docs/marketing-sales/`, `docs/VK/`.
-3. Без Notion, без ПДн.
+- Имя / очередь: `FUNNEL` · board id **6** · https://tracker.yandex.ru/FUNNEL/agile/6
+- Seed: [FUNNEL-4](https://tracker.yandex.ru/FUNNEL-4) — скрин **не** обязателен, если есть авто-комментарий API
 
-## Seed-задачи на доски
+Опционально вручную (вариант B): swimlane по тегам `funnel-*` —
+см. [playbook-funnel-ops.md](playbook-funnel-ops.md).
 
-- SFRFR-3 — доска SFRFR
-- PUB-5 — доска PUB
-- FUNNEL-4 — доска FUNNEL
-- SFRFR-5 — Wiki
+## Wiki SFRFR (авто)
+
+- Slug по умолчанию: `sfrfr` (override: `WIKI_SFRFR_SLUG`)
+- Нужен OAuth scope **wiki:write** — тот же `TRACKER_TOKEN` или отдельный `WIKI_TOKEN`
+- Seed: [SFRFR-5](https://tracker.yandex.ru/SFRFR-5)
+- Без Notion, без ПДн
+
+При 401/403 тик делает soft-skip и пишет hint в лог/stats — UI не блокирует.
+
+## Seed-задачи
+
+| Задача | Что |
+|--------|-----|
+| SFRFR-3 | доска SFRFR |
+| PUB-5 | доска PUB |
+| FUNNEL-4 | доска FUNNEL |
+| SFRFR-5 | Wiki-индекс |
 
 ## Техдолг (срез)
 
-Актуальный обзор открытых задач Tracker + пробелы ТЗ: [../ops/tech-debt-2026-09-22.md](../ops/tech-debt-2026-09-22.md).  
-Автоматизация (Пн 10:05 МСК): [../ops/playbook-tech-debt-automation.md](../ops/playbook-tech-debt-automation.md).
+[../ops/tech-debt-2026-09-22.md](../ops/tech-debt-2026-09-22.md) ·
+[../ops/playbook-tech-debt-automation.md](../ops/playbook-tech-debt-automation.md)
 
 ## Создание очередей PUB/FUNNEL
 
