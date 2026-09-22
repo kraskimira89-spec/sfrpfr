@@ -68,6 +68,27 @@ def build_lead_magnet_message(*, name: str | None = None) -> str:
     )
 
 
+def build_lead_magnet_after_start_message(*, name: str | None = None) -> str:
+    """Короткая выдача чек-листа сразу после «Начать» в личном чате."""
+    greeting = "Спасибо"
+    clean = (name or "").strip()
+    if clean:
+        greeting = f"Спасибо, {clean}"
+
+    return (
+        f"{greeting}! Вот бесплатный чек-лист документов для проверки стажа.\n\n"
+        "Нужно сейчас для анализа:\n"
+        "1) Выписка ИЛС (СЗИ-ИЛС) — актуальная, с датой формирования.\n"
+        "2) Трудовая книжка (бумажная) или выписка из электронной трудовой.\n\n"
+        f"PDF (одна страница A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
+        f"Рабочая тетрадь на 8 страниц:\n{LEAD_MAGNET_PRINT_URL}\n\n"
+        "Паспорт и СНИЛС цифрами в чат не пишите. "
+        "Когда выписка будет на руках — напишите «ИЛС получил(а)» или «Есть расхождение».\n\n"
+        "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+        "Решение принимает только СФР."
+    )
+
+
 def build_lead_magnet_email_body(*, name: str | None = None) -> str:
     """Тело письма на e-mail (тот же перечень, что в MAX)."""
     return build_lead_magnet_message(name=name)
