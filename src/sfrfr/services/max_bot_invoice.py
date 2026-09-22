@@ -136,6 +136,14 @@ def maybe_offer_diag_invoice(
     if not case:
         return None
     if not repo.has_consent(cid):
+        try:
+            from sfrfr.services.max_bot_funnel import nudge_consent_before_invoice
+
+            nudge_consent_before_invoice(
+                case_id=cid, max_user_id=mid, intake=intake
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("consent nudge skipped: %s", exc)
         return None
     try:
         orders = repo.list_orders(cid)

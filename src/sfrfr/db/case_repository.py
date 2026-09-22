@@ -240,6 +240,13 @@ class CaseRepository:
                 )
             except Exception:  # noqa: BLE001 — смена статуса важнее доставки
                 pass
+        if prev_status != status_value and str(status_value or "").lower() == "audited":
+            try:
+                from sfrfr.services.max_bot_funnel import notify_analysis_findings
+
+                notify_analysis_findings(case_id=case_id)
+            except Exception:  # noqa: BLE001
+                pass
         return updated
 
     def audit(self, case_id: str, actor_id: str | None, action: str) -> None:
@@ -665,6 +672,17 @@ class CaseRepository:
             .execute()
         )
         data = getattr(response, "data", None)
+        findings = payload.get("findings") or []
+        if findings:
+            try:
+                from sfrfr.services.max_bot_funnel import notify_analysis_findings
+
+                notify_analysis_findings(
+                    case_id=case_id,
+                    findings=findings if isinstance(findings, list) else [],
+                )
+            except Exception:  # noqa: BLE001 — snapshot важнее доставки в MAX
+                pass
         if isinstance(data, list) and data:
             return data[0]
         if isinstance(data, dict):

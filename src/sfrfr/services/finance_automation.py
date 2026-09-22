@@ -194,6 +194,13 @@ def on_order_fully_paid(
                 )
         except Exception:  # noqa: BLE001
             pass
+    # Bot-owned: после оплаты — сверка / план (MAX), не дублируя текст «оплата получена».
+    try:
+        from sfrfr.services.max_bot_funnel import after_payment_confirmed
+
+        after_payment_confirmed(case_id=case_id, package_code=code, source="payment")
+    except Exception:  # noqa: BLE001
+        pass
     # После DIAG не создаём DOCS до выдачи PDF (ворота стратегии).
     if code == "ACCOMP" and tariff != "SUPPORT":
         try:

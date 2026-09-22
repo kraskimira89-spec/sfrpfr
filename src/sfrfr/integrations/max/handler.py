@@ -2907,6 +2907,31 @@ def handle_max_update(
                         callback = ""
                         lower = text.lower()
 
+        if callback.startswith("funnel:"):
+            from sfrfr.services.max_bot_funnel import handle_funnel_callback
+
+            cid = _case_id_for_max_user(user_id)
+            if cid:
+                out = handle_funnel_callback(
+                    case_id=cid,
+                    max_user_id=user_id,
+                    payload=callback,
+                    intake=get_intake_store().get_active(user_id),
+                )
+                if out and out.get("ok"):
+                    return MaxHandleResult(
+                        ok=True,
+                        action="funnel_agree_plan",
+                        reply="plan_requested",
+                    )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text="Не удалось найти дело. Нажмите «Позвать специалиста» или /start.",
+            )
+            return MaxHandleResult(ok=True, action="funnel_no_case", reply="no_case")
+
         if callback.startswith("offer:"):
             from sfrfr.services.max_bot_invoice import handle_offer_callback
 

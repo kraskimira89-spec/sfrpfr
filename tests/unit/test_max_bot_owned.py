@@ -190,7 +190,10 @@ def test_diag_offer_requires_consent(monkeypatch) -> None:
     reset_offer_cache()
     monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
     get_settings.cache_clear()
-    with patch("sfrfr.db.case_repository.CaseRepository", return_value=repo):
+    with (
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch("sfrfr.services.case_chat_delivery.enqueue_max_delivery", return_value=True) as enq,
+    ):
         out = maybe_offer_diag_invoice(
             case_id="c1",
             max_user_id="99",
@@ -198,6 +201,7 @@ def test_diag_offer_requires_consent(monkeypatch) -> None:
         )
     assert out is None
     repo.create_order.assert_not_called()
+    assert enq.called  # nudge согласия в кабинет
 
 
 def test_pay_link_not_without_flag(monkeypatch) -> None:
