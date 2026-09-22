@@ -73,6 +73,19 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-case-reactivation.timer" ]]; then
   systemctl enable --now sfrfr-case-reactivation.timer
 fi
 
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" ]]; then
+  echo "Configuring tech-debt weekly timer …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-tech-debt.service" \
+    /etc/systemd/system/sfrfr-tech-debt.service
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" \
+    /etc/systemd/system/sfrfr-tech-debt.timer
+  if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^TECH_DEBT_AUTO_COMMENT=' "$APP_DIR/.env"; then
+    echo 'TECH_DEBT_AUTO_COMMENT=1' >> "$APP_DIR/.env"
+  fi
+  systemctl daemon-reload
+  systemctl enable --now sfrfr-tech-debt.timer
+fi
+
 rebuild_next_app() {
   local name="$1"
   local dir="$2"

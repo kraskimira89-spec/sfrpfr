@@ -39,6 +39,11 @@ MCP **не** создаёт доски и Wiki.
 - FUNNEL-4 — доска FUNNEL
 - SFRFR-5 — Wiki
 
+## Техдолг (срез)
+
+Актуальный обзор открытых задач Tracker + пробелы ТЗ: [../ops/tech-debt-2026-09-22.md](../ops/tech-debt-2026-09-22.md).  
+Автоматизация (Пн 10:05 МСК): [../ops/playbook-tech-debt-automation.md](../ops/playbook-tech-debt-automation.md).
+
 ## Создание очередей PUB/FUNNEL
 
 ```powershell

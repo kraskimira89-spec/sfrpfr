@@ -1484,5 +1484,39 @@ def case_reactivation_due_tick(
     typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
 
 
+@app.command("tech-debt-due-tick")
+def tech_debt_due_tick(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="План: snapshot/ensure/comments без записи в Tracker",
+    ),
+    snapshot_only: bool = typer.Option(
+        False,
+        "--snapshot-only",
+        help="Только обновить JSON-снимок открытых задач",
+    ),
+    no_comment: bool = typer.Option(
+        False,
+        "--no-comment",
+        help="Не писать комментарии (только snapshot + ensure)",
+    ),
+) -> None:
+    """Еженедельный тик техдолга (docs/ops/playbook-tech-debt-automation.md)."""
+    import json
+    from pathlib import Path
+
+    from sfrfr.services.tech_debt_automation import run_due_tick
+
+    force_comment: bool | None = False if no_comment else None
+    stats = run_due_tick(
+        dry_run=dry_run,
+        snapshot_only=snapshot_only,
+        force_comment=force_comment,
+        snapshot_path=Path("docs/ops/tech-debt-tracker-snapshot.json"),
+    )
+    typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
+
+
 if __name__ == "__main__":
     app()
