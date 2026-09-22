@@ -44,8 +44,13 @@
 ### 2. Ссылка
 
 - **Сайт:** для поиска — `https://proverkastaza.ru/` (или сегментная посадочная) **с сильным CTA «Подписаться на канал MAX»**.  
-  Для кампаний «охват / подписка MAX» целевая ссылка — **`https://max.ru/channel_proverkastaza`** (`MAX_CHANNEL_URL`), не личный чат.  
-  Канон: [strategy-ads-to-max-channel-2026-09.md](strategy-ads-to-max-channel-2026-09.md).
+  Для кампаний «охват / подписка MAX» целевая ссылка:
+
+```text
+https://max.ru/channel_proverkastaza?utm_source=yandex&utm_medium=cpc&utm_campaign=max_channel_subscribe&utm_content=direct_channel
+```
+
+  (`MAX_CHANNEL_URL` + UTM; **не** личный чат). Канон: [strategy-ads-to-max-channel-2026-09.md](strategy-ads-to-max-channel-2026-09.md).
 - **Не** «Продолжить без сайта» — у нас готовый сайт и лендинги (кроме чистых кампаний на канал MAX, где сайт не нужен).
 - Резервная посадочная (при нестабильном интернете): главная или `/kontakty/` + ссылка на канал.
 
