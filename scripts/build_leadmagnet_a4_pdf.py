@@ -1,4 +1,4 @@
-"""Сборка PDF лид-магнита A4 (1 стр.) из HTML через Edge/wkhtmltopdf.
+"""Сборка PDF лид-магнита A4 (1 стр.) из HTML через Chrome/Edge/wkhtmltopdf.
 
 Выход (канон рассылки):
   scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf
@@ -28,10 +28,14 @@ PDF_BW = OUT_DIR / "pension-checklist-a4-bw.pdf"
 PNG_PREVIEW = OUT_DIR / "pension-checklist-a4-preview.png"
 
 
-def _edge_path() -> Path | None:
+def _chromium_path() -> Path | None:
+    """Edge или Chrome (headless --print-to-pdf)."""
     for candidate in (
         Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft/Edge/Application/msedge.exe",
         Path(os.environ.get("ProgramFiles", "")) / "Microsoft/Edge/Application/msedge.exe",
+        Path(os.environ.get("ProgramFiles", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
     ):
         if candidate.is_file():
             return candidate
@@ -348,15 +352,15 @@ def _print_pdf(html_path: Path, pdf_path: Path) -> bool:
         )
         return pdf_path.is_file()
 
-    edge = _edge_path()
-    if edge:
+    browser = _chromium_path()
+    if browser:
         subprocess.run(
             [
-                str(edge),
-                "--headless",
+                str(browser),
+                "--headless=new",
                 "--disable-gpu",
                 "--run-all-compositor-stages-before-draw",
-                "--virtual-time-budget=3000",
+                "--virtual-time-budget=5000",
                 "--no-pdf-header-footer",
                 f"--print-to-pdf={pdf_path}",
                 html_path.resolve().as_uri(),
@@ -369,13 +373,13 @@ def _print_pdf(html_path: Path, pdf_path: Path) -> bool:
 
 
 def _screenshot_png(html_path: Path, png_path: Path) -> bool:
-    edge = _edge_path()
-    if not edge:
+    browser = _chromium_path()
+    if not browser:
         return False
     subprocess.run(
         [
-            str(edge),
-            "--headless",
+            str(browser),
+            "--headless=new",
             "--disable-gpu",
             "--hide-scrollbars",
             "--window-size=794,1123",
@@ -397,7 +401,7 @@ def main() -> None:
 
     if not _print_pdf(HTML, PDF_STANDARD):
         raise SystemExit(
-            f"Не удалось собрать PDF (нужен Edge или wkhtmltopdf). HTML: {HTML}"
+            f"Не удалось собрать PDF (нужен Chrome, Edge или wkhtmltopdf). HTML: {HTML}"
         )
     print(f"Wrote {PDF_STANDARD} ({PDF_STANDARD.stat().st_size // 1024} KiB)")
 
