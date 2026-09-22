@@ -1951,6 +1951,22 @@ def _handle_bot_start(
             case_id=case_id or None,
             display_name=name,
         )
+    # Канон воронки: после «Начать» сразу бесплатный чек-лист (один раз).
+    try:
+        from sfrfr.services.lead_magnet_checklist import build_lead_magnet_after_start_message
+
+        magnet = build_lead_magnet_after_start_message(name=name)
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=magnet,
+            case_id=case_id or None,
+        )
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).info(
+            "lead_magnet after start skipped max=%s", str(user_id)[:8], exc_info=True
+        )
     if case_id:
         _notify_staff_max_started(user_id=user_id, intake=intake, case_id=case_id)
     return MaxHandleResult(

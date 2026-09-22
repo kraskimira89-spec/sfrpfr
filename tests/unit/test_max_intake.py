@@ -106,7 +106,9 @@ def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
     from sfrfr.integrations.max.intake import WELCOME_PART_1, welcome_parts
 
     assert result.reply == WELCOME_PART_1
-    assert len(bot.sent) == len(welcome_parts())
+    # welcome parts + бесплатный чек-лист после «Начать»
+    assert len(bot.sent) == len(welcome_parts()) + 1
+    assert any("чек-лист" in (t or "").lower() for _uid, t in bot.sent)
     # Кнопки сразу на первом сообщении (не ждать 2-ю/3-ю часть).
     assert bot.attachments[0]
     assert "За себя" in str(bot.attachments[0])
@@ -486,8 +488,9 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
     assert "Здравствуйте, Ирина!" in (result.reply or "")
     assert "Я бот сервиса" in (result.reply or "")
     assert "Выберите пункт меню ниже" not in (result.reply or "")
-    assert len(bot.sent) == 3
-    assert "Для кого проверка" in bot.sent[-1][1]
+    assert len(bot.sent) == len(welcome_parts(display_name="Ирина")) + 1
+    assert "чек-лист" in bot.sent[-1][1].lower()
+    assert any("Для кого проверка" in text for _uid, text in bot.sent)
     get_settings.cache_clear()
 
 
