@@ -11,6 +11,10 @@ import re
 LEAD_MAGNET_PDF_URL = "https://proverkastaza.ru/pension-checklist-a4.pdf"
 LEAD_MAGNET_PRINT_URL = "https://proverkastaza.ru/chek-list-dokumentov/pechat/"
 LEAD_MAGNET_LANDING_URL = "https://proverkastaza.ru/chek-list-dokumentov/"
+LEAD_MAGNET_SITE_URL = "https://proverkastaza.ru/"
+LEAD_MAGNET_BOT_URL = "https://max.ru/id8905998693_1_bot?startapp"
+LEAD_MAGNET_CHANNEL_URL = "https://max.ru/channel_proverkastaza"
+LEAD_MAGNET_CHAT_URL = "https://max.ru/id8905998693_1_bot"
 
 # Фразы с посадочной /chek-list-dokumentov/ и команды бота.
 _REQUEST_PATTERNS = (
@@ -50,6 +54,11 @@ def build_lead_magnet_message(*, name: str | None = None) -> str:
         "цифрами в чат их не пишите.\n\n"
         f"PDF (одна страница A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
         f"Рабочая тетрадь на 8 страниц:\n{LEAD_MAGNET_PRINT_URL}\n\n"
+        "Куда обратиться:\n"
+        f"• Сайт: {LEAD_MAGNET_SITE_URL}\n"
+        f"• Чат-бот MAX: {LEAD_MAGNET_BOT_URL}\n"
+        f"• Канал MAX: {LEAD_MAGNET_CHANNEL_URL}\n"
+        f"• Личный чат с ботом: {LEAD_MAGNET_CHAT_URL}\n\n"
         "Когда выписка будет на руках, ответьте одним сообщением: "
         "«ИЛС получил(а)» или «Есть расхождение».\n\n"
         "Не отправляйте паспорт, СНИЛС, трудовую и выписку ИЛС в открытый канал. "
