@@ -2755,8 +2755,9 @@ def handle_max_update(
     /start — диагностика и раннее дело для переписки в карточке
     intake:* — цели и вопросы
     /login — вход в веб-кабинет по коду
-    /cabinet /status /documents /help — меню вернувшегося клиента
+    /cabinet /status /documents /checklist /help — меню вернувшегося клиента
     вложения — принимаем в дело (канал чат-бот MAX); кабинет — альтернатива
+    «Нужен чек-лист документов» — лид-магнит: перечень для анализа + PDF
     """
     bot = bot or MaxBotClient()
     text = _text(update).strip()
@@ -3110,8 +3111,9 @@ def handle_max_update(
             )
         reply = (
             "Команды: /start — диагностика, /cabinet — кабинет на сайте, "
-            "/documents — какие документы нужны, /status — статус дела, "
-            "/login — вход в кабинет с компьютера. Всегда можно позвать специалиста. "
+            "/documents — какие документы нужны, /checklist — чек-лист для анализа, "
+            "/status — статус дела, /login — вход в кабинет с компьютера. "
+            "Всегда можно позвать специалиста. "
             "Документы можно прислать прямо в этот чат (PDF/JPG/PNG) "
             "или через раздел «Мои документы» на сайте."
         )
@@ -3149,6 +3151,25 @@ def handle_max_update(
             attachments=upload_blocked_keyboard(cabinet_url=cabinet_url),
         )
         return MaxHandleResult(ok=True, action="cabinet_links", case_id=case_id, reply=reply)
+
+    from sfrfr.services.lead_magnet_checklist import (
+        build_lead_magnet_message,
+        is_lead_magnet_request,
+    )
+
+    if is_lead_magnet_request(text):
+        if intake is None:
+            intake = get_intake_store().upsert_started(user_id)
+        reply = build_lead_magnet_message()
+        lm_case_id = _chat_case_id(
+            user_id,
+            preferred=(intake.case_id if intake else None)
+            or (record.case_id if record else None),
+        )
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=reply, case_id=lm_case_id)
+        return MaxHandleResult(
+            ok=True, action="lead_magnet_checklist", case_id=lm_case_id, reply=reply
+        )
 
     if (
         lower.startswith("/docs")
