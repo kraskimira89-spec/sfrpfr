@@ -19,6 +19,10 @@ def test_label_for_callback_human() -> None:
     assert label_for_callback("intake:whom:self") == "За себя"
     assert "Нажал кнопку: За себя" == format_button_press("intake:whom:self")
     assert label_for_callback("llmsoft:1:Нужна помощь") == "Нужна помощь"
+    assert label_for_callback("pdn_consent:no") == "Не согласен на обработку ПДн"
+    assert "отказ от согласия" in format_button_press("pdn_consent:no").lower()
+    assert "Начать" in format_button_press("start_dialog")
+    assert "pdn_consent:no" not in format_button_press("pdn_consent:no")
 
 
 def test_format_document_event() -> None:
