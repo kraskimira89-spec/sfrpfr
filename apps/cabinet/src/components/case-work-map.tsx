@@ -187,7 +187,7 @@ export function CaseWorkMap({
             </>
           )}
         </p>
-        {cta === "consent" ? (
+        {cta === "consent" && !work.consent_ok ? (
           <button type="button" disabled={busy} onClick={onConsent}>
             {work.cta_label}
           </button>

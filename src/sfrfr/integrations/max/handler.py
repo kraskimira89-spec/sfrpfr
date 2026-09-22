@@ -1229,30 +1229,35 @@ def _ingest_max_file(
     store: Any,
     record: Any,
 ) -> bool:
-    """Сохранить файл дела из MAX (Supabase quarantine или локальный store)."""
+    """Сохранить файл дела из MAX в Supabase (documents + bucket). Без silent local."""
+    del store, record
     from sfrfr.integrations.max.case_chat_log import (
         append_case_chat_message,
         format_document_event,
     )
     from sfrfr.services.max_document_upload import upload_max_document
-    from sfrfr.storage.local import save_upload
+
+    cid = str(case_id or "").strip()
+    if not cid:
+        logger.warning("max upload skipped: empty case_id filename=%s", filename)
+        return False
 
     row = upload_max_document(
-        case_id=case_id,
+        case_id=cid,
         filename=filename,
         data=data,
-        uploaded_by=f"max:{getattr(record, 'case_id', case_id)}",
+        uploaded_by=None,
     )
     if row is None:
-        try:
-            path = save_upload(record.case_id, filename, data)
-            store.add_document(record.case_id, str(path))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("max local upload failed: %s", exc)
-            return False
+        logger.warning(
+            "max supabase upload failed case=%s file=%s",
+            cid[:8],
+            filename,
+        )
+        return False
     try:
         append_case_chat_message(
-            case_id=case_id,
+            case_id=cid,
             author_kind="client",
             body=format_document_event(filename=filename),
             channel_origin="max",

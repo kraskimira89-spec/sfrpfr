@@ -104,6 +104,53 @@ def _find_open_order(
     return None
 
 
+def _try_promote_diag_pay_url(
+    *,
+    repo: Any,
+    case: dict[str, Any],
+    order: dict[str, Any],
+    actor_id: str,
+) -> dict[str, Any] | None:
+    """Не оставлять DIAG в draft без pay_url, если оферта уже принята."""
+    settings = get_settings()
+    if not settings.max_bot_owned_pay_link:
+        return None
+    cid = str(case.get("id") or order.get("case_id") or "")
+    if not cid:
+        return None
+    try:
+        contracts = (
+            repo.client.table("contract_acceptances")
+            .select("id")
+            .eq("case_id", cid)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not contracts:
+            return None
+    except Exception:  # noqa: BLE001
+        return None
+    from sfrfr.services.pay_link import PayLinkError, issue_and_deliver_pay_link
+
+    try:
+        result = issue_and_deliver_pay_link(
+            repo=repo,
+            order=order,
+            case=case,
+            actor_id=actor_id,
+            send_max=True,
+            channel="max_bot_owned_promote",
+        )
+        return {"order": order, "promoted": True, "tariff": "DIAG", "pay": result}
+    except PayLinkError as exc:
+        logger.info("diag pay promote skipped case=%s code=%s", cid[:8], exc.code)
+        return None
+    except Exception:  # noqa: BLE001
+        logger.exception("diag pay promote error case=%s", cid[:8])
+        return None
+
+
 def maybe_offer_diag_invoice(
     *,
     case_id: str,
@@ -135,13 +182,33 @@ def maybe_offer_diag_invoice(
         return None
     if not case:
         return None
+    from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
+
+    client_id = str(case.get("client_id") or "") or None
+    ensure_case_consent_from_client(case_id=cid, client_id=client_id)
     if not repo.has_consent(cid):
-        return None
+        from sfrfr.services.max_bot_funnel import build_start_gate_nudge_text
+
+        enqueue_max_delivery(
+            case_id=cid,
+            message_id=None,
+            max_user_id=mid,
+            body=build_start_gate_nudge_text(),
+            attachments=None,
+        )
+        return {"offered": False, "nudged": "consent_start"}
     try:
         orders = repo.list_orders(cid)
     except Exception:  # noqa: BLE001
         orders = []
     if _has_open_or_paid_diag(orders):
+        existing = _find_open_order(orders, tariff="DIAG")
+        if existing and not str(existing.get("pay_url") or "").strip():
+            promoted = _try_promote_diag_pay_url(
+                repo=repo, case=case, order=existing, actor_id="bot:max_owned"
+            )
+            if promoted:
+                return promoted
         return None
 
     draft = suggest_agreement_draft(case, orders)
