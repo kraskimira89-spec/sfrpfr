@@ -189,7 +189,12 @@ def _maybe_load_tracker_secrets_file() -> None:
     import os
     from pathlib import Path
 
-    if (os.environ.get("TRACKER_TOKEN") or os.environ.get("YANDEX_TRACKER_OAUTH_TOKEN") or "").strip():
+    token = (
+        os.environ.get("TRACKER_TOKEN")
+        or os.environ.get("YANDEX_TRACKER_OAUTH_TOKEN")
+        or ""
+    ).strip()
+    if token:
         return
     for candidate in (
         Path("secrets/yandex-tracker.env"),
