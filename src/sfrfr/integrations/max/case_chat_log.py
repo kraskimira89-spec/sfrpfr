@@ -73,6 +73,8 @@ CALLBACK_LABELS: dict[str, str] = {
     "offer:docs": "Готов к шагу 2",
     "offer:docs_skip": "Сам по плану",
     "offer:support": "Сопровождение 8000",
+    "start_dialog": "Начать",
+    "pdn_consent:no": "Не согласен на обработку ПДн",
 }
 
 
@@ -158,6 +160,12 @@ def label_for_callback(payload: str) -> str:
 
 
 def format_button_press(payload: str) -> str:
+    """Событие для ленты дела: понятно сотруднику, без сырого payload."""
+    raw = (payload or "").strip()
+    if raw == "pdn_consent:no":
+        return "Клиент нажал «Не согласен» — отказ от согласия на обработку ПДн"
+    if raw == "start_dialog":
+        return "Клиент нажал «Начать» — согласие на ПДн и cookies"
     return f"Нажал кнопку: {label_for_callback(payload)}"
 
 
