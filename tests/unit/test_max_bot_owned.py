@@ -142,7 +142,15 @@ def test_upload_bot_owned_skips_staff_task(tmp_path: Path, monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "sfrfr.services.max_document_upload.upload_max_document",
+        lambda **_k: {"id": "doc-test", "case_id": "x"},
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.case_chat_log.append_case_chat_message",
         lambda **_k: None,
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.case_chat_log.format_document_event",
+        lambda **_k: "event",
     )
     handle_max_update(_msg(23, "/start"), bot=bot)
     for payload in (
@@ -191,13 +199,22 @@ def test_diag_offer_requires_consent(monkeypatch) -> None:
     monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
     get_settings.cache_clear()
     with patch("sfrfr.db.case_repository.CaseRepository", return_value=repo):
-        out = maybe_offer_diag_invoice(
-            case_id="c1",
-            max_user_id="99",
-            intake=MaxIntakeRecord(id="1", max_user_id="99", status="started"),
-        )
-    assert out is None
+        with patch(
+            "sfrfr.services.client_pdn_consent.ensure_case_consent_from_client",
+            return_value=False,
+        ):
+            with patch(
+                "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+                return_value=True,
+            ) as enq:
+                out = maybe_offer_diag_invoice(
+                    case_id="c1",
+                    max_user_id="99",
+                    intake=MaxIntakeRecord(id="1", max_user_id="99", status="started"),
+                )
+    assert out == {"offered": False, "nudged": "consent_start"}
     repo.create_order.assert_not_called()
+    assert enq.called
 
 
 def test_pay_link_not_without_flag(monkeypatch) -> None:
