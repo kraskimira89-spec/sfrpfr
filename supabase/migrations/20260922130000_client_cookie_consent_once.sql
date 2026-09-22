@@ -1,4 +1,5 @@
 -- Cookie-согласие вместе с ПДн (кнопка «Начать» в MAX = один раз).
+-- Timestamp 20260922130000: не пересекаться с 20260922120000_case_reactivation_touches.
 alter table public.clients
   add column if not exists cookie_consent_version text,
   add column if not exists cookie_consent_accepted_at timestamptz;
