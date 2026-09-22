@@ -70,11 +70,16 @@ def test_run_due_tick_dry_run_plans_ensure_and_comments(tmp_path) -> None:
         create_issue_fn=create_issue,
         list_comments_fn=list_comments,
         add_comment_fn=add_comment,
+        ensure_boards_wiki_fn=lambda **_: {
+            "boards": [{"queue": "SFRFR", "action": "would_create"}],
+            "wiki": {"action": "would_create"},
+        },
     )
     assert stats["week"] == "2026-W39"
     assert stats["counts"]["SFRFR"] == 1
     assert any(e["action"] == "would_create" for e in stats["ensured"])
     assert any(c["action"] == "would_comment" for c in stats["comments"])
+    assert stats["boards_wiki"]["wiki"]["action"] == "would_create"
     assert created == []
     assert comments == []
 
@@ -100,6 +105,7 @@ def test_run_due_tick_skips_comment_same_week(tmp_path) -> None:
         create_issue_fn=lambda **_k: {"ok": True, "key": "X"},
         list_comments_fn=list_comments,
         add_comment_fn=lambda _k, _t: True,
+        ensure_boards_wiki_fn=lambda **_: {"boards": [], "wiki": {"action": "exists"}},
     )
     funnel11 = next(c for c in stats["comments"] if c["key"] == "FUNNEL-11")
     assert funnel11["action"] == "skip_same_week"

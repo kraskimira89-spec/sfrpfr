@@ -76,23 +76,25 @@ REMINDER_ISSUES: tuple[dict[str, str], ...] = (
     {
         "key": "FUNNEL-4",
         "body": (
-            "## Авто-напоминание: доска FUNNEL (owner UI)\n\n"
-            "docs/TRACKER/ops-board-wiki-checklist.md § FUNNEL-4\n"
-            "Скрин доски → комментарий → закрытие. Агент без скрина не закрывает.\n"
+            "## Авто-напоминание: доска FUNNEL\n\n"
+            "Ensure через API: `TECH_DEBT_ENSURE_BOARDS=1` в tech-debt-due-tick.\n"
+            "Канон: docs/TRACKER/ops-board-wiki-checklist.md\n"
+            "Если доска есть — seed можно закрыть (скрин не обязателен).\n"
         ),
     },
     {
         "key": "SFRFR-3",
         "body": (
-            "## Авто-напоминание: доска SFRFR (owner UI)\n\n"
-            "Колонки Open / In Progress / Done — ops-board-wiki-checklist.md\n"
+            "## Авто-напоминание: доска SFRFR\n\n"
+            "Ensure через API (не owner UI). ops-board-wiki-checklist.md\n"
         ),
     },
     {
         "key": "SFRFR-5",
         "body": (
-            "## Авто-напоминание: Wiki SFRFR (owner UI)\n\n"
-            "Оглавление со ссылками на docs/TRACKER, docs/ops, …\n"
+            "## Авто-напоминание: Wiki SFRFR\n\n"
+            "Ensure через Wiki API (`TECH_DEBT_ENSURE_WIKI=1`). "
+            "Нужен scope wiki:write или WIKI_TOKEN.\n"
         ),
     },
 )
@@ -150,6 +152,7 @@ def run_due_tick(
     add_comment_fn: Any | None = None,
     create_issue_fn: Any | None = None,
     search_by_tag_fn: Any | None = None,
+    ensure_boards_wiki_fn: Any | None = None,
 ) -> dict[str, Any]:
     """Еженедельный тик техдолга."""
     week = iso_week_key(now)
@@ -162,6 +165,7 @@ def run_due_tick(
         "snapshot_ok": False,
         "counts": {},
         "ensured": [],
+        "boards_wiki": {},
         "comments": [],
         "skipped": [],
     }
@@ -222,6 +226,9 @@ def run_due_tick(
             }
         )
 
+    ensure_bw = ensure_boards_wiki_fn or _default_ensure_boards_wiki
+    stats["boards_wiki"] = ensure_bw(dry_run=dry_run)
+
     if not do_comment:
         stats["skipped"].append("auto_comment_off")
         return stats
@@ -277,3 +284,9 @@ def _default_search_by_tag(tag: str) -> str | None:
     from sfrfr.integrations.yandex_tracker import find_issue_key_by_tag
 
     return find_issue_key_by_tag(tag)
+
+
+def _default_ensure_boards_wiki(*, dry_run: bool = False) -> dict[str, Any]:
+    from sfrfr.services.tracker_boards_wiki import run_ensure_boards_and_wiki
+
+    return run_ensure_boards_and_wiki(dry_run=dry_run, notify_seed=not dry_run)

@@ -49,9 +49,13 @@ Notion в процесс **не** входит.
 
 Подробности: [playbook-publish-queue.md](playbook-publish-queue.md), [playbook-funnel-ops.md](playbook-funnel-ops.md).
 
-## 4. Доска и Wiki (UI)
+## 4. Доска и Wiki
 
-MCP **не** создаёт доски и Wiki. Чеклист: [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md).
+**Авто (канон):** weekly `tech-debt-due-tick` создаёт доски SFRFR/PUB/FUNNEL и Wiki-индекс через API —
+см. [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) и
+[../ops/playbook-tech-debt-automation.md](../ops/playbook-tech-debt-automation.md).
+
+MCP **не** создаёт доски/Wiki; ручной UI — fallback и тонкая настройка колонок.
 
 Три доски (по одной на очередь) + Wiki-индекс SFRFR.
 
