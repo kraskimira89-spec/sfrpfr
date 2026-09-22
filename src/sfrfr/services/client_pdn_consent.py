@@ -10,12 +10,16 @@ from sfrfr.db.case_repository import CURRENT_CONSENT_VERSION
 
 logger = logging.getLogger(__name__)
 
+COOKIE_CONSENT_VERSION = "cookies-site-2026-09-22"
+
 CONSENT_GATE_TEXT = (
-    "Перед началом работы нужно ваше согласие на обработку персональных данных.\n\n"
+    "Перед началом работы нужно ваше согласие.\n\n"
     "Нажимая «Начать», вы соглашаетесь на обработку персональных данных "
-    "в целях проверки сведений о стаже и подготовки документов "
-    "(текст согласия: https://proverkastaza.ru/soglasie/).\n\n"
-    "Без согласия мы не сможем принять документы и вести дело."
+    "и на использование файлов cookie на сайте "
+    "(тексты: https://proverkastaza.ru/soglasie/ "
+    "и https://proverkastaza.ru/cookies/).\n\n"
+    "Без согласия мы не сможем принять документы и вести дело. "
+    "Согласие запрашивается один раз — повторно мы его не просим."
 )
 
 CONSENT_DECLINED_TEXT = (
@@ -50,17 +54,54 @@ def mark_client_pdn_consent(
         payload = {
             "pdn_consent_version": version,
             "pdn_consent_accepted_at": now,
+            "cookie_consent_version": COOKIE_CONSENT_VERSION,
+            "cookie_consent_accepted_at": now,
         }
+        slim = {
+            "pdn_consent_version": version,
+            "pdn_consent_accepted_at": now,
+        }
+
+        def _upd(eq_col: str, eq_val: str) -> bool:
+            try:
+                client.table("clients").update(payload).eq(eq_col, eq_val).execute()
+                return True
+            except Exception:
+                try:
+                    client.table("clients").update(slim).eq(eq_col, eq_val).execute()
+                    return True
+                except Exception as exc2:  # noqa: BLE001
+                    logger.warning("mark_client_pdn_consent failed: %s", exc2)
+                    return False
+
         if client_id:
-            client.table("clients").update(payload).eq("id", client_id).execute()
-            return True
+            return _upd("id", client_id)
         mid = str(max_user_id or "").strip()
         if mid:
-            client.table("clients").update(payload).eq("max_user_id", mid).execute()
-            return True
+            return _upd("max_user_id", mid)
     except Exception as exc:  # noqa: BLE001
         logger.warning("mark_client_pdn_consent failed: %s", exc)
     return False
+
+
+def _ensure_cookie_consent_row(repo: Any, *, case_id: str) -> None:
+    try:
+        existing = (
+            repo.client.table("consents")
+            .select("id")
+            .eq("case_id", case_id)
+            .eq("version", COOKIE_CONSENT_VERSION)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if existing:
+            return
+        repo.client.table("consents").insert(
+            {"case_id": case_id, "version": COOKIE_CONSENT_VERSION}
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.info("cookie consent row skipped: %s", exc)
 
 
 def ensure_case_consent_from_client(
@@ -80,24 +121,56 @@ def ensure_case_consent_from_client(
             return True
         client_row = None
         if client_id:
-            rows = (
-                repo.client.table("clients")
-                .select("id, pdn_consent_version, pdn_consent_accepted_at")
-                .eq("id", client_id)
-                .limit(1)
+            try:
+                rows = (
+                    repo.client.table("clients")
+                    .select("id, pdn_consent_version, pdn_consent_accepted_at")
+                    .eq("id", client_id)
+                    .limit(1)
+                    .execute()
+                    .data
+                    or []
+                )
+                client_row = rows[0] if rows else None
+            except Exception:  # noqa: BLE001
+                client_row = None
+        inherit = client_has_pdn_consent(client_row)
+        if not inherit and client_id:
+            siblings = (
+                repo.client.table("cases")
+                .select("id")
+                .eq("client_id", client_id)
+                .limit(50)
                 .execute()
                 .data
                 or []
             )
-            client_row = rows[0] if rows else None
-        if not client_has_pdn_consent(client_row):
+            for row in siblings if isinstance(siblings, list) else []:
+                sid = str(row.get("id") or "")
+                if not sid or sid == case_id:
+                    continue
+                if (
+                    repo.client.table("consents")
+                    .select("id")
+                    .eq("case_id", sid)
+                    .eq("version", CURRENT_CONSENT_VERSION)
+                    .limit(1)
+                    .execute()
+                    .data
+                ):
+                    inherit = True
+                    break
+        if not inherit:
             return False
-        version = str((client_row or {}).get("pdn_consent_version") or CURRENT_CONSENT_VERSION)
+        version = str(
+            (client_row or {}).get("pdn_consent_version") or CURRENT_CONSENT_VERSION
+        )
         repo.accept_consent(
             case_id,
             version=version,
             actor_id=actor_id or "system:client_pdn_once",
         )
+        _ensure_cookie_consent_row(repo, case_id=case_id)
         return True
     except Exception as exc:  # noqa: BLE001
         logger.warning("ensure_case_consent_from_client failed case=%s: %s", case_id[:8], exc)
@@ -112,7 +185,7 @@ def accept_pdn_once(
     actor_id: str | None = None,
     version: str = CURRENT_CONSENT_VERSION,
 ) -> None:
-    """Согласие один раз: клиент + (если есть) дело."""
+    """Согласие один раз: клиент (ПДн+cookies) + (если есть) дело."""
     mark_client_pdn_consent(
         client_id=client_id,
         max_user_id=max_user_id,
@@ -129,5 +202,6 @@ def accept_pdn_once(
                     version=version,
                     actor_id=actor_id or "system:max_start",
                 )
+            _ensure_cookie_consent_row(repo, case_id=case_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("accept_pdn_once case failed: %s", exc)

@@ -729,32 +729,24 @@ def build_client_work_map(
         cta_key, cta_label = "done", "Открыть результат"
 
     order = _order_view(orders)
-    # B1: после полного комплекта главный шаг — принять оферту и получить счёт DIAG.
-    # Взаимоисключён с pay: contract требует отсутствия видимых заказов (not_agreed).
+    # ПДн — один раз (MAX «Начать»). Здесь оферта и/или оплата.
     contract_cta = (
         consent_accepted
         and required_ok
         and not contract_accepted
-        and key in {"docs_review", "diagnosis"}
+        and key in {"docs_review", "diagnosis", "waiting_docs"}
         and order.get("state") == "not_agreed"
     )
-    if contract_cta:
+    if order.get("can_pay") and order.get("package_code") == "DIAG":
+        amount_text = f"{int(order.get('amount_rub') or 0):,}".replace(",", " ")
+        now_need = "Оплатить диагностику"
+        cta_key, cta_label = "pay", f"Оплатить диагностику — {amount_text} ₽"
+    elif contract_cta:
         now_need = "Принять условия и получить счёт на диагностику"
         cta_key, cta_label = "contract", "Принять условия и получить счёт на диагностику"
-    elif (
-        order.get("can_pay")
-        and required_ok
-        and key in {"docs_review", "diagnosis", "waiting_docs"}
-    ):
-        # Оплата не перебивает загрузку обязательных файлов
-        if key != "waiting_docs":
-            if order.get("package_code") == "DIAG":
-                amount_text = f"{int(order.get('amount_rub') or 0):,}".replace(",", " ")
-                now_need = "Оплатить диагностику"
-                cta_key, cta_label = "pay", f"Оплатить диагностику — {amount_text} ₽"
-            else:
-                now_need = "Оплатить диагностику"
-                cta_key, cta_label = "pay", "Оплатить безопасно"
+    elif order.get("can_pay") and required_ok:
+        now_need = "Оплатить услугу"
+        cta_key, cta_label = "pay", "Оплатить безопасно"
 
     next_actions: list[str]
     if key == "consent":

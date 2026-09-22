@@ -2499,14 +2499,25 @@ export function ClientCabinet() {
               </a>
             </p>
             {detail.consent_accepted ? (
-              <p className="ok">Согласие принято.</p>
+              <p className="ok">
+                Согласие на ПДн и cookies получено (один раз — при «Начать» в MAX или здесь).
+                Повторно не запрашиваем.
+              </p>
             ) : (
-              <button type="button" onClick={() => void acceptConsent()} disabled={busy}>
-                Даю согласие на обработку персональных данных
-              </button>
+              <>
+                <p className="hint">
+                  Обычно согласие уже дано кнопкой «Начать» в чате MAX. Если его ещё нет —
+                  подтвердите один раз ниже (ПДн и cookies на сайте).
+                </p>
+                <button type="button" onClick={() => void acceptConsent()} disabled={busy}>
+                  Даю согласие на обработку персональных данных и cookies
+                </button>
+              </>
             )}
             <ul className="plain-list">
-              {consents.consents.map((row) => (
+              {consents.consents
+                .filter((row) => !String(row.version || "").startsWith("cookies-"))
+                .map((row) => (
                 <li key={row.id}>
                   версия {row.version} · {new Date(row.accepted_at).toLocaleString("ru-RU")}
                 </li>

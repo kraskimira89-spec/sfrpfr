@@ -486,20 +486,48 @@ class CaseRepository:
             client_id = str((case_rows[0] or {}).get("client_id") or "") if case_rows else ""
             if not client_id:
                 return False
-            client_rows = (
-                self.client.table("clients")
-                .select("pdn_consent_version, pdn_consent_accepted_at")
-                .eq("id", client_id)
-                .limit(1)
+            try:
+                client_rows = (
+                    self.client.table("clients")
+                    .select("pdn_consent_version, pdn_consent_accepted_at")
+                    .eq("id", client_id)
+                    .limit(1)
+                    .execute()
+                    .data
+                    or []
+                )
+                if client_rows:
+                    from sfrfr.services.client_pdn_consent import client_has_pdn_consent
+
+                    if client_has_pdn_consent(client_rows[0]):
+                        return True
+            except Exception:  # noqa: BLE001
+                pass
+            sibling_cases = (
+                self.client.table("cases")
+                .select("id")
+                .eq("client_id", client_id)
+                .limit(50)
                 .execute()
                 .data
                 or []
             )
-            if not client_rows:
-                return False
-            from sfrfr.services.client_pdn_consent import client_has_pdn_consent
-
-            return client_has_pdn_consent(client_rows[0])
+            for row in sibling_cases if isinstance(sibling_cases, list) else []:
+                sid = str(row.get("id") or "")
+                if not sid or sid == case_id:
+                    continue
+                found = (
+                    self.client.table("consents")
+                    .select("id")
+                    .eq("case_id", sid)
+                    .eq("version", CURRENT_CONSENT_VERSION)
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if found:
+                    return True
+            return False
         except Exception:  # noqa: BLE001
             return False
 
@@ -547,7 +575,10 @@ class CaseRepository:
             if client_id:
                 from sfrfr.services.client_pdn_consent import mark_client_pdn_consent
 
-                mark_client_pdn_consent(client_id=client_id, version=version)
+                if version == CURRENT_CONSENT_VERSION or str(version).startswith(
+                    "pdn-consent"
+                ):
+                    mark_client_pdn_consent(client_id=client_id, version=version)
         except Exception:  # noqa: BLE001
             pass
         return response.data[0]
