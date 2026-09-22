@@ -343,7 +343,7 @@ def append_case_chat_message(
             pass
     if cid and len(cid) >= 32:
         try:
-            return _insert_case_message(
+            row = _insert_case_message(
                 case_id=cid,
                 author_kind=author_kind,
                 body=text,
@@ -352,6 +352,15 @@ def append_case_chat_message(
                 client_message_id=client_message_id,
                 reply_to_message_id=reply_to_message_id,
             )
+            try:
+                from sfrfr.integrations.yandex_workspace.case_mirror import (
+                    maybe_export_case_chat_throttled,
+                )
+
+                maybe_export_case_chat_throttled(cid)
+            except Exception:  # noqa: BLE001
+                pass
+            return row
         except Exception as exc:  # noqa: BLE001
             # FK 23503 = фантомный case_id: ожидаемо → буфер, без ERROR-шума.
             detail = str(exc)

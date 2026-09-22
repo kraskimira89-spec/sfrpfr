@@ -66,7 +66,7 @@ sfrfr calendar-mirror-yandex
 | Вопрос | Решение SFRFR (2026-07-28) |
 |--------|----------------------------|
 | Личный ящик `@yandex.ru` или Яндекс 360? | Личный; Телемост API уже отвечает 201 на токене `SFRFR_telemost` |
-| Нужен ли Диск? | **Да** (`YANDEX_DISK_ENABLED=true`): `disk:/SFRFR-ops` (ops без ПДн в путях) + зеркало сканов `disk:/SFRFR-cases/{case_id}`. Primary документов — Supabase Storage / local uploads |
+| Нужен ли Диск? | **Да** (`YANDEX_DISK_ENABLED=true`): `disk:/SFRFR-ops` + зеркало `disk:/SFRFR-cases/{case_id}/incoming|outgoing|chat` (папка = UUID дела). Primary — Supabase Storage |
 | Дублировать Google Calendar? | **Да**, dual-write: Google остаётся основным create-path, Яндекс — зеркало |
 
 ---
@@ -175,6 +175,8 @@ sudo systemctl restart sfrfr-api
 |----------|----------|
 | `sfrfr yandex-workspace-ping` | `ok`, login `proverkastaza` |
 | `sfrfr yandex-disk-status` | `ok`, папки `disk:/SFRFR-ops` и `disk:/SFRFR-cases` |
+| `sfrfr yandex-disk-case-layout <case_uuid>` | `incoming` / `outgoing` / `chat` + `meta.txt` |
+| `sfrfr yandex-disk-export-chat <case_uuid>` | `chat/history.md` |
 | `sfrfr yandex-telemost-create -c <uuid>` | `join_url` **или** `403 ApiRestrictedToOrganizations` → нужен Яндекс 360 |
 | `sfrfr yandex-mail-send --to you@… -t request_docs` | `ok` при scope `mail:smtp` |
 | `sfrfr yandex-mail-imap-ping` | `ok`, `messages_total` при `mail:imap_ro` + `YANDEX_MAIL_IMAP_ENABLED=true` |
@@ -186,7 +188,7 @@ sudo systemctl restart sfrfr-api
 >
 > **Телемост API (проверено 2026-07-28):** create → **201** + `join_url` на токене `SFRFR_telemost`.
 >
-> **Календарь CalDAV** — PROPFIND 207, create 201. **Диск** — API 200; продукт: `YANDEX_DISK_ENABLED=true`, `SFRFR-ops` + зеркало `SFRFR-cases/{case_id}`.
+> **Календарь CalDAV** — PROPFIND 207, create 201. **Диск** — API 200; продукт: `YANDEX_DISK_ENABLED=true`, `SFRFR-ops` + зеркало `SFRFR-cases/{case_id}/{incoming|outgoing|chat}` (папка = UUID).
 
 Документация создания конференций: [Телемост API](https://yandex.ru/dev/telemost/doc/ru/).
 

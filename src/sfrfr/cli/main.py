@@ -1230,6 +1230,41 @@ def yandex_disk_status() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-disk-case-layout")
+def yandex_disk_case_layout(
+    case_id: str = typer.Argument(..., help="UUID дела (номер папки на Диске)"),
+) -> None:
+    """Создать layout дела: incoming / outgoing / chat + meta.txt."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import ensure_case_layout
+
+    result = ensure_case_layout(case_id)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-export-chat")
+def yandex_disk_export_chat(
+    case_id: str = typer.Argument(..., help="UUID дела"),
+    limit: int = typer.Option(200, "--limit", "-n", min=1, max=500),
+) -> None:
+    """Экспорт истории чата дела → SFRFR-cases/{case_id}/chat/history.md."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import export_case_chat_to_disk_safe
+
+    result = export_case_chat_to_disk_safe(case_id, limit=limit)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-mail-send")
 def yandex_mail_send(
     to: str = typer.Option(..., "--to", help="Email получателя"),
