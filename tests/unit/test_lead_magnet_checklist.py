@@ -20,6 +20,9 @@ def test_build_message_lists_docs_for_analysis() -> None:
     assert "принимает только сфр" in lower
     assert "вернём" not in lower and "увеличим" not in lower
     assert "не отправ" in lower
+    assert "канал max" in lower
+    assert "чат-бот" in lower or "чат бот" in lower
+    assert "личный чат" in lower
 
 
 def test_build_message_without_name() -> None:
