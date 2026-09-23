@@ -1,11 +1,11 @@
 """Яндекс Диск: ops (SFRFR-ops, без ПДн в путях) + зеркало дел (SFRFR-cases).
 
-Источник истины документов: Supabase Storage (кабинет) / local uploads (MAX).
-Диск — best-effort зеркало: disk:/SFRFR-cases/{case_id}/
-  incoming/  — сканы клиента
+Источник истины документов: Supabase Storage (кабинет) / local uploads.
+Диск — best-effort зеркало: disk:/SFRFR-cases/{ФИО}/
+  incoming/  — сканы клиента (оригинал байт-в-байт)
   outgoing/  — подготовленные / подписанные заявления
   chat/      — экспорт истории чата
-  meta.txt   — номер дела (UUID), без ФИО/телефона/СНИЛС
+  meta.txt   — case_id (UUID); папка = ФИО (без телефона/СНИЛС)
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ _DISK_API = "https://cloud-api.yandex.net/v1/disk"
 OPS_FOLDER = "disk:/SFRFR-ops"
 # Еженедельный контроль воронки MAX (без ПДн) — см. docs/marketing-sales/reports/
 OPS_MARKETING_MAX_FUNNEL = f"{OPS_FOLDER}/marketing-max-funnel"
-# Зеркало сканов дел (ПДн); путь только с UUID дела (номер дела).
+# Зеркало сканов дел (ПДн); папка = ФИО клиента (fallback UUID).
 CASES_FOLDER = "disk:/SFRFR-cases"
 CASE_SUBFOLDERS = frozenset({"incoming", "outgoing", "chat"})
 CASE_META_NAME = "meta.txt"
@@ -43,6 +43,15 @@ _FORBIDDEN_OPS_MARKERS = (
     "case-",
     "cases/",
 )
+# В имени папки дела запрещены только явные маркеры ПДн (не ФИО).
+_FORBIDDEN_CASE_FOLDER_MARKERS = (
+    "снилс",
+    "snils",
+    "паспорт",
+    "passport",
+    "телефон",
+    "phone",
+)
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -57,7 +66,7 @@ def _enabled() -> tuple[bool, dict[str, Any] | None]:
             "ok": False,
             "skipped": True,
             "reason": "YANDEX_DISK_ENABLED=false",
-            "policy": "ops: SFRFR-ops; cases mirror: SFRFR-cases/{case_id}",
+            "policy": "ops: SFRFR-ops; cases mirror: SFRFR-cases/{ФИО}",
         }
     if not token_available():
         return False, {
@@ -83,8 +92,31 @@ def _normalize_case_id(case_id: str) -> str | None:
     return raw.lower()
 
 
-def _cases_path_allowed(path: str, *, case_id: str | None = None) -> bool:
-    """Whitelist: SFRFR-cases / {uuid} / {uuid}/meta.txt / {uuid}/{sub}/file."""
+def _is_safe_case_folder_segment(segment: str) -> bool:
+    """Сегмент папки дела: UUID или ФИО; без телефона/СНИЛС/разделителей пути."""
+    seg = (segment or "").strip()
+    if not seg or len(seg) > 180:
+        return False
+    if ".." in seg or "/" in seg or "\\" in seg:
+        return False
+    low = seg.lower()
+    if any(marker in low for marker in _FORBIDDEN_CASE_FOLDER_MARKERS):
+        return False
+    if _UUID_RE.match(seg):
+        return True
+    # ФИО / человекочитаемая метка — без управляющих символов.
+    if any(ord(ch) < 32 for ch in seg):
+        return False
+    return True
+
+
+def _cases_path_allowed(
+    path: str,
+    *,
+    case_id: str | None = None,
+    folder_name: str | None = None,
+) -> bool:
+    """Whitelist: SFRFR-cases / {ФИО|uuid} / meta|sub / file."""
     normalized = (path or "").strip().rstrip("/")
     low = normalized.lower()
     if low == "disk:/sfrfr-cases":
@@ -97,11 +129,14 @@ def _cases_path_allowed(path: str, *, case_id: str | None = None) -> bool:
         return False
     parts = rest.split("/")
     first = parts[0]
-    if not _UUID_RE.match(first):
+    if not _is_safe_case_folder_segment(first):
         return False
-    if case_id is not None:
+    if folder_name is not None and first != folder_name:
+        return False
+    if case_id is not None and folder_name is None:
         cid = _normalize_case_id(case_id)
-        if not cid or first.lower() != cid:
+        # Legacy UUID-папка: сегмент должен совпасть с case_id.
+        if cid and _UUID_RE.match(first) and first.lower() != cid:
             return False
     if len(parts) == 1:
         return True
@@ -112,16 +147,33 @@ def _cases_path_allowed(path: str, *, case_id: str | None = None) -> bool:
     return False
 
 
-def build_case_meta_text(case_id: str) -> str:
-    """Содержимое meta.txt: только номер дела (UUID) и layout, без ПДн."""
+def resolve_case_folder_segment(
+    case_id: str,
+    *,
+    folder_name: str | None = None,
+) -> str | None:
+    """Имя папки на Диске: переданное ФИО-имя или UUID дела."""
+    cid = _normalize_case_id(case_id)
+    if not cid:
+        return None
+    name = (folder_name or "").strip()
+    if name and _is_safe_case_folder_segment(name):
+        return name
+    return cid
+
+
+def build_case_meta_text(case_id: str, *, folder_name: str | None = None) -> str:
+    """meta.txt: case_id + layout; папка может быть ФИО, без телефона/СНИЛС."""
     cid = _normalize_case_id(case_id) or (case_id or "").strip()
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     subs = ", ".join(sorted(CASE_SUBFOLDERS))
+    folder = (folder_name or cid).strip()
     return (
         f"case_id: {cid}\n"
+        f"folder: {folder}\n"
         f"updated_at: {stamp}\n"
         f"layout: {subs}\n"
-        "note: folder name is case UUID only (no FIO/phone/SNILS)\n"
+        "note: folder label is client FIO (or UUID fallback); no tel/SNILS in path\n"
     )
 
 
@@ -149,8 +201,8 @@ def disk_status() -> dict[str, Any]:
             "cases_folder": CASES_FOLDER,
             "policy": (
                 "SFRFR-ops (без ПДн в путях); "
-                "SFRFR-cases/{case_id}/incoming|outgoing|chat — зеркало "
-                "(папка = UUID дела, без ФИО/телефона/СНИЛС)"
+                "SFRFR-cases/{ФИО}/incoming|outgoing|chat — зеркало "
+                "(папка = ФИО клиента, fallback UUID; без телефона/СНИЛС)"
             ),
         }
     except Exception as exc:  # noqa: BLE001
@@ -210,28 +262,31 @@ def ensure_cases_folder() -> dict[str, Any]:
     return _ensure_disk_folder(CASES_FOLDER, allow_cases=True)
 
 
-def ensure_case_folder(case_id: str) -> dict[str, Any]:
-    """Создать disk:/SFRFR-cases/{case_id} (номер дела = UUID)."""
-    cid = _normalize_case_id(case_id)
-    if not cid:
+def ensure_case_folder(case_id: str, *, folder_name: str | None = None) -> dict[str, Any]:
+    """Создать disk:/SFRFR-cases/{ФИО|uuid}."""
+    folder = resolve_case_folder_segment(case_id, folder_name=folder_name)
+    if not folder:
         return {"ok": False, "error": "invalid_case_id"}
     root = ensure_cases_folder()
     if not root.get("ok"):
         return root
-    return _ensure_disk_folder(f"{CASES_FOLDER}/{cid}", allow_cases=True)
+    return _ensure_disk_folder(f"{CASES_FOLDER}/{folder}", allow_cases=True)
 
 
-def ensure_case_layout(case_id: str) -> dict[str, Any]:
+def ensure_case_layout(case_id: str, *, folder_name: str | None = None) -> dict[str, Any]:
     """Папка дела + incoming/outgoing/chat + meta.txt."""
+    folder = resolve_case_folder_segment(case_id, folder_name=folder_name)
+    if not folder:
+        return {"ok": False, "error": "invalid_case_id"}
     cid = _normalize_case_id(case_id)
     if not cid:
         return {"ok": False, "error": "invalid_case_id"}
-    base = ensure_case_folder(cid)
+    base = ensure_case_folder(cid, folder_name=folder)
     if not base.get("ok"):
         return base
     created: list[str] = []
     for sub in sorted(CASE_SUBFOLDERS):
-        path = f"{CASES_FOLDER}/{cid}/{sub}"
+        path = f"{CASES_FOLDER}/{folder}/{sub}"
         result = _ensure_disk_folder(path, allow_cases=True)
         if not result.get("ok"):
             return result
@@ -239,16 +294,18 @@ def ensure_case_layout(case_id: str) -> dict[str, Any]:
     meta = upload_case_file(
         cid,
         remote_name=CASE_META_NAME,
-        content=build_case_meta_text(cid).encode("utf-8"),
+        content=build_case_meta_text(cid, folder_name=folder).encode("utf-8"),
         overwrite=True,
         subfolder=None,
+        folder_name=folder,
     )
     if not meta.get("ok") and not meta.get("skipped"):
         return meta
     return {
         "ok": True,
         "case_id": cid,
-        "path": f"{CASES_FOLDER}/{cid}",
+        "path": f"{CASES_FOLDER}/{folder}",
+        "folder_name": folder,
         "subfolders": created,
         "meta": meta,
     }
@@ -338,13 +395,17 @@ def upload_case_file(
     content: bytes,
     overwrite: bool = False,
     subfolder: str | None = None,
+    folder_name: str | None = None,
 ) -> dict[str, Any]:
-    """Загрузить файл в disk:/SFRFR-cases/{case_id}/[subfolder]/."""
+    """Загрузить файл в disk:/SFRFR-cases/{ФИО|uuid}/[subfolder]/."""
     ok, skipped = _enabled()
     if not ok and skipped:
         return skipped
     cid = _normalize_case_id(case_id)
     if not cid:
+        return {"ok": False, "error": "invalid_case_id"}
+    folder = resolve_case_folder_segment(cid, folder_name=folder_name)
+    if not folder:
         return {"ok": False, "error": "invalid_case_id"}
     name = _safe_remote_name(remote_name)
     if "/" in name or "\\" in name or ".." in name:
@@ -353,21 +414,21 @@ def upload_case_file(
     if sub:
         if sub not in CASE_SUBFOLDERS:
             return {"ok": False, "error": "invalid_case_subfolder", "subfolder": sub}
-        layout = ensure_case_layout(cid)
+        layout = ensure_case_layout(cid, folder_name=folder)
         if not layout.get("ok") and not layout.get("skipped"):
             return layout
-        folder = f"{CASES_FOLDER}/{cid}/{sub}"
+        dest = f"{CASES_FOLDER}/{folder}/{sub}"
     else:
         # meta.txt и legacy-файлы в корне папки дела
         if name.lower() != CASE_META_NAME:
             # обычные документы — только через whitelist-подпапки
             return {"ok": False, "error": "case_subfolder_required"}
-        ensure = ensure_case_folder(cid)
+        ensure = ensure_case_folder(cid, folder_name=folder)
         if not ensure.get("ok"):
             return ensure
-        folder = f"{CASES_FOLDER}/{cid}"
-    path = f"{folder}/{name}"
-    if not _cases_path_allowed(path, case_id=cid):
+        dest = f"{CASES_FOLDER}/{folder}"
+    path = f"{dest}/{name}"
+    if not _cases_path_allowed(path, case_id=cid, folder_name=folder):
         return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": path}
     return _put_upload(path=path, content=content, overwrite=overwrite)
 
@@ -378,24 +439,42 @@ def mirror_case_document(
     data: bytes,
     *,
     subfolder: str = "incoming",
+    folder_name: str | None = None,
 ) -> dict[str, Any]:
-    """Best-effort зеркало: unique remote name в incoming/ или outgoing/."""
+    """Best-effort зеркало: unique remote name; тело = исходные байты."""
     cid = _normalize_case_id(case_id)
     if not cid:
         return {"ok": False, "error": "invalid_case_id", "skipped": False}
     sub = (subfolder or "incoming").strip().lower()
     if sub not in {"incoming", "outgoing"}:
         return {"ok": False, "error": "invalid_case_subfolder", "subfolder": sub}
+    folder = resolve_case_folder_segment(cid, folder_name=folder_name)
     remote = f"{uuid.uuid4().hex[:8]}_{_safe_remote_name(filename)}"
     result = upload_case_file(
-        cid, remote_name=remote, content=data, overwrite=False, subfolder=sub
+        cid,
+        remote_name=remote,
+        content=data,
+        overwrite=False,
+        subfolder=sub,
+        folder_name=folder,
     )
     if result.get("ok"):
-        result = {**result, "case_id": cid, "remote_name": remote, "subfolder": sub}
+        result = {
+            **result,
+            "case_id": cid,
+            "remote_name": remote,
+            "subfolder": sub,
+            "folder_name": folder,
+        }
     return result
 
 
-def upload_case_chat_history(case_id: str, content: bytes) -> dict[str, Any]:
+def upload_case_chat_history(
+    case_id: str,
+    content: bytes,
+    *,
+    folder_name: str | None = None,
+) -> dict[str, Any]:
     """Перезаписать chat/history.md экспортом переписки дела."""
     return upload_case_file(
         case_id,
@@ -403,6 +482,7 @@ def upload_case_chat_history(case_id: str, content: bytes) -> dict[str, Any]:
         content=content,
         overwrite=True,
         subfolder="chat",
+        folder_name=folder_name,
     )
 
 def _put_upload(*, path: str, content: bytes, overwrite: bool) -> dict[str, Any]:

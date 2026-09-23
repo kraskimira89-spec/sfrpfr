@@ -31,15 +31,16 @@ def test_case_subfolders_whitelist() -> None:
 
 def test_case_meta_text_uses_case_id_only() -> None:
     cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    text = build_case_meta_text(cid)
+    text = build_case_meta_text(cid, folder_name="Иванов Иван Иванович")
     assert cid in text
+    assert "Иванов Иван Иванович" in text
     assert "incoming" in text
     assert "outgoing" in text
     assert "chat" in text
     low = text.lower()
     assert "снилс" not in low
     assert "телефон" not in low
-    assert "фио" not in low
+    assert "phone" not in low
 
 
 def test_format_case_chat_markdown() -> None:
@@ -66,7 +67,7 @@ def test_chat_export_throttle(monkeypatch) -> None:
 
     calls: list[str] = []
 
-    def _fake_export(case_id: str, *, limit: int = 200) -> dict:
+    def _fake_export(case_id: str, *, limit: int = 200, folder_name: str | None = None) -> dict:
         calls.append(case_id)
         return {"ok": True, "case_id": case_id}
 
