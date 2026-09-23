@@ -41,7 +41,9 @@ def backfill_local_uploads_to_disk(
                 uploaded += 1
                 continue
             data = path.read_bytes()
-            result = mirror_case_document_safe(cid, remote_name, data)
+            result = mirror_case_document_safe(
+                cid, remote_name, data, persist_local=False
+            )
             if result.get("ok"):
                 uploaded += 1
             elif result.get("skipped"):

@@ -1283,6 +1283,33 @@ def yandex_disk_backfill_uploads(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-disk-backfill-fio-originals")
+def yandex_disk_backfill_fio_originals(
+    case_id: str | None = typer.Option(None, "--case-id", help="Только одно дело (UUID)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Только посчитать файлы"),
+    no_storage: bool = typer.Option(
+        False,
+        "--no-storage",
+        help="Не брать файлы из bucket pension-docs",
+    ),
+) -> None:
+    """Старые MAX/uploads → local + Disk SFRFR-cases/{ФИО}/incoming (идемпотентно)."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace.backfill_case_originals import (
+        backfill_case_originals_to_fio,
+    )
+
+    result = backfill_case_originals_to_fio(
+        case_id=case_id,
+        dry_run=dry_run,
+        include_storage=not no_storage,
+    )
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-mail-send")
 def yandex_mail_send(
     to: str = typer.Option(..., "--to", help="Email получателя"),

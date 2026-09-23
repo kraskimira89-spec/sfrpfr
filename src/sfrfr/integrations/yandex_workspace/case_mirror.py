@@ -88,13 +88,16 @@ def mirror_case_document_safe(
     doc_type: str | None = None,
     subfolder: str | None = None,
     full_name: str | None = None,
+    persist_local: bool = True,
 ) -> dict[str, Any]:
     """Оригинал (те же байты) → local uploads + Яндекс.Диск в папке по ФИО."""
     dtype = str(doc_type or "").strip().lower()
     if dtype in {"bank_statement", "bank"}:
         return {"ok": False, "skipped": True, "reason": "bank_statement_no_mirror"}
     target = (subfolder or resolve_case_mirror_subfolder(doc_type)).strip().lower()
-    local_path = _persist_original_local(case_id, filename, data)
+    local_path = (
+        _persist_original_local(case_id, filename, data) if persist_local else None
+    )
     fio = full_name if full_name is not None else lookup_case_client_full_name(case_id)
     folder_name = format_case_disk_folder_name(fio, case_id=case_id)
     try:
