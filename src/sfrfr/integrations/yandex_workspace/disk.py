@@ -10,8 +10,8 @@
 
 from __future__ import annotations
 
+import logging
 import re
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
@@ -20,6 +20,8 @@ import httpx
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.yandex_workspace.oauth import oauth_headers, token_available
+
+logger = logging.getLogger(__name__)
 
 _DISK_API = "https://cloud-api.yandex.net/v1/disk"
 # Только обезличенные ops-файлы / шаблоны заявлений.
@@ -115,8 +117,13 @@ def _cases_path_allowed(
     *,
     case_id: str | None = None,
     folder_name: str | None = None,
+    allow_root_files: bool = False,
 ) -> bool:
-    """Whitelist: SFRFR-cases / {ФИО|uuid} / meta|sub / file."""
+    """Whitelist: SFRFR-cases / {ФИО|uuid} / meta|sub / file.
+
+    allow_root_files=True — только для служебных операций (move/delete legacy):
+    обычные загрузки в корень папки дела по-прежнему запрещены.
+    """
     normalized = (path or "").strip().rstrip("/")
     low = normalized.lower()
     if low == "disk:/sfrfr-cases":
@@ -141,6 +148,8 @@ def _cases_path_allowed(
     if len(parts) == 1:
         return True
     if len(parts) == 2:
+        if allow_root_files:
+            return bool(parts[1]) and parts[1] not in {".", ".."}
         return parts[1].lower() == CASE_META_NAME or parts[1].lower() in CASE_SUBFOLDERS
     if len(parts) == 3:
         return parts[1].lower() in CASE_SUBFOLDERS and bool(parts[2])
@@ -388,6 +397,42 @@ def _safe_remote_name(filename: str) -> str:
     return cleaned[:180]
 
 
+def _list_remote_names(dest_dir: str) -> set[str]:
+    """Имена файлов в каталоге Диска (lowercase) — для проверки коллизий."""
+    names: set[str] = set()
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            response = client.get(
+                f"{_DISK_API}/resources",
+                params={"path": dest_dir, "limit": 200},
+                headers=oauth_headers(),
+            )
+        if response.status_code >= 400:
+            return names
+        for item in ((response.json() or {}).get("_embedded") or {}).get("items") or []:
+            name = str(item.get("name") or "").strip()
+            if name and item.get("type") != "dir":
+                names.add(name.lower())
+    except Exception as exc:  # noqa: BLE001
+        logger.info("disk list names skipped: %s", type(exc).__name__)
+    return names
+
+
+def _dedupe_remote_name(existing: set[str], name: str) -> str:
+    """Свободное имя в каталоге: name.pdf → name_2.pdf → name_3.pdf."""
+    clean = _safe_remote_name(name)
+    if clean.lower() not in existing:
+        return clean
+    stem, dot, ext = clean.rpartition(".")
+    if not dot:
+        stem, ext = clean, ""
+    for index in range(2, 100):
+        candidate = f"{stem}_{index}.{ext}" if ext else f"{stem}_{index}"
+        if candidate.lower() not in existing:
+            return candidate[:180]
+    return clean
+
+
 def upload_case_file(
     case_id: str,
     *,
@@ -441,7 +486,7 @@ def mirror_case_document(
     subfolder: str = "incoming",
     folder_name: str | None = None,
 ) -> dict[str, Any]:
-    """Best-effort зеркало: unique remote name; тело = исходные байты."""
+    """Best-effort зеркало: читаемое уникальное имя; тело = исходные байты."""
     cid = _normalize_case_id(case_id)
     if not cid:
         return {"ok": False, "error": "invalid_case_id", "skipped": False}
@@ -449,7 +494,8 @@ def mirror_case_document(
     if sub not in {"incoming", "outgoing"}:
         return {"ok": False, "error": "invalid_case_subfolder", "subfolder": sub}
     folder = resolve_case_folder_segment(cid, folder_name=folder_name)
-    remote = f"{uuid.uuid4().hex[:8]}_{_safe_remote_name(filename)}"
+    dest_dir = f"{CASES_FOLDER}/{folder}/{sub}"
+    remote = _dedupe_remote_name(_list_remote_names(dest_dir), filename)
     result = upload_case_file(
         cid,
         remote_name=remote,
@@ -524,3 +570,101 @@ def _put_upload(*, path: str, content: bytes, overwrite: bool) -> dict[str, Any]
 def encode_path(path: str) -> str:
     """Для отладки/логов — безопасный quote пути."""
     return quote(path, safe=":/")
+
+
+def list_case_dir(path: str) -> dict[str, Any]:
+    """Листинг каталога дел на Диске (только чтение)."""
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    target = (path or "").strip().rstrip("/")
+    if not _cases_path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+    items: list[dict[str, Any]] = []
+    offset = 0
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            while True:
+                response = client.get(
+                    f"{_DISK_API}/resources",
+                    params={"path": target, "limit": 200, "offset": offset},
+                    headers=oauth_headers(),
+                )
+                if response.status_code >= 400:
+                    return {
+                        "ok": False,
+                        "status_code": response.status_code,
+                        "detail": (response.text or "")[:300],
+                        "path": target,
+                    }
+                embedded = (response.json() or {}).get("_embedded") or {}
+                batch = embedded.get("items") or []
+                items.extend(batch)
+                total = int(embedded.get("total") or len(items))
+                if not batch or len(items) >= total:
+                    break
+                offset = len(items)
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
+    return {"ok": True, "path": target, "count": len(items), "items": items}
+
+
+def move_case_path(source: str, target: str) -> dict[str, Any]:
+    """Переименовать/переместить внутри SFRFR-cases."""
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    src = (source or "").strip().rstrip("/")
+    dst = (target or "").strip().rstrip("/")
+    if not _cases_path_allowed(src, allow_root_files=True) or not _cases_path_allowed(dst):
+        return {
+            "ok": False,
+            "error": "path_forbidden_by_cases_policy",
+            "source": src,
+            "target": dst,
+        }
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{_DISK_API}/resources/move",
+                params={"from": src, "path": dst, "overwrite": "false"},
+                headers=oauth_headers(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
+    if response.status_code in (200, 201, 202):
+        return {"ok": True, "source": src, "target": dst}
+    return {
+        "ok": False,
+        "status_code": response.status_code,
+        "detail": (response.text or "")[:300],
+        "source": src,
+        "target": dst,
+    }
+
+
+def delete_case_path(path: str) -> dict[str, Any]:
+    """Удалить файл/папку дела. Разрушительно: вызывать только после аудита."""
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    target = (path or "").strip().rstrip("/")
+    if not _cases_path_allowed(target, allow_root_files=True):
+        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.delete(
+                f"{_DISK_API}/resources",
+                params={"path": target, "permanently": "true"},
+                headers=oauth_headers(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
+    if response.status_code in (200, 201, 202, 204):
+        return {"ok": True, "path": target}
+    return {
+        "ok": False,
+        "status_code": response.status_code,
+        "detail": (response.text or "")[:300],
+        "path": target,
+    }
