@@ -37,10 +37,10 @@ def backfill_local_uploads_to_disk(
             remote_name = path.name
             if "_" in remote_name and len(remote_name.split("_", 1)[0]) == 8:
                 remote_name = remote_name.split("_", 1)[1]
-            data = path.read_bytes()
             if dry_run:
                 uploaded += 1
                 continue
+            data = path.read_bytes()
             result = mirror_case_document_safe(cid, remote_name, data)
             if result.get("ok"):
                 uploaded += 1
