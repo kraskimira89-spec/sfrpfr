@@ -79,6 +79,14 @@ def test_disk_path_policy() -> None:
     )
     assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/scan.pdf", case_id=cid) is False
     assert _cases_path_allowed("disk:/SFRFR-cases/not-a-uuid/f.pdf") is False
+    fio = "Ivanov Ivan Ivanovich"
+    assert _cases_path_allowed(
+        f"disk:/SFRFR-cases/{fio}/incoming/scan.pdf", folder_name=fio
+    )
+    assert not _cases_path_allowed(
+        f"disk:/SFRFR-cases/{fio}/incoming/scan.pdf", folder_name="Other"
+    )
+    assert not _cases_path_allowed("disk:/SFRFR-cases/snils 123/incoming/x.pdf")
     other = "11111111-1111-1111-1111-111111111111"
     assert (
         _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/incoming/f.pdf", case_id=other)
