@@ -204,6 +204,17 @@ def store_document(
             logger.info("labor_timeline_drafts skipped: %s", exc)
 
     _audit_access(case_id, document_id, uploaded_by, "document_uploaded")
+    try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
+
+        mirror_case_document_safe(
+            case_id,
+            safe_name,
+            data,
+            doc_type=doc_type,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("document yandex disk mirror skipped: %s", exc)
     return row
 
 
