@@ -71,10 +71,19 @@ def test_disk_path_policy() -> None:
     cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
     assert _cases_path_allowed("disk:/SFRFR-cases") is True
     assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}") is True
-    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/scan.pdf", case_id=cid) is True
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/meta.txt", case_id=cid) is True
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/incoming", case_id=cid) is True
+    assert (
+        _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/incoming/scan.pdf", case_id=cid)
+        is True
+    )
+    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/scan.pdf", case_id=cid) is False
     assert _cases_path_allowed("disk:/SFRFR-cases/not-a-uuid/f.pdf") is False
     other = "11111111-1111-1111-1111-111111111111"
-    assert _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/f.pdf", case_id=other) is False
+    assert (
+        _cases_path_allowed(f"disk:/SFRFR-cases/{cid}/incoming/f.pdf", case_id=other)
+        is False
+    )
     assert _cases_path_allowed("disk:/SFRFR-ops/x") is False
 
 
@@ -90,6 +99,7 @@ def test_upload_case_file_skipped_when_disabled(monkeypatch) -> None:
         "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
         remote_name="doc.pdf",
         content=b"%PDF",
+        subfolder="incoming",
     )
     assert result.get("skipped") is True
     get_settings.cache_clear()
