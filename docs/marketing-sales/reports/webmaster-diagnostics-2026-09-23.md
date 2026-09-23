@@ -1,6 +1,6 @@
 # Диагностика Яндекс Вебмастера (2026-09-23)
 
-Снято: `2026-09-23T16:46:30+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
+Снято: `2026-09-23T17:33:16+03:00` · скрипт `scripts/yandex_webmaster_diagnostics.py`
 
 **Канон:** смотреть только apex `https://proverkastaza.ru` (без www).
 Зеркала `www` / `http` с 301 — предупреждения там ожидаемы.
@@ -31,19 +31,34 @@ UI: [диагностика apex](https://webmaster.yandex.ru/site/https%3Aprove
 - `NOT_IN_SPRAV` (RECOMMENDATION) _(зеркало, можно игнорировать)_
 - `NO_REGIONS` (RECOMMENDATION) _(зеркало, можно игнорировать)_
 
-## Live-проверка сайта
-
-- robots.txt HTTP timeout
-- further live probes skipped after network timeout
-
 ## Автоисправления
 
-- live_probe: robots.txt HTTP timeout; further live probes skipped after network timeout
 - OK ensure_site
-- FAIL vps_ssh exit 255
-ssh: connect to host 91.229.11.147 port 22: Connection timed out
+- OK vps_ssh remediate
+i-doroga-dobra/wp-content/mu-plugins/sfrfr-hide-astra-copyright.php
+OK: /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-site-footer.php
+OK: /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-blog-ui-assets/
+OK: /var/www/taxi-doroga-dobra/favicon.ico
+==> favicons in site root
+OK: /var/www/taxi-doroga-dobra/favicon.ico
+OK: /var/www/taxi-doroga-dobra/favicon.svg
+OK: /var/www/taxi-doroga-dobra/favicon-120.png
+==> webmaster ensure (sitemap API)
+SKIP: no secrets/yandex-webmaster.env on VPS
+==> cache flush
+Success: The cache was flushed.
+==> live probes
+robots.txt 200
+sitemap 200
+home 200
+HTTP/1.1 200 OK
+Date: Wed, 23 Sep 2026 14:34:21 GMT
+Server: Apache/2.4.52 (Ubuntu)
+OK: vps_webmaster_remediate
+From github.com:kraskimira89-spec/sfrpfr
+ * branch              main       -> FETCH_HEAD
 
-- after_probe STILL: robots.txt HTTP timeout; further live probes skipped after network timeout
+- after_probe: OK
 
 ## Как обновить
 
