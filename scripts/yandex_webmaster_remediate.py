@@ -46,23 +46,62 @@ UI_ONLY_CODES = frozenset(
 )
 
 
+def _http_label(status: int) -> str:
+    """Человекочитаемый код ответа; 0 = сетевой/read timeout после ретраев."""
+    if status == 0:
+        return "timeout"
+    return str(status)
+
+
+def _is_retryable_timeout(exc: BaseException) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    if isinstance(exc, urllib.error.URLError):
+        reason = exc.reason
+        if isinstance(reason, TimeoutError):
+            return True
+        if isinstance(reason, OSError):
+            # WinError 10060 / errno ETIMEDOUT и т.п.
+            if getattr(reason, "winerror", None) == 10060:
+                return True
+            if getattr(reason, "errno", None) in {60, 110, 10060}:
+                return True
+        msg = str(reason).lower()
+        if "timed out" in msg or "timeout" in msg:
+            return True
+    return False
+
+
 def _fetch(url: str, method: str = "GET") -> tuple[int, dict[str, str], bytes]:
     req = urllib.request.Request(url, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            headers = {k.lower(): v for k, v in resp.headers.items()}
-            return resp.status, headers, resp.read()
-    except urllib.error.HTTPError as e:
-        headers = {k.lower(): v for k, v in e.headers.items()}
-        return e.code, headers, e.read()
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                headers = {k.lower(): v for k, v in resp.headers.items()}
+                return resp.status, headers, resp.read()
+        except urllib.error.HTTPError as e:
+            headers = {k.lower(): v for k, v in e.headers.items()}
+            return e.code, headers, e.read()
+        except (TimeoutError, urllib.error.URLError) as e:
+            if _is_retryable_timeout(e) and attempt == 0:
+                continue
+            if _is_retryable_timeout(e):
+                return 0, {}, b""
+            raise
+    return 0, {}, b""
 
 
 def live_probe_issues() -> list[str]:
     issues: list[str] = []
     status, _, body = _fetch(f"{SITE}/robots.txt")
     text = body.decode("utf-8", errors="replace")
+    if status == 0:
+        # Локальная сеть/DNS часто режет сайт; дальше только тратим минуты.
+        issues.append(f"robots.txt HTTP {_http_label(status)}")
+        issues.append("further live probes skipped after network timeout")
+        return issues
     if status != 200:
-        issues.append(f"robots.txt HTTP {status}")
+        issues.append(f"robots.txt HTTP {_http_label(status)}")
     elif CYRILLIC.search(text):
         issues.append("robots.txt contains Cyrillic")
     elif "Sitemap:" not in text:
@@ -72,17 +111,17 @@ def live_probe_issues() -> list[str]:
 
     status, _, _ = _fetch(f"{SITE}/wp-sitemap.xml")
     if status != 200:
-        issues.append(f"wp-sitemap.xml HTTP {status}")
+        issues.append(f"wp-sitemap.xml HTTP {_http_label(status)}")
 
     status, _, _ = _fetch(SITE)
     if status != 200:
-        issues.append(f"homepage HTTP {status}")
+        issues.append(f"homepage HTTP {_http_label(status)}")
 
     for path in ("/favicon.ico", "/favicon.svg", "/favicon-120.png"):
         status, headers, body = _fetch(f"{SITE}{path}")
         ctype = headers.get("content-type", "")
         if status != 200:
-            issues.append(f"{path} HTTP {status}")
+            issues.append(f"{path} HTTP {_http_label(status)}")
         elif "text/html" in ctype and len(body) > 0 and b"<html" in body[:500].lower():
             issues.append(f"{path} returns HTML instead of image")
 
