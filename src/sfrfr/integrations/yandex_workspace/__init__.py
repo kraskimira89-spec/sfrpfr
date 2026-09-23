@@ -5,6 +5,11 @@ from sfrfr.integrations.yandex_workspace.calendar_mirror import (
     mirror_google_to_yandex,
 )
 from sfrfr.integrations.yandex_workspace.calendar_yandex import create_event
+from sfrfr.integrations.yandex_workspace.case_cleanup import (
+    audit_case_folders,
+    cleanup_duplicate_uuid_folders,
+    normalize_legacy_folders,
+)
 from sfrfr.integrations.yandex_workspace.case_mirror import (
     export_case_chat_to_disk_safe,
     mirror_case_document_safe,
@@ -13,14 +18,17 @@ from sfrfr.integrations.yandex_workspace.disk import (
     CASE_SUBFOLDERS,
     CASES_FOLDER,
     OPS_MARKETING_MAX_FUNNEL,
+    delete_case_path,
     disk_status,
     ensure_case_folder,
     ensure_case_layout,
     ensure_cases_folder,
     ensure_ops_folder,
     ensure_ops_path,
+    list_case_dir,
     list_ops,
     mirror_case_document,
+    move_case_path,
     upload_case_file,
     upload_ops_file,
 )
@@ -56,4 +64,10 @@ __all__ = [
     "mirror_case_document",
     "mirror_case_document_safe",
     "export_case_chat_to_disk_safe",
+    "list_case_dir",
+    "move_case_path",
+    "delete_case_path",
+    "audit_case_folders",
+    "cleanup_duplicate_uuid_folders",
+    "normalize_legacy_folders",
 ]
