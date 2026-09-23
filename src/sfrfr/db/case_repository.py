@@ -1228,14 +1228,22 @@ class CaseRepository:
             .eq("order_id", order_id)
             .is_("provider_payment_id", "null")
             .order("id", desc=True)
-            .limit(1)
+            .limit(25)
             .execute()
             .data
             or []
         )
-        if not candidates:
+        target = next(
+            (
+                row
+                for row in candidates
+                if str(row.get("status") or "").lower()
+                not in self._TERMINAL_PAYMENT_STATUSES
+            ),
+            None,
+        )
+        if target is None:
             return None
-        target = candidates[0]
         response = (
             self.client.table("payments")
             .update(
@@ -1711,4 +1719,3 @@ class CaseRepository:
             or []
         )
         return [case_to_analytics_row(case) for case in cases]
-

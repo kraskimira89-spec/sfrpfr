@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 _UUID_RE = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
+_MISSING_SCHEMA_CODES = frozenset({"42P01", "42703", "PGRST204", "PGRST205"})
 
 
 def normalize_uploaded_by(uploaded_by: str | None) -> str | None:
@@ -28,6 +29,17 @@ def normalize_uploaded_by(uploaded_by: str | None) -> str | None:
         return None
 
 
+def _is_missing_schema_error(exc: Exception) -> bool:
+    code = str(getattr(exc, "code", "") or "").upper()
+    if code in _MISSING_SCHEMA_CODES:
+        return True
+    message = str(exc).lower()
+    return (
+        ("column" in message and ("does not exist" in message or "not found" in message))
+        or ("relation" in message and "does not exist" in message)
+    )
+
+
 @lru_cache(maxsize=1)
 def documents_has_ingest_columns() -> bool:
     """True, если в documents есть ingest_status (миграции ТЗ-13 применены)."""
@@ -35,8 +47,11 @@ def documents_has_ingest_columns() -> bool:
         get_supabase_client().table("documents").select("id,ingest_status").limit(1).execute()
         return True
     except Exception as exc:  # noqa: BLE001
-        logger.warning("documents schema without ingest columns: %s", exc)
-        return False
+        if _is_missing_schema_error(exc):
+            logger.info("documents schema without ingest columns: %s", exc)
+            return False
+        logger.error("documents schema inspection failed; refusing legacy fallback", exc_info=True)
+        raise
 
 
 def clear_documents_schema_cache() -> None:
@@ -82,5 +97,9 @@ def document_ingest_jobs_available() -> bool:
     try:
         get_supabase_client().table("document_ingest_jobs").select("id").limit(1).execute()
         return True
-    except Exception:  # noqa: BLE001
-        return False
+    except Exception as exc:  # noqa: BLE001
+        if _is_missing_schema_error(exc):
+            logger.info("document ingest jobs table is unavailable: %s", exc)
+            return False
+        logger.error("document ingest jobs inspection failed", exc_info=True)
+        raise

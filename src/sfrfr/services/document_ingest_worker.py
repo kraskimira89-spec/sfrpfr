@@ -367,6 +367,7 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "last_error": None,
             },
         )
+        _remove_quarantine_copy(client, source_path, verified_path)
         try:
             from sfrfr.services.max_kit_status import notify_kit_status_after_ingest
 
@@ -456,7 +457,15 @@ def _store_verified_copy(
         data,
         {"content-type": content_type or "application/octet-stream", "x-upsert": "true"},
     )
-    client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([source_path])
+
+
+def _remove_quarantine_copy(client: Any, source_path: str, verified_path: str) -> None:
+    if source_path == verified_path:
+        return
+    try:
+        client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([source_path])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("quarantine cleanup skipped for %s: %s", source_path, exc)
 
 
 def _store_artifacts(

@@ -1,24 +1,23 @@
-﻿# 2026-09-22 вЂ” ads в†’ РєР°РЅР°Р»: PR, РіР»Р°РІРЅР°СЏ, UTM, Р·Р°РєСЂРµРї
+# 2026-09-22 — ads → канал: PR, главная, UTM, закрепы
 
-## РЎРґРµР»Р°РЅРѕ РІ РєРѕРґРµ
+## Сделано в коде
 
-- Р“Р»Р°РІРЅР°СЏ: primary В«РџРѕРґРїРёСЃР°С‚СЊСЃСЏ РЅР° РєР°РЅР°Р» MAXВ» (hero + Р±Р»РѕРє СЃРІСЏР·Рё).
-- `wp_apply_home.php`: UTM `max_channel_subscribe` РґР»СЏ `home_hero` / `home_max_guide`.
-- Р—Р°РєСЂРµРї `00-pinned`: РєРЅРѕРїРєР° В«РџРѕРґР°С‚СЊ Р·Р°СЏРІРєСѓВ».
-- Р‘СЂРёС„С‹ Р”РёСЂРµРєС‚ / UTM playbook.
+- Главная: primary «Подписаться на канал MAX» (hero + блок связи).
+- `wp_apply_home.php`: UTM `max_channel_subscribe` для `home_hero` / `home_max_guide`.
+- Закреп `00-pinned`: кнопка «Подать заявку».
+- Брифы Директ / UTM playbook.
 
-## Р’Р»Р°РґРµР»РµС† (СЂРµРєР»Р°РјР° РІРЅРµ СЂРµРїРѕ)
+## Владелец (реклама вне репо)
 
-РџРµСЂРµРІРµСЃС‚Рё destination Р°РєС‚РёРІРЅС‹С… РѕР±СЉСЏРІР»РµРЅРёР№ РЅР°:
+Перевести destination активных объявлений на:
 
 ```text
 https://max.ru/channel_proverkastaza?utm_source=<src>&utm_medium=<med>&utm_campaign=max_channel_subscribe&utm_content=<place>
 ```
 
-РќРµ РІРµСЃС‚Рё С…РѕР»РѕРґРЅС‹Р№ С‚СЂР°С„РёРє РЅР° `id8905998693_1_bot`.
+Не вести холодный трафик на `id8905998693_1_bot`.
 
-## РџРѕСЃР»Рµ deploy
+## После deploy
 
-- Seed home: `vps_deploy.sh` в†’ `wp_apply_landing_vps.sh` (РїСЂРѕРІРµСЂРµРЅРѕ live: primary CTA в†’ РєР°РЅР°Р» + UTM `home_hero` / `home_max_guide`).
-- Р—Р°РєСЂРµРї republish: `sfrfr max-channel-publish-starter --direct --only 00-pinned` в†’ mid `mid.ffffb970e931d56801a0c80b806c4afe`, pin `success`, РїРѕСЃС‚ https://max.ru/channel_proverkastaza/AaDIC4BsSv4 (РєРЅРѕРїРєР° В«РџРѕРґР°С‚СЊ Р·Р°СЏРІРєСѓВ» в†’ `MAX_CHAT_URL`).
-
+- Seed home: `vps_deploy.sh` → `wp_apply_landing_vps.sh` (проверено live: primary CTA → канал + UTM `home_hero` / `home_max_guide`).
+- Закреп republish: `sfrfr max-channel-publish-starter --direct --only 00-pinned` → mid `mid.ffffb970e931d56801a0c80b806c4afe`, pin `success`, пост https://max.ru/channel_proverkastaza/AaDIC4BsSv4 (кнопка «Подать заявку» → `MAX_CHAT_URL`).
