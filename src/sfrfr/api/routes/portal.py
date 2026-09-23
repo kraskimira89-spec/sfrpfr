@@ -1881,15 +1881,7 @@ async def upload_case_document(
     storage_path = str(row.get("storage_path") or "")
     action = "result_decision_uploaded" if doc_type == "sfr_decision" else "document_uploaded"
     repo.audit(case_id, principal.user_id, action)
-    if not async_ingest:
-        try:
-            from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
-
-            mirror = mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
-            if mirror.get("ok"):
-                repo.audit(case_id, principal.user_id, "document_mirrored_yandex_disk")
-        except Exception as exc:  # noqa: BLE001
-            logger.info("document yandex disk mirror skipped: %s", exc)
+    # Зеркало originals: create_quarantine (async/minimal) и store_document (sync).
     try:
         from sfrfr.integrations.max.case_chat_log import (
             append_case_chat_message,

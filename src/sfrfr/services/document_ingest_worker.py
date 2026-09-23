@@ -140,6 +140,14 @@ def create_quarantine_document(
             case_id=case_id,
             document_id=document_id,
         )
+    else:
+        # Без ingest-jobs оригинал сразу на Яндекс.Диск (иначе зеркало не вызывается).
+        _mirror_document_after_security(
+            case_id=case_id,
+            filename=safe_name,
+            data=data,
+            doc_type=doc_type,
+        )
     return {**saved, "job_id": job_id}
 
 

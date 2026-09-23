@@ -1265,6 +1265,24 @@ def yandex_disk_export_chat(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-disk-backfill-uploads")
+def yandex_disk_backfill_uploads(
+    case_id: str | None = typer.Option(None, "--case-id", help="Только одно дело (UUID)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Только посчитать файлы"),
+) -> None:
+    """Залить локальные storage/uploads на Диск в incoming/ (оригиналы)."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace.backfill_local_uploads import (
+        backfill_local_uploads_to_disk,
+    )
+
+    result = backfill_local_uploads_to_disk(case_id=case_id, dry_run=dry_run)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-mail-send")
 def yandex_mail_send(
     to: str = typer.Option(..., "--to", help="Email получателя"),
