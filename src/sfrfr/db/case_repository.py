@@ -459,6 +459,26 @@ class CaseRepository:
                     }
                 ).execute()
         self.audit(case_id, actor_id, "case_created")
+        try:
+            client_rows = (
+                self.client.table("clients")
+                .select("full_name")
+                .eq("id", client_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            name = None
+            if client_rows and isinstance(client_rows[0], dict):
+                name = client_rows[0].get("full_name")
+            from sfrfr.integrations.yandex_workspace.case_mirror import (
+                sync_case_disk_folder_name_safe,
+            )
+
+            sync_case_disk_folder_name_safe(case_id, full_name=name)
+        except Exception:  # noqa: BLE001
+            pass
         return case
 
     def has_consent(self, case_id: str) -> bool:

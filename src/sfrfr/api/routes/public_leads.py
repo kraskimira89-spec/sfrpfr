@@ -387,6 +387,15 @@ def _create_lead(
         raise HTTPException(status_code=502, detail="failed to create case")
     case_id = str(case_row.data[0]["id"])
 
+    try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import (
+            sync_case_disk_folder_name_safe,
+        )
+
+        sync_case_disk_folder_name_safe(case_id, full_name=payload.full_name.strip())
+    except Exception:  # noqa: BLE001
+        pass
+
     client.table("access_audit").insert(
         {
             "case_id": case_id,

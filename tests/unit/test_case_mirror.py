@@ -80,3 +80,62 @@ def test_chat_export_throttle(monkeypatch) -> None:
     assert second.get("skipped") is True
     assert second.get("reason") == "throttled"
     assert calls == [cid]
+
+
+def test_sync_renames_uuid_folder_when_fio_known(monkeypatch) -> None:
+    from sfrfr.integrations.yandex_workspace import case_mirror as cm
+
+    cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    moves: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(cm, "list_case_dir", lambda path: {"ok": path.endswith(cid)})
+    monkeypatch.setattr(
+        cm,
+        "move_case_path",
+        lambda src, dst: moves.append((src, dst)) or {"ok": True},
+    )
+    monkeypatch.setattr(
+        cm,
+        "ensure_case_layout",
+        lambda *a, **k: {"ok": True, "folder_name": k.get("folder_name")},
+    )
+
+    result = cm.sync_case_disk_folder_name_safe(cid, full_name="Иванов Иван Иванович")
+
+    assert result.get("ok") is True
+    assert result.get("action") == "renamed"
+    assert result.get("folder_name") == "Иванов Иван Иванович"
+    assert moves == [
+        (f"disk:/SFRFR-cases/{cid}", "disk:/SFRFR-cases/Иванов Иван Иванович")
+    ]
+
+
+def test_sync_creates_fio_folder_when_none_exists(monkeypatch) -> None:
+    from sfrfr.integrations.yandex_workspace import case_mirror as cm
+
+    cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    layouts: list[dict] = []
+
+    monkeypatch.setattr(cm, "list_case_dir", lambda _path: {"ok": False, "status_code": 404})
+    monkeypatch.setattr(
+        cm,
+        "ensure_case_layout",
+        lambda case_id, **kw: layouts.append({"case_id": case_id, **kw})
+        or {"ok": True, "folder_name": kw.get("folder_name")},
+    )
+
+    result = cm.sync_case_disk_folder_name_safe(cid, full_name="Петрова Анна")
+
+    assert result.get("ok") is True
+    assert result.get("action") == "created"
+    assert layouts == [{"case_id": cid, "folder_name": "Петрова Анна"}]
+
+
+def test_sync_skips_placeholder_max_name(monkeypatch) -> None:
+    from sfrfr.integrations.yandex_workspace import case_mirror as cm
+
+    cid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    result = cm.sync_case_disk_folder_name_safe(cid, full_name="MAX 12345")
+
+    assert result.get("skipped") is True
+    assert result.get("reason") == "no_fio"

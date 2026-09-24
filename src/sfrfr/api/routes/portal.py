@@ -1390,6 +1390,15 @@ def create_my_case(
         client_id=str(client_row["id"]),
         actor_id=principal.audit_actor_id(),
     )
+    if body.full_name and body.full_name.strip():
+        try:
+            from sfrfr.integrations.yandex_workspace.case_mirror import (
+                sync_case_disk_folder_name_safe,
+            )
+
+            sync_case_disk_folder_name_safe(case_id, full_name=body.full_name.strip())
+        except Exception:  # noqa: BLE001
+            pass
     refreshed = repo.require_case(principal, case_id)
     detail = _client_detail(
         refreshed,
