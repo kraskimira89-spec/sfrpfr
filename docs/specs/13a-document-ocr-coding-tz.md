@@ -1,8 +1,8 @@
 # ТЗ-13a: Coding — OCR source resolver и адаптер (поверх ТЗ-13)
 
-**Статус:** coding-ready (документация для реализации; код в этом PR не менять)  
-**Канон продукта/архитектуры:** [13-document-ingest-v2.md](13-document-ingest-v2.md) (§3.7, §15), [14-yandex-workspace.md](14-yandex-workspace.md)  
-**Ветка фиксации SoT:** `docs/tz13-ocr-sot-local-disk`  
+**Статус:** coding-ready; Phase 1 (resolver) — в коде
+**Канон продукта/архитектуры:** [13-document-ingest-v2.md](13-document-ingest-v2.md) (§3.7, §15), [14-yandex-workspace.md](14-yandex-workspace.md)
+**Ветка фиксации SoT:** `docs/tz13-ocr-sot-local-disk`
 **Аудитория:** coding-агент / разработчик. Без «разобраться» — только контракты, пути файлов, критерии приёмки.
 
 > **Важно:** этот документ **не** вводит второй SoT. Primary байты OCR = local + Яндекс.Диск; Supabase Storage `pension-docs` = кабинет / quarantine / verified / signed URL / артефакты / backup. OCR-read из Storage — **только** при `SUPABASE_STORAGE_OCR_FALLBACK` / `INGEST_OCR_STORAGE_FALLBACK=true` (не обязателен для MVP ТЗ-13). Канон дополнения: [13-document-ingest-v2.md](13-document-ingest-v2.md) §16. Не следовать paste «только Supabase».
@@ -531,9 +531,10 @@ YANDEX_VISION_FOLDER_ID= # или YANDEX_FOLDER_ID
 Опционально Phase 1–2 (канон §16 ТЗ-13):
 
 ```text
-# MVP: false — Storage не обязателен для OCR-read
-SUPABASE_STORAGE_OCR_FALLBACK=false
-INGEST_OCR_STORAGE_FALLBACK=false   # алиас того же флага
+# Переходный default в Settings: True (jobs пока только storage_path).
+# MVP-цель позже: false — Storage не обязателен для OCR-read.
+SUPABASE_STORAGE_OCR_FALLBACK=true   # алиас; читается resolver’ом
+INGEST_OCR_STORAGE_FALLBACK=true     # Settings.ingest_ocr_storage_fallback
 INGEST_OCR_REQUIRE_HASH_MATCH=true  # default true если checksum_sha256 задан
 ```
 
@@ -541,11 +542,13 @@ INGEST_OCR_REQUIRE_HASH_MATCH=true  # default true если checksum_sha256 за
 
 ---
 
-## 13. YDB VS Code plugin
+## 13. YDB VS Code plugin (`ydb-tech.ydb-vscode-plugin`)
 
-**Вне скоупа OCR-спринта.**
+**Phase 1: плагин не нужен.** YDB не входит в OCR-очередь, файловое хранилище и store ПДн.
 
-Плагин/контур YDB (если упоминается в org) относится к другим задачам (например Postbox / аналитика), **не** к чтению байтов документов и не к Vision/Tesseract. В PR Phase 1–5 не подключать YDB зависимости и не писать OCR через YDB.
+После пилота OCR — опционально анонимизированная аналитика `ocr_job_metrics` (без ПДн / текстов / путей с ФИО). Не реализовывать в Phase 1.
+
+Запрещено в OCR-PR: YDB SDK/клиент, таблицы, миграции, токены, MCP в prod, очереди, витрины. Токены не класть в `.vscode/settings.json`.
 
 ---
 

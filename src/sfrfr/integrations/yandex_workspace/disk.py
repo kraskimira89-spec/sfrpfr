@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import logging
 import re
+import tempfile
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -530,6 +532,87 @@ def upload_case_chat_history(
         subfolder="chat",
         folder_name=folder_name,
     )
+
+
+def download_case_file(path: str) -> dict[str, Any]:
+    """Скачать файл из SFRFR-cases (байты). Без public link.
+
+    Caller обязан удалить временные копии; для temp см. download_case_file_to_temp.
+    """
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    target = (path or "").strip()
+    if not _cases_path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            href_resp = client.get(
+                f"{_DISK_API}/resources/download",
+                params={"path": target},
+                headers=oauth_headers(),
+            )
+            if href_resp.status_code >= 400:
+                return {
+                    "ok": False,
+                    "status_code": href_resp.status_code,
+                    "detail": (href_resp.text or "")[:300],
+                    "path": target,
+                    "error": "download_href_failed",
+                }
+            href = (href_resp.json() or {}).get("href")
+            if not href:
+                return {
+                    "ok": False,
+                    "error": "no_download_href",
+                    "detail": (href_resp.text or "")[:200],
+                    "path": target,
+                }
+            get = client.get(href)
+        if get.status_code >= 400:
+            return {
+                "ok": False,
+                "status_code": get.status_code,
+                "detail": (get.text or "")[:300],
+                "path": target,
+                "error": "download_failed",
+            }
+        return {"ok": True, "path": target, "content": get.content, "size": len(get.content)}
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": type(exc).__name__,
+            "detail": str(exc)[:200],
+            "path": target,
+        }
+
+
+def download_case_file_to_temp(path: str) -> dict[str, Any]:
+    """Скачать файл дела во временный файл. Caller удаляет temp в finally."""
+    result = download_case_file(path)
+    if not result.get("ok"):
+        return result
+    content = result.get("content")
+    if not isinstance(content, (bytes, bytearray)):
+        return {"ok": False, "error": "empty_content", "path": path}
+    suffix = Path(str(path)).suffix or ".bin"
+    if len(suffix) > 16 or "/" in suffix or "\\" in suffix:
+        suffix = ".bin"
+    fd, name = tempfile.mkstemp(prefix="sfrfr-ocr-", suffix=suffix)
+    temp_path = Path(name)
+    try:
+        with open(fd, "wb") as handle:
+            handle.write(content)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+    return {
+        "ok": True,
+        "path": path,
+        "temp_path": temp_path,
+        "size": len(content),
+    }
+
 
 def _put_upload(*, path: str, content: bytes, overwrite: bool) -> dict[str, Any]:
     try:

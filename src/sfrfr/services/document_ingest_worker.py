@@ -30,6 +30,10 @@ from sfrfr.services.file_security import (
     scan_file_bytes,
     validate_file_bytes,
 )
+from sfrfr.services.ocr_source_resolver import (
+    OcrSourceUnresolved,
+    resolve_ocr_bytes_ctx,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -228,167 +232,219 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
     )
     try:
         source_path = str(row.get("storage_path") or "")
-        data = client.storage.from_(PRIVATE_STORAGE_BUCKET).download(source_path)
-        filename = Path(source_path).name or "document"
-        antivirus = (
-            AntivirusResult("clean", "manual_expert_approval")
-            if str(row.get("security_reason") or "") == "manual_expert_approval"
-            else scan_file_bytes(data, filename)
-        )
-        security_fields = {
-            "antivirus_status": antivirus.status,
-            "security_reason": antivirus.reason,
-            "security_checked_at": _now(),
-        }
-        if antivirus.status == "infected":
-            _update_document(
-                client,
-                document_id,
-                {
-                    **security_fields,
-                    "ingest_status": "blocked_security",
-                    "progress_percent": 100,
-                    "current_stage": "blocked_security",
-                    "progress_message": "Файл заблокирован проверкой безопасности.",
-                },
+        case_id = str(row.get("case_id") or job.get("case_id") or "")
+        with resolve_ocr_bytes_ctx(row, case_id=case_id) as resolved:
+            data = resolved.data
+            logger.info(
+                "ocr_source_used=%s case_id=%s",
+                resolved.source_used,
+                case_id[:8] if case_id else "",
             )
-            _update_job(
-                client,
-                job_id,
-                {
-                    "status": "failed",
-                    "progress_percent": 100,
-                    "current_stage": "blocked_security",
-                    "last_error": "antivirus_detected_threat",
-                },
+            filename = (
+                Path(resolved.local_path or "").name
+                or Path(resolved.yandex_disk_path or "").name
+                or Path(source_path).name
+                or "document"
             )
-            return {"status": "blocked_security", "document_id": document_id}
-        if not antivirus_allows(antivirus):
-            _update_document(
-                client,
-                document_id,
-                {
-                    **security_fields,
-                    "ingest_status": "manual_review",
-                    "progress_percent": 25,
-                    "current_stage": "security_review",
-                    "progress_message": (
-                        "Файл получен. Специалист завершит проверку безопасности перед обработкой."
-                    ),
-                },
+            antivirus = (
+                AntivirusResult("clean", "manual_expert_approval")
+                if str(row.get("security_reason") or "") == "manual_expert_approval"
+                else scan_file_bytes(data, filename)
             )
-            _update_job(
-                client,
-                job_id,
-                {
-                    "status": "needs_review",
-                    "progress_percent": 25,
-                    "current_stage": "security_review",
-                    "last_error": antivirus.reason,
-                },
-            )
-            return {"status": "needs_review", "document_id": document_id}
+            security_fields = {
+                "antivirus_status": antivirus.status,
+                "security_reason": antivirus.reason,
+                "security_checked_at": _now(),
+            }
+            if antivirus.status == "infected":
+                _update_document(
+                    client,
+                    document_id,
+                    {
+                        **security_fields,
+                        "ingest_status": "blocked_security",
+                        "progress_percent": 100,
+                        "current_stage": "blocked_security",
+                        "progress_message": "Файл заблокирован проверкой безопасности.",
+                    },
+                )
+                _update_job(
+                    client,
+                    job_id,
+                    {
+                        "status": "failed",
+                        "progress_percent": 100,
+                        "current_stage": "blocked_security",
+                        "last_error": "antivirus_detected_threat",
+                    },
+                )
+                return {"status": "blocked_security", "document_id": document_id}
+            if not antivirus_allows(antivirus):
+                _update_document(
+                    client,
+                    document_id,
+                    {
+                        **security_fields,
+                        "ingest_status": "manual_review",
+                        "progress_percent": 25,
+                        "current_stage": "security_review",
+                        "progress_message": (
+                            "Файл получен. Специалист завершит проверку безопасности "
+                            "перед обработкой."
+                        ),
+                    },
+                )
+                _update_job(
+                    client,
+                    job_id,
+                    {
+                        "status": "needs_review",
+                        "progress_percent": 25,
+                        "current_stage": "security_review",
+                        "last_error": antivirus.reason,
+                    },
+                )
+                return {"status": "needs_review", "document_id": document_id}
 
+            _update_document(
+                client,
+                document_id,
+                {
+                    **security_fields,
+                    "progress_percent": 30,
+                    "current_stage": "quality_check",
+                    "progress_message": "Безопасность подтверждена. Проверяем читаемость.",
+                },
+            )
+            scenarios = _scenario_codes(client, case_id)
+            result = run_document_ingest_v2(
+                data=data,
+                filename=filename,
+                content_type=str(row.get("mime_verified") or ""),
+                doc_type=row.get("doc_type"),
+                active_scenarios=scenarios,
+                duplicate_checksum=bool(row.get("duplicate_checksum")),
+                case_id=case_id,
+                document_id=document_id,
+            )
+            verified_path = _verified_path(row, filename)
+            _store_verified_copy(
+                client,
+                source_path,
+                verified_path,
+                data,
+                str(row.get("mime_verified") or ""),
+            )
+            extracted_path, manifest_path = _store_artifacts(
+                client,
+                case_id=case_id,
+                document_id=document_id,
+                extracted_text=str(result.get("extracted_text") or ""),
+                manifest=dict(result.get("manifest") or {}),
+            )
+            fields = {
+                **security_fields,
+                "storage_path": verified_path,
+                "content_preview": str(result.get("extracted_text") or "")[:2000] or None,
+                "ingest_status": result.get("ingest_status") or "under_review",
+                "progress_percent": 100,
+                "current_stage": result.get("current_stage") or result.get("ingest_status"),
+                "progress_message": result.get("progress_message"),
+                "placement_suggestion": result.get("placement_suggestion"),
+                "quality_report": result.get("quality_report"),
+                "ingest_review_required": bool(result.get("ingest_review_required")),
+                "ingest_artifact_path": extracted_path,
+                "ingest_manifest_path": manifest_path,
+                "ingest_engine": result.get("ingest_engine"),
+                "page_count": result.get("page_count"),
+            }
+            _update_document(client, document_id, fields)
+            _store_labor_drafts(
+                client,
+                case_id=case_id,
+                document_id=document_id,
+                group_id=row.get("document_group_id"),
+                drafts=list(result.get("labor_timeline_drafts") or []),
+            )
+            if result.get("ingest_status") != "blocked_security":
+                _mirror_document_after_security(
+                    case_id=case_id,
+                    filename=filename,
+                    data=data,
+                    doc_type=row.get("doc_type"),
+                )
+                _process_payment_receipt(
+                    case_id=case_id,
+                    document_id=document_id,
+                    filename=filename,
+                    data=data,
+                    actor_id=row.get("uploaded_by"),
+                    doc_type=row.get("doc_type"),
+                )
+            job_status = "needs_review" if fields["ingest_review_required"] else "completed"
+            _update_job(
+                client,
+                job_id,
+                {
+                    "status": job_status,
+                    "progress_percent": 100,
+                    "current_stage": fields["current_stage"],
+                    "last_error": None,
+                },
+            )
+            try:
+                from sfrfr.services.max_kit_status import notify_kit_status_after_ingest
+
+                placement = fields.get("placement_suggestion")
+                if not isinstance(placement, dict):
+                    placement = dict(result.get("placement_suggestion") or {})
+                notify_kit_status_after_ingest(
+                    case_id=case_id,
+                    placement_suggestion=placement,
+                    doc_type=row.get("doc_type"),
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug("kit status notify skipped", exc_info=True)
+            return {
+                "status": job_status,
+                "document_id": document_id,
+                "ocr_source_used": resolved.source_used,
+            }
+    except OcrSourceUnresolved as exc:
+        logger.warning(
+            "ocr source unresolved job=%s trace=%s",
+            job_id,
+            ",".join(exc.trace)[:200],
+        )
+        failed = attempts >= int(job.get("max_attempts") or 3)
         _update_document(
             client,
             document_id,
             {
-                **security_fields,
-                "progress_percent": 30,
-                "current_stage": "quality_check",
-                "progress_message": "Безопасность подтверждена. Проверяем читаемость.",
+                "ingest_status": "manual_review" if failed else "security_check",
+                "progress_percent": 25 if failed else 10,
+                "current_stage": "manual_review" if failed else "security_check",
+                "progress_message": (
+                    "Обработка требует проверки специалистом."
+                    if failed
+                    else "Повторяем проверку файла."
+                ),
+                "ingest_review_required": failed,
             },
         )
-        scenarios = _scenario_codes(client, str(row.get("case_id") or ""))
-        result = run_document_ingest_v2(
-            data=data,
-            filename=filename,
-            content_type=str(row.get("mime_verified") or ""),
-            doc_type=row.get("doc_type"),
-            active_scenarios=scenarios,
-            duplicate_checksum=bool(row.get("duplicate_checksum")),
-            case_id=str(row.get("case_id") or ""),
-            document_id=document_id,
-        )
-        verified_path = _verified_path(row, filename)
-        _store_verified_copy(
-            client,
-            source_path,
-            verified_path,
-            data,
-            str(row.get("mime_verified") or ""),
-        )
-        extracted_path, manifest_path = _store_artifacts(
-            client,
-            case_id=str(row.get("case_id") or ""),
-            document_id=document_id,
-            extracted_text=str(result.get("extracted_text") or ""),
-            manifest=dict(result.get("manifest") or {}),
-        )
-        fields = {
-            **security_fields,
-            "storage_path": verified_path,
-            "content_preview": str(result.get("extracted_text") or "")[:2000] or None,
-            "ingest_status": result.get("ingest_status") or "under_review",
-            "progress_percent": 100,
-            "current_stage": result.get("current_stage") or result.get("ingest_status"),
-            "progress_message": result.get("progress_message"),
-            "placement_suggestion": result.get("placement_suggestion"),
-            "quality_report": result.get("quality_report"),
-            "ingest_review_required": bool(result.get("ingest_review_required")),
-            "ingest_artifact_path": extracted_path,
-            "ingest_manifest_path": manifest_path,
-            "ingest_engine": result.get("ingest_engine"),
-            "page_count": result.get("page_count"),
-        }
-        _update_document(client, document_id, fields)
-        _store_labor_drafts(
-            client,
-            case_id=str(row.get("case_id") or ""),
-            document_id=document_id,
-            group_id=row.get("document_group_id"),
-            drafts=list(result.get("labor_timeline_drafts") or []),
-        )
-        if result.get("ingest_status") != "blocked_security":
-            _mirror_document_after_security(
-                case_id=str(row.get("case_id") or ""),
-                filename=filename,
-                data=data,
-                doc_type=row.get("doc_type"),
-            )
-            _process_payment_receipt(
-                case_id=str(row.get("case_id") or ""),
-                document_id=document_id,
-                filename=filename,
-                data=data,
-                actor_id=row.get("uploaded_by"),
-                doc_type=row.get("doc_type"),
-            )
-        job_status = "needs_review" if fields["ingest_review_required"] else "completed"
         _update_job(
             client,
             job_id,
             {
-                "status": job_status,
-                "progress_percent": 100,
-                "current_stage": fields["current_stage"],
-                "last_error": None,
+                "status": "needs_review" if failed else "queued",
+                "progress_percent": 25 if failed else 0,
+                "current_stage": "manual_review" if failed else "queued",
+                "last_error": "ocr_source_unresolved",
+                "locked_by": None,
+                "locked_at": None,
             },
         )
-        try:
-            from sfrfr.services.max_kit_status import notify_kit_status_after_ingest
-
-            placement = fields.get("placement_suggestion")
-            if not isinstance(placement, dict):
-                placement = dict(result.get("placement_suggestion") or {})
-            notify_kit_status_after_ingest(
-                case_id=str(row.get("case_id") or ""),
-                placement_suggestion=placement,
-                doc_type=row.get("doc_type"),
-            )
-        except Exception:  # noqa: BLE001
-            logger.debug("kit status notify skipped", exc_info=True)
-        return {"status": job_status, "document_id": document_id}
+        return {"status": "ocr_source_unresolved", "document_id": document_id}
     except Exception as exc:  # noqa: BLE001
         logger.exception("document ingest job failed: %s", job_id)
         failed = attempts >= int(job.get("max_attempts") or 3)

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     document_ingest_async: bool = True
     document_av_mode: str = "auto"
     document_worker_poll_seconds: float = 3.0
+    # OCR-read из Supabase Storage: default True на переход, пока local/disk paths
+    # не заполнены (Phase 2). Resolver предпочитает local → Disk при наличии.
+    # Алиас env: SUPABASE_STORAGE_OCR_FALLBACK (см. ocr_source_resolver).
+    ingest_ocr_storage_fallback: bool = True
     case_chat_outbox_poll_seconds: float = 5.0
 
     ai_provider: str = "yandex"
