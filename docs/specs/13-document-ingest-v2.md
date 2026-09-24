@@ -407,3 +407,6 @@ upload/mirror (`save_upload`, `mirror_case_document_safe`), но worker их
 
 До закрытия этапа D критерии §12 про resolve bytes — целевые; as-is
 покрывает движки и артефакты, но не SoT входа.
+
+**Coding ТЗ (фазы, resolver, OCRAdapter, тесты):**  
+➜ [13a-document-ocr-coding-tz.md](13a-document-ocr-coding-tz.md) — Phase 1 = source resolver only.
