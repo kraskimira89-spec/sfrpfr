@@ -5,7 +5,7 @@
 **Ветка фиксации SoT:** `docs/tz13-ocr-sot-local-disk`  
 **Аудитория:** coding-агент / разработчик. Без «разобраться» — только контракты, пути файлов, критерии приёмки.
 
-> **Важно:** этот документ **не** вводит второй SoT. Primary байты OCR = local + Яндекс.Диск; Supabase Storage `pension-docs` = кабинет / quarantine / verified / signed URL / артефакты и **только fallback** для байтов OCR на период миграции. Не следовать поздним paste «только Supabase».
+> **Важно:** этот документ **не** вводит второй SoT. Primary байты OCR = local + Яндекс.Диск; Supabase Storage `pension-docs` = кабинет / quarantine / verified / signed URL / артефакты / backup. OCR-read из Storage — **только** при `SUPABASE_STORAGE_OCR_FALLBACK` / `INGEST_OCR_STORAGE_FALLBACK=true` (не обязателен для MVP ТЗ-13). Канон дополнения: [13-document-ingest-v2.md](13-document-ingest-v2.md) §16. Не следовать paste «только Supabase».
 
 ---
 
@@ -16,12 +16,13 @@
 Сделать так, чтобы существующий async worker читал **байты оригинала** для OCR в порядке:
 
 ```text
-1) VPS storage/uploads/{case_id}/…   (hash / имя)
-2) Яндекс.Диск SFRFR-cases/{ФИО|uuid}/incoming|outgoing/…
-3) (fallback миграции) Supabase Storage pension-docs по documents.storage_path
+1) VPS storage/uploads/{case_id}/…   (size + sha256 + version vs реестр)
+2) Яндекс.Диск по yandex_disk_path → temp → finally delete
+3) Supabase Storage pension-docs — ТОЛЬКО если fallback-флаг = true
+4) иначе OcrSourceUnresolved (fail safe)
 ```
 
-и чтобы OCR шёл через **единый интерфейс `OCRAdapter`** поверх уже существующих движков (text-layer → Yandex Vision → Tesseract), без новой очереди и без смены executor.
+и чтобы OCR шёл через **единый интерфейс `OCRAdapter`** (Phase 3+) поверх уже существующих движков (text-layer → Yandex Vision → Tesseract), без новой очереди и без смены executor. **Phase 1 не трогает** `INGEST_OCR_ENGINE`.
 
 ### 1.2. Out of scope (запрещено вносить в рамках этого ТЗ)
 
@@ -63,7 +64,7 @@ data = client.storage.from_(PRIVATE_STORAGE_BUCKET).download(source_path)
 - Единственный вход OCR — Supabase Storage `pension-docs`.
 - Local и Disk уже пишутся при upload/mirror, но **worker их не читает**.
 
-**To-be:** вызов `resolve_ocr_bytes(document_row) → ResolvedBytes` **до** antivirus/OCR; Storage — последняя ветка.
+**To-be:** вызов `resolve_ocr_bytes(document_row) → ResolvedBytes` **до** antivirus/OCR; Storage — только при флаге; иначе fail safe.
 
 ### 2.3. Запись оригиналов (уже есть, но метаданные не в БД)
 
@@ -124,20 +125,24 @@ data = client.storage.from_(PRIVATE_STORAGE_BUCKET).download(source_path)
 
 | Поле | Тип | Смысл |
 |------|-----|--------|
-| `checksum_sha256` | text | уже есть; канон hash содержимого |
+| `checksum_sha256` | text | уже есть; канон hash содержимого (= `sha256` в §16) |
+| `size_bytes` | bigint null | целевое; as-is может отсутствовать — Phase 2; до колонки сверять len(data) после чтения |
 | `document_version` | int not null default 1 | инкремент при re-upload / rerun OCR с новым артефактом |
 | `local_path` | text null | абсолютный или относительный к `storage_local_path` путь VPS |
-| `yandex_disk_path` | text null | полный путь API, напр. `disk:/SFRFR-cases/Иванов Иван/incoming/ils.pdf` |
-| `storage_path` | text | уже есть; quarantine/verified в `pension-docs` |
-| `primary_ocr_source` | text null | ожидаемый primary при enqueue: `local` \| `yandex_disk` \| `storage` |
-| `ocr_source_used` | text null | фактический источник байтов последнего успешного resolve |
+| `local_status` | text null | опционально: `present` \| `missing` \| `corrupt` \| … |
+| `yandex_disk_path` | text null | полный путь API, напр. `disk:/SFRFR-cases/…/incoming/ils.pdf` |
+| `yandex_disk_status` | text null | опционально |
+| `storage_path` | text | уже есть; quarantine/verified в `pension-docs` (= `supabase_storage_path`) |
+| `primary_ocr_source` | text null | ожидаемый primary при enqueue |
+| `ocr_source_used` | text null | фактический источник байтов последнего успешного resolve (**один** на job run) |
+| `ocr_source_verified_at` | timestamptz null | когда hash/source подтверждены |
 | `ingest_status` | text | as-is enum-строки |
 | `ingest_review_required` | bool | as-is |
 
-Допустимые значения `*_ocr_source*`:
+Допустимые значения `*_ocr_source*` (канон §16; алиасы в скобках):
 
 ```text
-local | yandex_disk | storage | none
+local_storage (local) | yandex_disk | supabase_storage (storage) | none
 ```
 
 ### 3.2. `document_ingest_jobs` — audit (Phase 2)
@@ -188,10 +193,13 @@ resolve_ocr_bytes(document: dict, *, case_id: str) -> ResolvedBytes
 class ResolvedBytes:
     data: bytes
     sha256: str
-    source_used: Literal["local", "yandex_disk", "storage"]
+    size_bytes: int
+    source_used: Literal["local_storage", "yandex_disk", "supabase_storage"]
+    # алиасы local/storage допустимы при записи в БД — нормализовать к канону §16
     local_path: str | None
     yandex_disk_path: str | None
     storage_path: str | None
+    document_version: int | None
     temp_path: Path | None   # если скачали с Диска во временный файл
 ```
 
@@ -200,43 +208,48 @@ class ResolvedBytes:
 ### 4.2. Алгоритм (псевдокод)
 
 ```text
-expected_hash = document.checksum_sha256  # если пусто — считать после чтения и записать позже
+expected_hash = document.checksum_sha256
+expected_size = document.size_bytes   # если колонки нет — skip size check
+expected_ver  = document.document_version  # если нет — считать 1 / skip
 
 1. LOCAL
    candidates =
      - document.local_path если задан и файл существует
      - иначе scan storage/uploads/{case_id}/:
-         * точное совпадение безопасного имени / суффикса original name
-         * ИЛИ sha256 файла == expected_hash
+         * sha256 файла == expected_hash
+         * (не брать только по имени)
    if found:
      data = read_bytes
-     if expected_hash and sha256(data) != expected_hash → skip (не молча брать чужой файл)
-     else return ResolvedBytes(source_used="local", …)
+     if expected_size and len(data) != expected_size → skip
+     if expected_hash and sha256(data) != expected_hash → skip
+     # version: если в meta файла/имени нет — доверять row.document_version
+     return ResolvedBytes(source_used="local_storage", …)
 
 2. YANDEX_DISK
    path = document.yandex_disk_path
    if not path:
-     # НЕ искать по ФИО. Разрешено только собрать path из УЖЕ известных
-     # folder_name + subfolder + remote_name, сохранённых в meta документа
-     # (после Phase 2). Без meta → skip Disk.
+     # НЕ искать по ФИО. Только известный path / segment+name из meta (Phase 2).
+     # Без meta → skip Disk.
    download to tempfile (suffix по имени)
    try:
      data = read temp
+     if expected_size and len(data) != expected_size → fail this branch
      if expected_hash and sha256(data) != expected_hash → fail this branch
      return ResolvedBytes(source_used="yandex_disk", temp_path=…)
    finally:
      # вызывающий ОБЯЗАН удалить temp в finally; resolver может
      # предоставить contextmanager resolve_ocr_bytes_ctx(...)
 
-3. STORAGE FALLBACK (миграция)
-   if document.storage_path:
+3. STORAGE FALLBACK — только если
+   SUPABASE_STORAGE_OCR_FALLBACK или INGEST_OCR_STORAGE_FALLBACK == true
+   if flag and document.storage_path:
      data = supabase.storage.download(storage_path)
-     verify hash if expected
-     return source_used="storage"
+     verify size/hash if expected
+     return source_used="supabase_storage"
 
 4. FAIL SAFE
    raise OcrSourceUnresolved — job → needs_review / retry per existing policy
-   НЕ вызывать OCR на пустых/чужих байтах
+   НЕ вызывать OCR; НЕ молча падать на Storage без флага
 ```
 
 ### 4.3. Download с Диска (нужен для Phase 1 Disk-ветки)
@@ -273,11 +286,13 @@ finally:
 
 ### 4.5. Приёмка Phase 1
 
-- [ ] При наличии local файла с тем же sha256 worker **не** вызывает Storage download (unit mock).
+- [ ] При наличии local файла с тем же sha256(+size) worker **не** вызывает Storage download (unit mock).
 - [ ] При отсутствии local и наличии `yandex_disk_path` — temp download + delete в finally (mock Disk).
-- [ ] При отсутствии local/Disk — fallback Storage (как as-is).
-- [ ] Hash mismatch → не использовать файл, следующая ветка / fail.
-- [ ] Нет Celery/новой очереди; systemd unit без изменений по смыслу.
+- [ ] При `INGEST_OCR_STORAGE_FALLBACK=false` (или unset=false для MVP) и без local/Disk — `OcrSourceUnresolved`, **не** Storage.
+- [ ] При флаге fallback true и отсутствии local/Disk — Storage как as-is.
+- [ ] Hash/size mismatch → не использовать файл, следующая ветка / fail.
+- [ ] Один `ocr_source_used` на job run (когда колонка есть — Phase 2; в Phase 1 — хотя бы в возврате ResolvedBytes / лог без ПДн).
+- [ ] Нет Celery/новой очереди; systemd unit без изменений по смыслу; `INGEST_OCR_ENGINE` не трогать.
 - [ ] Нет поиска по ФИО: unit-тест, что resolver не вызывает `lookup_case_client_full_name` для resolve.
 
 ---
@@ -342,13 +357,14 @@ cabinet / MAX upload
         save_upload + mirror_case_document_safe
         записать local_path / yandex_disk_path (Phase 2)
   → systemd worker: process_next_document_ingest_job
-        resolve_ocr_bytes: local → Disk(temp) → Storage
+        resolve_ocr_bytes: local → Disk(temp) → Storage(только флаг)
         antivirus
-        run_document_ingest_v2 (engines)
+        run_document_ingest_v2 (engines)  # Phase 1: без смены INGEST_OCR_ENGINE
         quality gate / employment policy
-        artifacts → pension-docs/ingest/…
+        artifacts → pension-docs/ingest/…   # не storage/processed/
         verified copy в Storage (кабинет)
         job completed | needs_review
+        зафиксировать ocr_source_used (Phase 2 колонка)
   → expert HITL (admin ingest-review) при ingest_review_required
   → только после verified / accept:
         classify / extract / audit_ils / draft (LLM)
@@ -402,7 +418,7 @@ cabinet / MAX upload
 | Phase | Содержание | Acceptance |
 |-------|------------|------------|
 | **0** | Audit (этот документ + ТЗ-13 §15) | Зафиксированы gaps: Storage-only download; нет Disk download; нет path columns; нет OCRAdapter; трудовая не always-review |
-| **1** | **Source resolver only** | §4.5; worker читает local→Disk→Storage; движки OCR **без изменений** |
+| **1** | **Source resolver only** | §4.5; worker local→Disk→(Storage по флагу); движки OCR **без изменений**; без toggle `INGEST_OCR_ENGINE` |
 | **2** | Job/document audit fields | Миграция колонок §3; запись paths при mirror/upload; `ocr_source_used` после resolve |
 | **3** | OCRAdapter thin wrap | Protocol + wrap Vision/Tesseract/text_layer; тесты mock; confidence nullable |
 | **4** | Quality gate employment book | Always `ingest_review_required` для labor_*; тест |
@@ -474,7 +490,8 @@ cabinet / MAX upload
 | `test_resolve_prefers_local_hash_match` | Storage download **не** вызван |
 | `test_resolve_disk_temp_deleted` | после context/finally файла нет |
 | `test_resolve_hash_mismatch_skips_local` | переход к следующей ветке |
-| `test_resolve_storage_fallback` | когда local/disk пусты |
+| `test_resolve_storage_fallback_only_when_flag` | при false — Storage не вызван; raise |
+| `test_resolve_storage_fallback_when_flag` | когда local/disk пусты и flag=true |
 | `test_resolve_does_not_lookup_fio` | нет вызова `lookup_case_client_full_name` |
 | `test_unresolved_raises` | fail safe |
 
@@ -511,11 +528,13 @@ YANDEX_VISION_API_KEY=   # или YANDEX_API_KEY
 YANDEX_VISION_FOLDER_ID= # или YANDEX_FOLDER_ID
 ```
 
-Опционально Phase 1–2:
+Опционально Phase 1–2 (канон §16 ТЗ-13):
 
 ```text
-INGEST_OCR_STORAGE_FALLBACK=true   # default true на миграции; false = fail без Storage
-INGEST_OCR_REQUIRE_HASH_MATCH=true # default true если checksum_sha256 задан
+# MVP: false — Storage не обязателен для OCR-read
+SUPABASE_STORAGE_OCR_FALLBACK=false
+INGEST_OCR_STORAGE_FALLBACK=false   # алиас того же флага
+INGEST_OCR_REQUIRE_HASH_MATCH=true  # default true если checksum_sha256 задан
 ```
 
 Секреты не коммитить.
