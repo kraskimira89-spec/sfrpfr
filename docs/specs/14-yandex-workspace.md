@@ -23,14 +23,14 @@
 - создавать ссылку на консультацию (Телемост);
 - ставить слоты в календаре;
 - (опционально) складывать **не-ПДн** операционные файлы на Диск (`SFRFR-ops`);
-- зеркалировать сканы дел в `disk:/SFRFR-cases/{case_id}/` (best-effort; primary — Supabase).
+- держать сканы дел в `disk:/SFRFR-cases/{ФИО}/` (вместе с local — primary вход OCR по ТЗ-13; кабинетный Storage — quarantine/UI).
 
 Это **не** замена:
 
-| Уже есть | Остаётся источником истины |
-|----------|----------------------------|
-| Supabase Storage | сканы ИЛС / трудовой / ПДн (primary) |
-| Яндекс Диск `SFRFR-cases` | зеркало тех же сканов для сотрудников |
+| Уже есть | Роль |
+|----------|------|
+| Supabase Storage | кабинет / quarantine / verified / превью |
+| Local + Яндекс Диск `SFRFR-cases` | primary вход OCR (ТЗ-13); доступ сотрудников к оригиналам |
 | amoCRM | воронка и контакты лида |
 | MAX | основной клиентский канал |
 | Yandex Cloud AI Studio | GPT / Vision (другой контур, API-ключ folder) |
@@ -53,8 +53,9 @@
 
 1. Один служебный аккаунт `proverkastaza@yandex.ru` (или ящик организации 360) — токены только на сервере.
 2. **Минимум scopes** — только то, что реально используем в MVP.
-3. **Документы дел:** источник истины — Supabase Storage (кабинет);
-   на Диск — **best-effort зеркало** `disk:/SFRFR-cases/{ФИО}/`
+3. **Документы дел:** для кабинета / quarantine / verified — Supabase Storage
+   `pension-docs`; для **входа OCR** (ТЗ-13) primary — local `storage/uploads`
+   + Диск `disk:/SFRFR-cases/{ФИО}/` (не «только зеркало»). На Диске:
    (папка = **ФИО клиента** «Фамилия Имя Отчество», fallback UUID;
    без телефона/СНИЛС):
    - `incoming/` — сканы клиента (оригинал байт-в-байт);
@@ -83,7 +84,7 @@
 | Сервис | Use-case | Ограничение |
 |--------|----------|-------------|
 | **Почта IMAP** | читать входящие на ящик поддержки, линковать к делу | только с правилами ПДн; не автосоздавать дело из СНИЛС в письме |
-| **Яндекс Диск** | (1) ops-шаблоны `SFRFR-ops`; (2) зеркало дела `SFRFR-cases/{ФИО}/{incoming\|outgoing\|chat}` | папка = ФИО (fallback UUID); без телефона/СНИЛС; primary = Supabase |
+| **Яндекс Диск** | (1) ops-шаблоны `SFRFR-ops`; (2) дела `SFRFR-cases/{ФИО}/{incoming\|outgoing\|chat}` — primary вход OCR вместе с local (ТЗ-13); кабинетный Storage — quarantine/UI | папка = ФИО (fallback UUID); без телефона/СНИЛС |
 | **Адресная книга** | редко | не дублировать amoCRM |
 
 ### 4.3. Вне scope ТЗ-14
@@ -228,7 +229,7 @@ Admin API (ТЗ-04):
 - Refresh token хранить encrypted at rest (или OS permissions 600 на VPS).
 - Не логировать тело писем и OAuth token.
 - При компрометации: отозвать приложение на oauth.yandex.ru, перевыпустить токен.
-- Диск: `YANDEX_DISK_ENABLED=true` → `disk:/SFRFR-ops` (ops) и зеркало `disk:/SFRFR-cases/{case_id}` (сканы; primary = Supabase/local).
+- Диск: `YANDEX_DISK_ENABLED=true` → `disk:/SFRFR-ops` (ops) и `disk:/SFRFR-cases/{ФИО}` (оригиналы; OCR SoT — ТЗ-13, вместе с local).
 
 ---
 
