@@ -341,7 +341,9 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "current_stage": "quality_check",
                 "progress_message": "Безопасность подтверждена. Проверяем читаемость.",
             }
-            if row.get("local_path") or resolved.source_used == "local_storage":
+            # Только фактический local OCR (hash-verified). Наличие local_path в row
+            # не доказывает, что файл жив — resolver мог уйти в disk/storage.
+            if resolved.source_used == "local_storage":
                 verified_fields["local_status"] = "verified"
             _update_document(client, document_id, verified_fields)
             scenarios = _scenario_codes(client, case_id)

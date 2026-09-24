@@ -398,6 +398,105 @@ def test_audit_after_resolve_and_safe_trace(monkeypatch: pytest.MonkeyPatch) -> 
     assert verified
 
 
+def test_local_status_verified_only_when_source_is_local(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """local_path в row ≠ verified: fallback на Disk не помечает local verified."""
+    from contextlib import contextmanager
+
+    from sfrfr.services import document_ingest_worker as worker
+
+    payload = b"%PDF-disk-fallback"
+    digest = _sha(payload)
+    doc_updates: list[dict] = []
+
+    class _Table:
+        def select(self, *_a, **_k) -> _Table:
+            return self
+
+        def eq(self, *_a, **_k) -> _Table:
+            return self
+
+        def limit(self, *_a, **_k) -> _Table:
+            return self
+
+        def update(self, *_a, **_k) -> _Table:
+            return self
+
+        def execute(self) -> MagicMock:
+            return MagicMock(
+                data=[
+                    {
+                        "id": "job-1",
+                        "document_id": "doc-1",
+                        "case_id": CASE_ID,
+                        "status": "queued",
+                        "attempts": 0,
+                        "max_attempts": 3,
+                        "storage_path": "quarantine/x/a.pdf",
+                        "checksum_sha256": digest,
+                        "mime_verified": "application/pdf",
+                        "security_reason": "manual_expert_approval",
+                        # path ещё в БД, но файл уже недоступен → OCR с Диска
+                        "local_path": f"quarantine/{CASE_ID}/gone.pdf",
+                        "local_status": "quarantine",
+                    }
+                ]
+            )
+
+    client = MagicMock()
+    client.table = MagicMock(return_value=_Table())
+    client.storage = MagicMock()
+
+    @contextmanager
+    def _fake_ctx(*_a, **_k):
+        yield ResolvedBytes(
+            data=payload,
+            sha256=digest,
+            size_bytes=len(payload),
+            source_used="yandex_disk",
+            local_path=f"quarantine/{CASE_ID}/gone.pdf",
+            yandex_disk_path="disk:/SFRFR-cases/x/incoming/a.pdf",
+            resolve_trace=("local_path_miss_or_hash_mismatch",),
+        )
+
+    monkeypatch.setattr(worker, "get_supabase_client", lambda: client)
+    monkeypatch.setattr(worker, "resolve_ocr_bytes_ctx", _fake_ctx)
+    monkeypatch.setattr(
+        worker,
+        "_update_document",
+        lambda _c, _id, fields: doc_updates.append(dict(fields)),
+    )
+    monkeypatch.setattr(worker, "_update_job", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        worker,
+        "run_document_ingest_v2",
+        lambda **k: {
+            "ingest_status": "under_review",
+            "current_stage": "under_review",
+            "progress_message": "ok",
+            "placement_suggestion": {},
+            "quality_report": {},
+            "ingest_review_required": False,
+            "extracted_text": "t",
+            "manifest": {},
+            "ingest_engine": "text_layer",
+            "page_count": 1,
+            "labor_timeline_drafts": [],
+        },
+    )
+    monkeypatch.setattr(worker, "_store_verified_copy", lambda *a, **k: None)
+    monkeypatch.setattr(worker, "_store_artifacts", lambda *a, **k: ("e", "m"))
+    monkeypatch.setattr(worker, "_store_labor_drafts", lambda *a, **k: None)
+    monkeypatch.setattr(worker, "_mirror_document_after_security", lambda **k: None)
+    monkeypatch.setattr(worker, "_process_payment_receipt", lambda **k: None)
+    monkeypatch.setattr(worker, "_scenario_codes", lambda *a, **k: set())
+
+    out = worker.process_document_ingest_job("job-1")
+    assert out.get("ocr_source_used") == "yandex_disk"
+    assert not any(u.get("local_status") == "verified" for u in doc_updates)
+
+
 def test_unresolved_does_not_set_false_source_used(monkeypatch: pytest.MonkeyPatch) -> None:
     from contextlib import contextmanager
 
