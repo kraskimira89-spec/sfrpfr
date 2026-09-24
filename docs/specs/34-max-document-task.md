@@ -176,7 +176,32 @@ https://{домен}/max/documents?case={case_id}&task={task_id}&token={signed}
 | `source` | `max_miniapp` \| `web_cabinet` \| `staff_import` \| `email` |
 | `experiment_group` | `A` \| `B` (для A/B) |
 
+### 5.1 Идемпотентность и повторная отправка
+
+Для одного `case_id` одновременно допускается **не более одной активной**
+`document_request_task` с `task_type = initial_document_pack`.
+
+**Активные статусы:**  
+`draft`, `sent`, `opened`, `upload_started`, `received`, `under_review`, `revision_needed`.
+
+(Неактивные / терминальные: `accepted`, `expired`, `cancelled`.)
+
+**При повторном «Отправить запрос» / `document-task-send`:**
+
+1. если активная задача есть — **переиспользовать её** (не создавать вторую);
+2. безопасно **переиздать** secure-link (`purpose=upload`, старый токен revoke / expire);
+3. обновить `deep_link_sent_at` (и при необходимости `due_at`);
+4. **не** сбрасывать `first_upload_at` и историю событий воронки;
+5. вторую задачу того же типа создавать **только** по явной команде
+   «Создать новую задачу» (отдельный флаг/CLI), например после `accepted` /
+   `cancelled` / `expired`.
+
+Так клиент не получает разные ссылки и противоречивые напоминания, а A/B
+не считает одно дело несколько раз.
+
 Миграция: новая таблица `document_request_tasks` (имя уточнить в PR) + RLS/service role как у cases.
+Частичный уникальный индекс (или аналог в приложении): не более одной строки
+с `task_type = initial_document_pack` в активном статусе на `case_id`.
 
 В админке (минимум после первого теста): колонка/бейдж статуса задачи на карточке дела; кнопка «Отправить запрос документов».
 
@@ -221,12 +246,14 @@ https://{домен}/max/documents?case={case_id}&task={task_id}&token={signed}
 
 ### Срез 1 — MVP без полной админки (достаточно для A/B)
 
-1. Таблица `document_request_tasks` + сервис create/send/remind.
+1. Таблица `document_request_tasks` + сервис create/send/remind
+   (**идемпотентность §5.1**: одна активная задача на дело, переиздание ссылки).
 2. `issue_upload_link` (purpose=`upload`) + secure page «задача + загрузка».
 3. Отправка текста §3.2 в MAX с кнопкой URL.
 4. Хук: успешный upload (MAX chat или secure page) → обновить `first_upload_at` / статусы / «1 из N».
-5. Reminder job (+24 ч, +3 дня) по `reminder_count`.
-6. CLI или admin-only: `sfrfr document-task-send --case-id … --group B`.
+5. Reminder job (+24 ч, +3 дня) по `reminder_count` (только для активной задачи).
+6. CLI или admin-only: `sfrfr document-task-send --case-id … --group B`
+   (повторный вызов = resend по §5.1, не duplicate).
 7. Флаг `DOCUMENT_REQUEST_TASK_ENABLED` (default off).
 
 ### Срез 2 — CRM
