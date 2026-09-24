@@ -537,14 +537,25 @@ def upload_case_chat_history(
 def download_case_file(path: str) -> dict[str, Any]:
     """Скачать файл из SFRFR-cases (байты). Без public link.
 
+    Публичные ошибки: только ``ok``, ``error``, опционально ``status_code`` —
+    без Disk path (может содержать ФИО), body API и href.
     Caller обязан удалить временные копии; для temp см. download_case_file_to_temp.
     """
     ok, skipped = _enabled()
     if not ok and skipped:
-        return skipped
+        # skipped уже без Disk path (oauth/enabled reasons).
+        return {
+            "ok": False,
+            "error": str(skipped.get("error") or skipped.get("reason") or "disk_disabled"),
+            **(
+                {"status_code": skipped["status_code"]}
+                if isinstance(skipped.get("status_code"), int)
+                else {}
+            ),
+        }
     target = (path or "").strip()
     if not _cases_path_allowed(target):
-        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+        return {"ok": False, "error": "path_forbidden_by_cases_policy"}
     try:
         with httpx.Client(timeout=60.0) as client:
             href_resp = client.get(
@@ -556,46 +567,43 @@ def download_case_file(path: str) -> dict[str, Any]:
                 return {
                     "ok": False,
                     "status_code": href_resp.status_code,
-                    "detail": (href_resp.text or "")[:300],
-                    "path": target,
                     "error": "download_href_failed",
                 }
             href = (href_resp.json() or {}).get("href")
             if not href:
-                return {
-                    "ok": False,
-                    "error": "no_download_href",
-                    "detail": (href_resp.text or "")[:200],
-                    "path": target,
-                }
+                return {"ok": False, "error": "no_download_href"}
             get = client.get(href)
         if get.status_code >= 400:
             return {
                 "ok": False,
                 "status_code": get.status_code,
-                "detail": (get.text or "")[:300],
-                "path": target,
                 "error": "download_failed",
             }
-        return {"ok": True, "path": target, "content": get.content, "size": len(get.content)}
+        return {"ok": True, "content": get.content, "size": len(get.content)}
     except Exception as exc:  # noqa: BLE001
-        return {
-            "ok": False,
-            "error": type(exc).__name__,
-            "detail": str(exc)[:200],
-            "path": target,
-        }
+        logger.info("disk download failed: %s", type(exc).__name__)
+        return {"ok": False, "error": type(exc).__name__}
 
 
 def download_case_file_to_temp(path: str) -> dict[str, Any]:
     """Скачать файл дела во временный файл. Caller удаляет temp в finally."""
     result = download_case_file(path)
     if not result.get("ok"):
-        return result
+        return {
+            "ok": False,
+            "error": str(result.get("error") or "download_failed"),
+            **(
+                {"status_code": result["status_code"]}
+                if isinstance(result.get("status_code"), int)
+                else {}
+            ),
+        }
     content = result.get("content")
     if not isinstance(content, (bytes, bytearray)):
-        return {"ok": False, "error": "empty_content", "path": path}
-    suffix = Path(str(path)).suffix or ".bin"
+        return {"ok": False, "error": "empty_content"}
+    # Суффикс только из безопасного basename (не полный Disk path в логах).
+    raw_name = Path(str(path).rstrip("/")).name
+    suffix = Path(raw_name).suffix or ".bin"
     if len(suffix) > 16 or "/" in suffix or "\\" in suffix:
         suffix = ".bin"
     fd, name = tempfile.mkstemp(prefix="sfrfr-ocr-", suffix=suffix)
@@ -608,7 +616,6 @@ def download_case_file_to_temp(path: str) -> dict[str, Any]:
         raise
     return {
         "ok": True,
-        "path": path,
         "temp_path": temp_path,
         "size": len(content),
     }

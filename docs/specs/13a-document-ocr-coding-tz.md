@@ -531,16 +531,31 @@ YANDEX_VISION_FOLDER_ID= # или YANDEX_FOLDER_ID
 Опционально Phase 1–2 (канон §16 ТЗ-13):
 
 ```text
-# Переходный default в Settings: True (jobs пока только storage_path).
-# MVP-цель позже: false — Storage не обязателен для OCR-read.
+# Переходный режим (Phase 1):
+# Storage fallback временно включён только ради совместимости
+# с уже созданными jobs без local_path/yandex_disk_path.
+# На VPS задавать явно в .env (не полагаться молча на Python default):
+INGEST_OCR_STORAGE_FALLBACK=true
 SUPABASE_STORAGE_OCR_FALLBACK=true   # алиас; читается resolver’ом
-INGEST_OCR_STORAGE_FALLBACK=true     # Settings.ingest_ocr_storage_fallback
+#
+# Условие отключения (Phase 2 / ops):
+# после заполнения path-полей для новых загрузок и backfill
+# актуальных документов → INGEST_OCR_STORAGE_FALLBACK=false
+# (целевой default в Settings тогда тоже False).
 INGEST_OCR_REQUIRE_HASH_MATCH=true  # default true если checksum_sha256 задан
 ```
 
-Секреты не коммитить.
+При фактическом выборе `supabase_storage` worker/resolver пишет только безопасный
+warning: `ocr_source_fallback=storage reason=no_verified_local_or_disk_source`
+(без путей, ФИО, hash, текста документа).
 
----
+`document.local_path` читается **только** если путь внутри `uploads_root()` /
+`storage_local_path` (иначе trace `local_path_outside_uploads_root`).
+
+Ошибки Disk download в публичном API: только `ok` / `error` / `status_code` —
+без Disk path, `detail`, href и тела ответа.
+
+Секреты не коммитить.
 
 ## 13. YDB VS Code plugin (`ydb-tech.ydb-vscode-plugin`)
 

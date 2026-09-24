@@ -101,6 +101,41 @@ def test_local_hash_mismatch_skips_to_disk(tmp_path: Path, monkeypatch: pytest.M
     storage_dl.assert_not_called()
 
 
+def test_local_path_outside_uploads_root_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """local_path вне storage/uploads не читается, даже при совпадении hash."""
+    payload = b"secret-outside"
+    digest = _sha(payload)
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+    outside = tmp_path / "etc" / "passwd-like.bin"
+    outside.parent.mkdir()
+    outside.write_bytes(payload)
+
+    monkeypatch.setenv("STORAGE_LOCAL_PATH", str(uploads))
+    get_settings.cache_clear()
+
+    disk_dl = MagicMock(side_effect=AssertionError("disk must not be called"))
+    storage_dl = MagicMock(return_value=payload)
+
+    resolved = resolve_ocr_bytes(
+        {
+            "checksum_sha256": digest,
+            "local_path": str(outside),
+            "storage_path": "quarantine/x/scan.pdf",
+        },
+        case_id=CASE_ID,
+        storage_download=storage_dl,
+        disk_download_to_temp=disk_dl,
+        storage_fallback=True,
+    )
+
+    assert resolved.source_used == "supabase_storage"
+    storage_dl.assert_called_once()
+    disk_dl.assert_not_called()
+
+
 def test_disk_temp_deleted_in_ctx_finally(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     payload = b"from-disk"
     digest = _sha(payload)

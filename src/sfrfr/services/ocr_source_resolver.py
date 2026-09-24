@@ -81,6 +81,17 @@ def _matches_expected(
     return True
 
 
+def _is_under_uploads_root(path: Path) -> bool:
+    """``local_path`` разрешён только внутри ``uploads_root()``."""
+    try:
+        resolved = path.expanduser().resolve(strict=False)
+        root = uploads_root().expanduser().resolve(strict=False)
+        resolved.relative_to(root)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
 def _try_local_path(
     path: Path,
     *,
@@ -183,25 +194,29 @@ def resolve_ocr_bytes(
     yandex_disk_path = str(document.get("yandex_disk_path") or "").strip() or None
     local_path_raw = str(document.get("local_path") or "").strip() or None
 
-    # 1) LOCAL — explicit path
+    # 1) LOCAL — explicit path (только внутри uploads_root)
     if local_path_raw:
-        found = _try_local_path(
-            Path(local_path_raw),
-            expected_hash=expected_hash,
-            expected_size=expected_size,
-        )
-        if found:
-            return ResolvedBytes(
-                data=found.data,
-                sha256=found.sha256,
-                size_bytes=found.size_bytes,
-                source_used="local_storage",
-                local_path=found.local_path,
-                yandex_disk_path=yandex_disk_path,
-                storage_path=storage_path,
-                document_version=document_version,
+        candidate = Path(local_path_raw)
+        if not _is_under_uploads_root(candidate):
+            trace.append("local_path_outside_uploads_root")
+        else:
+            found = _try_local_path(
+                candidate,
+                expected_hash=expected_hash,
+                expected_size=expected_size,
             )
-        trace.append("local_path_miss_or_hash_mismatch")
+            if found:
+                return ResolvedBytes(
+                    data=found.data,
+                    sha256=found.sha256,
+                    size_bytes=found.size_bytes,
+                    source_used="local_storage",
+                    local_path=found.local_path,
+                    yandex_disk_path=yandex_disk_path,
+                    storage_path=storage_path,
+                    document_version=document_version,
+                )
+            trace.append("local_path_miss_or_hash_mismatch")
 
     # 1b) LOCAL — scan uploads/{case_id}/ by sha256
     scanned = _scan_local_by_hash(
@@ -264,9 +279,8 @@ def resolve_ocr_bytes(
         try:
             data = downloader_s(storage_path)
             if _matches_expected(data, expected_hash=expected_hash, expected_size=expected_size):
-                logger.info(
-                    "ocr_source_used=supabase_storage case_id=%s",
-                    case_id[:8],
+                logger.warning(
+                    "ocr_source_fallback=storage reason=no_verified_local_or_disk_source"
                 )
                 return ResolvedBytes(
                     data=data,
