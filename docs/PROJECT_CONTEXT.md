@@ -69,7 +69,8 @@ Kanban сотрудника — ТЗ-33 / `funnel_board.py`.
 3. **Трудовая не всегда уходит в HITL** в текущем `document_ingest_v2` (флаг по качеству OCR, не по типу документа).
 4. Classify/analyze / оферта DIAG могут идти вперёд без подтверждения трудовой и без бесплатного резюме.
 5. Сущности `free_summary` в коде нет (есть только бесплатный чек-лист lead magnet).
-6. amoCRM не должна участвовать в этом контуре (`AMOCRM_ENABLED=0`).
+6. Старый [`b2c-customer-journey.md`](b2c-customer-journey.md) ещё описывает оплату DIAG раньше целевого free-gate — при коде E/F синхронизировать.
+7. amoCRM не должна участвовать в этом контуре (`AMOCRM_ENABLED=0`).
 
 Подробное ТЗ + карта кода: [`specs/35-ai-document-intake-and-free-summary.md`](specs/35-ai-document-intake-and-free-summary.md) §15.
 

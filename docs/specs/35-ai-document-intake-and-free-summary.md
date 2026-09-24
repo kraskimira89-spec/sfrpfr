@@ -211,6 +211,7 @@ HITL **обязателен**, если хотя бы одно:
 5. Artifacts/оригинал недоступны, пока quarantine / `OcrSourceUnresolved`.
 6. **Трудовая не всегда HITL:** в `document_ingest_v2` флаг `ingest_review_required` ставится по качеству OCR, а не по типу `labor_book`. В `document_ingest.py` `is_labor` даёт только `labor_timeline_drafts`, без принудительного review.
 7. Оферта DIAG часто идёт после «ИЛС+трудовая есть», **минуя** бесплатное резюме по распознанным данным.
+8. **Конфликт документов:** [`b2c-customer-journey.md`](../b2c-customer-journey.md) и часть playbook’ов всё ещё описывают путь через `diagnostic_paid` **до/вокруг** разбора сканов; целевой канон — этот файл + `PROJECT_CONTEXT` (docs → OCR → HITL → **free summary** → DIAG). При реализации этапа E/F обновить `b2c-customer-journey.md` и ссылки в маркетинге, не плодить третью модель.
 
 ### Приоритет этапов относительно кода
 
