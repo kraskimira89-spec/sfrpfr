@@ -171,6 +171,141 @@ def cleanup_duplicate_uuid_folders(*, dry_run: bool = True) -> dict[str, Any]:
     }
 
 
+def rename_uuid_folders_to_fio(*, dry_run: bool = True) -> dict[str, Any]:
+    """Переименовать UUID-папку в ФИО, если ФИО-папки ещё нет."""
+    folders = list_case_folders()
+    folder_set = {f for f in folders}
+    actions: list[dict[str, Any]] = []
+    for folder in folders:
+        if not _is_uuid(folder):
+            continue
+        target = format_case_disk_folder_name(lookup_case_client_full_name(folder), case_id=folder)
+        if not target or target.lower() == folder.lower() or _is_uuid(target):
+            actions.append(
+                {
+                    "action": "skip",
+                    "folder": folder,
+                    "reason": "no_fio_or_placeholder",
+                }
+            )
+            continue
+        if target in folder_set:
+            continue  # есть дубль — это зона migrate/cleanup
+        if dry_run:
+            actions.append({"action": "would_rename", "folder": folder, "target": target})
+            continue
+        result = move_case_path(_case_root(folder), _case_root(target))
+        if result.get("ok"):
+            folder_set.discard(folder)
+            folder_set.add(target)
+        actions.append(
+            {
+                "action": "renamed" if result.get("ok") else "rename_failed",
+                "folder": folder,
+                "target": target,
+                "detail": result.get("detail") or result.get("error"),
+            }
+        )
+    return {
+        "ok": True,
+        "dry_run": dry_run,
+        "renamed": sum(1 for a in actions if a["action"] in {"renamed", "would_rename"}),
+        "actions": actions,
+    }
+
+
+def migrate_uuid_into_fio(*, dry_run: bool = True) -> dict[str, Any]:
+    """Перенести уникальные файлы из UUID-папки в ФИО, затем удалить UUID."""
+    folders = list_case_folders()
+    fio_folders = {f for f in folders if not _is_uuid(f)}
+    actions: list[dict[str, Any]] = []
+    for folder in folders:
+        if not _is_uuid(folder):
+            continue
+        target = format_case_disk_folder_name(lookup_case_client_full_name(folder), case_id=folder)
+        if target.lower() == folder.lower() or target not in fio_folders:
+            continue
+        uuid_tree = read_case_tree(folder)
+        fio_names = _content_names(read_case_tree(target))
+        to_move = _unique_file_paths(uuid_tree, fio_names)
+        if dry_run:
+            actions.append(
+                {
+                    "action": "would_migrate",
+                    "folder": folder,
+                    "target": target,
+                    "moved": to_move,
+                }
+            )
+            continue
+        layout = ensure_case_layout(folder, folder_name=target)
+        if not layout.get("ok") and not layout.get("skipped"):
+            actions.append(
+                {
+                    "action": "layout_failed",
+                    "folder": folder,
+                    "target": target,
+                    "detail": layout.get("error"),
+                }
+            )
+            continue
+        moved: list[str] = []
+        errors: list[str] = []
+        for rel in to_move:
+            clean = _safe_remote_name(remote_basename(rel.rsplit("/", 1)[-1]))
+            sub = rel.rsplit("/", 1)[0] if "/" in rel else "_root"
+            if sub == "_root":
+                dest = f"{_case_root(target)}/incoming/{clean}"
+            else:
+                dest = f"{_case_root(target)}/{sub}/{clean}"
+            src = f"{_case_root(folder)}/{rel}"
+            result = move_case_path(src, dest)
+            if result.get("ok"):
+                moved.append(rel)
+            else:
+                errors.append(f"{rel}:{result.get('detail') or result.get('error')}")
+        if errors:
+            actions.append(
+                {
+                    "action": "migrate_partial",
+                    "folder": folder,
+                    "target": target,
+                    "moved": moved,
+                    "errors": errors,
+                }
+            )
+            continue
+        deleted = delete_case_path(_case_root(folder))
+        actions.append(
+            {
+                "action": "migrated" if deleted.get("ok") else "delete_failed",
+                "folder": folder,
+                "target": target,
+                "moved": moved,
+                "detail": deleted.get("detail") or deleted.get("error"),
+            }
+        )
+    return {
+        "ok": True,
+        "dry_run": dry_run,
+        "migrated": sum(1 for a in actions if a["action"] in {"migrated", "would_migrate"}),
+        "actions": actions,
+    }
+
+
+def _unique_file_paths(tree: dict[str, list[str]], already: set[str]) -> list[str]:
+    """Относительные пути файлов UUID-папки, которых нет в ФИО (по нормализованному имени)."""
+    paths: list[str] = []
+    for key, values in tree.items():
+        for name in values:
+            if key == "_root" and name.lower() in _GENERATED:
+                continue
+            if _normalized(name) in already:
+                continue
+            paths.append(name if key == "_root" else f"{key}/{name}")
+    return sorted(paths)
+
+
 def normalize_legacy_folders(*, dry_run: bool = True) -> dict[str, Any]:
     """UUID-папки: файлы из корня → incoming/, префиксы убрать, meta.txt создать."""
     actions: list[dict[str, Any]] = []

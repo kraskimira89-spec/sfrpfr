@@ -146,3 +146,63 @@ def test_normalize_legacy_plan(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["normalized"] == 1
     assert result["actions"][0]["move_to_incoming"] == ["031f5639_scan.pdf"]
     assert result["actions"][0]["ensure_meta"] is False
+
+
+def test_rename_uuid_to_fio_when_fio_folder_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mapping = {
+        "disk:/SFRFR-cases": [_dir(CID)],
+        f"disk:/SFRFR-cases/{CID}": [_dir("incoming"), _file("meta.txt")],
+        f"disk:/SFRFR-cases/{CID}/incoming": [_file("scan.pdf")],
+    }
+    monkeypatch.setattr(cleanup, "list_case_dir", _fake_listing(mapping))
+    monkeypatch.setattr(cleanup, "lookup_case_client_full_name", lambda _cid: FIO)
+
+    result = cleanup.rename_uuid_folders_to_fio(dry_run=True)
+
+    assert result["renamed"] == 1
+    assert result["actions"] == [
+        {"action": "would_rename", "folder": CID, "target": FIO},
+    ]
+
+
+def test_migrate_moves_unique_then_deletes_uuid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mapping = {
+        "disk:/SFRFR-cases": [_dir(CID), _dir(FIO)],
+        f"disk:/SFRFR-cases/{CID}": [_dir("incoming")],
+        f"disk:/SFRFR-cases/{CID}/incoming": [
+            _file("only_uuid.pdf"),
+            _file("shared.pdf"),
+        ],
+        f"disk:/SFRFR-cases/{FIO}": [_dir("incoming")],
+        f"disk:/SFRFR-cases/{FIO}/incoming": [_file("shared.pdf")],
+    }
+    moves: list[tuple[str, str]] = []
+
+    def fake_move(source: str, target: str) -> dict[str, Any]:
+        moves.append((source, target))
+        return {"ok": True, "source": source, "target": target}
+
+    monkeypatch.setattr(cleanup, "list_case_dir", _fake_listing(mapping))
+    monkeypatch.setattr(cleanup, "lookup_case_client_full_name", lambda _cid: FIO)
+    monkeypatch.setattr(cleanup, "move_case_path", fake_move)
+    monkeypatch.setattr(
+        cleanup,
+        "delete_case_path",
+        lambda path: {"ok": True, "path": path},
+    )
+
+    result = cleanup.migrate_uuid_into_fio(dry_run=False)
+
+    assert result["migrated"] == 1
+    assert moves == [
+        (
+            f"disk:/SFRFR-cases/{CID}/incoming/only_uuid.pdf",
+            f"disk:/SFRFR-cases/{FIO}/incoming/only_uuid.pdf",
+        )
+    ]
+    assert result["actions"][0]["action"] == "migrated"
+    assert result["actions"][0]["moved"] == ["incoming/only_uuid.pdf"]

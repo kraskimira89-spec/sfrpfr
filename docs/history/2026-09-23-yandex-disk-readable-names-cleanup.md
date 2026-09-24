@@ -8,6 +8,7 @@
 2. Накопились UUID-папки, дублирующие одноимённые ФИО-папки того же дела.
 3. 19 legacy-папок: файлы лежат прямо в корне, без `incoming/` и `meta.txt`.
 4. Не было способа посмотреть структуру Диска и почистить её из CLI.
+5. UUID-папки не переименовывались в ФИО, даже когда имя клиента уже известно.
 
 ## Решение
 
@@ -20,12 +21,21 @@
   `incoming/` / `outgoing/` (+ `meta.txt`).
 - `case_cleanup` — аудит и чистка:
   - `audit_case_folders` — UUID vs ФИО, legacy-корень, hex-префиксы;
+  - `rename_uuid_folders_to_fio` — UUID → ФИО, если ФИО-папки ещё нет;
+  - `migrate_uuid_into_fio` — уникальные файлы UUID→ФИО, затем удаление UUID;
   - `cleanup_duplicate_uuid_folders` — удаляет UUID-папку, если все её файлы
-    (по имени без префикса) уже есть в ФИО-папке; иначе оставляет;
+    уже есть в ФИО-папке; иначе оставляет;
   - `normalize_legacy_folders` — файлы из корня → `incoming/`, снятие
     префиксов, создание `meta.txt`.
-- CLI: `yandex-disk-audit-folders`, `yandex-disk-cleanup-duplicates`,
-  `yandex-disk-normalize-legacy` (разрушительные — только с `--apply`).
+- CLI (разрушительные — только с `--apply`):
+  `yandex-disk-audit-folders`,
+  `yandex-disk-rename-to-fio`,
+  `yandex-disk-migrate-uuid`,
+  `yandex-disk-cleanup-duplicates`,
+  `yandex-disk-normalize-legacy`.
+
+Порядок на prod: audit → normalize-legacy → rename-to-fio → migrate-uuid →
+cleanup-duplicates (сначала dry-run, потом `--apply`).
 
 ## Находка про `outgoing/`
 
@@ -36,4 +46,4 @@
 ## Проверено
 
 `pytest tests/unit/test_case_cleanup.py tests/unit/test_case_mirror.py tests/unit/test_yandex_workspace.py`
-— 23 passed. `ruff check src tests` — clean.
+— 25 passed. `ruff check` — clean.

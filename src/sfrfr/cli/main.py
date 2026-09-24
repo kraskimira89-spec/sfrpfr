@@ -1342,6 +1342,44 @@ def yandex_disk_cleanup_duplicates(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-disk-rename-to-fio")
+def yandex_disk_rename_to_fio(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать план переименования",
+    ),
+) -> None:
+    """Переименовать UUID-папку в ФИО, если ФИО-папки ещё нет."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import rename_uuid_folders_to_fio
+
+    result = rename_uuid_folders_to_fio(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-migrate-uuid")
+def yandex_disk_migrate_uuid(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать план слияния",
+    ),
+) -> None:
+    """Перенести уникальные файлы UUID→ФИО, затем удалить UUID-папку."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import migrate_uuid_into_fio
+
+    result = migrate_uuid_into_fio(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-disk-normalize-legacy")
 def yandex_disk_normalize_legacy(
     apply: bool = typer.Option(

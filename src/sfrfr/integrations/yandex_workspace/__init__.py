@@ -8,7 +8,9 @@ from sfrfr.integrations.yandex_workspace.calendar_yandex import create_event
 from sfrfr.integrations.yandex_workspace.case_cleanup import (
     audit_case_folders,
     cleanup_duplicate_uuid_folders,
+    migrate_uuid_into_fio,
     normalize_legacy_folders,
+    rename_uuid_folders_to_fio,
 )
 from sfrfr.integrations.yandex_workspace.case_mirror import (
     export_case_chat_to_disk_safe,
@@ -69,5 +71,7 @@ __all__ = [
     "delete_case_path",
     "audit_case_folders",
     "cleanup_duplicate_uuid_folders",
+    "rename_uuid_folders_to_fio",
+    "migrate_uuid_into_fio",
     "normalize_legacy_folders",
 ]
