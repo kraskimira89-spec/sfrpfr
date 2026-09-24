@@ -176,19 +176,55 @@ HITL **обязателен**, если хотя бы одно:
 8. Оффер DIAG 3 000 виден.
 9. Нет ПДн/секретов в Git/логах; amoCRM не задействована.
 
-## 15. Порядок реализации (этапы)
+## 15. As-is код (проверено 2026-09-24)
+
+Карта без правок кода. Канон путей — репозиторий `D:/SFRPFR` (OCR phase2 может идти параллельно в другой ветке).
+
+### Поток
+
+```text
+лид/дело → upload (cabinet | MAX | legacy)
+        → Storage pension-docs (+ local + Disk mirror)
+        → document_ingest_jobs → worker (Vision → Tesseract)
+        → ingest_status / artifacts / HITL
+        → (отдельно) CaseOrchestrator + LLM по OCR-текстам
+        → оферта DIAG/DOCS/SUPPORT (сейчас без бесплатного резюме по сканам)
+```
+
+| Вопрос | Факт в коде |
+|--------|-------------|
+| Создание дела | `POST /api/public/leads`, `POST /api/portal/cases`, MAX `create_case_for_client` |
+| Upload | portal `…/documents`, `upload_max_document`, legacy `/upload` |
+| Хранение | bucket `pension-docs`; `local_path` / `yandex_disk_path`; OCR SoT: local → Disk → Storage |
+| Worker | `scripts/document_ingest_worker.py` + systemd `sfrfr-document-ingest` |
+| HITL UI | `IngestReviewPanel` + API `…/ingest-review` (expert/admin; OPERATOR без OCR preview) |
+| Тарифы 3/5/8 | `public_tariffs.py` DIAG/DOCS/SUPPORT; оферты `max_bot_invoice.py` |
+| Бесплатное резюме по OCR | **нет** (есть только lead-magnet чек-лист) |
+| amoCRM | `AMOCRM_ENABLED=0` — не трогать |
+
+### Почему «загрузил — тишина» и «специалист не видит»
+
+1. Worker ingest не крутится / job в `security_check` — клиент висит на прогрессе.
+2. Статус **дела** (`pipeline_status`) и статус **файла** (`ingest_status`) разделены; после upload дело часто остаётся `intake`.
+3. В кабинете после `under_review` нет шагов «OCR готов / HITL / резюме готово».
+4. `IngestReviewPanel` скрыт, если очередь HITL пуста; OPERATOR не видит OCR; эксперт — только назначенные дела.
+5. Artifacts/оригинал недоступны, пока quarantine / `OcrSourceUnresolved`.
+6. **Трудовая не всегда HITL:** в `document_ingest_v2` флаг `ingest_review_required` ставится по качеству OCR, а не по типу `labor_book`. В `document_ingest.py` `is_labor` даёт только `labor_timeline_drafts`, без принудительного review.
+7. Оферта DIAG часто идёт после «ИЛС+трудовая есть», **минуя** бесплатное резюме по распознанным данным.
+
+### Приоритет этапов относительно кода
 
 | Этап | Содержание | Код? |
 |------|------------|------|
-| A | Диагностика as-is (этот документ + PROJECT_CONTEXT) | нет |
-| B | Статусы/флаги HITL и гейты orchestrator | да, узкий PR |
-| C | Экран специалиста (дожать split-view / очередь) | да |
-| D | OCR SoT (ТЗ-13a) + labor always HITL | да |
-| E | Анализ только на verified + черновик резюме | да |
-| F | Кабинет: статусы файлов + бесплатное резюме + оффер | да |
-| G | Платежи DIAG→DOCS→SUPPORT (уже есть — дожать UX) | точечно |
+| A | Диагностика as-is (этот документ + PROJECT_CONTEXT) | нет — **готово** |
+| B | `labor_book` → всегда HITL; гейт: не classify/analyze пока `ingest_review_required` | да, узкий PR |
+| C | Очередь HITL + split-view всегда видны staff с нужной ролью; понятный next step | да |
+| D | OCR SoT (ТЗ-13a / phase2) стабилен на VPS worker | да (соседи) |
+| E | Анализ только на verified + черновик **бесплатного** резюме | да |
+| F | Кабинет: цепочка статусов файла + резюме + оффер DIAG | да |
+| G | DIAG→DOCS→SUPPORT UX (оплата уже есть) | точечно |
 
-**Сейчас:** этап A — документы зафиксированы. Код — только после явного «делаем этап B/C/…».
+**Сейчас:** этап A закрыт документами. Код — только после явного «делаем этап B/C/…». Не смешивать с веткой `feature/ocr-source-registry-phase2` без согласования.
 
 ## 16. Требование к агенту перед кодом
 
