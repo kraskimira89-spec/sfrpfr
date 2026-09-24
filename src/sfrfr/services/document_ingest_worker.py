@@ -32,8 +32,11 @@ from sfrfr.services.file_security import (
 )
 from sfrfr.services.ocr_source_resolver import (
     OcrSourceUnresolved,
+    ResolvedBytes,
     resolve_ocr_bytes_ctx,
+    sanitize_resolve_trace,
 )
+from sfrfr.storage.local import confirm_local_file, save_quarantine_upload
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +97,24 @@ def create_quarantine_document(
         if use_full
         else f"{case_id}/{document_id}/{safe_name}"
     )
+    # Ранняя local-копия в quarantine до enqueue (не verified до security gate).
+    local_rel: str | None = None
+    try:
+        qpath = save_quarantine_upload(
+            case_id,
+            document_id=document_id,
+            filename=safe_name,
+            data=data,
+        )
+        local_rel = confirm_local_file(
+            qpath,
+            expected_sha256=checksum,
+            expected_size=len(data),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("local quarantine save skipped: %s", type(exc).__name__)
+        local_rel = None
+
     client = get_supabase_client()
     try:
         client.storage.from_(PRIVATE_STORAGE_BUCKET).upload(
@@ -116,6 +137,8 @@ def create_quarantine_document(
             "page_order": page_order,
             "upload_source": upload_source,
             "checksum_sha256": checksum,
+            "size_bytes": len(data),
+            "document_version": 1,
             "duplicate_checksum": duplicate,
             "mime_verified": security.detected_mime,
             "ingest_status": "security_check" if use_full else "uploaded",
@@ -130,6 +153,10 @@ def create_quarantine_document(
             "antivirus_status": "pending" if use_full else "not_configured",
             "ingest_review_required": False,
         }
+        if local_rel:
+            row["local_path"] = local_rel
+            row["local_status"] = "quarantine"
+            row["primary_ocr_source"] = "local_storage"
         saved = insert_document_row(row)
     except Exception:
         try:
@@ -151,6 +178,7 @@ def create_quarantine_document(
             filename=safe_name,
             data=data,
             doc_type=doc_type,
+            document_id=document_id,
         )
     return {**saved, "job_id": job_id}
 
@@ -234,6 +262,7 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
         source_path = str(row.get("storage_path") or "")
         case_id = str(row.get("case_id") or job.get("case_id") or "")
         with resolve_ocr_bytes_ctx(row, case_id=case_id) as resolved:
+            _persist_ocr_source_audit(client, document_id, job_id, resolved)
             data = resolved.data
             logger.info(
                 "ocr_source_used=%s case_id=%s",
@@ -306,16 +335,17 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 )
                 return {"status": "needs_review", "document_id": document_id}
 
-            _update_document(
-                client,
-                document_id,
-                {
-                    **security_fields,
-                    "progress_percent": 30,
-                    "current_stage": "quality_check",
-                    "progress_message": "Безопасность подтверждена. Проверяем читаемость.",
-                },
-            )
+            verified_fields: dict[str, Any] = {
+                **security_fields,
+                "progress_percent": 30,
+                "current_stage": "quality_check",
+                "progress_message": "Безопасность подтверждена. Проверяем читаемость.",
+            }
+            # Только фактический local OCR (hash-verified). Наличие local_path в row
+            # не доказывает, что файл жив — resolver мог уйти в disk/storage.
+            if resolved.source_used == "local_storage":
+                verified_fields["local_status"] = "verified"
+            _update_document(client, document_id, verified_fields)
             scenarios = _scenario_codes(client, case_id)
             result = run_document_ingest_v2(
                 data=data,
@@ -372,6 +402,7 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                     filename=filename,
                     data=data,
                     doc_type=row.get("doc_type"),
+                    document_id=document_id,
                 )
                 _process_payment_receipt(
                     case_id=case_id,
@@ -411,10 +442,11 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "ocr_source_used": resolved.source_used,
             }
     except OcrSourceUnresolved as exc:
+        safe_trace = sanitize_resolve_trace(exc.trace)
         logger.warning(
             "ocr source unresolved job=%s trace=%s",
             job_id,
-            ",".join(exc.trace)[:200],
+            ",".join(safe_trace)[:200],
         )
         failed = attempts >= int(job.get("max_attempts") or 3)
         _update_document(
@@ -440,6 +472,7 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "progress_percent": 25 if failed else 0,
                 "current_stage": "manual_review" if failed else "queued",
                 "last_error": "ocr_source_unresolved",
+                "resolve_trace": safe_trace,
                 "locked_by": None,
                 "locked_at": None,
             },
@@ -571,19 +604,68 @@ def _store_labor_drafts(
     client.table("labor_timeline_drafts").insert(rows).execute()
 
 
+def _persist_ocr_source_audit(
+    client: Any,
+    document_id: str,
+    job_id: str,
+    resolved: ResolvedBytes,
+) -> None:
+    """Записать фактический source_used / sha / safe trace после успешного resolve."""
+    now = _now()
+    safe_trace = sanitize_resolve_trace(list(resolved.resolve_trace))
+    _update_document(
+        client,
+        document_id,
+        {
+            "ocr_source_used": resolved.source_used,
+            "ocr_source_verified_at": now,
+        },
+    )
+    job_fields: dict[str, Any] = {
+        "ocr_source_used": resolved.source_used,
+        "bytes_sha256": resolved.sha256,
+    }
+    if safe_trace:
+        job_fields["resolve_trace"] = safe_trace
+    _update_job(client, job_id, job_fields)
+
+
 def _mirror_document_after_security(
     *,
     case_id: str,
     filename: str,
     data: bytes,
     doc_type: str | None,
+    document_id: str | None = None,
 ) -> None:
+    """Зеркало на Диск; ``yandex_disk_path`` только после успешного mirror (path из API)."""
     try:
         from sfrfr.integrations.yandex_workspace.case_mirror import mirror_case_document_safe
 
-        mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
+        result = mirror_case_document_safe(case_id, filename, data, doc_type=doc_type)
     except Exception as exc:  # noqa: BLE001
-        logger.info("document yandex disk mirror skipped: %s", exc)
+        logger.info("document yandex disk mirror skipped: %s", type(exc).__name__)
+        return
+    if not document_id:
+        return
+    if not isinstance(result, dict) or not result.get("ok"):
+        # Не очищаем ранее сохранённый yandex_disk_path.
+        return
+    disk_path = str(result.get("path") or "").strip()
+    if not disk_path.startswith("disk:"):
+        return
+    try:
+        client = get_supabase_client()
+        _update_document(
+            client,
+            document_id,
+            {
+                "yandex_disk_path": disk_path,
+                "yandex_disk_status": "mirrored",
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("yandex_disk_path persist skipped: %s", type(exc).__name__)
 
 
 def _process_payment_receipt(

@@ -40,10 +40,20 @@ def test_create_quarantine_mirrors_original_when_no_jobs(monkeypatch) -> None:
         lambda: type("C", (), {"storage": _Storage()})(),
     )
 
-    def _mirror(*, case_id: str, filename: str, data: bytes, doc_type: str | None) -> None:
-        mirrored.append((case_id, filename, data, doc_type))
+    def _mirror(
+        *,
+        case_id: str,
+        filename: str,
+        data: bytes,
+        doc_type: str | None,
+        document_id: str | None = None,
+    ) -> None:
+        mirrored.append((case_id, filename, data, doc_type, document_id))
 
     monkeypatch.setattr(worker, "_mirror_document_after_security", _mirror)
+    # Phase 2 early local — без записи на диск в этом unit-тесте.
+    monkeypatch.setattr(worker, "save_quarantine_upload", lambda *a, **k: None)
+    monkeypatch.setattr(worker, "confirm_local_file", lambda *a, **k: None)
 
     original = b"%PDF-1.4-real-upload"
     row = worker.create_quarantine_document(
@@ -56,9 +66,14 @@ def test_create_quarantine_mirrors_original_when_no_jobs(monkeypatch) -> None:
         upload_source="max",
     )
     assert row.get("id")
-    assert mirrored == [
-        ("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "ils_scan.pdf", original, "ils")
-    ]
+    assert len(mirrored) == 1
+    assert mirrored[0][:4] == (
+        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "ils_scan.pdf",
+        original,
+        "ils",
+    )
+    assert mirrored[0][4] == row["id"]
 
 
 def test_create_quarantine_defers_mirror_when_jobs_exist(monkeypatch) -> None:

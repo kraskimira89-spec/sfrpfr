@@ -152,6 +152,9 @@ tests/.pytest_basetemp/
 storage/pytest-tmp*/
 /UsersuserDocumentsCursorSFRFR.pytest-tmpbasetemp/
 
+# Локальные one-off скрипты и pytest --basetemp под tmp/
+tmp/
+
 # Weavix Tracker plugin: локальный debug (не в git)
 plugins/tracker/**/config.json
 plugins/tracker/**/.yaweavix-debug.lock
