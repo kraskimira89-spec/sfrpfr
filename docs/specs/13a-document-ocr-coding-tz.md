@@ -453,6 +453,8 @@ cabinet / MAX upload
 
 **Не в этом PR:** `INGEST_OCR_STORAGE_FALLBACK=false`, backfill, file move quarantine→verified.
 
+**Rollout (обязательно):** migration → deploy → smoke. Rollback кода без drop колонок. Канон: `docs/history/2026-09-24-ocr-source-registry-phase2-rollout.md`.
+
 ### Phase 3
 
 | Путь | Действие |

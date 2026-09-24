@@ -3,7 +3,7 @@
 **Дата:** 2026-09-24  
 **Ветка:** `feature/ocr-source-registry-phase2`  
 **База:** `main` @ `3c4dd75` (PR #37 Phase 1 merged)  
-**Статус:** реализация в ветке (без commit/apply до ревью); уточнения: quarantine `local_status`, path только после confirmed write
+**Статус:** код в PR №38; **merge только после migration-first** — см. `2026-09-24-ocr-source-registry-phase2-rollout.md`
 
 ---
 
