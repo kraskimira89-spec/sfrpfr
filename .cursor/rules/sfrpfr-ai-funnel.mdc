@@ -1,0 +1,43 @@
+---
+description: Воронка документов, OCR/HITL, бесплатное резюме и тарифы 3/5/8
+alwaysApply: true
+---
+
+# SFRPFR: ИИ-воронка документов
+
+## Продукт
+
+Клиент ведётся автоматически: загрузка → OCR → HITL (особенно трудовая) → анализ расхождений → **бесплатное краткое резюме** → оффер **3 000 / 5 000 / 8 000 ₽**.
+
+Контекст: `docs/PROJECT_CONTEXT.md`.  
+ТЗ: `docs/specs/35-ai-document-intake-and-free-summary.md` (+ 13, 13a, 32, 33).
+
+## Обязательно
+
+- Позиция о подаче: `scripts/assets/copy/submission-position.md` — без обещаний перерасчёта и сумм.
+- Трудовая книжка (и рукопись) — **всегда** `manual_review` / HITL до classify/analyze.
+- Анализ и резюме клиенту — только по подтверждённым или явно разрешённым данным.
+- amoCRM **не трогать** (выключена). CRM = кабинет сотрудника.
+- ПДн, сканы, токены — не в Git, логи, фикстуры, ответы LLM без redaction.
+
+## Стек — переиспользовать
+
+- Worker: `scripts/document_ingest_worker.py`
+- OCR v2 / Vision / Tesseract: `src/sfrfr/services/document_ingest_v2.py`
+- Оркестратор: `src/sfrfr/ai/orchestrator.py`
+- Admin HITL: `apps/admin/.../ingest-review-panel.tsx`
+- Тарифы/kanban: `public_tariffs.py`, `funnel_board.py`, ТЗ-33
+
+Не плодить вторую очередь Celery/Redis и не дублировать статусы без миграции.
+
+## Порядок для крупных задач
+
+1. Прочитать as-is (кабинет, admin, worker, статусы).
+2. Короткий план + список файлов.
+3. Узкий PR; git-цикл — `KODA.md` / auto-commit feature-ветки.
+4. Тесты на обезличенных фикстурах; ручной сценарий из ТЗ-35 §критерии.
+
+## Запрещено в текстах клиенту
+
+- «Вам гарантирован перерасчёт», суммы выплат, калькулятор пенсии.
+- Сырой OCR, внутренние confidence, комментарии специалистов.

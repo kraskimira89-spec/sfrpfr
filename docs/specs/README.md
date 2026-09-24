@@ -42,6 +42,8 @@
 32. [32-customer-journey.md](32-customer-journey.md) — путь клиента: динамический чек-лист, сценарии, MAX consent-gate, банк staff-only, перенос трудовой.
 33. [33-staff-kanban-llm-stages.md](33-staff-kanban-llm-stages.md) — kanban этапов воронки (3/5/8 тыс.): автоперенос карточек правилами; LLM не пишет колонку.
 34. [34-max-document-task.md](34-max-document-task.md) — задача «комплект документов» в MAX: персональная secure-ссылка, статусы CRM, A/B вместо welcome.
+35. [35-ai-document-intake-and-free-summary.md](35-ai-document-intake-and-free-summary.md) — ИИ-конвейер: OCR → HITL (трудовая всегда) → анализ → бесплатное резюме → оффер 3/5/8 тыс.  
+    Контекст продукта: [../PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
 
 ## Принцип
 
