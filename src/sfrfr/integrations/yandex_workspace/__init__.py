@@ -15,6 +15,8 @@ from sfrfr.integrations.yandex_workspace.case_cleanup import (
 from sfrfr.integrations.yandex_workspace.case_mirror import (
     export_case_chat_to_disk_safe,
     mirror_case_document_safe,
+    sync_case_disk_folder_name_safe,
+    sync_client_cases_disk_folders_safe,
 )
 from sfrfr.integrations.yandex_workspace.disk import (
     CASE_SUBFOLDERS,
@@ -66,6 +68,8 @@ __all__ = [
     "mirror_case_document",
     "mirror_case_document_safe",
     "export_case_chat_to_disk_safe",
+    "sync_case_disk_folder_name_safe",
+    "sync_client_cases_disk_folders_safe",
     "list_case_dir",
     "move_case_path",
     "delete_case_path",

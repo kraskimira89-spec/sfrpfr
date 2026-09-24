@@ -3,19 +3,30 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
 from sfrfr.integrations.yandex_workspace.disk import (
-    mirror_case_document as _mirror,
+    CASES_FOLDER,
+    delete_case_path,
+    ensure_case_layout,
+    list_case_dir,
+    move_case_path,
+    upload_case_chat_history,
 )
 from sfrfr.integrations.yandex_workspace.disk import (
-    upload_case_chat_history,
+    mirror_case_document as _mirror,
 )
 from sfrfr.services.document_ingest import SIGNED_DOC_TYPES
 from sfrfr.utils.case_folder_name import format_case_disk_folder_name
 
 logger = logging.getLogger(__name__)
+
+_UUID_FOLDER_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 _OUTGOING_DOC_TYPES = SIGNED_DOC_TYPES | {
     "application",
@@ -68,6 +79,148 @@ def lookup_case_client_full_name(case_id: str) -> str | None:
         return None
 
 
+def _disk_folder_exists(folder: str) -> bool:
+    result = list_case_dir(f"{CASES_FOLDER}/{folder}")
+    return bool(result.get("ok"))
+
+
+def sync_case_disk_folder_name_safe(
+    case_id: str,
+    *,
+    full_name: str | None = None,
+) -> dict[str, Any]:
+    """Как только известно ФИО — папка на Диске = ФИО (не UUID).
+
+    Best-effort: rename UUID→ФИО, либо создать layout, либо migrate дубля.
+    """
+    cid = (case_id or "").strip()
+    if not cid or not _UUID_FOLDER_RE.match(cid):
+        return {"ok": False, "skipped": True, "reason": "invalid_case_id"}
+    cid = cid.lower()
+    fio = full_name if full_name is not None else lookup_case_client_full_name(cid)
+    folder = format_case_disk_folder_name(fio, case_id=cid)
+    if not folder or _UUID_FOLDER_RE.match(folder) or folder.lower() == cid:
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": "no_fio",
+            "case_id": cid,
+        }
+    try:
+        uuid_exists = _disk_folder_exists(cid)
+        fio_exists = _disk_folder_exists(folder)
+        if uuid_exists and not fio_exists:
+            moved = move_case_path(f"{CASES_FOLDER}/{cid}", f"{CASES_FOLDER}/{folder}")
+            if moved.get("ok"):
+                return {
+                    "ok": True,
+                    "action": "renamed",
+                    "case_id": cid,
+                    "folder_name": folder,
+                }
+            return {
+                "ok": False,
+                "action": "rename_failed",
+                "case_id": cid,
+                "folder_name": folder,
+                "detail": moved.get("detail") or moved.get("error"),
+            }
+        if uuid_exists and fio_exists:
+            from sfrfr.integrations.yandex_workspace.case_cleanup import (
+                _content_names,
+                read_case_tree,
+            )
+
+            missing = _content_names(read_case_tree(cid)) - _content_names(
+                read_case_tree(folder)
+            )
+            if missing:
+                return {
+                    "ok": True,
+                    "action": "keep_uuid",
+                    "case_id": cid,
+                    "folder_name": folder,
+                    "missing_count": len(missing),
+                }
+            deleted = delete_case_path(f"{CASES_FOLDER}/{cid}")
+            return {
+                "ok": bool(deleted.get("ok")),
+                "action": "deleted_duplicate" if deleted.get("ok") else "delete_failed",
+                "case_id": cid,
+                "folder_name": folder,
+                "detail": deleted.get("detail") or deleted.get("error"),
+            }
+        if not fio_exists:
+            layout = ensure_case_layout(cid, folder_name=folder)
+            if layout.get("ok") or layout.get("skipped"):
+                return {
+                    "ok": True,
+                    "action": "created",
+                    "case_id": cid,
+                    "folder_name": folder,
+                }
+            return {
+                "ok": False,
+                "action": "create_failed",
+                "case_id": cid,
+                "folder_name": folder,
+                "detail": layout.get("error"),
+            }
+        return {
+            "ok": True,
+            "action": "already",
+            "case_id": cid,
+            "folder_name": folder,
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.info("case disk folder sync skipped: %s", type(exc).__name__)
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": type(exc).__name__,
+            "case_id": cid,
+            "folder_name": folder,
+        }
+
+
+def sync_client_cases_disk_folders_safe(
+    client_id: str,
+    *,
+    full_name: str | None = None,
+) -> dict[str, Any]:
+    """Переименовать папки всех дел клиента, когда ФИО стало известно."""
+    cid = (client_id or "").strip()
+    if not cid:
+        return {"ok": False, "skipped": True, "reason": "no_client_id"}
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("cases")
+            .select("id")
+            .eq("client_id", cid)
+            .limit(50)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("client cases for disk sync skipped: %s", type(exc).__name__)
+        return {"ok": False, "skipped": True, "reason": type(exc).__name__}
+    results = [
+        sync_case_disk_folder_name_safe(str(row.get("id") or ""), full_name=full_name)
+        for row in rows
+        if isinstance(row, dict) and row.get("id")
+    ]
+    return {
+        "ok": True,
+        "client_id": cid,
+        "count": len(results),
+        "results": results,
+    }
+
+
 def _persist_original_local(case_id: str, filename: str, data: bytes) -> str | None:
     """Локальная копия оригинала байт-в-байт (имя можно нормализовать для FS)."""
     try:
@@ -100,6 +253,8 @@ def mirror_case_document_safe(
     )
     fio = full_name if full_name is not None else lookup_case_client_full_name(case_id)
     folder_name = format_case_disk_folder_name(fio, case_id=case_id)
+    if folder_name and not _UUID_FOLDER_RE.match(folder_name):
+        sync_case_disk_folder_name_safe(case_id, full_name=fio)
     try:
         result = _mirror(
             case_id,

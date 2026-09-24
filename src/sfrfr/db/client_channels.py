@@ -158,7 +158,16 @@ class ClientChannelRepository:
             .eq("id", row["id"])
             .execute()
         )
-        return updated or {**row, "full_name": name}
+        result = updated or {**row, "full_name": name}
+        try:
+            from sfrfr.integrations.yandex_workspace.case_mirror import (
+                sync_client_cases_disk_folders_safe,
+            )
+
+            sync_client_cases_disk_folders_safe(str(row["id"]), full_name=name)
+        except Exception as exc:  # noqa: BLE001
+            _log.info("disk folder sync after max name skipped: %s", type(exc).__name__)
+        return result
 
     def set_preferred_channel(self, client_id: str, channel: str) -> dict[str, Any]:
         if channel not in _CHANNELS:
