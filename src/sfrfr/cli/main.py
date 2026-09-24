@@ -1310,6 +1310,95 @@ def yandex_disk_backfill_fio_originals(
         raise typer.Exit(code=1)
 
 
+@app.command("yandex-disk-audit-folders")
+def yandex_disk_audit_folders() -> None:
+    """Аудит папок SFRFR-cases: UUID vs ФИО, legacy-корень, префиксы."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import audit_case_folders
+
+    result = audit_case_folders()
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-cleanup-duplicates")
+def yandex_disk_cleanup_duplicates(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать, что будет удалено",
+    ),
+) -> None:
+    """Удалить UUID-папки, дублирующие ФИО-папки того же дела."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import cleanup_duplicate_uuid_folders
+
+    result = cleanup_duplicate_uuid_folders(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-rename-to-fio")
+def yandex_disk_rename_to_fio(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать план переименования",
+    ),
+) -> None:
+    """Переименовать UUID-папку в ФИО, если ФИО-папки ещё нет."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import rename_uuid_folders_to_fio
+
+    result = rename_uuid_folders_to_fio(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-migrate-uuid")
+def yandex_disk_migrate_uuid(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать план слияния",
+    ),
+) -> None:
+    """Перенести уникальные файлы UUID→ФИО, затем удалить UUID-папку."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import migrate_uuid_into_fio
+
+    result = migrate_uuid_into_fio(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("yandex-disk-normalize-legacy")
+def yandex_disk_normalize_legacy(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только показать план",
+    ),
+) -> None:
+    """UUID-папки: файлы из корня → incoming/, убрать префиксы, создать meta.txt."""
+    import json
+
+    from sfrfr.integrations.yandex_workspace import normalize_legacy_folders
+
+    result = normalize_legacy_folders(dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-mail-send")
 def yandex_mail_send(
     to: str = typer.Option(..., "--to", help="Email получателя"),
