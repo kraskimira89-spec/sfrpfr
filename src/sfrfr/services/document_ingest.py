@@ -42,7 +42,29 @@ DOC_TYPE_TO_REQUIREMENT: dict[str, str] = {
     "client_signed_appeal": "client_signed_appeal",
 }
 
+LABOR_DOC_TYPES = frozenset({"labor_book", "labor", "workbook"})
+
 SIGNED_DOC_TYPES = frozenset({"client_signed_application", "client_signed_appeal"})
+
+
+def is_labor_document(
+    doc_type: str | None = None,
+    *,
+    requirement_code: str | None = None,
+) -> bool:
+    """Трудовая книжка / ЭТК — всегда HITL (ТЗ-35 этап B)."""
+    dt = (doc_type or "").strip().lower()
+    req = (requirement_code or "").strip().lower()
+    if dt in LABOR_DOC_TYPES or req in LABOR_DOC_TYPES:
+        return True
+    if "трудов" in dt or "трудов" in req:
+        return True
+    return False
+
+
+def documents_pending_ingest_hitl(documents: list[dict[str, Any]] | None) -> bool:
+    """Есть ли документы с открытым ingest HITL."""
+    return any(bool(row.get("ingest_review_required")) for row in (documents or []))
 
 CLIENT_STAGE_LABELS: dict[str, str] = {
     "uploading": "Загружаем файл",
@@ -266,9 +288,20 @@ def run_ingest_pipeline(
         status = "under_review"
         message = placement.get("client_message") or "Файл получен — специалист проверит."
 
-    labor_codes = {"labor_book", "labor", "workbook"}
     req_code = placement.get("requirement_code")
-    is_labor = (doc_type or "").strip().lower() in labor_codes or req_code in labor_codes
+    is_labor = is_labor_document(doc_type, requirement_code=str(req_code) if req_code else None)
+    if is_labor and status not in {"blocked_security", "needs_reupload"}:
+        status = "manual_review"
+        message = (
+            "Трудовая книжка принята. Специалист сверит рукописные записи и распознанный текст."
+        )
+        quality = dict(quality)
+        issues = list(quality.get("issues") or [])
+        if "labor_always_hitl" not in issues:
+            issues.append("labor_always_hitl")
+        quality["issues"] = issues
+        quality["recommended_action"] = "manual_review"
+        quality["client_message"] = message
 
     return {
         "ingest_status": status,
@@ -281,6 +314,9 @@ def run_ingest_pipeline(
         "checksum_sha256": sha256_hex(data),
         "page_count": page_count,
         "duplicate": duplicate_checksum,
+        "ingest_review_required": is_labor
+        or status == "manual_review"
+        or quality.get("recommended_action") == "manual_review",
         "classification": {
             "document_type": str(classification.document_type),
             "confidence": classification.confidence,

@@ -791,6 +791,7 @@ class CaseRepository:
 
     def request_pipeline_run(self, case_id: str, actor_id: str) -> dict[str, Any]:
         """Клиент/сотрудник: запросить проверку (единая семантика ТЗ-09)."""
+        from sfrfr.services.document_ingest import documents_pending_ingest_hitl
         from sfrfr.services.message_dedupe import required_docs_missing
 
         case = self._case(case_id)
@@ -803,22 +804,51 @@ class CaseRepository:
                 detail=f"Для диагностики не хватает: {', '.join(missing)}",
             )
         docs = case.get("documents") or []
+        hitl_pending = documents_pending_ingest_hitl(docs if isinstance(docs, list) else [])
         status_now = case.get("pipeline_status") or "intake"
         message = "Проверка запрошена. Специалист и пайплайн уведомлены."
         if docs and status_now == "intake":
             self.update_case_status(case_id, "documents_received", actor_id)
             message = "Документы приняты, проверка запрошена."
-        elif status_now in ("documents_received", "ocr_done", "classified", "extracted", "audited"):
-            # Клиентский запрос продвигает к human_review, если ещё не там.
+            if hitl_pending:
+                self.update_case_status(case_id, "human_review", actor_id)
+                message = (
+                    "Документы на проверке специалиста (распознавание трудовой/сомнительных "
+                    "фрагментов). Анализ расхождений — после подтверждения OCR."
+                )
+        elif hitl_pending or status_now in (
+            "documents_received",
+            "ocr_done",
+            "classified",
+            "extracted",
+            "audited",
+        ):
             if status_now != "human_review":
                 self.update_case_status(case_id, "human_review", actor_id)
+            if hitl_pending:
+                message = (
+                    "Документы на проверке специалиста (распознавание трудовой/сомнительных "
+                    "фрагментов). Анализ расхождений — после подтверждения OCR."
+                )
+            else:
                 message = "Дело передано на проверку специалисту."
         self.audit(case_id, actor_id, "pipeline_run_requested")
         refreshed = self._case(case_id) or case
+        if hitl_pending:
+            return {
+                "ok": True,
+                "message": message,
+                "pipeline_status": refreshed.get("pipeline_status"),
+                "hitl_pending": True,
+                "findings": [],
+                "analysis_notes": None,
+                "draft": None,
+            }
         return {
             "ok": True,
             "message": message,
             "pipeline_status": refreshed.get("pipeline_status"),
+            "hitl_pending": False,
             "findings": self.get_pipeline_findings(case_id),
             "analysis_notes": self.get_pipeline_analysis_notes(case_id),
             "draft": self.get_pipeline_draft(case_id),

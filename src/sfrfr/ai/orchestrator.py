@@ -39,6 +39,8 @@ class CaseContext:
     analysis_notes: str | None = None
     draft: DraftResult | None = None
     error: str | None = None
+    # ТЗ-35 этап B: не classify/extract/analyze, пока открыт ingest HITL.
+    block_llm_until_hitl: bool = False
 
 
 @dataclass
@@ -83,6 +85,12 @@ class CaseOrchestrator:
             if ctx.status is CaseStatus.DOCUMENTS_RECEIVED:
                 return self._mark_ocr_done(ctx)
             if ctx.status is CaseStatus.OCR_DONE:
+                if ctx.block_llm_until_hitl:
+                    return StepResult(
+                        ok=True,
+                        status=ctx.status,
+                        message="OCR готов — ожидает HITL специалиста перед classify/analyze",
+                    )
                 return self._classify(ctx)
             if ctx.status is CaseStatus.CLASSIFIED:
                 return self._extract(ctx)
