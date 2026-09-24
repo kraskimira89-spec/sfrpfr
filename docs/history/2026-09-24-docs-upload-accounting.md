@@ -13,8 +13,8 @@
 | cases | 133 |
 | documents rows | 1 |
 | clients | 137 (placeholder-имя ~37) |
-| case_messages «Вложение не принято» | 5 |
-| case_messages `[Документ]` | см. повторный прогон после фикса скрипта |
+| case_messages «Вложение не принято» | **5** |
+| case_messages `[Документ]` (успех в чате) | **5** (в т.ч. 2× `document.bin`) |
 
 ## Решение
 
