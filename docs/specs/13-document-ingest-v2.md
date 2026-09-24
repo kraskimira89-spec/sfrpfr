@@ -12,7 +12,13 @@
 3. LLM (Yandex AI Studio) — **не** как OCR, а classify / extract / draft после текста.
 4. Сотрудник — сверка сканов, правка текста и периодов при ошибках (HITL).
 
-Источник истины: оригинал в Supabase Storage + артефакты ingest. Сверка ИЛС↔трудовая — код (`audit_ils`), не LLM.
+**Источник истины для OCR (вход байтов):** локальные оригиналы
+`storage/uploads/{case_id}/` (настройка `storage_local_path`) **и**
+Яндекс.Диск `disk:/SFRFR-cases/{ФИО|uuid}/` (`incoming/` для сканов клиента,
+при необходимости `outgoing/` для подготовленных комплектов).
+Supabase Storage `pension-docs` — **не** основной вход OCR (см. §3.7 и §15).
+Артефакты ingest (`extracted.md`, `ingest.json`) и метаданные job — рядом с
+пайплайном (Storage/БД). Сверка ИЛС↔трудовая — код (`audit_ils`), не LLM.
 
 ---
 
@@ -37,8 +43,29 @@
 2. **Постранично.** Смешанный PDF (текст + скан-страницы) обрабатывается по страницам.
 3. **Не конвертировать в Word** как промежуточный формат пайплайна. Целевой текст — plain/markdown + JSON метаданных.
 4. **YandexGPT не заменяет OCR.** Vision OCR — для сканов; GPT — для смысла по уже извлечённому тексту (с `redact_for_llm`).
-5. **ПДн:** оригиналы и полный OCR только в Storage / admin (expert+); в amoCRM / Sheets / логи — без текстов документов.
+5. **ПДн:** полные оригиналы и полный OCR — только local/Disk (оригиналы) + admin (expert+) / артефакты в private bucket; в amoCRM / Sheets / логи — без текстов документов.
 6. **Идемпотентность:** повторный ingest того же `content_hash` переиспользует артефакты (опционально в MVP+).
+7. **Единый async worker на VPS:** OCR не в HTTP-запросе upload; очередь job → worker → движки по порядку §6.
+
+### 3.7. Роли хранилищ (OCR vs кабинет)
+
+| Контур | Роль в ТЗ-13 |
+|--------|----------------|
+| **Local `storage/uploads/{case_id}/`** | **Primary OCR input.** Байты оригинала после upload / MAX / backfill (`save_upload`). Путь на VPS через `storage_local_path`. |
+| **Яндекс.Диск `SFRFR-cases/{ФИО\|uuid}/`** | **Primary OCR input** (тот же оригинал байт-в-байт). Типично `incoming/` (сканы клиента); `outgoing/` — если OCR нужен для исходящих комплектов. Не публичный канал; банковские выписки не кладём без явного флага. |
+| **Supabase Storage `pension-docs`** | Кабинет / quarantine / verified / signed URL для превью HITL; метаданные `documents.storage_path`. **Не** SoT для чтения байтов в OCR worker (целевой контракт). |
+| **Supabase Postgres** | Очередь `document_ingest_jobs`, статусы `documents.*`, audit — метаданные, не файлы. |
+| **Артефакты ingest** | `extracted.md` + `ingest.json` (см. §7): пишутся после OCR; могут жить в private bucket рядом с verified-копией. |
+
+Порядок разрешения байтов для OCR worker (целевой):
+
+```text
+1) local storage/uploads/{case_id}/…  (если файл есть и hash/имя сходятся)
+2) иначе Диск SFRFR-cases/…/incoming|outgoing/…
+3) иначе (fallback / переходный период) — Storage pension-docs по storage_path
+```
+
+Связь с [14-yandex-workspace.md](14-yandex-workspace.md): Диск для дел — не «только зеркало для глаз сотрудника», а **равный primary-вход OCR** вместе с local; кабинетные upload/quarantine в Supabase остаются для UI и security-контура.
 
 ---
 
@@ -46,19 +73,23 @@
 
 ```text
 upload (cabinet / MAX)
-  → сохранить оригинал (Storage)
-  → detect mime / pages
-  → per page / per file:
-        text_layer? ──да (порог OK)──► source=text_layer
-              │
-              нет / мало символов
-              ▼
-        OCR engine: Vision (если настроен) → иначе Tesseract
-              │
-              ▼
-        source=ocr_vision | ocr_tesseract | failed
-  → собрать артефакты (extracted.md + ingest.json)
-  → quality gate → ocr_done | needs_ingest_review
+  → сохранить оригинал: local uploads + Диск SFRFR-cases (primary)
+  → (кабинет) quarantine/метаданные в Supabase; enqueue job
+  → async worker (VPS):
+        resolve bytes: local → Disk → (fallback Storage)
+        → detect mime / pages
+        → per page / per file:
+              text_layer? ──да (порог OK)──► source=text_layer
+                    │
+                    нет / мало символов
+                    ▼
+              OCR: Yandex Vision → Tesseract fallback
+                    │
+                    ▼
+              source=ocr_vision | ocr_tesseract | failed
+        → артефакты (extracted.md + ingest.json)
+        → quality gate → ocr_done | needs_ingest_review
+        → (опционально) verified-копия / артефакты в pension-docs
   → дальше: classify → extract → audit_ils → draft → human_review
 ```
 
@@ -66,7 +97,7 @@ upload (cabinet / MAX)
 
 | Статус | Смысл для ingest |
 |--------|------------------|
-| `documents_received` | файлы в Storage, ingest ещё не прошёл / в очереди |
+| `documents_received` | файлы приняты (local/Disk ± кабинетный Storage), ingest ещё не прошёл / в очереди |
 | `ocr_done` | все обязательные файлы извлечены, quality gate OK **или** эксперт подтвердил текст |
 | *(флаг)* `needs_ingest_review` | не отдельный enum MVP: флаг на деле/документе + очередь в admin; статус может остаться `documents_received` или `ocr_done` с предупреждением |
 | `human_review` | проверка сверки/черновика (как сейчас); **дополнительно** ingest-HITL может вернуть дело сюда раньше |
@@ -138,9 +169,14 @@ else:
 
 ## 7. Форматы артефактов
 
-Оригинал: `cases/{case_id}/docs/{doc_id}/{filename}` (private bucket).
+**Оригинал для OCR (primary):**
+`storage/uploads/{case_id}/…` и/или
+`disk:/SFRFR-cases/{ФИО|uuid}/incoming|outgoing/…`.
 
-Рядом (тот же префикс или `…/ingest/`):
+**Кабинет / quarantine / verified (не SoT OCR):** private bucket `pension-docs`,
+типичные префиксы `quarantine/…`, `verified/…` (как в worker as-is).
+
+Рядом с verified или отдельным префиксом `…/ingest/` — артефакты:
 
 ### 7.1. `extracted.md` (для человека и LLM)
 
@@ -284,10 +320,11 @@ sfrfr/ocr/
 
 ## 10. Безопасность
 
-- Signed URL на оригинал ≤ TTL Storage (как сейчас).
+- Превью HITL: signed URL на копию в Storage ≤ TTL **или** стрим из local/Disk только для expert+ (без долгоживущих публичных ссылок).
 - Vision/LLM: по возможности маскировать СНИЛС до отправки; полный скан в Vision неизбежен для OCR — договор / политика ПДн Яндекса.
 - Не писать полный OCR в application logs / amo / Sheets.
-- Артефакты — private bucket, RLS/роли как у документов дела.
+- Артефакты — private bucket (или local рядом с uploads), доступ как у документов дела (expert+).
+- Диск `SFRFR-cases`: папка по ФИО/UUID, без телефона/СНИЛС в путях; не публичный шаринг.
 
 ---
 
@@ -298,9 +335,11 @@ sfrfr/ocr/
 | **A** | Постраничные пороги + PyMuPDF/pypdf + `ingest.json` / `extracted.md`; Tesseract как сейчас |
 | **B** | Флаг `needs_ingest_review` + admin split-view + accept/edit/rerun |
 | **C** | Yandex Vision + `auto` + fallback Tesseract |
-| **D** | Кэш по `content_hash`, уведомления клиенту «переснять» |
+| **D** | Worker читает байты **сначала** из local / Disk (порядок §3.7); Storage — fallback |
+| **E** | Кэш по `content_hash`, уведомления клиенту «переснять» |
 
-MVP ТЗ-13 = этапы **A+B**; Vision — **C** после ключей в `.env`/VPS.
+MVP ТЗ-13 = этапы **A+B**; Vision — **C** после ключей в `.env`/VPS;
+смена SoT входа OCR — **D** (спека уже зафиксирована, код — миграция §15).
 
 ---
 
@@ -308,14 +347,15 @@ MVP ТЗ-13 = этапы **A+B**; Vision — **C** после ключей в `.
 
 - [ ] PDF с текстовым слоем (типичная выписка) → `source=text_layer`, **без** вызова Vision/Tesseract.
 - [ ] PDF без слоя / мало символов на странице → OCR только этих страниц.
-- [ ] Артефакты `extracted.md` + `ingest.json` рядом с оригиналом; схема §7.2.
+- [ ] Worker берёт байты из **local и/или Disk** по порядку §3.7; Storage — только fallback.
+- [ ] Артефакты `extracted.md` + `ingest.json`; схема §7.2.
 - [ ] `INGEST_OCR_ENGINE=auto`: Vision если настроен, иначе Tesseract; fallback при ошибке Vision.
 - [ ] При `failed` / низком char_count → `needs_ingest_review`; classify/extract не стартуют сами.
 - [ ] Эксперт: side-by-side скан↔текст, правка, accept, rerun OCR, reject; записи в audit.
 - [ ] Оператор не редактирует OCR-текст.
 - [ ] В ответе public/amo/Sheets нет текстов OCR.
 - [ ] CLI/`extract_text` по-прежнему возвращает строку (обратная совместимость).
-- [ ] Юнит-тесты: порог страницы; mixed PDF (mock); quality gate.
+- [ ] Юнит-тесты: порог страницы; mixed PDF (mock); quality gate; resolve bytes local→Disk.
 
 ---
 
@@ -340,4 +380,30 @@ INGEST_OCR_ENGINE=auto
 INGEST_VISION_FALLBACK_TESSERACT=true
 TESSERACT_LANG=rus+eng
 # Vision (этап C): YANDEX_VISION_* или переиспользование SA облака
+# Пути оригиналов (этап D): storage_local_path + YANDEX_DISK_* / SFRFR-cases
 ```
+
+---
+
+## 15. Расхождение с кодом (as-is → целевой SoT)
+
+**Спека (этот документ):** primary вход OCR = local `storage/uploads` + Диск
+`SFRFR-cases`; движки: text-layer → Vision → Tesseract; async worker.
+
+**Код на момент фиксации спеки** (`document_ingest_worker.process_document_ingest_job`):
+байты для OCR скачиваются из Supabase Storage `pension-docs` по
+`documents.storage_path` (quarantine → verified). Local/Disk уже пишутся при
+upload/mirror (`save_upload`, `mirror_case_document_safe`), но worker их
+**ещё не читает** как SoT.
+
+Миграция (этап **D**, без смены движков OCR):
+
+1. В job/метаданных хранить `local_path` и/или disk-path (или резолвить по
+   `case_id` + имени/`content_hash`).
+2. Worker: читать local → Disk → fallback Storage.
+3. Quarantine/antivirus в Storage можно оставить для кабинетного контура;
+   после accept — не требовать Storage как единственный источник байтов.
+4. Тесты: ingest без download из bucket, если local есть.
+
+До закрытия этапа D критерии §12 про resolve bytes — целевые; as-is
+покрывает движки и артефакты, но не SoT входа.
