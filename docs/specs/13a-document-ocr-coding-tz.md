@@ -443,12 +443,15 @@ cabinet / MAX upload
 
 ### Phase 2
 
-| Путь | Действие |
-|------|----------|
-| `supabase/migrations/YYYYMMDDHHMMSS_ocr_source_paths.sql` | колонки §3 |
-| `src/sfrfr/integrations/yandex_workspace/case_mirror.py` | возвращать/прокидывать paths (уже частично) |
-| `src/sfrfr/services/document_ingest_worker.py` / upload path | persist `local_path`, `yandex_disk_path` |
-| `src/sfrfr/services/documents_schema.py` | если нужен allow-list колонок |
+| Путь | Действие | Статус |
+|------|----------|--------|
+| `supabase/migrations/20260924120000_ocr_source_registry_phase2.sql` | колонки §3 + `local_status` / `yandex_disk_status` | done (код; apply — отдельно) |
+| `src/sfrfr/storage/local.py` | quarantine save + relative path helpers | done |
+| `src/sfrfr/services/ocr_source_resolver.py` | relative `local_path`, quarantine scan, `resolve_trace` | done |
+| `src/sfrfr/services/document_ingest_worker.py` | early local, mirror persist, audit, `local_status` | done |
+| `tests/unit/test_ocr_source_registry_phase2.py` | mocks Phase 2 | done |
+
+**Не в этом PR:** `INGEST_OCR_STORAGE_FALLBACK=false`, backfill, file move quarantine→verified.
 
 ### Phase 3
 

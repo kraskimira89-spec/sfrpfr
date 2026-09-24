@@ -3,7 +3,7 @@
 **Дата:** 2026-09-24  
 **Ветка:** `feature/ocr-source-registry-phase2`  
 **База:** `main` @ `3c4dd75` (PR #37 Phase 1 merged)  
-**Статус:** только анализ; **реализация — после подтверждения**
+**Статус:** реализация в ветке (без commit/apply до ревью); уточнения: quarantine `local_status`, path только после confirmed write
 
 ---
 
