@@ -1,29 +1,48 @@
 ## Техническое задание для Яндекс Cloud AI-ассистента
 
 ### Цель
-Применить уже записанный `metadata["ssh-keys"]` (оба ключа) к `~sfrfr/.ssh/authorized_keys` на ВМ `sfrfr-supabase-db-01`.
+Гарантированно прописать ключ `…UaTm` в `/home/sfrfr/.ssh/authorized_keys` на ВМ `sfrfr-supabase-db-01`.  
+Проверка после reboot `fhmcvq4q7009kp8oj07r`: SSH с ноутбука снова **Permission denied** — утверждение «cloud-init применил ключи в authorized_keys» **не подтверждено**.
 
-### Факт
-После обновления `ssh-keys` (операция `fhmkr127m3d22qu3praa`) SSH с ноутбука **всё ещё** `Permission denied` для ключа `…UaTm` (проверено дважды, без reboot). Guest agent на лету ключ не применил.
+### Контекст
+- ВМ: `fhmkkkr7if3ggu6h29uq` / `51.250.69.237` / user `sfrfr`
+- `metadata["ssh-keys"]` уже содержит оба ключа — **не удалять**
+- Локальный pubkey OK, IP `185.77.216.28` в SG — проблема только в `authorized_keys` на диске
+- DNS / Lockbox / старый каталог — не трогать
 
-### Шаги
-1. **ДА — reboot** ВМ `sfrfr-supabase-db-01` (`fhmkkkr7if3ggu6h29uq`). Не delete.
-2. Дождаться статуса **RUNNING**, IP `51.250.69.237` на месте.
-3. Убедиться, что `metadata["ssh-keys"]` по-прежнему содержит **обе** строки:
-   - `sfrfr:…0PZM github`
-   - `sfrfr:…UaTm user.kraskimira89@gmail.com`
-4. Краткий отчёт: операция reboot, статус RUNNING.
+### Шаги (план B)
+1. Прочитать текущий `metadata["user-data"]` (полный YAML).
+2. **Дополнить** (не заменить целиком слепо) секцией, которая на **каждой** загрузке гарантирует ключи. Использовать **`bootcmd`** (выполняется каждый boot), не одноразовый `runcmd`:
 
-### Если после reboot SSH снова denied (план B — только по отдельному подтверждению)
-Не делать сейчас. Сообщить нам; тогда отдельно разрешим `user-data` с `runcmd`, который **append** ключа в `authorized_keys` + `cloud-init clean` + reboot.
+```yaml
+bootcmd:
+  - |
+    install -d -m 700 -o sfrfr -g sfrfr /home/sfrfr/.ssh
+    touch /home/sfrfr/.ssh/authorized_keys
+    chown sfrfr:sfrfr /home/sfrfr/.ssh/authorized_keys
+    chmod 600 /home/sfrfr/.ssh/authorized_keys
+    grep -q 'AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM' /home/sfrfr/.ssh/authorized_keys \
+      || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM github' >> /home/sfrfr/.ssh/authorized_keys
+    grep -q 'AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm' /home/sfrfr/.ssh/authorized_keys \
+      || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm user.kraskimira89@gmail.com' >> /home/sfrfr/.ssh/authorized_keys
+    chown sfrfr:sfrfr /home/sfrfr/.ssh/authorized_keys
+    chmod 600 /home/sfrfr/.ssh/authorized_keys
+```
+
+3. Сохранить прежние части user-data (users, packages, ufw runcmd и т.д.), только **добавить/смержить** `bootcmd`.
+4. Выполнить **reboot** ВМ, дождаться RUNNING.
+5. Вернуть: фрагмент user-data с `bootcmd`, id операции reboot, статус RUNNING.
 
 ### Ограничения
-- Не DNS, не UFW/Docker, не Lockbox, не менять SG.
-- Не удалять ключи из `ssh-keys`.
+- Не wipe всего user-data.
+- Не менять DNS, SG, диски; не delete ВМ.
+- Не открывать Postgres наружу.
+- Не читать Lockbox.
 
 ### Критерии готовности
+- В user-data есть bootcmd с обоими ключами.
 - ВМ RUNNING после reboot.
-- Мы сами проверим: `ssh sfrfr@51.250.69.237`.
+- Мы проверим SSH сами; если OK — дальше UFW 80/443.
 
 ---
 Это техническое задание для выполнения Яндекс-ассистентом.
