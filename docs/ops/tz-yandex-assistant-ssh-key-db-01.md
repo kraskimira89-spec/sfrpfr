@@ -1,40 +1,29 @@
 ## Техническое задание для Яндекс Cloud AI-ассистента
 
 ### Цель
-Реально добавить SSH-ключ `…UaTm` в `~sfrfr/.ssh/authorized_keys` на **уже запущенной** ВМ `sfrfr-supabase-db-01`. Предыдущий шаг (user-data + reboot) **не сработал**: с ноутбука `ssh` предлагает ключ `…UaTm`, сервер отвечает `Permission denied (publickey)`.
+Применить уже записанный `metadata["ssh-keys"]` (оба ключа) к `~sfrfr/.ssh/authorized_keys` на ВМ `sfrfr-supabase-db-01`.
 
-### Доказательство
-- Локальный pubkey: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm`
-- IP клиента в SG: `185.77.216.28` (22 открыт)
-- SSH debug: `Offering public key …UaTm` → `Authentications that can continue: publickey` → denied
-- Вывод: cloud-init **не** перезаписал `authorized_keys` при reboot (модуль users обычно once-per-instance)
+### Факт
+После обновления `ssh-keys` (операция `fhmkr127m3d22qu3praa`) SSH с ноутбука **всё ещё** `Permission denied` для ключа `…UaTm` (проверено дважды, без reboot). Guest agent на лету ключ не применил.
 
-### Контекст
-- ВМ id: `fhmkkkr7if3ggu6h29uq`, IP `51.250.69.237`, user `sfrfr`
-- Каталог: `b1grtprgfugidt9u073i`
-- Сохранить ключ GitHub: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM`
+### Шаги
+1. **ДА — reboot** ВМ `sfrfr-supabase-db-01` (`fhmkkkr7if3ggu6h29uq`). Не delete.
+2. Дождаться статуса **RUNNING**, IP `51.250.69.237` на месте.
+3. Убедиться, что `metadata["ssh-keys"]` по-прежнему содержит **обе** строки:
+   - `sfrfr:…0PZM github`
+   - `sfrfr:…UaTm user.kraskimira89@gmail.com`
+4. Краткий отчёт: операция reboot, статус RUNNING.
 
-### Шаги (обязательно вариант с `ssh-keys`)
-Владелец **явно разрешает** изменить `metadata["ssh-keys"]` (исключение из вашей иммутабельности для этой задачи).
-
-1. Установить metadata `ssh-keys` так, чтобы были **оба** ключа (многострочно), формат YC:
-```text
-sfrfr:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM github
-sfrfr:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm user.kraskimira89@gmail.com
-```
-2. Не удалять первый ключ. Не затирать другими метаданными.
-3. Если guest agent применяет ключи без reboot — reboot **не** делать.
-4. Если по доке YC нужен reboot после смены `ssh-keys` — сделать reboot и дождаться RUNNING.
-5. Если политика всё же запрещает `ssh-keys`: вернуть **точные** шаги UI консоли (Compute → ВМ → изменить → SSH-ключи) с тем же содержимым, без выполнения.
+### Если после reboot SSH снова denied (план B — только по отдельному подтверждению)
+Не делать сейчас. Сообщить нам; тогда отдельно разрешим `user-data` с `runcmd`, который **append** ключа в `authorized_keys` + `cloud-init clean` + reboot.
 
 ### Ограничения
-- Не DNS, не UFW/Docker с вашей стороны, не Lockbox, не delete ВМ.
-- Не открывать 5432/5433/8000 в SG.
+- Не DNS, не UFW/Docker, не Lockbox, не менять SG.
+- Не удалять ключи из `ssh-keys`.
 
 ### Критерии готовности
-- Подтверждение, что `ssh-keys` содержит обе строки `sfrfr:…`.
-- Статус ВМ RUNNING.
-- Мы проверим SSH с ноутбука сами.
+- ВМ RUNNING после reboot.
+- Мы сами проверим: `ssh sfrfr@51.250.69.237`.
 
 ---
 Это техническое задание для выполнения Яндекс-ассистентом.
