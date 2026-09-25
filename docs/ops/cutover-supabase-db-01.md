@@ -26,7 +26,8 @@ Postgres 5432/5433/8000 в интернет **не** открыты (прави�
 
 - TCP **22** — открыт (connect OK).
 - HTTPS/HTTP на `51.250.69.237` — **таймаут**.
-- SSH: после user-data + reboot ключ `…UaTm` **всё ещё** rejected (cloud-init users once-per-instance). Нужен `metadata["ssh-keys"]` с обоими ключами (guest agent) или вход ключом GitHub `…0PZM` с другого ПК.
+- SSH: после `ssh-keys` + reboot снова **Permission denied**. Следующий шаг — `bootcmd` в user-data (append обоих ключей в `authorized_keys` каждый boot) + reboot. См. `tz-yandex-assistant-ssh-key-db-01.md`.
+
 - **UFW** в cloud-init: только `22/tcp` → 80/443 закрыты и на ОС.
 
 **DNS в reg.ru пока НЕ менять.** Сначала рабочий SSH → `ufw allow 80,443` → стек слушает 80/443.
