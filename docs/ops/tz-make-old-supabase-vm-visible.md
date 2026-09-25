@@ -24,11 +24,13 @@ https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu
 Далее один из вариантов:
 
 #### Вариант A — пригласить текущего пользователя (рекомендуется)
-1. Организация Cloud `proverkastaza` (`bpf25prvoq8uqqlvujim`) → **Пользователи** → пригласить логин, под которым видна новая ВМ (например `taganai89@…` / тот, что в шапке консоли).
+1. Организация Cloud `proverkastaza` (`bpf25prvoq8uqqlvujim`) → **Пользователи** → пригласить:
+   **`prismotr89@yandex.ru`** (аккаунт, под которым видна ВМ `sfrfr-supabase-db-01`).
 2. На каталог `b1g0mhpm9tr4lrurk1bu` назначить роли:
    - минимум: `viewer` (или `compute.viewer` + `vpc.viewer`) — только смотреть;
-   - для SSH/дисков/копирования: `editor` или `compute.admin`.
-3. Пользователь принимает приглашение → обновляет консоль → открывает тот же URL каталога → Compute → ВМ `sfrfr-staging-supabase`.
+   - для SSH/дисков/копирования dump: `editor` или `compute.admin`.
+3. `prismotr89@yandex.ru` принимает приглашение → обновляет консоль →  
+   https://console.yandex.cloud/folders/b1g0mhpm9tr4lrurk1bu → Compute → `sfrfr-staging-supabase`.
 
 #### Вариант B — просто войти владельцем
 Сменить аккаунт на владельца биллинга `sfrfr-ai` → каталог `default` → обе ВМ в **разных** облаках/каталогах всё равно смотрятся **по отдельности** (переключатель каталога вверху), но старая станет доступна.
