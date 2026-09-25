@@ -29,7 +29,8 @@ Postgres 5432/5433/8000 в интернет **не** открыты (прави�
 - SSH: cloud-init ключ `AAAAC3…0PZM` (GitHub `kraskimira89-spec`) **≠** локальный `id_ed25519` (`AAAAC3…UaTm` / gmail) → `Permission denied`.
 - **UFW** в cloud-init: `deny incoming` + только `22/tcp` → **80/443 закрыты и на ОС**, даже после открытия SG.
 
-**DNS в reg.ru пока НЕ менять.** Сначала: добавить рабочий pubkey → SSH → `ufw allow 80,443` → стек слушает 80/443.
+**DNS в reg.ru пока НЕ менять.** Сначала: добавить pubkey `…UaTm` через user-data + **reboot** (ВМ ещё не в DNS) → SSH → `ufw allow 80,443` → стек слушает 80/443.
+
 
 
 ## Шаг 1 — Security Group (Yandex Cloud)
