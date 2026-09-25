@@ -28,6 +28,7 @@ htmlcov/
 *.key
 secrets/
 !secrets/yandex-tracker.env.example
+!secrets/supabase-selfhost-mcp.env.example
 **/google-sheets-sa.json
 **/google*credentials*.json
 
@@ -166,6 +167,3 @@ plugins/tracker/**/dist/
 
 # Сборка PDF диагностики (локальные артефакты)
 scripts/assets/templates/out/
-
-.tmp_cutover/
-
