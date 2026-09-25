@@ -1,0 +1,23 @@
+# DBHub → self-host Supabase Postgres (YC VM C).
+# Секреты: secrets/supabase-selfhost-mcp.env → scripts/mcp-supabase-selfhost.cmd
+# Read-only: [[tools]] readonly = true.
+
+[[sources]]
+id = "sfrfr_yc"
+# Прямой Postgres :5433 (не Supavisor :5432). sslmode=disable — внутри SSH-туннеля.
+dsn = "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+# Jump: app-VPS. Ключ — авто ~/.ssh/id_ed25519 (или SSH_KEY в env / Host в ~/.ssh/config).
+ssh_host = "${SSH_HOST}"
+ssh_port = 22
+ssh_user = "${SSH_USER}"
+ssh_key = "${SSH_KEY}"
+
+[[tools]]
+name = "execute_sql"
+source = "sfrfr_yc"
+readonly = true
+max_rows = 200
+
+[[tools]]
+name = "search_objects"
+source = "sfrfr_yc"

@@ -28,6 +28,7 @@ htmlcov/
 *.key
 secrets/
 !secrets/yandex-tracker.env.example
+!secrets/supabase-selfhost-mcp.env.example
 **/google-sheets-sa.json
 **/google*credentials*.json
 

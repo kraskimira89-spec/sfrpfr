@@ -31,6 +31,11 @@
 3. `systemctl restart sfrfr-api sfrfr-cabinet sfrfr-admin`
 4. Auth redirects в Cloud Dashboard (см. legacy-блок в [supabase-auth-redirects.md](./supabase-auth-redirects.md)).
 
+## Cursor MCP
+
+- Прод = self-host YC → [supabase-selfhost-mcp.md](./supabase-selfhost-mcp.md) (DBHub + SSH jump), **не** `mcp.supabase.com`.
+- Cloud `project_ref=frualvycousvvyjivybu` в MCP — только rollback/drain; после pause проекта убрать из `%USERPROFILE%\.cursor\mcp.json`.
+
 ## Связанное
 
 - [15-data-localization-ru.md](../specs/15-data-localization-ru.md) — фаза 2 шаг 7
