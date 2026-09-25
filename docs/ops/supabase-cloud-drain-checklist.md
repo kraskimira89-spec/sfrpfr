@@ -31,10 +31,24 @@
 3. `systemctl restart sfrfr-api sfrfr-cabinet sfrfr-admin`
 4. Auth redirects в Cloud Dashboard (см. legacy-блок в [supabase-auth-redirects.md](./supabase-auth-redirects.md)).
 
-## Cursor MCP
+## Supabase MCP в Cursor смотрит в Cloud, не в прод
 
-- Прод = self-host YC → [supabase-selfhost-mcp.md](./supabase-selfhost-mcp.md) (DBHub + SSH jump), **не** `mcp.supabase.com`.
-- Cloud `project_ref=frualvycousvvyjivybu` в MCP — только rollback/drain; после pause проекта убрать из `%USERPROFILE%\.cursor\mcp.json`.
+MCP-сервер `mcp.supabase.com` видит только Cloud-проект `frualvycousvvyjivybu` (legacy, rollback).
+Его таблицы, миграции и advisors **не отражают прод**: не применять туда миграции,
+не создавать `create_branch`, не делать выводов о проде по MCP-аудиту.
+
+Прод = self-host YC → [supabase-selfhost-mcp.md](./supabase-selfhost-mcp.md) (DBHub + SSH jump), **не** `mcp.supabase.com`.
+Cloud `project_ref` в MCP — только rollback/drain; после pause проекта убрать из `%USERPROFILE%\.cursor\mcp.json`.
+
+Сверка прода (self-host YC) — read-only скрипт, `DATABASE_URL` из `secrets/`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_prod_schema_drift.py
+```
+
+Скрипт проверяет объекты 15 миграций (`20260727…`–`20260924…`) и security-сигналы
+(SECURITY DEFINER в `public`, `rls_auto_enable`, RLS без политик, `auth.uid()` в
+`marketing_consents_select_own`). Выводит только имена объектов, без данных и DSN.
 
 ## Связанное
 
