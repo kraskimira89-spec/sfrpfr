@@ -28,7 +28,7 @@ Postgres 5432/5433/8000 в интернет **не** открыты (прави�
 - HTTPS/HTTP на `51.250.69.237` — **таймаут** → на ВМ, скорее всего, **нет слушателя** на 80/443 (стек/Caddy не поднят) или фильтр внутри ОС.
 - SSH ключ с этой машины (`id_ed25519`) → `Permission denied (publickey)` для `sfrfr`/`ubuntu`.
 
-**DNS в reg.ru пока НЕ менять.** Сначала поднять стек и получить ответ на `curl https://51.250.69.237`.
+**DNS в reg.ru пока НЕ менять.** Сначала поднять стек так, чтобы на ВМ слушались **80/443** (`ss`/`docker`). Ответ `curl -vk https://IP` может быть с ошибкой имени сертификата — важно, что порт **отвечает**, а не таймаут. Валидный LE на домен — **после** смены A (HTTP-01).
 
 ## Шаг 1 — Security Group (Yandex Cloud)
 
@@ -67,12 +67,21 @@ curl.exe -vk https://51.250.69.237/ --max-time 10
 
 Если стека нет — **не** менять DNS; сначала поднять Compose + Caddy (`PROXY_DOMAIN=supabase.proverkastaza.ru`), те же JWT/ключи, что в проде.
 
-## Шаг 3 — DNS (reg.ru)
+## Порядок cutover (ACME / DNS)
 
-1. DNS-зона `proverkastaza.ru` → A `supabase`.
-2. Было: `51.250.13.240` → стало: **`51.250.69.237`**.
-3. Проверка: `nslookup supabase.proverkastaza.ru 8.8.8.8`
-4. `curl -I https://supabase.proverkastaza.ru`
+**Не** менять DNS, пока на ВМ нет слушателя на 80/443 (иначе простой без пользы).
+
+1. **SSH / serial console** — стек up: `docker ps`, `ss` показывает `:80`/`:443` (хотя бы локально).
+2. Caddy (или аналог) сконфигурирован на `supabase.proverkastaza.ru`, секреты/JWT как в проде.
+3. **reg.ru:** A `supabase` → `51.250.69.237`.
+4. Дождаться DNS (`dig`/`nslookup` → новый IP).
+5. Caddy сам запросит LE по **HTTP-01** (нужны открытые 80+443) — обычно минуты.
+6. Smoke: `curl -I https://supabase.proverkastaza.ru`, cabinet OTP.
+
+Альтернатива без окна «DNS уже новый, а cert ещё нет»: **DNS-01** challenge (API reg.ru / TXT) — сертификат до смены A. Для текущего Caddy-стека обычно достаточно HTTP-01 после шага 3.
+
+**Окно простоя:** с момента смены A до выдачи cert HTTPS на домене может кратко отдавать ошибку TLS — держать TTL низким, cutover в спокойное время.
+
 
 ## Шаг 4 — Smoke
 
@@ -88,5 +97,5 @@ curl.exe -vk https://51.250.69.237/ --max-time 10
 ## Запрещено
 
 - Открывать Postgres в интернет
-- Менять DNS до рабочего HTTPS на `51.250.69.237`
+- Менять DNS до того, как на ВМ есть слушатель 80/443 и поднят Compose/Caddy
 - Трогать Lockbox / каталог `b1g0mhpm9tr4lrurk1bu` без владельца `sfrfr-ai`
