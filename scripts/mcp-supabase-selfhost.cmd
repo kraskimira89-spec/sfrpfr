@@ -17,8 +17,11 @@ if not exist "%TOML%" (
   exit /b 1
 )
 
-for /f "usebackq tokens=1,* delims== eol=#" %%A in ("%ENVFILE%") do (
-  if not "%%A"=="" if not "%%B"=="" set "%%A=%%B"
+REM UTF-8 BOM ломает первую переменную в for /f — читаем через PowerShell.
+for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "Get-Content -LiteralPath '%ENVFILE%' -Encoding utf8 | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -and ($_ -notmatch '^\s*#') -and ($_ -match '=') }"`) do (
+  for /f "tokens=1,* delims==" %%A in ("%%L") do (
+    if not "%%A"=="" if not "%%B"=="" set "%%A=%%B"
+  )
 )
 
 if not defined DB_PASSWORD (
