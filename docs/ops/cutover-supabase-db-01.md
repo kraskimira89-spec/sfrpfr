@@ -20,15 +20,15 @@ DNS зоны `proverkastaza.ru` — **reg.ru**, не Yandex Cloud.
 
 Postgres 5432/5433/8000 в интернет **не** открыты (правильно).
 
-## Статус доступа (2026-09-25 вечер)
+## Статус доступа / переноса (2026-09-25)
 
-- ✅ SSH `sfrfr@51.250.69.237` (ключ `…UaTm` после bootcmd).
-- ✅ UFW: **22, 80, 443** открыты.
-- ✅ Docker 29.x установлен; диск `/srv/supabase-data` (100 ГБ) смонтирован.
-- ❌ Контейнеров нет; `/opt/sfrfr-supabase` и `/srv/sfrfr-supabase-data` **пусты**; на data-диске только `lost+found`.
-- ❌ HTTPS/HTTP снаружи — connection refused (слушателя нет).
+- ✅ SSH на **новую** `sfrfr-supabase-db-01` (`51.250.69.237`) и на **старую** `sfrfr-staging-supabase` (`51.250.13.240`) с ключом агента.
+- ✅ Стек скопирован и поднят на новой ВМ: Kong, DB, Auth, Storage, **Caddy** (80/443 слушают).
+- ✅ Swap 4 GiB добавлен (RAM ВМ 3.8 GiB — впритык).
+- ⏳ DNS `supabase.proverkastaza.ru` всё ещё → `51.250.13.240` → Let's Encrypt на новой ВМ **ещё не выдан** (challenge ходит на старый IP).
+- ❌ Браузерный доступ к старому каталогу не нужен для cutover (перенос сделан через SSH/SA).
 
-**DNS cutover нельзя.** Нужно: развернуть self-host Compose (как на старой ВМ) + импорт данных, затем DNS.
+**Следующий шаг владельца:** в reg.ru A `supabase` → **`51.250.69.237`**, подождать DNS + LE, smoke `curl -I https://supabase.proverkastaza.ru`. Старую ВМ не гасить 24–72 ч.
 
 ## Шаг 1 — Security Group (Yandex Cloud)
 
