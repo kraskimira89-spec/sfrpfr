@@ -1,0 +1,19 @@
+# DBHub → self-host Supabase Postgres (YC db-01) via local OpenSSH forward.
+# Tunnel поднимает scripts/mcp-supabase-selfhost.cmd (ssh.exe → 127.0.0.1:15433).
+# Read-only: [[tools]] readonly = true.
+# Не использовать встроенный ssh_* DBHub: Node/Go SSH идёт через AdGuard VPN и ловит SG timeout.
+
+[[sources]]
+id = "sfrfr_yc"
+# Прямой Postgres :5433 на ВМ, с ноутбука — только через OpenSSH -L (см. .cmd).
+dsn = "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+
+[[tools]]
+name = "execute_sql"
+source = "sfrfr_yc"
+readonly = true
+max_rows = 200
+
+[[tools]]
+name = "search_objects"
+source = "sfrfr_yc"
