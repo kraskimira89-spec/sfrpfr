@@ -1,36 +1,40 @@
 ## Техническое задание для Яндекс Cloud AI-ассистента
 
 ### Цель
-Добавить второй SSH pubkey пользователю `sfrfr` на ВМ `sfrfr-supabase-db-01` и применить его через **reboot** (metadata + cloud-init). ВМ ещё **не** в DNS cutover (`supabase.proverkastaza.ru` указывает на `51.250.13.240`) — короткий reboot допустим.
+Реально добавить SSH-ключ `…UaTm` в `~sfrfr/.ssh/authorized_keys` на **уже запущенной** ВМ `sfrfr-supabase-db-01`. Предыдущий шаг (user-data + reboot) **не сработал**: с ноутбука `ssh` предлагает ключ `…UaTm`, сервер отвечает `Permission denied (publickey)`.
+
+### Доказательство
+- Локальный pubkey: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm`
+- IP клиента в SG: `185.77.216.28` (22 открыт)
+- SSH debug: `Offering public key …UaTm` → `Authentications that can continue: publickey` → denied
+- Вывод: cloud-init **не** перезаписал `authorized_keys` при reboot (модуль users обычно once-per-instance)
 
 ### Контекст
-- ВМ: `sfrfr-supabase-db-01` / `fhmkkkr7if3ggu6h29uq` / IP `51.250.69.237`
+- ВМ id: `fhmkkkr7if3ggu6h29uq`, IP `51.250.69.237`, user `sfrfr`
 - Каталог: `b1grtprgfugidt9u073i`
-- Пользователь: `sfrfr`
-- Текущий ключ (сохранить): `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM`
-- Добавить: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm user.kraskimira89@gmail.com`
-- Понимаем: без reboot cloud-init не обновит `authorized_keys` при смене user-data
-- `metadata["ssh-keys"]` не трогать, если у вас это иммутабельно — достаточно user-data + reboot
+- Сохранить ключ GitHub: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM`
 
-### Шаги
-1. **Да** — обновить `user-data`: у `sfrfr` в `ssh_authorized_keys` оба ключа (`…0PZM` и `…UaTm`).
-2. **Да** — выполнить **reboot** ВМ `sfrfr-supabase-db-01` (не delete, не stop насовсем — именно перезагрузка).
-3. Дождаться статуса RUNNING после reboot.
-4. Вернуть: подтверждение обоих ключей в user-data; время reboot; статус ВМ.
+### Шаги (обязательно вариант с `ssh-keys`)
+Владелец **явно разрешает** изменить `metadata["ssh-keys"]` (исключение из вашей иммутабельности для этой задачи).
 
-### После reboot (не делать ассистенту — сделаем с ноутбука)
-Мы сами: `ssh sfrfr@51.250.69.237` → `ufw allow 80,443` → проверка Docker.
+1. Установить metadata `ssh-keys` так, чтобы были **оба** ключа (многострочно), формат YC:
+```text
+sfrfr:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAh5DSXS+s8Y7ylwU3vMEOzzafTMGx9MTYN9e7hz0PZM github
+sfrfr:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILMuJ08egqt1pIwlLDJH0XbSTyvZjnKU97GEne15UaTm user.kraskimira89@gmail.com
+```
+2. Не удалять первый ключ. Не затирать другими метаданными.
+3. Если guest agent применяет ключи без reboot — reboot **не** делать.
+4. Если по доке YC нужен reboot после смены `ssh-keys` — сделать reboot и дождаться RUNNING.
+5. Если политика всё же запрещает `ssh-keys`: вернуть **точные** шаги UI консоли (Compute → ВМ → изменить → SSH-ключи) с тем же содержимым, без выполнения.
 
 ### Ограничения
-- Не delete ВМ, не менять диски, не менять SG (80/443/22 уже ок).
-- Не менять DNS, не трогать `b1g0mhpm9tr4lrurk1bu` / Lockbox.
-- Не удалять ключ `…0PZM`.
-- Не открывать Postgres в интернет.
+- Не DNS, не UFW/Docker с вашей стороны, не Lockbox, не delete ВМ.
+- Не открывать 5432/5433/8000 в SG.
 
 ### Критерии готовности
-- user-data содержит оба pubkey.
-- ВМ снова RUNNING после reboot.
-- Краткий отчёт в ответе.
+- Подтверждение, что `ssh-keys` содержит обе строки `sfrfr:…`.
+- Статус ВМ RUNNING.
+- Мы проверим SSH с ноутбука сами.
 
 ---
 Это техническое задание для выполнения Яндекс-ассистентом.
