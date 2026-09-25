@@ -167,3 +167,5 @@ plugins/tracker/**/dist/
 
 # Сборка PDF диагностики (локальные артефакты)
 scripts/assets/templates/out/
+
+.tmp_cutover/
