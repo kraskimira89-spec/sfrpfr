@@ -20,17 +20,15 @@ DNS зоны `proverkastaza.ru` — **reg.ru**, не Yandex Cloud.
 
 Postgres 5432/5433/8000 в интернет **не** открыты (правильно).
 
-## Текущий блокер (после SG)
+## Статус доступа (2026-09-25 вечер)
 
-С рабочей станции (`185.77.216.28`):
+- ✅ SSH `sfrfr@51.250.69.237` (ключ `…UaTm` после bootcmd).
+- ✅ UFW: **22, 80, 443** открыты.
+- ✅ Docker 29.x установлен; диск `/srv/supabase-data` (100 ГБ) смонтирован.
+- ❌ Контейнеров нет; `/opt/sfrfr-supabase` и `/srv/sfrfr-supabase-data` **пусты**; на data-диске только `lost+found`.
+- ❌ HTTPS/HTTP снаружи — connection refused (слушателя нет).
 
-- TCP **22** — открыт (connect OK).
-- HTTPS/HTTP на `51.250.69.237` — **таймаут**.
-- SSH: после `ssh-keys` + reboot снова **Permission denied**. Следующий шаг — `bootcmd` в user-data (append обоих ключей в `authorized_keys` каждый boot) + reboot. См. `tz-yandex-assistant-ssh-key-db-01.md`.
-
-- **UFW** в cloud-init: только `22/tcp` → 80/443 закрыты и на ОС.
-
-**DNS в reg.ru пока НЕ менять.** Сначала рабочий SSH → `ufw allow 80,443` → стек слушает 80/443.
+**DNS cutover нельзя.** Нужно: развернуть self-host Compose (как на старой ВМ) + импорт данных, затем DNS.
 
 ## Шаг 1 — Security Group (Yandex Cloud)
 
