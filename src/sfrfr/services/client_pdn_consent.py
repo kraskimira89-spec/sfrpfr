@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -43,6 +44,31 @@ CONSENT_DECLINED_TEXT = (
 )
 
 PDN_CONSENT_DECLINE_CALLBACK = "pdn_consent:no"
+
+
+def consent_text_sha256() -> str:
+    """SHA-256 текста экрана согласия — доказательство, какой текст видел клиент."""
+    return hashlib.sha256(CONSENT_GATE_TEXT.encode("utf-8")).hexdigest()
+
+
+def max_consent_evidence(
+    *,
+    update_type: str,
+    callback_id: str | None,
+    chat_id: int | str | None,
+    message_id: str | None,
+    via: str,
+) -> dict[str, Any]:
+    """Технические сведения события MAX для записи согласия (без ПДн)."""
+    raw = {
+        "channel": "max",
+        "via": via,
+        "update_type": update_type,
+        "callback_id": callback_id,
+        "chat_id": str(chat_id) if chat_id is not None else None,
+        "message_id": message_id,
+    }
+    return {k: v for k, v in raw.items() if v}
 
 
 def client_has_pdn_consent(client_row: dict[str, Any] | None) -> bool:
@@ -183,6 +209,8 @@ def ensure_case_consent_from_client(
             case_id,
             version=version,
             actor_id=actor_id or "system:client_pdn_once",
+            client_id=client_id,
+            source="inherited",
         )
         _ensure_cookie_consent_row(repo, case_id=case_id)
         return True
@@ -198,6 +226,7 @@ def accept_pdn_once(
     max_user_id: str | None = None,
     actor_id: str | None = None,
     version: str = CURRENT_CONSENT_VERSION,
+    evidence: dict[str, Any] | None = None,
 ) -> None:
     """Согласие один раз: клиент (ПДн+cookies) + (если есть) дело."""
     mark_client_pdn_consent(
@@ -215,6 +244,11 @@ def accept_pdn_once(
                     case_id,
                     version=version,
                     actor_id=actor_id or "system:max_start",
+                    client_id=client_id,
+                    max_user_id=str(max_user_id or "").strip() or None,
+                    text_sha256=consent_text_sha256(),
+                    source="max_start",
+                    evidence=evidence,
                 )
             _ensure_cookie_consent_row(repo, case_id=case_id)
         except Exception as exc:  # noqa: BLE001

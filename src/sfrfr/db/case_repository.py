@@ -570,13 +570,34 @@ class CaseRepository:
         actor_id: str,
         ip: str | None = None,
         user_agent: str | None = None,
+        client_id: str | None = None,
+        max_user_id: str | None = None,
+        text_sha256: str | None = None,
+        source: str | None = None,
+        evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"case_id": case_id, "version": version}
         if ip:
             payload["ip"] = ip
         if user_agent:
             payload["user_agent"] = user_agent
-        response = self.client.table("consents").insert(payload).execute()
+        extended = dict(payload)
+        for key, value in (
+            ("client_id", client_id),
+            ("max_user_id", max_user_id),
+            ("text_sha256", text_sha256),
+            ("source", source),
+            ("evidence", evidence),
+        ):
+            if value:
+                extended[key] = value
+        try:
+            response = self.client.table("consents").insert(extended).execute()
+        except Exception:
+            if extended == payload:
+                raise
+            # Схема до миграции 20260926150000: без колонок доказательства.
+            response = self.client.table("consents").insert(payload).execute()
         self.client.table("cases").update({"b2c_status": "consent_accepted"}).eq(
             "id", case_id
         ).eq("b2c_status", "lead").execute()

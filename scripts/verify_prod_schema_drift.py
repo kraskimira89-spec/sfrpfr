@@ -127,6 +127,15 @@ EXPECTED: tuple[Migration, ...] = (
             ("column", "document_ingest_jobs", "resolve_trace"),
         ),
     ),
+    Migration(
+        "20260926150000",
+        "consents_evidence_a3",
+        (
+            ("column", "consents", "text_sha256"),
+            ("column", "consents", "max_user_id"),
+            ("index", "consents_case_id_idx"),
+        ),
+    ),
 )
 
 _CHECK_SQL = {
