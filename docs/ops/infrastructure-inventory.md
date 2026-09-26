@@ -50,6 +50,10 @@ Production SFRFR состоит из **двух VM**: приложение (reg.
 | Migration runner | `scripts/vm_supabase_apply_migrations.sh` — docker exec psql в `supabase-db`; реестр `sfrfr_ops.schema_migrations` | `[R]` | 2026-09-15 |
 | Backup method | `scripts/vm_supabase_backup.sh` (`pg_dump -Fc` → `/data/backups`), бакет `sfrfr-staging-backup-b1g0mhpm` (SSE-KMS, versioning, lifecycle 90 дн.), restore-drill `vm_supabase_restore_drill.sh` | `[R]` IaC + scripts | 2026-09-15 (фактическое расписание cron — TBD) |
 
+> **db-01 (`sfrfr-supabase-db-01`, каталог `b1grtprgfugidt9u073i`), с 2026-09-26:** ежедневный
+> pg_dump → бакет `sfrfr-supabase-db01-backup` (30 дней), еженедельный снапшот загрузочного
+> диска (2 шт.), Cloud Backup всей ВМ (7 дней). Канон: [supabase-db01-backups.md](supabase-db01-backups.md).
+
 ### VM A — прежний staging в YC: **отклонена**
 
 | Поле | Значение |
