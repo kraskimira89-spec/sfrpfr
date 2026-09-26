@@ -35,5 +35,8 @@
 ## Что дальше
 
 - Старую ВМ не удалять и SG не закрывать до решения владельца (откат).
-- Права SA `terraform` на каталог `b1grtprgfugidt9u073i` — ТЗ `docs/ops/tz-yandex-assistant-sa-rights-db-01-folder.md`.
+- Права на каталог `b1grtprgfugidt9u073i`: вместо SA `terraform` владелец завёл SA `ajedc5r8an62va97a43a`
+  с ролью `admin` на каталог (проверено `listAccessBindings`). Ключ — `secrets/yc-sa-db01.json`;
+  аудит: `YC_SA_KEY=secrets/yc-sa-db01.json python tools/yc_sg_audit.py`. На старый каталог
+  `b1g0mhpm9tr4lrurk1bu` у этого SA прав нет (403) — там остаётся SA `terraform`.
 - Проверить ночной `sfrfr-dbt.timer` (05:30 МСК) на новой БД.

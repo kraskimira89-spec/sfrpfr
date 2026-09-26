@@ -1,11 +1,12 @@
 """Read-only аудит Yandex Cloud: доступные облака/каталоги, ВМ и security groups.
 
-Ключ SA: secrets/yc-sa-terraform.json. Ничего не изменяет.
+Ключ SA: secrets/yc-sa-terraform.json или путь из YC_SA_KEY. Ничего не изменяет.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -14,7 +15,7 @@ import jwt
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-KEY_PATH = ROOT / "secrets" / "yc-sa-terraform.json"
+KEY_PATH = Path(os.environ.get("YC_SA_KEY", ROOT / "secrets" / "yc-sa-terraform.json"))
 FOLDERS = ["b1grtprgfugidt9u073i", "b1g0mhpm9tr4lrurk1bu"]
 
 
