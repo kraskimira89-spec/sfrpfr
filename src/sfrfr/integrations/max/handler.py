@@ -1894,6 +1894,7 @@ def _handle_bot_start(
     welcome_text: str | None = None,
     accept_consent: bool = False,
     display_name: str | None = None,
+    consent_evidence: dict[str, Any] | None = None,
 ) -> MaxHandleResult:
     """Старт после согласия: дело → приветствие частями с паузой 1 мин."""
     resumed = _resume_pending_confirm_if_any(bot, user_id=user_id, chat_id=chat_id)
@@ -1922,6 +1923,7 @@ def _handle_bot_start(
             client_id=client_id,
             max_user_id=user_id,
             actor_id=None,
+            evidence=consent_evidence,
         )
     elif case_id and client_id:
         from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
@@ -3045,6 +3047,8 @@ def handle_max_update(
         # Кнопка «Начать» = согласие + старт; /start без согласия → ворота.
         pressed_start = callback == START_DIALOG_CALLBACK or lower == START_DIALOG_LABEL.lower()
         if pressed_start:
+            from sfrfr.services.client_pdn_consent import max_consent_evidence
+
             return _handle_bot_start(
                 bot,
                 user_id=user_id,
@@ -3053,6 +3057,13 @@ def handle_max_update(
                 welcome_text=None,
                 accept_consent=True,
                 display_name=display_name,
+                consent_evidence=max_consent_evidence(
+                    update_type=update_type,
+                    callback_id=_callback_id(update),
+                    chat_id=chat_id,
+                    message_id=_max_message_id(update),
+                    via="button" if callback else "text",
+                ),
             )
         if not _client_has_pdn_consent(user_id):
             return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
