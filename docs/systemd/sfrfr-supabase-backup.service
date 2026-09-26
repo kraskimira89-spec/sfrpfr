@@ -1,0 +1,20 @@
+# db-01: pg_dump Supabase → /srv/supabase-data/backups + бакет sfrfr-supabase-db01-backup.
+# Установка: docs/ops/supabase-db01-backups.md
+[Unit]
+Description=SFRFR Supabase pg_dump to Object Storage (db-01)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=BACKUP_ROOT=/srv/supabase-data/backups/supabase-db01
+Environment=DUMP_USER=supabase_admin
+Environment="DATABASES=postgres _supabase"
+Environment=S3_PREFIX=supabase-db01
+Environment=LOCAL_KEEP_DAYS=7
+Environment=ENV_FILE=/etc/sfrfr-backup.env
+ExecStart=/usr/local/sbin/sfrfr-supabase-backup.sh
+Nice=10
+IOSchedulingClass=idle
+StandardOutput=append:/var/log/sfrfr-supabase-backup.log
+StandardError=append:/var/log/sfrfr-supabase-backup.log

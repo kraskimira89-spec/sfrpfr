@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily SFRFR Supabase pg_dump (db-01)
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Europe/Moscow
+Persistent=true
+AccuracySec=1min
+Unit=sfrfr-supabase-backup.service
+
+[Install]
+WantedBy=timers.target

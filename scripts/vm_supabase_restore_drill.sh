@@ -6,6 +6,7 @@ set -euo pipefail
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/sfrfr-supabase/supabase/docker}"
 BACKUP_ROOT="${BACKUP_ROOT:-/data/backups/supabase-staging}"
 DRILL_DB="${DRILL_DB:-restore_drill}"
+DRILL_USER="${DRILL_USER:-postgres}"
 
 cd "$COMPOSE_DIR"
 
@@ -18,7 +19,7 @@ echo "using ${LATEST}"
 
 docker compose cp "${LATEST}" db:/tmp/restore_drill.dump
 
-docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 <<SQL
+docker compose exec -T db psql -U "${DRILL_USER}" -v ON_ERROR_STOP=1 <<SQL
 select pg_terminate_backend(pid) from pg_stat_activity
   where datname = '${DRILL_DB}' and pid <> pg_backend_pid();
 drop database if exists ${DRILL_DB};
@@ -27,14 +28,14 @@ SQL
 
 # -Fc dump → pg_restore (часть объектов auth/storage может ругаться — допускаем)
 set +e
-docker compose exec -T db pg_restore -U postgres -d "${DRILL_DB}" --no-owner --verbose \
+docker compose exec -T db pg_restore -U "${DRILL_USER}" -d "${DRILL_DB}" --no-owner --verbose \
   /tmp/restore_drill.dump 2>&1 | tail -n 40
 RC=${PIPESTATUS[0]}
 set -e
 
 docker compose exec -T db rm -f /tmp/restore_drill.dump
 
-COUNT=$(docker compose exec -T db psql -U postgres -d "${DRILL_DB}" -Atc \
+COUNT=$(docker compose exec -T db psql -U "${DRILL_USER}" -d "${DRILL_DB}" -Atc \
   "select count(*) from information_schema.tables where table_schema='public';")
 echo "public_tables=${COUNT}"
 

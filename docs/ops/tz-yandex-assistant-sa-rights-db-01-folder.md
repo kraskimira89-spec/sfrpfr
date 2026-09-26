@@ -1,6 +1,8 @@
 > **Статус 2026-09-26: выполнено другим способом.** Владелец создал в каталоге
 > `b1grtprgfugidt9u073i` SA `sfrfr-agent-db01` (`ajedc5r8an62va97a43a`) с ролью `admin`
 > на каталог; ключ — `secrets/yc-sa-db01.json` (не в git). SA `terraform` роль не выдавалась.
+> Вариант ниже со старым SA `aje5drfub36p22lspljm` **не сработал**: `FAILED_PRECONDITION` —
+> SA из другого облака нельзя назначить на каталог этого облака.
 > Проверка: `YC_SA_KEY=secrets/yc-sa-db01.json python tools/yc_sg_audit.py`.
 
 ## Техническое задание для Яндекс Cloud AI-ассистента
