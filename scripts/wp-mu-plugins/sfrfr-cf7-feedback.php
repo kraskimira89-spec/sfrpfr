@@ -88,7 +88,7 @@ function sfrfr_cf7_panel_html(string $topic): string
     $formId = sfrfr_cf7_feedback_id();
     $inner = $formId > 0
         ? do_shortcode('[contact-form-7 id="' . $formId . '" title="' . SFRFR_CF7_FEEDBACK_TITLE . '"]')
-        : '<p class="sfrfr-note">Форма временно недоступна. Напишите на <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.</p>';
+        : '<p class="sfrfr-note">Форма временно недоступна. Напишите на <a href="mailto:proverkastaza@yandex.ru">proverkastaza@yandex.ru</a>.</p>';
 
     return sprintf(
         '<div class="sfrfr-cf7-feedback" id="obratnaya-svyaz" data-sfrfr-cf7-topic="%s">'

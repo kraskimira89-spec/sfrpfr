@@ -167,7 +167,7 @@ function sfrfr_trust_load(string $assets, string $file, string $maxUrl): string
     $replacements = [
         '{{MAX_BTN_URL}}' => $maxUrl,
         '{{PHONE}}' => '+7&nbsp;909&nbsp;195‑04‑08',
-        '{{EMAIL}}' => 'info@proverkastaza.ru',
+        '{{EMAIL}}' => 'proverkastaza@yandex.ru',
     ];
     return str_replace(array_keys($replacements), array_values($replacements), $html);
 }
