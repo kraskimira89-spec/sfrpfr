@@ -126,7 +126,7 @@ function sfrfr_site_footer_html(): string
       <p><strong>Контакты</strong></p>
       <p class="sfrfr-req">
         Телефон: <a href="tel:+79091950408" itemprop="telephone">+7&nbsp;909&nbsp;195‑04‑08</a><br>
-        Почта: <a href="mailto:info@proverkastaza.ru" itemprop="email">info@proverkastaza.ru</a><br>
+        Почта: <a href="mailto:proverkastaza@yandex.ru" itemprop="email">proverkastaza@yandex.ru</a><br>
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
         Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="max_channel_click">канал в MAX</a>
       </p>

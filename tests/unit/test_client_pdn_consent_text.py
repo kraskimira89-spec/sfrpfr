@@ -11,7 +11,7 @@ def test_consent_gate_has_operator_requisites() -> None:
         "ОГРН 1208900000572",
         "629804",
         "г. Ноябрьск, ул. Рабочая, д. 109Б, кв. 4",
-        "prismotr89@yandex.ru",
+        "proverkastaza@yandex.ru",
         "Лопакова Н. Ф.",
     ):
         assert part in CONSENT_GATE_TEXT, part

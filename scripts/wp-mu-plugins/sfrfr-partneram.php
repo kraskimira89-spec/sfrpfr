@@ -95,7 +95,7 @@ function sfrfr_partner_form_html(): string
 {
     $formId = sfrfr_partner_form_id();
     if ($formId <= 0) {
-        return '<p class="sfrfr-note sfrfr-partner-form-fallback">Форма партнёрского обращения временно недоступна. Напишите на <a href="mailto:info@proverkastaza.ru">info@proverkastaza.ru</a>.</p>';
+        return '<p class="sfrfr-note sfrfr-partner-form-fallback">Форма партнёрского обращения временно недоступна. Напишите на <a href="mailto:proverkastaza@yandex.ru">proverkastaza@yandex.ru</a>.</p>';
     }
     return '<div class="sfrfr-partner-form">' . do_shortcode('[wpforms id="' . $formId . '"]') . '</div>';
 }

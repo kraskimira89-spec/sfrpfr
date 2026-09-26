@@ -655,7 +655,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'url' => $site,
             'priceRange' => '₽3000–₽8000',
             'telephone' => '+7-909-195-04-08',
-            'email' => 'info@proverkastaza.ru',
+            'email' => 'proverkastaza@yandex.ru',
             'address' => [
                 '@type' => 'PostalAddress',
                 'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
@@ -667,7 +667,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'contactPoint' => [
                 '@type' => 'ContactPoint',
                 'telephone' => '+7-909-195-04-08',
-                'email' => 'info@proverkastaza.ru',
+                'email' => 'proverkastaza@yandex.ru',
                 'contactType' => 'customer service',
                 'availableLanguage' => ['Russian'],
             ],
