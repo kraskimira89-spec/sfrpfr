@@ -35,8 +35,8 @@
 ## Что дальше
 
 - Старую ВМ не удалять и SG не закрывать до решения владельца (откат).
-- Права на каталог `b1grtprgfugidt9u073i`: вместо SA `terraform` владелец завёл SA `ajedc5r8an62va97a43a`
-  с ролью `admin` на каталог (проверено `listAccessBindings`). Ключ — `secrets/yc-sa-db01.json`;
-  аудит: `YC_SA_KEY=secrets/yc-sa-db01.json python tools/yc_sg_audit.py`. На старый каталог
-  `b1g0mhpm9tr4lrurk1bu` у этого SA прав нет (403) — там остаётся SA `terraform`.
+- Права на каталог `b1grtprgfugidt9u073i`: SA `sfrfr-agent-db01` (`ajedc5r8an62va97a43a`),
+  роль `admin`, ключ `secrets/yc-sa-db01.json`; аудит через него проходит (ВМ db-01, SG
+  `enpf27it4pe5d1brj6as`). Старый каталог этому SA недоступен (403) — для него остаётся
+  `secrets/yc-sa-terraform.json`.
 - Проверить ночной `sfrfr-dbt.timer` (05:30 МСК) на новой БД.

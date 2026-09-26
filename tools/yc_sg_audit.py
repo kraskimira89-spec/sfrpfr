@@ -1,6 +1,7 @@
 """Read-only аудит Yandex Cloud: доступные облака/каталоги, ВМ и security groups.
 
-Ключ SA: secrets/yc-sa-terraform.json или путь из YC_SA_KEY. Ничего не изменяет.
+Ключ SA: secrets/yc-sa-terraform.json (старый каталог) или путь из YC_SA_KEY
+(secrets/yc-sa-db01.json — каталог db-01). Ничего не изменяет.
 """
 
 from __future__ import annotations
