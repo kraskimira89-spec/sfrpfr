@@ -46,7 +46,7 @@ Cursor ──stdio──► mcp-supabase-selfhost.cmd
 ## Установка на этой машине
 
 1. AdGuard VPN → исключения приложений → `C:\Windows\System32\OpenSSH\ssh.exe`.
-2. SG `:22` пускает ваш домашний IP (`146.158.1.12` / `185.77.216.28` / `185.77.216.16`).
+2. SG `:22` пускает ваш домашний IP `146.158.1.12` (запасной вход — jump через App-VPS `91.229.11.147`). Выходы VPN `185.77.216.x` / `37.120.217.114` удалены 2026-09-25/26 — см. `docs/history/2026-09-25-yc-sg-ssh-cleanup.md`.
 3. Bootstrap:
 
 ```powershell
