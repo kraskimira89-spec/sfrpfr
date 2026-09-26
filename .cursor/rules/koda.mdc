@@ -42,13 +42,13 @@ alwaysApply: true
 
 ## Git-цикл (детали — `KODA.md` §5)
 
-Ветка от свежего `main` → правки → точечные тесты → commit → push своей ветки → PR → squash merge после зелёного CI.
+Ветка от свежего `main` → правки → точечные тесты → commit → push своей ветки → PR → auto-merge (squash) после зелёного CI.
 
 - `git add` по именам; staged читать содержательно (`git diff --cached`, `--check`, `--stat`); аномальный `--stat` — стоп до commit и push.
 - Перед commit — то же, что гоняет CI: `ruff check src tests`, точечный pytest с `--basetemp`, `npx tsc --noEmit` в `apps/cabinet`; полный прогон — только по риску.
 - `storage/*.json` — в commit только когда задача прямо про них.
 - В `main` push запрещён, включая force; `commit --amend` + `push --force-with-lease` — только своей feature-веткой и после сверки `origin/<branch>`.
-- Merge — отдельное подтверждение после зелёного CI; правила репозитория не отменяют политики безопасности IDE, GitHub, Copilot и CI.
+- Merge — автоматический: после создания PR агент сам выполняет `gh pr merge <N> --auto --squash --delete-branch`; GitHub сливает только после зелёных `api`, `cabinet`, `admin`. Подтверждение владельца на merge не требуется; правила репозитория не отменяют политики безопасности IDE, GitHub, Copilot и CI.
 
 ## Stop condition
 
