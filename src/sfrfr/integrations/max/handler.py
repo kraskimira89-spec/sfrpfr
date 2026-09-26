@@ -1904,6 +1904,8 @@ def _handle_bot_start(
     if not accept_consent and not _client_has_pdn_consent(user_id):
         return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
 
+    prior = get_intake_store().get_active(user_id)
+    returning_client = prior is not None and prior.status != "started"
     intake = get_intake_store().upsert_started(user_id)
     case_id = _ensure_case_for_intake(
         user_id=user_id, chat_id=chat_id, intake=intake, store=store
@@ -1930,14 +1932,40 @@ def _handle_bot_start(
 
         ensure_case_consent_from_client(case_id=case_id, client_id=client_id)
 
+    from sfrfr.integrations.max import questionnaire_flow
+
+    def _q_reply(text: str, attachments: list[dict[str, Any]] | None) -> bool:
+        return _reply(
+            bot, user_id=user_id, chat_id=chat_id, text=text,
+            attachments=attachments, case_id=case_id or None,
+        )
+
     name = display_name or _last_max_display_names.get(str(user_id).strip())
     if not get_intake_store().claim_welcome(user_id):
+        active = get_intake_store().get_active(user_id)
+        if active is not None and active.q_step:
+            text = questionnaire_flow.send_current_question(active, _q_reply)
+            return MaxHandleResult(
+                ok=True, action="max_questionnaire_step", case_id=case_id or None, reply=text
+            )
         # Повторный webhook / повторное «Начать» — не дублируем приветствие.
         return MaxHandleResult(
             ok=True,
             action="max_intake_already_started",
             case_id=case_id or None,
             reply=None,
+        )
+
+    if (
+        get_settings().max_questionnaire_enabled
+        and not returning_client
+        and not (client_row or {}).get("birth_year")
+    ):
+        text = questionnaire_flow.start(get_intake_store().get_active(user_id) or intake, _q_reply)
+        if case_id:
+            _notify_staff_max_started(user_id=user_id, intake=intake, case_id=case_id)
+        return MaxHandleResult(
+            ok=True, action="max_questionnaire_started", case_id=case_id or None, reply=text
         )
 
     if welcome_text:
@@ -1981,6 +2009,102 @@ def _handle_bot_start(
         action="max_intake_started",
         case_id=case_id or None,
         reply=text,
+    )
+
+
+def _handle_questionnaire_or_menu(
+    bot: MaxBotClient,
+    *,
+    update: dict[str, Any],
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    text: str,
+    callback: str,
+    skip_text: bool,
+) -> MaxHandleResult | None:
+    """ТЗ-35 B1: ответы анкеты и кнопки меню после «Дело создано»."""
+    from sfrfr.integrations.max import questionnaire as q
+    from sfrfr.integrations.max import questionnaire_flow
+    from sfrfr.integrations.max.case_chat_log import append_case_chat_message
+
+    rec = get_intake_store().get_active(user_id)
+    if not callback.startswith("menu:") and not q.is_active(rec):
+        return None
+    case_id = _case_id_for_max_user(user_id)
+
+    def _q_reply(body: str, attachments: list[dict[str, Any]] | None) -> bool:
+        return _reply(
+            bot, user_id=user_id, chat_id=chat_id, text=body,
+            attachments=attachments, case_id=case_id,
+        )
+
+    if callback == q.MENU_OPERATOR:
+        return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store)
+    if callback == q.MENU_UPLOAD:
+        _q_reply(q.MENU_UPLOAD_TEXT, None)
+        return MaxHandleResult(
+            ok=True, action="menu_upload", case_id=case_id, reply=q.MENU_UPLOAD_TEXT
+        )
+    if callback == q.MENU_STATUS:
+        record = store.find_by_max_user(user_id)
+        if record is None:
+            body = q.MENU_STATUS_FALLBACK_TEXT
+        else:
+            body = (
+                f"{status_label_ru(record.ctx.status)}. "
+                f"Документов: {len(record.ctx.document_paths)}."
+            )
+        _q_reply(body, None)
+        return MaxHandleResult(ok=True, action="status", case_id=case_id, reply=body)
+
+    if rec is None or not q.is_active(rec):
+        return None
+    is_q_callback = callback.startswith(q.CALLBACK_PREFIX)
+    has_files = bool(update.get("file_bytes")) or bool(extract_downloadable_files(update))
+    if not is_q_callback and (callback or not text or skip_text or has_files):
+        return None
+    if text and not callback:
+        _append_client_case_message(
+            case_id=case_id,
+            max_user_id=user_id,
+            text=text,
+            external_message_id=_max_message_id(update),
+        )
+    client_row = _client_row_by_max(user_id)
+    action, body = questionnaire_flow.handle_answer(
+        rec,
+        _q_reply,
+        text=text if not callback else "",
+        payload=callback,
+        client_id=str((client_row or {}).get("id") or "") or None,
+        case_id=case_id,
+        log_summary=lambda summary: append_case_chat_message(
+            case_id=case_id, max_user_id=user_id, author_kind="system", body=summary
+        )
+        if case_id
+        else None,
+    )
+    return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=body)
+
+
+def _resume_questionnaire_after_upload(
+    bot: MaxBotClient, *, user_id: str, chat_id: int | str | None, case_id: str | None
+) -> None:
+    """Файл посреди анкеты принят — повторяем текущий вопрос."""
+    from sfrfr.integrations.max import questionnaire as q
+    from sfrfr.integrations.max import questionnaire_flow
+
+    rec = get_intake_store().get_active(user_id)
+    if rec is None or not q.is_active(rec):
+        return
+    questionnaire_flow.send_current_question(
+        rec,
+        lambda body, attachments: _reply(
+            bot, user_id=user_id, chat_id=chat_id, text=body,
+            attachments=attachments, case_id=case_id,
+        ),
+        prefix="Продолжим анкету.",
     )
 
 
@@ -3077,6 +3201,21 @@ def handle_max_update(
             display_name=display_name,
         )
 
+    q_result = _handle_questionnaire_or_menu(
+        bot,
+        update=update,
+        user_id=user_id,
+        chat_id=chat_id,
+        store=store,
+        text=text,
+        callback=callback,
+        skip_text=login_hit or pair_code_hit or lower.startswith("/"),
+    )
+    if q_result is not None:
+        return q_result
+    if callback == "menu:docs":
+        callback, text, lower = "", "/docs", "/docs"
+
     intake_result = _handle_intake_callback(
         bot,
         user_id=user_id,
@@ -3343,6 +3482,9 @@ def handle_max_update(
                 chat_id=chat_id,
                 text=reply,
                 case_id=upload_case_id,
+            )
+            _resume_questionnaire_after_upload(
+                bot, user_id=user_id, chat_id=chat_id, case_id=upload_case_id
             )
             return MaxHandleResult(
                 ok=True,

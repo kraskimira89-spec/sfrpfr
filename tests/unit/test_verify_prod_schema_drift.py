@@ -47,7 +47,7 @@ class _FakeConn:
 
 def test_expected_covers_each_migration_file_once():
     versions = [m.version for m in drift.EXPECTED]
-    assert len(versions) == len(set(versions)) == 16
+    assert len(versions) == len(set(versions)) == 17
     for m in drift.EXPECTED:
         files = list(MIGRATIONS_DIR.glob(f"{m.version}_*.sql"))
         assert len(files) == 1, m.version

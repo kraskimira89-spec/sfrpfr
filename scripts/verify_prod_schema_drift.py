@@ -136,6 +136,15 @@ EXPECTED: tuple[Migration, ...] = (
             ("index", "consents_case_id_idx"),
         ),
     ),
+    Migration(
+        "20260926170000",
+        "questionnaire_b1",
+        (
+            ("column", "clients", "birth_year"),
+            ("column", "cases", "experience_bucket"),
+            ("column", "cases", "questionnaire_completed_at"),
+        ),
+    ),
 )
 
 _CHECK_SQL = {

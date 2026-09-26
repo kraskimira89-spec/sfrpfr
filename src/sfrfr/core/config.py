@@ -123,6 +123,8 @@ class Settings(BaseSettings):
     max_bot_owned_pay_link: bool = True
     # Пауза между частями приветствия в MAX (секунды); 0 = сразу все части
     max_welcome_part_delay_seconds: int = 60
+    # ТЗ-35 B1: анкета нового клиента после «Начать»; 0 = прежнее приветствие с кнопками
+    max_questionnaire_enabled: bool = True
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

@@ -296,6 +296,10 @@ class MaxIntakeRecord:
     welcome_sent_at: str | None = None
     # Счётчик успешных max_llm_reply в рамках активного intake (ТЗ-26 / bot_owned)
     llm_turn_count: int = 0
+    # Анкета нового клиента (ТЗ-35 B1): текущий вопрос и ответы до сохранения в БД
+    q_step: str | None = None
+    q_answers: dict[str, str] = field(default_factory=dict)
+    q_completed_at: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
