@@ -3362,6 +3362,11 @@ def handle_max_update(
             reply=reply,
         )
 
+    if record is None:
+        return _reply_need_start(
+            bot, user_id=user_id, chat_id=chat_id, welcome_text=welcome_text
+        )
+
     # Свободный текст: DeepSeek (Yandex AI Studio) + кнопки шага / fallback nudge (ТЗ-26).
     if text:
         if intake is None:
