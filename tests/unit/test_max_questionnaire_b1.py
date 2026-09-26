@@ -151,7 +151,7 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     assert res.action == "max_questionnaire_completed"
     assert saved["answers"]["email"] == "petrov@example.ru"
     assert q.COMPLETED_TEXT in [t for _u, t in bot.sent]
-    menu = str(bot.attachments[-1])
+    menu = str(bot.attachments[-2])
     for label in (
         "Загрузить документы",
         "Какие документы нужны",

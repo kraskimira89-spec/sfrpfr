@@ -300,6 +300,10 @@ class MaxIntakeRecord:
     q_step: str | None = None
     q_answers: dict[str, str] = field(default_factory=dict)
     q_completed_at: str | None = None
+    # Чек-лист на e-mail после анкеты (ТЗ-35 B2)
+    lm_step: str | None = None
+    lm_send_count: int = 0
+    lm_sent_at: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())

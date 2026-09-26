@@ -2023,15 +2023,27 @@ def _handle_questionnaire_or_menu(
     callback: str,
     skip_text: bool,
 ) -> MaxHandleResult | None:
-    """ТЗ-35 B1: ответы анкеты и кнопки меню после «Дело создано»."""
+    """ТЗ-35 B1/B2: ответы анкеты, кнопки меню и чек-лист на e-mail."""
+    from sfrfr.integrations.max import checklist_offer, questionnaire_flow
     from sfrfr.integrations.max import questionnaire as q
-    from sfrfr.integrations.max import questionnaire_flow
     from sfrfr.integrations.max.case_chat_log import append_case_chat_message
 
     rec = get_intake_store().get_active(user_id)
-    if not callback.startswith("menu:") and not q.is_active(rec):
+    is_lm_callback = callback.startswith(checklist_offer.CALLBACK_PREFIX)
+    if (
+        not callback.startswith("menu:")
+        and not is_lm_callback
+        and not q.is_active(rec)
+        and not checklist_offer.is_active(rec)
+    ):
         return None
     case_id = _case_id_for_max_user(user_id)
+
+    def _log_system(body: str) -> None:
+        if case_id:
+            append_case_chat_message(
+                case_id=case_id, max_user_id=user_id, author_kind="system", body=body
+            )
 
     def _q_reply(body: str, attachments: list[dict[str, Any]] | None) -> bool:
         return _reply(
@@ -2058,19 +2070,31 @@ def _handle_questionnaire_or_menu(
         _q_reply(body, None)
         return MaxHandleResult(ok=True, action="status", case_id=case_id, reply=body)
 
-    if rec is None or not q.is_active(rec):
+    if rec is None:
         return None
     is_q_callback = callback.startswith(q.CALLBACK_PREFIX)
     has_files = bool(update.get("file_bytes")) or bool(extract_downloadable_files(update))
-    if not is_q_callback and (callback or not text or skip_text or has_files):
+    text_answer = bool(text) and not callback and not skip_text and not has_files
+    if not is_q_callback and not is_lm_callback and not text_answer:
         return None
-    if text and not callback:
+    if text_answer:
         _append_client_case_message(
             case_id=case_id,
             max_user_id=user_id,
             text=text,
             external_message_id=_max_message_id(update),
         )
+    if not q.is_active(rec):
+        out = checklist_offer.handle(
+            rec,
+            _q_reply,
+            text=text if text_answer else "",
+            payload=callback,
+            log_event=_log_system,
+        )
+        if out is None:
+            return None
+        return MaxHandleResult(ok=True, action=out[0], case_id=case_id, reply=out[1])
     client_row = _client_row_by_max(user_id)
     action, body = questionnaire_flow.handle_answer(
         rec,
@@ -2079,11 +2103,7 @@ def _handle_questionnaire_or_menu(
         payload=callback,
         client_id=str((client_row or {}).get("id") or "") or None,
         case_id=case_id,
-        log_summary=lambda summary: append_case_chat_message(
-            case_id=case_id, max_user_id=user_id, author_kind="system", body=summary
-        )
-        if case_id
-        else None,
+        log_summary=_log_system,
     )
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=body)
 
