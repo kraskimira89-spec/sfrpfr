@@ -24,6 +24,13 @@ intra-SG, egress. Группы `default-sg-*` не трогались.
 
 Проверка: `ssh sfrfr-vps "nc -zv -w5 51.250.13.240 22"` → порт открыт (succeeded).
 
+### 2026-09-26 — дочистка sfrfr-staging-sg
+
+- Удалён 109.252.100.99 (МГТС, NAT-пул `nat.spd-mgts.ru` — общий адрес): правило 22 `enpinclppbbucf7drhri`.
+- Правила 5432/5433 пересозданы только с `91.229.11.147/32` (новые id `enpqockqcl6k8fe24kto`,
+  `enprr87to4e6uk46je2b`), атомарно одной операцией `b5onv008set04ae8n06j`.
+- SSH в старую ВМ теперь только через jump App-VPS `91.229.11.147`. API на VPS слушает порт 8011.
+
 ## Новый SG `enpf27it4pe5d1brj6as` (sfrfr-supabase-db-sg, каталог `b1grtprgfugidt9u073i`)
 
 ВМ после cutover. У сервисного аккаунта terraform нет прав на этот каталог (PERMISSION_DENIED),
