@@ -2999,6 +2999,16 @@ def handle_max_update(
             ok=True, action="pdn_consent_declined", reply=CONSENT_DECLINED_TEXT
         )
 
+    # ТЗ-35 A2: без согласия ПДн — только «Начать», вход сотрудника и код с экрана;
+    # анкету, текст и файлы не принимаем.
+    digits_early = "".join(ch for ch in text if ch.isdigit())
+    pair_code_hit = len(digits_early) == 6 and len("".join(text.split())) <= 24
+    consent_exempt = (
+        start_hit or "bot_started" in update_type or manager_ticket or login_hit or pair_code_hit
+    )
+    if not consent_exempt and not _client_has_pdn_consent(user_id):
+        return _reply_consent_gate(bot, user_id=user_id, chat_id=chat_id)
+
     if _update_expects_bot_reply(
         update_type=update_type,
         text=text,
@@ -3221,7 +3231,8 @@ def handle_max_update(
             ok=True, action="docs_request", case_id=docs_case_id, reply=reply
         )
 
-    if record is None:
+    max_files = _collect_max_files(update)
+    if record is None and not max_files:
         # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
         # Произвольный текст → intake из фразы / ТЗ-26 LLM.
         if text and intake is not None:
@@ -3238,7 +3249,7 @@ def handle_max_update(
             bot, user_id=user_id, chat_id=chat_id, welcome_text=welcome_text
         )
 
-    if lower.startswith("/draft"):
+    if record is not None and lower.startswith("/draft"):
         reply = _draft_preview(record)
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(
@@ -3248,7 +3259,7 @@ def handle_max_update(
             reply=reply,
         )
 
-    if lower.startswith("/status"):
+    if record is not None and lower.startswith("/status"):
         reply = (
             f"{status_label_ru(record.ctx.status)}. "
             f"Документов: {len(record.ctx.document_paths)}. "
@@ -3257,7 +3268,7 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="status", case_id=record.case_id, reply=reply)
 
-    if lower.startswith("/run"):
+    if record is not None and lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
             reply = "Пришлите документы в этот чат или загрузите через «Мои документы» на сайте."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
@@ -3273,7 +3284,6 @@ def handle_max_update(
         _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
         return MaxHandleResult(ok=True, action="run", case_id=record.case_id, reply=reply)
 
-    max_files = _collect_max_files(update)
     receipt_handled = _try_max_payment_receipt(
         bot, user_id=user_id, chat_id=chat_id, files=max_files
     )
@@ -3285,7 +3295,11 @@ def handle_max_update(
         from sfrfr.integrations.max.intake import documents_upload_keyboard
         from sfrfr.services.case_chat_delivery import documents_cabinet_url
 
-        upload_case_id = _chat_case_id(user_id, preferred=str(record.case_id))
+        record_case_id = str(record.case_id) if record is not None else None
+        upload_case_id = _chat_case_id(
+            user_id,
+            preferred=record_case_id or (intake.case_id if intake else None),
+        )
         names: list[str] = []
         if upload_case_id:
             for name, data in max_files:
@@ -3322,7 +3336,7 @@ def handle_max_update(
             return MaxHandleResult(
                 ok=True,
                 action="upload",
-                case_id=upload_case_id or record.case_id,
+                case_id=upload_case_id or record_case_id,
                 reply=reply,
             )
         docs_url = documents_cabinet_url(upload_case_id)
@@ -3344,7 +3358,7 @@ def handle_max_update(
         return MaxHandleResult(
             ok=False,
             action="upload_rejected",
-            case_id=upload_case_id or record.case_id,
+            case_id=upload_case_id or record_case_id,
             reply=reply,
         )
 
