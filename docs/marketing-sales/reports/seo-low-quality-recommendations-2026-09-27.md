@@ -18,9 +18,9 @@
 | 1 | `/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/` | 719 | `/arhivnaya-spravka-stazh/` — одинаковый H1 | ✅ 301 на посадочную (раунд 3) | P0 — сделано |
 | 2 | `/blog/chto-delat-esli-period-raboty-ne-uchten/` | — (301) | `/ne-uchli-stazh/` | ✅ 301 (#96); убрать из мониторинга | P0 — сделано |
 | 3 | `/proverka-stazha-pered-pensiey/` | 275 → ~1 000 | `/proverka-stazha/` | ✅ наполнено своей пользой (раунд 3) | P0 — сделано |
-| 4 | `/pomoch-rodstvenniku-proverit-stazh/` | 240 | бывшая статья (301 с #96) | Дописать: перенести шаги из статьи | P1 |
-| 5 | `/blog/kak-zakazat-vypisku-ils/` | 889 | `/blog/kak-proverit-stazh-v-vypiske-ils/` (в поиске) | Дописать, развести интент «получить» / «прочитать» | P1 |
-| 6 | `/blog/lgotnyy-i-pedagogicheskiy-stazh/` | 616 | нет пары | Дописать: документы по видам работ | P1 |
+| 4 | `/pomoch-rodstvenniku-proverit-stazh/` | 240 | бывшая статья (301 с #96) | ✅ дописано 27.09: доверенность, выписка ИЛС вместе с родителем, шаги, чек-лист, FAQ | P1 — сделано |
+| 5 | `/blog/kak-zakazat-vypisku-ils/` | 889 | `/blog/kak-proverit-stazh-v-vypiske-ils/` (в поиске) | ✅ дописано 27.09: «выписка ИЛС на Госуслугах», таблица ИЛС / СТД-Р / СТД-СФР, что проверить, FAQ | P1 — сделано |
+| 6 | `/blog/lgotnyy-i-pedagogicheskiy-stazh/` | 616 | нет пары | ✅ дописано 27.09: таблица «вид работы → документы», «вредный / педагогический стаж не учли», FAQ | P1 — сделано |
 | 7 | `/blog/rashozhdeniya-fio-i-zapisi-trudovoy/` | 724 | частично `/ne-uchli-stazh/` | Снять спрос в Wordstat, дописать примеры | P2 |
 | 8 | `/blog/edv-i-pensiya-chto-proveryat-otdelno/` | 415 | нет пары, тема на краю услуги | `noindex, follow`, если спрос не подтвердится | P2 |
 | 9 | `/expert/lopakova-nataliya/` | 518 | нет | Оставить в индексе, связать со статьями | P3 |
