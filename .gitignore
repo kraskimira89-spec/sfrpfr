@@ -155,6 +155,8 @@ storage/pytest-tmp*/
 
 # Локальные one-off скрипты и pytest --basetemp под tmp/
 tmp/
+tools/_tmp_*
+.tmp_*
 
 # Weavix Tracker plugin: локальный debug (не в git)
 plugins/tracker/**/config.json

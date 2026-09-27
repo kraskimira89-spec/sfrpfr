@@ -15,7 +15,6 @@ import argparse
 import json
 import os
 import re
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -93,8 +92,11 @@ def indicator(row: dict, name: str) -> float | None:
             if not isinstance(item, dict):
                 continue
             if str(item.get("name") or item.get("indicator") or "") == name:
+                value = item.get("value")
+                if value is None:
+                    return None
                 try:
-                    return float(item.get("value"))
+                    return float(value)
                 except (TypeError, ValueError):
                     return None
     if name in row and isinstance(row[name], (int, float)):
@@ -132,7 +134,7 @@ def main() -> int:
     date_to = date.today()
     date_from = date_to - timedelta(days=max(1, args.days))
     path = f"/user/{uid}/hosts/{host_q}/search-queries/popular"
-    query = {
+    query: dict[str, str | list[str]] = {
         "order_by": "TOTAL_SHOWS",
         "query_indicator": ["TOTAL_SHOWS", "TOTAL_CLICKS", "AVG_SHOW_POSITION"],
         "date_from": date_from.isoformat(),
@@ -156,7 +158,7 @@ def main() -> int:
         print(f"wrote {args.out}")
         return 0 if code in (403, 404) else 1
 
-    rows = []
+    rows: list[object] = []
     if isinstance(data, dict):
         rows = data.get("queries") or data.get("popular_queries") or data.get("items") or []
     needle = re.compile(args.filter, re.IGNORECASE)

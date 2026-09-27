@@ -74,6 +74,9 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Черновики агентов и вендорный клон Tracker MCP (свой pyproject) — вне проверки.
+extend-exclude = ["tmp", "tools/_tmp_*", "scripts/_tmp_*", ".tmp_*", "tools/yandex-tracker-mcp"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -89,6 +92,7 @@ check_untyped_defs = true
 ignore_missing_imports = true
 pretty = true
 show_error_codes = true
+exclude = '(^|/)(tmp/|\.tmp_|tools/_tmp_|scripts/_tmp_|tools/yandex-tracker-mcp/)'
 
 # Сторонние пакеты: stubs часто ломают прогон (numpy 3.12+ syntax и т.п.).
 [[tool.mypy.overrides]]

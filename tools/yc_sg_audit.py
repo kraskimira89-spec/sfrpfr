@@ -78,12 +78,12 @@ def main() -> int:
                 s for i in vm.get("networkInterfaces", []) for s in i.get("securityGroupIds", [])
             ]
             print(f"  VM {vm['name']} {vm['id']} {vm['status']} ip={ips} sg={sgs}")
-        code, sgs = get(
+        code, sg_data = get(
             "https://vpc.api.cloud.yandex.net/vpc/v1/securityGroups", token, folderId=folder
         )
         if code != 200:
-            print(f"  securityGroups: HTTP {code} {sgs.get('message', '')[:120]}")
-        for sg in sgs.get("securityGroups", []):
+            print(f"  securityGroups: HTTP {code} {sg_data.get('message', '')[:120]}")
+        for sg in sg_data.get("securityGroups", []):
             print(f"  SG {sg['name']} {sg['id']} {sg.get('status')}")
             for rule in sg.get("rules", []):
                 cidrs = rule.get("cidrBlocks", {}).get("v4CidrBlocks", [])
