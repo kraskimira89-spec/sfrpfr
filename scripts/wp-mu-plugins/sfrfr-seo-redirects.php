@@ -1,12 +1,93 @@
 <?php
 /**
  * Plugin Name: SFRFR SEO Redirects
- * Description: 301 с тонких primer/analitika на pillar и hub (ТЗ-18, недели 3–6).
+ * Description: 301 с тонких primer/analitika на pillar и hub (ТЗ-18, недели 3–6); статьи, склеенные с посадочными.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
+
+/**
+ * Статьи-дубли посадочных (план каннибализации 2026-09-27, п. 1 и п. 4).
+ * Посты в WP не удаляются: 301, вне sitemap и списков блога, ссылки в контенте ведут на посадочную.
+ *
+ * @return array<string,string> path without trailing slash → landing path with trailing slash
+ */
+function sfrfr_seo_merged_redirect_map(): array
+{
+    return [
+        '/blog/chto-delat-esli-period-raboty-ne-uchten' => '/ne-uchli-stazh/',
+        '/blog/kak-pomoch-rodstvenniku-proverit-stazh' => '/pomoch-rodstvenniku-proverit-stazh/',
+    ];
+}
+
+/**
+ * @return list<int>
+ */
+function sfrfr_seo_merged_post_ids(): array
+{
+    $ids = [];
+    foreach (array_keys(sfrfr_seo_merged_redirect_map()) as $path) {
+        $post = get_page_by_path(basename($path), OBJECT, 'post');
+        if ($post instanceof WP_Post) {
+            $ids[] = (int) $post->ID;
+        }
+    }
+    return $ids;
+}
+
+function sfrfr_seo_merged_rewrite_links(string $content, string $currentPath): string
+{
+    foreach (sfrfr_seo_merged_redirect_map() as $from => $to) {
+        $href = '(?:https?://(?:www\.)?proverkastaza\.ru)?' . preg_quote($from, '~') . '/?';
+        if (trailingslashit($currentPath) === $to) {
+            $content = (string) preg_replace('~<a\s[^>]*href=["\']' . $href . '["\'][^>]*>(.*?)</a>~is', '$1', $content);
+            continue;
+        }
+        $content = (string) preg_replace('~(href=["\'])' . $href . '(["\'#?])~i', '${1}' . $to . '${2}', $content);
+    }
+    return $content;
+}
+
+add_filter('the_content', static function ($content) {
+    if (!is_string($content) || is_admin()) {
+        return $content;
+    }
+    $path = (string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    return sfrfr_seo_merged_rewrite_links($content, $path);
+}, 20);
+
+/**
+ * @param array<string,mixed> $args
+ * @return array<string,mixed>
+ */
+add_filter('wp_sitemaps_posts_query_args', static function (array $args, string $postType): array {
+    if ($postType !== 'post') {
+        return $args;
+    }
+    $ids = sfrfr_seo_merged_post_ids();
+    if ($ids) {
+        $args['post__not_in'] = array_values(array_unique(array_merge(
+            array_map('intval', (array) ($args['post__not_in'] ?? [])),
+            $ids
+        )));
+    }
+    return $args;
+}, 20, 2);
+
+add_action('pre_get_posts', static function (WP_Query $query): void {
+    if (is_admin() || !$query->is_main_query() || !($query->is_home() || $query->is_archive() || $query->is_search())) {
+        return;
+    }
+    $ids = sfrfr_seo_merged_post_ids();
+    if ($ids) {
+        $query->set('post__not_in', array_values(array_unique(array_merge(
+            array_map('intval', (array) $query->get('post__not_in')),
+            $ids
+        ))));
+    }
+});
 
 /**
  * @return array<string,string> path without trailing slash → target path with trailing slash under /blog/
@@ -17,7 +98,7 @@ function sfrfr_seo_thin_redirect_map(): array
         'ils' => '/blog/kak-proverit-stazh-v-vypiske-ils/',
         'zakaz' => '/blog/kak-zakazat-vypisku-ils/',
         'sverka' => '/blog/kak-sverit-trudovuyu-knizhku-i-ils/',
-        'period' => '/blog/chto-delat-esli-period-raboty-ne-uchten/',
+        'period' => '/ne-uchli-stazh/',
         'arhiv' => '/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/',
         'dokumenty' => '/blog/kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr/',
         'otkaz' => '/blog/otkaz-sfr-chto-proverit-v-dokumentah/',
@@ -87,6 +168,12 @@ add_action('template_redirect', static function (): void {
 
     if ($path === '/prezentaciya-dlya-deputata') {
         wp_safe_redirect(home_url('/partneram/'), 301);
+        exit;
+    }
+
+    $merged = sfrfr_seo_merged_redirect_map();
+    if (isset($merged[$path])) {
+        wp_safe_redirect(home_url($merged[$path]), 301);
         exit;
     }
 
