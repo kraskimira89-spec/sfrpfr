@@ -79,14 +79,14 @@ $pages = [
         'slug' => 'tarify',
         'title' => 'Тарифы',
         'file' => 'tarify.html',
-        'seo_title' => 'Тарифы',
+        'seo_title' => 'Тарифы на проверку стажа: 3 000, 5 000, 8 000 ₽',
         'seo_description' => 'Поэтапные тарифы проверки стажа: диагностика 3000 ₽, подготовка документов 5000 ₽, сопровождение до подачи 8000 ₽.',
     ],
     [
         'slug' => 'kontakty',
         'title' => 'Контакты',
         'file' => 'kontakty.html',
-        'seo_title' => 'Контакты',
+        'seo_title' => 'Контакты: телефон, почта и MAX для вопросов о стаже',
         'seo_description' => 'Телефон, почта, MAX, реквизиты ООО «ПОД ПРИСМОТРОМ» и ссылки на оферту и политику ПДн.',
     ],
     [
@@ -100,7 +100,7 @@ $pages = [
         'slug' => 'otzyvy',
         'title' => 'Отзывы',
         'file' => 'otzyvy.html',
-        'seo_title' => 'Отзывы',
+        'seo_title' => 'Отзывы клиентов о проверке пенсионного стажа',
         'seo_description' => 'Отзывы о сервисе «Проверка стажа»: форма на сайте после модерации и рейтинг на Яндекс Картах. Без обещания перерасчёта.',
     ],
     [
@@ -324,7 +324,7 @@ if ($expertParent instanceof WP_Post) {
         throw new RuntimeException($parentId->get_error_message());
     }
     update_post_meta((int) $expertParent->ID, '_sfrfr_seo_description', 'Профили экспертов сервиса «Проверка стажа»: руководитель и эксперт по доступной среде.');
-    update_post_meta((int) $expertParent->ID, '_rank_math_title', 'Эксперты — Проверка стажа');
+    update_post_meta((int) $expertParent->ID, '_rank_math_title', 'Эксперты по пенсионному стажу и документам — Проверка стажа');
     update_post_meta((int) $expertParent->ID, '_rank_math_description', 'Профили экспертов сервиса «Проверка стажа»: руководитель и эксперт по доступной среде.');
     echo "PAGE expert={$expertParent->ID}\n";
 }
