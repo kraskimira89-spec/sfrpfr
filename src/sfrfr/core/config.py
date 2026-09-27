@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     # ТЗ-35 B1: анкета нового клиента после «Начать»; 0 = прежнее приветствие с кнопками
     max_questionnaire_enabled: bool = True
     # Клиент вернулся в чат после паузы (часы) — напомнить, на чём остановились; 0 = выкл.
-    max_return_reminder_hours: int = 24
+    max_return_reminder_hours: int = 72
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

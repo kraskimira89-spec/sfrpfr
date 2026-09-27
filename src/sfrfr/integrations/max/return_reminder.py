@@ -17,7 +17,7 @@ WELCOME_BACK = "С возвращением!"
 NEED_DOCS_TEXT = (
     f"{WELCOME_BACK} Ваше дело создано. Сейчас нужно прислать документы: "
     "выписку из ИЛС (сведения о стаже) и трудовую книжку — фото или PDF прямо в этот чат "
-    "или загрузить в личном кабинете на сайте."
+    "или загрузить в личном кабинете на сайте. Если есть вопрос — напишите его, отвечу."
 )
 
 
@@ -63,7 +63,7 @@ def count_case_documents(case_id: str | None, *, fallback: int = 0) -> int:
 def docs_text(count: int) -> str:
     return (
         f"{WELCOME_BACK} Документы получены: {count}. Специалист их изучает и напишет "
-        "в этом чате. Если есть ещё документы — пришлите их сюда."
+        "в этом чате. Если есть ещё документы или вопрос — пришлите их сюда."
     )
 
 
@@ -83,6 +83,6 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
     if docs_count > 0:
         body = docs_text(docs_count)
         reply(body, None)
-        return body, False
+        return body, True
     reply(NEED_DOCS_TEXT, q.menu_keyboard())
-    return NEED_DOCS_TEXT, False
+    return NEED_DOCS_TEXT, True
