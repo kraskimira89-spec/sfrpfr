@@ -2124,12 +2124,12 @@ body:has(#sfrfr-otzyvy-page) .sfrfr-breadcrumbs {
   color: #1e293b;
 }
 
-.sfrfr-expert-summary__title {
+.sfrfr-expert-summary .sfrfr-expert-summary__title {
   margin: 0 0 0.35rem;
   font-weight: 700;
 }
 
-.sfrfr-expert-summary__text {
+.sfrfr-expert-summary .sfrfr-expert-summary__text {
   margin: 0 0 0.8rem;
 }
 
