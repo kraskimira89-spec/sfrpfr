@@ -1,0 +1,27 @@
+{
+ "_comment": "Страницы, доработанные 2026-09-27 (PR #100–#104), и посадочные. expected: in_search | noindex | redirect. Мониторинг Вебмастера (important-urls) добавляется автоматически.",
+ "urls": [
+  {"url": "https://proverkastaza.ru/proverka-stazha-pered-pensiey/", "group": "PR #100", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/", "group": "PR #100", "expected": "redirect"},
+  {"url": "https://proverkastaza.ru/blog/otkaz-sfr-chto-proverit-v-dokumentah/", "group": "PR #100", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/severnyy-stazh-i-rayonnyy-koefficient/", "group": "PR #100", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/chto-delat-esli-period-raboty-ne-uchten/", "group": "склейка", "expected": "redirect"},
+  {"url": "https://proverkastaza.ru/blog/kak-pomoch-rodstvenniku-proverit-stazh/", "group": "склейка", "expected": "redirect"},
+  {"url": "https://proverkastaza.ru/pomoch-rodstvenniku-proverit-stazh/", "group": "PR #101", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/kak-zakazat-vypisku-ils/", "group": "PR #101", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/lgotnyy-i-pedagogicheskiy-stazh/", "group": "PR #101", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/rashozhdeniya-fio-i-zapisi-trudovoy/", "group": "PR #102", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/blog/edv-i-pensiya-chto-proveryat-otdelno/", "group": "PR #102", "expected": "noindex"},
+  {"url": "https://proverkastaza.ru/expert/lopakova-nataliya/", "group": "PR #103/#104", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/expert/bogdanovskiy-sergey/", "group": "PR #103/#104", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/ne-uchli-stazh/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/arhivnaya-spravka-stazh/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/stazh-do-2002/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/otkaz-sfr/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/chek-list-dokumentov/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/proverka-stazha/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/proverka-severnogo-stazha/", "group": "посадочная", "expected": "in_search"},
+  {"url": "https://proverkastaza.ru/tarify/", "group": "посадочная", "expected": "in_search"}
+ ]
+}
