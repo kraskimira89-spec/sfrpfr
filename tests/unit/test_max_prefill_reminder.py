@@ -109,7 +109,7 @@ def test_return_after_questionnaire_reminds_docs_and_continues(tmp_path: Path, m
     get_intake_store().save(rec)
     res = handle_max_update(_msg(964, "подскажите, что дальше"), bot=bot)
     assert res.action != "return_reminder"
-    assert any(t == return_reminder.NEED_DOCS_TEXT for _u, t in bot.sent)
+    assert any("Сейчас нужно прислать документы" in t for _u, t in bot.sent)
 
 
 def test_return_with_valid_email_sends_checklist(tmp_path: Path, monkeypatch) -> None:
