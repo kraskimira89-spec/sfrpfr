@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SFRFR SEO robots (Yandex)
- * Description: Clean-param для ПДн и рекламных параметров URL; без влияния на обязательные пути WP.
+ * Description: Clean-param для ПДн и рекламных параметров URL; служебные URL (поиск, фиды, REST) закрыты от обхода.
  */
 
 if (!defined('ABSPATH')) {
@@ -12,6 +12,24 @@ add_filter('robots_txt', static function (string $output, $public): string {
     if (!(bool) $public) {
         return $output;
     }
+    // Правила должны стоять внутри группы «User-agent: *», а не после Sitemap.
+    $serviceMarker = '# SFRFR service URLs';
+    $serviceRules = "{$serviceMarker}\n"
+        . "Disallow: /?s=\n"
+        . "Disallow: /*?s=\n"
+        . "Disallow: /search/\n"
+        . "Disallow: /feed/\n"
+        . "Disallow: /*/feed/\n"
+        . "Disallow: /wp-json/\n";
+    if (!str_contains($output, $serviceMarker)) {
+        $withRules = preg_replace('/^(User-agent:\s*\*\s*\R)/mi', '$1' . $serviceRules, $output, 1, $count);
+        if (is_string($withRules) && $count === 1) {
+            $output = $withRules;
+        } else {
+            $output = "User-agent: *\n{$serviceRules}\n" . $output;
+        }
+    }
+
     $marker = '# SFRFR Yandex Clean-param';
     $block = "\n{$marker} (PDn + ad tracking query params; Yandex only)\n"
         . "Clean-param: email&mail&e-mail&phone&tel&telephone&mobile&fio&name&firstname&lastname&snils&password&pass&token&access_token /\n"
@@ -21,3 +39,9 @@ add_filter('robots_txt', static function (string $output, $public): string {
     }
     return $output;
 }, 20, 2);
+
+add_action('template_redirect', static function (): void {
+    if (is_feed() && !headers_sent()) {
+        header('X-Robots-Tag: noindex, follow', true);
+    }
+}, 0);
