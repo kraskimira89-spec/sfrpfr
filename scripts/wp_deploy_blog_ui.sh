@@ -13,6 +13,8 @@ cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-blog-ui.php" "${MU}/sfrfr-blog-ui.php
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-blog-ui-empty-comments.php" "${MU}/sfrfr-blog-ui-empty-comments.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-meta.php" "${MU}/sfrfr-seo-meta.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-h1.php" "${MU}/sfrfr-seo-h1.php"
+cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-schema.php" "${MU}/sfrfr-seo-schema.php"
+cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-archives.php" "${MU}/sfrfr-seo-archives.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-seo-redirects.php" "${MU}/sfrfr-seo-redirects.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-partneram.php" "${MU}/sfrfr-partneram.php"
 cp -f "${ROOT}/scripts/wp-mu-plugins/sfrfr-cf7-feedback.php" "${MU}/sfrfr-cf7-feedback.php"

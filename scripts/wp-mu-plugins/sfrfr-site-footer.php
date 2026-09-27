@@ -75,14 +75,13 @@ function sfrfr_site_footer_html(): string
     $bvi = sfrfr_site_footer_bvi_html();
 
     return <<<HTML
-<footer class="sfrfr-site-footer" role="contentinfo" itemscope itemtype="https://schema.org/Organization">
-  <meta itemprop="url" content="{$home}">
+<footer class="sfrfr-site-footer" role="contentinfo">
   <div class="sfrfr-wrap sfrfr-site-footer__grid">
     <div>
       <p class="sfrfr-brand sfrfr-brand--footer">
         <a class="sfrfr-brand__link" href="{$home}" title="На главную" aria-label="На главную">
-          <img class="sfrfr-brand__logo" src="{$logo}" width="40" height="40" alt="Проверка стажа" itemprop="logo">
-          <span itemprop="name">Проверка стажа</span>
+          <img class="sfrfr-brand__logo" src="{$logo}" width="40" height="40" alt="Проверка стажа">
+          <span>Проверка стажа</span>
         </a>
       </p>
       <p>Сервис не является государственным органом. Мы готовим документы, проект обращения и понятный план. Мы расскажем по шагам, но обращение через СФР, МФЦ или Госуслуги подаёте вы сами. Решение о пенсии и перерасчёте принимает только СФР.</p>
@@ -95,12 +94,11 @@ function sfrfr_site_footer_html(): string
       <p class="sfrfr-yandex-badge sfrfr-yandex-badge--footer">
         <iframe title="Рейтинг организации на Яндекс Картах" src="https://yandex.ru/sprav/widget/rating-badge/82469923047?type=rating" width="150" height="50" frameborder="0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </p>
-      <p class="sfrfr-req" itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+      <p class="sfrfr-req">
         <strong>ООО «ПОД ПРИСМОТРОМ»</strong><br>
         ИНН 8905066468 · КПП 890501001 · ОГРН 1208900000572<br>
         Ген. директор: Лопакова Наталия Федоровна<br>
-        <span itemprop="postalCode">629804</span>, Россия, ЯНАО, г.&nbsp;<span itemprop="addressLocality">Ноябрьск</span>, <span itemprop="streetAddress">ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4</span>
-        <meta itemprop="addressCountry" content="RU">
+        629804, Россия, ЯНАО, г.&nbsp;Ноябрьск, ул.&nbsp;Рабочая, д.&nbsp;109Б, кв.&nbsp;4
       </p>
       <p>Работаем дистанционно по всей России. Визит в офис не нужен.</p>
     </div>
@@ -125,8 +123,8 @@ function sfrfr_site_footer_html(): string
     <div>
       <p><strong>Контакты</strong></p>
       <p class="sfrfr-req">
-        Телефон: <a href="tel:+79091950408" itemprop="telephone">+7&nbsp;909&nbsp;195‑04‑08</a><br>
-        Почта: <a href="mailto:proverkastaza@yandex.ru" itemprop="email">proverkastaza@yandex.ru</a><br>
+        Телефон: <a href="tel:+79091950408">+7&nbsp;909&nbsp;195‑04‑08</a><br>
+        Почта: <a href="mailto:proverkastaza@yandex.ru">proverkastaza@yandex.ru</a><br>
         Диалог: <a href="{$max}" target="_blank" rel="noopener noreferrer">Уточнить ситуацию в MAX</a><br>
         Материалы: <a href="{$channel}" target="_blank" rel="noopener noreferrer" data-sfrfr-goal="max_channel_click">канал в MAX</a>
       </p>

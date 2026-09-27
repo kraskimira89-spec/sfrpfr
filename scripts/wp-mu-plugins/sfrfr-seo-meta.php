@@ -270,6 +270,10 @@ function sfrfr_seo_description(): string
     }
     if (is_category()) {
         $term = get_queried_object();
+        $custom = (string) apply_filters('sfrfr_seo_category_description', '', $term);
+        if ($custom !== '') {
+            return sfrfr_seo_limit($custom);
+        }
         $name = $term instanceof WP_Term ? (string) $term->name : 'проверке стажа';
         $name = wp_check_invalid_utf8($name, true);
         if ($name === '') {
@@ -820,7 +824,8 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         );
     }
 
-    return $graph;
+    $filtered = apply_filters('sfrfr_seo_schema_graph', $graph, $description, $canonical);
+    return is_array($filtered) ? array_values($filtered) : $graph;
 }
 
 add_action('wp_head', static function (): void {
