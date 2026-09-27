@@ -180,7 +180,7 @@ def build_findings_message(
         lines.append("Ещё желательно прислать:")
         for m in missing:
             lines.append(f"• {m}")
-        lines.append("Можно сюда в чат или через «Мои документы» на сайте.")
+        lines.append("Можно сюда в чат или загрузить в личном кабинете на сайте.")
     lines.extend(
         [
             "",
