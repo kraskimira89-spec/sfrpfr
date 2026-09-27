@@ -275,7 +275,7 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
     blob = str(last_att)
     assert case_id in blob
     assert "cabinet.proverkastaza.ru" in blob
-    assert "Мои документы" in blob
+    assert "личный кабинет" in blob
     assert "В MAX — кабинет" not in blob
     assert "/app/" not in blob
     get_settings.cache_clear()
@@ -307,7 +307,7 @@ def test_summary_and_upload_keyboards_website_only() -> None:
         assert all("/app/" not in u for u in links)
     assert "чат" in SUMMARY_TEXT.lower()
     assert "получили" in UPLOAD_ACCEPTED_TEXT.lower() or "добавили" in UPLOAD_ACCEPTED_TEXT.lower()
-    assert "мои документы" in UPLOAD_BLOCKED_TEXT.lower()
+    assert "личном кабинете" in UPLOAD_BLOCKED_TEXT.lower()
     assert "кабинет в max" not in SUMMARY_TEXT.lower()
 
 
@@ -316,7 +316,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
 
     low = DOCS_INFO_TEXT.lower()
     assert "кроме" in low and "илс" in low
-    assert "чат" in low or "мои документы" in low
+    assert "чат" in low or "личном кабинете" in low
     assert "трудов" in low
     assert "электронн" in low
     assert "справка о размере пенсии" in low
@@ -329,7 +329,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "перерасчёт" not in low
     assert "едином чате" in WELCOME_TEXT.lower() or "чат по делу" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
-    assert "чат" in DOCS_STAZH_TEXT.lower() or "мои документы" in DOCS_STAZH_TEXT.lower()
+    assert "чат" in DOCS_STAZH_TEXT.lower() or "личном кабинете" in DOCS_STAZH_TEXT.lower()
 
 
 def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
@@ -632,7 +632,7 @@ def test_docs_info_menu_and_special_section(tmp_path: Path, monkeypatch) -> None
     reply = menu.reply or ""
     low = reply.lower()
     assert "кроме" in low and "илс" in low
-    assert "мои документы" in low
+    assert "личном кабинете" in low
     assert "трудов" in low
 
     special = handle_max_update(_cb(31, "intake:docs:special"), bot=bot)

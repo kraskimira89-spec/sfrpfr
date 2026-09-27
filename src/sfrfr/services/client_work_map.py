@@ -757,7 +757,7 @@ def build_client_work_map(
         ]
         sla_note = (
             "После согласия можно прислать документы в чат MAX "
-            "или загрузить в «Мои документы» на сайте."
+            "или загрузить в личном кабинете на сайте."
         )
     elif key in {"waiting_docs", "need_info"}:
         next_actions = [f"Загрузить: {t}" for t in missing_titles] or [

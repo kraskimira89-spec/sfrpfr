@@ -554,14 +554,20 @@ def _reply(
     text_format: str | None = None,
 ) -> bool:
     try:
+        from sfrfr.integrations.max.cabinet_link import CABINET_PHRASE, linkify_cabinet
+        from sfrfr.services.case_chat_delivery import documents_cabinet_url
+
+        cid = _chat_case_id(user_id, preferred=case_id)
+        outgoing = text
+        if text_format is None and CABINET_PHRASE in text:
+            outgoing, text_format = linkify_cabinet(text, documents_cabinet_url(cid))
         result = bot.send_message(
-            text=text,
+            text=outgoing,
             user_id=user_id,
             chat_id=chat_id,
             attachments=attachments,
             text_format=text_format,
         )
-        cid = _chat_case_id(user_id, preferred=case_id)
         from sfrfr.services.case_chat_delivery import max_message_id_from_response
 
         _append_bot_case_message(
@@ -631,17 +637,20 @@ def _reply_consent_gate(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult:
-    """Один раз: согласие ПДн перед кнопкой «Начать»."""
-    from sfrfr.services.client_pdn_consent import CONSENT_GATE_TEXT
+    """Один раз: согласие ПДн перед кнопкой «Начать» — короткими сообщениями подряд."""
+    from sfrfr.services.client_pdn_consent import CONSENT_GATE_PARTS, CONSENT_GATE_TEXT
 
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=CONSENT_GATE_TEXT,
-        attachments=_start_dialog_keyboard(),
-        case_id=_case_id_for_max_user(user_id),
-    )
+    case_id = _case_id_for_max_user(user_id)
+    last = len(CONSENT_GATE_PARTS) - 1
+    for idx, part in enumerate(CONSENT_GATE_PARTS):
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=part,
+            attachments=_start_dialog_keyboard() if idx == last else None,
+            case_id=case_id,
+        )
     return MaxHandleResult(ok=True, action="pdn_consent_gate", reply=CONSENT_GATE_TEXT)
 
 
@@ -2722,12 +2731,12 @@ def _docs_request_text(*, has_docs: bool) -> str:
     if has_docs:
         return (
             "Пришлите следующий файл прямо в этот чат "
-            "или загрузите через «Мои документы» на сайте. "
+            "или загрузите в личном кабинете на сайте. "
             "Вопросы пишите здесь."
         )
     return (
         "Получите выписку ИЛС, затем пришлите её в этот чат "
-        "или загрузите через «Мои документы» на сайте. "
+        "или загрузите в личном кабинете на сайте. "
         "Вопросы пишите здесь."
     )
 
@@ -3130,6 +3139,7 @@ def handle_max_update(
     from sfrfr.services.client_pdn_consent import (
         CONSENT_DECLINED_TEXT,
         PDN_CONSENT_DECLINE_CALLBACK,
+        consent_declined_keyboard,
     )
 
     if callback == PDN_CONSENT_DECLINE_CALLBACK:
@@ -3138,7 +3148,7 @@ def handle_max_update(
             user_id=user_id,
             chat_id=chat_id,
             text=CONSENT_DECLINED_TEXT,
-            attachments=_start_dialog_keyboard(),
+            attachments=consent_declined_keyboard(),
             case_id=_case_id_for_max_user(user_id),
         )
         return MaxHandleResult(
@@ -3316,7 +3326,7 @@ def handle_max_update(
             "/status — статус дела, /login — вход в кабинет с компьютера. "
             "Всегда можно позвать специалиста. "
             "Документы можно прислать прямо в этот чат (PDF/JPG/PNG) "
-            "или через раздел «Мои документы» на сайте."
+            "или загрузить в личном кабинете на сайте."
         )
         _reply(
             bot,
@@ -3341,7 +3351,7 @@ def handle_max_update(
         cabinet_url = cabinet_url_for_case(case_id)
         reply = (
             "Документы можно прислать прямо в этот чат (PDF или фото) "
-            "или открыть раздел «Мои документы» на сайте. "
+            "или загрузить в личном кабинете на сайте. "
             "Вопросы по делу пишите здесь."
         )
         _reply(
@@ -3440,7 +3450,7 @@ def handle_max_update(
 
     if record is not None and lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = "Пришлите документы в этот чат или загрузите через «Мои документы» на сайте."
+            reply = "Пришлите документы в этот чат или загрузите в личном кабинете на сайте."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,

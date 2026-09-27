@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 COOKIE_CONSENT_VERSION = "cookies-site-2026-09-22"
 
-CONSENT_GATE_TEXT = (
-    "Перед началом работы нужно ваше согласие на обработку персональных данных.\n\n"
+_CONSENT_INTRO = "Перед началом работы нужно ваше согласие на обработку персональных данных."
+_CONSENT_OPERATOR = (
     "Оператор: ООО «ПОД ПРИСМОТРОМ», ИНН 8905066468, ОГРН 1208900000572, "
     "629804, ЯНАО, г. Ноябрьск, ул. Рабочая, д. 109Б, кв. 4; "
-    "e-mail: proverkastaza@yandex.ru; генеральный директор Лопакова Н. Ф.\n\n"
+    "e-mail: proverkastaza@yandex.ru; генеральный директор Лопакова Н. Ф."
+)
+_CONSENT_TERMS = (
     "Цели: создать ваше дело, проверить документы о стаже, "
     "подготовить проекты обращений и держать с вами связь.\n"
     "Какие данные: ФИО, год рождения, контакты, сведения о работе и стаже, "
@@ -26,7 +28,9 @@ CONSENT_GATE_TEXT = (
     "анализируем, готовим документы.\n"
     "Где и сколько храним: на серверах в России, до достижения целей "
     "или отзыва согласия, но не дольше 5 лет после завершения работы по договору.\n"
-    "Как отозвать: письмом на proverkastaza@yandex.ru или через личный кабинет.\n\n"
+    "Как отозвать: письмом на proverkastaza@yandex.ru или через личный кабинет."
+)
+_CONSENT_LINKS = (
     "Полный текст согласия: https://proverkastaza.ru/soglasie/\n"
     "Политика обработки персональных данных: https://proverkastaza.ru/politika-pdn/\n"
     "На сайте используются файлы cookie: https://proverkastaza.ru/cookies/\n\n"
@@ -34,6 +38,14 @@ CONSENT_GATE_TEXT = (
     "Нажимая «Начать», вы даёте согласие. Без него мы не принимаем анкету и документы. "
     "Согласие запрашивается один раз — повторно мы его не просим."
 )
+# Короткими сообщениями подряд: первое приходит сразу, кнопки — на последнем.
+CONSENT_GATE_PARTS: tuple[str, ...] = (
+    _CONSENT_INTRO,
+    _CONSENT_OPERATOR,
+    _CONSENT_TERMS,
+    _CONSENT_LINKS,
+)
+CONSENT_GATE_TEXT = "\n\n".join(CONSENT_GATE_PARTS)
 
 CONSENT_DECLINED_TEXT = (
     "Поняли. Без согласия на обработку персональных данных "
@@ -44,6 +56,22 @@ CONSENT_DECLINED_TEXT = (
 )
 
 PDN_CONSENT_DECLINE_CALLBACK = "pdn_consent:no"
+SITE_URL = "https://proverkastaza.ru/"
+CHANNEL_URL = "https://max.ru/channel_proverkastaza"
+
+
+def consent_declined_keyboard() -> list[dict[str, Any]]:
+    """После «Не согласен»: вернуться к «Начать», канал и сайт — в один клик."""
+    from sfrfr.integrations.max.client import inline_buttons_keyboard
+    from sfrfr.security.login_otp import START_DIALOG_CALLBACK, START_DIALOG_LABEL
+
+    return inline_buttons_keyboard(
+        [
+            [{"type": "callback", "text": START_DIALOG_LABEL, "payload": START_DIALOG_CALLBACK}],
+            [{"type": "link", "text": "Подписаться на канал", "url": CHANNEL_URL}],
+            [{"type": "link", "text": "Перейти на сайт", "url": SITE_URL}],
+        ]
+    )
 
 
 def consent_text_sha256() -> str:
@@ -202,9 +230,7 @@ def ensure_case_consent_from_client(
                     break
         if not inherit:
             return False
-        version = str(
-            (client_row or {}).get("pdn_consent_version") or CURRENT_CONSENT_VERSION
-        )
+        version = str((client_row or {}).get("pdn_consent_version") or CURRENT_CONSENT_VERSION)
         repo.accept_consent(
             case_id,
             version=version,

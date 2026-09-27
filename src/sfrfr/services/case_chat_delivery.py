@@ -22,7 +22,7 @@ MAX_FILE_ACCEPTED_TEXT = (
     "Спасибо, файл получили и добавили к делу. Специалист увидит его в этом чате."
 )
 
-DOCUMENTS_SECTION_LABEL = "Открыть раздел «Мои документы»"
+DOCUMENTS_SECTION_LABEL = "Открыть личный кабинет"
 
 
 def documents_cabinet_url(case_id: str | None) -> str:
