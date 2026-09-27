@@ -72,6 +72,9 @@ def test_summary_and_qualities_under_photo() -> None:
     css = CSS.read_text(encoding="utf-8")
     for cls in (".sfrfr-expert-side", ".sfrfr-expert-summary", ".sfrfr-expert-qualities"):
         assert cls in css
+    # .entry-content p темы Astra перебивает одиночный класс
+    assert ".sfrfr-expert-summary .sfrfr-expert-summary__title" in css
+    assert ".sfrfr-expert-summary .sfrfr-expert-summary__text" in css
 
 
 def _live_blog_slugs() -> set[str]:
