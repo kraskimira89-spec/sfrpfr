@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Проверка стажа — кабинет клиента",
   description: "Защищённый кабинет сопровождения пенсионного дела",
   robots: { index: false, follow: false },
+  verification: { yandex: "24f89ecf6ff4297b" },
 };
 
 export default function RootLayout({
