@@ -12,8 +12,15 @@ if (!defined('ABSPATH')) {
 add_filter('astra_schema_enabled', '__return_false');
 
 /**
- * Публичные профили, проверенные на ответ 200. Часы работы не выводим,
- * пока владелец не подтвердит график.
+ * График как в карточке Яндекс Бизнеса (подтверждён владельцем 2026-09-27).
+ */
+function sfrfr_seo_schema_opening_hours(): string
+{
+    return 'Mo-Fr 09:00-18:00';
+}
+
+/**
+ * Публичные профили, проверенные на ответ 200.
  *
  * @return list<string>
  */
@@ -85,6 +92,7 @@ add_filter('sfrfr_seo_schema_graph', static function ($graph, $description = '',
         $type = $node['@type'] ?? '';
         if ($type === 'LocalBusiness') {
             $graph[$i]['sameAs'] = sfrfr_seo_schema_same_as();
+            $graph[$i]['openingHours'] = sfrfr_seo_schema_opening_hours();
         }
         if ($type === 'Article' && is_singular('post')) {
             $image = sfrfr_seo_schema_article_image((int) get_queried_object_id());

@@ -43,6 +43,9 @@ function sfrfr_seo_is_noindex(): bool
     if (is_category(['situacii', 'analitika'])) {
         return true;
     }
+    if (function_exists('sfrfr_seo_is_noindex_page') && sfrfr_seo_is_noindex_page()) {
+        return true;
+    }
     if (!is_singular('post')) {
         return false;
     }

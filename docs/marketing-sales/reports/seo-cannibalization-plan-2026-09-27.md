@@ -1,7 +1,20 @@
 # План: каннибализация посадочных и статей, LOW_QUALITY, URL вне поиска — 2026-09-27
 
 Контекст: самопроверки Вебмастера, пункты 5, 9 и 13 ([webmaster-self-checks-2026-09-27.md](webmaster-self-checks-2026-09-27.md)).
-Документ — **только план**. По правилу `blog-manual-only` статьи не переписывались и 301 не ставились. Каждое действие ниже требует отдельного «да» владельца.
+Документ — **только план**. По правилу `blog-manual-only` статьи не переписывались. Каждое действие ниже требует отдельного «да» владельца.
+
+## Статус (обновлено 2026-09-27)
+
+| Пункт | Статус | Что сделано |
+|---|---|---|
+| п. 1 | ✅ сделано | 301 `/blog/chto-delat-esli-period-raboty-ne-uchten/` → `/ne-uchli-stazh/`; тонкий `primer-rabotodatel-v-trudovoy-net-v-ils` ведёт сразу на посадочную (без цепочки) |
+| п. 4 | ✅ сделано | 301 `/blog/kak-pomoch-rodstvenniku-proverit-stazh/` → `/pomoch-rodstvenniku-proverit-stazh/` |
+| noindex (п. 9) | ✅ сделано | `/anketa-otzyv/`, `/chek-list-dokumentov/a4/`: `noindex, follow` (meta + `X-Robots-Tag`), вне sitemap, в robots.txt не закрыты |
+| п. 2, 3, 5, 6, 7, 8 | не делалось | ждут отдельного решения |
+
+Техника: `sfrfr-seo-redirects.php` — карта `sfrfr_seo_merged_redirect_map()`; посты в WP не удалены и не переведены в черновик, но исключены из sitemap и списков блога, ссылки на них в контенте подменяются на посадочные при выводе (тексты статей не менялись). `wp_seed_blog_tz11.php` помечает статьи `merged_into` и пропускает их. Уникальные абзацы статей в посадочные не переносились — это ручная правка текста.
+
+Часы работы в JSON-LD `LocalBusiness`: `openingHours: Mo-Fr 09:00-18:00` (как в карточке Яндекс Бизнеса). ⚠️ Расходится с SLA лидов «Пн–Пт 10:00–19:00 МСК» ([playbook-funnel-lead-sla.md](../../ops/playbook-funnel-lead-sla.md)); SLA не менялся.
 
 ## Источники данных
 

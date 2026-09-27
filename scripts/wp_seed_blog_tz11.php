@@ -173,6 +173,7 @@ $articles = [
     [
         'file' => '03-period-ne-uchten.html',
         'slug' => 'chto-delat-esli-period-raboty-ne-uchten',
+        'merged_into' => '/ne-uchli-stazh/',
         'title' => 'Не учли стаж в ИЛС: что делать',
         'category' => 'stazh',
         'excerpt' => 'Если не учтён стаж или стаж не учтён в ИЛС: сверка, документы, архив и обращение в СФР.',
@@ -257,6 +258,7 @@ $articles = [
     [
         'file' => '06-dlya-rodstvennikov.html',
         'slug' => 'kak-pomoch-rodstvenniku-proverit-stazh',
+        'merged_into' => '/pomoch-rodstvenniku-proverit-stazh/',
         'title' => 'Как помочь родственнику проверить пенсионный стаж',
         'category' => 'rodstvenniki',
         'excerpt' => 'Как детям и родственникам собрать документы и сопровождать дело при согласии пенсионера.',
@@ -438,7 +440,7 @@ $relatedFooter = function (array $article) use ($bySlug, $homeUrl): string {
         }
         $links[] = sprintf(
             '<li><a href="%s">%s</a></li>',
-            esc_url(home_url('/blog/' . $slug . '/')),
+            esc_url(home_url($bySlug[$slug]['merged_into'] ?? '/blog/' . $slug . '/')),
             esc_html($bySlug[$slug]['title'])
         );
     }
@@ -454,6 +456,11 @@ HTML;
 
 $created = [];
 foreach ($articles as $a) {
+    // Склеена с посадочной (301 в MU sfrfr-seo-redirects): не публиковать заново.
+    if (!empty($a['merged_into'])) {
+        echo "SKIP merged {$a['slug']} -> {$a['merged_into']}\n";
+        continue;
+    }
     $body = sfrfr_blog_load_body($assets, $a['file']);
     $content = $body . "\n" . $relatedFooter($a) . "\n" . $disclaimer;
     $catId = $catIds[$a['category']] ?? 0;

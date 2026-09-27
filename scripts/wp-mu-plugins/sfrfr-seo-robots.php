@@ -40,8 +40,53 @@ add_filter('robots_txt', static function (string $output, $public): string {
     return $output;
 }, 20, 2);
 
+/**
+ * Служебные страницы: noindex, follow и вне sitemap. В robots.txt не закрывать — робот должен увидеть noindex.
+ *
+ * @return list<string> page paths (get_page_uri)
+ */
+function sfrfr_seo_noindex_page_paths(): array
+{
+    return [
+        'anketa-otzyv',
+        'chek-list-dokumentov/a4',
+    ];
+}
+
+function sfrfr_seo_is_noindex_page(): bool
+{
+    if (!is_page()) {
+        return false;
+    }
+    return in_array(get_page_uri((int) get_queried_object_id()), sfrfr_seo_noindex_page_paths(), true);
+}
+
+/**
+ * @param array<string,mixed> $args
+ * @return array<string,mixed>
+ */
+add_filter('wp_sitemaps_posts_query_args', static function (array $args, string $postType): array {
+    if ($postType !== 'page') {
+        return $args;
+    }
+    $ids = [];
+    foreach (sfrfr_seo_noindex_page_paths() as $path) {
+        $page = get_page_by_path($path, OBJECT, 'page');
+        if ($page instanceof WP_Post) {
+            $ids[] = (int) $page->ID;
+        }
+    }
+    if ($ids) {
+        $args['post__not_in'] = array_values(array_unique(array_merge(
+            array_map('intval', (array) ($args['post__not_in'] ?? [])),
+            $ids
+        )));
+    }
+    return $args;
+}, 20, 2);
+
 add_action('template_redirect', static function (): void {
-    if (is_feed() && !headers_sent()) {
+    if ((is_feed() || sfrfr_seo_is_noindex_page()) && !headers_sent()) {
         header('X-Robots-Tag: noindex, follow', true);
     }
 }, 0);
