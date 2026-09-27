@@ -49,6 +49,7 @@ def test_expert_css_is_separate_and_applied() -> None:
         ".sfrfr-expert-nav",
         ".sfrfr-expert-materials",
         ".sfrfr-expert-info",
+        ".sfrfr-expert-qualities-block",
         "scroll-margin-top",
         "@media (max-width: 767px)",
     ):
