@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from collections.abc import Awaitable, Callable
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from sfrfr.api.routes import (
     admin_portal,
@@ -44,6 +47,20 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Служебный поддомен API не должен попадать в поиск.
+    @app.middleware("http")
+    async def _noindex_header(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
+    @app.get("/robots.txt", include_in_schema=False, response_class=PlainTextResponse)
+    def robots_txt() -> str:
+        return "User-agent: *\nDisallow: /\n"
+
     app.include_router(health.router, tags=["health"])
     if not is_production:
         # Старый демонстрационный API хранит дела локально и не имеет авторизации.
