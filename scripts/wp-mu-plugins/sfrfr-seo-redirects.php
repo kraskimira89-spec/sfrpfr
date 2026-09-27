@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Статьи-дубли посадочных (план каннибализации 2026-09-27, п. 1 и п. 4).
+ * Статьи-дубли посадочных (план каннибализации 2026-09-27, п. 1, 3 и 4).
  * Посты в WP не удаляются: 301, вне sitemap и списков блога, ссылки в контенте ведут на посадочную.
  *
  * @return array<string,string> path without trailing slash → landing path with trailing slash
@@ -19,6 +19,7 @@ function sfrfr_seo_merged_redirect_map(): array
     return [
         '/blog/chto-delat-esli-period-raboty-ne-uchten' => '/ne-uchli-stazh/',
         '/blog/kak-pomoch-rodstvenniku-proverit-stazh' => '/pomoch-rodstvenniku-proverit-stazh/',
+        '/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda' => '/arhivnaya-spravka-stazh/',
     ];
 }
 
@@ -56,6 +57,21 @@ add_filter('the_content', static function ($content) {
     }
     $path = (string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
     return sfrfr_seo_merged_rewrite_links($content, $path);
+}, 20);
+
+/**
+ * @param array<string,mixed> $atts
+ * @return array<string,mixed>
+ */
+add_filter('nav_menu_link_attributes', static function (array $atts): array {
+    $href = (string) ($atts['href'] ?? '');
+    $path = untrailingslashit((string) wp_parse_url($href, PHP_URL_PATH));
+    $host = (string) wp_parse_url($href, PHP_URL_HOST);
+    $merged = sfrfr_seo_merged_redirect_map();
+    if ($path !== '' && isset($merged[$path]) && ($host === '' || preg_match('~^(?:www\.)?proverkastaza\.ru$~i', $host))) {
+        $atts['href'] = $merged[$path];
+    }
+    return $atts;
 }, 20);
 
 /**
@@ -99,7 +115,7 @@ function sfrfr_seo_thin_redirect_map(): array
         'zakaz' => '/blog/kak-zakazat-vypisku-ils/',
         'sverka' => '/blog/kak-sverit-trudovuyu-knizhku-i-ils/',
         'period' => '/ne-uchli-stazh/',
-        'arhiv' => '/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/',
+        'arhiv' => '/arhivnaya-spravka-stazh/',
         'dokumenty' => '/blog/kakie-dokumenty-sobrat-do-obrashcheniya-v-sfr/',
         'otkaz' => '/blog/otkaz-sfr-chto-proverit-v-dokumentah/',
         'tipichnye' => '/blog/tipichnye-situacii-proverki-stazha/',
