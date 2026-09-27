@@ -7,7 +7,7 @@ on:
     - cron: "15 6 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: webmaster-diagnostics-daily
@@ -47,14 +47,23 @@ jobs:
         run: |
           python scripts/yandex_webmaster_diagnostics.py --report --fix || true
 
-      - name: Commit daily report
+      # main защищён ruleset'ом: отчёт не коммитится, а публикуется в summary и artifact.
+      - name: Report to job summary
+        if: always()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/marketing-sales/reports/webmaster-diagnostics-*.md
-          if git diff --staged --quiet; then
-            echo "No report changes"
-            exit 0
+          report="docs/marketing-sales/reports/webmaster-diagnostics-$(date -u +%F).md"
+          echo "REPORT_PATH=$report" >> "$GITHUB_ENV"
+          if [ -f "$report" ]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Отчёт $report не создан" >> "$GITHUB_STEP_SUMMARY"
           fi
-          git commit -m "Отчёт Вебмастера $(date -u +%F) [skip deploy]"
-          git push origin HEAD
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webmaster-diagnostics-${{ github.run_id }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: warn
+          retention-days: 30
