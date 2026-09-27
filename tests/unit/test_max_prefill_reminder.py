@@ -84,7 +84,7 @@ def test_return_mid_questionnaire_repeats_question_without_consuming(
 ) -> None:
     bot = _enable(tmp_path, monkeypatch)
     handle_max_update(_start(962), bot=bot)
-    _age("962", 48)
+    _age("962", 96)
     res = handle_max_update(_msg(962, "Здравствуйте"), bot=bot)
     assert res.action == "return_reminder"
     assert return_reminder.WELCOME_BACK in bot.sent[-1][1]
@@ -100,23 +100,35 @@ def test_short_pause_no_reminder(tmp_path: Path, monkeypatch) -> None:
     assert res.action == "max_questionnaire_step"
 
 
-def test_return_after_questionnaire_reminds_docs_and_continues(tmp_path: Path, monkeypatch) -> None:
+def test_return_after_questionnaire_single_reminder_reply(tmp_path: Path, monkeypatch) -> None:
     bot = _enable(tmp_path, monkeypatch)
     handle_max_update(_start(964), bot=bot)
-    rec = _age("964", 72)
+    rec = _age("964", 80)
     rec.q_step = None
     rec.q_completed_at = datetime.now(UTC).isoformat()
     get_intake_store().save(rec)
+    before = len(bot.sent)
     res = handle_max_update(_msg(964, "подскажите, что дальше"), bot=bot)
-    assert res.action != "return_reminder"
-    assert any("Сейчас нужно прислать документы" in t for _u, t in bot.sent)
+    assert res.action == "return_reminder"
+    new = bot.sent[before:]
+    assert len(new) == 1 and "Сейчас нужно прислать документы" in new[0][1]
+
+
+def test_default_reminder_threshold_is_72_hours(tmp_path: Path, monkeypatch) -> None:
+    bot = _enable(tmp_path, monkeypatch)
+    monkeypatch.delenv("MAX_RETURN_REMINDER_HOURS", raising=False)
+    get_settings.cache_clear()
+    handle_max_update(_start(966), bot=bot)
+    _age("966", 48)
+    res = handle_max_update(_msg(966, "Сидорова"), bot=bot)
+    assert res.action == "max_questionnaire_step"
 
 
 def test_return_with_valid_email_sends_checklist(tmp_path: Path, monkeypatch) -> None:
     bot = _enable(tmp_path, monkeypatch)
     monkeypatch.setattr(lm, "send_checklist_email", lambda **_kw: True)
     handle_max_update(_start(965), bot=bot)
-    rec = _age("965", 30)
+    rec = _age("965", 80)
     rec.q_step = None
     rec.lm_step = "email"
     get_intake_store().save(rec)
