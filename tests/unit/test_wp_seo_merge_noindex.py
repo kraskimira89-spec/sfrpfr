@@ -14,6 +14,7 @@ SEED = ROOT / "scripts/wp_seed_blog_tz11.php"
 MERGED = {
     "/blog/chto-delat-esli-period-raboty-ne-uchten": "/ne-uchli-stazh/",
     "/blog/kak-pomoch-rodstvenniku-proverit-stazh": "/pomoch-rodstvenniku-proverit-stazh/",
+    "/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda": "/arhivnaya-spravka-stazh/",
 }
 NOINDEX_PAGES = ("anketa-otzyv", "chek-list-dokumentov/a4")
 
@@ -45,6 +46,17 @@ def test_thin_redirects_have_no_chain_to_merged_articles() -> None:
     for source in MERGED:
         assert source + "/" not in body, f"цепочка 301 через {source}"
     assert "'period' => '/ne-uchli-stazh/'" in body
+    assert "'arhiv' => '/arhivnaya-spravka-stazh/'" in body
+
+
+def test_merged_redirect_targets_are_not_sources() -> None:
+    targets = {t.rstrip("/") for t in MERGED.values()}
+    assert not targets & set(MERGED), "цепочка 301 внутри карты склейки"
+
+
+def test_merged_article_links_rewritten_in_menu() -> None:
+    php = _read(REDIRECTS)
+    assert "add_filter('nav_menu_link_attributes'" in php
 
 
 def test_merged_articles_excluded_from_sitemap_and_blog_lists() -> None:
