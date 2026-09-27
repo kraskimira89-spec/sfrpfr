@@ -15,6 +15,12 @@ if ($css === false || $css === '') {
     echo "0\n";
     return;
 }
+foreach (['sfrfr-expert.css'] as $extra) {
+    $extraPath = dirname($path) . '/' . $extra;
+    if (is_readable($extraPath)) {
+        $css .= "\n" . (string) file_get_contents($extraPath);
+    }
+}
 $result = wp_update_custom_css_post($css);
 if (is_wp_error($result)) {
     fwrite(STDERR, $result->get_error_message() . "\n");
