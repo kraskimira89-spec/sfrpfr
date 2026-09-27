@@ -59,11 +59,24 @@ jobs:
             echo "Отчёт $report не создан" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Page statuses vs baseline (было → стало)
+        if: always()
+        continue-on-error: true
+        env:
+          YANDEX_WEBMASTER_OAUTH_ACCESS_TOKEN: ${{ secrets.YANDEX_WEBMASTER_OAUTH_ACCESS_TOKEN }}
+        run: |
+          mkdir -p tmp
+          python scripts/yandex_webmaster_url_status.py --summary \
+            --out tmp/seo-page-status.md --save-baseline tmp/seo-page-status.json > /dev/null
+
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: webmaster-diagnostics-${{ github.run_id }}
-          path: ${{ env.REPORT_PATH }}
+          path: |
+            ${{ env.REPORT_PATH }}
+            tmp/seo-page-status.md
+            tmp/seo-page-status.json
           if-no-files-found: warn
           retention-days: 30

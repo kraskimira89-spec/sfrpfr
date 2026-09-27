@@ -1,0 +1,498 @@
+{
+ "generated": "2026-09-27T21:05+05:00",
+ "urls": [
+  {
+   "url": "https://proverkastaza.ru/proverka-stazha-pered-pensiey/",
+   "group": "PR #100",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-09-26",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/arhivnaya-spravka-dlya-sfr-zachem-i-kuda/",
+   "group": "PR #100",
+   "expected": "redirect",
+   "in_search": false,
+   "excluded": null,
+   "last_crawl": "2026-08-03",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 301,
+    "location": "https://proverkastaza.ru/arhivnaya-spravka-stazh/",
+    "noindex": false
+   },
+   "status": "нет в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/otkaz-sfr-chto-proverit-v-dokumentah/",
+   "group": "PR #100",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-08",
+   "recrawl": "IN_PROGRESS",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/severnyy-stazh-i-rayonnyy-koefficient/",
+   "group": "PR #100",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-18",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/chto-delat-esli-period-raboty-ne-uchten/",
+   "group": "склейка",
+   "expected": "redirect",
+   "in_search": false,
+   "excluded": null,
+   "last_crawl": "2026-09-13",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 301,
+    "location": "https://proverkastaza.ru/ne-uchli-stazh/",
+    "noindex": false
+   },
+   "status": "нет в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/kak-pomoch-rodstvenniku-proverit-stazh/",
+   "group": "склейка",
+   "expected": "redirect",
+   "in_search": false,
+   "excluded": null,
+   "last_crawl": null,
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 301,
+    "location": "https://proverkastaza.ru/pomoch-rodstvenniku-proverit-stazh/",
+    "noindex": false
+   },
+   "status": "нет в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/pomoch-rodstvenniku-proverit-stazh/",
+   "group": "PR #101",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-08-30",
+   "recrawl": "IN_PROGRESS",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/kak-zakazat-vypisku-ils/",
+   "group": "PR #101",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-09-04",
+   "recrawl": "IN_PROGRESS",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/lgotnyy-i-pedagogicheskiy-stazh/",
+   "group": "PR #101",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-08-23",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/rashozhdeniya-fio-i-zapisi-trudovoy/",
+   "group": "PR #102",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-09-26",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/edv-i-pensiya-chto-proveryat-otdelno/",
+   "group": "PR #102",
+   "expected": "noindex",
+   "in_search": false,
+   "excluded": null,
+   "last_crawl": "2026-08-26",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": true
+   },
+   "status": "нет в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/expert/lopakova-nataliya/",
+   "group": "PR #103/#104",
+   "expected": "in_search",
+   "in_search": false,
+   "excluded": "LOW_QUALITY",
+   "last_crawl": "2026-09-03",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "исключена: LOW_QUALITY",
+   "ok": false
+  },
+  {
+   "url": "https://proverkastaza.ru/expert/bogdanovskiy-sergey/",
+   "group": "PR #103/#104",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-18",
+   "recrawl": "IN_PROGRESS",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-26",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/ne-uchli-stazh/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-08",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/arhivnaya-spravka-stazh/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-27",
+   "recrawl": "IN_PROGRESS",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/stazh-do-2002/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-09",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/otkaz-sfr/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-08",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/chek-list-dokumentov/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-18",
+   "recrawl": "DONE",
+   "monitored": false,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/proverka-stazha/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-16",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/proverka-severnogo-stazha/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-18",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/tarify/",
+   "group": "посадочная",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-26",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/kak-sverit-trudovuyu-knizhku-i-ils/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-13",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/kak-rabotaem/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-18",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/kak-podat-zayavlenie-cherez-gosuslugi-ili-mfc/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-08",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/oferta/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-04",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/kontakty/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-03",
+   "recrawl": "IN_PROGRESS",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/kak-proverit-stazh-v-vypiske-ils/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-09-16",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  },
+  {
+   "url": "https://proverkastaza.ru/blog/",
+   "group": "мониторинг Вебмастера",
+   "expected": "in_search",
+   "in_search": true,
+   "excluded": null,
+   "last_crawl": "2026-08-22",
+   "recrawl": "DONE",
+   "monitored": true,
+   "live": {
+    "code": 200,
+    "location": null,
+    "noindex": false
+   },
+   "status": "в поиске",
+   "ok": true
+  }
+ ]
+}
