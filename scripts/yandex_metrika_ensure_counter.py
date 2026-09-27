@@ -123,7 +123,7 @@ def find_counter(host: str) -> dict | None:
             return c
         mirrors = c.get("mirrors2") or c.get("mirrors") or []
         for m in mirrors:
-            msite = (m.get("site") if isinstance(m, dict) else str(m) or "").lower()
+            msite = ((m.get("site") or "") if isinstance(m, dict) else str(m)).lower()
             if host in msite or msite == host:
                 return c
     return None
