@@ -66,7 +66,17 @@ def test_summary_and_qualities_under_photo() -> None:
         assert block.index("sfrfr-expert-photo") < block.index("sfrfr-expert-summary")
         summary = re.search(r'<p class="sfrfr-expert-summary__text">(.*?)</p>', block, re.S)
         assert summary and 120 <= len(summary.group(1)) <= 420
-        qualities = re.search(r'<ul class="sfrfr-expert-qualities">(.*?)</ul>', block, re.S)
+        # качества — отдельный блок во всю ширину сразу после шапки, не под фото
+        assert "sfrfr-expert-qualities" not in block
+        qblock = re.search(
+            r'</div>\s*</div>\s*<section class="sfrfr-expert-qualities-block"[^>]*>(.*?)</section>',
+            html,
+            re.S,
+        )
+        assert qblock, page.name
+        qhtml = qblock.group(1)
+        assert "<h2" in qhtml and "Профессиональные качества" in qhtml
+        qualities = re.search(r'<ul class="sfrfr-expert-qualities">(.*?)</ul>', qhtml, re.S)
         assert qualities
         assert 4 <= len(re.findall(r"<li>", qualities.group(1))) <= 6
     css = CSS.read_text(encoding="utf-8")
