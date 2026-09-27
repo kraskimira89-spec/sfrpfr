@@ -345,6 +345,7 @@ async def supabase_auth_send_email(request: Request) -> dict[str, Any]:
         body=plain,
         html=html,
         from_name=_SENDER_NAME,
+        track_links=False,
     )
     if not result.get("ok"):
         logger.warning("auth send-email hook failed: %s", result)

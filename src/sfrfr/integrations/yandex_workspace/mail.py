@@ -75,6 +75,7 @@ def send_mail(
     body: str | None = None,
     html: str | None = None,
     from_name: str | None = None,
+    track_links: bool = True,
 ) -> dict[str, Any]:
     """Отправить письмо. Без СНИЛС/OCR/signed Storage URL в шаблонах.
 
@@ -107,6 +108,7 @@ def send_mail(
             text=final_body,
             html=html_body or None,
             from_name=display,
+            track_links=track_links,
         )
         if result.get("ok"):
             result = {**result, "template": tpl_key}

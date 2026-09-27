@@ -95,6 +95,7 @@ def send_checklist_email(*, to: str, first_name: str | None = None) -> bool:
             template="custom",
             subject=EMAIL_SUBJECT,
             body=build_email_body(first_name=first_name),
+            track_links=False,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("checklist email failed: %s", exc)
