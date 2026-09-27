@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 
 from docx import Document
+from docx.document import Document as DocxDocument
 from docx.shared import Cm, Pt
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "specs" / "10-landing-audit-and-implementation.md"
@@ -18,7 +18,7 @@ def strip_inline_md(text: str) -> str:
     return text.replace("**", "").replace("`", "")
 
 
-def add_table(document: Document, rows: list[list[str]]) -> None:
+def add_table(document: DocxDocument, rows: list[list[str]]) -> None:
     table = document.add_table(rows=0, cols=len(rows[0]))
     table.style = "Table Grid"
     for values in rows:
@@ -98,7 +98,7 @@ def main() -> None:
     flush_table()
     document.add_page_break()
     document.add_paragraph("Конец документа")
-    document.save(OUTPUT)
+    document.save(str(OUTPUT))
     print(OUTPUT)
 
 

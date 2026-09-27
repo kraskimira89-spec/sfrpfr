@@ -6,6 +6,7 @@ import json
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "secrets" / "cutover-dumps" / "cloud_data.sql"
@@ -99,7 +100,7 @@ def auth_admin_users(base: str, key: str) -> list[dict]:
     while True:
         url = f"{base.rstrip('/')}/auth/v1/admin/users?page={page}&per_page={per}"
         data = http_json(url, key)
-        batch = data.get("users", data) if isinstance(data, dict) else data
+        batch: Any = data.get("users", data) if isinstance(data, dict) else data
         if not batch:
             break
         users.extend(batch)

@@ -34,7 +34,7 @@ def main() -> int:
 
     print("Жду событие до 25 сек. Сейчас отправьте боту /start в MAX...")
     url = f"{client.api_base}/updates"
-    params = {
+    params: dict[str, str | int] = {
         "timeout": 20,
         "limit": 50,
         "types": "message_created,bot_started",
