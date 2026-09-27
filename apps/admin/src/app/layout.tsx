@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Проверка стажа — кабинет сотрудников",
   description: "Рабочее место оператора, эксперта и администратора",
   robots: { index: false, follow: false },
+  verification: { yandex: "24f89ecf6ff4297b" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
