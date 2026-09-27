@@ -118,7 +118,7 @@ def main() -> int:
     print(f"POST .../metrika/counters -> {probe[0]} (ожидаем 404: метода нет в API v4)")
 
     c, diag = api(WM_API, wt, "GET", f"/user/{uid}/hosts/{enc}/diagnostics")
-    problems = (diag or {}).get("problems") if isinstance(diag, dict) else {}
+    problems = (diag.get("problems") or {}) if isinstance(diag, dict) else {}
     for key in (
         "NO_METRIKA_COUNTER_BINDING",
         "NO_METRIKA_COUNTER_CRAWL_ENABLED",

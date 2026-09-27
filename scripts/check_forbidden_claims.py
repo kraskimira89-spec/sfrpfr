@@ -47,7 +47,7 @@ def check_file(path: Path, forbidden: list[str]) -> list[dict[str, str | int]]:
         return []
 
     content = path.read_text(encoding="utf-8")
-    violations = []
+    violations: list[dict[str, str | int]] = []
 
     for line_no, line in enumerate(content.splitlines(), start=1):
         line_clean = " ".join(line.split()).lower()
