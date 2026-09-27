@@ -2104,6 +2104,68 @@ body:has(#sfrfr-otzyvy-page) .sfrfr-breadcrumbs {
   color: #334155;
 }
 
+.sfrfr-expert-side {
+  min-width: 0;
+  max-width: min(100%, 360px);
+}
+
+.sfrfr-expert-side .sfrfr-expert-photo {
+  position: static;
+  max-width: none;
+}
+
+.sfrfr-expert-summary {
+  margin: 0.9rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--sfrfr-radius, 10px);
+  background: #f1f5f9;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.sfrfr-expert-summary__title {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+}
+
+.sfrfr-expert-summary__text {
+  margin: 0 0 0.8rem;
+}
+
+.sfrfr-expert-qualities {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.sfrfr-expert-qualities li + li {
+  margin-top: 0.3rem;
+}
+
+.sfrfr-expert-materials {
+  columns: 1;
+  column-gap: 2rem;
+}
+
+.sfrfr-expert-materials li {
+  break-inside: avoid;
+  margin-bottom: 0.35rem;
+}
+
+.sfrfr-expert-pubs li + li {
+  margin-top: 0.45rem;
+}
+
+@media (min-width: 768px) {
+  .sfrfr-expert-side {
+    max-width: none;
+  }
+
+  .sfrfr-expert-materials {
+    columns: 2;
+  }
+}
+
 .sfrfr-expert-card__media {
   display: block;
   margin: 0 0 0.85rem;

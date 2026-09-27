@@ -711,6 +711,12 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
         'url' => $site . 'expert/lopakova-nataliya/',
         'image' => $lopakovaPhoto,
         'worksFor' => ['@id' => $orgId],
+        'knowsAbout' => [
+            'Социальное обслуживание пожилых людей и людей с инвалидностью',
+            'Сверка пенсионного стажа и выписки ИЛС',
+            'Подготовка документов для обращения в СФР',
+        ],
+        'sameAs' => ['https://podprismotrom89.ru/about'],
     ];
 
     $expertBogdanId = $site . 'expert/bogdanovskiy-sergey/#person';
@@ -723,6 +729,17 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'url' => $site . 'expert/bogdanovskiy-sergey/',
             'image' => $bogdanPhoto,
             'worksFor' => ['@id' => $orgId],
+            'knowsAbout' => [
+                'Доступная среда',
+                'Социальное такси',
+                'Социальное проектирование',
+                'Права людей с инвалидностью',
+            ],
+            'sameAs' => [
+                'https://taganai89.ru/profile/predsedatel/',
+                'https://ekspertiyamala.ru/bogdanovskysergei',
+                'https://dobro.ru/volunteers/870030',
+            ],
         ];
     }
 
