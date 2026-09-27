@@ -27,6 +27,8 @@ STEPS: tuple[str, ...] = (
 CALLBACK_PREFIX = "q:"
 SKIP_MIDDLE_NAME = "q:skip:middle_name"
 SKIP_EMAIL = "q:skip:email"
+FIX_NAME = "q:fix_name"
+NAME_SOURCE_KEY = "name_source"
 EXPERIENCE_PREFIX = "q:exp:"
 
 EXPERIENCE_LABELS: dict[str, str] = {
@@ -48,7 +50,7 @@ MIN_AGE_YEARS = 14
 MIN_BIRTH_YEAR = 1930
 
 INTRO_TEXT = (
-    "Спасибо! Чтобы завести дело, ответьте на 8 коротких вопросов. "
+    "Спасибо! Чтобы завести дело, ответьте на несколько коротких вопросов. "
     "Файлы можно присылать в любой момент — анкета продолжится с того же места."
 )
 
@@ -109,10 +111,33 @@ def is_active(rec: MaxIntakeRecord | None) -> bool:
     return rec is not None and rec.q_step in STEPS
 
 
+def _next_step(answers: dict[str, str], after: int = -1) -> str | None:
+    for step in STEPS[after + 1 :]:
+        if step not in answers:
+            return step
+    return None
+
+
 def begin(rec: MaxIntakeRecord) -> None:
-    rec.q_step = STEPS[0]
-    rec.q_answers = {}
+    """Фамилию и имя из профиля MAX не спрашиваем, если они похожи на настоящие."""
+    answers: dict[str, str] = {}
+    last = clean_name(rec.max_last_name or "")
+    first = clean_name(rec.max_first_name or "")
+    if last:
+        answers["last_name"] = last
+    if first:
+        answers["first_name"] = first
+    if answers:
+        answers[NAME_SOURCE_KEY] = "max"
+    rec.q_answers = answers
+    rec.q_step = _next_step(answers)
     rec.q_completed_at = None
+
+
+def prefilled_name(answers: dict[str, str]) -> str:
+    if answers.get(NAME_SOURCE_KEY) != "max":
+        return ""
+    return " ".join(p for p in (answers.get("last_name"), answers.get("first_name")) if p)
 
 
 def clean_name(raw: str) -> str | None:
@@ -152,12 +177,21 @@ def clean_email(raw: str) -> str | None:
     return value.lower()
 
 
-def question(step: str) -> tuple[str, list[dict[str, Any]] | None]:
+def question(
+    step: str, answers: dict[str, str] | None = None
+) -> tuple[str, list[dict[str, Any]] | None]:
     text = QUESTIONS[step]
+    fix_row = (
+        [[{"type": "callback", "text": "Исправить имя", "payload": FIX_NAME}]]
+        if prefilled_name(answers or {}) and step in {"last_name", "first_name", "middle_name"}
+        else []
+    )
     if step == "middle_name":
         return text, inline_buttons_keyboard(
-            [[{"type": "callback", "text": "Нет отчества", "payload": SKIP_MIDDLE_NAME}]]
+            [[{"type": "callback", "text": "Нет отчества", "payload": SKIP_MIDDLE_NAME}]] + fix_row
         )
+    if fix_row:
+        return text, inline_buttons_keyboard(fix_row)
     if step == "email":
         return text, inline_buttons_keyboard(
             [[{"type": "callback", "text": "Пропустить", "payload": SKIP_EMAIL}]]
@@ -204,15 +238,23 @@ def apply_answer(rec: MaxIntakeRecord, *, text: str, payload: str) -> AnswerResu
     step = rec.q_step
     if step not in STEPS:
         return AnswerResult(accepted=False)
+    if payload == FIX_NAME:
+        rec.q_answers = {
+            k: v
+            for k, v in (rec.q_answers or {}).items()
+            if k not in {"last_name", "first_name", NAME_SOURCE_KEY}
+        }
+        rec.q_step = "last_name"
+        return AnswerResult(accepted=True)
     value = _parse(step, text or "", payload or "")
     if value is None:
         return AnswerResult(accepted=False, error=ERRORS[step])
     answers = dict(rec.q_answers or {})
     answers[step] = value
     rec.q_answers = answers
-    idx = STEPS.index(step)
-    if idx + 1 < len(STEPS):
-        rec.q_step = STEPS[idx + 1]
+    nxt = _next_step(answers, STEPS.index(step))
+    if nxt is not None:
+        rec.q_step = nxt
         return AnswerResult(accepted=True)
     rec.q_step = None
     rec.q_completed_at = datetime.now(UTC).isoformat()

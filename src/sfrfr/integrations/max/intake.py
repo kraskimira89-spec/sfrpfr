@@ -303,6 +303,10 @@ class MaxIntakeRecord:
     lm_step: str | None = None
     lm_send_count: int = 0
     lm_sent_at: str | None = None
+    # Имя из профиля MAX (подставляется в анкету) и последний контакт (напоминание о шаге)
+    max_first_name: str | None = None
+    max_last_name: str | None = None
+    last_seen_at: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())

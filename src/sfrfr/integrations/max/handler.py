@@ -2117,6 +2117,58 @@ def _handle_questionnaire_or_menu(
     return MaxHandleResult(ok=True, action=action, case_id=case_id, reply=body)
 
 
+def _remember_max_profile_names(intake, update: dict[str, Any]) -> None:
+    """Фамилия и имя из профиля MAX — для анкеты (ТЗ-35 B1)."""
+    user = _user_dict(update)
+    first = str(user.get("first_name") or user.get("firstName") or "").strip() or None
+    last = str(user.get("last_name") or user.get("lastName") or "").strip() or None
+    if not first and not last:
+        return
+    if (intake.max_first_name, intake.max_last_name) != (first, last):
+        intake.max_first_name, intake.max_last_name = first, last
+        get_intake_store().save(intake)
+
+
+def _send_return_reminder(
+    bot: MaxBotClient,
+    *,
+    update: dict[str, Any],
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    text: str,
+) -> MaxHandleResult | None:
+    """Клиент вернулся после паузы: напомнить шаг. Не None — дальше не обрабатываем."""
+    from sfrfr.integrations.max import return_reminder
+
+    if extract_downloadable_files(update) or update.get("file_bytes"):
+        return None
+    rec = get_intake_store().get_active(user_id)
+    if rec is None:
+        return None
+    case_id = _case_id_for_max_user(user_id)
+    record = store.find_by_max_user(user_id)
+    local_docs = len(record.ctx.document_paths) if record is not None else 0
+    body, stop = return_reminder.remind(
+        rec,
+        lambda msg, attachments: _reply(
+            bot, user_id=user_id, chat_id=chat_id, text=msg,
+            attachments=attachments, case_id=case_id,
+        ),
+        text=text,
+        docs_count=return_reminder.count_case_documents(case_id, fallback=local_docs),
+    )
+    if not stop:
+        return None
+    _append_client_case_message(
+        case_id=case_id,
+        max_user_id=user_id,
+        text=text,
+        external_message_id=_max_message_id(update),
+    )
+    return MaxHandleResult(ok=True, action="return_reminder", case_id=case_id, reply=body)
+
+
 def _resume_questionnaire_after_upload(
     bot: MaxBotClient, *, user_id: str, chat_id: int | str | None, case_id: str | None
 ) -> None:
@@ -3005,6 +3057,12 @@ def handle_max_update(
         callback or text or "bot_started" in update_type or start_hit
     ):
         intake_early = get_intake_store().upsert_started(user_id)
+    returned_after_pause = False
+    if intake_early is not None:
+        from sfrfr.integrations.max import return_reminder
+
+        _remember_max_profile_names(intake_early, update)
+        returned_after_pause = return_reminder.touch(intake_early)
     if intake_early is not None and not intake_early.case_id:
         try:
             _ensure_case_for_intake(
@@ -3230,6 +3288,13 @@ def handle_max_update(
             accept_consent=False,
             display_name=display_name,
         )
+
+    if returned_after_pause and text and not callback and not login_hit and not pair_code_hit:
+        reminded = _send_return_reminder(
+            bot, update=update, user_id=user_id, chat_id=chat_id, store=store, text=text
+        )
+        if reminded is not None:
+            return reminded
 
     q_result = _handle_questionnaire_or_menu(
         bot,

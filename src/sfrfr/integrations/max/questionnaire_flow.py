@@ -12,7 +12,7 @@ Reply = Callable[[str, list[dict[str, Any]] | None], Any]
 
 
 def send_current_question(rec: MaxIntakeRecord, reply: Reply, *, prefix: str = "") -> str:
-    text, keyboard = q.question(str(rec.q_step))
+    text, keyboard = q.question(str(rec.q_step), rec.q_answers)
     full = f"{prefix}\n\n{text}" if prefix else text
     reply(full, keyboard)
     return full
@@ -21,7 +21,14 @@ def send_current_question(rec: MaxIntakeRecord, reply: Reply, *, prefix: str = "
 def start(rec: MaxIntakeRecord, reply: Reply) -> str:
     q.begin(rec)
     get_intake_store().save(rec)
-    reply(q.INTRO_TEXT, None)
+    intro = q.INTRO_TEXT
+    name = q.prefilled_name(rec.q_answers)
+    if name:
+        intro += (
+            f"\n\nИз профиля MAX: {name} — эти данные спрашивать не будем. "
+            "Если это не ваши фамилия и имя, нажмите «Исправить имя»."
+        )
+    reply(intro, None)
     return send_current_question(rec, reply)
 
 
