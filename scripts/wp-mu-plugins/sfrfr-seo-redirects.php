@@ -38,6 +38,46 @@ function sfrfr_seo_merged_post_ids(): array
     return $ids;
 }
 
+/**
+ * Статьи вне тематики стажа без спроса (LOW_QUALITY P2, 2026-09-27): noindex, follow и вне sitemap.
+ * Список в коде, т.к. сид блога сбрасывает _sfrfr_noindex при каждом деплое.
+ *
+ * @return list<string> post slugs
+ */
+function sfrfr_seo_noindex_post_slugs(): array
+{
+    return [
+        'edv-i-pensiya-chto-proveryat-otdelno',
+    ];
+}
+
+/**
+ * @return list<int>
+ */
+function sfrfr_seo_noindex_post_ids(): array
+{
+    $ids = [];
+    foreach (sfrfr_seo_noindex_post_slugs() as $slug) {
+        $post = get_page_by_path($slug, OBJECT, 'post');
+        if ($post instanceof WP_Post) {
+            $ids[] = (int) $post->ID;
+        }
+    }
+    return $ids;
+}
+
+function sfrfr_seo_is_noindex_post(): bool
+{
+    return is_singular('post')
+        && in_array((string) get_post_field('post_name', get_queried_object_id()), sfrfr_seo_noindex_post_slugs(), true);
+}
+
+add_action('template_redirect', static function (): void {
+    if (sfrfr_seo_is_noindex_post() && !headers_sent()) {
+        header('X-Robots-Tag: noindex, follow', true);
+    }
+}, 1);
+
 function sfrfr_seo_merged_rewrite_links(string $content, string $currentPath): string
 {
     foreach (sfrfr_seo_merged_redirect_map() as $from => $to) {
@@ -82,7 +122,7 @@ add_filter('wp_sitemaps_posts_query_args', static function (array $args, string 
     if ($postType !== 'post') {
         return $args;
     }
-    $ids = sfrfr_seo_merged_post_ids();
+    $ids = array_merge(sfrfr_seo_merged_post_ids(), sfrfr_seo_noindex_post_ids());
     if ($ids) {
         $args['post__not_in'] = array_values(array_unique(array_merge(
             array_map('intval', (array) ($args['post__not_in'] ?? [])),

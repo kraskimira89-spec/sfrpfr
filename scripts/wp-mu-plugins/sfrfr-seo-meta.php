@@ -46,6 +46,9 @@ function sfrfr_seo_is_noindex(): bool
     if (function_exists('sfrfr_seo_is_noindex_page') && sfrfr_seo_is_noindex_page()) {
         return true;
     }
+    if (function_exists('sfrfr_seo_is_noindex_post') && sfrfr_seo_is_noindex_post()) {
+        return true;
+    }
     if (!is_singular('post')) {
         return false;
     }
@@ -337,7 +340,7 @@ function sfrfr_seo_description(): string
             'severnyy-stazh-i-rayonnyy-koefficient' => 'Северный стаж не учли или период на Крайнем Севере в ИЛС отражён неполно: что сверить с трудовой и какие справки собрать. Решает СФР.',
             'edv-i-pensiya-chto-proveryat-otdelno' => 'ЕДВ и пенсия: что относится к стажу, а что проверять отдельно, чтобы не смешивать разные решения СФР.',
             'lgotnyy-i-pedagogicheskiy-stazh' => 'Льготный стаж не учли: какие документы подтверждают вредный, педагогический и медицинский стаж и что проверить в ИЛС. Решение принимает СФР.',
-            'rashozhdeniya-fio-i-zapisi-trudovoy' => 'Расхождения ФИО и ошибки в трудовой: как сверить записи и какие подтверждения обычно нужны до обращения в СФР.',
+            'rashozhdeniya-fio-i-zapisi-trudovoy' => 'Ошибка в фамилии или дате в трудовой книжке: какие документы подтвердят стаж и что делать, если работодатель ликвидирован. Решение принимает СФР.',
         ];
         if (isset($pageDescriptions[$slug])) {
             return $pageDescriptions[$slug];
