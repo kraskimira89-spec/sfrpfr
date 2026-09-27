@@ -132,7 +132,7 @@ python scripts/yandex_webmaster_recrawl.py https://proverkastaza.ru/blog/...
 Ensure: хост → META_TAG → sitemap → статус host/summary.  
 Recrawl: очередь переобхода (суточная квота Яндекса).  
 Diagnostics: `GET …/diagnostics` + summary по apex (аналог части email Вебмастера); `--report` → `docs/marketing-sales/reports/webmaster-diagnostics-YYYY-MM-DD.md`.  
-Ежедневно: GH Actions `webmaster-diagnostics-daily.yml` (09:15 MSK) + `--fix` + SSH remediate на VPS.  
+Ежедневно: GH Actions `webmaster-diagnostics-daily.yml` (09:15 MSK) + `--fix` + SSH remediate на VPS. Отчёт не коммитится в `main` (ruleset): он в Job summary и artifact `webmaster-diagnostics-<run_id>` (30 дней).  
 **GitHub secret:** `YANDEX_WEBMASTER_OAUTH_ACCESS_TOKEN` (тот же `y0_…`, что в `secrets/yandex-webmaster.env`).
 
 ```powershell
