@@ -47,6 +47,13 @@
   В `main` короче; менять копирайт — решение владельца.
 - Devcontainer / `docker-compose.test.yml` / `run-targeted-tests.ps1` (WSL) — если понадобится запуск тестов в контейнере.
 
+## Решения владельца (2026-09-27)
+
+1. `starlette` — обновить отдельным PR: `starlette>=1.7.0` и `fastapi>=0.133.0` (первая версия
+   fastapi без верхней границы на starlette) в `pyproject.toml` и `requirements.txt`.
+2. Текст `max_kit_status.py` — оставить как в `main`.
+3. Devcontainer / `docker-compose.test.yml` / `run-targeted-tests.ps1` — не нужны, не переносим.
+
 ## Проверено
 
 - `pytest tests/unit/test_supabase_httpx_client_options.py` — красный до правки (ImportError), зелёный после.
