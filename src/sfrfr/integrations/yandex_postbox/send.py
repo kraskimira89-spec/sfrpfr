@@ -38,6 +38,7 @@ def send_email_postbox(
     from_name: str | None = None,
     configuration_set: str | None = None,
     timeout_sec: float = 30.0,
+    track_links: bool = True,
 ) -> dict[str, Any]:
     """POST /v2/email/outbound-emails. MessageId из ответа → provider_message_id."""
     settings = get_settings()
@@ -74,8 +75,10 @@ def send_email_postbox(
             }
         },
     }
+    # Набор конфигурации включает подмену ссылок трекингом Postbox: домен трекинга
+    # недоступен у части клиентов, а одноразовые ссылки входа не должны идти через него.
     cfg = (configuration_set or settings.yandex_postbox_configuration_set or "").strip()
-    if cfg:
+    if cfg and track_links:
         payload["ConfigurationSetName"] = cfg
 
     endpoint = (settings.yandex_postbox_endpoint or _DEFAULT_ENDPOINT).rstrip("/")

@@ -91,6 +91,7 @@ def notify_staff_login_blocked(*, email: str, reason: str) -> dict[str, Any]:
             body=body,
             html=html_body,
             from_name="Проверка стажа",
+            track_links=False,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("staff login blocked notify failed: %s", exc)
