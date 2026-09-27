@@ -1,0 +1,393 @@
+/* Страницы экспертов (/expert/*): шапка-карточка, навигация, сетки. Дописывается к sfrfr-landing.css. */
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-wrap {
+  max-width: 1120px;
+}
+
+.sfrfr-landing.sfrfr-expert-page h2 {
+  margin: 2.25rem 0 0.85rem;
+  font-size: clamp(1.25rem, 2.6vw, 1.55rem);
+  line-height: 1.25;
+  color: var(--sfrfr-ink, #1a2330);
+  scroll-margin-top: 5.5rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  color: var(--sfrfr-primary, #1e4e79);
+}
+
+/* Шапка */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero {
+  margin: 0 0 1.25rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border-radius: calc(var(--sfrfr-radius, 14px) + 6px);
+  background: var(--sfrfr-surface, #fff);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+  box-shadow: var(--sfrfr-shadow, 0 8px 24px rgba(30, 78, 121, 0.08));
+}
+
+@media (min-width: 768px) {
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero {
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 1.75rem 2.25rem;
+  }
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-photo img {
+  max-height: 420px;
+  border-radius: var(--sfrfr-radius, 14px);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-summary {
+  background: var(--sfrfr-bg, #f7f8fa);
+  border: 1px solid rgba(30, 78, 121, 0.08);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-eyebrow {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(46, 125, 91, 0.1);
+  color: var(--sfrfr-accent, #2e7d5b);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero__body > .sfrfr-section__lead {
+  margin: 0 0 1.1rem;
+  font-size: clamp(1.02rem, 2vw, 1.15rem);
+  line-height: 1.55;
+  color: var(--sfrfr-ink, #1a2330);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero__body > h2 {
+  margin: 1.5rem 0 0.7rem;
+  font-size: 1.1rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-facts {
+  list-style: none;
+  margin: 0 0 1.1rem;
+  padding: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+@media (min-width: 1024px) {
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-fact {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--sfrfr-radius, 14px);
+  background: var(--sfrfr-band, #e8eef5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  line-height: 1.3;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-fact strong {
+  font-size: 1.15rem;
+  color: var(--sfrfr-primary, #1e4e79);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-fact span {
+  font-size: 0.86rem;
+  color: var(--sfrfr-muted, #5a6a7a);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero__cta {
+  margin: 0 0 0.25rem;
+  justify-content: flex-start;
+}
+
+/* Навигация по разделам */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0;
+  overflow-x: auto;
+  background: rgba(232, 238, 245, 0.94);
+  scrollbar-width: none;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-nav a {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 78, 121, 0.18);
+  background: var(--sfrfr-surface, #fff);
+  color: var(--sfrfr-primary, #1e4e79);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-nav a:hover,
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-nav a:focus-visible {
+  background: var(--sfrfr-primary, #1e4e79);
+  color: #fff;
+}
+
+/* Роль — карточки с галочкой */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-roles {
+  list-style: none;
+  margin: 0;
+  padding: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-roles li {
+  position: relative;
+  margin: 0;
+  padding: 0.95rem 1rem 0.95rem 2.75rem;
+  border-radius: var(--sfrfr-radius, 14px);
+  background: var(--sfrfr-surface, #fff);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+  line-height: 1.45;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-roles li::before {
+  content: "✓";
+  position: absolute;
+  left: 0.95rem;
+  top: 0.9rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: rgba(46, 125, 91, 0.12);
+  color: var(--sfrfr-accent, #2e7d5b);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.3rem;
+  text-align: center;
+}
+
+/* Проверенные статьи — сетка ссылок-карточек */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials {
+  list-style: none;
+  columns: auto;
+  margin: 0;
+  padding: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.6rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials li {
+  margin: 0;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.95rem;
+  border-radius: var(--sfrfr-radius, 14px);
+  background: var(--sfrfr-surface, #fff);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+  color: var(--sfrfr-ink, #1a2330);
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials a::after {
+  content: "→";
+  flex: 0 0 auto;
+  color: var(--sfrfr-primary, #1e4e79);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials a:hover,
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials a:focus-visible {
+  border-color: var(--sfrfr-primary, #1e4e79);
+  box-shadow: var(--sfrfr-shadow, 0 8px 24px rgba(30, 78, 121, 0.08));
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-more {
+  margin: 0.75rem 0 0;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-more > summary {
+  display: inline-block;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: var(--sfrfr-band, #e8eef5);
+  color: var(--sfrfr-primary, #1e4e79);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-more[open] > summary {
+  background: var(--sfrfr-primary, #1e4e79);
+  color: #fff;
+}
+
+/* Вехи — вертикальная лента */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline {
+  position: relative;
+  gap: 0;
+  margin: 0;
+  padding: 0 0 0 1.5rem !important;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline::before {
+  content: "";
+  position: absolute;
+  left: 0.4rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 2px;
+  background: rgba(30, 78, 121, 0.18);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline li,
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline li:first-child {
+  position: relative;
+  padding: 0 0 1rem;
+  border-top: 0;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -1.43rem;
+  top: 0.3rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--sfrfr-surface, #fff);
+  border: 2px solid var(--sfrfr-primary, #1e4e79);
+  box-sizing: border-box;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-timeline__year {
+  display: block;
+  width: fit-content;
+  margin: 0 0 0.3rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 6px;
+  background: var(--sfrfr-band, #e8eef5);
+}
+
+/* Публикации и проекты — две колонки */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-pubgrid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+@media (min-width: 768px) {
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-pubgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-pubcol {
+  padding: 1rem 1.1rem;
+  border-radius: var(--sfrfr-radius, 14px);
+  background: var(--sfrfr-surface, #fff);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-pubs {
+  margin: 0;
+  padding: 0 0 0 1.1rem !important;
+  line-height: 1.45;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-pubs li + li {
+  margin-top: 0.6rem;
+}
+
+/* Методика, контакты, команда */
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+  margin: 2.25rem 0 1.5rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-info__card {
+  padding: 1rem 1.1rem;
+  border-radius: var(--sfrfr-radius, 14px);
+  background: var(--sfrfr-surface, #fff);
+  border: 1px solid rgba(30, 78, 121, 0.1);
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-info__card h2 {
+  margin: 0 0 0.55rem;
+  font-size: 1.05rem;
+}
+
+.sfrfr-landing.sfrfr-expert-page .sfrfr-expert-info__card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  /* На телефоне: фото → имя/роль/кнопки → «Кратко», чтобы главное было на первом экране */
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-side {
+    display: contents;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero__body {
+    order: 1;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-summary {
+    order: 2;
+    margin: 0;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-photo {
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-photo img {
+    max-height: 320px;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-hero__cta .sfrfr-btn {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page .sfrfr-expert-materials {
+    grid-template-columns: 1fr;
+  }
+
+  .sfrfr-landing.sfrfr-expert-page h2 {
+    margin-top: 1.75rem;
+  }
+}
