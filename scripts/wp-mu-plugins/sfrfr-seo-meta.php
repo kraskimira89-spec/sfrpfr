@@ -81,23 +81,23 @@ add_action('send_headers', static function (): void {
  */
 add_filter('document_title_parts', static function (array $parts): array {
     $map = [
-        'tarify' => 'Тарифы',
+        'tarify' => 'Тарифы на проверку стажа: 3 000, 5 000, 8 000 ₽',
         'kak-rabotaem' => 'Как это работает',
-        'otzyvy' => 'Отзывы',
-        'kontakty' => 'Контакты',
+        'otzyvy' => 'Отзывы клиентов о проверке пенсионного стажа',
+        'kontakty' => 'Контакты: телефон, почта и MAX для вопросов о стаже',
         'proverka-stazha' => 'Проверка стажа, а не калькулятор пенсии',
         'stazh-do-2002' => 'Как подтвердить стаж до 2002 года',
         'partneram' => 'Партнёрам — навигация по пенсионным документам | Проверка стажа',
         'chek-list-dokumentov' => 'Чек-лист документов для проверки стажа | Проверка стажа',
-        'blog' => 'Статьи',
+        'blog' => 'Статьи: не учли стаж, выписка ИЛС, архивная справка',
     ];
     if (is_front_page()) {
-        $parts['title'] = 'Проверка стажа';
+        $parts['title'] = 'Проверка стажа для пенсии: не учли стаж, архивная справка, ИЛС';
         unset($parts['tagline'], $parts['site']);
         return $parts;
     }
     if (is_home() && !is_front_page()) {
-        $parts['title'] = 'Статьи';
+        $parts['title'] = 'Статьи: не учли стаж, выписка ИЛС, архивная справка';
     } elseif (is_singular()) {
         $postId = get_queried_object_id();
         $fromMeta = '';
@@ -263,7 +263,7 @@ function sfrfr_seo_limit(string $value, int $limit = 165): string
 function sfrfr_seo_description(): string
 {
     if (is_front_page()) {
-        return 'Проверка пенсионного стажа, выписки ИЛС и документов. Находим возможные расхождения и готовим понятный план обращения в СФР.';
+        return 'Проверка стажа для пенсии: сверяем выписку ИЛС и трудовую, если не учли стаж, подскажем, где нужна архивная справка. Подаёте вы, решение принимает СФР.';
     }
     if (is_home()) {
         return 'Практические статьи о проверке стажа, выписке ИЛС, архивных справках, документах и обращении в СФР.';
