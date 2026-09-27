@@ -665,7 +665,7 @@ function sfrfr_seo_schema_graph(string $description, string $canonical): array
             'email' => 'proverkastaza@yandex.ru',
             'address' => [
                 '@type' => 'PostalAddress',
-                'streetAddress' => 'ул. Рабочая, д. 109Б, кв. 4',
+                'streetAddress' => 'ул. Рабочая, д. 109Б',
                 'addressLocality' => 'Ноябрьск',
                 'addressRegion' => 'ЯНАО',
                 'postalCode' => '629804',
