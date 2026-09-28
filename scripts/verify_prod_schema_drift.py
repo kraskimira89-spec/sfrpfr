@@ -145,6 +145,14 @@ EXPECTED: tuple[Migration, ...] = (
             ("column", "cases", "questionnaire_completed_at"),
         ),
     ),
+    Migration(
+        "20260928120000",
+        "invalidate_max_cookie_consents",
+        (
+            ("column", "consents", "invalidated_at"),
+            ("column", "clients", "cookie_consent_invalidated_at"),
+        ),
+    ),
 )
 
 _CHECK_SQL = {
