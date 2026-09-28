@@ -20,9 +20,10 @@ SUBMISSION_INSTRUCTION = POSITION_SHORT
 WARNING = f"{POSITION_SHORT} Результат не гарантирован."
 
 # К каждому счёту / pay-link (MAX, кабинет, напоминания).
+# Согласие на ПДн не выводится из оплаты: ч. 1 ст. 9 152-ФЗ требует отдельного оформления.
 PAYMENT_LEGAL_ACCEPTANCE = (
-    "Оплата счёта означает согласие с обработкой персональных данных (ПДн), "
-    "политикой cookies и условиями публичной оферты."
+    "Оплата счёта означает принятие условий публичной оферты. "
+    "Согласие на обработку персональных данных оформляется отдельно."
 )
 
 CONSENT_URL = "https://proverkastaza.ru/soglasie/"
@@ -30,7 +31,7 @@ COOKIES_URL = "https://proverkastaza.ru/cookies/"
 OFFER_URL = "https://proverkastaza.ru/oferta/"
 
 PAYMENT_LEGAL_ACCEPTANCE_WITH_LINKS = (
-    "Оплата счёта означает согласие с обработкой персональных данных "
-    f"({CONSENT_URL}), политикой cookies ({COOKIES_URL}) "
-    f"и условиями публичной оферты ({OFFER_URL})."
+    f"Оплата счёта означает принятие условий публичной оферты ({OFFER_URL}). "
+    f"Согласие на обработку персональных данных оформляется отдельно ({CONSENT_URL}); "
+    f"правила cookies сайта: {COOKIES_URL}."
 )
