@@ -55,3 +55,11 @@ def test_expert_css_is_separate_and_applied() -> None:
     ):
         assert cls in css, cls
     assert "sfrfr-expert.css" in APPLY_CSS.read_text(encoding="utf-8")
+
+
+def test_qualities_grid_three_columns_on_desktop() -> None:
+    css = EXPERT_CSS.read_text(encoding="utf-8")
+    block = re.search(r"\.sfrfr-expert-qualities \{(.*?)\}", css, re.S)
+    assert block
+    # 5 пунктов: 3 + 2, без одинокой карточки в последнем ряду
+    assert "minmax(300px, 1fr)" in block.group(1)
