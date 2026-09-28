@@ -5,7 +5,7 @@
 **Каталог:** `b1grtprgfugidt9u073i`  
 **Публичный IP:** `51.250.69.237` · внутренний `10.70.20.26`  
 **SG:** `enpf27it4pe5d1brj6as` (`sfrfr-supabase-db-sg`)  
-**Старый IP (DNS сейчас):** `51.250.13.240` (каталог `b1g0mhpm9tr4lrurk1bu` — без доступа, не трогаем)
+**Старый IP:** `51.250.13.240` (каталог `b1g0mhpm9tr4lrurk1bu`) — ВМ остановлена 2026-09-28, см. «Шаг 5»
 
 DNS зоны `proverkastaza.ru` — **reg.ru**, не Yandex Cloud.
 
@@ -92,8 +92,24 @@ curl.exe -vk https://51.250.69.237/ --max-time 10
 
 ## Шаг 5 — После 24–72 ч
 
-- Stop старой ВМ `51.250.13.240` (когда будет доступ к каталогу `b1g0mhpm…`)
+- ✅ Stop старой ВМ `51.250.13.240` — **остановлена 2026-09-28** (`yc`, профиль `sfrfr`)
 - Обновить `docs/ops/infrastructure-inventory.md`
+
+### Статус старой ВМ (2026-09-28)
+
+| Поле | Значение |
+|------|----------|
+| ВМ | `sfrfr-staging-supabase` (`fhm6mjtv0dipdr4ctplc`), `ru-central1-a` |
+| Каталог | `b1g0mhpm9tr4lrurk1bu` |
+| Статус | `STOPPED` (не удалена) |
+| Публичный IP | `51.250.13.240` — статический `sfrfr-staging-ip` (`e9b7ip24on1jtr128g7d`), сохранён |
+| Диски | boot `fhm6qelb6qli12harc1e`, secondary `fhmrncjil5r3p9np65rp` — не тронуты |
+
+Smoke после stop: DNS → `51.250.69.237`, `https://supabase.proverkastaza.ru` → 401 (Caddy), `api /health` 200, cabinet 200.
+
+Откат: `yc compute instance start fhm6mjtv0dipdr4ctplc`.
+
+**Удаление** ВМ, дисков и освобождение IP — не раньше **2026-10-01**, задача Трекера [SFRFR-65](https://tracker.yandex.ru/SFRFR-65).
 
 ## Запрещено
 
