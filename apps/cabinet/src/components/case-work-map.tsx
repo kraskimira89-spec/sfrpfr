@@ -520,8 +520,8 @@ export function CaseWorkMap({
             {work.order.can_pay && work.order.order_id ? (
               <>
                 <p className="hint">
-                  Оплата счёта означает согласие с обработкой персональных данных (ПДн), политикой
-                  cookies и условиями публичной оферты.
+                  Оплата счёта означает принятие условий публичной оферты. Согласие на обработку
+                  персональных данных оформляется отдельно.
                 </p>
                 <p className="home-actions">
                   <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>

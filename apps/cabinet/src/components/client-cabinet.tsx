@@ -1418,7 +1418,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/consents`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: "pdn-consent-2026-09-09" }),
+        body: JSON.stringify({ version: "pdn-consent-2026-09-28" }),
       });
       setNotice("Согласие на обработку ПДн зафиксировано.");
       await openCase(selectedId, view === "docs" ? "docs" : "case");
@@ -2555,20 +2555,15 @@ export function ClientCabinet() {
           <h1>Оплаты</h1>
           <p className="lead">
             Диагностика — фиксированный счёт. Оплата после результата появляется только после
-            подтверждения. Оплата счёта означает согласие с обработкой персональных данных (ПДн),
-            политикой{" "}
-            <a href="https://proverkastaza.ru/cookies/" target="_blank" rel="noreferrer">
-              cookies
-            </a>{" "}
-            и условиями{" "}
+            подтверждения. Оплата счёта означает принятие условий{" "}
             <a href="https://proverkastaza.ru/oferta/" target="_blank" rel="noreferrer">
               публичной оферты
             </a>
-            {" "}(
+            .{" "}
             <a href="https://proverkastaza.ru/soglasie/" target="_blank" rel="noreferrer">
-              согласие на ПДн
-            </a>
-            ).
+              Согласие на обработку персональных данных
+            </a>{" "}
+            оформляется отдельно.
           </p>
           {orders.length === 0 ? (
             <p>Счетов пока нет.</p>
