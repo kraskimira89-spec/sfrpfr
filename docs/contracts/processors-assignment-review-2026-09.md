@@ -34,7 +34,8 @@
 в `docs/ops/supabase-cloud-drain-checklist.md` пункты drain не отмечены. Поэтому абзац об
 остаточной копии в политике (раздел 10, п. 11.3) и согласии **не меняли**.
 
-Что нужно для подтверждения:
+Что нужно для подтверждения (подробно, с SQL сверки, письмом в Supabase и шаблоном акта —
+[supabase-cloud-decommission.md](../ops/supabase-cloud-decommission.md)):
 
 1. Пройти критерии drain (API на YC, лиды пишутся только в YC, свежий бэкап и restore-drill).
 2. В Supabase Dashboard сделать pause, затем **Delete project** `frualvycousvvyjivybu`;

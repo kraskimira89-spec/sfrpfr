@@ -159,8 +159,8 @@ OpenSSL) для HTTPS-соединений сайта, кабинета и API; 
 - ФИО: **ЗАПОЛНИТЬ владельцу** (в реестре уже указано физлицо — сверить актуальность)
 - Телефон: ЗАПОЛНИТЬ
 - Почтовый адрес: ЗАПОЛНИТЬ (адрес оператора, если совпадает)
-- E-mail: ЗАПОЛНИТЬ. В документах сервиса — proverkastaza@yandex.ru; в реестре — другой
-  адрес; в ТЗ владельца — info@proverkastaza.ru. Выбрать один и синхронизировать с политикой.
+- E-mail: **proverkastaza@yandex.ru** (решение владельца 28.09.2026; совпадает с политикой,
+  согласием, офертой и страницей cookies). Адрес в реестре заменить на этот.
 
 ## 6. Дата начала обработки (п. 8 ч. 3 ст. 22)
 
@@ -206,7 +206,8 @@ OpenSSL) для HTTPS-соединений сайта, кабинета и API; 
 
 1. **Рекомендуемый.** До подачи письма удалить проект Supabase Cloud и получить
    подтверждение, затем указать: «Трансграничная передача не осуществляется». Период MVP
-   с юристом оценить отдельно.
+   с юристом оценить отдельно. Чеклист, письмо в поддержку Supabase и шаблон акта по приказу
+   РКН № 179: [supabase-cloud-decommission.md](../ops/supabase-cloud-decommission.md).
 2. Если копия ещё существует — указать наличие трансграничной передачи (страна — ЗАПОЛНИТЬ)
    и отдельно подать уведомление по ст. 12 (форма
    `https://pd.rkn.gov.ru/cross-border-transmission/form2/`, по данным вторичных
@@ -234,6 +235,7 @@ Yandex Cloud — это не трансграничная передача (по
    [реестр операторов](https://pd.rkn.gov.ru/operators-registry/operators-list/?id=72-23-013813)
    и сверить с таблицей в п. 0.
 2. **Решить вопрос Supabase** (п. 10) — до подачи, иначе поле о трансграничной передаче будет недостоверным.
+   Порядок: [supabase-cloud-decommission.md](../ops/supabase-cloud-decommission.md).
 3. **Заполнить поля «ЗАПОЛНИТЬ»** в этом черновике: ответственный, даты, адреса ЦОД, уровень
    защищённости, шифрование.
 4. **Открыть форму.** pd.rkn.gov.ru → «Реестр операторов» → «Информационное письмо о внесении
@@ -262,4 +264,4 @@ Yandex Cloud — это не трансграничная передача (по
 - [Реестр операторов, запись 72-23-013813](https://pd.rkn.gov.ru/operators-registry/operators-list/?id=72-23-013813)
 - Внутренние: `docs/contracts/pdn-policy.md`, `docs/contracts/pdn-consent.md`,
   `docs/ops/infrastructure-inventory.md`, `docs/specs/15-data-localization-ru.md`,
-  `docs/ops/supabase-cloud-drain-checklist.md`
+  `docs/ops/supabase-cloud-drain-checklist.md`, `docs/ops/supabase-cloud-decommission.md`
