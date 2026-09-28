@@ -2,6 +2,11 @@ name: webmaster-diagnostics-daily
 
 on:
   workflow_dispatch:
+    inputs:
+      weekly:
+        description: "Отправить еженедельный отчёт сейчас (комментарий SFRFR-63 + письмо)"
+        type: boolean
+        default: false
   schedule:
     # 06:15 UTC = 09:15 MSK
     - cron: "15 6 * * *"
@@ -68,6 +73,28 @@ jobs:
           mkdir -p tmp
           python scripts/yandex_webmaster_url_status.py --summary \
             --out tmp/seo-page-status.md --save-baseline tmp/seo-page-status.json > /dev/null
+
+      # По понедельникам (cron) или вручную с weekly=true. Нет SMTP_* — письмо пропускается.
+      - name: Weekly report (Tracker SFRFR-63 + email)
+        if: always()
+        continue-on-error: true
+        env:
+          TRACKER_TOKEN: ${{ secrets.TRACKER_TOKEN }}
+          TRACKER_ORG_ID: ${{ secrets.TRACKER_ORG_ID }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          REPORT_EMAIL_TO: proverkastaza@yandex.ru
+          FORCE_WEEKLY: ${{ inputs.weekly }}
+        run: |
+          if [ "$FORCE_WEEKLY" != "true" ] && ! { [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%u)" = "1" ]; }; then
+            echo "Не понедельник по расписанию и weekly не задан — пропуск"
+            exit 0
+          fi
+          if [ ! -f tmp/seo-page-status.json ]; then
+            echo "::warning::Нет снимка tmp/seo-page-status.json — еженедельный отчёт пропущен"
+            exit 0
+          fi
+          python scripts/weekly_seo_report.py --snapshot tmp/seo-page-status.json --diag "${REPORT_PATH:-}"
 
       - name: Upload report artifact
         if: always()
