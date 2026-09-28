@@ -59,6 +59,13 @@ Cursor ──stdio──► mcp-supabase-selfhost.cmd
 
 **Не** класть пароль в `mcp.json`. **Не** открывать `:5433` в `0.0.0.0/0`.
 
+## Локальный `DATABASE_URL` / dbt через туннель 15433
+
+- В корневом `.env`: `DATABASE_URL=postgresql+psycopg://postgres:…@127.0.0.1:15433/postgres?sslmode=disable` (пароль — из `secrets/supabase-selfhost-mcp.env`), `DBT_HOST=127.0.0.1`, `DBT_PORT=15433`, `DBT_SSLMODE=disable`; роль dbt — `analytics_transformer`.
+- Туннель: `ssh.exe -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15433:127.0.0.1:5433 sfrfr@51.250.69.237` (если порт уже слушает MCP — второй не нужен).
+- Если `:22` не пускает текущий IP — тот же туннель с `-J sfrfr-vps` (правило SG «Admin SSH via app-VPS fallback»; бывает timeout — повторить).
+- Проверка 2026-09-28: `select 1` OK, в `public` 32 таблицы.
+
 ## Ошибки
 
 | Симптом | Действие |
