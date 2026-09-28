@@ -11,8 +11,6 @@ from sfrfr.db.case_repository import CURRENT_CONSENT_VERSION
 
 logger = logging.getLogger(__name__)
 
-COOKIE_CONSENT_VERSION = "cookies-site-2026-09-22"
-
 _CONSENT_INTRO = "Перед началом работы нужно ваше согласие на обработку персональных данных."
 _CONSENT_OPERATOR = (
     "Оператор: ООО «ПОД ПРИСМОТРОМ», ИНН 8905066468, ОГРН 1208900000572, "
@@ -118,29 +116,19 @@ def mark_client_pdn_consent(
         from sfrfr.db.session import get_supabase_client
 
         client = get_supabase_client()
-        now = datetime.now(UTC).isoformat()
+        # Cookies сайта сюда не пишем: это отдельное согласие (баннер сайта), 152-ФЗ.
         payload = {
             "pdn_consent_version": version,
-            "pdn_consent_accepted_at": now,
-            "cookie_consent_version": COOKIE_CONSENT_VERSION,
-            "cookie_consent_accepted_at": now,
-        }
-        slim = {
-            "pdn_consent_version": version,
-            "pdn_consent_accepted_at": now,
+            "pdn_consent_accepted_at": datetime.now(UTC).isoformat(),
         }
 
         def _upd(eq_col: str, eq_val: str) -> bool:
             try:
                 client.table("clients").update(payload).eq(eq_col, eq_val).execute()
                 return True
-            except Exception:
-                try:
-                    client.table("clients").update(slim).eq(eq_col, eq_val).execute()
-                    return True
-                except Exception as exc2:  # noqa: BLE001
-                    logger.warning("mark_client_pdn_consent failed: %s", exc2)
-                    return False
+            except Exception as exc2:  # noqa: BLE001
+                logger.warning("mark_client_pdn_consent failed: %s", exc2)
+                return False
 
         if client_id:
             return _upd("id", client_id)
@@ -150,26 +138,6 @@ def mark_client_pdn_consent(
     except Exception as exc:  # noqa: BLE001
         logger.warning("mark_client_pdn_consent failed: %s", exc)
     return False
-
-
-def _ensure_cookie_consent_row(repo: Any, *, case_id: str) -> None:
-    try:
-        existing = (
-            repo.client.table("consents")
-            .select("id")
-            .eq("case_id", case_id)
-            .eq("version", COOKIE_CONSENT_VERSION)
-            .limit(1)
-            .execute()
-            .data
-        )
-        if existing:
-            return
-        repo.client.table("consents").insert(
-            {"case_id": case_id, "version": COOKIE_CONSENT_VERSION}
-        ).execute()
-    except Exception as exc:  # noqa: BLE001
-        logger.info("cookie consent row skipped: %s", exc)
 
 
 def ensure_case_consent_from_client(
@@ -238,7 +206,6 @@ def ensure_case_consent_from_client(
             client_id=client_id,
             source="inherited",
         )
-        _ensure_cookie_consent_row(repo, case_id=case_id)
         return True
     except Exception as exc:  # noqa: BLE001
         logger.warning("ensure_case_consent_from_client failed case=%s: %s", case_id[:8], exc)
@@ -254,7 +221,7 @@ def accept_pdn_once(
     version: str = CURRENT_CONSENT_VERSION,
     evidence: dict[str, Any] | None = None,
 ) -> None:
-    """Согласие один раз: клиент (ПДн+cookies) + (если есть) дело."""
+    """Согласие на ПДн один раз: клиент + (если есть) дело. Cookies сайта — не здесь."""
     mark_client_pdn_consent(
         client_id=client_id,
         max_user_id=max_user_id,
@@ -276,6 +243,5 @@ def accept_pdn_once(
                     source="max_start",
                     evidence=evidence,
                 )
-            _ensure_cookie_consent_row(repo, case_id=case_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("accept_pdn_once case failed: %s", exc)
