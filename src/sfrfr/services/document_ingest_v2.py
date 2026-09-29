@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sfrfr.core.config import get_settings
-from sfrfr.services.document_ingest import run_ingest_pipeline, sha256_hex
+from sfrfr.services.document_ingest import is_labor_document, run_ingest_pipeline, sha256_hex
 from sfrfr.services.file_security import MAX_PDF_PAGES, validate_file_bytes
 
 DEFAULT_MIN_CHARS_PER_PAGE = 80
@@ -97,13 +97,14 @@ def run_document_ingest_v2(
     plain_text = "\n".join(str(page.get("text") or "") for page in page_results)
     min_document_chars = _env_int("INGEST_MIN_CHARS_DOC", DEFAULT_MIN_CHARS_DOCUMENT)
     failed_pages = sum(1 for page in page_results if page.get("source") == "failed")
-    needs_review = (
+    quality_needs_review = (
         failed_pages > 0
         or _compact_length(plain_text) < min_document_chars
         or "[ocr_error]" in plain_text
         or "[ocr_empty]" in plain_text
     )
-    if needs_review:
+    labor_hitl = is_labor_document(doc_type)
+    if quality_needs_review:
         pipeline: dict[str, Any] = {
             "ingest_status": "manual_review",
             "current_stage": "manual_review",
@@ -135,6 +136,24 @@ def run_document_ingest_v2(
         )
     if pipeline.get("ingest_status") == "blocked_security":
         needs_review = False
+    else:
+        needs_review = quality_needs_review or labor_hitl or bool(
+            pipeline.get("ingest_review_required")
+        )
+    if labor_hitl and pipeline.get("ingest_status") != "blocked_security":
+        pipeline["ingest_status"] = "manual_review"
+        pipeline["current_stage"] = "manual_review"
+        pipeline["progress_message"] = (
+            "Трудовая книжка принята. Специалист сверит рукописные записи и распознанный текст."
+        )
+        quality = dict(pipeline.get("quality_report") or {})
+        issues = list(quality.get("issues") or [])
+        if "labor_always_hitl" not in issues:
+            issues.append("labor_always_hitl")
+        quality["issues"] = issues
+        quality["recommended_action"] = "manual_review"
+        quality["client_message"] = pipeline["progress_message"]
+        pipeline["quality_report"] = quality
     pipeline["progress_percent"] = 95
     quality = dict(pipeline.get("quality_report") or {})
     quality.update(

@@ -53,6 +53,7 @@ def _ctx_to_dict(ctx: CaseContext) -> dict[str, Any]:
         "analysis_notes": ctx.analysis_notes,
         "draft": ctx.draft.model_dump(mode="json") if ctx.draft else None,
         "error": ctx.error,
+        "block_llm_until_hitl": bool(ctx.block_llm_until_hitl),
     }
 
 
@@ -75,6 +76,7 @@ def _ctx_from_dict(data: dict[str, Any]) -> CaseContext:
         analysis_notes=data.get("analysis_notes"),
         draft=DraftResult.model_validate(draft_raw) if draft_raw else None,
         error=data.get("error"),
+        block_llm_until_hitl=bool(data.get("block_llm_until_hitl")),
     )
 
 
