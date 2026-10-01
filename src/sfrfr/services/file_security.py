@@ -129,6 +129,38 @@ def _detect_magic(data: bytes) -> str | None:
     return None
 
 
+_MIME_TO_SUFFIX = {
+    "application/pdf": ".pdf",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
+
+def align_filename_to_content(filename: str, data: bytes) -> str:
+    """Подставить расширение по magic bytes (MAX часто шлёт document.bin)."""
+    name = Path(filename or "document").name
+    detected = _detect_magic(data)
+    if not detected:
+        return name
+    want = _MIME_TO_SUFFIX.get(detected)
+    if not want:
+        return name
+    stem = Path(name).stem or "document"
+    current = Path(name).suffix.lower()
+    if current == want or (want == ".jpg" and current == ".jpeg"):
+        return name
+    # Кривое/пустое/.bin — чиним; чужое допустимое расширение не трогаем здесь
+    # (validate_file_bytes всё равно отсечёт mime_mismatch).
+    if current in {"", ".bin", ".dat", ".tmp", ".file"} or current not in (
+        STANDARD_SUFFIXES | SIGNED_SUFFIXES
+    ):
+        return f"{stem}{want}"
+    if current in STANDARD_SUFFIXES | SIGNED_SUFFIXES and current != want:
+        return f"{stem}{want}"
+    return name
+
+
 def validate_upload_filename(filename: str, *, allow_signed: bool = False) -> FileSecurityResult:
     name = Path(filename or "document").name
     if ".." in name or name.startswith("."):

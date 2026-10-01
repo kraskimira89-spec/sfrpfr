@@ -48,3 +48,33 @@ def test_docx_allowed_for_signed_slot() -> None:
     data = b"PK\x03\x04" + b"0" * 40
     result = validate_file_bytes(data, filename="signed.docx", allow_signed=True)
     assert result.ok
+
+
+def test_align_filename_bin_pdf() -> None:
+    from sfrfr.services.file_security import align_filename_to_content
+
+    assert align_filename_to_content("document.bin", b"%PDF-1.4 x") == "document.pdf"
+    assert align_filename_to_content("scan.bin", b"\xff\xd8\xff\xe0" + b"0" * 20) == "scan.jpg"
+    assert (
+        align_filename_to_content("photo.bin", b"\x89PNG\r\n\x1a\n" + b"0" * 20) == "photo.png"
+    )
+
+
+def test_max_upload_accepts_bin_when_pdf(monkeypatch) -> None:
+    from sfrfr.services import max_document_upload as mod
+
+    captured: dict = {}
+
+    def fake_create(**kwargs):
+        captured.update(kwargs)
+        return {"id": "doc-1", "ok": True}
+
+    monkeypatch.setattr(mod, "create_quarantine_document", fake_create)
+    row = mod.upload_max_document(
+        case_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        filename="document.bin",
+        data=b"%PDF-1.4 content",
+    )
+    assert row is not None
+    assert captured["filename"] == "document.pdf"
+    assert captured["content_type"] == "application/pdf"

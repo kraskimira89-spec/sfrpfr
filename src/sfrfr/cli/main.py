@@ -1310,6 +1310,28 @@ def yandex_disk_backfill_fio_originals(
         raise typer.Exit(code=1)
 
 
+@app.command("documents-backfill-local")
+def documents_backfill_local(
+    case_id: str | None = typer.Option(None, "--case-id", help="Только одно дело (UUID)"),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Без флага — только dry-run (посчитать)",
+    ),
+) -> None:
+    """Local storage/uploads → documents + pension-docs (учёт после silent-local)."""
+    import json
+
+    from sfrfr.services.backfill_local_to_documents import (
+        backfill_local_uploads_to_documents,
+    )
+
+    result = backfill_local_uploads_to_documents(case_id=case_id, dry_run=not apply)
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("yandex-disk-audit-folders")
 def yandex_disk_audit_folders() -> None:
     """Аудит папок SFRFR-cases: UUID vs ФИО, legacy-корень, префиксы."""

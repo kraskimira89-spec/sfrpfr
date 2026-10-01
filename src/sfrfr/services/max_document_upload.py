@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sfrfr.services.document_ingest_worker import create_quarantine_document
-from sfrfr.services.file_security import validate_file_bytes
+from sfrfr.services.file_security import align_filename_to_content, validate_file_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +24,25 @@ def upload_max_document(
     scenario_rows: list[Any] | None = None,
 ) -> dict[str, Any] | None:
     """Сохранить файл дела в Supabase; None при ошибке или неподдерживаемом типе."""
-    suffix = Path(filename or "document").suffix.lower()
-    if suffix not in _ALLOWED_SUFFIXES or not data:
+    if not data:
         return None
-    security = validate_file_bytes(data, filename=filename, allow_signed=False)
+    safe_name = align_filename_to_content(filename or "document", data)
+    suffix = Path(safe_name).suffix.lower()
+    if suffix not in _ALLOWED_SUFFIXES:
+        logger.info(
+            "max upload rejected: bad_suffix=%s original=%s",
+            suffix,
+            (filename or "")[:80],
+        )
+        return None
+    security = validate_file_bytes(data, filename=safe_name, allow_signed=False)
     if not security.ok:
         logger.info("max upload rejected: %s", security.internal_reason)
         return None
     try:
         row = create_quarantine_document(
             case_id=case_id,
-            filename=filename,
+            filename=safe_name,
             data=data,
             content_type=security.detected_mime or "application/octet-stream",
             doc_type=doc_type,
