@@ -1,7 +1,12 @@
 # Удаление проекта Supabase Cloud `frualvycousvvyjivybu`: чеклист и акт
 
-> Статус: подготовлено 28.09.2026 агентом. **Удаляет владелец сам**; агент в Supabase Cloud
-> ничего не удалял и не менял.
+> Статус: обновлено 03.10.2026 агентом.
+> **03.10.2026:** агент снял паузу (restore) для проверки; в живой БД **нет** таблиц `public.*`,
+> `auth.users=0`, схемы Storage нет — данных приложения в Cloud уже нет (регион `eu-west-1`,
+> org `kraskimira89-spec's Org`). Затем снова pause. **Delete project** + тикет в поддержку
+> Supabase — только из Dashboard владельца (PAT в `secrets/supabase-access.env` = 401;
+> MCP delete нет). Тексты тикетов: `tmp/support-supabase-delete-confirmation.txt`,
+> `tmp/support-yc-datacenter-ru-central1-a.txt`.
 > Основа: [supabase-cloud-drain-checklist.md](./supabase-cloud-drain-checklist.md) (критерии drain),
 > [15-data-localization-ru.md](../specs/15-data-localization-ru.md) (cutover 03.08.2026:
 > импорт `clients=11`, `cases=9`, `auth.users=10`),
