@@ -70,6 +70,7 @@ storage/max_channel_daily_state.json
 
 # Сгенерированные Word — не в git (сборка: scripts/render_landing_tz_docx.py)
 *.docx
+!scripts/assets/leadmagnets/pension-checklist-a4.docx
 ~$*.docx
 
 # IDE / OS
