@@ -2,7 +2,7 @@
 """Read-only сверка боевой БД (self-host YC) с миграциями репозитория.
 
 Проверяет по объектам в каталоге Postgres (а не только по schema_migrations),
-применены ли 15 миграций, которых не было в legacy Supabase Cloud, и выводит
+применены ли 15 пост-cutover миграций self-host YC, и выводит
 security-сигналы: SECURITY DEFINER в public, rls_auto_enable, RLS без политик,
 auth.uid() без (select ...) в marketing_consents_select_own.
 

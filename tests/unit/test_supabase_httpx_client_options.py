@@ -13,7 +13,7 @@ def test_create_client_with_options_has_no_timeout_verify_deprecation() -> None:
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", DeprecationWarning)
-        client = _client_factory()("https://example.supabase.co", "test-anon-key", options=opts)
+        client = _client_factory()("https://supabase.proverkastaza.ru", "test-anon-key", options=opts)
         _ = client.table("cases")
 
     msgs = [

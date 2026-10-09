@@ -121,14 +121,4 @@ sudo -u sfrfr bash -lc 'cp /opt/sfrfr/analytics/profiles.yml.example /opt/sfrfr/
 SFRFR_ENV_FILE=/opt/sfrfr/.env /opt/sfrfr/scripts/dbt_run.sh
 ```
 
-## Legacy: Supabase Cloud (только rollback / drain)
-
-До полного drain Cloud rollback может временно вернуть:
-
-```env
-# DBT_HOST=db.<project-ref>.supabase.co
-# DBT_PORT=5432
-# DBT_SSLMODE=require
-```
-
-Не смешивать с прод-YC. Чеклист: `docs/ops/supabase-cloud-drain-checklist.md`.
+Прод-БД (канон): [ops/supabase-selfhost-yandex-cloud.md](./ops/supabase-selfhost-yandex-cloud.md).

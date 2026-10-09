@@ -175,7 +175,7 @@ Cookie-согласие сайта больше не записывается и
 - Синхронизированы правила управления Метрикой; MAX mini-app больше не обращается к Google Fonts.
 - Production: self-hosted Supabase, SmartCaptcha и ИИ — только через Yandex Cloud; Google Sheets runtime отключён.
 - Прямой иностранный LLM и DeepSeek platform fallback запрещены в production.
-- Остаточный Supabase Cloud отражён как временная копия до drain и подтверждения удаления.
+- С 2026-10-09 в проекте только self-host YC (`docs/ops/supabase-selfhost-yandex-cloud.md`).
 
 ## 2026-08-03 (DeepSeek platform как запасной LLM)
 
@@ -196,7 +196,7 @@ Cookie-согласие сайта больше не записывается и
 ## 2026-08-03 (cutover Supabase → YC)
 
 - Прод: API/cabinet/admin → `https://supabase.proverkastaza.ru` (11 clients / 9 cases / 10 users).
-- Cloud `frualvycousvvyjivybu` оставлен для отката; пароли Auth не переносились.
+- Пароли Auth не переносились; вход через magic link/OTP. С 2026-10-09 в репо только self-host YC.
 
 ## 2026-08-03 (SmartCaptcha + staging Auth email)
 

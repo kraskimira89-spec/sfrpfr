@@ -56,7 +56,7 @@
 | [Compute quickstart](https://yandex.cloud/ru/docs/compute/quickstart) | ВМ | Аренда VM | **P1** — self-hosted Supabase / API |
 | [VPC](https://yandex.cloud/ru/docs/vpc/concepts/) | Сеть | VPC, подсети, SG | **P1** |
 | [Managed PostgreSQL](https://yandex.cloud/ru/docs/managed-postgresql/quickstart) | MPG | Управляемый Postgres | **P1** — БД дел в РФ |
-| [Object Storage / bucket](https://yandex.cloud/ru/docs/storage/concepts/bucket) | S3-совместимое | Приватные бакеты | **P1** — сканы вместо Supabase Cloud Storage |
+| [Object Storage / bucket](https://yandex.cloud/ru/docs/storage/concepts/bucket) | S3-совместимое | Приватные бакеты | **P1** — бэкапы / зеркала документов |
 | [Managed K8s](https://yandex.cloud/ru/docs/managed-kubernetes/quickstart) | MK8s | Оркестрация | P2 — если уйдём с одной VM |
 | [ALB](https://yandex.cloud/ru/docs/application-load-balancer/) | Балансировщик | HTTPS вход | P2 |
 | [Container Registry](https://yandex.cloud/ru/docs/container-registry/) | Образы | Docker registry | P2 |

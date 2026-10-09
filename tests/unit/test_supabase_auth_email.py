@@ -11,25 +11,25 @@ from sfrfr.api.routes.supabase_auth_email import (
 def test_confirm_url_from_email_data() -> None:
     url = confirm_url_from_email_data(
         {
-            "site_url": "https://frualvycousvvyjivybu.supabase.co",
+            "site_url": "https://supabase.proverkastaza.ru",
             "token_hash": "abc123",
             "email_action_type": "signup",
             "redirect_to": "https://cabinet.proverkastaza.ru/",
         }
     )
-    assert url.startswith("https://frualvycousvvyjivybu.supabase.co/auth/v1/verify?")
+    assert url.startswith("https://supabase.proverkastaza.ru/auth/v1/verify?")
     assert "token=abc123" in url
     assert "type=signup" in url
     assert "redirect_to=" in url
 
 
 def test_confirm_url_empty_without_hash() -> None:
-    assert confirm_url_from_email_data({"site_url": "https://x.supabase.co"}) == ""
+    assert confirm_url_from_email_data({"site_url": "https://supabase.proverkastaza.ru"}) == ""
 
 
 def test_compose_includes_magic_link_and_token() -> None:
     confirm = (
-        "https://x.supabase.co/auth/v1/verify?token=h&type=signup"
+        "https://supabase.proverkastaza.ru/auth/v1/verify?token=h&type=signup"
         "&redirect_to=https%3A%2F%2Fcabinet.proverkastaza.ru%2F"
     )
     subject, plain, html = _compose(

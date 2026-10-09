@@ -69,11 +69,7 @@ def main() -> None:
     host = os.environ["DBT_HOST"]
     port = int(os.environ.get("DBT_PORT", "5433"))
     sslmode = os.environ.get("DBT_SSLMODE", "disable")
-    if host.startswith("db.") and host.endswith(".supabase.co"):
-        host_kind = "cloud_direct"
-    elif ".pooler.supabase.com" in host:
-        host_kind = "pooler"
-    elif port == 5433:
+    if port == 5433 or (host in ("127.0.0.1", "localhost") and port == 15433):
         host_kind = "yc_direct"
     else:
         host_kind = "other"

@@ -30,7 +30,7 @@
 - Цель staging: одна Compute VM + Docker Compose (self-hosted Supabase), private Object Storage для бэкапов, VPC/SG, статический IP
 - Публичный хост Supabase (план): supabase.proverkastaza.ru — DNS не менять без явного подтверждения
 - Текущий ПРОД: VPS 91.229.11.147 (вне этого облака) — НЕ трогать, не мигрировать, не менять DNS прода
-- На MVP прод-ПДн остаются в Supabase Cloud; YC = staging → cutover после MVP (152-ФЗ / локализация)
+- Прод-ПДн: self-hosted Supabase в YC (`supabase.proverkastaza.ru`); см. docs/ops/supabase-selfhost-yandex-cloud.md
 
 ### Делаешь в Облаке
 

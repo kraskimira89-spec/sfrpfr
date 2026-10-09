@@ -1,12 +1,12 @@
 # MCP: self-host Supabase (YC) через DBHub + OpenSSH -L
 
-**Дата:** 2026-09-25 (обновлено после cutover на `sfrfr-supabase-db-01`)
-**Прод БД:** `supabase.proverkastaza.ru` / ВМ `51.250.69.237` (прямой Postgres **`:5433`**, снаружи закрыт UFW/SG)
-**Не путать с:** официальным `https://mcp.supabase.com/mcp?project_ref=…` — это только **Supabase Cloud** (legacy `frualvycousvvyjivybu`).
+Канон БД: [supabase-selfhost-yandex-cloud.md](./supabase-selfhost-yandex-cloud.md).
 
-## Почему не `@supabase/mcp-server-supabase`
+**Прод:** `supabase.proverkastaza.ru` / ВМ `51.250.69.237` (прямой Postgres **`:5433`**, снаружи закрыт UFW/SG).
 
-Пакет и `mcp.supabase.com` требуют **cloud** `project_ref` + PAT. Self-host на YC туда не подключается.
+## Почему DBHub, а не `@supabase/mcp-server-supabase`
+
+Официальный cloud-MCP требует hosted `project_ref` + PAT и к нашему self-host на YC не подключается.
 
 ## Почему не встроенный SSH DBHub / jump через app-VPS
 
@@ -24,7 +24,6 @@
 | `scripts/dbhub-supabase-selfhost.toml` | source + `execute_sql` **readonly** (без `ssh_*`) |
 | `scripts/bootstrap_supabase_selfhost_mcp.ps1` | пишет `secrets/…env` с паролем с ВМ |
 | `secrets/supabase-selfhost-mcp.env.example` | шаблон |
-| `scripts/mcp-supabase.cmd` | **legacy Cloud** — только drain/rollback |
 
 ## Схема
 
@@ -74,7 +73,6 @@ Cursor ──stdio──► mcp-supabase-selfhost.cmd
 | `OpenSSH tunnel failed` | исключение `ssh.exe`; SG `:22`; ключ `…UaTm` |
 | `Missing secrets/…env` | `bootstrap_supabase_selfhost_mcp.ps1` |
 | `Connection refused` на 15433 | туннель не поднялся; вручную: `ssh -L 15433:127.0.0.1:5433 sfrfr@51.250.69.237` |
-| Агент ходит в Cloud `frualvycous…` | убрать URL из mcp.json |
 
 ## Не делать
 
