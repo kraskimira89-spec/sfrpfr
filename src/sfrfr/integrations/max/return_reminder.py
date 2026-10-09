@@ -75,9 +75,14 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
         )
         return body, True
     if checklist_offer.is_active(rec):
-        if q.clean_email(text):
+        if rec.lm_step == "email" and q.clean_email(text):
             return "", False
-        body = f"{WELCOME_BACK} {checklist_offer.ASK_EMAIL_TEXT}"
+        hint = (
+            checklist_offer.ASK_EMAIL_TEXT
+            if rec.lm_step == "email"
+            else checklist_offer.ASK_FORMAT_TEXT
+        )
+        body = f"{WELCOME_BACK} {hint}"
         reply(body, None)
         return body, True
     if docs_count > 0:
