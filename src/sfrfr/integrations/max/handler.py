@@ -37,8 +37,6 @@ from sfrfr.integrations.max.intake import (
     UPLOAD_BLOCKED_TEXT,
     WELCOME_TEXT,
     cabinet_url_for_case,
-    device_keyboard,
-    device_question,
     docs_info_keyboard,
     docs_section_keyboard,
     emp_howto_keyboard,
@@ -1491,16 +1489,11 @@ def _continue_after_ils(
 ) -> MaxHandleResult:
     """Следующий шаг после ответа про ИЛС (или после инструкции Госуслуг)."""
     intake_store = get_intake_store()
-    # Новый поток §10.1: после ИЛС сразу устройство (без employment)
+    # После ИЛС — сразу summary (шаг «кабинет с телефона/ПК» убран).
     if intake.for_whom is not None or intake.problem_type is not None:
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=device_question(),
-            attachments=device_keyboard(),
-        )
-        return MaxHandleResult(ok=True, action="intake_ils", reply=device_question())
+        intake.device_preference = intake.device_preference or "max"
+        intake_store.save(intake)
+        return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
     if intake.goal == "sfr_question":
         intake.device_preference = intake.device_preference or "max"
         intake_store.save(intake)
@@ -1523,14 +1516,9 @@ def _continue_after_emp(
     store,
     intake,
 ) -> MaxHandleResult:
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=device_question(),
-        attachments=device_keyboard(),
-    )
-    return MaxHandleResult(ok=True, action="intake_emp", reply=device_question())
+    intake.device_preference = intake.device_preference or "max"
+    get_intake_store().save(intake)
+    return _show_summary(bot, user_id=user_id, chat_id=chat_id, store=store, intake=intake)
 
 
 def _handle_intake_callback(
@@ -2781,13 +2769,11 @@ def _send_confirm_web_login(
 def _docs_request_text(*, has_docs: bool) -> str:
     if has_docs:
         return (
-            "Пришлите следующий файл прямо в этот чат "
-            "или загрузите в личном кабинете на сайте. "
+            "Пришлите следующий файл прямо в этот чат. "
             "Вопросы пишите здесь."
         )
     return (
-        "Получите выписку ИЛС, затем пришлите её в этот чат "
-        "или загрузите в личном кабинете на сайте. "
+        "Получите выписку ИЛС, затем пришлите её в этот чат. "
         "Вопросы пишите здесь."
     )
 
@@ -3385,12 +3371,11 @@ def handle_max_update(
                 ticket_id=pending.ticket_id,
             )
         reply = (
-            "Команды: /start — диагностика, /cabinet — кабинет на сайте, "
+            "Команды: /start — диагностика, "
             "/documents — какие документы нужны, /checklist — чек-лист для анализа, "
-            "/status — статус дела, /login — вход в кабинет с компьютера. "
+            "/status — статус дела. "
             "Всегда можно позвать специалиста. "
-            "Документы можно прислать прямо в этот чат (PDF/JPG/PNG) "
-            "или загрузить в личном кабинете на сайте."
+            "Документы присылайте прямо в этот чат (PDF/JPG/PNG)."
         )
         _reply(
             bot,
@@ -3414,8 +3399,7 @@ def handle_max_update(
         )
         cabinet_url = cabinet_url_for_case(case_id)
         reply = (
-            "Документы можно прислать прямо в этот чат (PDF или фото) "
-            "или загрузить в личном кабинете на сайте. "
+            "Документы присылайте прямо в этот чат (PDF или фото). "
             "Вопросы по делу пишите здесь."
         )
         _reply(
@@ -3514,7 +3498,7 @@ def handle_max_update(
 
     if record is not None and lower.startswith("/run"):
         if not record.ctx.document_paths and not record.ctx.ocr_texts:
-            reply = "Пришлите документы в этот чат или загрузите в личном кабинете на сайте."
+            reply = "Пришлите документы прямо в этот чат."
             _reply(bot, user_id=user_id, chat_id=chat_id, text=reply)
             return MaxHandleResult(
                 ok=False,

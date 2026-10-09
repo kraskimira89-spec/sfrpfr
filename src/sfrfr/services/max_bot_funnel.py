@@ -19,7 +19,7 @@ from typing import Any
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.bot_owned import is_bot_owned
-from sfrfr.integrations.max.intake import CALL_OPERATOR_LABEL, cabinet_url_for_case
+from sfrfr.integrations.max.intake import CALL_OPERATOR_LABEL
 from sfrfr.services.max_post_diagnosis import (
     brief_recommendations_from_findings,
     sanitize_finding_line,
@@ -77,26 +77,24 @@ def funnel_keyboard(*, include_agree_plan: bool = True) -> list[dict[str, Any]]:
 
 
 def build_consent_nudge_text(*, case_id: str) -> str:
-    """Только оферта/оплата. ПДн повторно не просим (канон: «Начать» один раз)."""
-    cab = cabinet_url_for_case(case_id)
+    """Оферта/оплата в чат. ПДн повторно не просим (канон: «Начать» один раз)."""
+    del case_id  # URL кабинета в MAX больше не шлём
     from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
 
     return (
         "Базовый комплект документов есть. "
-        "Следующий шаг — диагностика 3 000 ₽: примите условия оказания услуг "
-        "в кабинете на сайте, после этого пришлём ссылку на оплату в этот чат.\n"
+        "Следующий шаг — диагностика 3 000 ₽: пришлём ссылку на оплату в этот чат.\n"
         f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
-        f"Кабинет: {cab}\n"
         "Согласие на ПДн уже получено (кнопка «Начать») — повторно его не запрашиваем."
     )
 
 
 def build_start_gate_nudge_text() -> str:
-    """Нет ПДн-согласия: один раз вернуть к кнопке «Начать», не в кабинет."""
+    """Нет ПДн-согласия: один раз вернуть к кнопке «Начать»."""
     return (
         "Чтобы принять документы и выставить счёт, нажмите «Начать» в этом чате — "
-        "так вы один раз подтверждаете согласие на обработку персональных данных "
-        "и cookies на сайте. Повторно мы его не просим."
+        "так вы один раз подтверждаете согласие на обработку персональных данных. "
+        "Повторно мы его не просим."
     )
 
 
@@ -180,7 +178,7 @@ def build_findings_message(
         lines.append("Ещё желательно прислать:")
         for m in missing:
             lines.append(f"• {m}")
-        lines.append("Можно сюда в чат или загрузить в личном кабинете на сайте.")
+        lines.append("Можно прислать файлы сюда в чат.")
     lines.extend(
         [
             "",
@@ -448,7 +446,7 @@ def agree_plan_with_specialist(
 
     body = (
         "Передали запрос специалисту: согласуем план работы по вашему делу в этом чате. "
-        "Пока можно дослать недостающие файлы сюда или в кабинет на сайте."
+        "Пока можно дослать недостающие файлы сюда в чат."
     )
     enqueue_max_delivery(
         case_id=cid,

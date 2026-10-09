@@ -99,7 +99,8 @@ def test_nudge_offer_when_consent_ok(monkeypatch) -> None:
             intake=MaxIntakeRecord(id="1", max_user_id="55", status="started"),
         )
     assert out and out.get("nudged") == "offer"
-    assert delivered and "условия" in delivered[0].lower()
+    assert delivered and "оплат" in delivered[0].lower()
+    assert "кабинет" not in delivered[0].lower()
     assert "согласие на обработку данных и принятие" not in delivered[0].lower()
 
 
