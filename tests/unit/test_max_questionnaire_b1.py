@@ -1,4 +1,4 @@
-"""ТЗ-35 B1: анкета нового клиента в MAX (8 вопросов §6)."""
+"""ТЗ-35 B1: анкета нового клиента в MAX (без ФИО и года рождения)."""
 
 from __future__ import annotations
 
@@ -27,32 +27,28 @@ def test_normalize_phone(raw: str, expected: str | None) -> None:
     assert q.normalize_phone(raw) == expected
 
 
-def test_birth_year_bounds() -> None:
+def test_birth_year_helper_still_works() -> None:
+    """Год рождения из анкеты не спрашиваем, парсер оставляем для документов."""
     assert q.parse_birth_year("1965") == 1965
     assert q.parse_birth_year("65") is None
-    assert q.parse_birth_year("1899") is None
-    assert q.parse_birth_year("2025") is None
 
 
 def test_name_validation() -> None:
     assert q.clean_name("  анна-мария ") == "Анна-Мария"
     assert q.clean_name("Иванов2") is None
-    assert q.clean_name("x" * 61) is None
 
 
 def _rec() -> MaxIntakeRecord:
     return MaxIntakeRecord(id="r1", max_user_id="u1")
 
 
-def test_full_walk_with_skips() -> None:
+def test_full_walk_without_fio_and_birth_year() -> None:
     rec = _rec()
     q.begin(rec)
-    assert rec.q_step == "last_name"
+    assert rec.q_step == "experience"
+    assert "last_name" not in (rec.q_answers or {})
+    assert "birth_year" not in (rec.q_answers or {})
     steps = [
-        ("text", "Иванова"),
-        ("text", "Мария"),
-        ("cb", q.SKIP_MIDDLE_NAME),
-        ("text", "1962"),
         ("cb", "q:exp:10_20"),
         ("text", "8 909 195 04 08"),
         ("cb", q.SKIP_EMAIL),
@@ -66,10 +62,6 @@ def test_full_walk_with_skips() -> None:
     assert res.done
     assert rec.q_step is None
     assert rec.q_answers == {
-        "last_name": "Иванова",
-        "first_name": "Мария",
-        "middle_name": "",
-        "birth_year": "1962",
         "experience": "10_20",
         "phone": "+79091950408",
         "email": "",
@@ -98,19 +90,25 @@ def test_problem_too_long_rejected() -> None:
 def test_summary_has_no_pension_promises() -> None:
     text = q.summary_text(
         {
-            "last_name": "Иванова",
             "first_name": "Мария",
-            "middle_name": "",
-            "birth_year": "1962",
             "experience": "gt20",
             "phone": "+79091950408",
             "email": "",
             "problem": "Не учли стаж",
         }
     )
-    assert "Иванова Мария" in text
+    assert "Мария" in text
+    assert "Год рождения" not in text
     assert "более 20 лет" in text
     assert "перерасч" not in q.COMPLETED_TEXT.lower()
+
+
+def test_steps_do_not_ask_fio_or_birth() -> None:
+    assert "last_name" not in q.STEPS
+    assert "first_name" not in q.STEPS
+    assert "middle_name" not in q.STEPS
+    assert "birth_year" not in q.STEPS
+    assert q.STEPS == ("experience", "phone", "email", "problem")
 
 
 def _enable(monkeypatch) -> None:
@@ -123,10 +121,13 @@ def test_start_begins_questionnaire_for_new_client(tmp_path: Path, monkeypatch) 
     _enable(monkeypatch)
     result = handle_max_update(_cb(801, "start_dialog"), bot=bot)
     assert result.action == "max_questionnaire_started"
-    assert any("Фамилия" in t for _u, t in bot.sent)
+    texts = " ".join(t for _u, t in bot.sent)
+    assert "Фамилия" not in texts
+    assert "Год рождения" not in texts
+    assert "стаж" in texts.lower()
     assert not any("чек-лист" in (t or "").lower() for _u, t in bot.sent)
     rec = get_intake_store().get_active("801")
-    assert rec is not None and rec.q_step == "last_name"
+    assert rec is not None and rec.q_step == "experience"
     get_settings.cache_clear()
 
 
@@ -137,10 +138,6 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(q, "save_questionnaire", lambda **kw: saved.update(kw) or True)
     handle_max_update(_cb(802, "start_dialog"), bot=bot)
     for upd in (
-        _msg(802, "Петров"),
-        _msg(802, "Пётр"),
-        _msg(802, "Петрович"),
-        _msg(802, "1960"),
         _cb(802, "q:exp:gt20"),
         _msg(802, "+7 909 195-04-08"),
         _msg(802, "petrov@example.ru"),
@@ -150,6 +147,8 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     res = handle_max_update(_msg(802, "Не учли северный стаж"), bot=bot)
     assert res.action == "max_questionnaire_completed"
     assert saved["answers"]["email"] == "petrov@example.ru"
+    assert "last_name" not in saved["answers"]
+    assert "birth_year" not in saved["answers"]
     assert q.COMPLETED_TEXT in [t for _u, t in bot.sent]
     menu = str(bot.attachments[-2])
     for label in (
@@ -184,7 +183,6 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     bot = _setup(tmp_path, monkeypatch)
     _enable(monkeypatch)
     handle_max_update(_cb(804, "start_dialog"), bot=bot)
-    handle_max_update(_msg(804, "Сидорова"), bot=bot)
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
         lambda _u: [("ils.pdf", b"%PDF-1.4")],
@@ -198,8 +196,8 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     )
     res = handle_max_update(_msg(804, ""), bot=bot)
     assert res.action == "upload"
-    assert "Имя" in bot.sent[-1][1]
-    assert get_intake_store().get_active("804").q_step == "first_name"
+    assert "стаж" in bot.sent[-1][1].lower()
+    assert get_intake_store().get_active("804").q_step == "experience"
     get_settings.cache_clear()
 
 
