@@ -8,8 +8,7 @@ from sfrfr.core.config import get_settings
 
 WAITING_FOR_STAFF_TEXT = (
     "Передали запрос специалисту — ответим в этом чате. "
-    "Пока ждёте, можно прислать файлы сюда (PDF/JPG/PNG) "
-    "или загрузить в личном кабинете на сайте."
+    "Пока ждёте, можно прислать файлы сюда (PDF/JPG/PNG)."
 )
 
 UPLOAD_ACCEPTED_BOT_OWNED_TEXT = (

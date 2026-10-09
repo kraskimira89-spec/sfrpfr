@@ -258,30 +258,22 @@ def test_intake_completes_one_case_and_deeplink(tmp_path: Path, monkeypatch) -> 
         "intake:problem:ils_stazh",
         "intake:ils:need",
         "intake:ils_guide:done",
-        "intake:device:max",
     ):
         result = handle_max_update(_cb(9, payload), bot=bot)
 
     assert result.action == "max_intake_completed"
     assert result.case_id
     case_id = result.case_id
-    # повторное завершение через /cabinet не плодит дела
+    # повторное /cabinet не плодит дела; кабинет из MAX не предлагаем
     again = handle_max_update(_msg(9, "/cabinet"), bot=bot)
     assert again.case_id == case_id
     assert len(get_case_store()._cases) == 1  # noqa: SLF001
-
-    last_att = bot.attachments[-1]
-    assert last_att
-    blob = str(last_att)
-    assert case_id in blob
-    assert "cabinet.proverkastaza.ru" in blob
-    assert "личный кабинет" in blob
-    assert "В MAX — кабинет" not in blob
-    assert "/app/" not in blob
+    assert "личном кабинете" not in (again.reply or "").lower()
+    assert "cabinet.proverkastaza.ru" not in str(bot.attachments[-1] or "")
     get_settings.cache_clear()
 
 
-def test_summary_and_upload_keyboards_website_only() -> None:
+def test_summary_and_upload_keyboards_chat_only_no_cabinet() -> None:
     from sfrfr.integrations.max.intake import (
         SUMMARY_TEXT,
         UPLOAD_ACCEPTED_TEXT,
@@ -294,21 +286,18 @@ def test_summary_and_upload_keyboards_website_only() -> None:
 
     url = cabinet_url_for_case("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
     assert url.startswith("https://cabinet.proverkastaza.ru")
-    assert "/app/" not in url
     sk = summary_keyboard(device="max", cabinet_url=url)
     uk = upload_blocked_keyboard(cabinet_url=url)
     for kb in (sk, uk):
         labels = [btn["text"] for row in kb[0]["payload"]["buttons"] for btn in row]
-        assert DOCUMENTS_SECTION_LABEL in labels
-        assert "В MAX — кабинет" not in labels
-        assert "В браузере — кабинет" not in labels
+        assert DOCUMENTS_SECTION_LABEL not in labels
+        assert "Кабинет" not in " ".join(labels)
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
-        assert links and all("cabinet." in u or "proverkastaza.ru" in u for u in links)
-        assert all("/app/" not in u for u in links)
+        assert links == []
     assert "чат" in SUMMARY_TEXT.lower()
+    assert "личном кабинете" not in SUMMARY_TEXT.lower()
+    assert "личном кабинете" not in UPLOAD_BLOCKED_TEXT.lower()
     assert "получили" in UPLOAD_ACCEPTED_TEXT.lower() or "добавили" in UPLOAD_ACCEPTED_TEXT.lower()
-    assert "личном кабинете" in UPLOAD_BLOCKED_TEXT.lower()
-    assert "кабинет в max" not in SUMMARY_TEXT.lower()
 
 
 def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
@@ -316,7 +305,8 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
 
     low = DOCS_INFO_TEXT.lower()
     assert "кроме" in low and "илс" in low
-    assert "чат" in low or "личном кабинете" in low
+    assert "чат" in low
+    assert "личном кабинете" not in low
     assert "трудов" in low
     assert "электронн" in low
     assert "справка о размере пенсии" in low
@@ -329,7 +319,8 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "перерасчёт" not in low
     assert "едином чате" in WELCOME_TEXT.lower() or "чат по делу" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
-    assert "чат" in DOCS_STAZH_TEXT.lower() or "личном кабинете" in DOCS_STAZH_TEXT.lower()
+    assert "чат" in DOCS_STAZH_TEXT.lower()
+    assert "личном кабинете" not in DOCS_STAZH_TEXT.lower()
 
 
 def test_legacy_goal_path_still_works(tmp_path: Path, monkeypatch) -> None:
@@ -507,15 +498,15 @@ def test_upload_rejected_when_supabase_fails(tmp_path: Path, monkeypatch) -> Non
     get_settings.cache_clear()
 
 
-def test_summary_keyboard_single_web_cabinet() -> None:
+def test_summary_keyboard_has_no_cabinet_link() -> None:
     from sfrfr.integrations.max.intake import summary_keyboard
     from sfrfr.services.case_chat_delivery import DOCUMENTS_SECTION_LABEL
 
     kb = summary_keyboard(device="max", cabinet_url="https://cabinet.example/?case=1")
     blob = str(kb)
-    assert DOCUMENTS_SECTION_LABEL in blob
-    assert "В MAX — кабинет" not in blob
-    assert blob.count("https://cabinet.example") == 1
+    assert DOCUMENTS_SECTION_LABEL not in blob
+    assert "cabinet.example" not in blob
+    assert "Кабинет" not in blob
 
 
 def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> None:
@@ -632,7 +623,8 @@ def test_docs_info_menu_and_special_section(tmp_path: Path, monkeypatch) -> None
     reply = menu.reply or ""
     low = reply.lower()
     assert "кроме" in low and "илс" in low
-    assert "личном кабинете" in low
+    assert "личном кабинете" not in low
+    assert "чат" in low
     assert "трудов" in low
 
     special = handle_max_update(_cb(31, "intake:docs:special"), bot=bot)
@@ -673,10 +665,9 @@ def test_ils_need_shows_gosuslugi_howto(tmp_path: Path, monkeypatch) -> None:
     assert "МФЦ" in (mfc.reply or "")
 
     done = handle_max_update(_cb(30, "intake:ils_guide:done"), bot=bot)
-    assert done.action == "intake_ils"
-    assert done.reply == (
-        "Как вам удобнее открыть кабинет на сайте — с телефона или с компьютера?"
-    )
+    assert done.action == "max_intake_completed"
+    assert "кабинет" not in (done.reply or "").lower()
+    assert "чат" in (done.reply or "").lower()
     get_settings.cache_clear()
 
 
