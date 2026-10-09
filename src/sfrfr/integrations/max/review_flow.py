@@ -87,6 +87,19 @@ def _question_by_id(qid: str) -> dict[str, Any] | None:
     return None
 
 
+def _question_text(qid: str) -> str:
+    from sfrfr.utils.ru_question_progress import with_question_progress
+
+    q = _question_by_id(qid)
+    label = str((q or {}).get("label") or "Следующий вопрос")
+    order = [str(item["id"]) for item in QUESTIONS]
+    try:
+        n = order.index(qid) + 1
+    except ValueError:
+        return label
+    return with_question_progress(label, n=n, total=len(order))
+
+
 def start_keyboard() -> list[dict[str, Any]]:
     return inline_buttons_keyboard(
         [
@@ -157,9 +170,11 @@ def handle_review_callback(*, user_id: str, payload: str) -> dict[str, Any] | No
     if payload == "review:start":
         session = ReviewSession(user_id=str(user_id), step="helped", answers={})
         save_session(session)
-        q = _question_by_id("helped")
         return {
-            "text": f"Отзыв — про нашу работу, не про решение СФР.\n\n{(q or {}).get('label')}",
+            "text": (
+                "Отзыв — про нашу работу, не про решение СФР.\n\n"
+                + _question_text("helped")
+            ),
             "attachments": question_keyboard("helped"),
         }
 
@@ -187,9 +202,8 @@ def handle_review_callback(*, user_id: str, payload: str) -> dict[str, Any] | No
             nxt = order[idx + 1]
             session.step = nxt
             save_session(session)
-            nq = _question_by_id(nxt)
             return {
-                "text": str((nq or {}).get("label") or "Следующий вопрос"),
+                "text": _question_text(nxt),
                 "attachments": question_keyboard(nxt),
             }
 

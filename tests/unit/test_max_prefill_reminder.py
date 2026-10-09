@@ -70,7 +70,7 @@ def test_start_uses_profile_first_name_only(tmp_path: Path, monkeypatch) -> None
     texts = [t for _u, t in bot.sent]
     assert any("Будем обращаться: Мария" in t for t in texts)
     assert not any("Иванова Мария" in t for t in texts)
-    assert any(t.startswith("1/4") for t in texts)
+    assert any(t.startswith("Первый вопрос из четырёх вопросов.") for t in texts)
 
 
 def _age(user_id: str, hours: int) -> MaxIntakeRecord:

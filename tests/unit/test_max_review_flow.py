@@ -26,10 +26,12 @@ def test_review_start_and_answers(monkeypatch) -> None:
     try:
         start = review_flow.handle_review_callback(user_id="u1", payload="review:start")
         assert start is not None
+        assert "Первый вопрос из трёх вопросов." in start["text"]
         assert "помогли" in start["text"].lower()
 
         a1 = review_flow.handle_review_callback(user_id="u1", payload="review:a:helped:plan")
         assert a1 is not None
+        assert a1["text"].startswith("Второй вопрос из трёх вопросов.")
         assert "понятно" in a1["text"].lower()
 
         a2 = review_flow.handle_review_callback(user_id="u1", payload="review:a:clarity:yes")
