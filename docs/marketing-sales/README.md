@@ -15,6 +15,7 @@
 - [План 1 000 подписчиков в MAX (Launchi)](research-launchi-max-1000-subscribers.md) — конспект статьи с раскрытыми блоками + адаптация под SFRFR.
 - [Контент-план канала MAX (ежедневно с 22.08.2026)](playbook-max-channel-month-2026-08.md) — очередь + блок «что будет после кнопки»; cron → ops.
 - [**Стратегия: реклама → канал MAX → «Подать заявку»**](strategy-ads-to-max-channel-2026-09.md) — платный охват на подписку; с каждого поста в личный чат до результата.
+- [**Стратегия: оживить ~150 заявок, зависших на канале**](strategy-reactivate-150-channel-stuck-2026-10.md) — сегменты, 14 дней, канал+DM+staff; ops: [реанимация дел](../ops/playbook-case-reactivation.md).
 - [Цифровой ID MAX для SFRFR](research-max-digital-id-for-sfrfr.md) — выжимка API age-verification / `pensioner`, границы внедрения (кабинет, не чат).
 - Архитектура воронки (план): [MAX-first + secure pages](../architecture/max-first-secure-pages.md) — до сделки без регистрации; после оплаты — защищённые страницы действия.
 - [Сегмент «Северный стаж»](research-segment-north-2026-08.md) — формула, сообщения v2, 5 постов MAX, 5 гипотез с UTM.
