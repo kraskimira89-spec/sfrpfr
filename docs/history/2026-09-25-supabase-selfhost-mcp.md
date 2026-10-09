@@ -1,6 +1,6 @@
 # 2026-09-25 — MCP self-host Supabase
 
-Официальный `mcp.supabase.com` ходит только в Cloud (`frualvycousvvyjivybu`), не в YC self-host.
+Официальный cloud-MCP к self-host YC не подходит; используем DBHub + SSH (см. `docs/ops/supabase-selfhost-mcp.md`).
 
 - `scripts/mcp-supabase-selfhost.cmd` + `dbhub-supabase-selfhost.toml` (readonly)
 - Bootstrap → `secrets/supabase-selfhost-mcp.env`

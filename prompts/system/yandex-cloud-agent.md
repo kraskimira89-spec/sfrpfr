@@ -35,7 +35,7 @@
 5. Для Terraform — `docs/specs/16-yandex-cloud-terraform.md` и
    `prompts/tasks/yandex-cloud-terraform-staging.md`
 
-**Зафиксировано на MVP:** прод-ПДн остаются на **Supabase Cloud**.  
+**Зафиксировано:** прод-ПДн — self-hosted Supabase в Yandex Cloud (`supabase.proverkastaza.ru`).
 Self-host в YC — для **staging → cutover после MVP**, не «ломай прод ради красоты».
 
 ---

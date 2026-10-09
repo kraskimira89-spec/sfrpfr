@@ -1,11 +1,15 @@
-# Self-hosted Supabase в Yandex Cloud (ТЗ-15)
+# Self-hosted Supabase в Yandex Cloud (канон БД)
 
-Практический runbook: тот же стек Supabase (Auth + Postgres + Storage + RLS + API), но на ВМ в регионе РФ.
+**Единственная рабочая БД проекта.** Стек Supabase (Auth + Postgres + Storage + RLS + API) на ВМ в регионе РФ (`ru-central1`).
 
-Официальная база: [Self-Hosting with Docker](https://supabase.com/docs/guides/self-hosting/docker)  
-Состав сервисов: [supabase/docker](https://github.com/supabase/supabase/tree/master/docker)
+| | |
+|--|--|
+| URL | `https://supabase.proverkastaza.ru` |
+| ВМ | `sfrfr-supabase-db-01` · `51.250.69.237` · прямой Postgres `:5433` |
+| MCP / локальный доступ | [supabase-selfhost-mcp.md](./supabase-selfhost-mcp.md) |
+| Бэкапы | [supabase-db01-backups.md](./supabase-db01-backups.md) |
 
-На MVP прод остаётся на Supabase Cloud. Этот документ — для **staging → cutover** после MVP.
+Официальная база ПО: [Self-Hosting with Docker](https://supabase.com/docs/guides/self-hosting/docker) · [supabase/docker](https://github.com/supabase/supabase/tree/master/docker).
 
 ## Что получится
 
@@ -195,7 +199,7 @@ docker compose exec -T db pg_dump -U postgres > backup-$(date +%F).sql
 - [x] Cabinet/admin/API переключены на `https://supabase.proverkastaza.ru` (cutover 2026-08-03; данные Cloud импортированы)
 - [x] `DATABASE_URL` / `DBT_*` → YC Postgres **:5433** (direct; Supavisor на :5432), SG `allowed_postgres_cidrs`
 - [x] Публикация `:5433` на `supabase-db` (2026-08-17): override `docker-compose.sfrfr-direct-pg.yml` в `COMPOSE_FILE`; RestartPolicy `unless-stopped`. Памятка на ВМ: `/opt/sfrfr-supabase/README.sfrfr-ports.txt`. Не делать `docker compose -f docker-compose.yml up` без override — снимет `:5433`.
-- [ ] Drain Cloud — чеклист [supabase-cloud-drain-checklist.md](./supabase-cloud-drain-checklist.md) (не в день cutover)
+- [x] Прод только self-host YC (`supabase.proverkastaza.ru`); ссылок на hosted Cloud в репо нет (2026-10-09)
 
 ## Чего не делать
 

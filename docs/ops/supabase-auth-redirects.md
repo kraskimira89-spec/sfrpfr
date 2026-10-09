@@ -19,9 +19,4 @@
 
 Без allow-list письмо recovery откроет ошибку redirect / не завершит смену пароля.
 
-## Legacy (Supabase Cloud) — до drain
-
-Проект: `frualvycousvvyjivybu`  
-Dashboard → Authentication → URL Configuration — только для rollback, пока Cloud жив.
-
-Сводка cutover: [cutover-manual-checklist.md](./cutover-manual-checklist.md).
+Канон БД: [supabase-selfhost-yandex-cloud.md](./supabase-selfhost-yandex-cloud.md).

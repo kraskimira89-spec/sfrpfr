@@ -47,7 +47,7 @@
 ## После MVP (не блокирует этапы 1–6)
 
 - Локализация ПДн в РФ: self-hosted Supabase в Yandex Cloud, Object Storage в РФ, Yandex SmartCaptcha вместо Google reCAPTCHA — [15-data-localization-ru.md](15-data-localization-ru.md).
-- На время MVP допускается Supabase Cloud с фиксацией трансграничных рисков в политике ПДн.
+- Прод-БД: self-hosted Supabase в Yandex Cloud (см. ТЗ-15 / `docs/ops/supabase-selfhost-yandex-cloud.md`).
 
 ## Общий критерий готовности
 

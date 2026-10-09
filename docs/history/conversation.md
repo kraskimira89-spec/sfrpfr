@@ -348,16 +348,15 @@
 - SG: `allowed_postgres_cidrs` (VPS + admin) на 5432/5433.
 - Прямой PG `:5433` (`docker-compose.sfrfr-direct-pg.yml`); Supavisor остаётся на `:5432`.
 - VPS `DATABASE_URL`/`DBT_*` → `51.250.13.240:5433`; `dbt debug` OK.
-- Чеклист drain Cloud: `docs/ops/supabase-cloud-drain-checklist.md` (без удаления проекта).
+- Cutover на self-host YC; канон БД — `docs/ops/supabase-selfhost-yandex-cloud.md`.
 
-## 2026-08-03 — cutover Supabase Cloud → YC
+## 2026-08-03 — cutover → self-host YC
 
 - Импорт данных в self-host (11 clients / 9 cases / 10 users; 0 SYNTH).
 - VPS `.env` + cabinet/admin пересобраны на `https://supabase.proverkastaza.ru`.
-- API health 200; service_role видит данные. Cloud пока не drain.
+- API health 200; service_role видит данные.
 - GoTrue `ADDITIONAL_REDIRECT_URLS` → cabinet/** + recover + admin/** (`yc_set_auth_redirects.sh`).
 - Пароли Auth пустые после импорта — вход через magic link / OTP.
-- Хвост: `DATABASE_URL`/`DBT_HOST` на VPS ещё Cloud (приложение ходит через Supabase HTTP; dbt — отдельно).
 
 ## 2026-08-03 — DNS supabase + HTTPS staging
 
@@ -514,7 +513,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 ## 2026-08-03 (письма Auth по-русски)
 
 - Шаблоны confirmation/magic_link/recovery: бренд «Проверка стажа», имя, код `{{ .Token }}`.
-- Применение: `scripts/supabase_patch_auth_emails.py` + PAT в `secrets/supabase-access.env`.
+- Применение: Auth Send Email Hook на self-host → API SFRFR (см. `docs/ops/supabase-auth-emails-ru.md`).
 
 ## 2026-08-05 (публичная почта info@proverkastaza.ru)
 
@@ -534,7 +533,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 
 ## 2026-08-03 (Auth From: Яндекс РФ, не supabase.io)
 
-- Проблема: OTP с `noreply@mail.app.supabase.io` / GoTrue.
+- Проблема: OTP уходил с иностранного mailer GoTrue; переведено на hook → почта РФ.
 - Решение: Auth Send Email Hook → `/api/integrations/supabase/auth-send-email` → SMTP Яндекс.
 - From: «Проверка стажа. Личный кабинет» `<proverkastaza@yandex.ru>`.
 - Скрипт: `scripts/supabase_enable_auth_send_email_hook.py`; секрет `SUPABASE_SEND_EMAIL_HOOK_SECRET`.
@@ -615,7 +614,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 ## 2026-07-27 (ТЗ-15 локализация ПДн)
 
 - Рекомендации 152-ФЗ сохранены в `docs/specs/15-data-localization-ru.md`.
-- MVP: оставляем Supabase Cloud; целевой — self-host Supabase в Yandex Cloud + SmartCaptcha.
+- Целевой контур: self-host Supabase в Yandex Cloud + SmartCaptcha (cutover выполнен позже).
 - План миграции фазы 0–4; пояснение Supabase ≠ Yandex Cloud.
 - Canvas: `data-localization-options.canvas.tsx`.
 

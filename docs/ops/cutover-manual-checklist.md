@@ -32,17 +32,16 @@ https://proverkastaza.ru/app/
 
 ---
 
-## 2) Supabase Auth redirects
+## 2) Supabase Auth redirects (self-host)
 
-Подробности: [supabase-auth-redirects.md](./supabase-auth-redirects.md).
+Подробности: [supabase-auth-redirects.md](./supabase-auth-redirects.md). Канон БД: [supabase-selfhost-yandex-cloud.md](./supabase-selfhost-yandex-cloud.md).
 
-Dashboard → проект `frualvycousvvyjivybu` → **Authentication** → **URL Configuration**:
+На self-host (`https://supabase.proverkastaza.ru`) в Auth → **URL Configuration**:
 
 - **Site URL:** `https://cabinet.proverkastaza.ru`
 - **Additional Redirect URLs:**
   - `https://cabinet.proverkastaza.ru/**`
   - `https://cabinet.proverkastaza.ru/?mode=recover`
-  - (временно) `https://cabinet.taxi-doroga-dobra.ru/**`
 
 Проверка: «Забыли пароль» в кабинете → письмо → ссылка открывает recovery без ошибки redirect.
 
