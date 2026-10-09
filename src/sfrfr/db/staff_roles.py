@@ -348,28 +348,50 @@ def set_staff_max_user_id(*, user_id: str, max_user_id: str) -> dict[str, Any]:
 
 def list_manager_max_user_ids(*, extra_ids: str = "") -> list[str]:
     """MAX id руководителей: admin в staff_roles + STAFF_LOGIN_APPROVER_MAX_USER_IDS."""
+    return list_ops_dm_max_user_ids(extra_ids=extra_ids, roles=(StaffRole.ADMIN.value,))
+
+
+def list_ops_dm_max_user_ids(
+    *,
+    extra_ids: str = "",
+    roles: tuple[str, ...] | None = None,
+) -> list[str]:
+    """MAX user_id для срочных личек ops-бота (специалист + админ), не канал/группа.
+
+    Порядок: default specialist → env STAFF_LOGIN_APPROVER_* → staff_roles.max_user_id.
+    """
+    from sfrfr.core.config import get_settings
+
+    settings = get_settings()
     ids: list[str] = []
     seen: set[str] = set()
-    for part in (extra_ids or "").split(","):
-        uid = part.strip()
+
+    def _add(raw: str | None) -> None:
+        uid = str(raw or "").strip()
         if uid and uid not in seen:
             seen.add(uid)
             ids.append(uid)
+
+    _add(settings.max_default_specialist_max_user_id)
+    for part in (extra_ids or settings.staff_login_approver_max_user_ids or "").split(","):
+        _add(part)
+    want = roles or (
+        StaffRole.ADMIN.value,
+        StaffRole.EXPERT.value,
+        StaffRole.OPERATOR.value,
+    )
     try:
         client = get_supabase_client()
         rows = (
             client.table("staff_roles")
             .select("max_user_id, role")
-            .eq("role", StaffRole.ADMIN.value)
+            .in_("role", list(want))
             .execute()
             .data
             or []
         )
         for row in rows:
-            uid = str(row.get("max_user_id") or "").strip()
-            if uid and uid not in seen:
-                seen.add(uid)
-                ids.append(uid)
+            _add(str(row.get("max_user_id") or ""))
     except Exception:  # noqa: BLE001 - env-only fallback
         pass
     return ids

@@ -40,12 +40,16 @@ MAX_SPECIALISTS_CHANNEL_CHAT_ID=-77768587291288
 
 **Не канон (не читать в коде):** имена вроде `MAX_BOT_SPECIALISTS_STAFF_LOGIN_APPROVER_TOKEN` — устаревшие ярлыки в локальных `.env`. Значение токена переносить в `MAX_OPS_BOT_TOKEN`, ссылку бота — в `MAX_OPS_CHAT_URL`.
 
-Цели уведомлений без изменений:
+Цели уведомлений (личка важнее канала/группы):
 
 ```text
-STAFF_LOGIN_APPROVER_MAX_USER_IDS=
-STAFF_LOGIN_APPROVER_MAX_CHAT_IDS=   # предпочтительно chat_id группы операторов (не username бота)
+MAX_DEFAULT_SPECIALIST_MAX_USER_ID=6407832   # единственный специалист (пока): +7 909 195-04-08
+MAX_DEFAULT_SPECIALIST_PHONE=+79091950408
+STAFF_LOGIN_APPROVER_MAX_USER_IDS=6407832     # лички ops-бота (специалист + админ)
+STAFF_LOGIN_APPROVER_MAX_CHAT_IDS=             # опционально группа — дополнительно, не вместо лички
 ```
+
+«Позвать специалиста» → немедленная личка ops-бота на `MAX_DEFAULT_SPECIALIST_*` / `STAFF_LOGIN_APPROVER_MAX_USER_IDS` (не только канал команды).
 
 ## 4. API
 

@@ -197,7 +197,7 @@ def test_lead_notify_sends_to_specialists_channel(monkeypatch) -> None:
         lambda: _Bot(),
     )
     monkeypatch.setattr(
-        "sfrfr.db.staff_roles.list_manager_max_user_ids",
+        "sfrfr.db.staff_roles.list_ops_dm_max_user_ids",
         lambda extra_ids="": [],
     )
     result = notify_max_managers_new_lead(

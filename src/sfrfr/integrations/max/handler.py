@@ -1117,28 +1117,39 @@ def _fanout_ops_text(
     text: str,
     *,
     attachments: list[dict[str, Any]] | None = None,
-) -> None:
-    """Разослать короткое ops-уведомление менеджерам / чатам / каналу специалистов."""
+    dm_only: bool = False,
+) -> dict[str, Any]:
+    """Разослать ops-уведомление: сначала лички специалисту/админу, потом группа/канал."""
     from sfrfr.core.config import get_settings
-    from sfrfr.db.staff_roles import list_manager_max_user_ids
+    from sfrfr.db.staff_roles import list_ops_dm_max_user_ids
     from sfrfr.integrations.max.ops_bot import get_ops_bot
 
     settings = get_settings()
     bot = get_ops_bot()
     if not bot.available:
-        return
-    manager_ids = list_manager_max_user_ids(
+        return {"ok": False, "reason": "no_ops_bot"}
+    dm_ids = list_ops_dm_max_user_ids(
         extra_ids=settings.staff_login_approver_max_user_ids,
     )
-    chat_ids = [
-        p.strip()
-        for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
-        if p.strip()
-    ]
-    team_channel = (settings.max_specialists_channel_chat_id or "").strip()
-    for mid in manager_ids:
+    chat_ids = (
+        []
+        if dm_only
+        else [
+            p.strip()
+            for p in (settings.staff_login_approver_max_chat_ids or "").split(",")
+            if p.strip()
+        ]
+    )
+    team_channel = (
+        ""
+        if dm_only
+        else (settings.max_specialists_channel_chat_id or "").strip()
+    )
+    dm_sent = 0
+    for mid in dm_ids:
         try:
             bot.send_message(text=text, user_id=str(mid), attachments=attachments)
+            dm_sent += 1
         except Exception:
             continue
     for cid in chat_ids:
@@ -1151,10 +1162,11 @@ def _fanout_ops_text(
             bot.send_message(text=text, chat_id=team_channel, attachments=attachments)
         except Exception:
             pass
+    return {"ok": dm_sent > 0 or bool(chat_ids or team_channel), "dm_sent": dm_sent}
 
 
 def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None) -> None:
-    """Ops-бот: клиент ждёт ответа в MAX (не ссылка на бота)."""
+    """Ops-бот в личку специалисту/админу: клиент нажал «Позвать специалиста»."""
     try:
         from sfrfr.integrations.amocrm.urls import (
             admin_case_max_reply_url,
@@ -1175,7 +1187,8 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
         )
         if crm_url:
             text += f"amo: {crm_url}\n"
-        _fanout_ops_text(text)
+        # Срочный вызов — только лички (не канал/группа как единственный канал).
+        _fanout_ops_text(text, dm_only=True)
     except Exception:
         import logging
 
@@ -1391,6 +1404,9 @@ def _handle_operator(
     intake.completed_at = datetime.now(UTC).isoformat()
     intake_store.save(intake)
     _notify_operator_amocrm(user_id=user_id, intake=intake, case_id=case_id)
+    # Немедленная личка ops-боту специалисту/админу (не ждём email и не только канал).
+    if case_id:
+        _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=None)
     _reply(bot, user_id=user_id, chat_id=chat_id, text=OPERATOR_CONFIRM_TEXT)
     return MaxHandleResult(
         ok=True,
