@@ -8,6 +8,7 @@ from sfrfr.utils.person_name import (
     parse_person_name,
     should_accept_incoming_display_name,
     welcome_first_name,
+    welcome_salutation,
 )
 
 
@@ -57,3 +58,11 @@ def test_name_otchestvo_without_surname() -> None:
     p = parse_person_name("Анна Сергеевна")
     assert p.salutation == "Анна Сергеевна"
     assert p.confidence == "high"
+
+
+def test_welcome_salutation_never_uses_surname() -> None:
+    assert welcome_salutation("Иванов Иван Иванович") == "Иван Иванович"
+    assert welcome_salutation("Петров Пётр") == "Пётр"
+    assert welcome_salutation("Мария") == "Мария"
+    assert welcome_salutation("Анна Сергеевна") == "Анна Сергеевна"
+    assert welcome_salutation("user_99") is None

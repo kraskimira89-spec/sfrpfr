@@ -239,6 +239,20 @@ def welcome_first_name(full_name: str | None) -> str | None:
     return parsed.given
 
 
+def welcome_salutation(full_name: str | None) -> str | None:
+    """Обращение в чате: имя или имя+отчество. Без фамилии и без «братания» по полу.
+
+    Фамилию не используем: в русском она часто совпадает с мужскими/женскими
+    формами имён, а официальное «по фамилии» для мессенджера не подходит.
+    """
+    parsed = parse_person_name(full_name)
+    if not parsed.is_usable or not parsed.given:
+        return None
+    if parsed.patronymic:
+        return f"{parsed.given} {parsed.patronymic}"
+    return parsed.given
+
+
 def should_accept_incoming_display_name(
     current: str | None,
     incoming: str | None,

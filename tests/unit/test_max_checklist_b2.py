@@ -23,13 +23,19 @@ def test_email_body_survives_redaction_and_has_disclaimer() -> None:
     assert "перерасчёт" not in body.lower()
 
 
+def _start_with_name(user_id: int, first: str = "Анна") -> dict:
+    return {
+        "callback": {
+            "user": {"user_id": user_id, "first_name": first, "last_name": "Петрова"},
+            "chat_id": 1,
+            "payload": "start_dialog",
+        }
+    }
+
+
 def _complete_questionnaire(bot, user_id: int, email: str = "") -> None:
-    handle_max_update(_cb(user_id, "start_dialog"), bot=bot)
+    handle_max_update(_start_with_name(user_id), bot=bot)
     for upd in (
-        _msg(user_id, "Петрова"),
-        _msg(user_id, "Анна"),
-        _cb(user_id, q.SKIP_MIDDLE_NAME),
-        _msg(user_id, "1961"),
         _cb(user_id, "q:exp:gt20"),
         _msg(user_id, "+7 909 195-04-08"),
         _msg(user_id, email) if email else _cb(user_id, q.SKIP_EMAIL),

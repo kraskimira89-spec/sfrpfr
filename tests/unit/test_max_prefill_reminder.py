@@ -1,4 +1,4 @@
-"""Имя из профиля MAX в анкете и напоминание о шаге после паузы."""
+"""Имя из профиля MAX для обращения и напоминание о шаге после паузы."""
 
 from __future__ import annotations
 
@@ -24,34 +24,36 @@ def _start(user_id: int, first: str | None = None, last: str | None = None) -> d
     return {"callback": {"user": user, "chat_id": 1, "payload": "start_dialog"}}
 
 
-def test_begin_prefills_valid_profile_names() -> None:
+def test_begin_stores_max_name_but_starts_at_experience() -> None:
     rec = MaxIntakeRecord(id="r", max_user_id="u", max_first_name="мария", max_last_name="Иванова")
     q.begin(rec)
-    assert rec.q_step == "middle_name"
-    assert q.prefilled_name(rec.q_answers) == "Иванова Мария"
+    assert rec.q_step == "experience"
+    assert rec.q_answers.get("first_name") == "Мария"
+    assert rec.q_answers.get("last_name") == "Иванова"
+    assert q.prefilled_name(rec.q_answers) == "Мария"
+    assert "Иванова" not in q.prefilled_name(rec.q_answers)
 
 
 def test_begin_ignores_nickname() -> None:
     rec = MaxIntakeRecord(id="r", max_user_id="u", max_first_name="Masha_88")
     q.begin(rec)
-    assert rec.q_step == "last_name"
-    assert rec.q_answers == {}
+    assert rec.q_step == "experience"
+    assert rec.q_answers.get("first_name") is None
+    assert q.prefilled_name(rec.q_answers) == ""
 
 
-def test_only_first_name_skips_it_after_last_name() -> None:
-    rec = MaxIntakeRecord(id="r", max_user_id="u", max_first_name="Мария")
+def test_begin_name_patronymic_from_max_first() -> None:
+    rec = MaxIntakeRecord(id="r", max_user_id="u", max_first_name="Анна Сергеевна")
     q.begin(rec)
-    assert rec.q_step == "last_name"
-    assert q.apply_answer(rec, text="Иванова", payload="").accepted
-    assert rec.q_step == "middle_name"
+    assert q.prefilled_name(rec.q_answers) == "Анна Сергеевна"
 
 
-def test_fix_name_returns_to_last_name() -> None:
+def test_fix_name_legacy_payload_keeps_current_step() -> None:
     rec = MaxIntakeRecord(id="r", max_user_id="u", max_first_name="Мария", max_last_name="Иванова")
     q.begin(rec)
+    assert rec.q_step == "experience"
     assert q.apply_answer(rec, text="", payload=q.FIX_NAME).accepted
-    assert rec.q_step == "last_name"
-    assert "first_name" not in rec.q_answers
+    assert rec.q_step == "experience"
 
 
 def _enable(tmp_path: Path, monkeypatch):
@@ -62,13 +64,13 @@ def _enable(tmp_path: Path, monkeypatch):
     return bot
 
 
-def test_start_uses_profile_name(tmp_path: Path, monkeypatch) -> None:
+def test_start_uses_profile_first_name_only(tmp_path: Path, monkeypatch) -> None:
     bot = _enable(tmp_path, monkeypatch)
     handle_max_update(_start(961, first="Мария", last="Иванова"), bot=bot)
     texts = [t for _u, t in bot.sent]
-    assert any("Из профиля MAX: Иванова Мария" in t for t in texts)
-    assert texts[-1].startswith("3/8")
-    assert "Исправить имя" in str(bot.attachments[-1])
+    assert any("Будем обращаться: Мария" in t for t in texts)
+    assert not any("Иванова Мария" in t for t in texts)
+    assert any(t.startswith("1/4") for t in texts)
 
 
 def _age(user_id: str, hours: int) -> MaxIntakeRecord:
@@ -89,15 +91,15 @@ def test_return_mid_questionnaire_repeats_question_without_consuming(
     assert res.action == "return_reminder"
     assert return_reminder.WELCOME_BACK in bot.sent[-1][1]
     rec = get_intake_store().get_active("962")
-    assert rec is not None and rec.q_step == "last_name" and "last_name" not in rec.q_answers
+    assert rec is not None and rec.q_step == "experience" and "experience" not in rec.q_answers
 
 
 def test_short_pause_no_reminder(tmp_path: Path, monkeypatch) -> None:
     bot = _enable(tmp_path, monkeypatch)
     handle_max_update(_start(963), bot=bot)
     _age("963", 2)
-    res = handle_max_update(_msg(963, "Сидорова"), bot=bot)
-    assert res.action == "max_questionnaire_step"
+    res = handle_max_update(_msg(963, "просто текст"), bot=bot)
+    assert res.action == "max_questionnaire_invalid"
 
 
 def test_return_after_questionnaire_single_reminder_reply(tmp_path: Path, monkeypatch) -> None:
@@ -120,8 +122,8 @@ def test_default_reminder_threshold_is_72_hours(tmp_path: Path, monkeypatch) -> 
     get_settings.cache_clear()
     handle_max_update(_start(966), bot=bot)
     _age("966", 48)
-    res = handle_max_update(_msg(966, "Сидорова"), bot=bot)
-    assert res.action == "max_questionnaire_step"
+    res = handle_max_update(_msg(966, "просто текст"), bot=bot)
+    assert res.action == "max_questionnaire_invalid"
 
 
 def test_return_with_valid_email_sends_checklist(tmp_path: Path, monkeypatch) -> None:

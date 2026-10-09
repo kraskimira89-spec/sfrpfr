@@ -1,4 +1,8 @@
-"""Анкета нового клиента в MAX (ТЗ-35 B1, §6): 8 вопросов после «Начать»."""
+"""Анкета нового клиента в MAX (ТЗ-35 B1): короткие вопросы после «Начать».
+
+ФИО и год рождения не спрашиваем — берём из выписок/документов.
+Обращение в чате — по имени из профиля MAX (имя или имя+отчество, без фамилии).
+"""
 
 from __future__ import annotations
 
@@ -14,10 +18,6 @@ from sfrfr.integrations.max.intake import MaxIntakeRecord
 logger = logging.getLogger(__name__)
 
 STEPS: tuple[str, ...] = (
-    "last_name",
-    "first_name",
-    "middle_name",
-    "birth_year",
     "experience",
     "phone",
     "email",
@@ -25,9 +25,9 @@ STEPS: tuple[str, ...] = (
 )
 
 CALLBACK_PREFIX = "q:"
-SKIP_MIDDLE_NAME = "q:skip:middle_name"
+SKIP_MIDDLE_NAME = "q:skip:middle_name"  # совместимость со старыми кнопками
 SKIP_EMAIL = "q:skip:email"
-FIX_NAME = "q:fix_name"
+FIX_NAME = "q:fix_name"  # совместимость: игнорируем
 NAME_SOURCE_KEY = "name_source"
 EXPERIENCE_PREFIX = "q:exp:"
 
@@ -51,28 +51,23 @@ MIN_BIRTH_YEAR = 1930
 
 INTRO_TEXT = (
     "Спасибо! Чтобы завести дело, ответьте на несколько коротких вопросов. "
+    "Фамилию, имя, отчество и год рождения не спрашиваем — "
+    "это берём из выписок и документов, которые вы пришлёте. "
+    "Обращаемся по имени из вашего профиля MAX. "
     "Файлы можно присылать в любой момент — анкета продолжится с того же места."
 )
 
 QUESTIONS: dict[str, str] = {
-    "last_name": "1/8. Фамилия",
-    "first_name": "2/8. Имя",
-    "middle_name": "3/8. Отчество (если нет — нажмите кнопку)",
-    "birth_year": "4/8. Год рождения — 4 цифры, например 1962",
-    "experience": "5/8. Ориентировочный общий стаж",
-    "phone": "6/8. Телефон для связи, например +7 900 123-45-67",
-    "email": "7/8. E-mail (необязательно)",
+    "experience": "1/4. Ориентировочный общий стаж",
+    "phone": "2/4. Телефон для связи, например +7 900 123-45-67",
+    "email": "3/4. E-mail (необязательно)",
     "problem": (
-        "8/8. Коротко опишите проблему своими словами: например, «не учли стаж», "
+        "4/4. Коротко опишите проблему своими словами: например, «не учли стаж», "
         "«нет периода в ИЛС», «нужна архивная справка о стаже». До 2000 символов."
     ),
 }
 
 ERRORS: dict[str, str] = {
-    "last_name": "Фамилию напишите буквами (можно дефис), до 60 символов.",
-    "first_name": "Имя напишите буквами (можно дефис), до 60 символов.",
-    "middle_name": "Отчество напишите буквами или нажмите «Нет отчества».",
-    "birth_year": "Год рождения — 4 цифры, например 1962.",
     "experience": "Выберите вариант кнопкой ниже.",
     "phone": "Не получилось распознать номер. Пример: +7 900 123-45-67.",
     "email": "Похоже, в адресе ошибка. Пример: ivanova@yandex.ru — или нажмите «Пропустить».",
@@ -119,25 +114,42 @@ def _next_step(answers: dict[str, str], after: int = -1) -> str | None:
 
 
 def begin(rec: MaxIntakeRecord) -> None:
-    """Фамилию и имя из профиля MAX не спрашиваем, если они похожи на настоящие."""
+    """Имя из MAX сохраняем для обращения; вопросы ФИО/года рождения не задаём."""
     answers: dict[str, str] = {}
-    last = clean_name(rec.max_last_name or "")
     first = clean_name(rec.max_first_name or "")
-    if last:
-        answers["last_name"] = last
+    last = clean_name(rec.max_last_name or "")
     if first:
         answers["first_name"] = first
-    if answers:
         answers[NAME_SOURCE_KEY] = "max"
+    if last:
+        # Только для карточки/CRM; в обращении к клиенту не используем.
+        answers["last_name"] = last
+        answers.setdefault(NAME_SOURCE_KEY, "max")
     rec.q_answers = answers
     rec.q_step = _next_step(answers)
     rec.q_completed_at = None
 
 
+def max_salutation(answers: dict[str, str] | None = None, *, first_name: str | None = None) -> str:
+    """Обращение: имя или имя+отчество из профиля MAX. Без фамилии и без угадывания пола."""
+    from sfrfr.utils.person_name import client_salutation, welcome_salutation
+
+    source = (first_name or "").strip() or str((answers or {}).get("first_name") or "").strip()
+    if not source:
+        return ""
+    # Только first_name профиля — фамилию из answers не подмешиваем.
+    welcome = welcome_salutation(source)
+    if welcome:
+        return welcome
+    sal = client_salutation(source)
+    return "" if sal == "Клиент" else sal
+
+
 def prefilled_name(answers: dict[str, str]) -> str:
+    """Имя для интро: только обращение, не «Фамилия Имя»."""
     if answers.get(NAME_SOURCE_KEY) != "max":
         return ""
-    return " ".join(p for p in (answers.get("last_name"), answers.get("first_name")) if p)
+    return max_salutation(answers)
 
 
 def clean_name(raw: str) -> str | None:
@@ -180,18 +192,8 @@ def clean_email(raw: str) -> str | None:
 def question(
     step: str, answers: dict[str, str] | None = None
 ) -> tuple[str, list[dict[str, Any]] | None]:
+    del answers  # имя больше не правим кнопкой в анкете
     text = QUESTIONS[step]
-    fix_row = (
-        [[{"type": "callback", "text": "Исправить имя", "payload": FIX_NAME}]]
-        if prefilled_name(answers or {}) and step in {"last_name", "first_name", "middle_name"}
-        else []
-    )
-    if step == "middle_name":
-        return text, inline_buttons_keyboard(
-            [[{"type": "callback", "text": "Нет отчества", "payload": SKIP_MIDDLE_NAME}]] + fix_row
-        )
-    if fix_row:
-        return text, inline_buttons_keyboard(fix_row)
     if step == "email":
         return text, inline_buttons_keyboard(
             [[{"type": "callback", "text": "Пропустить", "payload": SKIP_EMAIL}]]
@@ -208,15 +210,6 @@ def question(
 
 def _parse(step: str, text: str, payload: str) -> str | None:
     """Нормализованный ответ или None, если ответ не подходит."""
-    if step in {"last_name", "first_name"}:
-        return clean_name(text)
-    if step == "middle_name":
-        if payload == SKIP_MIDDLE_NAME or text.strip().lower() in _SKIP_WORDS:
-            return ""
-        return clean_name(text)
-    if step == "birth_year":
-        year = parse_birth_year(text)
-        return str(year) if year else None
     if step == "experience":
         key = payload[len(EXPERIENCE_PREFIX) :] if payload.startswith(EXPERIENCE_PREFIX) else ""
         return key if key in EXPERIENCE_LABELS else None
@@ -239,12 +232,7 @@ def apply_answer(rec: MaxIntakeRecord, *, text: str, payload: str) -> AnswerResu
     if step not in STEPS:
         return AnswerResult(accepted=False)
     if payload == FIX_NAME:
-        rec.q_answers = {
-            k: v
-            for k, v in (rec.q_answers or {}).items()
-            if k not in {"last_name", "first_name", NAME_SOURCE_KEY}
-        }
-        rec.q_step = "last_name"
+        # Старая кнопка: ФИО больше не спрашиваем — просто повторяем текущий шаг.
         return AnswerResult(accepted=True)
     value = _parse(step, text or "", payload or "")
     if value is None:
@@ -262,21 +250,27 @@ def apply_answer(rec: MaxIntakeRecord, *, text: str, payload: str) -> AnswerResu
 
 
 def full_name(answers: dict[str, str]) -> str:
-    parts = [answers.get("last_name"), answers.get("first_name"), answers.get("middle_name")]
-    return " ".join(p for p in parts if p)
+    """Для карточки: если есть только имя из MAX — его; полные ФИО ждут из документов."""
+    first = (answers.get("first_name") or "").strip()
+    last = (answers.get("last_name") or "").strip()
+    if first and last:
+        # Порядок РФ для папки: Фамилия Имя (без выдуманного отчества).
+        return f"{last} {first}".strip()
+    return first or last
 
 
 def summary_text(answers: dict[str, str]) -> str:
     exp = EXPERIENCE_LABELS.get(answers.get("experience") or "", "—")
+    salutation = max_salutation(answers) or full_name(answers) or "—"
     return "\n".join(
         [
             "Анкета клиента (MAX):",
-            f"ФИО: {full_name(answers) or '—'}",
-            f"Год рождения: {answers.get('birth_year') or '—'}",
+            f"Обращение (MAX): {salutation}",
             f"Стаж: {exp.lower()}",
             f"Телефон: {answers.get('phone') or '—'}",
             f"E-mail: {answers.get('email') or 'не указан'}",
             f"Проблема: {answers.get('problem') or '—'}",
+            "ФИО и год рождения — из документов клиента.",
         ]
     )
 
@@ -295,7 +289,7 @@ def menu_keyboard() -> list[dict[str, Any]]:
 def save_questionnaire(
     *, answers: dict[str, str], client_id: str | None, case_id: str | None
 ) -> bool:
-    """Записать анкету в clients/cases; без колонок B1 — только базовые поля."""
+    """Записать анкету в clients/cases; ФИО полное — позже из документов."""
     try:
         from sfrfr.db.session import get_supabase_client
 
@@ -305,15 +299,18 @@ def save_questionnaire(
         return False
     ok = True
     if client_id:
-        base: dict[str, Any] = {"full_name": full_name(answers), "phone": answers.get("phone")}
+        name = full_name(answers)
+        base: dict[str, Any] = {"phone": answers.get("phone")}
+        if name:
+            base["full_name"] = name
         if answers.get("email"):
             base["email"] = answers["email"]
         extended = {
             **base,
-            "last_name": answers.get("last_name"),
-            "first_name": answers.get("first_name"),
-            "middle_name": answers.get("middle_name") or None,
-            "birth_year": int(answers["birth_year"]) if answers.get("birth_year") else None,
+            "last_name": answers.get("last_name") or None,
+            "first_name": answers.get("first_name") or None,
+            "middle_name": None,
+            "birth_year": None,
         }
         try:
             sb.table("clients").update(extended).eq("id", client_id).execute()

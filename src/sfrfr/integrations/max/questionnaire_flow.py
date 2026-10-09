@@ -24,10 +24,7 @@ def start(rec: MaxIntakeRecord, reply: Reply) -> str:
     intro = q.INTRO_TEXT
     name = q.prefilled_name(rec.q_answers)
     if name:
-        intro += (
-            f"\n\nИз профиля MAX: {name} — эти данные спрашивать не будем. "
-            "Если это не ваши фамилия и имя, нажмите «Исправить имя»."
-        )
+        intro += f"\n\nБудем обращаться: {name} (имя из профиля MAX)."
     reply(intro, None)
     return send_current_question(rec, reply)
 
