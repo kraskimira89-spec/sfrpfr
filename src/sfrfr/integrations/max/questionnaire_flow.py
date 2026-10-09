@@ -52,7 +52,8 @@ def handle_answer(
     q.save_questionnaire(answers=answers, client_id=client_id, case_id=case_id)
     log_summary(q.summary_text(answers))
     reply(q.COMPLETED_TEXT, q.menu_keyboard())
-    from sfrfr.integrations.max import checklist_offer
+    from sfrfr.integrations.max import diag_choice
 
-    reply(checklist_offer.OFFER_TEXT, checklist_offer.offer_keyboard())
+    diag_choice.mark_pending(rec)
+    reply(diag_choice.OFFER_TEXT, diag_choice.offer_keyboard())
     return "max_questionnaire_completed", q.COMPLETED_TEXT
