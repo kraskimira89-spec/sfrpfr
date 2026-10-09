@@ -73,6 +73,15 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-case-reactivation.timer" ]]; then
   systemctl enable --now sfrfr-case-reactivation.timer
 fi
 
+# Личка специалиста в MAX (+7 909 195-04-08 → user_id 6407832), не только канал команды
+if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^MAX_DEFAULT_SPECIALIST_MAX_USER_ID=' "$APP_DIR/.env"; then
+  echo 'MAX_DEFAULT_SPECIALIST_MAX_USER_ID=6407832' >> "$APP_DIR/.env"
+  echo 'MAX_DEFAULT_SPECIALIST_PHONE=+79091950408' >> "$APP_DIR/.env"
+fi
+if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^STAFF_LOGIN_APPROVER_MAX_USER_IDS=.' "$APP_DIR/.env"; then
+  echo 'STAFF_LOGIN_APPROVER_MAX_USER_IDS=6407832' >> "$APP_DIR/.env"
+fi
+
 if [[ -f "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" ]]; then
   echo "Configuring tech-debt weekly timer …"
   install -m 0644 "$APP_DIR/docs/systemd/sfrfr-tech-debt.service" \

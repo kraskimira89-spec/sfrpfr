@@ -181,8 +181,11 @@ class Settings(BaseSettings):
     admin_public_url: str = "https://admin.proverkastaza.ru"
     # MAX user_id руководителей (через запятую) — подтверждение входа сотрудников
     staff_login_approver_max_user_ids: str = ""
-    # chat_id диалогов руководителей (через запятую, тот же порядок что user_id)
+    # chat_id диалогов руководителей (через запятую); доп. к личкам, не вместо них
     staff_login_approver_max_chat_ids: str = ""
+    # Единственный специалист (пока): личка ops-бота. Телефон — для справки в docs/ops.
+    max_default_specialist_max_user_id: str = ""
+    max_default_specialist_phone: str = "+79091950408"
     # Диалог с ботом (вход / «написать боту») — без ?startapp
     max_chat_url: str = "https://max.ru/id8905998693_1_bot"
     # Deep-link на mini-app (?startapp) — открытие из бота после диагностики

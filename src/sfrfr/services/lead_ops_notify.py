@@ -154,7 +154,7 @@ def notify_max_managers_new_lead(
     max_user_id: str | None = None,
 ) -> dict[str, Any]:
     try:
-        from sfrfr.db.staff_roles import list_manager_max_user_ids
+        from sfrfr.db.staff_roles import list_ops_dm_max_user_ids
         from sfrfr.integrations.max.client import inline_buttons_keyboard
         from sfrfr.integrations.max.ops_bot import get_ops_bot
     except Exception as exc:  # noqa: BLE001
@@ -165,7 +165,7 @@ def notify_max_managers_new_lead(
     if not bot.available:
         return {"ok": False, "skipped": True, "reason": "no MAX bot token"}
 
-    manager_ids = list_manager_max_user_ids(
+    dm_ids = list_ops_dm_max_user_ids(
         extra_ids=settings.staff_login_approver_max_user_ids,
     )
     chat_ids = [
@@ -174,7 +174,7 @@ def notify_max_managers_new_lead(
         if p.strip()
     ]
     team_channel = (settings.max_specialists_channel_chat_id or "").strip()
-    if not manager_ids and not chat_ids and not team_channel:
+    if not dm_ids and not chat_ids and not team_channel:
         return {"ok": False, "skipped": True, "reason": "no managers"}
 
     _subject, text, staff_url = build_lead_notify_text(
@@ -195,24 +195,22 @@ def notify_max_managers_new_lead(
         )
 
     sent = 0
+    dm_sent = 0
     channel_sent = False
-    if manager_ids or chat_ids:
-        targets: list[str | None] = (
-            list(manager_ids) if manager_ids else [None] * len(chat_ids)
-        )
-        for i, mid in enumerate(targets):
-            cid = chat_ids[i] if i < len(chat_ids) else None
-            try:
-                bot.send_message(
-                    text=text,
-                    user_id=str(mid) if mid else None,
-                    chat_id=cid,
-                    attachments=attachments,
-                )
-                sent += 1
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("max lead notify failed: %s", exc)
-
+    # Сначала лички специалисту/админу — не zip с chat_id группы.
+    for mid in dm_ids:
+        try:
+            bot.send_message(text=text, user_id=str(mid), attachments=attachments)
+            sent += 1
+            dm_sent += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max lead notify dm failed user=%s: %s", mid, exc)
+    for cid in chat_ids:
+        try:
+            bot.send_message(text=text, chat_id=cid, attachments=attachments)
+            sent += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max lead notify chat failed: %s", exc)
     if team_channel:
         try:
             bot.send_message(text=text, chat_id=team_channel, attachments=attachments)
@@ -224,6 +222,7 @@ def notify_max_managers_new_lead(
     return {
         "ok": sent > 0,
         "sent": sent,
+        "dm_sent": dm_sent,
         "team_channel_sent": channel_sent,
     }
 
