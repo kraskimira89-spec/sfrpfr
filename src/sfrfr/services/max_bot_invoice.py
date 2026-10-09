@@ -151,13 +151,96 @@ def _try_promote_diag_pay_url(
         return None
 
 
+def start_diag_payment_after_yes(
+    *,
+    case_id: str,
+    max_user_id: str,
+    offer_version: str = "offer-2026-09-09",
+) -> dict[str, Any] | None:
+    """Явное «да» в MAX: DIAG draft → accept_contract → pay link в чат."""
+    settings = get_settings()
+    if not settings.max_bot_owned_enabled:
+        return {"ok": False, "reason": "bot_owned_off"}
+    cid = str(case_id or "").strip()
+    mid = str(max_user_id or "").strip()
+    if not cid or not mid:
+        return {"ok": False, "reason": "no_case"}
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.client_pdn_consent import ensure_case_consent_from_client
+
+    repo = CaseRepository()
+    try:
+        case = repo.get_case_row(cid)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("diag pay-after-yes case load failed: %s", exc)
+        return {"ok": False, "reason": "case_load"}
+    if not case:
+        return {"ok": False, "reason": "no_case"}
+
+    client_id = str(case.get("client_id") or "") or None
+    ensure_case_consent_from_client(case_id=cid, client_id=client_id)
+    if not repo.has_consent(cid):
+        return {"ok": False, "reason": "consent"}
+
+    try:
+        orders = repo.list_orders(cid)
+    except Exception:  # noqa: BLE001
+        orders = []
+
+    order: dict[str, Any] | None = None
+    if _has_open_or_paid_diag(orders):
+        order = _find_open_order(orders, tariff="DIAG")
+        if order is None:
+            return {"ok": True, "already_paid": True}
+    else:
+        tariff = public_tariff("DIAG") or {}
+        try:
+            order = repo.create_order(
+                cid,
+                package_code="DIAG",
+                amount_rub=float(tariff.get("amount_rub") or 3000),
+                status_value="draft",
+                actor_id="bot:max_diag_choice",
+                due_at=(datetime.now(UTC) + timedelta(days=3)).isoformat(),
+                service_label=str(tariff.get("name") or "Диагностика"),
+                invoice_status="draft",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("diag pay-after-yes create failed case=%s: %s", cid[:8], exc)
+            return {"ok": False, "reason": "create_order"}
+
+    if not repo.has_contract(cid):
+        try:
+            repo.accept_contract(
+                cid,
+                offer_version=offer_version,
+                actor_id=f"max:{mid}",
+                order_id=str((order or {}).get("id") or "") or None,
+                meta={
+                    "source": "max_diag_choice",
+                    "max_user_id": mid,
+                    "channel": "max",
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("diag pay-after-yes accept failed case=%s: %s", cid[:8], exc)
+            return {"ok": False, "reason": "accept_contract"}
+        return {"ok": True, "accepted": True, "order": order}
+
+    pay = maybe_send_pay_link_after_contract(
+        repo=repo, case_id=cid, actor_id=f"max:{mid}"
+    )
+    return {"ok": True, "accepted": False, "order": order, "pay": pay}
+
+
 def maybe_offer_diag_invoice(
     *,
     case_id: str,
     max_user_id: str,
     intake: Any | None = None,
 ) -> dict[str, Any] | None:
-    """Черновик DIAG + сообщение с офертой в кабинет. Без pay URL."""
+    """Черновик DIAG + выбор «оформить / чек-лист» в чат. Pay URL — после явного «да»."""
     settings = get_settings()
     if not settings.max_bot_owned_enabled:
         return None
@@ -236,22 +319,21 @@ def maybe_offer_diag_invoice(
         return None
 
     amount = int(float(draft.get("amount_rub") or 3000))
-    cab = cabinet_url_for_case(cid)
-    from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
+    from sfrfr.core.copy import OFFER_URL, PAYMENT_LEGAL_ACCEPTANCE
+    from sfrfr.integrations.max import diag_choice
 
     body = (
-        f"Для диагностики стоимость {amount} ₽. "
-        "Чтобы выставить счёт, примите условия оказания услуг в кабинете на сайте — "
-        f"после этого пришлём ссылку на оплату в этот чат.\n"
-        f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
-        f"Кабинет: {cab}"
+        f"Комплект для сверки уже есть. Диагностика документов — {amount} ₽: "
+        "сопоставим выписку ИЛС, трудовую и справки, отметим расхождения и дадим план.\n"
+        f"{PAYMENT_LEGAL_ACCEPTANCE} Оферта: {OFFER_URL}\n"
+        "Оформляем диагностику или пока остановимся на самостоятельной проверке по чек-листу?"
     )
     enqueue_max_delivery(
         case_id=cid,
         message_id=None,
         max_user_id=mid,
         body=body,
-        attachments=None,
+        attachments=diag_choice.offer_keyboard(),
     )
     _OFFERED.add(cid)
     return {"order": order, "offered": True, "tariff": "DIAG"}

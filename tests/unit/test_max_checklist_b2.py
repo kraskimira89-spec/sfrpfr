@@ -67,17 +67,25 @@ def _prepare(tmp_path: Path, monkeypatch, sent: list[dict] | None = None, ok: bo
 
 
 def test_offer_after_questionnaire(tmp_path: Path, monkeypatch) -> None:
+    from sfrfr.integrations.max import diag_choice as dc
+
     bot = _prepare(tmp_path, monkeypatch)
     _complete_questionnaire(bot, 901)
-    assert bot.sent[-1][1] == lm.OFFER_TEXT
+    assert bot.sent[-1][1] == dc.OFFER_TEXT
     offer = str(bot.attachments[-1])
-    assert "Получить на почту" in offer and "Уже есть" in offer
+    assert "Оформить диагностику" in offer
+    handle_max_update(_cb(901, dc.CHECKLIST), bot=bot)
+    assert bot.sent[-1][1] == lm.OFFER_TEXT
+    assert "Получить на почту" in str(bot.attachments[-1])
 
 
 def test_send_asks_format_then_email_then_sends(tmp_path: Path, monkeypatch) -> None:
+    from sfrfr.integrations.max import diag_choice as dc
+
     sent: list[dict] = []
     bot = _prepare(tmp_path, monkeypatch, sent)
     _complete_questionnaire(bot, 902)
+    handle_max_update(_cb(902, dc.CHECKLIST), bot=bot)
     res = handle_max_update(_cb(902, lm.SEND), bot=bot)
     assert res.action == "checklist_ask_format"
     assert "PDF" in bot.sent[-1][1] and "Word" in bot.sent[-1][1]
@@ -93,9 +101,12 @@ def test_send_asks_format_then_email_then_sends(tmp_path: Path, monkeypatch) -> 
 
 
 def test_known_email_after_format(tmp_path: Path, monkeypatch) -> None:
+    from sfrfr.integrations.max import diag_choice as dc
+
     sent: list[dict] = []
     bot = _prepare(tmp_path, monkeypatch, sent)
     _complete_questionnaire(bot, 903, email="petrova@example.ru")
+    handle_max_update(_cb(903, dc.CHECKLIST), bot=bot)
     handle_max_update(_cb(903, lm.SEND), bot=bot)
     handle_max_update(_cb(903, lm.FMT_PDF), bot=bot)
     assert "Отправить на petrova@example.ru" in str(bot.attachments[-1])

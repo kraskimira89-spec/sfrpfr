@@ -2019,18 +2019,21 @@ def _handle_questionnaire_or_menu(
     callback: str,
     skip_text: bool,
 ) -> MaxHandleResult | None:
-    """ТЗ-35 B1/B2: ответы анкеты, кнопки меню и чек-лист на e-mail."""
-    from sfrfr.integrations.max import checklist_offer, questionnaire_flow
+    """ТЗ-35 B1/B2: анкета, выбор диагностики/чек-листа, e-mail чек-лист."""
+    from sfrfr.integrations.max import checklist_offer, diag_choice, questionnaire_flow
     from sfrfr.integrations.max import questionnaire as q
     from sfrfr.integrations.max.case_chat_log import append_case_chat_message
 
     rec = get_intake_store().get_active(user_id)
     is_lm_callback = callback.startswith(checklist_offer.CALLBACK_PREFIX)
+    is_diag_callback = callback.startswith(diag_choice.CALLBACK_PREFIX)
     if (
         not callback.startswith("menu:")
         and not is_lm_callback
+        and not is_diag_callback
         and not q.is_active(rec)
         and not checklist_offer.is_active(rec)
+        and not diag_choice.is_pending(rec)
     ):
         return None
     case_id = _case_id_for_max_user(user_id)
@@ -2071,7 +2074,12 @@ def _handle_questionnaire_or_menu(
     is_q_callback = callback.startswith(q.CALLBACK_PREFIX)
     has_files = bool(update.get("file_bytes")) or bool(extract_downloadable_files(update))
     text_answer = bool(text) and not callback and not skip_text and not has_files
-    if not is_q_callback and not is_lm_callback and not text_answer:
+    if (
+        not is_q_callback
+        and not is_lm_callback
+        and not is_diag_callback
+        and not text_answer
+    ):
         return None
     if text_answer:
         _append_client_case_message(
@@ -2081,6 +2089,19 @@ def _handle_questionnaire_or_menu(
             external_message_id=_max_message_id(update),
         )
     if not q.is_active(rec):
+        if is_diag_callback or diag_choice.is_pending(rec):
+            out = diag_choice.handle(
+                rec,
+                _q_reply,
+                payload=callback,
+                case_id=case_id,
+                max_user_id=user_id,
+                log_event=_log_system,
+            )
+            if out is not None:
+                return MaxHandleResult(
+                    ok=True, action=out[0], case_id=case_id, reply=out[1]
+                )
         out = checklist_offer.handle(
             rec,
             _q_reply,

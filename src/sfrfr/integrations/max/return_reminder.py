@@ -74,6 +74,12 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
             rec, reply, prefix=f"{WELCOME_BACK} Продолжим анкету — осталось немного."
         )
         return body, True
+    from sfrfr.integrations.max import diag_choice
+
+    if diag_choice.is_pending(rec):
+        body = f"{WELCOME_BACK} {diag_choice.OFFER_TEXT}"
+        reply(body, diag_choice.offer_keyboard())
+        return body, True
     if checklist_offer.is_active(rec):
         if rec.lm_step == "email" and q.clean_email(text):
             return "", False
