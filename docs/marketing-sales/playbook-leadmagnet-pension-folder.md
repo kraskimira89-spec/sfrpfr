@@ -20,8 +20,6 @@
 | `scripts/assets/leadmagnets/pension-checklist-a4-one-page.md` | Текст листа A4 (1 стр.) |
 | `docs/marketing-sales/spec-leadmagnet-a4-one-page-2026-08.md` | ТЗ для дизайнера / Figma |
 | `scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf` | PDF рассылки (канон) |
-| `scripts/assets/leadmagnets/pension-checklist-a4.docx` | Word рассылки (редактирование) |
-| `scripts/build_leadmagnet_a4_docx.py` | Сборка Word из скрипта |
 | `scripts/assets/leadmagnets/pension-checklist-a4-bw.pdf` | PDF ч/б |
 | `scripts/assets/leadmagnets/pension-checklist-a4-preview.png` | Превью для лендинга |
 | `scripts/build_leadmagnet_a4_pdf.py` | Пересборка PDF из HTML |

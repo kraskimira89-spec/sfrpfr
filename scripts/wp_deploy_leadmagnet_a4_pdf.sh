@@ -18,12 +18,3 @@ if [[ -f "$SRC_BW" ]]; then
   install -m 644 "$SRC_BW" "$DST_BW"
   echo "OK: https://proverkastaza.ru/pension-checklist-a4-bw.pdf"
 fi
-
-SRC_DOCX="${ROOT}/scripts/assets/leadmagnets/pension-checklist-a4.docx"
-DST_DOCX="${SITE_DIR}/pension-checklist-a4.docx"
-if [[ -f "$SRC_DOCX" ]]; then
-  install -m 644 "$SRC_DOCX" "$DST_DOCX"
-  echo "OK: https://proverkastaza.ru/pension-checklist-a4.docx"
-else
-  echo "WARN: missing $SRC_DOCX — запустите python scripts/build_leadmagnet_a4_docx.py"
-fi
