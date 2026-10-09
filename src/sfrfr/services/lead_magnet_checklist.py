@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 
 LEAD_MAGNET_PDF_URL = "https://proverkastaza.ru/pension-checklist-a4.pdf"
+LEAD_MAGNET_DOCX_URL = "https://proverkastaza.ru/pension-checklist-a4.docx"
 LEAD_MAGNET_PRINT_URL = "https://proverkastaza.ru/chek-list-dokumentov/pechat/"
 LEAD_MAGNET_LANDING_URL = "https://proverkastaza.ru/chek-list-dokumentov/"
 LEAD_MAGNET_SITE_URL = "https://proverkastaza.ru/"
@@ -52,7 +53,8 @@ def build_lead_magnet_message(*, name: str | None = None) -> str:
         "2) Трудовая книжка (бумажная) или выписка из электронной трудовой.\n\n"
         "Паспорт и СНИЛС — для идентификации, если попросит специалист; "
         "цифрами в чат их не пишите.\n\n"
-        f"PDF (одна страница A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
+        f"PDF (распечатать, A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
+        f"Word (редактировать и отмечать):\n{LEAD_MAGNET_DOCX_URL}\n\n"
         f"Рабочая тетрадь на 8 страниц:\n{LEAD_MAGNET_PRINT_URL}\n\n"
         "Куда обратиться:\n"
         f"• Сайт: {LEAD_MAGNET_SITE_URL}\n"
@@ -80,7 +82,8 @@ def build_lead_magnet_after_start_message(*, name: str | None = None) -> str:
         "Нужно сейчас для анализа:\n"
         "1) Выписка ИЛС (СЗИ-ИЛС) — актуальная, с датой формирования.\n"
         "2) Трудовая книжка (бумажная) или выписка из электронной трудовой.\n\n"
-        f"PDF (одна страница A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
+        f"PDF (распечатать, A4):\n{LEAD_MAGNET_PDF_URL}\n\n"
+        f"Word (редактировать и отмечать):\n{LEAD_MAGNET_DOCX_URL}\n\n"
         f"Рабочая тетрадь на 8 страниц:\n{LEAD_MAGNET_PRINT_URL}\n\n"
         "Паспорт и СНИЛС цифрами в чат не пишите. "
         "Когда выписка будет на руках — напишите «ИЛС получил(а)» или «Есть расхождение».\n\n"

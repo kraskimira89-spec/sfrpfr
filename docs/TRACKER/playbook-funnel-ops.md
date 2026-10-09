@@ -34,6 +34,7 @@ Ops-фокус FUNNEL: SLA первого ответа (цель 30–60 мин 
 | FUNNEL-5 clarity | [../ops/playbook-funnel-clarity-dialog-review.md](../ops/playbook-funnel-clarity-dialog-review.md) · [../marketing-sales/playbook-sales-clarity-funnel.md](../marketing-sales/playbook-sales-clarity-funnel.md) |
 | Оператор | [../ops/playbook-staff-new-lead-cheatsheet.md](../ops/playbook-staff-new-lead-cheatsheet.md) |
 | Реанимация дел | [../ops/playbook-case-reactivation.md](../ops/playbook-case-reactivation.md) · [FUNNEL-11](https://tracker.yandex.ru/FUNNEL-11) · тег `funnel-reactivation` |
+| Волна «зависли на канале» (~150) | [../marketing-sales/strategy-reactivate-150-channel-stuck-2026-10.md](../marketing-sales/strategy-reactivate-150-channel-stuck-2026-10.md) |
 | Доска FUNNEL | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) § FUNNEL-4 |
 
 ## Шаблон
