@@ -111,6 +111,16 @@ def test_steps_do_not_ask_fio_or_birth() -> None:
     assert q.STEPS == ("experience", "phone", "email", "problem")
 
 
+def test_question_progress_is_words_and_dynamic() -> None:
+    text, _kb = q.question("experience")
+    assert text.startswith("Первый вопрос из четырёх вопросов.")
+    assert "1/4" not in text
+    text2, _kb2 = q.question("phone")
+    assert text2.startswith("Второй вопрос из четырёх вопросов.")
+    text4, _kb4 = q.question("problem")
+    assert text4.startswith("Четвёртый вопрос из четырёх вопросов.")
+
+
 def _enable(monkeypatch) -> None:
     monkeypatch.setenv("MAX_QUESTIONNAIRE_ENABLED", "1")
     get_settings.cache_clear()

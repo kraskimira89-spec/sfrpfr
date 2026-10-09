@@ -58,11 +58,11 @@ INTRO_TEXT = (
 )
 
 QUESTIONS: dict[str, str] = {
-    "experience": "1/4. Ориентировочный общий стаж",
-    "phone": "2/4. Телефон для связи, например +7 900 123-45-67",
-    "email": "3/4. E-mail (необязательно)",
+    "experience": "Ориентировочный общий стаж",
+    "phone": "Телефон для связи, например +7 900 123-45-67",
+    "email": "E-mail (необязательно)",
     "problem": (
-        "4/4. Коротко опишите проблему своими словами: например, «не учли стаж», "
+        "Коротко опишите проблему своими словами: например, «не учли стаж», "
         "«нет периода в ИЛС», «нужна архивная справка о стаже». До 2000 символов."
     ),
 }
@@ -192,8 +192,12 @@ def clean_email(raw: str) -> str | None:
 def question(
     step: str, answers: dict[str, str] | None = None
 ) -> tuple[str, list[dict[str, Any]] | None]:
+    from sfrfr.utils.ru_question_progress import with_question_progress
+
     del answers  # имя больше не правим кнопкой в анкете
-    text = QUESTIONS[step]
+    body = QUESTIONS[step]
+    n = STEPS.index(step) + 1
+    text = with_question_progress(body, n=n, total=len(STEPS))
     if step == "email":
         return text, inline_buttons_keyboard(
             [[{"type": "callback", "text": "Пропустить", "payload": SKIP_EMAIL}]]
