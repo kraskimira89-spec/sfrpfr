@@ -314,6 +314,124 @@ def _require_captcha(
         raise HTTPException(status_code=400, detail="recaptcha_failed")
 
 
+def insert_lead_rows(
+    *,
+    full_name: str,
+    phone: str | None,
+    email: str | None,
+    preferred: str,
+    source: str,
+    audience_segment: str | None,
+    audit_action: str,
+) -> str:
+    """clients + cases + аудит + чек-лист лида; вернуть case_id."""
+    client = get_supabase_client()
+    client_row = (
+        client.table("clients")
+        .insert(
+            {
+                "full_name": full_name,
+                "phone": phone,
+                "email": email,
+                "preferred_channel": preferred,
+            }
+        )
+        .execute()
+    )
+    if not client_row.data:
+        raise HTTPException(status_code=502, detail="failed to create client")
+    client_id = str(client_row.data[0]["id"])
+
+    problem = f"lead:{source}"
+    if audience_segment and audience_segment != "unknown":
+        problem = f"lead:{source}:{audience_segment}"
+
+    case_row = (
+        client.table("cases")
+        .insert(
+            {
+                "client_id": client_id,
+                "pipeline_status": "intake",
+                "b2c_status": "lead",
+                "segment": "b2c",
+                "problem_type": problem[:200],
+            }
+        )
+        .execute()
+    )
+    if not case_row.data:
+        raise HTTPException(status_code=502, detail="failed to create case")
+    case_id = str(case_row.data[0]["id"])
+
+    try:
+        from sfrfr.integrations.yandex_workspace.case_mirror import (
+            sync_case_disk_folder_name_safe,
+        )
+
+        sync_case_disk_folder_name_safe(case_id, full_name=full_name)
+    except Exception:  # noqa: BLE001
+        pass
+
+    client.table("access_audit").insert(
+        {
+            "case_id": case_id,
+            "actor_id": None,
+            "action": audit_action,
+        }
+    ).execute()
+
+    for idx, title in enumerate(
+        ("Выписка ИЛС", "Трудовая книжка / сведения о стаже", "Решение СФР (если есть)")
+    ):
+        client.table("checklist_items").insert(
+            {
+                "case_id": case_id,
+                "title": title,
+                "item_type": "document",
+                "owner": "client",
+                "status": "open",
+                "sort_order": idx,
+            }
+        ).execute()
+    return case_id
+
+
+def _buffered_lead_response(
+    payload: PublicLeadRequest,
+    *,
+    phone: str | None,
+    email: str | None,
+    preferred: str,
+    source: str,
+) -> PublicLeadResponse:
+    """БД недоступна: заявка в аварийном буфере, сотрудники уведомлены, клиенту — успех."""
+    from sfrfr.services.lead_emergency_buffer import capture_site_lead_db_down
+
+    capture_site_lead_db_down(
+        full_name=payload.full_name.strip(),
+        phone=phone,
+        email=email,
+        channel=preferred,
+        consent=bool(payload.consent),
+        attribution_source=source,
+        audience_segment=payload.audience_segment,
+    )
+    settings = get_settings()
+    return PublicLeadResponse(
+        ok=True,
+        case_id=None,
+        max_bot_url=settings.max_public_bot_url or settings.max_chat_url,
+        cabinet_url=settings.cabinet_public_url.rstrip("/") + "/",
+        channel_choice_hint=(
+            "Заявка принята. Мы свяжемся с вами по указанному контакту в рабочее время. "
+            "Мы готовим документы, проект обращения и план — подаёте через СФР или "
+            "Госуслуги вы сами. Решение принимает СФР."
+        ),
+        amocrm=None,
+        detail="lead_buffered",
+    )
+
+
 def _create_lead(
     payload: PublicLeadRequest,
     *,
@@ -349,74 +467,26 @@ def _create_lead(
     phone, email, contact_display = _resolve_lead_contacts(payload)
     preferred = _normalize_channel(payload.preferred_channel)
 
-    client = get_supabase_client()
-    client_row = (
-        client.table("clients")
-        .insert(
-            {
-                "full_name": payload.full_name.strip(),
-                "phone": phone,
-                "email": email,
-                "preferred_channel": preferred,
-            }
+    try:
+        case_id = insert_lead_rows(
+            full_name=payload.full_name.strip(),
+            phone=phone,
+            email=email,
+            preferred=preferred,
+            source=attr.source,
+            audience_segment=attr.audience_segment,
+            audit_action=f"public_lead:{attr.source}",
         )
-        .execute()
-    )
-    if not client_row.data:
-        raise HTTPException(status_code=502, detail="failed to create client")
-    client_id = str(client_row.data[0]["id"])
-
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("public lead: БД недоступна (%s) — аварийный буфер", type(exc).__name__)
+        return _buffered_lead_response(
+            payload, phone=phone, email=email, preferred=preferred, source=attr.source
+        )
     problem = f"lead:{attr.source}"
     if attr.audience_segment and attr.audience_segment != "unknown":
         problem = f"lead:{attr.source}:{attr.audience_segment}"
-
-    case_row = (
-        client.table("cases")
-        .insert(
-            {
-                "client_id": client_id,
-                "pipeline_status": "intake",
-                "b2c_status": "lead",
-                "segment": "b2c",
-                "problem_type": problem[:200],
-            }
-        )
-        .execute()
-    )
-    if not case_row.data:
-        raise HTTPException(status_code=502, detail="failed to create case")
-    case_id = str(case_row.data[0]["id"])
-
-    try:
-        from sfrfr.integrations.yandex_workspace.case_mirror import (
-            sync_case_disk_folder_name_safe,
-        )
-
-        sync_case_disk_folder_name_safe(case_id, full_name=payload.full_name.strip())
-    except Exception:  # noqa: BLE001
-        pass
-
-    client.table("access_audit").insert(
-        {
-            "case_id": case_id,
-            "actor_id": None,
-            "action": f"public_lead:{attr.source}",
-        }
-    ).execute()
-
-    for idx, title in enumerate(
-        ("Выписка ИЛС", "Трудовая книжка / сведения о стаже", "Решение СФР (если есть)")
-    ):
-        client.table("checklist_items").insert(
-            {
-                "case_id": case_id,
-                "title": title,
-                "item_type": "document",
-                "owner": "client",
-                "status": "open",
-                "sort_order": idx,
-            }
-        ).execute()
 
     admin_base = (settings.admin_public_url or "").rstrip("/")
     if settings.amocrm_enabled:
