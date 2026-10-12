@@ -41,6 +41,12 @@ sudo -u "$APP_USER" bash -lc "
 systemctl restart sfrfr-api
 systemctl is-active --quiet sfrfr-api
 
+if [[ -f "$APP_DIR/docs/logrotate/sfrfr" ]]; then
+  echo "Configuring logrotate for /var/log/sfrfr …"
+  install -m 0644 "$APP_DIR/docs/logrotate/sfrfr" /etc/logrotate.d/sfrfr
+  logrotate /etc/logrotate.d/sfrfr || echo "WARN: logrotate sfrfr failed" >&2
+fi
+
 if [[ -f "$APP_DIR/docs/systemd/sfrfr-document-ingest.service" ]]; then
   echo "Configuring document ingest worker …"
   install -m 0644 "$APP_DIR/docs/systemd/sfrfr-document-ingest.service" \
