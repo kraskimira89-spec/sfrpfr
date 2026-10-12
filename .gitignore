@@ -46,6 +46,8 @@ storage/cases.json
 storage/cases.tmp
 storage/max_channel_drafts.json
 storage/max_channel_daily_state.json
+storage/max_chat_pending.json
+storage/emergency_leads.jsonl
 !storage/uploads/.gitkeep
 !storage/processed/.gitkeep
 *.pdf
