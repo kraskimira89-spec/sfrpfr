@@ -13,8 +13,12 @@
   `194.67.116.168`. Рестарт API/кабинетов; rebuild Next для `NEXT_PUBLIC_*`.
 - Smoke: `api/health` 200; auth health 200; staff OTP request не 500.
 
+## Догнано (тот же день)
+
+- Миграции: см. `2026-10-13-supabase2-migrations-catchup.md` (50/50 + GRANT service_role).
+- Emergency leads `source=max` (2) → дела без дублей, pending flushed.
+- `sfrfr-document-ingest` active; PGRST205 снят.
+
 ## Осталось
 
-- Догонка миграций на дампе (в т.ч. `document_ingest_jobs` → PGRST205 у ingest-воркера).
-- Emergency leads `source=max` (2) и буфер MAX — отдельный разбор клиентов без дела.
 - realtime на ВМ был unhealthy (не блокер входа).
