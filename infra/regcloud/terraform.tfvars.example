@@ -7,9 +7,9 @@
 token   = "REPLACE_WITH_REGCLOUD_API_TOKEN"
 api_url = "https://api.cloudvps.reg.ru"
 
-server_name  = "sfrfrdb1"
-# Минимальный рабочий create: c2-m2-d40-stdp + openstack-msk2 (base-* на msk1 → 500).
-server_size  = "c2-m2-d40-stdp"
+server_name  = "sfrfr-supabase-db-regru"
+# ≥4GB для Supabase: c2-m4-d80-stdp + openstack-msk2 (base-* на msk1 → часто 500).
+server_size  = "c2-m4-d80-stdp"
 server_image = "ubuntu-22-04-amd64"
 region_slug  = "openstack-msk2"
 

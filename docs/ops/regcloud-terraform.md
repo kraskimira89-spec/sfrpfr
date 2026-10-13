@@ -64,10 +64,10 @@ cd infra\regcloud
 
 | Параметр | Значение по умолчанию в модуле |
 |----------|--------------------------------|
-| name | `sfrfrdb1` |
-| size | `c2-m2-d40-stdp` (2 vCPU / 2 GB / 40 GB — минимальный рабочий create) |
+| name | `sfrfr-supabase-db-regru` |
+| size | `c2-m4-d80-stdp` (2 vCPU / 4 GB / 80 GB — минимум для Supabase) |
 | image | `ubuntu-22-04-amd64` (Docker ставим после create; slug *-docker в API нет) |
-| region | `openstack-msk2` (как у прод-VPS; `base-*` на `msk1` → 500) |
+| region | `openstack-msk2` (как у прод-VPS; `base-*` на `msk1` → часто 500) |
 | SSH | fingerprint ключа `regru_terraform_vm` (ed25519); `manage_ssh_key=false` — ключ уже в панели |
 
 Если `plan` ругается на `size`/`image` — взять актуальные slug со [страницы заказа сервера](https://cloud.reg.ru/panel/) и поправить `terraform.tfvars`.
