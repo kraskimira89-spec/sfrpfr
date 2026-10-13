@@ -1,11 +1,12 @@
-# DBHub → self-host Supabase Postgres (YC db-01) via local OpenSSH forward.
+# DBHub → self-host Supabase Postgres (Reg.ru ВМ) via local OpenSSH forward.
 # Tunnel поднимает scripts/mcp-supabase-selfhost.cmd (ssh.exe → 127.0.0.1:15433).
 # Read-only: [[tools]] readonly = true.
 # Не использовать встроенный ssh_* DBHub: Node/Go SSH идёт через AdGuard VPN и ловит SG timeout.
+# На ВМ сейчас наружу :5432 = pooler (Supavisor). Override :5433 (direct-pg) — если поднимут.
 
 [[sources]]
 id = "sfrfr_yc"
-# Прямой Postgres :5433 на ВМ, с ноутбука — только через OpenSSH -L (см. .cmd).
+# Локальный порт туннеля; remote port задаётся SSH_REMOTE_PORT в secrets/supabase-selfhost-mcp.env.
 dsn = "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 [[tools]]
