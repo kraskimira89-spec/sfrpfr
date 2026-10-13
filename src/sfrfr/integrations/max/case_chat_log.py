@@ -41,6 +41,7 @@ CALLBACK_LABELS: dict[str, str] = {
     "intake:whom:self": "За себя",
     "intake:whom:relative": "Помогаю близкому",
     "intake:operator": CALLBACK_REQUEST_LABEL,
+    "intake:callback": CALLBACK_REQUEST_LABEL,
     "intake:goal:operator": CALL_OPERATOR_LABEL,
     "intake:agree_plan": "Согласовать план со специалистом",
     "intake:pension:before": "До пенсии",

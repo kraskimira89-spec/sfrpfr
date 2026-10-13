@@ -287,9 +287,9 @@ def menu_keyboard() -> list[dict[str, Any]]:
             [{"type": "callback", "text": "Статус моего дела", "payload": MENU_STATUS}],
             [
                 {
-                    "type": "link",
-                    "text": "Оставить заявку на обратный звонок",
-                    "url": "https://proverkastaza.ru/#zayavka",
+                    "type": "callback",
+                    "text": "Заказать звонок",
+                    "payload": "intake:callback",
                 }
             ],
         ]

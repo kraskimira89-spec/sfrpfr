@@ -21,6 +21,11 @@ from sfrfr.integrations.max.client import (
 )
 from sfrfr.integrations.max.intake import (
     CALL_OPERATOR_LABEL,
+    CALLBACK_REQUEST_LABEL,
+    CALLBACK_REQUEST_NEED_PHONE,
+    CALLBACK_REQUEST_PAYLOAD,
+    CALLBACK_REQUEST_PROMPT,
+    CALLBACK_REQUEST_THANKS,
     DOCS_BASE_TEXT,
     DOCS_GOSUSLUGI_TEXT,
     DOCS_INFO_TEXT,
@@ -31,8 +36,11 @@ from sfrfr.integrations.max.intake import (
     FALLBACK_MENU_TEXT,
     ILS_HOWTO_MFC_TEXT,
     ILS_HOWTO_TEXT,
-    OPERATOR_CONFIRM_TEXT,
     SUMMARY_TEXT,
+    clear_callback_waiting,
+    is_callback_waiting,
+    mark_callback_waiting,
+    parse_callback_contact,
     UPLOAD_ACCEPTED_TEXT,
     UPLOAD_BLOCKED_TEXT,
     WELCOME_TEXT,
@@ -517,8 +525,8 @@ def _callback_ack_notification(payload: str) -> str:
     low = (payload or "").strip().lower()
     if low.startswith("intake:docs") or low in {"intake:docs_info", "intake:restart"}:
         return "Принято. Готовлю ответ…"
-    if low.startswith("intake:operator"):
-        return "Принято. Передаю специалисту…"
+    if low.startswith("intake:operator") or low == CALLBACK_REQUEST_PAYLOAD:
+        return "Принято. Ждём телефон и имя…"
     if low.startswith("intake:"):
         return "Выбор принят"
     return "Принято"
@@ -1392,6 +1400,36 @@ def _notify_staff_chat_docs(
         )
 
 
+def _notify_ops_callback_request(
+    *,
+    user_id: str,
+    case_id: str | None,
+    full_name: str | None,
+    phone: str | None,
+) -> None:
+    """Личка ops: клиент оставил имя/телефон для обратного звонка."""
+    try:
+        from sfrfr.integrations.amocrm.urls import admin_case_max_reply_url
+        from sfrfr.integrations.max.ops_client_label import format_ops_client_block
+
+        admin = admin_case_max_reply_url(case_id) if case_id else ""
+        name = (full_name or "").strip() or "не указано"
+        phone_line = (phone or "").strip() or "не указан"
+        text = (
+            "Заявка на обратный звонок\n"
+            f"{format_ops_client_block(max_user_id=user_id, full_name=full_name)}\n"
+            f"Имя: {name}\n"
+            f"Телефон: {phone_line}\n"
+        )
+        if admin:
+            text += f"Дело: {admin}\n"
+        _fanout_ops_text(text, dm_only=True)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "max_callback_ops_notify_failed max=%s", user_id
+        )
+
+
 def _handle_operator(
     bot: MaxBotClient,
     *,
@@ -1400,6 +1438,7 @@ def _handle_operator(
     store,
     intake=None,
 ) -> MaxHandleResult:
+    """Заказ звонка: просим телефон и имя в чате (не сайт)."""
     intake_store = get_intake_store()
     if intake is None:
         intake = intake_store.upsert_started(user_id)
@@ -1407,22 +1446,55 @@ def _handle_operator(
         intake.goal = "operator"
     step = intake.step()
     case_id = _ensure_case_for_intake(user_id=user_id, chat_id=chat_id, intake=intake, store=store)
+    mark_callback_waiting(intake)
+    intake_store.save(intake)
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=CALLBACK_REQUEST_PROMPT)
+    return MaxHandleResult(
+        ok=True,
+        action="max_callback_ask",
+        case_id=case_id,
+        reply=CALLBACK_REQUEST_PROMPT,
+        detail=step,
+    )
+
+
+def _handle_callback_contact_text(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store,
+    intake,
+    text: str,
+) -> MaxHandleResult:
+    name, phone = parse_callback_contact(text)
+    if not phone:
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=CALLBACK_REQUEST_NEED_PHONE)
+        return MaxHandleResult(
+            ok=True,
+            action="max_callback_need_phone",
+            case_id=getattr(intake, "case_id", None) or _case_id_for_max_user(user_id),
+            reply=CALLBACK_REQUEST_NEED_PHONE,
+        )
+    case_id = _ensure_case_for_intake(
+        user_id=user_id, chat_id=chat_id, intake=intake, store=store
+    )
+    clear_callback_waiting(intake)
     from datetime import UTC, datetime
 
     intake.status = "handed_to_operator"
     intake.completed_at = datetime.now(UTC).isoformat()
-    intake_store.save(intake)
+    get_intake_store().save(intake)
+    _notify_ops_callback_request(
+        user_id=user_id, case_id=case_id, full_name=name, phone=phone
+    )
     _notify_operator_amocrm(user_id=user_id, intake=intake, case_id=case_id)
-    # Немедленная личка ops-боту специалисту/админу (не ждём email и не только канал).
-    if case_id:
-        _notify_ops_max_operator(user_id=user_id, case_id=case_id, crm_url=None)
-    _reply(bot, user_id=user_id, chat_id=chat_id, text=OPERATOR_CONFIRM_TEXT)
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=CALLBACK_REQUEST_THANKS)
     return MaxHandleResult(
         ok=True,
-        action="max_operator_requested",
+        action="max_callback_received",
         case_id=case_id,
-        reply=OPERATOR_CONFIRM_TEXT,
-        detail=step,
+        reply=CALLBACK_REQUEST_THANKS,
     )
 
 
@@ -1574,7 +1646,11 @@ def _handle_intake_callback(
         )
         return MaxHandleResult(ok=True, action="max_intake_restart", reply=text)
 
-    if kind == "operator" or payload == "intake:goal:operator":
+    if (
+        kind == "operator"
+        or kind == "callback"
+        or payload in {"intake:goal:operator", CALLBACK_REQUEST_PAYLOAD}
+    ):
         if kind == "goal":
             intake.goal = "operator"
             intake_store.save(intake)
@@ -3196,7 +3272,8 @@ def handle_max_update(
                         chat_id=chat_id,
                         text=(
                             "Хорошо — можно идти по плану диагностики самостоятельно. "
-                            "Если понадобится помощь — оставьте заявку на обратный звонок."
+                            "Если понадобится помощь — нажмите «Заказать звонок» "
+                            "и оставьте телефон с именем."
                         ),
                         case_id=cid,
                     )
@@ -3382,8 +3459,25 @@ def handle_max_update(
             )
             return MaxHandleResult(ok=True, action="review_flow", reply=text)
 
-    if lower in {CALL_OPERATOR_LABEL.lower(), "позвать специалиста", "оператор"}:
+    if lower in {
+        CALL_OPERATOR_LABEL.lower(),
+        CALLBACK_REQUEST_LABEL.lower(),
+        "позвать специалиста",
+        "заказать звонок",
+        "оператор",
+    }:
         return _handle_operator(bot, user_id=user_id, chat_id=chat_id, store=store)
+
+    intake_cb = get_intake_store().get_active(user_id)
+    if text and not callback and is_callback_waiting(intake_cb):
+        return _handle_callback_contact_text(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            intake=intake_cb,
+            text=text,
+        )
 
     if login_hit:
         return _send_confirm_web_login(

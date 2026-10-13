@@ -294,7 +294,7 @@ def test_summary_and_upload_keyboards_chat_only_no_cabinet() -> None:
         assert "Кабинет" not in " ".join(labels)
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
         assert all("cabinet." not in u for u in links)
-        assert any("#zayavka" in u for u in links)
+        assert links == []
     assert "чат" in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in UPLOAD_BLOCKED_TEXT.lower()
@@ -319,7 +319,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
     assert "чат" in WELCOME_TEXT.lower()
-    assert "обратный звонок" in WELCOME_TEXT.lower()
+    assert "звонок" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
     assert "чат" in DOCS_STAZH_TEXT.lower()
     assert "личном кабинете" not in DOCS_STAZH_TEXT.lower()
