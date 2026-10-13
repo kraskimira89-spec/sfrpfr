@@ -13,19 +13,18 @@ variable "api_url" {
 variable "server_name" {
   type        = string
   description = "Имя облачного сервера"
-  default     = "sfrfrdb1"
+  default     = "sfrfr-supabase-db-regru"
 }
 
 variable "server_size" {
   type        = string
   description = <<-EOT
     Тариф size (формат c{CPU}-m{RAM}-d{DISK}-{line}).
-    Цель: ≥2vCPU/4GB/40GB, предпочтительно 4/8/40.
-    Минимальный рабочий (2026-10): c2-m2-d40-stdp = 2vCPU/2GB/40GB на openstack-msk2.
-    GET /v1/sizes (base-1/cloud-*) на msk1 даёт 500 при create — не использовать.
-    Для Supabase 2GB тесно; апгрейд size — отдельно после стека.
+    Цель Supabase: ≥2vCPU/4GB/40GB.
+    Рабочий create (2026-10): c2-m4-d80-stdp = 2vCPU/4GB/80GB на openstack-msk2.
+    GET /v1/sizes (base-*/cloud-*) только msk1 — create там часто 500; stdp на msk2 — рабочий путь.
   EOT
-  default     = "c2-m2-d40-stdp"
+  default     = "c2-m4-d80-stdp"
 }
 
 variable "server_image" {
