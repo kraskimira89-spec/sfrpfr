@@ -1,0 +1,20 @@
+# Скопируйте: copy terraform.tfvars.example terraform.tfvars
+# terraform.tfvars в .gitignore — не коммитить.
+#
+# Токен: панель https://cloud.reg.ru/panel/ → Настройки → API-токен
+# Либо: $env:TF_VAR_token = "..."  (тогда token в tfvars можно не писать)
+
+token   = "REPLACE_WITH_REGCLOUD_API_TOKEN"
+api_url = "https://api.cloudvps.reg.ru"
+
+server_name  = "sfrfr-supabase-db-regru"
+# Сверить size/image в панели заказа — не все комбинации доступны.
+server_size  = "c4-m8-d40-hp"
+server_image = "ubuntu-24-04-amd64-docker"
+region_slug  = "openstack-msk1"
+
+ssh_key_name = "sfrfr-owner-ed25519"
+# По умолчанию уже ключ владельца из ТЗ; переопределять только при смене ключа.
+# ssh_public_key = "ssh-ed25519 AAAA... comment"
+
+enable_backups = false
