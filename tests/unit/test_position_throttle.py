@@ -33,6 +33,7 @@ def test_strip_and_apply_policy() -> None:
 
 
 def test_client_has_pdn_consent() -> None:
+    from sfrfr.db.case_repository import CURRENT_CONSENT_VERSION
     from sfrfr.services.client_pdn_consent import client_has_pdn_consent
 
     assert client_has_pdn_consent(None) is False
@@ -40,7 +41,7 @@ def test_client_has_pdn_consent() -> None:
     assert (
         client_has_pdn_consent(
             {
-                "pdn_consent_version": "pdn-consent-2026-09-28",
+                "pdn_consent_version": CURRENT_CONSENT_VERSION,
                 "pdn_consent_accepted_at": "2026-09-01T00:00:00Z",
             }
         )
