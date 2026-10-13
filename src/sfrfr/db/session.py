@@ -36,7 +36,8 @@ def supabase_client_options():
     client_options = _import_from_supabase("ClientOptions")
     return client_options(
         httpx_client=httpx.Client(
-            timeout=httpx.Timeout(DEFAULT_POSTGREST_CLIENT_TIMEOUT),
+            # connect короткий: при недоступной БД синхронные ручки не держат пул потоков минутами
+            timeout=httpx.Timeout(DEFAULT_POSTGREST_CLIENT_TIMEOUT, connect=5.0),
             verify=True,
         )
     )

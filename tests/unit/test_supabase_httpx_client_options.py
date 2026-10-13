@@ -23,3 +23,9 @@ def test_create_client_with_options_has_no_timeout_verify_deprecation() -> None:
         and ("timeout" in str(w.message) or "verify" in str(w.message))
     ]
     assert msgs == []
+
+
+def test_connect_timeout_is_short_so_dead_db_does_not_starve_threadpool() -> None:
+    timeout = supabase_client_options().httpx_client.timeout
+    assert timeout.connect is not None and timeout.connect <= 5
+    assert timeout.read is not None and timeout.read >= 30

@@ -899,6 +899,15 @@ def _ensure_case_for_intake(
         "ensure_case: supabase case unavailable, buffering chat max=%s",
         user_id,
     )
+    try:
+        from sfrfr.services.lead_emergency_buffer import capture_max_lead_db_down
+
+        name = " ".join(
+            p for p in (intake.max_first_name, intake.max_last_name) if (p or "").strip()
+        )
+        capture_max_lead_db_down(max_user_id=user_id, full_name=name or None)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("emergency max lead capture failed max=%s: %s", user_id, exc)
     return ""
 
 

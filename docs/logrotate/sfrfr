@@ -1,0 +1,12 @@
+# /etc/logrotate.d/sfrfr — ставится scripts/vps_deploy.sh.
+# Юниты пишут через StandardOutput/StandardError=append:, поэтому copytruncate.
+/var/log/sfrfr/*.log /var/log/sfrfr/*.err {
+    daily
+    maxsize 50M
+    rotate 7
+    compress
+    missingok
+    notifempty
+    copytruncate
+    su root root
+}
