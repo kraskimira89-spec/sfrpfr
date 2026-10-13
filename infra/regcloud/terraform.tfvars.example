@@ -9,12 +9,15 @@ api_url = "https://api.cloudvps.reg.ru"
 
 server_name  = "sfrfr-supabase-db-regru"
 # Сверить size/image в панели заказа — не все комбинации доступны.
-server_size  = "c4-m8-d40-hp"
-server_image = "ubuntu-24-04-amd64-docker"
-region_slug  = "openstack-msk1"
+server_size  = "base-8"
+server_image = "ubuntu-22-04-amd64"
+region_slug  = "msk1"
 
-ssh_key_name = "sfrfr-owner-ed25519"
-# По умолчанию уже ключ владельца из ТЗ; переопределять только при смене ключа.
+# Ключ уже в панели как regru_terraform_vm — не создавать заново:
+manage_ssh_key      = false
+ssh_key_fingerprint = "31:da:b1:9e:bf:9b:ec:79:6e:07:12:7f:fe:4b:8c:7d"
+# Для нового ключа: manage_ssh_key=true и имя БЕЗ дефисов.
+# ssh_key_name   = "regru_terraform_vm"
 # ssh_public_key = "ssh-ed25519 AAAA... comment"
 
 enable_backups = false
