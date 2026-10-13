@@ -1,3 +1,9 @@
+## 2026-10-13 — cutover на supabase2 (reg.ru, SFRFR-73)
+
+Рабочий URL `https://supabase2.proverkastaza.ru` → ВМ `194.67.116.168`;
+`A supabase` (Яндекс) сохранён. App-VPS `.env` переключён; smoke API/OTP OK.
+`docs/history/2026-10-13-supabase2-cutover.md`, runbook DR обновлён.
+
 ## 2026-10-09 — публичные упоминания остаточной копии Supabase Cloud убраны
 
 Политика и согласие (md + HTML) без бренда Cloud и без абзаца об остаточной копии;

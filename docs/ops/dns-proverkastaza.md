@@ -12,34 +12,37 @@ NS: `ns1.reg.ru` / `ns2.reg.ru` (как у старого домена).
 | A | `api` | `91.229.11.147` |
 | A | `cabinet` | `91.229.11.147` |
 | A | `admin` | `91.229.11.147` |
-| A | `supabase` | `51.250.13.240` |
+| A | `supabase` | `51.250.69.237` |
+| A | `supabase2` | `194.67.116.168` |
 
-## Staging Supabase (Yandex Cloud, ТЗ-15)
+## Supabase (self-host)
 
 | Тип | Имя (хост) | Значение | Зачем |
 |-----|------------|----------|--------|
-| A | `supabase` | `51.250.13.240` | self-host staging → Caddy/Let's Encrypt на ВМ |
+| A | `supabase` | `51.250.69.237` | Яндекс `sfrfr-supabase-db-01` — DNS **сохранён**, не cutover |
+| A | `supabase2` | `194.67.116.168` | **рабочий** reg.ru после cutover SFRFR-73 (Caddy/LE) |
 
 ### Как добавить (выберите один способ)
 
 **A. Панель reg.ru (вручную)**  
-DNS-зона `proverkastaza.ru` → A `supabase` → `51.250.13.240`.
+DNS-зона `proverkastaza.ru` → A `supabase2` → `194.67.116.168` (рабочий).  
+A `supabase` → Яндекс IP не менять без отдельного решения.
 
 **B. REG.API 2 (скрипт)**  
 1. В кабинете: API-пароль + allowlist IP.  
-2. `docs/ops/regru.env.example` → `secrets/regru.env`.  
+2. `docs/ops/regru.env.example` → `secrets/regru.env` (`REGRU_SUBDOMAIN=supabase2`, `REGRU_IP=194.67.116.168`).  
 3. `python scripts/regru_add_supabase_a.py`  
-4. `.\scripts\wait_supabase_dns_and_tls.ps1` — дождаться DNS и перезапустить Caddy/ACME.
+4. `.\scripts\wait_supabase_dns_and_tls.ps1 -HostName supabase2.proverkastaza.ru -ExpectIp 194.67.116.168`
 
 Проверка:
 
 ```powershell
-nslookup supabase.proverkastaza.ru 8.8.8.8
+nslookup supabase2.proverkastaza.ru 8.8.8.8
 ```
 
-Ожидание: `Address: 51.250.13.240`. Caddy на ВМ уже поднят; после появления DNS он получит Let's Encrypt (или перезапуск: `wait_supabase_dns_and_tls.ps1`).
+Ожидание: `Address: 194.67.116.168`. Caddy на ВМ уже поднят; после DNS — Let's Encrypt.
 
-Studio наружу не открываем: в Caddy Studio за basic_auth; Postgres `5432` в интернет не публиковать (закрыт Security Group).
+Studio наружу не открываем: в Caddy Studio за basic_auth; Postgres `5433` только с App-VPS `91.229.11.147` (UFW + `DOCKER-USER`).
 
 ## Почта Яндекс 360 (MX + DKIM)
 

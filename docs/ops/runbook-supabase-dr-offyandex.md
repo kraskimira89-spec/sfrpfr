@@ -21,9 +21,13 @@
 Файлы клиентов лежат на VPS (`storage/uploads`), в Supabase Storage — 1 объект; переносить Storage
 не требуется.
 
-**Статус 2026-10-13 (SFRFR-73):** резервная ВМ reg.ru `194.67.116.168` — стек healthy;
-дамп `db01-20261011T003002Z` восстановлен в Postgres (`public` 32 таблицы; clients/cases
-совпали с dump). DNS `A supabase` и `.env` App-VPS **ещё не** переключали — шаги 2.7–2.9.
+**Статус 2026-10-13 (SFRFR-73), cutover:** рабочий стек — reg.ru `194.67.116.168`
+(`sfrfr-supabase-db-regru`), публичный URL **`https://supabase2.proverkastaza.ru`**
+(Caddy + Let's Encrypt, smoke корень → 401). DNS `A supabase` → Яндекс `51.250.69.237`
+**не трогали** (оставлен). App-VPS: `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` →
+`https://supabase2.proverkastaza.ru`; `DATABASE_URL` / `DBT_HOST` → `194.67.116.168:5433`
+(UFW + `DOCKER-USER`: 5433 только с `91.229.11.147`). Бэкап `.env` на VPS:
+`.env.bak-supabase2-2026-10-13`.
 
 ## 1. Шаги владельца на reg.ru
 
