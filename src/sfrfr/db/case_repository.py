@@ -14,7 +14,7 @@ from fastapi import HTTPException, status
 from sfrfr.db.session import get_supabase_client
 from sfrfr.security.auth import Principal, StaffRole
 
-CURRENT_CONSENT_VERSION = "pdn-consent-2026-09-28"
+CURRENT_CONSENT_VERSION = "pdn-consent-2026-10-13"
 
 
 class PaymentSlotConflict(Exception):

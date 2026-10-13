@@ -1418,7 +1418,7 @@ export function ClientCabinet() {
       await apiFetch(`/api/portal/cases/${selectedId}/consents`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: "pdn-consent-2026-09-28" }),
+        body: JSON.stringify({ version: "pdn-consent-2026-10-13" }),
       });
       setNotice("Согласие на обработку ПДн зафиксировано.");
       await openCase(selectedId, view === "docs" ? "docs" : "case");
