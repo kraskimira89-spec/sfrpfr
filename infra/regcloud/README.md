@@ -1,6 +1,6 @@
 # SFRFR — Terraform / OpenTofu для Рег.облака (reg.cloud)
 
-Резервная ВМ `sfrfr-supabase-db-regru` под self-hosted Supabase.
+Резервная ВМ `sfrfrdb1` под self-hosted Supabase (default size: `c2-m2-d40-stdp` / `openstack-msk2`).
 
 - Дока провайдера: [Начало работы с Terraform](https://reg.cloud/support/cloud/instrumenty/terraform/rabota-s-terraform/nachalo-raboty-s-terraform)
 - ТЗ резерва: [docs/ops/tz-regru-assistant-supabase-reserve.md](../../docs/ops/tz-regru-assistant-supabase-reserve.md)

@@ -1,6 +1,6 @@
 output "ssh_key_fingerprint" {
-  description = "Fingerprint загруженного SSH-ключа"
-  value       = regcloud_ssh_key.owner.fingerprint
+  description = "Fingerprint SSH-ключа на сервере"
+  value       = local.ssh_key_fingerprint
 }
 
 output "server_id" {
