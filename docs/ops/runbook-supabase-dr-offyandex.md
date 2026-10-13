@@ -21,6 +21,10 @@
 Файлы клиентов лежат на VPS (`storage/uploads`), в Supabase Storage — 1 объект; переносить Storage
 не требуется.
 
+**Статус 2026-10-13 (SFRFR-73):** резервная ВМ reg.ru `194.67.116.168` — стек healthy;
+дамп `db01-20261011T003002Z` восстановлен в Postgres (`public` 32 таблицы; clients/cases
+совпали с dump). DNS `A supabase` и `.env` App-VPS **ещё не** переключали — шаги 2.7–2.9.
+
 ## 1. Шаги владельца на reg.ru
 
 1. **Сразу (до аренды):** в DNS-зоне `proverkastaza.ru` (ns1/ns2.reg.ru) уменьшить TTL записи
