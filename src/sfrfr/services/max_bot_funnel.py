@@ -19,7 +19,7 @@ from typing import Any
 
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.bot_owned import is_bot_owned
-from sfrfr.integrations.max.intake import CALL_OPERATOR_LABEL
+from sfrfr.integrations.max.intake import callback_request_button
 from sfrfr.services.max_post_diagnosis import (
     brief_recommendations_from_findings,
     sanitize_finding_line,
@@ -71,7 +71,7 @@ def funnel_keyboard(*, include_agree_plan: bool = True) -> list[dict[str, Any]]:
             [{"type": "callback", "text": AGREE_PLAN_LABEL, "payload": AGREE_PLAN_PAYLOAD}]
         )
     rows.append(
-        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
+        [callback_request_button()]
     )
     return inline_buttons_keyboard(rows)
 

@@ -165,7 +165,7 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
         "Загрузить документы",
         "Какие документы нужны",
         "Статус моего дела",
-        "Связаться со специалистом",
+        "Оставить заявку на обратный звонок",
     ):
         assert label in menu
     rec = get_intake_store().get_active("802")
