@@ -458,9 +458,9 @@ def maybe_offer_docs_invoice(
         [
             [
                 {
-                    "type": "callback",
-                    "text": "Позвать специалиста",
-                    "payload": "intake:operator",
+                    "type": "link",
+                    "text": "Оставить заявку на обратный звонок",
+                    "url": "https://proverkastaza.ru/#zayavka",
                 }
             ],
         ]

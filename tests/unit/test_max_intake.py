@@ -293,7 +293,8 @@ def test_summary_and_upload_keyboards_chat_only_no_cabinet() -> None:
         assert DOCUMENTS_SECTION_LABEL not in labels
         assert "Кабинет" not in " ".join(labels)
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
-        assert links == []
+        assert all("cabinet." not in u for u in links)
+        assert any("#zayavka" in u for u in links)
     assert "чат" in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in UPLOAD_BLOCKED_TEXT.lower()
@@ -317,7 +318,8 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "опек" in low or "дет" in low
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
-    assert "едином чате" in WELCOME_TEXT.lower() or "чат по делу" in WELCOME_TEXT.lower()
+    assert "чат" in WELCOME_TEXT.lower()
+    assert "обратный звонок" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
     assert "чат" in DOCS_STAZH_TEXT.lower()
     assert "личном кабинете" not in DOCS_STAZH_TEXT.lower()
@@ -546,7 +548,7 @@ def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) 
     )
     assert result.action == "free_text_nudge"
     assert "кнопками" in (result.reply or "").lower()
-    assert "Позвать специалиста" in (result.reply or "")
+    assert "обратный звонок" in (result.reply or "").lower()
     assert "Я бот сервиса" not in (result.reply or "")
     assert result.reply != FALLBACK_MENU_TEXT  # nudge = fallback + подсказка шага
     assert "Выберите пункт меню ниже" not in (result.reply or "")

@@ -44,7 +44,7 @@ WELCOME_PART_1 = (
     "Я бот сервиса «Проверка стажа». Здесь можно:\n"
     "• коротко уточнить ситуацию — за себя или помочь близкому;\n"
     "• понять, какие документы нужны для сверки стажа и ИЛС;\n"
-    "• написать вопрос в едином чате и позвать специалиста.\n\n"
+    "• написать вопрос в чате или оставить заявку на обратный звонок.\n\n"
     "Для кого проверка? Выберите кнопку под этим сообщением."
 )
 
@@ -84,7 +84,7 @@ def format_welcome_text(*, display_name: str | None = None) -> str:
 FALLBACK_MENU_TEXT = (
     "Спасибо за сообщение.\n\n"
     "Сейчас удобнее отвечать кнопками ниже — так мы быстрее поймём ситуацию. "
-    "Если хотите поговорить с человеком, нажмите «Позвать специалиста».\n\n"
+    "Если удобнее созвониться — оставьте заявку на обратный звонок.\n\n"
     "Документы можно прислать прямо в этот чат — PDF или фото."
 )
 
@@ -252,7 +252,18 @@ UPLOAD_BLOCKED_TEXT = (
 OPEN_CABINET_LABEL = "Кабинет на сайте"
 OPEN_CABINET_WEB_LABEL = OPEN_CABINET_LABEL  # совместимость импортов
 OPEN_CABINET_MAX_LABEL = OPEN_CABINET_LABEL  # устар.: раньше «В MAX — кабинет»
-CALL_OPERATOR_LABEL = "Позвать специалиста"
+CALL_OPERATOR_LABEL = "Позвать специалиста"  # legacy: текст / старые callback
+CALLBACK_REQUEST_LABEL = "Оставить заявку на обратный звонок"
+CALLBACK_REQUEST_URL = "https://proverkastaza.ru/#zayavka"
+
+
+def callback_request_button() -> dict[str, Any]:
+    """Ссылка на форму заявки (обратный звонок), вместо callback «Позвать специалиста»."""
+    return {
+        "type": "link",
+        "text": CALLBACK_REQUEST_LABEL,
+        "url": CALLBACK_REQUEST_URL,
+    }
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 DOCS_BASE_LABEL = "Базовый набор"
 DOCS_STAZH_LABEL = "Подтверждение стажа"
@@ -481,7 +492,7 @@ def whom_keyboard() -> list[dict[str, Any]]:
         [
             [{"type": "callback", "text": "За себя", "payload": "intake:whom:self"}],
             [{"type": "callback", "text": "Помогаю близкому", "payload": "intake:whom:relative"}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
         ]
     )
 
@@ -497,7 +508,7 @@ def pension_keyboard() -> list[dict[str, Any]]:
                     "payload": "intake:pension:assigned",
                 }
             ],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
@@ -516,7 +527,7 @@ def problem_keyboard() -> list[dict[str, Any]]:
             ],
             [{"type": "callback", "text": "Документы", "payload": "intake:problem:documents"}],
             [{"type": "callback", "text": "Отказ СФР", "payload": "intake:problem:sfr_refusal"}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
@@ -540,7 +551,7 @@ def ils_keyboard() -> list[dict[str, Any]]:
                     "payload": "intake:ils:unknown",
                 }
             ],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
@@ -553,7 +564,7 @@ def ils_howto_keyboard() -> list[dict[str, Any]]:
             [{"type": "link", "text": ILS_ARTICLE_LABEL, "url": ILS_BLOG_URL}],
             [{"type": "callback", "text": ILS_GOT_LABEL, "payload": "intake:ils_guide:done"}],
             [{"type": "callback", "text": ILS_MFC_LABEL, "payload": "intake:ils_guide:mfc"}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
@@ -570,7 +581,7 @@ def emp_howto_keyboard() -> list[dict[str, Any]]:
                     "payload": "intake:emp_guide:done",
                 }
             ],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}],
         ]
     )
@@ -581,7 +592,7 @@ def employment_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
         [{"type": "callback", "text": "Да", "payload": "intake:emp:yes"}],
         [{"type": "callback", "text": "Часть документов", "payload": "intake:emp:partial"}],
         [{"type": "callback", "text": "Нет", "payload": "intake:emp:no"}],
-        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+        [callback_request_button()],
     ]
     if with_back:
         rows.append([{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}])
@@ -600,7 +611,7 @@ def device_keyboard(*, with_back: bool = True) -> list[dict[str, Any]]:
             }
         ],
         [{"type": "callback", "text": "Нужна помощь", "payload": "intake:device:help"}],
-        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+        [callback_request_button()],
     ]
     if with_back:
         rows.append([{"type": "callback", "text": BACK_LABEL, "payload": "intake:back"}])
@@ -619,12 +630,12 @@ def summary_keyboard(
     rows: list[list[dict[str, Any]]] = []
     if device == "help":
         rows.append(
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]
+            [callback_request_button()]
         )
     rows.extend(
         [
             [{"type": "callback", "text": DOCS_INFO_LABEL, "payload": "intake:docs_info"}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
             [{"type": "callback", "text": RESTART_LABEL, "payload": "intake:restart"}],
         ]
     )
@@ -635,7 +646,7 @@ def documents_upload_keyboard(*, cabinet_url: str | None = None) -> list[dict[st
     """Кнопки после просьбы прислать документы (без ссылки на кабинет)."""
     del cabinet_url
     return inline_buttons_keyboard(
-        [[{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]]
+        [[callback_request_button()]]
     )
 
 
@@ -647,7 +658,7 @@ def upload_blocked_keyboard(
 ) -> list[dict[str, Any]]:
     del cabinet_url, cabinet_max_url, cabinet_web_url
     return inline_buttons_keyboard(
-        [[{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]]
+        [[callback_request_button()]]
     )
 
 
@@ -667,7 +678,7 @@ def docs_info_keyboard(
         [{"type": "link", "text": OPEN_GOSUSLUGI_LABEL, "url": GOSUSLUGI_URL}],
         [{"type": "link", "text": DOCS_ARTICLE_LABEL, "url": DOCS_CHECKLIST_URL}],
         [{"type": "callback", "text": "Как получить ИЛС", "payload": "intake:docs:ils_howto"}],
-        [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+        [callback_request_button()],
     ]
     return inline_buttons_keyboard(rows)
 
@@ -679,7 +690,7 @@ def docs_section_keyboard() -> list[dict[str, Any]]:
             [{"type": "callback", "text": "К списку разделов", "payload": "intake:docs_info"}],
             [{"type": "callback", "text": DOCS_GOS_LABEL, "payload": "intake:docs:gosuslugi"}],
             [{"type": "link", "text": OPEN_GOSUSLUGI_LABEL, "url": GOSUSLUGI_URL}],
-            [{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}],
+            [callback_request_button()],
         ]
     )
 

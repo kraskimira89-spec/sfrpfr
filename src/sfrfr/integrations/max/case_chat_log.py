@@ -13,6 +13,7 @@ from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.intake import (
     BACK_LABEL,
     CALL_OPERATOR_LABEL,
+    CALLBACK_REQUEST_LABEL,
     DOCS_ARTICLE_LABEL,
     DOCS_BASE_LABEL,
     DOCS_GOS_LABEL,
@@ -39,7 +40,7 @@ _loaded = False
 CALLBACK_LABELS: dict[str, str] = {
     "intake:whom:self": "За себя",
     "intake:whom:relative": "Помогаю близкому",
-    "intake:operator": CALL_OPERATOR_LABEL,
+    "intake:operator": CALLBACK_REQUEST_LABEL,
     "intake:goal:operator": CALL_OPERATOR_LABEL,
     "intake:agree_plan": "Согласовать план со специалистом",
     "intake:pension:before": "До пенсии",

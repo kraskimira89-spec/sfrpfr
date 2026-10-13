@@ -7,7 +7,7 @@ from typing import Any
 
 from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
 from sfrfr.integrations.max.bot_owned import is_bot_owned
-from sfrfr.integrations.max.intake import CALL_OPERATOR_LABEL
+from sfrfr.integrations.max.intake import callback_request_button
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def operator_keyboard() -> list[dict[str, Any]]:
     from sfrfr.integrations.max.client import inline_buttons_keyboard
 
     return inline_buttons_keyboard(
-        [[{"type": "callback", "text": CALL_OPERATOR_LABEL, "payload": "intake:operator"}]]
+        [[callback_request_button()]]
     )
 
 
