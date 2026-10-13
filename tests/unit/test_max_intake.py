@@ -404,10 +404,11 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
 
     handle_max_update(_msg(11, "/start"), bot=bot)
     result = handle_max_update(_cb(11, "intake:goal:operator"), bot=bot)
-    assert result.action == "max_operator_requested"
+    assert result.action == "max_callback_ask"
     assert result.case_id
-    assert any("специалисту" in t for _, t in bot.sent)
-    assert calls and calls[0].get("task") == "max_operator"
+    assert any("телефон" in t.lower() and "имя" in t.lower() for _, t in bot.sent)
+    # AMO/task — после контакта; на шаге «спросить телефон» ещё нет
+    assert not calls
     get_settings.cache_clear()
 
 
@@ -548,7 +549,7 @@ def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) 
     )
     assert result.action == "free_text_nudge"
     assert "кнопками" in (result.reply or "").lower()
-    assert "обратный звонок" in (result.reply or "").lower()
+    assert "звонок" in (result.reply or "").lower()
     assert "Я бот сервиса" not in (result.reply or "")
     assert result.reply != FALLBACK_MENU_TEXT  # nudge = fallback + подсказка шага
     assert "Выберите пункт меню ниже" not in (result.reply or "")

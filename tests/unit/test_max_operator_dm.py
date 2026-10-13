@@ -53,7 +53,8 @@ def test_notify_max_sends_dm_before_channel(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_operator_button_notifies_ops_dm(tmp_path: Path, monkeypatch) -> None:
+def test_operator_button_asks_then_notifies_ops_dm(tmp_path: Path, monkeypatch) -> None:
+    """Кнопка → просим телефон/имя → после контакта личка ops."""
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
@@ -66,7 +67,7 @@ def test_operator_button_notifies_ops_dm(tmp_path: Path, monkeypatch) -> None:
         lambda **_k: "case-op-1",
     )
     monkeypatch.setattr(
-        "sfrfr.integrations.max.handler._notify_operator_staff",
+        "sfrfr.integrations.max.handler._notify_operator_amocrm",
         lambda **_k: None,
     )
 
@@ -74,16 +75,21 @@ def test_operator_button_notifies_ops_dm(tmp_path: Path, monkeypatch) -> None:
         ops_calls.append(kw)
 
     monkeypatch.setattr(
-        "sfrfr.integrations.max.handler._notify_ops_max_operator",
+        "sfrfr.integrations.max.handler._notify_ops_callback_request",
         _ops,
     )
 
     handle_max_update(_msg(77, "/start"), bot=bot)
-    result = handle_max_update(_cb(77, "intake:operator"), bot=bot)
-    assert result.action == "max_operator_requested"
+    ask = handle_max_update(_cb(77, "intake:operator"), bot=bot)
+    assert ask.action == "max_callback_ask"
+    assert not ops_calls
+
+    result = handle_max_update(_msg(77, "Иван +79091234567"), bot=bot)
+    assert result.action == "max_callback_received"
     assert ops_calls
     assert ops_calls[0]["user_id"] == "77"
     assert ops_calls[0]["case_id"] == "case-op-1"
+    assert ops_calls[0]["phone"] == "+79091234567"
     get_settings.cache_clear()
 
 

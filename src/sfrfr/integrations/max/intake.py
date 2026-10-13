@@ -302,7 +302,7 @@ def parse_callback_contact(text: str) -> tuple[str | None, str | None]:
         # вытащить подряд идущие цифры из смешанной строки
         digits = "".join(ch for ch in raw if ch.isdigit())
         phone = normalize_phone(digits)
-    name = raw
+    name: str | None = raw
     if phone:
         # убрать цифры/знаки телефона из имени
         compact = raw
@@ -315,6 +315,8 @@ def parse_callback_contact(text: str) -> tuple[str | None, str | None]:
     else:
         name = raw or None
     return name, phone
+
+
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 DOCS_BASE_LABEL = "Базовый набор"
 DOCS_STAZH_LABEL = "Подтверждение стажа"
