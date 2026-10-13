@@ -1,3 +1,9 @@
+## 2026-10-13 — юрдокументы: рабочие БД на РЕГ.РУ
+
+Редакции `pdn-policy-2026-10-13` / `pdn-consent-2026-10-13`: рабочие БД у РЕГ.РУ,
+Yandex Cloud — резервы и сервисы; bump согласия. Оферта и cookies без изменений.
+`docs/history/2026-10-13-legal-update.md`.
+
 ## 2026-10-13 — staff OTP: Send Email Hook на supabase2
 
 После cutover письма OTP не уходили: GoTrue бил в фейковый `supabase-mail`.

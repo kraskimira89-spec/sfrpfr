@@ -1,4 +1,4 @@
-"""Юрредакция 2026-09-28: отдельное согласие на ПДн (ч. 1 ст. 9 152-ФЗ) и хостинг."""
+"""Юрредакция 2026-10-13: рабочие БД на РЕГ.РУ после cutover supabase2."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ ASSETS = ROOT / "scripts" / "assets"
 
 
 def test_consent_version_is_new_edition() -> None:
-    assert CURRENT_CONSENT_VERSION == "pdn-consent-2026-09-28"
+    assert CURRENT_CONSENT_VERSION == "pdn-consent-2026-10-13"
 
 
 def test_payment_text_does_not_bundle_pdn_consent() -> None:
@@ -31,7 +31,9 @@ def test_payment_text_does_not_bundle_pdn_consent() -> None:
 
 def test_cabinet_payment_hints_do_not_bundle_pdn_consent() -> None:
     for name in ("client-cabinet.tsx", "case-work-map.tsx"):
-        src = (ROOT / "apps" / "cabinet" / "src" / "components" / name).read_text(encoding="utf-8")
+        src = (ROOT / "apps" / "cabinet" / "src" / "components" / name).read_text(
+            encoding="utf-8"
+        )
         assert "означает согласие с обработкой" not in src, name
 
 
@@ -43,15 +45,21 @@ def test_consent_version_synced_in_clients() -> None:
     ):
         src = (ROOT / rel).read_text(encoding="utf-8")
         assert CURRENT_CONSENT_VERSION in src, rel
-        assert "pdn-consent-2026-09-09" not in src, rel
+        assert "pdn-consent-2026-09-28" not in src, rel
 
 
-def test_legal_pages_new_editions_and_hosting() -> None:
+def test_legal_pages_new_editions_and_regru_db() -> None:
     privacy = (ASSETS / "sfrfr-privacy.html").read_text(encoding="utf-8")
     consent = (ASSETS / "sfrfr-consent.html").read_text(encoding="utf-8")
-    assert "pdn-policy-2026-09-28" in privacy
-    assert "pdn-consent-2026-09-28" in consent
+    assert "pdn-policy-2026-10-13" in privacy
+    assert "pdn-consent-2026-10-13" in consent
     for html in (privacy, consent):
-        assert "7733568767" in html  # ООО «РЕГ.РУ» — хостинг приложения
+        assert "7733568767" in html  # ООО «РЕГ.РУ»
+        assert "рабочие базы" in html.lower() or "Рабочие базы" in html
+        assert "аварийный буфер" in html
         assert "Postbox" in html
-        assert "«Начать»" in html
+        # Не утверждаем, что рабочие БД только у Яндекс.Облако
+        assert (
+            "развёрнуты Оператором самостоятельно в инфраструктуре ООО «РЕГ.РУ»" in html
+            or "российской инфраструктуре ООО «РЕГ.РУ»" in html
+        )
