@@ -283,6 +283,62 @@ def _staff_user_id_for_email(email: str) -> str | None:
     return user_id_of(user) if user else None
 
 
+def get_staff_email_by_phone(phone: str) -> str | None:
+    """Рабочий email сотрудника по телефону (staff_phone или default specialist)."""
+    from sfrfr.core.config import get_settings
+    from sfrfr.security.login_otp import normalize_phone
+
+    normalized = normalize_phone(phone)
+    if not normalized:
+        return None
+
+    client = get_supabase_client()
+    rows: list[dict[str, Any]] = []
+    try:
+        rows = (
+            client.table("staff_roles")
+            .select(
+                "user_id, role, staff_email, staff_phone, "
+                "trusted_login_max_user_id, max_user_id"
+            )
+            .eq("staff_phone", normalized)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:  # noqa: BLE001 — колонка staff_phone ещё не накатана
+        if "staff_phone" not in str(exc).lower():
+            raise
+        rows = []
+
+    if rows:
+        email = str(rows[0].get("staff_email") or "").strip().lower()
+        return email or None
+
+    settings = get_settings()
+    default_phone = normalize_phone(settings.max_default_specialist_phone or "")
+    default_mid = str(settings.max_default_specialist_max_user_id or "").strip()
+    if not default_mid or normalized != default_phone:
+        return None
+
+    for column in ("trusted_login_max_user_id", "max_user_id"):
+        hit = (
+            client.table("staff_roles")
+            .select("user_id, role, staff_email, trusted_login_max_user_id, max_user_id")
+            .eq(column, default_mid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if hit:
+            email = str(hit[0].get("staff_email") or "").strip().lower()
+            if email:
+                return email
+    return None
+
+
 def is_staff_login_trusted(*, email: str, max_user_id: str) -> bool:
     """True, если этот MAX уже одобрен руководителем для email (повторный вход)."""
     trusted = trusted_login_max_user_id(email)

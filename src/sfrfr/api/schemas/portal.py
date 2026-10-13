@@ -126,7 +126,11 @@ class StaffEmailOtpRequestResponse(BaseModel):
 
 
 class MaxOtpRequest(BaseModel):
-    """Запрос входа через MAX. phone опционален (номер из дела)."""
+    """Запрос входа через MAX.
+
+    client: phone опционален (номер из дела).
+    staff: канон — phone (email оставлен для совместимости API).
+    """
 
     phone: str | None = Field(default=None, max_length=32)
     audience: Literal["client", "staff"] = "client"

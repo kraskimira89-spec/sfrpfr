@@ -129,6 +129,7 @@ export function StaffAuthScreen({
   siteUrl,
 }: StaffAuthScreenProps) {
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
   const [registerRole, setRegisterRole] = useState("operator");
@@ -287,8 +288,8 @@ export function StaffAuthScreen({
   }
 
   async function requestMaxLogin() {
-    if (!email.trim() || !isValidEmailAddress(email)) {
-      setNotice(STAFF_LOGIN_COPY.emailRequired);
+    if (!phone.trim()) {
+      setNotice(STAFF_LOGIN_COPY.phoneRequired);
       return;
     }
     if (!apiBase) {
@@ -301,7 +302,7 @@ export function StaffAuthScreen({
       const response = await fetch(`${apiBase}/api/portal/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audience: "staff", email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ audience: "staff", phone: phone.trim() }),
       });
       const body = (await response.json().catch(() => ({}))) as {
         detail?: string;
@@ -461,9 +462,22 @@ export function StaffAuthScreen({
               {STAFF_AUTH_MESSAGES.AUTH_CONFIG_MISSING}
             </p>
             {apiBase ? (
-              <button type="button" className="auth-alt-btn" onClick={() => void requestMaxLogin()}>
-                {STAFF_LOGIN_COPY.maxCta}
-              </button>
+              <>
+                <label htmlFor="staff-phone-fallback">{STAFF_LOGIN_COPY.phoneLabel}</label>
+                <input
+                  id="staff-phone-fallback"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder={STAFF_LOGIN_COPY.phonePlaceholder}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={busy}
+                />
+                <button type="button" className="auth-alt-btn" onClick={() => void requestMaxLogin()}>
+                  {STAFF_LOGIN_COPY.maxCta}
+                </button>
+              </>
             ) : null}
             <p className="hint">
               <a href={siteUrl}>{STAFF_LOGIN_COPY.backToSite}</a>
@@ -519,6 +533,17 @@ export function StaffAuthScreen({
               <div className="auth-max-alt">
                 <p className="auth-max-alt__title">{STAFF_LOGIN_COPY.maxTeaserTitle}</p>
                 <p className="hint">{STAFF_LOGIN_COPY.maxTeaserLead}</p>
+                <label htmlFor="staff-phone">{STAFF_LOGIN_COPY.phoneLabel}</label>
+                <input
+                  id="staff-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder={STAFF_LOGIN_COPY.phonePlaceholder}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={busy}
+                />
                 <button
                   type="button"
                   className="auth-alt-btn"
