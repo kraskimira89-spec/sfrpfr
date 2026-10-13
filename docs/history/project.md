@@ -1,3 +1,10 @@
+## 2026-10-13 — staff OTP: Send Email Hook на supabase2
+
+После cutover письма OTP не уходили: GoTrue бил в фейковый `supabase-mail`.
+Включён Auth Send Email Hook → API → Postbox; redirect allowlist admin+cabinet;
+мёртвый `STAFF_LOGIN_APPROVER_MAX_CHAT_IDS=321180237` очищен.
+`docs/history/2026-10-13-staff-otp-email-hook-supabase2.md`.
+
 ## 2026-10-13 — cutover на supabase2 (reg.ru, SFRFR-73)
 
 Рабочий URL `https://supabase2.proverkastaza.ru` → ВМ `194.67.116.168`;
