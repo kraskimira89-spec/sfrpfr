@@ -20,8 +20,8 @@ resource "regcloud_server" "supabase" {
   size             = var.server_size
   image            = var.server_image
   region_slug      = var.region_slug
-  ssh_keys         = [local.ssh_key_fingerprint]
-  isp_license_size = null
-  backups          = var.enable_backups
-  floating_ip      = true # публичный IPv4 (default провайдера; фиксируем явно)
+  ssh_keys = [local.ssh_key_fingerprint]
+  # isp_license_size не передаём (null у провайдера может ломать create)
+  backups     = var.enable_backups
+  floating_ip = true
 }

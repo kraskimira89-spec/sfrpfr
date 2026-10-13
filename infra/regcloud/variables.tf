@@ -13,7 +13,7 @@ variable "api_url" {
 variable "server_name" {
   type        = string
   description = "Имя облачного сервера"
-  default     = "sfrfr-supabase-db-regru"
+  default     = "sfrfrdb1"
 }
 
 variable "server_size" {
@@ -21,10 +21,11 @@ variable "server_size" {
   description = <<-EOT
     Тариф size (формат c{CPU}-m{RAM}-d{DISK}-{line}).
     Цель: ≥2vCPU/4GB/40GB, предпочтительно 4/8/40.
-    Актуальные slug из GET /v1/sizes (2026-10): base-8 = 8vCPU/8GB/120GB.
-    Старый формат cN-mN-dN-hp в API больше не принимается.
+    Минимальный рабочий (2026-10): c2-m2-d40-stdp = 2vCPU/2GB/40GB на openstack-msk2.
+    GET /v1/sizes (base-1/cloud-*) на msk1 даёт 500 при create — не использовать.
+    Для Supabase 2GB тесно; апгрейд size — отдельно после стека.
   EOT
-  default     = "base-8"
+  default     = "c2-m2-d40-stdp"
 }
 
 variable "server_image" {
@@ -35,8 +36,8 @@ variable "server_image" {
 
 variable "region_slug" {
   type        = string
-  description = "Регион РФ. В /v1/sizes: msk1 (не openstack-msk1)."
-  default     = "msk1"
+  description = "Регион РФ. Рабочий create: openstack-msk2 (как у прод-VPS)."
+  default     = "openstack-msk2"
 }
 
 variable "manage_ssh_key" {

@@ -7,11 +7,11 @@
 token   = "REPLACE_WITH_REGCLOUD_API_TOKEN"
 api_url = "https://api.cloudvps.reg.ru"
 
-server_name  = "sfrfr-supabase-db-regru"
-# Сверить size/image в панели заказа — не все комбинации доступны.
-server_size  = "base-8"
+server_name  = "sfrfrdb1"
+# Минимальный рабочий create: c2-m2-d40-stdp + openstack-msk2 (base-* на msk1 → 500).
+server_size  = "c2-m2-d40-stdp"
 server_image = "ubuntu-22-04-amd64"
-region_slug  = "msk1"
+region_slug  = "openstack-msk2"
 
 # Ключ уже в панели как regru_terraform_vm — не создавать заново:
 manage_ssh_key      = false
