@@ -294,7 +294,7 @@ def test_summary_and_upload_keyboards_chat_only_no_cabinet() -> None:
         assert "Кабинет" not in " ".join(labels)
         links = [btn["url"] for row in kb[0]["payload"]["buttons"] for btn in row if btn.get("url")]
         assert all("cabinet." not in u for u in links)
-        assert any("#zayavka" in u for u in links)
+        assert links == []
     assert "чат" in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in UPLOAD_BLOCKED_TEXT.lower()
@@ -319,7 +319,7 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
     assert "чат" in WELCOME_TEXT.lower()
-    assert "обратный звонок" in WELCOME_TEXT.lower()
+    assert "звонок" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
     assert "чат" in DOCS_STAZH_TEXT.lower()
     assert "личном кабинете" not in DOCS_STAZH_TEXT.lower()
@@ -404,10 +404,11 @@ def test_operator_branch(tmp_path: Path, monkeypatch) -> None:
 
     handle_max_update(_msg(11, "/start"), bot=bot)
     result = handle_max_update(_cb(11, "intake:goal:operator"), bot=bot)
-    assert result.action == "max_operator_requested"
+    assert result.action == "max_callback_ask"
     assert result.case_id
-    assert any("специалисту" in t for _, t in bot.sent)
-    assert calls and calls[0].get("task") == "max_operator"
+    assert any("телефон" in t.lower() and "имя" in t.lower() for _, t in bot.sent)
+    # AMO/task — после контакта; на шаге «спросить телефон» ещё нет
+    assert not calls
     get_settings.cache_clear()
 
 
@@ -548,7 +549,7 @@ def test_early_free_text_shows_welcome_not_dry_ack(tmp_path: Path, monkeypatch) 
     )
     assert result.action == "free_text_nudge"
     assert "кнопками" in (result.reply or "").lower()
-    assert "обратный звонок" in (result.reply or "").lower()
+    assert "звонок" in (result.reply or "").lower()
     assert "Я бот сервиса" not in (result.reply or "")
     assert result.reply != FALLBACK_MENU_TEXT  # nudge = fallback + подсказка шага
     assert "Выберите пункт меню ниже" not in (result.reply or "")

@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 from sfrfr.core.case_store import reset_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.bot_owned import (
-    WAITING_FOR_STAFF_TEXT,
     is_bot_owned,
     is_handed_to_operator,
 )
@@ -121,10 +120,11 @@ def test_operator_stops_llm(tmp_path: Path, monkeypatch) -> None:
     )
     handle_max_update(_msg(22, "/start"), bot=bot)
     handle_max_update(_cb(22, "intake:operator"), bot=bot)
+    # Пока ждём телефон — свободный текст без номера не уходит в LLM
     result = handle_max_update(_msg(22, "подскажите по стажу"), bot=bot)
-    assert result.action == "waiting_for_staff"
+    assert result.action == "max_callback_need_phone"
     assert called["llm"] == 0
-    assert WAITING_FOR_STAFF_TEXT[:20] in (result.reply or "")
+    assert "телефон" in (result.reply or "").lower()
 
 
 def test_upload_bot_owned_skips_staff_task(tmp_path: Path, monkeypatch) -> None:

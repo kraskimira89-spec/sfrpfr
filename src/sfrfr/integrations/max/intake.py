@@ -44,7 +44,7 @@ WELCOME_PART_1 = (
     "Я бот сервиса «Проверка стажа». Здесь можно:\n"
     "• коротко уточнить ситуацию — за себя или помочь близкому;\n"
     "• понять, какие документы нужны для сверки стажа и ИЛС;\n"
-    "• написать вопрос в чате или оставить заявку на обратный звонок.\n\n"
+    "• написать вопрос в чате или заказать звонок.\n\n"
     "Для кого проверка? Выберите кнопку под этим сообщением."
 )
 
@@ -84,7 +84,7 @@ def format_welcome_text(*, display_name: str | None = None) -> str:
 FALLBACK_MENU_TEXT = (
     "Спасибо за сообщение.\n\n"
     "Сейчас удобнее отвечать кнопками ниже — так мы быстрее поймём ситуацию. "
-    "Если удобнее созвониться — оставьте заявку на обратный звонок.\n\n"
+    "Если удобнее созвониться — нажмите «Заказать звонок».\n\n"
     "Документы можно прислать прямо в этот чат — PDF или фото."
 )
 
@@ -237,7 +237,12 @@ DOCS_CHECKLIST_URL = "https://proverkastaza.ru/blog/kakie-dokumenty-sobrat-do-ob
 GOSUSLUGI_URL = "https://www.gosuslugi.ru/"
 ILS_BLOG_URL = "https://proverkastaza.ru/blog/kak-zakazat-vypisku-ils/"
 
-OPERATOR_CONFIRM_TEXT = "Передали запрос специалисту. Ответим в этом чате."
+OPERATOR_CONFIRM_TEXT = "Передали запрос специалисту. Ответим в этом чате."  # legacy
+CALLBACK_REQUEST_PROMPT = "Оставьте свой телефон и имя, мы вам перезвоним."
+CALLBACK_REQUEST_THANKS = "Спасибо. Перезвоним по этим данным."
+CALLBACK_REQUEST_NEED_PHONE = (
+    "Нужен номер телефона — например +7 909 195-04-08. Напишите также имя."
+)
 
 # Успешный приём вложения в чат MAX (канал чат-бот).
 UPLOAD_ACCEPTED_TEXT = (
@@ -253,17 +258,65 @@ OPEN_CABINET_LABEL = "Кабинет на сайте"
 OPEN_CABINET_WEB_LABEL = OPEN_CABINET_LABEL  # совместимость импортов
 OPEN_CABINET_MAX_LABEL = OPEN_CABINET_LABEL  # устар.: раньше «В MAX — кабинет»
 CALL_OPERATOR_LABEL = "Позвать специалиста"  # legacy: текст / старые callback
-CALLBACK_REQUEST_LABEL = "Оставить заявку на обратный звонок"
-CALLBACK_REQUEST_URL = "https://proverkastaza.ru/#zayavka"
+CALLBACK_REQUEST_LABEL = "Заказать звонок"
+CALLBACK_REQUEST_PAYLOAD = "intake:callback"
+_CALLBACK_WAIT_KEY = "_callback_wait"
 
 
 def callback_request_button() -> dict[str, Any]:
-    """Ссылка на форму заявки (обратный звонок), вместо callback «Позвать специалиста»."""
+    """Кнопка: в чате просим телефон и имя, перезвоним."""
     return {
-        "type": "link",
+        "type": "callback",
         "text": CALLBACK_REQUEST_LABEL,
-        "url": CALLBACK_REQUEST_URL,
+        "payload": CALLBACK_REQUEST_PAYLOAD,
     }
+
+
+def is_callback_waiting(rec: MaxIntakeRecord | None) -> bool:
+    if rec is None:
+        return False
+    return (rec.q_answers or {}).get(_CALLBACK_WAIT_KEY) == "1"
+
+
+def mark_callback_waiting(rec: MaxIntakeRecord) -> None:
+    answers = dict(rec.q_answers or {})
+    answers[_CALLBACK_WAIT_KEY] = "1"
+    rec.q_answers = answers
+
+
+def clear_callback_waiting(rec: MaxIntakeRecord) -> None:
+    answers = dict(rec.q_answers or {})
+    answers.pop(_CALLBACK_WAIT_KEY, None)
+    rec.q_answers = answers
+
+
+def parse_callback_contact(text: str) -> tuple[str | None, str | None]:
+    """Вернуть (имя, телефон E.164) из свободной строки."""
+    from sfrfr.integrations.max.questionnaire import normalize_phone
+
+    raw = " ".join(str(text or "").split()).strip()
+    if not raw:
+        return None, None
+    phone = normalize_phone(raw)
+    if phone is None:
+        # вытащить подряд идущие цифры из смешанной строки
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        phone = normalize_phone(digits)
+    name: str | None = raw
+    if phone:
+        # убрать цифры/знаки телефона из имени
+        compact = raw
+        for token in (phone, phone.replace("+7", "8"), phone.replace("+7", "+7 ")):
+            compact = compact.replace(token, " ")
+        compact = "".join(ch if not ch.isdigit() else " " for ch in compact)
+        for ch in "+()-":
+            compact = compact.replace(ch, " ")
+        name = " ".join(compact.split()).strip() or None
+    else:
+        name = raw or None
+    return name, phone
+
+
 DOCS_INFO_LABEL = "Какие документы пригодятся"
 DOCS_BASE_LABEL = "Базовый набор"
 DOCS_STAZH_LABEL = "Подтверждение стажа"
