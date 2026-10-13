@@ -2029,6 +2029,14 @@ button.badge--clickable:hover {
 .auth-alt-btn:hover,
 .auth-alt-btn:focus-visible {
   border-color: var(--brand, #1e4e79);
+  background: #fff;
+  color: var(--ink);
+}
+.auth-layout .auth-form > button[type="submit"]:hover,
+.auth-layout .auth-submit:hover,
+.auth-layout .max-action-btn:hover {
+  background: var(--brand-deep);
+  color: #fff;
 }
 .auth-staff-hint {
   margin-top: 1.25rem;

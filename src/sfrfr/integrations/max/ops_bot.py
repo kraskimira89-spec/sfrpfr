@@ -109,8 +109,8 @@ def _handle_ops_staff_login(
     settings = get_settings()
     admin = (settings.admin_public_url or "admin.proverkastaza.ru").rstrip("/")
     reply = (
-        f"Сначала на {admin} укажите рабочий email и нажмите «Получить код».\n"
-        "Затем «Перейти в MAX» и пришлите код сюда."
+        f"Сначала на {admin} укажите рабочий телефон и нажмите «Войти через MAX».\n"
+        "Затем подтвердите вход кнопкой в этом чате."
     )
     _reply(
         bot,

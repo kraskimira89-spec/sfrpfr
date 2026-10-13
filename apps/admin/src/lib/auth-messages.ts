@@ -50,9 +50,12 @@ export const STAFF_LOGIN_COPY = {
   changeEmail: "Изменить почту",
   signIn: "Войти",
   orDivider: "или",
-  maxTeaserTitle: "Уже работаете через MAX?",
+  maxTeaserTitle: "Вход через MAX",
   maxTeaserLead:
-    "Подтвердите вход в Ops-боте MAX. Используйте этот способ, если ваш MAX уже привязан к рабочему профилю.",
+    "Укажите рабочий номер телефона, привязанный к MAX. Подтвердите вход в Ops-боте — кабинет откроется на этой странице.",
+  phoneLabel: "Рабочий телефон",
+  phonePlaceholder: "+7 909 123-45-67",
+  phoneRequired: "Введите рабочий номер телефона.",
   maxCta: "Войти через MAX",
   maxTitle: "Подтвердите вход в MAX",
   maxLead:

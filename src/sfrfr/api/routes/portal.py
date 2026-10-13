@@ -809,7 +809,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     3) В чате MAX предлагаются кнопки: приложение или интерфейс.
     Для staff — отдельный сценарий с кодом со страницы входа.
     """
-    from sfrfr.db.staff_roles import get_staff_role_by_email
+    from sfrfr.db.staff_roles import get_staff_email_by_phone, get_staff_role_by_email
     from sfrfr.integrations.amocrm.urls import staff_max_login_url
     from sfrfr.integrations.max.client import MaxBotClient, inline_confirm_login_keyboard
     from sfrfr.security.login_otp import (
@@ -825,16 +825,36 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
     settings = get_settings()
     audience = payload.audience or "client"
     staff_email = (payload.email or "").strip().lower() or None
+    staff_phone_raw = (payload.phone or "").strip()
 
     if audience == "staff":
-        if not staff_email or "@" not in staff_email:
+        staff_mode = "email"
+        if staff_phone_raw:
+            staff_mode = "phone"
+            phone = normalize_phone(staff_phone_raw)
+            if not phone or not phone.startswith("+7") or len(phone) != 12:
+                _raise_auth(
+                    400,
+                    "Укажите телефон в формате +7 XXX XXX-XX-XX.",
+                    event="otp_request",
+                    audience="staff",
+                    reason="invalid_phone",
+                )
+            resolved = get_staff_email_by_phone(phone)
+            if resolved:
+                staff_email = resolved
+            else:
+                # Анти-enumeration: тот же UX, что для неизвестной почты.
+                staff_email = f"unknown-{phone.lstrip('+')}@staff.invalid"
+        elif not staff_email or "@" not in staff_email:
             _raise_auth(
                 400,
-                "Укажите рабочий email сотрудника.",
+                "Укажите номер телефона сотрудника.",
                 event="otp_request",
                 audience="staff",
-                reason="missing_email",
+                reason="missing_phone",
             )
+
         role = get_staff_role_by_email(staff_email)
         if role is None:
             pending = create_pending(audience="staff", staff_email=staff_email)
@@ -844,7 +864,8 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 audience="staff",
                 ticket=pending.ticket_id,
                 status="pending_confirm",
-                reason="staff_email_unknown",
+                reason="staff_phone_unknown" if staff_mode == "phone" else "staff_email_unknown",
+                mode=staff_mode,
             )
             return MaxOtpRequestResponse(
                 ok=True,
@@ -854,7 +875,12 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 max_bot_url=staff_max_login_url(),
                 status="pending_confirm",
                 message=(
-                    "Если этот адрес можно использовать для входа, подтвердите вход в ops-боте MAX."
+                    "Если этот номер можно использовать для входа, подтвердите вход в ops-боте MAX."
+                    if staff_mode == "phone"
+                    else (
+                        "Если этот адрес можно использовать для входа, "
+                        "подтвердите вход в ops-боте MAX."
+                    )
                 ),
             )
         pending = create_pending(audience="staff", staff_email=staff_email)
@@ -874,7 +900,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 audience="staff",
                 ticket=pending.ticket_id,
                 status="pending_confirm",
-                mode="trusted_max",
+                mode="trusted_max_phone" if staff_mode == "phone" else "trusted_max",
             )
             if ops_bot_configured():
                 try:
@@ -901,7 +927,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
                 max_bot_url=staff_max_login_url(),
                 status="pending_confirm",
                 message=(
-                    "Нажмите «Перейти в MAX» ниже и подтвердите вход в ops-боте. "
+                    "Нажмите «Открыть Ops-бот MAX» ниже и подтвердите вход. "
                     "Кабинет откроется на этой странице автоматически."
                 ),
             )
@@ -912,6 +938,7 @@ def request_max_otp(payload: MaxOtpRequest) -> MaxOtpRequestResponse:
             audience="staff",
             ticket=pending.ticket_id,
             status="pending_pair",
+            mode=staff_mode,
         )
         return MaxOtpRequestResponse(
             ok=True,
