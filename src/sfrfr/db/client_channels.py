@@ -81,13 +81,14 @@ class ClientChannelRepository:
         return row
 
     def _ensure_auth_user_for_max(self, max_user_id: str, email: str) -> str | None:
-        """Создать/найти auth.users для MAX-клиента; вернуть uuid или None."""
-        try:
-            from sfrfr.db.staff_roles import find_user_by_email
+        """Создать auth.users для MAX-клиента; вернуть uuid или None.
 
-            existing = find_user_by_email(email)
-            if existing and existing.get("id"):
-                return str(existing["id"])
+        Без ``find_user_by_email`` / ``list_users``: на self-host Auth admin
+        list_users часто 500 или пустой ответ, а при ConnectTimeout пагинация
+        съедает бюджет ``ensure_case`` (15 с) и уводит в ложный emergency.
+        Клиентская строка создаётся и без auth uid.
+        """
+        try:
             created = self.client.auth.admin.create_user(
                 {
                     "email": email,

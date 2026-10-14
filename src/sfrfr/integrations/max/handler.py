@@ -865,10 +865,25 @@ def _ensure_case_for_intake(
     supabase_case = _try_create_supabase_case(
         user_id=user_id, intake=intake, timeout=timeout
     )
+    if not supabase_case:
+        # Create мог успеть в БД, а наружный таймаут/гонка вернули None.
+        # Сначала ищем уже существующее дело — иначе staff получают «БД недоступна»
+        # без ссылки на чат, хотя дело уже есть.
+        recovered_id = _resolve_case_id_by_max_user(user_id)
+        if recovered_id:
+            client_row = _client_row_by_max(user_id) or {}
+            client_id = str(client_row.get("id") or "") or None
+            supabase_case = (recovered_id, client_id or "")
+            logger.warning(
+                "ensure_case: recovered existing case after create miss max=%s case=%s",
+                user_id,
+                recovered_id[:8],
+            )
     if supabase_case:
         case_id, client_id = supabase_case
         intake.case_id = case_id
-        intake.client_id = client_id
+        if client_id:
+            intake.client_id = client_id
         get_intake_store().save(intake)
         record = store.create(
             client_name=f"MAX user {user_id}",
@@ -969,16 +984,33 @@ def _try_create_supabase_case(
         )
         return str(created["id"]), client_id
 
-    try:
-        if timeout is None:
+    if timeout is None:
+        try:
             return _work()
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(_work).result(timeout=timeout)
-    except (FuturesTimeout, Exception):
-        import logging
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "ensure_case_supabase_error max=%s err=%s",
+                user_id,
+                type(exc).__name__,
+            )
+            return None
 
-        logging.getLogger(__name__).warning("ensure_case_supabase_timeout_or_error max=%s", user_id)
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(_work).result(timeout=timeout)
+    except FuturesTimeout:
+        logger.warning("ensure_case_supabase_timeout max=%s limit=%s", user_id, timeout)
         return None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "ensure_case_supabase_error max=%s err=%s",
+            user_id,
+            type(exc).__name__,
+        )
+        return None
+    finally:
+        # Не ждать зависший worker после timeout — иначе webhook блокируется дольше лимита.
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def _notify_operator_staff(
