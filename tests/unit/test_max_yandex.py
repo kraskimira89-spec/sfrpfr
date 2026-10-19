@@ -199,7 +199,7 @@ def test_max_start_and_status(tmp_path: Path, monkeypatch) -> None:
     assert started.action == "max_intake_started"
     assert started.case_id  # раннее дело — лента чата с /start
     all_text = " ".join(t for _, t in bot.sent)
-    assert "Для кого проверка" in all_text or "За себя" in str(bot.attachments)
+    assert "трудовой" in all_text.lower() or "выписку ИЛС" in str(bot.attachments)
     # завершаем диагностику → создаётся одно дело
     for payload in (
         "intake:goal:check_experience",

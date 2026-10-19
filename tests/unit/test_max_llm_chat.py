@@ -23,6 +23,7 @@ def test_client_chat_system_prompt_rules() -> None:
 
     low = CLIENT_CHAT_SYSTEM.lower()
     assert "сфр" in low
+    assert "чтобы ваш стаж" in low
     assert "3 000" in CLIENT_CHAT_SYSTEM or "3000" in CLIENT_CHAT_SYSTEM.replace(" ", "")
     assert "кнопк" in low
     assert "снилс" in low or "скан" in low

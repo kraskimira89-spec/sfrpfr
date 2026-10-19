@@ -96,15 +96,17 @@ MAX_LLM_CHAT_MAX_TURNS=5
 3. Провайдер — DeepSeek V4 Flash / AI Studio; биллинг YC разблокирован (см. `docs/ops/yandex-cloud-billing-unblock.md`).
 4. Промпт канон — [`docs/MAX/prompt-agent-client-chat.md`](../MAX/prompt-agent-client-chat.md) ↔ `CLIENT_CHAT_SYSTEM`.
 
-## 10. Режим bot_owned (2026-09-09)
+## 10. Режим bot_owned (2026-09-09, уведомления — 2026-10-19)
 
 Пока `intake.status != handed_to_operator` и `MAX_BOT_OWNED_ENABLED=1`:
 
-- бот ведёт воронку (кнопки + фразы → `intake:` payload);
-- старт и файлы **не** шлют ops/staff-задачу на каждый шаг;
+- бот сам ведёт до сделки: трудовая (или ЭТК) + выписка ИЛС + имя + телефон → оффер диагностики 3 000 ₽ → ссылка на оплату (`CASE_CHAT_PAY_LINK_ENABLED` / `pay_link.py`, после `contract_accepted`);
+- «Позвать специалиста» не обязательный шаг: специалист видит чат и может вмешаться, бот не ждёт;
+- старт чата и **каждое** новое сообщение клиента (текст и файлы) шлют короткий пинг в ops-бот (DM + `MAX_SPECIALISTS_CHANNEL_CHAT_ID`) со ссылкой `ADMIN_PUBLIC_URL/c/{id}?view=cases&focus=chat`; повтор того же текста не дублируем;
+- виджет amo и `AMOCRM_ENABLED` не отключаем;
 - после ingest — короткий статус комплекта без OCR-текста;
-- комплект ИЛС+трудовая → черновик DIAG 3000 ₽ + ссылка на оферту в кабинете;
+- комплект ИЛС+трудовая → черновик DIAG 3000 ₽ + ссылка на оферту;
 - pay link в MAX только после `contract_accepted` (`MAX_BOT_OWNED_PAY_LINK`, не глобальный `MAX_PAY_LINK_AUTO_SEND`).
 
-После «Позвать специалиста» свободный текст **не** идёт в LLM (`waiting_for_staff`).
+После «Позвать специалиста» свободный текст **не** идёт в LLM (`waiting_for_staff`), но пинг специалистам о новом сообщении остаётся.
 Диагностика 5/8 тыс. и PDF результата — человек.

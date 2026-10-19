@@ -43,6 +43,7 @@ from sfrfr.integrations.max.intake import (
     cabinet_url_for_case,
     clear_callback_waiting,
     docs_info_keyboard,
+    docs_request_keyboard,
     docs_section_keyboard,
     emp_howto_keyboard,
     employment_keyboard,
@@ -681,14 +682,14 @@ def _send_welcome_sequence(
         user_id=user_id,
         chat_id=chat_id,
         text=first,
-        attachments=goal_keyboard(),
+        attachments=docs_request_keyboard(),
         case_id=case_id,
     )
 
     delay = float(get_settings().max_welcome_part_delay_seconds)
     if delay <= 0:
         for idx, part in enumerate(parts[1:], start=1):
-            attachments = goal_keyboard() if idx == len(parts) - 1 else None
+            attachments = docs_request_keyboard() if idx == len(parts) - 1 else None
             _reply(
                 bot,
                 user_id=user_id,
@@ -706,7 +707,7 @@ def _send_welcome_sequence(
                 user_id=user_id,
                 chat_id=chat_id,
                 text=part,
-                attachments=goal_keyboard() if with_keyboard else None,
+                attachments=docs_request_keyboard() if with_keyboard else None,
                 case_id=case_id,
             )
         except Exception as exc:  # noqa: BLE001
@@ -1019,6 +1020,7 @@ def _notify_operator_staff(
     intake,
     case_id: str | None,
     source_label: str = "из чата MAX",
+    push_amo: bool = True,
 ) -> None:
     """Уведомить сотрудников о заявке из чата MAX (email + чат, без amo при выключенном CRM)."""
     if not case_id:
@@ -1057,7 +1059,7 @@ def _notify_operator_staff(
             phone = str((client_row or {}).get("phone") or "").strip() or None
             email = str((client_row or {}).get("email") or "").strip() or None
             channel = str((client_row or {}).get("preferred_channel") or channel)
-            if settings.amocrm_enabled:
+            if settings.amocrm_enabled and push_amo:
                 from sfrfr.integrations.amocrm.sync import (
                     persist_crm_external_id,
                     push_case_to_amocrm,
@@ -1117,16 +1119,12 @@ def _notify_staff_max_started(*, user_id: str, intake, case_id: str | None) -> N
         return
     if getattr(intake, "staff_notified_at", None):
         return
-    from sfrfr.integrations.max.bot_owned import is_bot_owned
-
-    # В bot_owned не дёргаем staff на каждый старт — только при «Позвать специалиста».
-    if is_bot_owned(intake):
-        return
     _notify_operator_staff(
         user_id=user_id,
         intake=intake,
         case_id=case_id,
         source_label="из чата MAX (нажал «Начать»)",
+        push_amo=False,
     )
     _mark_staff_notified(intake)
 
@@ -1344,13 +1342,15 @@ def _notify_staff_chat_docs(
     """Вложение в чат MAX принято → очередь сотруднику (ops + checklist + amo)."""
     if not case_id:
         return
-    from sfrfr.integrations.max.bot_owned import is_bot_owned
-
-    intake = get_intake_store().get_active(user_id)
-    if is_bot_owned(intake):
-        return
     label = filenames[0] if filenames else "файл"
     extra = f" (+{len(filenames) - 1})" if len(filenames) > 1 else ""
+    from sfrfr.integrations.max.staff_client_ping import ping_fingerprint, should_send_ping
+
+    if not should_send_ping(
+        key=f"file:{user_id}:{case_id}",
+        fingerprint=ping_fingerprint(f"{label}{extra}"),
+    ):
+        return
     try:
         from sfrfr.db.case_repository import CaseRepository
         from sfrfr.services.finance_automation import ensure_staff_task
@@ -3055,6 +3055,9 @@ def _handle_client_free_text(
     exclude_message_id: str | None = None,
 ) -> MaxHandleResult:
     """Свободный текст: стоп после специалиста / intake из фразы / LLM ТЗ-26."""
+    from sfrfr.integrations.max.staff_client_ping import notify_staff_client_message
+
+    notify_staff_client_message(user_id=user_id, case_id=case_id, snippet=text)
     from sfrfr.integrations.max.bot_owned import (
         WAITING_FOR_STAFF_TEXT,
         is_handed_to_operator,
