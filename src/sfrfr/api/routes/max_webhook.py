@@ -88,6 +88,22 @@ async def max_webhook(
         pass
     # #endregion
     results = [handle_max_update(u) for u in updates]
+    # #region agent log
+    try:
+        from sfrfr.integrations.max.document_background import _agent_dbg
+
+        _agent_dbg(
+            "J",
+            "max_webhook.py:results",
+            "webhook_actions",
+            {
+                "actions": [getattr(r, "action", None) for r in results],
+                "n": len(results),
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    # #endregion
     background_tasks.add_task(_drain_case_chat_pipeline)
     channel_hints = [
         r.detail

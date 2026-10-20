@@ -8,6 +8,8 @@ import httpx
 
 from sfrfr.integrations.max.ssl_context import max_ssl_verify
 
+_MEDIA_TYPES = frozenset({"file", "image", "video", "audio", "photo"})
+
 
 def iter_attachment_candidates(update: dict[str, Any]) -> list[dict[str, Any]]:
     """Собрать кандидатов вложений из разных форм payload MAX."""
@@ -31,20 +33,96 @@ def iter_attachment_candidates(update: dict[str, Any]) -> list[dict[str, Any]]:
     return found
 
 
+def _payload_of(item: dict[str, Any]) -> dict[str, Any]:
+    raw = item.get("payload")
+    return raw if isinstance(raw, dict) else item
+
+
+def _first_url(*values: Any) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.startswith(("http://", "https://")):
+            return value
+        if isinstance(value, dict):
+            nested = _first_url(
+                value.get("url"),
+                value.get("fileUrl"),
+                value.get("file_url"),
+                value.get("href"),
+            )
+            if nested:
+                return nested
+        if isinstance(value, list):
+            for entry in value:
+                nested = _first_url(entry)
+                if nested:
+                    return nested
+    return None
+
+
+def attachment_debug_meta(update: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ключи вложений без URL/токенов — для диагностики."""
+    meta: list[dict[str, Any]] = []
+    for item in iter_attachment_candidates(update):
+        payload = _payload_of(item)
+        meta.append(
+            {
+                "type": str(item.get("type") or payload.get("type") or ""),
+                "item_keys": sorted(str(k) for k in item.keys()),
+                "payload_keys": sorted(str(k) for k in payload.keys()),
+                "has_url": bool(
+                    _first_url(
+                        payload.get("url"),
+                        payload.get("fileUrl"),
+                        payload.get("file_url"),
+                        item.get("url"),
+                    )
+                ),
+            }
+        )
+    return meta
+
+
+def has_media_attachments(update: dict[str, Any]) -> bool:
+    """Есть ли в апдейте медиа (даже без скачиваемого url)."""
+    for item in iter_attachment_candidates(update):
+        payload = _payload_of(item)
+        kind = str(item.get("type") or payload.get("type") or "").strip().lower()
+        if kind in _MEDIA_TYPES:
+            return True
+        if _first_url(
+            payload.get("url"),
+            payload.get("fileUrl"),
+            payload.get("file_url"),
+            item.get("url"),
+            payload.get("photos"),
+            payload.get("thumbnail"),
+        ):
+            return True
+        if any(
+            payload.get(key) or item.get(key)
+            for key in ("token", "fileId", "file_id", "photoId", "photo_id", "id")
+        ):
+            return True
+    return False
+
+
 def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
     """Вернуть список (filename, url) для скачивания."""
     out: list[tuple[str, str]] = []
     for item in iter_attachment_candidates(update):
-        raw_payload = item.get("payload")
-        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else item
-        url = (
-            payload.get("url")
-            or payload.get("fileUrl")
-            or payload.get("file_url")
-            or item.get("url")
-            or item.get("fileUrl")
+        payload = _payload_of(item)
+        url = _first_url(
+            payload.get("url"),
+            payload.get("fileUrl"),
+            payload.get("file_url"),
+            payload.get("href"),
+            item.get("url"),
+            item.get("fileUrl"),
+            payload.get("photos"),
+            payload.get("thumbnail"),
+            payload.get("imageUrl"),
         )
-        if not url or not isinstance(url, str):
+        if not url:
             continue
         name = (
             payload.get("file_name")

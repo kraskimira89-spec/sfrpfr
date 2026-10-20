@@ -135,21 +135,29 @@ def mark_quiet_ack(user_id: str, *, case_id: str | None) -> None:
 
 
 def should_send_processing_ack(user_id: str) -> bool:
+    """Проверка без записи (тесты). Для ответа клиенту используйте claim_processing_ack."""
     uid = str(user_id or "").strip()
     if not uid:
-        # #region agent log
-        _agent_dbg("E", "document_background.py:should_send", "empty_uid_allow", {})
-        # #endregion
         return True
     now = time.monotonic()
     with _ack_lock:
         last = _last_ack_at.get(uid)
-        allow = not (last is not None and now - last < _ACK_TTL_SEC)
+        return not (last is not None and now - last < _ACK_TTL_SEC)
+
+
+def claim_processing_ack(user_id: str, *, case_id: str | None = None) -> bool:
+    """Атомарно: один ack на пользователя в окне TTL (без гонки should/mark)."""
+    uid = str(user_id or "").strip()
+    cid = str(case_id or "").strip()
+    now = time.monotonic()
+    with _ack_lock:
+        last = _last_ack_at.get(uid) if uid else None
+        allow = not uid or last is None or now - last >= _ACK_TTL_SEC
         # #region agent log
         _agent_dbg(
             "B",
-            "document_background.py:should_send",
-            "ack_decision",
+            "document_background.py:claim",
+            "ack_claim",
             {
                 "uid_len": len(uid),
                 "allow": allow,
@@ -158,7 +166,15 @@ def should_send_processing_ack(user_id: str) -> bool:
             },
         )
         # #endregion
-        return allow
+        if not allow:
+            return False
+        if uid:
+            _last_ack_at[uid] = now
+            if cid:
+                _user_case[uid] = cid
+        if cid:
+            _quiet_cases[cid] = time.time() + _ACK_TTL_SEC
+        return True
 
 
 def is_case_quiet(case_id: str | None) -> bool:
