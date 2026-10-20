@@ -127,18 +127,17 @@ def test_operator_stops_llm(tmp_path: Path, monkeypatch) -> None:
     assert "телефон" in (result.reply or "").lower()
 
 
-def test_upload_bot_owned_skips_staff_task(tmp_path: Path, monkeypatch) -> None:
+def test_upload_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
     _base_env(tmp_path, monkeypatch)
     bot = _SilentBot()
-    staff_calls: list = []
-
-    def _track(*_a, **_k):
-        staff_calls.append(_k)
-        return True
-
+    pings: list[str] = []
     monkeypatch.setattr(
         "sfrfr.services.finance_automation.ensure_staff_task",
-        _track,
+        lambda *_a, **_k: True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._fanout_ops_text",
+        lambda text, **_k: pings.append(text) or {"ok": True},
     )
     monkeypatch.setattr(
         "sfrfr.services.max_document_upload.upload_max_document",
@@ -175,7 +174,7 @@ def test_upload_bot_owned_skips_staff_task(tmp_path: Path, monkeypatch) -> None:
         bot=bot,
     )
     assert accepted.action == "upload"
-    assert staff_calls == []
+    assert any("ils.pdf" in text for text in pings)
     assert "сверим комплект" in (accepted.reply or "").lower()
 
 

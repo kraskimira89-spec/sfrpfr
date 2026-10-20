@@ -22,7 +22,8 @@ import {
   createStaffSupabaseClient,
 } from "@/components/staff-auth-screen";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
-import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { latestClientMessageId, withoutSentSuggestion } from "@/lib/reply-suggestions";
 
 type StaffRole = "operator" | "expert" | "admin";
 
@@ -397,6 +398,8 @@ export function AdminCabinet() {
   const [session, setSession] = useState<Session | null>(null);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  const lastClientMessageIdRef = useRef<string | null>(null);
+  const suggestRepliesRef = useRef<() => Promise<void>>(async () => undefined);
   const [stepHint, setStepHint] = useState<{
     action: string;
     reason: string;
@@ -575,6 +578,7 @@ export function AdminCabinet() {
       }
       setDetail(caseDetail);
       setMessages(caseMessages);
+      lastClientMessageIdRef.current = latestClientMessageId(caseMessages);
       setPipelineStatus(caseDetail.pipeline_status);
       setNextActionText(caseDetail.next_action ?? "");
       setNextActionAt(caseDetail.next_action_at ? caseDetail.next_action_at.slice(0, 16) : "");
@@ -664,6 +668,14 @@ export function AdminCabinet() {
     const timer = window.setInterval(() => {
       void apiFetch<typeof messages>(`/api/portal/cases/${caseId}/messages`, token)
         .then((next) => {
+          const latest = latestClientMessageId(next);
+          const prevId = lastClientMessageIdRef.current;
+          if (latest && prevId && latest !== prevId) {
+            lastClientMessageIdRef.current = latest;
+            void suggestRepliesRef.current();
+          } else if (latest !== prevId) {
+            lastClientMessageIdRef.current = latest;
+          }
           setMessages((prev) => {
             if (
               prev.length === next.length &&
@@ -1400,15 +1412,21 @@ export function AdminCabinet() {
     }
   }
 
+  useEffect(() => {
+    suggestRepliesRef.current = suggestReplies;
+  });
+
   async function sendMaxReply(opts?: { force?: boolean }) {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
+    const sent = maxReplyBody.trim();
     setBusy(true);
     try {
       await apiFetch(`/api/portal/admin/cases/${detail.id}/max-reply`, token, {
         method: "POST",
-        body: JSON.stringify({ message: maxReplyBody.trim(), force: Boolean(opts?.force) }),
+        body: JSON.stringify({ message: sent, force: Boolean(opts?.force) }),
       });
       setMaxReplyBody("");
+      setReplySuggestions((prev) => withoutSentSuggestion(prev, sent));
       setDupDialog(null);
       setNotice("Сообщение отправлено клиенту в MAX.");
       const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);

@@ -106,12 +106,17 @@ def test_start_shows_menu_and_creates_case(tmp_path: Path, monkeypatch) -> None:
     from sfrfr.integrations.max.intake import WELCOME_PART_1, welcome_parts
 
     assert result.reply == WELCOME_PART_1
+    assert "чтобы ваш стаж в СФР" in (result.reply or "")
+    assert "трудовой" in (result.reply or "").lower()
+    assert "ИЛС" in (result.reply or "")
+    assert "телефон" in (result.reply or "").lower()
     # welcome parts + бесплатный чек-лист после «Начать»
     assert len(bot.sent) == len(welcome_parts()) + 1
     assert any("чек-лист" in (t or "").lower() for _uid, t in bot.sent)
-    # Кнопки сразу на первом сообщении (не ждать 2-ю/3-ю часть).
+    # Кнопки сразу на первом сообщении — про документы, не квалификация «для кого».
     assert bot.attachments[0]
-    assert "За себя" in str(bot.attachments[0])
+    assert "выписку ИЛС" in str(bot.attachments[0])
+    assert "За себя" not in str(bot.attachments[0])
     assert get_case_store().find_by_max_user("7") is not None
     intake = get_intake_store().get_active("7")
     assert intake is not None and intake.case_id == result.case_id
@@ -212,7 +217,7 @@ def test_start_notifies_staff_once(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_start_bot_owned_skips_staff_notify(tmp_path: Path, monkeypatch) -> None:
+def test_start_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
     get_settings.cache_clear()
@@ -222,9 +227,10 @@ def test_start_bot_owned_skips_staff_notify(tmp_path: Path, monkeypatch) -> None
         lambda **kwargs: calls.append(kwargs) or {"ok": True},
     )
     handle_max_update(_msg(31, "/start"), bot=bot)
-    assert calls == []
+    assert len(calls) == 1
+    assert calls[0]["case_id"]
     intake = get_intake_store().get_active("31")
-    assert intake is not None and not intake.staff_notified_at
+    assert intake is not None and intake.staff_notified_at
     get_settings.cache_clear()
 
 
@@ -319,7 +325,8 @@ def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:
     assert "льготн" in low or "северн" in low
     assert "перерасчёт" not in low
     assert "чат" in WELCOME_TEXT.lower()
-    assert "звонок" in WELCOME_TEXT.lower()
+    assert "телефон" in WELCOME_TEXT.lower()
+    assert "трудовой" in WELCOME_TEXT.lower()
     assert "скан" in DOCS_STAZH_TEXT.lower() or "электронн" in DOCS_STAZH_TEXT.lower()
     assert "чат" in DOCS_STAZH_TEXT.lower()
     assert "личном кабинете" not in DOCS_STAZH_TEXT.lower()
@@ -528,11 +535,11 @@ def test_bot_started_shows_welcome_with_name(tmp_path: Path, monkeypatch) -> Non
 
     assert result.reply == welcome_parts(display_name="Ирина")[0]
     assert "Здравствуйте, Ирина!" in (result.reply or "")
-    assert "Я бот сервиса" in (result.reply or "")
+    assert "чтобы ваш стаж в СФР" in (result.reply or "")
     assert "Выберите пункт меню ниже" not in (result.reply or "")
     assert len(bot.sent) == len(welcome_parts(display_name="Ирина")) + 1
     assert "чек-лист" in bot.sent[-1][1].lower()
-    assert any("Для кого проверка" in text for _uid, text in bot.sent)
+    assert any("трудовой" in text.lower() for _uid, text in bot.sent)
     get_settings.cache_clear()
 
 
@@ -566,7 +573,7 @@ def test_free_text_after_start_nudges_without_full_welcome(
     result = handle_max_update(_msg(23, "А можно просто спросить про стаж?"), bot=bot)
     assert result.action == "free_text_nudge"
     assert "кнопками" in (result.reply or "").lower()
-    assert "Для кого проверка" in (result.reply or "")
+    assert "трудовой" in (result.reply or "").lower() or "ИЛС" in (result.reply or "")
     assert result.reply != WELCOME_TEXT
     get_settings.cache_clear()
 
