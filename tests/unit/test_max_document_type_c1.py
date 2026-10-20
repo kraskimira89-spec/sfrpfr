@@ -18,13 +18,16 @@ def test_type_keyboard_payloads() -> None:
     assert kb
     payload = kb[0]["payload"]
     buttons = payload["buttons"]
+    # По одной кнопке в ряд — иначе MAX-клиент показывает кнопки некликабельными.
+    assert all(len(row) == 1 for row in buttons)
     flat = [btn for row in buttons for btn in row]
     texts = {b["text"] for b in flat}
     payloads = {b["payload"] for b in flat}
-    assert texts == {"ИЛС", "Трудовая", "Другое"}
+    assert texts == {"Выписка о стаже", "Трудовая книжка", "Справка", "Другое"}
     assert payloads == {
         "max:doc:type:ils",
         "max:doc:type:workbook",
+        "max:doc:type:spravka",
         "max:doc:type:other",
     }
 

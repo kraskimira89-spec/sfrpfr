@@ -3449,8 +3449,8 @@ def handle_max_update(
         if reminded is not None:
             return reminded
 
-    # ТЗ-35 C1: тип документа после загрузки (ИЛС / Трудовая / Другое).
-    if callback.startswith("max:doc:type:"):
+    # Тип документа: авто-определение + подтверждение Да/Нет (или запасной список).
+    if callback.startswith("max:doc:confirm:") or callback.startswith("max:doc:type:"):
         from sfrfr.integrations.max import document_type_flow as doc_type_flow
 
         intake_for_type = get_intake_store().get_active(user_id)
@@ -3753,8 +3753,10 @@ def handle_max_update(
             preferred=record_case_id or (intake.case_id if intake else None),
         )
         names: list[str] = []
-        ingested: list[tuple[str, str]] = []
+        ingested: list[tuple[str, str, Any]] = []
         if upload_case_id:
+            from sfrfr.integrations.max.document_auto_type import guess_from_bytes
+
             for name, data in max_files:
                 doc_id = _ingest_max_file(
                     case_id=upload_case_id,
@@ -3765,7 +3767,7 @@ def handle_max_update(
                 )
                 if doc_id:
                     names.append(name)
-                    ingested.append((doc_id, name))
+                    ingested.append((doc_id, name, guess_from_bytes(filename=name, data=data)))
         if names:
             _notify_staff_chat_docs(
                 user_id=user_id, case_id=upload_case_id, filenames=names
@@ -3773,23 +3775,19 @@ def handle_max_update(
             intake_for_type = intake or get_intake_store().get_active(user_id)
             if intake_for_type is None:
                 intake_for_type = get_intake_store().upsert_started(user_id)
-            for doc_id, name in ingested:
+            for doc_id, name, guessed in ingested:
                 doc_type_flow.remember_pending(
-                    intake_for_type, document_id=doc_id, filename=name
+                    intake_for_type, document_id=doc_id, filename=name, guess=guessed.doc_type
                 )
-            first_name = names[0] if names else "файл"
-            reply = doc_type_flow.received_summary_ru(filename=first_name, doc_type=None)
+            reply = doc_type_flow.guess_question_text(ingested[0][2])
             if len(names) > 1:
-                reply = (
-                    f"Получили файлов: {len(names)}. "
-                    f"{doc_type_flow.received_summary_ru(filename=first_name, doc_type=None)}"
-                )
+                reply = f"Получили файлов: {len(names)}. Разберём по одному.\n\n{reply}"
             _reply(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
                 text=reply,
-                attachments=doc_type_flow.type_keyboard(),
+                attachments=doc_type_flow.confirm_keyboard(),
                 case_id=upload_case_id,
             )
             _resume_questionnaire_after_upload(
