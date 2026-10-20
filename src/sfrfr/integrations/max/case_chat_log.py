@@ -87,7 +87,10 @@ CALLBACK_LABELS: dict[str, str] = {
     "review:cancel": "Отмена отзыва",
     "max:doc:type:ils": "ИЛС",
     "max:doc:type:workbook": "Трудовая",
+    "max:doc:type:spravka": "Справка",
     "max:doc:type:other": "Другое",
+    "max:doc:confirm:yes": "Да, правильно (тип документа)",
+    "max:doc:confirm:no": "Нет, другой документ",
 }
 
 
@@ -206,6 +209,10 @@ def format_button_press(payload: str) -> str:
         return "Клиент запросил код входа в кабинет"
     if raw.startswith("confirm_web_login"):
         return "Клиент подтвердил вход на сайт из MAX"
+    if raw == "max:doc:confirm:yes":
+        return "Клиент подтвердил тип документа кнопкой «Да»"
+    if raw == "max:doc:confirm:no":
+        return "Клиент не подтвердил тип документа кнопкой «Нет»"
     if raw.startswith("max:doc:type:"):
         label = label_for_callback(raw)
         return f"Клиент указал тип документа: {label}"
