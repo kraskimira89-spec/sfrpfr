@@ -3844,9 +3844,41 @@ def handle_max_update(
             except Exception as exc:  # noqa: BLE001
                 logger.debug("settle notify schedule skipped: %s", exc)
             # Пачка файлов → один спокойный ответ, без howto и без «пришлите следующий».
-            if document_background.should_send_processing_ack(str(user_id)):
+            _will_ack = document_background.should_send_processing_ack(str(user_id))
+            # #region agent log
+            try:
+                from sfrfr.integrations.max.document_background import _agent_dbg
+
+                _agent_dbg(
+                    "B",
+                    "handler.py:upload_ack_branch",
+                    "upload_ack_gate",
+                    {
+                        "will_ack": _will_ack,
+                        "file_count": len(names),
+                        "uid_type": type(user_id).__name__,
+                        "case_prefix": str(upload_case_id or "")[:8],
+                    },
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            # #endregion
+            if _will_ack:
                 reply = document_background.processing_ack_text(count=len(names))
                 document_background.mark_quiet_ack(str(user_id), case_id=upload_case_id)
+                # #region agent log
+                try:
+                    from sfrfr.integrations.max.document_background import _agent_dbg
+
+                    _agent_dbg(
+                        "C",
+                        "handler.py:upload_ack_sent",
+                        "sending_processing_ack",
+                        {"file_count": len(names), "reply_len": len(reply)},
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                # #endregion
                 _reply(
                     bot,
                     user_id=user_id,
@@ -3861,6 +3893,19 @@ def handle_max_update(
                     case_id=upload_case_id or record_case_id,
                     reply=reply,
                 )
+            # #region agent log
+            try:
+                from sfrfr.integrations.max.document_background import _agent_dbg
+
+                _agent_dbg(
+                    "B",
+                    "handler.py:upload_quiet",
+                    "suppressed_duplicate_ack",
+                    {"file_count": len(names)},
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            # #endregion
             return MaxHandleResult(
                 ok=True,
                 action="upload_quiet",
