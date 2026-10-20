@@ -448,8 +448,29 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 extracted_text=str(result.get("extracted_text") or ""),
                 manifest=dict(result.get("manifest") or {}),
             )
+            # Фоновая классификация: тип из OCR-текста, только если не задан.
+            # Gate #151: guess никогда не возвращает чек.
+            effective_doc_type = row.get("doc_type")
+            if not str(effective_doc_type or "").strip():
+                try:
+                    from sfrfr.integrations.max.document_auto_type import (
+                        guess_document_type,
+                    )
+
+                    guessed = guess_document_type(
+                        filename=filename,
+                        text=str(result.get("extracted_text") or ""),
+                    )
+                    effective_doc_type = guessed.doc_type
+                except Exception:  # noqa: BLE001
+                    effective_doc_type = None
             fields = {
                 **security_fields,
+                **(
+                    {"doc_type": effective_doc_type}
+                    if effective_doc_type
+                    else {}
+                ),
                 "storage_path": verified_path,
                 "content_preview": str(result.get("extracted_text") or "")[:2000] or None,
                 "ingest_status": result.get("ingest_status") or "under_review",
@@ -465,6 +486,17 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "page_count": result.get("page_count"),
             }
             _update_document(client, document_id, fields)
+            if effective_doc_type and not str(row.get("doc_type") or "").strip():
+                try:
+                    from sfrfr.integrations.max.document_type_flow import (
+                        append_type_journal,
+                    )
+
+                    append_type_journal(
+                        case_id=case_id, filename=filename, doc_type=str(effective_doc_type)
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.debug("background doc_type journal skipped", exc_info=True)
             _store_labor_drafts(
                 client,
                 case_id=case_id,
@@ -508,7 +540,7 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 notify_kit_status_after_ingest(
                     case_id=case_id,
                     placement_suggestion=placement,
-                    doc_type=row.get("doc_type"),
+                    doc_type=effective_doc_type or row.get("doc_type"),
                 )
             except Exception:  # noqa: BLE001
                 logger.debug("kit status notify skipped", exc_info=True)
