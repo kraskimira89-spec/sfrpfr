@@ -3471,6 +3471,10 @@ def handle_max_update(
             _done_case = _chat_case_id(
                 user_id, preferred=(_done_rec.case_id if _done_rec else None)
             )
+            try:
+                doc_bg.reset_quiet_state()
+            except Exception:  # noqa: BLE001
+                pass
             _final, _complete = doc_bg.final_message_for_case(_done_case)
             _reply(bot, user_id=user_id, chat_id=chat_id, text=_final, case_id=_done_case)
             return MaxHandleResult(
@@ -3825,16 +3829,7 @@ def handle_max_update(
                 get_intake_store().save(intake_rec)
             except Exception as exc:  # noqa: BLE001
                 logger.debug("docs_seen mark skipped: %s", exc)
-            reply = document_background.saved_text(names[0], count=len(names))
-            _reply(
-                bot,
-                user_id=user_id,
-                chat_id=chat_id,
-                text=reply,
-                attachments=document_background.done_keyboard(),
-                case_id=upload_case_id,
-            )
-            # Фон после ответа клиенту: тип/журнал, не блокируя приём.
+            # Фон: тип/журнал; settle — одно итоговое после паузы.
             for doc_id, name, data in ingested:
                 try:
                     document_background.schedule_document_background(
@@ -3842,14 +3837,35 @@ def handle_max_update(
                     )
                 except Exception as exc:  # noqa: BLE001
                     logger.debug("doc background schedule skipped: %s", exc)
-            _resume_questionnaire_after_upload(
-                bot, user_id=user_id, chat_id=chat_id, case_id=upload_case_id
-            )
+            try:
+                document_background.schedule_settle_notify(
+                    user_id=str(user_id), case_id=upload_case_id
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("settle notify schedule skipped: %s", exc)
+            # Пачка файлов → один спокойный ответ, без howto и без «пришлите следующий».
+            if document_background.should_send_processing_ack(str(user_id)):
+                reply = document_background.processing_ack_text(count=len(names))
+                document_background.mark_quiet_ack(str(user_id), case_id=upload_case_id)
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=reply,
+                    attachments=None,
+                    case_id=upload_case_id,
+                )
+                return MaxHandleResult(
+                    ok=True,
+                    action="upload",
+                    case_id=upload_case_id or record_case_id,
+                    reply=reply,
+                )
             return MaxHandleResult(
                 ok=True,
-                action="upload",
+                action="upload_quiet",
                 case_id=upload_case_id or record_case_id,
-                reply=reply,
+                reply="",
             )
         docs_url = documents_cabinet_url(upload_case_id)
         reply = UPLOAD_BLOCKED_TEXT

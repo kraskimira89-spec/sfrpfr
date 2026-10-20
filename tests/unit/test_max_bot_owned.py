@@ -179,10 +179,11 @@ def test_upload_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
     )
     assert accepted.action == "upload"
     assert any("ils.pdf" in text for text in pings)
-    # После файла — сразу «сохранён», без вопроса о типе (фон разберёт позже).
+    # После файла — спокойный ack «обрабатываем», без вопроса о типе.
     reply_low = (accepted.reply or "").lower()
-    assert "сохранён" in reply_low
+    assert "получил" in reply_low or "обработ" in reply_low
     assert "правильно?" not in reply_low
+    assert "следующ" not in reply_low
 
 
 def test_kit_message_no_ocr_text() -> None:

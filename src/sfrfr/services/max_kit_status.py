@@ -109,6 +109,14 @@ def notify_kit_status_after_ingest(
     if not cid:
         return False
     try:
+        from sfrfr.integrations.max.document_background import is_case_quiet
+
+        # Пока идёт спокойный приём пачки — не спамим промежуточными статусами.
+        if is_case_quiet(cid):
+            return False
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from sfrfr.db.case_repository import CaseRepository
         from sfrfr.integrations.max.intake import get_intake_store
         from sfrfr.services.case_chat_delivery import enqueue_max_delivery

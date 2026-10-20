@@ -190,6 +190,10 @@ def test_invalid_phone_reasks(tmp_path: Path, monkeypatch) -> None:
 def test_file_during_questionnaire_accepted_and_question_repeated(
     tmp_path: Path, monkeypatch
 ) -> None:
+    """Файл посреди анкеты: спокойный ack без howto и без повтора вопроса."""
+    from sfrfr.integrations.max import document_background as bg
+
+    bg.reset_quiet_state()
     bot = _setup(tmp_path, monkeypatch)
     _enable(monkeypatch)
     handle_max_update(_cb(804, "start_dialog"), bot=bot)
@@ -204,9 +208,13 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._notify_staff_chat_docs", lambda **_kw: None
     )
+    monkeypatch.setattr(bg, "schedule_document_background", lambda **_kw: None)
+    monkeypatch.setattr(bg, "schedule_settle_notify", lambda **_kw: None)
     res = handle_max_update(_msg(804, ""), bot=bot)
     assert res.action == "upload"
-    assert "стаж" in bot.sent[-1][1].lower()
+    reply_low = (bot.sent[-1][1] if bot.sent else "").lower()
+    assert "обработ" in reply_low or "время" in reply_low or "разбор" in reply_low
+    assert "стаж" not in reply_low  # не повторяем вопрос анкеты сразу
     assert get_intake_store().get_active("804").q_step == "experience"
     get_settings.cache_clear()
 
