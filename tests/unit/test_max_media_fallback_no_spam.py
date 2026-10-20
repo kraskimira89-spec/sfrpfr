@@ -52,10 +52,37 @@ def test_burst_media_without_url_one_calm_ack(tmp_path: Path, monkeypatch) -> No
     assert len(client_texts) == 1
     low = client_texts[0].lower()
     assert "обработ" in low or "время" in low or "разбор" in low
+    assert "напиш" in low
     assert "спасибо за сообщение" not in low
     assert "как получить" not in low
+    assert "заказать звонок" not in low
     assert actions[0] == "upload_media_pending"
     assert actions[1:] == ["upload_media_quiet"] * 4
+    get_settings.cache_clear()
+
+
+def test_empty_update_without_media_markers_still_calm_ack(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Как на проде: пустой апдейт без url → calm ack, не FALLBACK_MENU."""
+    bg.reset_quiet_state()
+    bot = _setup(tmp_path, monkeypatch)
+    handle_max_update(_msg(USER, "/start"), bot=bot)
+    bot.sent.clear()
+    empty = {
+        "update_type": "message_created",
+        "message": {
+            "sender": {"user_id": int(USER)},
+            "recipient": {"chat_id": 1, "chat_type": "dialog"},
+            "body": {"text": ""},
+        },
+    }
+    out = handle_max_update(empty, bot=bot)
+    assert out.action == "ack_processing"
+    low = (out.reply or "").lower()
+    assert "время" in low or "обработ" in low or "разбор" in low
+    assert "спасибо за сообщение" not in low
+    assert "кнопками ниже" not in low
     get_settings.cache_clear()
 
 

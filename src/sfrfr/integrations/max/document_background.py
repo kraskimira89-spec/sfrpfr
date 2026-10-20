@@ -7,9 +7,7 @@ Durable OCR — document_ingest_worker.
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import threading
 import time
 from pathlib import Path
@@ -20,39 +18,6 @@ from sfrfr.integrations.max.client import inline_buttons_keyboard
 from sfrfr.integrations.max.document_auto_type import CLIENT_LABELS_RU
 
 logger = logging.getLogger(__name__)
-
-
-# #region agent log
-def _agent_dbg(
-    hypothesis_id: str, location: str, message: str, data: dict[str, Any]
-) -> None:
-    """Debug NDJSON for session 7466db — без ПДн/секретов."""
-    payload = {
-        "sessionId": "7466db",
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": int(time.time() * 1000),
-        "pid": os.getpid(),
-        "thread": threading.get_ident(),
-    }
-    line = json.dumps(payload, ensure_ascii=False)
-    logger.warning("debug-7466db %s", line)
-    for path in (
-        Path(__file__).resolve().parents[4] / "debug-7466db.log",
-        Path("debug-7466db.log"),
-        Path("/tmp/debug-7466db.log"),
-    ):
-        try:
-            with path.open("a", encoding="utf-8") as fh:
-                fh.write(line + "\n")
-            break
-        except Exception:  # noqa: BLE001
-            continue
-
-
-# #endregion
 
 DONE_PAYLOAD = "max:doc:done"
 DONE_LABEL = "Это все документы"
@@ -97,7 +62,8 @@ def processing_ack_text(*, count: int = 1) -> str:
     return (
         "Документы получили — спасибо!\n\n"
         "Мне нужно немного времени, чтобы их обработать. "
-        "Напишу вам в этот же чат, когда будет готов первичный разбор. "
+        "Не торопитесь присылать всё подряд — лучше дождаться разбора. "
+        "Напишу вам в этот же чат, когда будет готов первичный результат. "
         "Пока можно просто подождать — отдельно ничего нажимать не нужно."
     )
 
@@ -153,19 +119,6 @@ def claim_processing_ack(user_id: str, *, case_id: str | None = None) -> bool:
     with _ack_lock:
         last = _last_ack_at.get(uid) if uid else None
         allow = not uid or last is None or now - last >= _ACK_TTL_SEC
-        # #region agent log
-        _agent_dbg(
-            "B",
-            "document_background.py:claim",
-            "ack_claim",
-            {
-                "uid_len": len(uid),
-                "allow": allow,
-                "age_sec": None if last is None else round(now - last, 3),
-                "map_size": len(_last_ack_at),
-            },
-        )
-        # #endregion
         if not allow:
             return False
         if uid:
@@ -206,14 +159,6 @@ def _deliver_settle_notify(*, case_id: str, max_user_id: str) -> None:
         from sfrfr.services.case_chat_delivery import enqueue_max_delivery
 
         body, _complete = final_message_for_case(case_id)
-        # #region agent log
-        _agent_dbg(
-            "C",
-            "document_background.py:settle",
-            "settle_notify_enqueue",
-            {"case_prefix": str(case_id)[:8], "body_len": len(body or "")},
-        )
-        # #endregion
         enqueue_max_delivery(
             case_id=case_id,
             message_id=None,
