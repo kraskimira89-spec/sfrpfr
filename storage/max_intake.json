@@ -1,0 +1,39 @@
+{
+  "rows": {
+    "u1": {
+      "id": "r1",
+      "max_user_id": "u1",
+      "goal": null,
+      "for_whom": null,
+      "pension_status": null,
+      "problem_type": null,
+      "ils_available": null,
+      "employment_records_available": null,
+      "device_preference": null,
+      "ils_howto_done": false,
+      "emp_howto_done": false,
+      "status": "started",
+      "client_id": null,
+      "case_id": null,
+      "staff_notified_at": null,
+      "welcome_sent_at": null,
+      "llm_turn_count": 0,
+      "q_step": null,
+      "q_answers": {
+        "_pending_doc_id": "doc-42",
+        "_pending_doc_name": "ils.pdf",
+        "_pending_doc_guess": "other"
+      },
+      "q_completed_at": null,
+      "lm_step": null,
+      "lm_send_count": 0,
+      "lm_sent_at": null,
+      "max_first_name": null,
+      "max_last_name": null,
+      "last_seen_at": null,
+      "started_at": "2026-10-20T10:34:56.501805+00:00",
+      "completed_at": null,
+      "updated_at": "2026-10-20T10:34:56.501822+00:00"
+    }
+  }
+}
