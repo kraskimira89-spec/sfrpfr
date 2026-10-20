@@ -3459,7 +3459,28 @@ def handle_max_update(
         if reminded is not None:
             return reminded
 
-    # Тип документа: авто-определение + подтверждение Да/Нет (или запасной список).
+    # «Это все документы»: итог комплекта без специалиста.
+    from sfrfr.integrations.max import document_background as doc_bg
+
+    if callback == doc_bg.DONE_PAYLOAD or (
+        not callback and doc_bg.is_done_text(text)
+    ):
+        _done_rec = get_intake_store().get_active(user_id)
+        _done_seen = bool((_done_rec.q_answers or {}).get("_docs_seen")) if _done_rec else False
+        if callback == doc_bg.DONE_PAYLOAD or _done_seen:
+            _done_case = _chat_case_id(
+                user_id, preferred=(_done_rec.case_id if _done_rec else None)
+            )
+            _final, _complete = doc_bg.final_message_for_case(_done_case)
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=_final, case_id=_done_case)
+            return MaxHandleResult(
+                ok=True,
+                action="docs_done_complete" if _complete else "docs_done_incomplete",
+                case_id=_done_case,
+                reply=_final,
+            )
+
+    # Старые кнопки подтверждения типа: не роняем, новых таких не шлём.
     if callback.startswith("max:doc:confirm:") or callback.startswith("max:doc:type:"):
         from sfrfr.integrations.max import document_type_flow as doc_type_flow
 
@@ -3767,7 +3788,7 @@ def handle_max_update(
 
     # Канал чат-бот MAX: документы принимаем сюда (кабинет — удобная альтернатива).
     if max_files:
-        from sfrfr.integrations.max import document_type_flow as doc_type_flow
+        from sfrfr.integrations.max import document_background
         from sfrfr.integrations.max.intake import documents_upload_keyboard
         from sfrfr.services.case_chat_delivery import documents_cabinet_url
 
@@ -3777,10 +3798,8 @@ def handle_max_update(
             preferred=record_case_id or (intake.case_id if intake else None),
         )
         names: list[str] = []
-        ingested: list[tuple[str, str, Any]] = []
+        ingested: list[tuple[str, str, bytes]] = []
         if upload_case_id:
-            from sfrfr.integrations.max.document_auto_type import guess_from_bytes
-
             for name, data in max_files:
                 doc_id = _ingest_max_file(
                     case_id=upload_case_id,
@@ -3791,29 +3810,38 @@ def handle_max_update(
                 )
                 if doc_id:
                     names.append(name)
-                    ingested.append((doc_id, name, guess_from_bytes(filename=name, data=data)))
+                    ingested.append((doc_id, name, data))
         if names:
             _notify_staff_chat_docs(
                 user_id=user_id, case_id=upload_case_id, filenames=names
             )
-            intake_for_type = intake or get_intake_store().get_active(user_id)
-            if intake_for_type is None:
-                intake_for_type = get_intake_store().upsert_started(user_id)
-            for doc_id, name, guessed in ingested:
-                doc_type_flow.remember_pending(
-                    intake_for_type, document_id=doc_id, filename=name, guess=guessed.doc_type
-                )
-            reply = doc_type_flow.guess_question_text(ingested[0][2])
-            if len(names) > 1:
-                reply = f"Получили файлов: {len(names)}. Разберём по одному.\n\n{reply}"
+            intake_rec = intake or get_intake_store().get_active(user_id)
+            if intake_rec is None:
+                intake_rec = get_intake_store().upsert_started(user_id)
+            try:
+                _answers = dict(intake_rec.q_answers or {})
+                _answers["_docs_seen"] = "1"
+                intake_rec.q_answers = _answers
+                get_intake_store().save(intake_rec)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("docs_seen mark skipped: %s", exc)
+            reply = document_background.saved_text(names[0], count=len(names))
             _reply(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
                 text=reply,
-                attachments=doc_type_flow.confirm_keyboard(),
+                attachments=document_background.done_keyboard(),
                 case_id=upload_case_id,
             )
+            # Фон после ответа клиенту: тип/журнал, не блокируя приём.
+            for doc_id, name, data in ingested:
+                try:
+                    document_background.schedule_document_background(
+                        case_id=upload_case_id, document_id=doc_id, filename=name, data=data
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("doc background schedule skipped: %s", exc)
             _resume_questionnaire_after_upload(
                 bot, user_id=user_id, chat_id=chat_id, case_id=upload_case_id
             )
