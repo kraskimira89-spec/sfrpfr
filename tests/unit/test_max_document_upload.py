@@ -54,3 +54,33 @@ def test_upload_max_document_rejects_legacy_doc() -> None:
         )
     assert row is None
     create.assert_not_called()
+
+
+def test_upload_max_document_accepts_pdf_without_extension() -> None:
+    with patch(
+        "sfrfr.services.max_document_upload.create_quarantine_document",
+        return_value={"id": "doc-pdf"},
+    ) as create:
+        row = upload_max_document(
+            case_id="12345678-1234-1234-1234-123456789012",
+            filename="document.bin",
+            data=b"%PDF-1.4 from phone",
+        )
+    assert row is not None
+    create.assert_called_once()
+    assert create.call_args.kwargs["filename"].lower().endswith(".pdf")
+    assert create.call_args.kwargs["content_type"] == "application/pdf"
+
+
+def test_upload_max_document_accepts_pdf_uppercase() -> None:
+    with patch(
+        "sfrfr.services.max_document_upload.create_quarantine_document",
+        return_value={"id": "doc-pdf2"},
+    ) as create:
+        row = upload_max_document(
+            case_id="12345678-1234-1234-1234-123456789012",
+            filename="ils.PDF",
+            data=b"\xff\xfe" + b"%PDF-1.7",
+        )
+    assert row is not None
+    create.assert_called_once()

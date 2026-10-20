@@ -53,7 +53,7 @@ def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
             or item.get("file_name")
             or item.get("filename")
             or item.get("name")
-            or "document.bin"
+            or "document"
         )
         out.append((str(name), url))
     return out
