@@ -251,9 +251,20 @@ def filter_downloadable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [row for row in rows if is_document_downloadable(row)]
 
 
-def is_document_downloadable(row: dict[str, Any]) -> bool:
+def is_document_downloadable(
+    row: dict[str, Any],
+    *,
+    allow_local_pending: bool = False,
+) -> bool:
+    status = str(row.get("ingest_status") or "")
+    if allow_local_pending and status == "needs_reupload" and str(
+        row.get("local_path") or ""
+    ).strip():
+        av = str(row.get("antivirus_status") or "").strip().lower()
+        if not av or av in {"clean", "not_configured", "disabled"}:
+            return True
     return is_downloadable_status(
-        str(row.get("ingest_status") or ""),
+        status,
         antivirus_status=str(row.get("antivirus_status") or ""),
     )
 

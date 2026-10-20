@@ -199,7 +199,7 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     handle_max_update(_cb(804, "start_dialog"), bot=bot)
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
-        lambda _u: [("ils.pdf", b"%PDF-1.4")],
+        lambda _u: ([("ils.pdf", b"%PDF-1.4")], []),
     )
     monkeypatch.setattr("sfrfr.integrations.max.handler._ingest_max_file", lambda **_kw: True)
     monkeypatch.setattr(

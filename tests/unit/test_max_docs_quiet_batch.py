@@ -25,7 +25,7 @@ def _prep_upload(tmp_path: Path, monkeypatch, *, filenames: list[str]) -> object
     files = [(name, b"%PDF-1.4 fake") for name in filenames]
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
-        lambda _u: files,
+        lambda _u: (files, []),
     )
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._try_max_payment_receipt",

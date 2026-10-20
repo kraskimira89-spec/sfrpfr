@@ -1244,21 +1244,202 @@ def _notify_ops_max_operator(*, user_id: str, case_id: str, crm_url: str | None)
         logging.getLogger(__name__).exception("max_operator_ops_notify_failed max=%s", user_id)
 
 
-def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
-    """Скачать вложения из апдейта MAX (file_bytes и url)."""
+def _collect_max_files(
+    update: dict[str, Any],
+) -> tuple[list[tuple[str, bytes]], list[dict[str, Any]]]:
+    """Скачать вложения; вернуть (байты, спеки с ошибкой/без url)."""
+    from sfrfr.integrations.max.attachments import extract_attachment_specs
+
     files: list[tuple[str, bytes]] = []
+    failed_specs: list[dict[str, Any]] = []
     file_name = update.get("file_name")
     file_bytes = update.get("file_bytes")
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         files.append((file_name, bytes(file_bytes)))
-    urls = extract_downloadable_files(update)
-    for name, url in urls:
-        try:
-            files.append((name, download_file(url)))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("max file download failed name=%s err=%s", name, exc)
+    for spec in extract_attachment_specs(update):
+        url = spec.get("url")
+        name = str(spec.get("filename") or "document")
+        if not url:
+            failed_specs.append({**spec, "error_code": "no_url"})
             continue
-    return files
+        try:
+            files.append((name, download_file(str(url))))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max file download failed name=%s err=%s", name, type(exc).__name__)
+            failed_specs.append({**spec, "error_code": type(exc).__name__})
+    return files, failed_specs
+
+
+def _enqueue_failed_attachment_specs(
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    case_id: str | None,
+    update: dict[str, Any],
+    failed_specs: list[dict[str, Any]],
+    bot: MaxBotClient,
+) -> tuple[bool, bool]:
+    """Поставить jobs на ретрай/fail. Возвращает (has_retryable, has_immediate_fail)."""
+    from sfrfr.integrations.max import attachment_lifecycle as life
+    from sfrfr.integrations.max.attachments import message_mid
+
+    mid = message_mid(update) or _max_message_id(update)
+    has_retry = False
+    has_fail = False
+    for spec in failed_specs:
+        url = spec.get("url")
+        filename = str(spec.get("filename") or "document")
+        attach_key = str(spec.get("attach_key") or life.attach_key_from_parts(filename=filename))
+        error_code = str(spec.get("error_code") or "download_error")
+        if url:
+            life.enqueue_awaiting_bytes(
+                user_id=str(user_id),
+                case_id=case_id,
+                message_mid=mid,
+                attach_key=attach_key,
+                filename=filename,
+                url=str(url),
+                chat_id=chat_id,
+                error_code=error_code,
+                stage="awaiting_bytes",
+            )
+            has_retry = True
+            continue
+        # Нет URL: один sync refetch по mid, иначе честный fail.
+        resolved_url: str | None = None
+        if mid:
+            try:
+                refreshed = bot.get_message(str(mid))
+                from sfrfr.integrations.max.attachments import extract_downloadable_files
+
+                pairs = extract_downloadable_files(refreshed or {})
+                if pairs:
+                    resolved_url = pairs[0][1]
+            except Exception:  # noqa: BLE001
+                resolved_url = None
+        if resolved_url:
+            life.enqueue_awaiting_bytes(
+                user_id=str(user_id),
+                case_id=case_id,
+                message_mid=mid,
+                attach_key=attach_key,
+                filename=filename,
+                url=resolved_url,
+                chat_id=chat_id,
+                stage="awaiting_bytes",
+            )
+            has_retry = True
+            continue
+        life.enqueue_awaiting_bytes(
+            user_id=str(user_id),
+            case_id=case_id,
+            message_mid=mid,
+            attach_key=attach_key,
+            filename=filename,
+            url=None,
+            chat_id=chat_id,
+            error_code="no_download_mechanism",
+            stage="failed",
+        )
+        has_fail = True
+    if has_retry:
+        life.schedule_drain(delay_sec=15.0)
+    return has_retry, has_fail
+
+
+def _handle_attachments_without_bytes(
+    bot: MaxBotClient,
+    *,
+    update: dict[str, Any],
+    user_id: str,
+    chat_id: int | str | None,
+    case_id: str | None,
+    failed_specs: list[dict[str, Any]],
+) -> MaxHandleResult:
+    """Медиа без байтов / пустой апдейт — без «документы получили»."""
+    from sfrfr.integrations.max import attachment_lifecycle as life
+
+    media_intent = has_media_attachments(update) or bool(failed_specs)
+    specs = failed_specs
+    if media_intent and not specs:
+        from sfrfr.integrations.max.attachments import extract_attachment_specs
+
+        specs = extract_attachment_specs(update) or [
+            {
+                "filename": "document",
+                "url": None,
+                "attach_key": life.attach_key_from_parts(filename="document"),
+                "error_code": "no_url",
+            }
+        ]
+    if not media_intent and not specs:
+        return MaxHandleResult(
+            ok=True,
+            action="empty_noop",
+            case_id=case_id,
+            reply="",
+        )
+
+    has_retry, has_fail = _enqueue_failed_attachment_specs(
+        user_id=user_id,
+        chat_id=chat_id,
+        case_id=case_id,
+        update=update,
+        failed_specs=specs,
+        bot=bot,
+    )
+    if has_retry:
+        if life.claim_checking_notice(str(user_id)):
+            reply = life.CHECKING_TEXT
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=None,
+                case_id=case_id,
+            )
+            return MaxHandleResult(
+                ok=True,
+                action="upload_media_checking",
+                case_id=case_id,
+                reply=reply,
+            )
+        return MaxHandleResult(
+            ok=True,
+            action="upload_media_quiet",
+            case_id=case_id,
+            reply="",
+        )
+    if has_fail:
+        if life.claim_checking_notice(str(user_id)):
+            reply = life.RESEND_TEXT
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=None,
+                case_id=case_id,
+            )
+            return MaxHandleResult(
+                ok=True,
+                action="upload_media_failed",
+                case_id=case_id,
+                reply=reply,
+            )
+        return MaxHandleResult(
+            ok=True,
+            action="upload_media_quiet",
+            case_id=case_id,
+            reply="",
+        )
+    return MaxHandleResult(
+        ok=True,
+        action="upload_media_quiet",
+        case_id=case_id,
+        reply="",
+    )
 
 
 def _try_max_payment_receipt(
@@ -1299,8 +1480,13 @@ def _ingest_max_file(
     store: Any,
     record: Any,
 ) -> str | None:
-    """Сохранить файл дела из MAX в Supabase. Возвращает document id или None."""
+    """Сохранить файл дела из MAX. Возвращает document id или None.
+
+    None также если файл сохранён, но специалист не может открыть его из дела
+    (нет local_path и облако недоступно) — тогда клиенту нельзя писать «получили».
+    """
     del store, record
+    from sfrfr.integrations.max.attachment_lifecycle import document_is_staff_openable
     from sfrfr.integrations.max.case_chat_log import (
         append_case_chat_message,
         format_document_event,
@@ -1326,6 +1512,8 @@ def _ingest_max_file(
         )
         return None
     doc_id = str(row.get("id") or "").strip() or None
+    if not doc_id:
+        return None
     cloud_pending = str(row.get("cloud_status") or "") == "pending"
     try:
         body = format_document_event(filename=filename)
@@ -1343,8 +1531,15 @@ def _ingest_max_file(
         logger.warning(
             "max upload cloud_pending case=%s doc=%s",
             cid[:8],
-            (doc_id or "")[:8],
+            doc_id[:8],
         )
+    if not document_is_staff_openable(row):
+        logger.warning(
+            "max upload not staff_openable case=%s doc=%s",
+            cid[:8],
+            doc_id[:8],
+        )
+        return None
     return doc_id
 
 
@@ -3736,7 +3931,7 @@ def handle_max_update(
             ok=True, action="docs_request", case_id=docs_case_id, reply=reply
         )
 
-    max_files = _collect_max_files(update)
+    max_files, failed_attach_specs = _collect_max_files(update)
     if record is None and not max_files:
         # Уже был /start, но дело ещё не создано — не гоняем полный welcome снова.
         # Произвольный текст → intake из фразы / ТЗ-26 LLM.
@@ -3821,6 +4016,15 @@ def handle_max_update(
                     names.append(name)
                     ingested.append((doc_id, name, data))
         if names:
+            if failed_attach_specs:
+                _enqueue_failed_attachment_specs(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    case_id=upload_case_id,
+                    update=update,
+                    failed_specs=failed_attach_specs,
+                    bot=bot,
+                )
             _notify_staff_chat_docs(
                 user_id=user_id, case_id=upload_case_id, filenames=names
             )
@@ -3962,30 +4166,12 @@ def handle_max_update(
             exclude_message_id=str((stored or {}).get("id") or "") or None,
         )
 
-    # Пустой апдейт без скачанных байтов (часто файл MAX без url в payload):
-    # один спокойный ответ про разбор — без FALLBACK_MENU и howto-кнопок.
-    from sfrfr.integrations.max import document_background as doc_bg
-
-    media_intent = has_media_attachments(update)
-    if not doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
-        return MaxHandleResult(
-            ok=True,
-            action="upload_media_quiet" if media_intent else "ack_quiet",
-            case_id=record.case_id,
-            reply="",
-        )
-    reply = doc_bg.processing_ack_text()
-    _reply(
+    # Нет байтов: медиа без url / ошибка скачивания — не «получили».
+    return _handle_attachments_without_bytes(
         bot,
+        update=update,
         user_id=user_id,
         chat_id=chat_id,
-        text=reply,
-        attachments=None,
-        case_id=record.case_id,
-    )
-    return MaxHandleResult(
-        ok=True,
-        action="upload_media_pending" if media_intent else "ack_processing",
-        case_id=record.case_id,
-        reply=reply,
+        case_id=str(record.case_id) if record is not None else None,
+        failed_specs=failed_attach_specs,
     )

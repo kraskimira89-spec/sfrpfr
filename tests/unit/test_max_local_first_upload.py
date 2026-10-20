@@ -108,17 +108,24 @@ def test_upload_max_document_ok_when_cloud_mock_fails(
     assert str(row.get("id") or "")
 
 
-def test_ingest_returns_id_when_cloud_pending(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ingest_returns_id_when_cloud_pending(
+    uploads_tmp: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import sfrfr.integrations.max.case_chat_log as clog
     import sfrfr.services.max_document_upload as mdu
 
+    local_rel = "quarantine/case/doc.pdf"
+    local_file = uploads_tmp / local_rel
+    local_file.parent.mkdir(parents=True, exist_ok=True)
+    local_file.write_bytes(b"%PDF-1.4")
     monkeypatch.setattr(
         mdu,
         "upload_max_document",
         lambda **_k: {
             "id": "doc-local-1",
             "cloud_status": "pending",
-            "local_path": "quarantine/case/doc.pdf",
+            "local_path": local_rel,
+            "ingest_status": "needs_reupload",
         },
     )
     logged: list[dict] = []

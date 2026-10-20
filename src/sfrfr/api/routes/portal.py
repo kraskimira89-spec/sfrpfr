@@ -24,7 +24,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
 from sfrfr.api.schemas.portal import (
     CabinetRegisterRequest,
@@ -2003,7 +2003,10 @@ def create_document_signed_url(
     row = CaseRepository._one_or_none(
         get_supabase_client()
         .table("documents")
-        .select("id, storage_path, ingest_status, mime_verified, doc_type, antivirus_status")
+        .select(
+            "id, storage_path, local_path, ingest_status, mime_verified, "
+            "doc_type, antivirus_status"
+        )
         .eq("id", document_id)
         .eq("case_id", case_id)
         .limit(1)
@@ -2011,17 +2014,43 @@ def create_document_signed_url(
     )
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
-    if not is_document_downloadable(row):
+    allow_local = bool(principal.is_staff)
+    if not is_document_downloadable(row, allow_local_pending=allow_local):
         raise HTTPException(status_code=403, detail="document not available yet")
 
     expires_in = SIGNED_URL_TTL_SECONDS
     storage_path = str(row["storage_path"] or "")
-    signed = (
-        get_supabase_client()
-        .storage.from_(PRIVATE_STORAGE_BUCKET)
-        .create_signed_url(storage_path, expires_in)
+    local_rel = str(row.get("local_path") or "").strip()
+    use_local = storage_path.startswith("local-pending/") or (
+        allow_local and str(row.get("ingest_status") or "") == "needs_reupload"
     )
-    raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
+    raw_url = ""
+    if not use_local:
+        try:
+            signed = (
+                get_supabase_client()
+                .storage.from_(PRIVATE_STORAGE_BUCKET)
+                .create_signed_url(storage_path, expires_in)
+            )
+            raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
+        except Exception:  # noqa: BLE001
+            raw_url = ""
+    if not raw_url and local_rel:
+        from sfrfr.services.local_doc_download import issue_local_download
+        from sfrfr.storage.local import path_from_uploads_relative
+
+        local_path = path_from_uploads_relative(local_rel)
+        if local_path is None or not local_path.is_file():
+            raise HTTPException(status_code=404, detail="local file missing")
+        token = issue_local_download(
+            path=local_path,
+            filename=_document_filename(storage_path or local_rel),
+            case_id=case_id,
+            document_id=document_id,
+            ttl_sec=float(expires_in),
+        )
+        base = get_settings().public_base_url.rstrip("/")
+        raw_url = f"{base}/api/portal/tmp-docs/{token}"
     if not raw_url:
         raise HTTPException(status_code=502, detail="signed url failed")
     repo.audit(case_id, principal.user_id, "document_download_url_created")
@@ -2034,10 +2063,25 @@ def create_document_signed_url(
     return SignedDocumentResponse(
         url=_with_download_param(
             raw_url,
-            _document_filename(storage_path),
+            _document_filename(storage_path or local_rel),
             inline=inline,
         ),
         expires_in=expires_in,
+    )
+
+
+@router.get("/tmp-docs/{token}")
+def download_tmp_local_document(token: str) -> FileResponse:
+    """Одноразовая по времени ссылка на локальный quarantine-файл (без ПДн в токене)."""
+    from sfrfr.services.local_doc_download import take_local_download
+
+    entry = take_local_download(token)
+    if entry is None or not entry.path.is_file():
+        raise HTTPException(status_code=404, detail="link expired or missing")
+    return FileResponse(
+        path=entry.path,
+        filename=entry.filename,
+        media_type="application/octet-stream",
     )
 
 
