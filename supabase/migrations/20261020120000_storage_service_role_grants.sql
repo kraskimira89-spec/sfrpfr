@@ -2,6 +2,7 @@
 -- "permission denied for table buckets" — без SELECT на storage.buckets
 -- upload в pension-docs падает, клиент MAX видит «пришлите ещё раз».
 -- Канон: service_role обходит RLS объектов; buckets нужен для резолва bucket id.
+-- Применять от суперпользователя supabase_admin (роль postgres на supabase2 не superuser).
 
 grant usage on schema storage to service_role;
 grant select on table storage.buckets to service_role;
