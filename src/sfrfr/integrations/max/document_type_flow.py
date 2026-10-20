@@ -79,6 +79,21 @@ def received_text(doc_type: str) -> str:
     return base
 
 
+def received_summary_ru(*, filename: str, doc_type: str | None = None) -> str:
+    """Краткое подтверждение клиенту без латиницы форматов и жаргона."""
+    from pathlib import Path
+
+    name = Path(filename or "файл").stem.replace("_", " ").strip() or "файл"
+    # Убрать хвосты вроде «(1)» от телефона — не пугать цифрами без смысла.
+    name = name.replace(" (1)", "").replace("(1)", "").strip() or "файл"
+    if doc_type:
+        return f"Файл получили — «{name}» ({type_label(doc_type)}). Сейчас разберём."
+    return (
+        f"Файл получили — «{name}». Сейчас разберём — "
+        "уточните, пожалуйста, тип документа кнопкой ниже."
+    )
+
+
 def type_keyboard() -> list[dict[str, Any]]:
     return inline_buttons_keyboard(
         [

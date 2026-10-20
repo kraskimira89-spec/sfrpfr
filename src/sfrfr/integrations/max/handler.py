@@ -1315,21 +1315,31 @@ def _ingest_max_file(
     )
     if row is None:
         logger.warning(
-            "max supabase upload failed case=%s file=%s",
+            "max upload failed case=%s file=%s reason=rejected_or_local_fail",
             cid[:8],
             filename,
         )
         return None
     doc_id = str(row.get("id") or "").strip() or None
+    cloud_pending = str(row.get("cloud_status") or "") == "pending"
     try:
+        body = format_document_event(filename=filename)
+        if cloud_pending:
+            body = f"{body} [нужна догрузка в облако]"
         append_case_chat_message(
             case_id=cid,
             author_kind="client",
-            body=format_document_event(filename=filename),
+            body=body,
             channel_origin="max",
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("document case_message failed: %s", exc)
+    if cloud_pending:
+        logger.warning(
+            "max upload cloud_pending case=%s doc=%s",
+            cid[:8],
+            (doc_id or "")[:8],
+        )
     return doc_id
 
 
@@ -3767,9 +3777,13 @@ def handle_max_update(
                 doc_type_flow.remember_pending(
                     intake_for_type, document_id=doc_id, filename=name
                 )
-            reply = doc_type_flow.ASK_TYPE_TEXT
+            first_name = names[0] if names else "файл"
+            reply = doc_type_flow.received_summary_ru(filename=first_name, doc_type=None)
             if len(names) > 1:
-                reply = f"Получили файлов: {len(names)}.\n{doc_type_flow.ASK_TYPE_TEXT}"
+                reply = (
+                    f"Получили файлов: {len(names)}. "
+                    f"{doc_type_flow.received_summary_ru(filename=first_name, doc_type=None)}"
+                )
             _reply(
                 bot,
                 user_id=user_id,

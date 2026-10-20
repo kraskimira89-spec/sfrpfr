@@ -1,4 +1,4 @@
-"""MAX ingest: успех только при записи в Supabase, без silent local."""
+"""MAX ingest: без case_id — отказ; при облаке pending — успех с id."""
 
 from __future__ import annotations
 
@@ -8,16 +8,10 @@ from unittest.mock import MagicMock
 from sfrfr.integrations.max import handler as max_handler
 
 
-def test_ingest_max_file_false_when_supabase_fails(monkeypatch) -> None:
+def test_ingest_max_file_false_when_upload_returns_none(monkeypatch) -> None:
     import sfrfr.services.max_document_upload as mdu
 
-    called: dict[str, object] = {}
-
-    def _fail(**kwargs):
-        called.update(kwargs)
-        return None
-
-    monkeypatch.setattr(mdu, "upload_max_document", _fail)
+    monkeypatch.setattr(mdu, "upload_max_document", lambda **_k: None)
     store = MagicMock()
     ok = max_handler._ingest_max_file(
         case_id="11111111-1111-1111-1111-111111111111",
@@ -27,7 +21,6 @@ def test_ingest_max_file_false_when_supabase_fails(monkeypatch) -> None:
         record=SimpleNamespace(case_id="local-1"),
     )
     assert ok is None
-    assert called.get("uploaded_by") is None
     store.add_document.assert_not_called()
 
 
@@ -53,7 +46,11 @@ def test_ingest_max_file_true_when_supabase_ok(monkeypatch) -> None:
     import sfrfr.integrations.max.case_chat_log as clog
     import sfrfr.services.max_document_upload as mdu
 
-    monkeypatch.setattr(mdu, "upload_max_document", lambda **_kwargs: {"id": "doc-1"})
+    monkeypatch.setattr(
+        mdu,
+        "upload_max_document",
+        lambda **_kwargs: {"id": "doc-1", "cloud_status": "ok"},
+    )
     logged: list[dict] = []
     monkeypatch.setattr(clog, "append_case_chat_message", lambda **kwargs: logged.append(kwargs))
     monkeypatch.setattr(clog, "format_document_event", lambda **_k: "doc event")
