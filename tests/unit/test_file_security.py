@@ -64,3 +64,56 @@ def test_docx_with_macros_rejected() -> None:
     result = validate_file_bytes(data, filename="macro.docx", allow_signed=False)
     assert not result.ok
     assert result.internal_reason == "docx_macros"
+
+
+def test_pdf_with_preamble_accepted() -> None:
+    """Часть PDF с телефона/приложений: мусор до %PDF- (допуск ISO)."""
+    data = b"\x00\x00" + b"%PDF-1.7 mobile"
+    result = validate_file_bytes(data, filename="scan.pdf")
+    assert result.ok
+    assert result.detected_mime == "application/pdf"
+
+
+def test_pdf_uppercase_extension_ok() -> None:
+    data = b"%PDF-1.4 x"
+    result = validate_file_bytes(data, filename="Выписка.PDF")
+    assert result.ok
+
+
+def test_pdf_without_extension_accepted_by_magic() -> None:
+    data = b"%PDF-1.4 from max"
+    result = validate_file_bytes(data, filename="document")
+    assert result.ok
+    assert result.detected_mime == "application/pdf"
+
+
+def test_pdf_with_bin_name_accepted_by_magic() -> None:
+    """MAX часто отдаёт вложение без имени → document.bin."""
+    data = b"%PDF-1.4 from max"
+    result = validate_file_bytes(data, filename="document.bin")
+    assert result.ok
+    assert result.detected_mime == "application/pdf"
+
+
+def test_jpeg_misnamed_as_pdf_accepted_as_image() -> None:
+    data = b"\xff\xd8\xff\xe0" + b"0" * 20
+    result = validate_file_bytes(data, filename="scan.pdf")
+    assert result.ok
+    assert result.detected_mime == "image/jpeg"
+
+
+def test_heic_rejected_friendly() -> None:
+    data = b"\x00\x00\x00\x18ftypheic" + b"0" * 20
+    result = validate_file_bytes(data, filename="photo.heic")
+    assert not result.ok
+    assert result.internal_reason == "heic_unsupported"
+    assert "PDF" not in (result.client_message or "")
+    assert "JPEG" not in (result.client_message or "")
+
+
+def test_client_messages_avoid_latin_format_lists() -> None:
+    result = validate_file_bytes(b"MZ" + b"0" * 20, filename="photo.jpg")
+    assert not result.ok
+    msg = (result.client_message or "").upper()
+    for token in ("PDF", "DOCX", "JPG", "JPEG", "PNG"):
+        assert token not in msg

@@ -305,6 +305,10 @@ def test_summary_and_upload_keyboards_chat_only_no_cabinet() -> None:
     assert "личном кабинете" not in SUMMARY_TEXT.lower()
     assert "личном кабинете" not in UPLOAD_BLOCKED_TEXT.lower()
     assert "получили" in UPLOAD_ACCEPTED_TEXT.lower() or "добавили" in UPLOAD_ACCEPTED_TEXT.lower()
+    blocked_up = UPLOAD_BLOCKED_TEXT.upper()
+    for token in ("PDF", "DOCX", "JPG", "JPEG", "PNG"):
+        assert token not in blocked_up
+    assert "фотографи" in UPLOAD_BLOCKED_TEXT.lower()
 
 
 def test_docs_info_text_lists_besides_ils_and_chat_upload() -> None:

@@ -3792,7 +3792,7 @@ def handle_max_update(
         _append_client_case_message(
             case_id=upload_case_id,
             max_user_id=user_id,
-            text="[Вложение не принято: формат или ошибка загрузки]",
+            text="[Вложение не принято: не удалось сохранить файл]",
             external_message_id=_max_message_id(update),
         )
         _reply(
