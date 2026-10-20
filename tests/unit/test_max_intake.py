@@ -472,8 +472,9 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     assert accepted.action == "upload"
     assert accepted.ok is True
     reply_low = (accepted.reply or "").lower()
-    assert "сохранён" in reply_low
+    assert "получил" in reply_low or "обработ" in reply_low
     assert "правильно?" not in reply_low
+    assert "следующ" not in reply_low
     get_settings.cache_clear()
 
 

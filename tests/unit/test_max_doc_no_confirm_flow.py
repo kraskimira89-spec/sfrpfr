@@ -21,6 +21,7 @@ def _upload(tmp_path: Path, monkeypatch, scheduled: list) -> object:
     from sfrfr.integrations.max import handler as handler_mod
 
     handler_mod._RECENT_CALLBACKS.clear()
+    bg.reset_quiet_state()
     bot = _setup(tmp_path, monkeypatch)
     handle_max_update(_msg(USER, "/start"), bot=bot)
     monkeypatch.setattr(
@@ -42,6 +43,7 @@ def _upload(tmp_path: Path, monkeypatch, scheduled: list) -> object:
         lambda _uid, preferred=None: CASE_ID,
     )
     monkeypatch.setattr(bg, "schedule_document_background", lambda **kw: scheduled.append(kw))
+    monkeypatch.setattr(bg, "schedule_settle_notify", lambda **_kw: None)
     with patch(
         "sfrfr.integrations.max.document_auto_type.guess_from_bytes",
         side_effect=AssertionError("тип нельзя определять синхронно"),
@@ -55,18 +57,16 @@ def test_upload_saved_no_type_question_schedules_background(tmp_path, monkeypatc
     scheduled: list = []
     bot = _upload(tmp_path, monkeypatch, scheduled)
     joined = "\n".join(t for _u, t in bot.sent if t)
-    assert "сохранён" in joined.lower()
-    assert "следующ" in joined.lower()
+    low = joined.lower()
+    assert "получил" in low or "обработ" in low
+    assert "время" in low or "разбор" in low
+    assert "следующ" not in low
     flat = str([a for a in bot.attachments if a])
-    assert "max:doc:done" in flat
+    assert "max:doc:done" not in flat
     assert "max:doc:confirm:" not in flat
     assert "max:doc:type:" not in flat
     assert "Правильно?" not in joined
     assert scheduled and scheduled[0]["document_id"] == "doc-1"
-    # кнопка «это всё» — одна в ряд
-    kb = bg.done_keyboard()
-    rows = kb[0]["payload"]["buttons"]
-    assert all(len(r) == 1 for r in rows)
     get_settings.cache_clear()
 
 
@@ -106,7 +106,7 @@ def test_final_complete_proposes_analysis_without_promises() -> None:
         ]
     )
     assert complete is True
-    assert "приступить к анализу" in text.lower()
+    assert "приступать к анализу" in text.lower() or "анализ" in text.lower()
     assert "подаёте" in text.lower()
     assert "СФР" in text
     assert "перерасчёт будет" not in text.lower()

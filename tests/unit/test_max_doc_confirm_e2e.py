@@ -63,6 +63,13 @@ def _upload_step(tmp_path: Path, monkeypatch) -> object:
         "sfrfr.integrations.max.document_background.schedule_document_background",
         lambda **_kw: None,
     )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.document_background.schedule_settle_notify",
+        lambda **_kw: None,
+    )
+    from sfrfr.integrations.max import document_background as bg
+
+    bg.reset_quiet_state()
     up = handle_max_update(_msg(USER, ""), bot=bot)
     assert up.action == "upload"
     return bot
@@ -71,11 +78,13 @@ def _upload_step(tmp_path: Path, monkeypatch) -> object:
 def test_upload_has_no_confirm_buttons(tmp_path: Path, monkeypatch) -> None:
     bot = _upload_step(tmp_path, monkeypatch)
     flat = str([a for a in bot.attachments if a])
-    assert "max:doc:done" in flat
+    assert "max:doc:done" not in flat
     assert "max:doc:confirm:" not in flat
     assert "max:doc:type:" not in flat
     joined = "\n".join(t for _u, t in bot.sent if t)
-    assert "сохранён" in joined.lower()
+    low = joined.lower()
+    assert "получил" in low or "обработ" in low
+    assert "следующ" not in low
     get_settings.cache_clear()
 
 
