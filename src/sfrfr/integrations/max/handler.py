@@ -10,7 +10,12 @@ from typing import Any
 
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
-from sfrfr.integrations.max.attachments import download_file, extract_downloadable_files
+from sfrfr.integrations.max.attachments import (
+    attachment_debug_meta,
+    download_file,
+    extract_downloadable_files,
+    has_media_attachments,
+)
 from sfrfr.integrations.max.channel_ids import remember_chat_id
 from sfrfr.integrations.max.client import (
     MaxBotClient,
@@ -1248,10 +1253,42 @@ def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
     file_bytes = update.get("file_bytes")
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         files.append((file_name, bytes(file_bytes)))
-    for name, url in extract_downloadable_files(update):
+    urls = extract_downloadable_files(update)
+    # #region agent log
+    try:
+        from sfrfr.integrations.max.document_background import _agent_dbg
+
+        _agent_dbg(
+            "J",
+            "handler.py:_collect_max_files",
+            "collect_files",
+            {
+                "url_count": len(urls),
+                "has_media": has_media_attachments(update),
+                "meta": attachment_debug_meta(update)[:5],
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    # #endregion
+    for name, url in urls:
         try:
             files.append((name, download_file(url)))
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("max file download failed name=%s err=%s", name, exc)
+            # #region agent log
+            try:
+                from sfrfr.integrations.max.document_background import _agent_dbg
+
+                _agent_dbg(
+                    "J",
+                    "handler.py:download_fail",
+                    "download_failed",
+                    {"name": str(name)[:40], "err": type(exc).__name__},
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            # #endregion
             continue
     return files
 
@@ -3844,7 +3881,9 @@ def handle_max_update(
             except Exception as exc:  # noqa: BLE001
                 logger.debug("settle notify schedule skipped: %s", exc)
             # Пачка файлов → один спокойный ответ, без howto и без «пришлите следующий».
-            _will_ack = document_background.should_send_processing_ack(str(user_id))
+            _will_ack = document_background.claim_processing_ack(
+                str(user_id), case_id=upload_case_id
+            )
             # #region agent log
             try:
                 from sfrfr.integrations.max.document_background import _agent_dbg
@@ -3865,7 +3904,6 @@ def handle_max_update(
             # #endregion
             if _will_ack:
                 reply = document_background.processing_ack_text(count=len(names))
-                document_background.mark_quiet_ack(str(user_id), case_id=upload_case_id)
                 # #region agent log
                 try:
                     from sfrfr.integrations.max.document_background import _agent_dbg
@@ -4000,6 +4038,55 @@ def handle_max_update(
             exclude_message_id=str((stored or {}).get("id") or "") or None,
         )
 
+    # Медиа без скачанных байтов (MAX отдал вложение без url / download fail):
+    # не спамим FALLBACK_MENU с howto-кнопками на каждый файл.
+    from sfrfr.integrations.max import document_background as doc_bg
+
+    media_intent = has_media_attachments(update)
+    # #region agent log
+    try:
+        from sfrfr.integrations.max.document_background import _agent_dbg
+
+        _agent_dbg(
+            "J",
+            "handler.py:fallback_gate",
+            "empty_text_no_files",
+            {
+                "media_intent": media_intent,
+                "meta": attachment_debug_meta(update)[:5],
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    # #endregion
+    if media_intent:
+        if doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
+            reply = doc_bg.processing_ack_text()
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=None,
+                case_id=record.case_id,
+            )
+            return MaxHandleResult(
+                ok=True,
+                action="upload_media_pending",
+                case_id=record.case_id,
+                reply=reply,
+            )
+        return MaxHandleResult(
+            ok=True,
+            action="upload_media_quiet",
+            case_id=record.case_id,
+            reply="",
+        )
+    # Обычный пустой апдейт без текста/файлов — тоже без спама.
+    if not doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
+        return MaxHandleResult(
+            ok=True, action="ack_quiet", case_id=record.case_id, reply=""
+        )
     reply = FALLBACK_MENU_TEXT
     _reply(
         bot,
