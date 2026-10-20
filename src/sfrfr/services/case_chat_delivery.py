@@ -107,22 +107,20 @@ def enqueue_max_delivery(
         return False
 
 
-def process_pending_outbox(*, limit: int = 20) -> int:
-    """Отправить ожидающие сообщения в MAX (best-effort)."""
+def process_pending_outbox(*, limit: int = 20, message_id: str | None = None) -> int:
+    """Отправить ожидающие сообщения в MAX (best-effort).
+
+    С message_id — только это сообщение: иначе свежее сообщение специалиста
+    ждёт, пока limit «съедят» старые чужие записи outbox.
+    """
     from sfrfr.db.session import get_supabase_client
     from sfrfr.integrations.max.client import MaxBotClient
 
     client = get_supabase_client()
-    rows = (
-        client.table("case_chat_outbox")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at")
-        .limit(limit)
-        .execute()
-        .data
-        or []
-    )
+    query = client.table("case_chat_outbox").select("*").eq("status", "pending")
+    if message_id:
+        query = query.eq("message_id", str(message_id))
+    rows = query.order("created_at").limit(limit).execute().data or []
     if not rows:
         return 0
     bot = MaxBotClient()
@@ -215,7 +213,10 @@ def mirror_staff_message_to_max(
         max_user_id=max_uid,
         body=body,
     ):
-        process_pending_outbox(limit=1)
+        if message_id:
+            process_pending_outbox(limit=1, message_id=message_id)
+        else:
+            process_pending_outbox(limit=1)
         return
     try:
         from sfrfr.integrations.max.client import MaxBotClient

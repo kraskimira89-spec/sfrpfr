@@ -3255,15 +3255,25 @@ def handle_max_update(
                 detail=f"callback_id={callback_event_id}",
             )
         if _is_rapid_repeat_callback(user_id=user_id, payload=callback):
-            # Пользователь нажал ту же кнопку повторно: подтверждаем и не плодим одинаковые шаги.
+            # Пользователь нажал ту же кнопку повторно: подтверждаем и не плодим
+            # одинаковые шаги. Важно: текст реально отправляем — раньше клиент
+            # видел тишину и считал кнопку некликабельной.
+            cooldown_text = (
+                "Уже обрабатываю этот выбор. "
+                "Если ответ не появился сразу, подождите пару секунд."
+            )
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=cooldown_text,
+                case_id=_case_id_for_max_user(user_id),
+            )
             return MaxHandleResult(
                 ok=True,
                 action="duplicate_payload_cooldown",
                 detail=f"payload={callback}",
-                reply=(
-                    "Уже обрабатываю этот выбор. "
-                    "Если ответ не появился сразу, подождите пару секунд."
-                ),
+                reply=cooldown_text,
             )
 
         from sfrfr.integrations.max.case_chat_log import format_button_press
@@ -3480,6 +3490,20 @@ def handle_max_update(
             case_id=type_case_id,
         )
         if type_out is not None:
+            if type_out[0] in {"doc_type_confirmed", "doc_type_set"}:
+                try:
+                    from sfrfr.integrations.max.staff_client_ping import (
+                        notify_staff_client_message,
+                    )
+
+                    notify_staff_client_message(
+                        user_id=user_id,
+                        case_id=type_case_id,
+                        snippet=f"Клиент подтвердил тип документа. {type_out[1]}",
+                        kind="doc_type",
+                    )
+                except Exception as exc:  # noqa: BLE001 — пинг не роняет ответ клиенту
+                    logger.debug("doc_type staff ping skipped: %s", exc)
             return MaxHandleResult(
                 ok=True,
                 action=type_out[0],
