@@ -1412,7 +1412,9 @@ export function AdminCabinet() {
     }
   }
 
-  suggestRepliesRef.current = suggestReplies;
+  useEffect(() => {
+    suggestRepliesRef.current = suggestReplies;
+  });
 
   async function sendMaxReply(opts?: { force?: boolean }) {
     if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
