@@ -144,6 +144,10 @@ def test_upload_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
         lambda **_k: {"id": "doc-test", "case_id": "x"},
     )
     monkeypatch.setattr(
+        "sfrfr.integrations.max.document_background.schedule_document_background",
+        lambda **_k: None,
+    )
+    monkeypatch.setattr(
         "sfrfr.integrations.max.case_chat_log.append_case_chat_message",
         lambda **_k: None,
     )
@@ -175,10 +179,10 @@ def test_upload_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
     )
     assert accepted.action == "upload"
     assert any("ils.pdf" in text for text in pings)
-    # После файла — авто-тип и подтверждение «Правильно?», не список типов.
+    # После файла — сразу «сохранён», без вопроса о типе (фон разберёт позже).
     reply_low = (accepted.reply or "").lower()
-    assert "файл получили" in reply_low
-    assert "правильно?" in reply_low
+    assert "сохранён" in reply_low
+    assert "правильно?" not in reply_low
 
 
 def test_kit_message_no_ocr_text() -> None:

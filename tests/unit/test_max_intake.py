@@ -436,6 +436,10 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
         lambda **_k: {"id": "doc-1", "case_id": "x"},
     )
     monkeypatch.setattr(
+        "sfrfr.integrations.max.document_background.schedule_document_background",
+        lambda **_k: None,
+    )
+    monkeypatch.setattr(
         "sfrfr.integrations.max.case_chat_log.append_case_chat_message",
         lambda **_k: None,
     )
@@ -468,7 +472,8 @@ def test_upload_accepted_in_max_chat(tmp_path: Path, monkeypatch) -> None:
     assert accepted.action == "upload"
     assert accepted.ok is True
     reply_low = (accepted.reply or "").lower()
-    assert "получили" in reply_low or "приняли" in reply_low
+    assert "сохранён" in reply_low
+    assert "правильно?" not in reply_low
     get_settings.cache_clear()
 
 
