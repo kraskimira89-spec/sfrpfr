@@ -12,7 +12,6 @@ from sfrfr.core.config import get_settings
 from sfrfr.integrations.max import document_background as bg
 from sfrfr.integrations.max import document_type_flow as dtf
 from sfrfr.integrations.max.handler import handle_max_update
-from sfrfr.integrations.max.intake import get_intake_store
 
 CASE_ID = "12345678-1234-1234-1234-123456789012"
 USER = 888
