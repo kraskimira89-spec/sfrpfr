@@ -11,6 +11,19 @@ from sfrfr.integrations.max.ssl_context import max_ssl_verify
 _MEDIA_TYPES = frozenset({"file", "image", "video", "audio", "photo"})
 
 
+def message_mid(update: dict[str, Any]) -> str | None:
+    message = update.get("message") or update.get("message_created") or {}
+    if isinstance(message, dict):
+        body = message.get("body") if isinstance(message.get("body"), dict) else {}
+        for key in ("mid", "message_id", "id"):
+            for src in (body, message, update):
+                if isinstance(src, dict):
+                    raw = src.get(key)
+                    if raw is not None and str(raw).strip():
+                        return str(raw).strip()
+    return None
+
+
 def iter_attachment_candidates(update: dict[str, Any]) -> list[dict[str, Any]]:
     """Собрать кандидатов вложений из разных форм payload MAX."""
     found: list[dict[str, Any]] = []
@@ -106,10 +119,24 @@ def has_media_attachments(update: dict[str, Any]) -> bool:
     return False
 
 
-def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
-    """Вернуть список (filename, url) для скачивания."""
-    out: list[tuple[str, str]] = []
-    for item in iter_attachment_candidates(update):
+def _attachment_filename(item: dict[str, Any], payload: dict[str, Any]) -> str:
+    return str(
+        payload.get("file_name")
+        or payload.get("filename")
+        or payload.get("name")
+        or item.get("file_name")
+        or item.get("filename")
+        or item.get("name")
+        or "document"
+    )
+
+
+def extract_attachment_specs(update: dict[str, Any]) -> list[dict[str, Any]]:
+    """Спеки вложений: filename, url|None, attach_key (без сырого token в ключе)."""
+    from sfrfr.integrations.max.attachment_lifecycle import attach_key_from_parts
+
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(iter_attachment_candidates(update)):
         payload = _payload_of(item)
         url = _first_url(
             payload.get("url"),
@@ -122,18 +149,43 @@ def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
             payload.get("thumbnail"),
             payload.get("imageUrl"),
         )
+        name = _attachment_filename(item, payload)
+        token = payload.get("token") or item.get("token")
+        file_id = (
+            payload.get("fileId")
+            or payload.get("file_id")
+            or item.get("fileId")
+            or item.get("file_id")
+            or payload.get("photoId")
+            or payload.get("photo_id")
+            or item.get("id")
+        )
+        key = attach_key_from_parts(
+            token=str(token) if token else None,
+            file_id=str(file_id) if file_id else None,
+            url=url,
+            filename=name,
+            index=index,
+        )
+        out.append(
+            {
+                "filename": name,
+                "url": url,
+                "attach_key": key,
+                "index": index,
+            }
+        )
+    return out
+
+
+def extract_downloadable_files(update: dict[str, Any]) -> list[tuple[str, str]]:
+    """Вернуть список (filename, url) для скачивания."""
+    out: list[tuple[str, str]] = []
+    for spec in extract_attachment_specs(update):
+        url = spec.get("url")
         if not url:
             continue
-        name = (
-            payload.get("file_name")
-            or payload.get("filename")
-            or payload.get("name")
-            or item.get("file_name")
-            or item.get("filename")
-            or item.get("name")
-            or "document"
-        )
-        out.append((str(name), url))
+        out.append((str(spec["filename"]), str(url)))
     return out
 
 

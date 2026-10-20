@@ -23,7 +23,7 @@ def _files(monkeypatch) -> list[tuple[str, str]]:
     ingested: list[tuple[str, str]] = []
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
-        lambda _update: [("trudovaya.pdf", b"%PDF-1.4")],
+        lambda _update: ([("trudovaya.pdf", b"%PDF-1.4")], []),
     )
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._try_max_payment_receipt",

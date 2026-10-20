@@ -226,6 +226,32 @@ class MaxBotClient:
             data = resp.json() if resp.content else {}
             return data if isinstance(data, dict) else {"raw": data}
 
+    def get_message(self, message_id: str) -> dict[str, Any] | None:
+        """GET /messages?message_id=… — refetch сообщения (fail-soft).
+
+        Нужен, когда webhook пришёл без url вложения. Если платформа не
+        поддерживает метод — возвращаем None, без исключения наружу.
+        """
+        if not self.available:
+            return None
+        mid = (message_id or "").strip()
+        if not mid:
+            return None
+        url = f"{self.api_base}/messages"
+        try:
+            with self._client() as client:
+                resp = client.get(
+                    url,
+                    headers=self._headers(),
+                    params={"message_id": mid},
+                )
+                if resp.status_code >= 400:
+                    return None
+                data = resp.json() if resp.content else {}
+                return data if isinstance(data, dict) else None
+        except Exception:  # noqa: BLE001
+            return None
+
     def answer_callback(
         self,
         callback_id: str,

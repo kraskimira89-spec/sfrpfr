@@ -28,6 +28,10 @@ MAX_WEBHOOK_SIGNATURE_FAILED = Counter(
     "max_webhook_signature_failed_total",
     "Отклонённые webhook MAX (неверный секрет)",
 )
+MAX_FALSE_ACK_TOTAL = Counter(
+    "max_false_ack_total",
+    "Подтверждение получения вложения без байтов или без файла в деле",
+)
 CHAT_PAYMENT_NUDGE = Counter(
     "chat_payment_nudge_total",
     "Бот или чат предложил оплату (pay-link)",

@@ -26,7 +26,7 @@ def _upload(tmp_path: Path, monkeypatch, scheduled: list) -> object:
     handle_max_update(_msg(USER, "/start"), bot=bot)
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
-        lambda _u: [("Выписка ИЛС.pdf", b"%PDF-1.4 fake")],
+        lambda _u: ([("Выписка ИЛС.pdf", b"%PDF-1.4 fake")], []),
     )
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._try_max_payment_receipt",
