@@ -37,7 +37,6 @@ from sfrfr.integrations.max.intake import (
     DOCS_SPECIAL_TEXT,
     DOCS_STAZH_TEXT,
     EMP_HOWTO_TEXT,
-    FALLBACK_MENU_TEXT,
     ILS_HOWTO_MFC_TEXT,
     ILS_HOWTO_TEXT,
     SUMMARY_TEXT,
@@ -3963,45 +3962,30 @@ def handle_max_update(
             exclude_message_id=str((stored or {}).get("id") or "") or None,
         )
 
-    # Медиа без скачанных байтов (MAX отдал вложение без url / download fail):
-    # не спамим FALLBACK_MENU с howto-кнопками на каждый файл.
+    # Пустой апдейт без скачанных байтов (часто файл MAX без url в payload):
+    # один спокойный ответ про разбор — без FALLBACK_MENU и howto-кнопок.
     from sfrfr.integrations.max import document_background as doc_bg
 
     media_intent = has_media_attachments(update)
-    if media_intent:
-        if doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
-            reply = doc_bg.processing_ack_text()
-            _reply(
-                bot,
-                user_id=user_id,
-                chat_id=chat_id,
-                text=reply,
-                attachments=None,
-                case_id=record.case_id,
-            )
-            return MaxHandleResult(
-                ok=True,
-                action="upload_media_pending",
-                case_id=record.case_id,
-                reply=reply,
-            )
+    if not doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
         return MaxHandleResult(
             ok=True,
-            action="upload_media_quiet",
+            action="upload_media_quiet" if media_intent else "ack_quiet",
             case_id=record.case_id,
             reply="",
         )
-    # Обычный пустой апдейт без текста/файлов — тоже без спама.
-    if not doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
-        return MaxHandleResult(
-            ok=True, action="ack_quiet", case_id=record.case_id, reply=""
-        )
-    reply = FALLBACK_MENU_TEXT
+    reply = doc_bg.processing_ack_text()
     _reply(
         bot,
         user_id=user_id,
         chat_id=chat_id,
         text=reply,
-        attachments=goal_keyboard(),
+        attachments=None,
+        case_id=record.case_id,
     )
-    return MaxHandleResult(ok=True, action="ack", case_id=record.case_id, reply=reply)
+    return MaxHandleResult(
+        ok=True,
+        action="upload_media_pending" if media_intent else "ack_processing",
+        case_id=record.case_id,
+        reply=reply,
+    )
