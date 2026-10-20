@@ -120,8 +120,9 @@ def create_quarantine_document(
         logger.warning("local quarantine save skipped: %s", type(exc).__name__)
         local_rel = None
 
-    client = get_supabase_client()
+    client = None
     try:
+        client = get_supabase_client()
         client.storage.from_(PRIVATE_STORAGE_BUCKET).upload(
             storage_path,
             data,
@@ -183,10 +184,11 @@ def create_quarantine_document(
                 local_rel=local_rel,
                 cloud_error=type(exc).__name__,
             )
-        try:
-            client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([storage_path])
-        except Exception:  # noqa: BLE001
-            pass
+        if client is not None:
+            try:
+                client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([storage_path])
+            except Exception:  # noqa: BLE001
+                pass
         raise
 
     job_id = ""

@@ -87,9 +87,9 @@ def received_summary_ru(*, filename: str, doc_type: str | None = None) -> str:
     # Убрать хвосты вроде «(1)» от телефона — не пугать цифрами без смысла.
     name = name.replace(" (1)", "").replace("(1)", "").strip() or "файл"
     if doc_type:
-        return f"Ваш файл «{name}» ({type_label(doc_type)}) получен. Сейчас разберём."
+        return f"Файл получили — «{name}» ({type_label(doc_type)}). Сейчас разберём."
     return (
-        f"Ваш файл «{name}» получен. Сейчас разберём — "
+        f"Файл получили — «{name}». Сейчас разберём — "
         "уточните, пожалуйста, тип документа кнопкой ниже."
     )
 

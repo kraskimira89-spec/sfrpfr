@@ -135,10 +135,48 @@ def test_ingest_returns_id_when_cloud_pending(monkeypatch: pytest.MonkeyPatch) -
     assert logged
 
 
+def test_create_quarantine_local_fallback_when_client_unavailable(
+    uploads_tmp: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _no_client() -> None:
+        raise RuntimeError("supabase client unavailable")
+
+    monkeypatch.setattr(
+        "sfrfr.services.document_ingest_worker.get_supabase_client",
+        _no_client,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.document_ingest_worker.documents_has_ingest_columns",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.document_ingest_worker.document_ingest_jobs_available",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.document_ingest_worker.find_duplicate_checksum",
+        lambda *_a, **_k: False,
+    )
+
+    row = create_quarantine_document(
+        case_id="11111111-1111-1111-1111-111111111111",
+        filename="document.bin",
+        data=b"%PDF-1.4 from phone",
+        content_type="application/octet-stream",
+        doc_type=None,
+        uploaded_by=None,
+        upload_source="max",
+        allow_local_fallback=True,
+    )
+    assert row["cloud_status"] == "pending"
+    assert row.get("local_path")
+    assert list(uploads_tmp.rglob("*"))
+
+
 def test_client_ok_summary_template() -> None:
     from sfrfr.integrations.max import document_type_flow as flow
 
     text = flow.received_summary_ru(filename="скан трудовой", doc_type=None)
-    assert "получен" in text.lower()
+    assert "получили" in text.lower()
     assert "PDF" not in text
     assert "DOCX" not in text
