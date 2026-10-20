@@ -26,7 +26,7 @@ def test_ingest_max_file_false_when_supabase_fails(monkeypatch) -> None:
         store=store,
         record=SimpleNamespace(case_id="local-1"),
     )
-    assert ok is False
+    assert ok is None
     assert called.get("uploaded_by") is None
     store.add_document.assert_not_called()
 
@@ -46,7 +46,7 @@ def test_ingest_max_file_false_when_case_id_empty(monkeypatch) -> None:
         store=MagicMock(),
         record=SimpleNamespace(case_id="local-1"),
     )
-    assert ok is False
+    assert ok is None
 
 
 def test_ingest_max_file_true_when_supabase_ok(monkeypatch) -> None:
@@ -64,5 +64,5 @@ def test_ingest_max_file_true_when_supabase_ok(monkeypatch) -> None:
         store=MagicMock(),
         record=SimpleNamespace(case_id="local-1"),
     )
-    assert ok is True
+    assert ok == "doc-1"
     assert logged

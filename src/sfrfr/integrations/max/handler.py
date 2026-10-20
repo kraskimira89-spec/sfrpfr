@@ -37,7 +37,6 @@ from sfrfr.integrations.max.intake import (
     ILS_HOWTO_MFC_TEXT,
     ILS_HOWTO_TEXT,
     SUMMARY_TEXT,
-    UPLOAD_ACCEPTED_TEXT,
     UPLOAD_BLOCKED_TEXT,
     WELCOME_TEXT,
     cabinet_url_for_case,
@@ -1294,8 +1293,8 @@ def _ingest_max_file(
     data: bytes,
     store: Any,
     record: Any,
-) -> bool:
-    """Сохранить файл дела из MAX в Supabase (documents + bucket). Без silent local."""
+) -> str | None:
+    """Сохранить файл дела из MAX в Supabase. Возвращает document id или None."""
     del store, record
     from sfrfr.integrations.max.case_chat_log import (
         append_case_chat_message,
@@ -1306,7 +1305,7 @@ def _ingest_max_file(
     cid = str(case_id or "").strip()
     if not cid:
         logger.warning("max upload skipped: empty case_id filename=%s", filename)
-        return False
+        return None
 
     row = upload_max_document(
         case_id=cid,
@@ -1320,7 +1319,8 @@ def _ingest_max_file(
             cid[:8],
             filename,
         )
-        return False
+        return None
+    doc_id = str(row.get("id") or "").strip() or None
     try:
         append_case_chat_message(
             case_id=cid,
@@ -1330,7 +1330,7 @@ def _ingest_max_file(
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("document case_message failed: %s", exc)
-    return True
+    return doc_id
 
 
 def _notify_staff_chat_docs(
@@ -3439,6 +3439,44 @@ def handle_max_update(
         if reminded is not None:
             return reminded
 
+    # ТЗ-35 C1: тип документа после загрузки (ИЛС / Трудовая / Другое).
+    if callback.startswith("max:doc:type:"):
+        from sfrfr.integrations.max import document_type_flow as doc_type_flow
+
+        intake_for_type = get_intake_store().get_active(user_id)
+        if intake_for_type is None:
+            intake_for_type = get_intake_store().upsert_started(user_id)
+        type_case_id = _chat_case_id(
+            user_id,
+            preferred=(intake_for_type.case_id if intake_for_type else None),
+        )
+
+        def _type_reply(
+            body: str, attachments: list[dict[str, Any]] | None = None
+        ) -> None:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=body,
+                attachments=attachments,
+                case_id=type_case_id,
+            )
+
+        type_out = doc_type_flow.handle(
+            intake_for_type,
+            _type_reply,
+            payload=callback,
+            case_id=type_case_id,
+        )
+        if type_out is not None:
+            return MaxHandleResult(
+                ok=True,
+                action=type_out[0],
+                case_id=type_case_id,
+                reply=type_out[1],
+            )
+
     q_result = _handle_questionnaire_or_menu(
         bot,
         update=update,
@@ -3695,6 +3733,7 @@ def handle_max_update(
 
     # Канал чат-бот MAX: документы принимаем сюда (кабинет — удобная альтернатива).
     if max_files:
+        from sfrfr.integrations.max import document_type_flow as doc_type_flow
         from sfrfr.integrations.max.intake import documents_upload_keyboard
         from sfrfr.services.case_chat_delivery import documents_cabinet_url
 
@@ -3704,36 +3743,39 @@ def handle_max_update(
             preferred=record_case_id or (intake.case_id if intake else None),
         )
         names: list[str] = []
+        ingested: list[tuple[str, str]] = []
         if upload_case_id:
             for name, data in max_files:
-                if _ingest_max_file(
+                doc_id = _ingest_max_file(
                     case_id=upload_case_id,
                     filename=name,
                     data=data,
                     store=store,
                     record=record,
-                ):
+                )
+                if doc_id:
                     names.append(name)
+                    ingested.append((doc_id, name))
         if names:
             _notify_staff_chat_docs(
                 user_id=user_id, case_id=upload_case_id, filenames=names
             )
-            from sfrfr.integrations.max.bot_owned import (
-                UPLOAD_ACCEPTED_BOT_OWNED_TEXT,
-                is_bot_owned,
-            )
-
-            accept_text = (
-                UPLOAD_ACCEPTED_BOT_OWNED_TEXT
-                if is_bot_owned(intake)
-                else UPLOAD_ACCEPTED_TEXT
-            )
-            reply = f"{accept_text}\nПринято файлов: {len(names)}."
+            intake_for_type = intake or get_intake_store().get_active(user_id)
+            if intake_for_type is None:
+                intake_for_type = get_intake_store().upsert_started(user_id)
+            for doc_id, name in ingested:
+                doc_type_flow.remember_pending(
+                    intake_for_type, document_id=doc_id, filename=name
+                )
+            reply = doc_type_flow.ASK_TYPE_TEXT
+            if len(names) > 1:
+                reply = f"Получили файлов: {len(names)}.\n{doc_type_flow.ASK_TYPE_TEXT}"
             _reply(
                 bot,
                 user_id=user_id,
                 chat_id=chat_id,
                 text=reply,
+                attachments=doc_type_flow.type_keyboard(),
                 case_id=upload_case_id,
             )
             _resume_questionnaire_after_upload(

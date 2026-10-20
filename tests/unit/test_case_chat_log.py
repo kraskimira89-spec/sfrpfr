@@ -29,7 +29,9 @@ def test_label_for_callback_human() -> None:
     assert "отзыв" in label_for_callback("review:start").lower()
     assert "код входа" in format_button_press("get_login_code").lower()
     assert "unknown:weird:payload" not in format_button_press("unknown:weird:payload")
-    assert "Кнопка" in label_for_callback("unknown:weird:payload")
+    assert "кнопка" in label_for_callback("unknown:weird:payload").lower()
+    assert "→" not in label_for_callback("max:foo:bar")
+    assert "max:foo:bar" not in format_button_press("max:foo:bar")
 
 
 def test_format_button_press_never_raw_client_payloads() -> None:
@@ -44,6 +46,8 @@ def test_format_button_press_never_raw_client_payloads() -> None:
         "intake:ils:no",
         "intake:emp:yes",
         "review:cancel",
+        "max:doc:type:ils",
+        "max:foo:bar",
     ):
         text = format_button_press(payload)
         assert payload not in text, payload
@@ -52,7 +56,10 @@ def test_format_button_press_never_raw_client_payloads() -> None:
 
 
 def test_format_document_event() -> None:
-    assert format_document_event(filename="ils.pdf", doc_type="ils") == "[Документ] ils.pdf · ils"
+    assert (
+        format_document_event(filename="ils.pdf", doc_type="ils")
+        == "[Документ] ils.pdf · Выписка ИЛС"
+    )
 
 
 def test_pending_buffer_flush() -> None:
