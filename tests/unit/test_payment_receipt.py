@@ -46,7 +46,7 @@ def test_already_paid_does_not_ask_receipt() -> None:
 
 
 def test_wrong_inn_is_mismatch() -> None:
-    text = "Чек оплата 3000 ИНН 0000000000"
+    text = "Кассовый чек. Оплата 3000 ИНН 0000000000"
     orders = [{"id": "o1", "status": "pending", "amount_rub": 3000}]
     out = evaluate_receipt_text(text, orders)
     assert out["status"] == "mismatch"
@@ -60,3 +60,54 @@ def test_ils_text_is_not_a_receipt() -> None:
     out = evaluate_receipt_text(text, orders)
     assert out["status"] == "not_a_receipt"
     assert out["client_message"] is None
+
+
+def test_labor_book_pdf_text_is_not_a_receipt() -> None:
+    """Трудовая / PDF со словом «оплата» не должны считаться чеком оплаты."""
+    text = (
+        "Трудовая книжка. Запись о приёме на работу. "
+        "Оплата труда по окладу. Перевод на другую должность. "
+        "Приход на предприятие 12.03.1998."
+    )
+    assert looks_like_receipt(text) is False
+    orders = [
+        {
+            "id": "o1",
+            "status": "draft",
+            "invoice_status": "draft",
+            "amount_rub": 3000,
+        }
+    ]
+    assert should_ask_for_receipt(orders) is False
+    out = evaluate_receipt_text(text, orders)
+    assert out["status"] == "not_a_receipt"
+
+
+def test_draft_order_does_not_await_receipt() -> None:
+    assert (
+        should_ask_for_receipt(
+            [{"id": "o1", "status": "draft", "invoice_status": "draft", "amount_rub": 3000}]
+        )
+        is False
+    )
+
+
+def test_invoice_sent_awaits_receipt() -> None:
+    assert (
+        should_ask_for_receipt(
+            [
+                {
+                    "id": "o1",
+                    "status": "pending",
+                    "invoice_status": "invoice_sent",
+                    "amount_rub": 3000,
+                }
+            ]
+        )
+        is True
+    )
+
+
+def test_strong_receipt_hints_still_match() -> None:
+    assert looks_like_receipt("Кассовый чек. Оплата 3000 руб.")
+    assert looks_like_receipt("Электронный чек ЮKassa 5000")

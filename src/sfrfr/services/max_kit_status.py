@@ -12,7 +12,7 @@ from sfrfr.integrations.max.intake import callback_request_button
 logger = logging.getLogger(__name__)
 
 _ILS_CODES = frozenset({"ils", "ils_statement", "выписка илс"})
-_LABOR_CODES = frozenset({"labor_book", "трудовая книжка", "трудовая"})
+_LABOR_CODES = frozenset({"labor_book", "трудовая книжка", "трудовая", "workbook"})
 
 # Последний отправленный fingerprint комплекта: case_id → fingerprint
 _LAST_KIT: dict[str, str] = {}
@@ -31,7 +31,11 @@ def classify_doc_bucket(placement: dict[str, Any] | None, doc_type: str | None) 
     blob = f"{req} {label} {dtype}"
     if req in _ILS_CODES or "илс" in blob or dtype == "ils":
         return "ils"
-    if req in _LABOR_CODES or "трудов" in blob or dtype in {"labor_book", "labor"}:
+    if (
+        req in _LABOR_CODES
+        or "трудов" in blob
+        or dtype in {"labor_book", "labor", "workbook"}
+    ):
         return "labor"
     return "other"
 

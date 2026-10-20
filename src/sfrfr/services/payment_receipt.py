@@ -23,19 +23,24 @@ YOOKASSA_INN = "7750005725"
 DOC_TYPE = "payment_receipt"
 _PAID = {"paid", "succeeded"}
 _CANCELLED = {"cancelled", "canceled", "refund", "refunded"}
+# Только сильные признаки фискального/платёжного чека.
+# Не использовать «оплат»/«перевод»/«чек»/«приход» — ловят трудовую и справки.
 _RECEIPT_HINTS = (
-    "чек",
+    "кассовый чек",
+    "чек об оплат",
+    "электронный чек",
+    "фискальн",
     "квитанц",
-    "оплат",
-    "перевод",
     "сбп",
-    "qr",
     "юкасса",
     "yookassa",
     "юmoney",
     "юмани",
-    "приход",
 )
+_AWAITING_INVOICE = frozenset(
+    {"invoice_ready", "invoice_sent", "awaiting_payment", "partially_paid"}
+)
+_AWAITING_STATUS = frozenset({"pending", "awaiting_payment"})
 
 
 def digits_only(value: str) -> str:
@@ -89,13 +94,28 @@ def amount_mentioned(text: str, amount_rub: float) -> bool:
     return any(item in compact for item in variants)
 
 
-def should_ask_for_receipt(orders: list[dict[str, Any]]) -> bool:
-    return any(_is_unpaid(row) for row in orders)
-
-
 def _is_unpaid(order: dict[str, Any]) -> bool:
     status = str(order.get("status") or "").lower()
     return status not in _PAID | _CANCELLED
+
+
+def _is_awaiting_client_receipt(order: dict[str, Any]) -> bool:
+    """Ждём чек только после явного счёта/оплаты, не на draft DIAG."""
+    status = str(order.get("status") or "").lower()
+    inv = str(order.get("invoice_status") or "").lower()
+    if status in _PAID | _CANCELLED:
+        return False
+    if status == "draft" and inv in {"", "draft"}:
+        return False
+    if inv in _AWAITING_INVOICE:
+        return True
+    if status in _AWAITING_STATUS:
+        return True
+    return False
+
+
+def should_ask_for_receipt(orders: list[dict[str, Any]]) -> bool:
+    return any(_is_awaiting_client_receipt(row) for row in orders)
 
 
 def _unpaid_orders(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -351,7 +371,7 @@ def ingest_max_receipt(
     files: list[tuple[str, bytes]],
     actor_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Если у клиента есть неоплаченный счёт и вложение — чек, обработать. Иначе None."""
+    """Чек только если ждём оплату и вложение похоже на фискальный чек. Иначе None."""
     if not files:
         return None
     try:
@@ -391,15 +411,15 @@ def ingest_max_receipt(
         if not case_id:
             continue
         orders = repo.list_orders(case_id)
-        if not should_ask_for_receipt(orders) and not any(
-            str(o.get("status") or "") in _PAID for o in orders
-        ):
+        # Не перехватывать обычные документы (ИЛС/трудовая) из‑за draft/paid.
+        if not should_ask_for_receipt(orders):
             continue
         for filename, data in files:
             text = ocr_receipt_bytes(data, filename)
-            if not looks_like_receipt(text) and should_ask_for_receipt(orders):
-                continue
             if not looks_like_receipt(text):
+                continue
+            evaluation = evaluate_receipt_text(text, orders)
+            if evaluation["status"] == "not_a_receipt":
                 continue
             preview = " ".join(text.split())[:280]
             document_id = save_receipt_document(
@@ -409,13 +429,12 @@ def ingest_max_receipt(
                 actor_id=actor_id or f"max:{max_user_id}",
                 preview=preview,
             )
-            result = handle_uploaded_receipt(
+            result = apply_receipt_decision(
                 repo,
                 case_id=case_id,
-                ocr_text=text,
+                evaluation=evaluation,
                 document_id=document_id,
                 actor_id=actor_id or f"max:{max_user_id}",
-                doc_type=DOC_TYPE,
             )
             if result:
                 result["case_id"] = case_id

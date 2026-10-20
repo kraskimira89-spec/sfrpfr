@@ -30,9 +30,24 @@ def test_type_keyboard_payloads() -> None:
 
 
 def test_received_text_ru() -> None:
-    assert dtf.received_text("ils") == "Документ получен: «ИЛС»"
-    assert dtf.received_text("workbook") == "Документ получен: «Трудовая»"
-    assert dtf.received_text("other") == "Документ получен: «Другое»"
+    ils = dtf.received_text("ils")
+    assert ils.startswith("Документ получен: «ИЛС»")
+    assert "трудов" in ils.lower()
+    assert "оплат" not in ils.lower()
+    wb = dtf.received_text("workbook")
+    assert wb.startswith("Документ получен: «Трудовая»")
+    assert "илс" in wb.lower()
+    other = dtf.received_text("other")
+    assert other.startswith("Документ получен: «Другое»")
+    assert "илс" in other.lower()
+
+
+def test_kit_next_step_no_payment_script() -> None:
+    for code in ("ils", "workbook", "other"):
+        hint = dtf.kit_next_step_hint(code)
+        assert hint
+        assert "юkassa" not in hint.lower()
+        assert "счёт" not in hint.lower()
 
 
 def test_format_document_event_ru_labels() -> None:
@@ -84,6 +99,7 @@ def test_handle_type_callback_updates_doc_and_clears_pending() -> None:
     assert out is not None
     assert out[0] == "doc_type_set"
     assert "Документ получен: «ИЛС»" in out[1]
+    assert "трудов" in out[1].lower()
     set_type.assert_called_once_with(document_id="doc-42", doc_type="ils")
     journal.assert_called_once()
     assert dtf.pending_document_id(rec) is None

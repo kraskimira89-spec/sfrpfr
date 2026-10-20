@@ -36,6 +36,22 @@ ASK_TYPE_TEXT = (
     "так специалисту будет проще разобрать дело."
 )
 
+# Next step по комплекту (без дубля welcome SFRFR-78 и без сценария оплаты).
+_NEXT_KIT_HINT: dict[str, str] = {
+    TYPE_ILS: (
+        "Следующий шаг: если трудовой ещё нет — пришлите фото или PDF "
+        "трудовой книжки (или выписку из электронной трудовой) в этот чат."
+    ),
+    TYPE_WORKBOOK: (
+        "Следующий шаг: если выписки ИЛС ещё нет — получите её на Госуслугах "
+        "и пришлите файл сюда в чат."
+    ),
+    TYPE_OTHER: (
+        "Для разбора обычно нужны выписка ИЛС и трудовая. "
+        "Пришлите их сюда, когда будут под рукой."
+    ),
+}
+
 _PENDING_ID_KEY = "_pending_doc_id"
 _PENDING_NAME_KEY = "_pending_doc_name"
 _PENDING_QUEUE_KEY = "_pending_doc_queue"
@@ -51,8 +67,16 @@ def journal_type_label(doc_type: str | None) -> str:
     return DOC_TYPE_JOURNAL_LABELS_RU.get(key) or type_label(key)
 
 
+def kit_next_step_hint(doc_type: str) -> str:
+    return _NEXT_KIT_HINT.get(str(doc_type or "").strip().lower(), "")
+
+
 def received_text(doc_type: str) -> str:
-    return f"Документ получен: «{type_label(doc_type)}»"
+    base = f"Документ получен: «{type_label(doc_type)}»"
+    hint = kit_next_step_hint(doc_type)
+    if hint:
+        return f"{base}\n\n{hint}"
+    return base
 
 
 def type_keyboard() -> list[dict[str, Any]]:
