@@ -60,7 +60,14 @@ def upload_max_document(
             uploaded_by=uploaded_by,
             upload_source="max",
             scenario_rows=scenario_rows,
+            allow_local_fallback=True,
         )
+        if row and str(row.get("cloud_status") or "") == "pending":
+            logger.warning(
+                "max upload local-only case=%s file=%s",
+                str(case_id)[:8],
+                safe_name[:80],
+            )
         return row
     except Exception as exc:  # noqa: BLE001
         logger.warning("max supabase upload failed: %s", exc)

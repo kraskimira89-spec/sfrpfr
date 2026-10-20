@@ -60,8 +60,13 @@ def create_quarantine_document(
     upload_source: str = "cabinet",
     client_declared_signed: bool = False,
     scenario_rows: list[Any] | None = None,
+    allow_local_fallback: bool = False,
 ) -> dict[str, Any]:
-    """Сохранить оригинал в quarantine и поставить job, не запуская OCR в запросе."""
+    """Сохранить оригинал в quarantine и поставить job, не запуская OCR в запросе.
+
+    При ``allow_local_fallback`` (канал MAX): если Storage/БД падают, но локальная
+    копия уже записана — вернуть row с ``cloud_status=pending`` вместо исключения.
+    """
     allow_signed = (doc_type or "").strip().lower() in {
         "client_signed_application",
         "client_signed_appeal",
@@ -158,7 +163,26 @@ def create_quarantine_document(
             row["local_status"] = "quarantine"
             row["primary_ocr_source"] = "local_storage"
         saved = insert_document_row(row)
-    except Exception:
+    except Exception as exc:
+        if allow_local_fallback and local_rel:
+            logger.warning(
+                "quarantine cloud failed, local kept case=%s reason=%s",
+                str(case_id)[:8],
+                type(exc).__name__,
+            )
+            return _local_pending_document_row(
+                document_id=document_id,
+                case_id=case_id,
+                filename=safe_name,
+                data=data,
+                doc_type=doc_type,
+                uploaded_by=uploaded_by,
+                upload_source=upload_source,
+                checksum=checksum,
+                mime=security.detected_mime,
+                local_rel=local_rel,
+                cloud_error=type(exc).__name__,
+            )
         try:
             client.storage.from_(PRIVATE_STORAGE_BUCKET).remove([storage_path])
         except Exception:  # noqa: BLE001
@@ -180,7 +204,57 @@ def create_quarantine_document(
             doc_type=doc_type,
             document_id=document_id,
         )
-    return {**saved, "job_id": job_id}
+    return {**saved, "job_id": job_id, "cloud_status": "ok"}
+
+
+def _local_pending_document_row(
+    *,
+    document_id: str,
+    case_id: str,
+    filename: str,
+    data: bytes,
+    doc_type: str | None,
+    uploaded_by: str | None,
+    upload_source: str,
+    checksum: str,
+    mime: str | None,
+    local_rel: str,
+    cloud_error: str,
+) -> dict[str, Any]:
+    """Row после локальной записи, когда Storage недоступен (без ПДн в логах)."""
+    storage_path = f"local-pending/{case_id}/{document_id}/{filename}"
+    row: dict[str, Any] = {
+        "id": document_id,
+        "case_id": case_id,
+        "storage_path": storage_path,
+        "doc_type": doc_type,
+        "uploaded_by": normalize_uploaded_by(uploaded_by),
+        "upload_source": upload_source,
+        "checksum_sha256": checksum,
+        "size_bytes": len(data),
+        "document_version": 1,
+        "mime_verified": mime,
+        "ingest_status": "needs_reupload",
+        "progress_percent": 5,
+        "current_stage": "needs_reupload",
+        "progress_message": "Файл на сервере. Нужна догрузка в облако.",
+        "local_path": local_rel,
+        "local_status": "quarantine",
+        "primary_ocr_source": "local_storage",
+        "antivirus_status": "not_configured",
+        "ingest_review_required": True,
+    }
+    try:
+        saved = insert_document_row(row)
+    except Exception as db_exc:  # noqa: BLE001
+        logger.warning(
+            "quarantine db insert skipped case=%s reason=%s cloud=%s",
+            str(case_id)[:8],
+            type(db_exc).__name__,
+            cloud_error,
+        )
+        saved = row
+    return {**saved, "job_id": "", "cloud_status": "pending"}
 
 
 def enqueue_document_ingest_job(
