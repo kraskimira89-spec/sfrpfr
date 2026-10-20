@@ -43,7 +43,7 @@ BLOCKED_SUFFIXES = frozenset(
     }
 )
 
-STANDARD_SUFFIXES = frozenset({".pdf", ".jpg", ".jpeg", ".png"})
+STANDARD_SUFFIXES = frozenset({".pdf", ".docx", ".jpg", ".jpeg", ".png"})
 SIGNED_SUFFIXES = frozenset({".pdf", ".docx"})
 
 
@@ -141,14 +141,14 @@ def validate_upload_filename(filename: str, *, allow_signed: bool = False) -> Fi
     if suffix in BLOCKED_SUFFIXES:
         return FileSecurityResult(
             ok=False,
-            client_message="Этот формат файла не принимается. Загрузите PDF или фото.",
+            client_message="Этот формат файла не принимается. Загрузите PDF, DOCX или фото.",
             internal_reason=f"blocked_suffix:{suffix}",
         )
     allowed = SIGNED_SUFFIXES if allow_signed else STANDARD_SUFFIXES
     if suffix not in allowed:
         return FileSecurityResult(
             ok=False,
-            client_message="Допустимы PDF, JPG и PNG."
+            client_message="Допустимы PDF, DOCX, JPG и PNG."
             if not allow_signed
             else "Для подписанного заявления допустимы PDF или DOCX.",
             internal_reason=f"disallowed_suffix:{suffix}",
@@ -182,7 +182,7 @@ def validate_file_bytes(
     if not detected:
         return FileSecurityResult(
             ok=False,
-            client_message="Не удалось распознать формат файла. Загрузите PDF или фото.",
+            client_message="Не удалось распознать формат файла. Загрузите PDF, DOCX или фото.",
             internal_reason="magic_bytes_failed",
         )
     suffix = Path(filename).suffix.lower()
@@ -219,13 +219,12 @@ def validate_file_bytes(
                     client_message="Тип файла не совпадает с содержимым.",
                     internal_reason="content_type_mismatch",
                 )
-    if allow_signed and detected.endswith("wordprocessingml.document"):
-        if _docx_has_macros(data):
-            return FileSecurityResult(
-                ok=False,
-                client_message="Файлы с макросами не принимаются.",
-                internal_reason="docx_macros",
-            )
+    if detected.endswith("wordprocessingml.document") and _docx_has_macros(data):
+        return FileSecurityResult(
+            ok=False,
+            client_message="Файлы с макросами не принимаются.",
+            internal_reason="docx_macros",
+        )
     return FileSecurityResult(ok=True, detected_mime=detected)
 
 

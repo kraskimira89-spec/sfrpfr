@@ -11,7 +11,7 @@ from sfrfr.services.file_security import validate_file_bytes
 
 logger = logging.getLogger(__name__)
 
-_ALLOWED_SUFFIXES = {".pdf", ".jpg", ".jpeg", ".png"}
+_ALLOWED_SUFFIXES = {".pdf", ".docx", ".jpg", ".jpeg", ".png"}
 
 
 def upload_max_document(

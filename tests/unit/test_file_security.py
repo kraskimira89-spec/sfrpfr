@@ -48,3 +48,19 @@ def test_docx_allowed_for_signed_slot() -> None:
     data = b"PK\x03\x04" + b"0" * 40
     result = validate_file_bytes(data, filename="signed.docx", allow_signed=True)
     assert result.ok
+
+
+def test_docx_allowed_for_standard_upload() -> None:
+    """ТЗ-35 C1: DOCX принимается и без слота подписанного заявления."""
+    data = b"PK\x03\x04" + b"0" * 40
+    result = validate_file_bytes(data, filename="stazh.docx", allow_signed=False)
+    assert result.ok
+    assert result.detected_mime is not None
+    assert "wordprocessingml" in result.detected_mime
+
+
+def test_docx_with_macros_rejected() -> None:
+    data = b"PK\x03\x04" + b"vbaProject.bin" + b"0" * 40
+    result = validate_file_bytes(data, filename="macro.docx", allow_signed=False)
+    assert not result.ok
+    assert result.internal_reason == "docx_macros"
