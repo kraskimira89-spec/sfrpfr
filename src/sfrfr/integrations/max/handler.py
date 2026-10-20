@@ -11,7 +11,6 @@ from typing import Any
 from sfrfr.core.case_store import get_case_store
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.attachments import (
-    attachment_debug_meta,
     download_file,
     extract_downloadable_files,
     has_media_attachments,
@@ -1254,41 +1253,11 @@ def _collect_max_files(update: dict[str, Any]) -> list[tuple[str, bytes]]:
     if isinstance(file_name, str) and isinstance(file_bytes, (bytes, bytearray)):
         files.append((file_name, bytes(file_bytes)))
     urls = extract_downloadable_files(update)
-    # #region agent log
-    try:
-        from sfrfr.integrations.max.document_background import _agent_dbg
-
-        _agent_dbg(
-            "J",
-            "handler.py:_collect_max_files",
-            "collect_files",
-            {
-                "url_count": len(urls),
-                "has_media": has_media_attachments(update),
-                "meta": attachment_debug_meta(update)[:5],
-            },
-        )
-    except Exception:  # noqa: BLE001
-        pass
-    # #endregion
     for name, url in urls:
         try:
             files.append((name, download_file(url)))
         except Exception as exc:  # noqa: BLE001
             logger.warning("max file download failed name=%s err=%s", name, exc)
-            # #region agent log
-            try:
-                from sfrfr.integrations.max.document_background import _agent_dbg
-
-                _agent_dbg(
-                    "J",
-                    "handler.py:download_fail",
-                    "download_failed",
-                    {"name": str(name)[:40], "err": type(exc).__name__},
-                )
-            except Exception:  # noqa: BLE001
-                pass
-            # #endregion
             continue
     return files
 
@@ -3884,39 +3853,8 @@ def handle_max_update(
             _will_ack = document_background.claim_processing_ack(
                 str(user_id), case_id=upload_case_id
             )
-            # #region agent log
-            try:
-                from sfrfr.integrations.max.document_background import _agent_dbg
-
-                _agent_dbg(
-                    "B",
-                    "handler.py:upload_ack_branch",
-                    "upload_ack_gate",
-                    {
-                        "will_ack": _will_ack,
-                        "file_count": len(names),
-                        "uid_type": type(user_id).__name__,
-                        "case_prefix": str(upload_case_id or "")[:8],
-                    },
-                )
-            except Exception:  # noqa: BLE001
-                pass
-            # #endregion
             if _will_ack:
                 reply = document_background.processing_ack_text(count=len(names))
-                # #region agent log
-                try:
-                    from sfrfr.integrations.max.document_background import _agent_dbg
-
-                    _agent_dbg(
-                        "C",
-                        "handler.py:upload_ack_sent",
-                        "sending_processing_ack",
-                        {"file_count": len(names), "reply_len": len(reply)},
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-                # #endregion
                 _reply(
                     bot,
                     user_id=user_id,
@@ -3931,19 +3869,6 @@ def handle_max_update(
                     case_id=upload_case_id or record_case_id,
                     reply=reply,
                 )
-            # #region agent log
-            try:
-                from sfrfr.integrations.max.document_background import _agent_dbg
-
-                _agent_dbg(
-                    "B",
-                    "handler.py:upload_quiet",
-                    "suppressed_duplicate_ack",
-                    {"file_count": len(names)},
-                )
-            except Exception:  # noqa: BLE001
-                pass
-            # #endregion
             return MaxHandleResult(
                 ok=True,
                 action="upload_quiet",
@@ -4043,22 +3968,6 @@ def handle_max_update(
     from sfrfr.integrations.max import document_background as doc_bg
 
     media_intent = has_media_attachments(update)
-    # #region agent log
-    try:
-        from sfrfr.integrations.max.document_background import _agent_dbg
-
-        _agent_dbg(
-            "J",
-            "handler.py:fallback_gate",
-            "empty_text_no_files",
-            {
-                "media_intent": media_intent,
-                "meta": attachment_debug_meta(update)[:5],
-            },
-        )
-    except Exception:  # noqa: BLE001
-        pass
-    # #endregion
     if media_intent:
         if doc_bg.claim_processing_ack(str(user_id), case_id=record.case_id):
             reply = doc_bg.processing_ack_text()
