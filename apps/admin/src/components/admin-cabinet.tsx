@@ -23,7 +23,7 @@ import {
 } from "@/components/staff-auth-screen";
 import { humanizeStaffApiError } from "@/lib/staff-api-errors";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { latestClientMessageId, withoutSentSuggestion } from "@/lib/reply-suggestions";
+import { latestSuggestionTriggerId, withoutSentSuggestion } from "@/lib/reply-suggestions";
 
 type StaffRole = "operator" | "expert" | "admin";
 
@@ -578,7 +578,7 @@ export function AdminCabinet() {
       }
       setDetail(caseDetail);
       setMessages(caseMessages);
-      lastClientMessageIdRef.current = latestClientMessageId(caseMessages);
+      lastClientMessageIdRef.current = latestSuggestionTriggerId(caseMessages);
       setPipelineStatus(caseDetail.pipeline_status);
       setNextActionText(caseDetail.next_action ?? "");
       setNextActionAt(caseDetail.next_action_at ? caseDetail.next_action_at.slice(0, 16) : "");
@@ -668,7 +668,7 @@ export function AdminCabinet() {
     const timer = window.setInterval(() => {
       void apiFetch<typeof messages>(`/api/portal/cases/${caseId}/messages`, token)
         .then((next) => {
-          const latest = latestClientMessageId(next);
+          const latest = latestSuggestionTriggerId(next);
           const prevId = lastClientMessageIdRef.current;
           if (latest && prevId && latest !== prevId) {
             lastClientMessageIdRef.current = latest;

@@ -322,7 +322,10 @@ def handle(
     append_type_journal(
         case_id=case_id, filename=filename, doc_type=doc_type, confirmed=confirmed
     )
-    clear_pending(rec)
+    try:
+        clear_pending(rec)
+    except Exception as exc:  # noqa: BLE001 — ответ клиенту важнее чистки pending
+        logger.warning("doc_type clear_pending failed: %s", exc)
     next_id = pending_document_id(rec)
     attachments = None
     if next_id:

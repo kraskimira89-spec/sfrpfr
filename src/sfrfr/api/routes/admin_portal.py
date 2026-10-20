@@ -971,17 +971,20 @@ def suggest_case_replies(
     """DeepSeek: 2–3 варианта ответа клиенту в MAX (с обращением по имени)."""
     repo = _repo()
     case = repo.require_case(principal, case_id)
-    messages = (
+    # Последние 40 сообщений дела (desc + обратный порядок в хронологию):
+    # раньше брались первые 40, и новые события не попадали в контекст DeepSeek.
+    latest_desc = (
         get_supabase_client()
         .table("case_messages")
         .select("author_kind, body, created_at")
         .eq("case_id", case_id)
-        .order("created_at")
+        .order("created_at", desc=True)
         .limit(40)
         .execute()
         .data
         or []
     )
+    messages = list(reversed(latest_desc))
     client = case.get("clients") if isinstance(case.get("clients"), dict) else {}
     client_name = ""
     if isinstance(client, dict):
