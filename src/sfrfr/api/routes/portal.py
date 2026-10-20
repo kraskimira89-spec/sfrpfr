@@ -235,6 +235,7 @@ _DOC_TYPE_LABELS_RU = {
     "sfr_decision": "Решение СФР",
     "ils": "Выписка ИЛС",
     "workbook": "Трудовая книжка",
+    "other": "Другое",
     "payment_receipt": "Чек оплаты",
     "diagnosis_report": "Результат диагностики",
     "passport": "Паспорт",

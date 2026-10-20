@@ -85,6 +85,9 @@ CALLBACK_LABELS: dict[str, str] = {
     "marketing_consent:unsub": "Отписаться от рассылки",
     "review:start": "Сформулировать отзыв",
     "review:cancel": "Отмена отзыва",
+    "max:doc:type:ils": "ИЛС",
+    "max:doc:type:workbook": "Трудовая",
+    "max:doc:type:other": "Другое",
 }
 
 
@@ -162,23 +165,27 @@ def label_for_callback(payload: str) -> str:
         parts = raw.split(":", 2)
         soft = parts[2].strip() if len(parts) > 2 else ""
         return soft or "вариант ответа"
+    if raw.startswith("max:doc:type:"):
+        return CALLBACK_LABELS.get(raw, "Тип документа")
     if raw.startswith("svy:"):
         return "Ответ в опросе понятности"
     if raw.startswith("review:a:"):
         return "Ответ в опросе отзыва"
     if raw.startswith("review:"):
-        return CALLBACK_LABELS.get(raw, f"Отзыв ({raw.split(':', 1)[-1]})")
+        return CALLBACK_LABELS.get(raw, "Отзыв")
     if raw.startswith("marketing_consent:"):
         return CALLBACK_LABELS.get(raw, "Согласие на рассылку")
     if raw.startswith("funnel:"):
         return CALLBACK_LABELS.get(raw, "Шаг воронки")
     if raw.startswith("offer:"):
         return CALLBACK_LABELS.get(raw, "Предложение тарифа")
+    if raw.startswith("diag:"):
+        return "Выбор после анкеты"
     if raw.startswith("confirm_web_login"):
         return "Подтверждение входа на сайт"
-    # Не отдаём сырой payload в ленту — запасная формулировка.
+    # Не отдаём сырой payload в ленту — без технических путей вроде max:foo:bar.
     if ":" in raw or "_" in raw:
-        return f"Кнопка ({raw.replace(':', ' → ')})"
+        return "кнопка в чате"
     return raw
 
 
@@ -188,7 +195,7 @@ def format_button_press(payload: str) -> str:
     if raw == "pdn_consent:no":
         return "Клиент нажал «Не согласен» — отказ от согласия на обработку ПДн"
     if raw == "start_dialog":
-        return "Клиент нажал «Начать» — согласие на ПДн и cookies"
+        return "Клиент нажал «Начать» — согласие на обработку ПДн"
     if raw == "marketing_consent:yes":
         return "Клиент согласился на информационную рассылку в MAX"
     if raw == "marketing_consent:no":
@@ -199,7 +206,13 @@ def format_button_press(payload: str) -> str:
         return "Клиент запросил код входа в кабинет"
     if raw.startswith("confirm_web_login"):
         return "Клиент подтвердил вход на сайт из MAX"
-    return f"Нажал кнопку: {label_for_callback(payload)}"
+    if raw.startswith("max:doc:type:"):
+        label = label_for_callback(raw)
+        return f"Клиент указал тип документа: {label}"
+    label = label_for_callback(payload)
+    if label == "кнопка в чате":
+        return "Клиент нажал кнопку в чате"
+    return f"Нажал кнопку: {label}"
 
 
 def keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str]:
@@ -232,8 +245,12 @@ def keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str
 
 def format_document_event(*, filename: str, doc_type: str | None = None) -> str:
     name = (filename or "файл").strip() or "файл"
-    suffix = f" · {doc_type}" if (doc_type or "").strip() else ""
-    return f"[Документ] {name}{suffix}"
+    raw_type = (doc_type or "").strip()
+    if not raw_type:
+        return f"[Документ] {name}"
+    from sfrfr.integrations.max.document_type_flow import journal_type_label
+
+    return f"[Документ] {name} · {journal_type_label(raw_type)}"
 
 
 def _insert_case_message(

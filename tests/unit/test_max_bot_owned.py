@@ -175,7 +175,10 @@ def test_upload_bot_owned_notifies_staff(tmp_path: Path, monkeypatch) -> None:
     )
     assert accepted.action == "upload"
     assert any("ils.pdf" in text for text in pings)
-    assert "сверим комплект" in (accepted.reply or "").lower()
+    # ТЗ-35 C1: после файла — вопрос типа, не старый «сверим комплект».
+    reply_low = (accepted.reply or "").lower()
+    assert "файл получили" in reply_low or "какой это документ" in reply_low
+    assert "илс" in reply_low or "документ" in reply_low
 
 
 def test_kit_message_no_ocr_text() -> None:
