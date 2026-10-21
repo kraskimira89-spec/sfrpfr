@@ -51,9 +51,13 @@ _UUID_RE = re.compile(
 )
 
 
-def _stable_id(*parts: str) -> str:
+def discrepancy_stable_id(*parts: str) -> str:
     blob = "|".join(parts)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def _stable_id(*parts: str) -> str:
+    return discrepancy_stable_id(*parts)
 
 
 def _extract_doc_id(text: str) -> str | None:

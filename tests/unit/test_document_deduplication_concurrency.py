@@ -7,9 +7,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
+from document_dedup_harness import InMemoryDocumentStore, UploadResult
 
 from sfrfr.services.document_deduplication import set_test_after_hash_lookup_barrier
-from document_dedup_harness import InMemoryDocumentStore, UploadResult
 
 
 @pytest.fixture()

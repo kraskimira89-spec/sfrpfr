@@ -16,6 +16,7 @@ export type WorkRouteStep = {
     method?: string;
     path_suffix?: string | null;
   } | null;
+  specialist_questions?: string[];
 };
 
 export type WorkRoute = {
@@ -102,6 +103,15 @@ export function CaseWorkRoute({
                 <p className="hint warning-inline" style={{ margin: "0.35rem 0 0" }}>
                   {step.blocker_reason}
                 </p>
+              ) : null}
+              {isCurrent &&
+              step.id === "facts_review" &&
+              (step.specialist_questions?.length ?? 0) > 0 ? (
+                <ul className="plain-list" style={{ marginTop: "0.5rem" }}>
+                  {(step.specialist_questions ?? []).map((q) => (
+                    <li key={q}>{q}</li>
+                  ))}
+                </ul>
               ) : null}
               {showPrimary ? (
                 <div className="row-actions" style={{ marginTop: "0.5rem" }}>
