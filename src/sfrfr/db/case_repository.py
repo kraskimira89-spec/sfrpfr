@@ -801,7 +801,7 @@ class CaseRepository:
                 "page_index, page_order, upload_batch_id, ingest_status, progress_percent, "
                 "current_stage, progress_message, placement_suggestion, requirement_code, "
                 "client_declared_signed, antivirus_status, ingest_review_required, "
-                "ingest_artifact_path"
+                "ingest_artifact_path, checksum_sha256, local_path"
             )
             .eq("case_id", case_id)
             .order("created_at", desc=True)

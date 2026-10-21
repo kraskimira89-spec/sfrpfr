@@ -1001,9 +1001,6 @@ export function CaseFunnelMain({
             </form>
           ) : null}
           <div className="row-actions">
-            <a href={detail.channels.cabinet_url} target="_blank" rel="noreferrer">
-              Открыть защищённый кабинет
-            </a>
             <button
               type="button"
               disabled={busy || !funnel.docsRequiredOk || (!canAct("documents") && !canAct("diagnostics"))}

@@ -251,18 +251,33 @@ def filter_downloadable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [row for row in rows if is_document_downloadable(row)]
 
 
+# Статусы, при которых клиенту ещё рано, а специалисту уже можно смотреть файл.
+_STAFF_PREVIEW_STATUSES = frozenset(
+    {
+        "security_check",
+        "quarantine",
+        "needs_reupload",
+        "manual_review",
+    }
+)
+
+
 def is_document_downloadable(
     row: dict[str, Any],
     *,
     allow_local_pending: bool = False,
+    allow_staff_preview: bool = False,
 ) -> bool:
     status = str(row.get("ingest_status") or "")
+    av = str(row.get("antivirus_status") or "").strip().lower()
+    if av and av not in {"clean", "not_configured", "disabled"}:
+        return False
+    if allow_staff_preview and status in _STAFF_PREVIEW_STATUSES:
+        return True
     if allow_local_pending and status == "needs_reupload" and str(
         row.get("local_path") or ""
     ).strip():
-        av = str(row.get("antivirus_status") or "").strip().lower()
-        if not av or av in {"clean", "not_configured", "disabled"}:
-            return True
+        return True
     return is_downloadable_status(
         status,
         antivirus_status=str(row.get("antivirus_status") or ""),

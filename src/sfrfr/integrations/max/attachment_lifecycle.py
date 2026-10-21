@@ -330,7 +330,9 @@ def document_is_staff_openable(row: dict[str, Any] | None) -> bool:
             return True
     if str(row.get("cloud_status") or "") == "pending":
         return False
-    return is_document_downloadable(row, allow_local_pending=False)
+    return is_document_downloadable(
+        row, allow_local_pending=True, allow_staff_preview=True
+    )
 
 
 def schedule_drain(*, delay_sec: float = 15.0) -> None:

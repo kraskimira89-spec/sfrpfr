@@ -146,6 +146,22 @@ def test_needs_reupload_with_local_path_downloadable_for_staff() -> None:
     assert is_document_downloadable(row, allow_local_pending=True) is True
 
 
+def test_security_check_downloadable_for_staff_preview() -> None:
+    """Специалист открывает PDF из дела, пока ingest ещё security_check."""
+    assert is_downloadable_status("security_check") is False
+    row = {
+        "ingest_status": "security_check",
+        "antivirus_status": "not_configured",
+        "local_path": "quarantine/c/d/scan.pdf",
+    }
+    assert is_document_downloadable(row) is False
+    assert is_document_downloadable(row, allow_staff_preview=True) is True
+    blocked = {**row, "ingest_status": "blocked_security"}
+    assert is_document_downloadable(blocked, allow_staff_preview=True) is False
+    infected = {**row, "antivirus_status": "infected"}
+    assert is_document_downloadable(infected, allow_staff_preview=True) is False
+
+
 def test_false_ack_metric_zero_on_media_without_bytes(
     tmp_path: Path, monkeypatch
 ) -> None:

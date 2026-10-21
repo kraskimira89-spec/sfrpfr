@@ -98,11 +98,12 @@ def test_reply_defers_when_staff_recently_active(monkeypatch) -> None:
         "sfrfr.services.case_chat_context.fetch_recent_case_messages",
         _fake_history,
     )
-    text, _kb, action = reply_to_free_text(
+    text, kb, action = reply_to_free_text(
         user_text="и что дальше?",
         intake=None,
         case_id="12345678-1234-1234-1234-123456789012",
     )
-    assert action == "max_llm_staff_active"
-    assert "специалист" in text.lower()
+    assert action == "max_llm_staff_silent"
+    assert text == ""
+    assert kb == []
     get_settings.cache_clear()

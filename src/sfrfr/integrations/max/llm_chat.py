@@ -400,12 +400,8 @@ def reply_to_free_text(
                 logger.debug("max_llm work_map skipped: %s", exc)
 
     if staff_dialog_active(history):
-        text = (
-            "Специалист уже отвечает в этом чате — напишите ему здесь. "
-            "Я рядом, если понадобится шаг по кнопкам ниже.\n\n"
-            + nudge_text
-        )
-        return text, nudge_kb, "max_llm_staff_active"
+        # Не перехватываем диалог: ни текста, ни клавиатуры — специалист ведёт чат.
+        return "", [], "max_llm_staff_silent"
 
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:

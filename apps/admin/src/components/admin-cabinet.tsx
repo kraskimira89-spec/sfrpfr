@@ -1505,19 +1505,28 @@ export function AdminCabinet() {
 
   async function openSigned(docId: string) {
     if (!token || !detail) return;
-    const signed = await apiFetch<{ url: string; expires_in: number }>(
-      `/api/portal/cases/${detail.id}/documents/${docId}/signed-url`,
-      token,
-      { method: "POST" },
-    );
-    const link = document.createElement("a");
-    link.href = signed.url;
-    link.rel = "noopener noreferrer";
-    link.download = "";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setNotice(`Скачивание начато. Ссылка действует ${signed.expires_in} сек.`);
+    try {
+      const signed = await apiFetch<{ url: string; expires_in: number }>(
+        `/api/portal/cases/${detail.id}/documents/${docId}/signed-url`,
+        token,
+        { method: "POST" },
+      );
+      const opened = window.open(signed.url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        const link = document.createElement("a");
+        link.href = signed.url;
+        link.rel = "noopener noreferrer";
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      setNotice(`Документ открыт. Ссылка действует ${signed.expires_in} сек.`);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось открыть документ.",
+      );
+    }
   }
 
   async function uploadDiagnosisReport(file: File) {

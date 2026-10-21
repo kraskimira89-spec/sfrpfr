@@ -209,11 +209,17 @@ def _staff_documents(
     can_view_ocr: bool,
 ) -> list[dict[str, Any]]:
     """Таблица документов как у клиента; OCR-превью — только эксперт/админ."""
+    from sfrfr.services.document_upload import is_document_downloadable
+
     docs = _client_documents(raw_docs)
-    if can_view_ocr:
-        return docs
     for item in docs:
-        item.pop("content_preview", None)
+        item["downloadable"] = is_document_downloadable(
+            item,
+            allow_local_pending=True,
+            allow_staff_preview=True,
+        )
+        if not can_view_ocr:
+            item.pop("content_preview", None)
     return docs
 
 
