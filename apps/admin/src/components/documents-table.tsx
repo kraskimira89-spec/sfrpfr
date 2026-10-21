@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { dedupeCabinetDocuments } from "../lib/dedupe-cabinet-documents";
+
 export type CabinetDocument = {
   id: string;
   storage_path: string;
@@ -19,6 +21,7 @@ export type CabinetDocument = {
   ingest_review_required?: boolean | null;
   progress_message?: string | null;
   has_local_file?: boolean | null;
+  checksum_sha256?: string | null;
 };
 
 type Props = {
@@ -52,6 +55,11 @@ function shortName(doc: CabinetDocument): string {
   return `${raw.slice(0, 40)}…${ext}`;
 }
 
+function needsTextReview(doc: CabinetDocument): boolean {
+  const status = (doc.ingest_status || "").toLowerCase();
+  return status === "manual_review" || Boolean(doc.ingest_review_required);
+}
+
 function stateLabel(doc: CabinetDocument): string {
   const av = (doc.antivirus_status || "").toLowerCase();
   const status = (doc.ingest_status || "").toLowerCase();
@@ -62,7 +70,7 @@ function stateLabel(doc: CabinetDocument): string {
   }
   if (status === "needs_reupload") return "нужна пересъёмка";
   if (status === "security_check" || status === "quarantine") return "проверка безопасности";
-  if (status === "manual_review" || doc.ingest_review_required) return "нужна проверка текста";
+  if (needsTextReview(doc)) return "нужна проверка текста";
   if ((doc.content_preview || "").trim()) return "получен · текст есть";
   if (doc.downloadable === false) return "ещё недоступен";
   return "получен";
@@ -80,24 +88,33 @@ export function DocumentsTable({
 }: Props) {
   const [textOpenId, setTextOpenId] = useState<string | null>(null);
 
+  const unique = useMemo(() => dedupeCabinetDocuments(documents), [documents]);
+
   const sorted = useMemo(() => {
-    const rows = [...documents];
+    const rows = [...unique];
     rows.sort((a, b) => {
       const at = a.created_at ? Date.parse(a.created_at) : 0;
       const bt = b.created_at ? Date.parse(b.created_at) : 0;
       return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
     });
     return rows;
-  }, [documents]);
+  }, [unique]);
+
+  function toggleText(docId: string) {
+    setTextOpenId((cur) => (cur === docId ? null : docId));
+  }
 
   return (
     <div className="docs-table-wrap" id="docs-table">
       <div className="docs-table-head">
         <h2>Документы в деле</h2>
         <p className="docs-count">
-          Всего: {documents.length}
+          Всего: {unique.length}
+          {unique.length !== documents.length
+            ? ` · без дублей (было ${documents.length})`
+            : ""}
           {" · "}
-          Оригинал — если безопасность позволяет; Текст — только при извлечённом preview
+          Оригинал — preview PDF; Скачать — отдельно; Текст — извлечённый preview
         </p>
       </div>
       <div className="docs-table-scroll">
@@ -120,9 +137,12 @@ export function DocumentsTable({
               const av = (doc.antivirus_status || "").toLowerCase();
               const unverified = AV_UNVERIFIED.has(av);
               const openOk = canOpenOriginal(doc);
-              const openMode = isDocx(doc) || !isPdfDoc(doc) ? "download" : "open";
+              const pdf = isPdfDoc(doc);
+              const word = isDocx(doc);
+              const openMode = word || !pdf ? "download" : "open";
+              const textOpen = textOpenId === doc.id;
               return (
-                <tr key={doc.id}>
+                <tr key={doc.id} id={textOpen ? `doc-text-${doc.id}` : undefined}>
                   <td className="docs-table-num">{index + 1}</td>
                   <td>
                     <div>
@@ -140,7 +160,34 @@ export function DocumentsTable({
                       </p>
                     ) : null}
                   </td>
-                  <td>{stateLabel(doc)}</td>
+                  <td>
+                    {needsTextReview(doc) ? (
+                      <button
+                        type="button"
+                        className="linkish"
+                        disabled={busy || !preview}
+                        title={
+                          preview
+                            ? "Открыть извлечённый текст для проверки"
+                            : "Текст ещё не извлечён"
+                        }
+                        aria-label={`Проверить текст: ${shortName(doc)}`}
+                        onClick={() => {
+                          if (!preview) return;
+                          toggleText(doc.id);
+                          requestAnimationFrame(() => {
+                            document
+                              .getElementById(`doc-text-${doc.id}`)
+                              ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                          });
+                        }}
+                      >
+                        Проверить текст
+                      </button>
+                    ) : (
+                      stateLabel(doc)
+                    )}
+                  </td>
                   <td>
                     {openOk ? (
                       <span className="docs-actions">
@@ -151,26 +198,38 @@ export function DocumentsTable({
                           title={
                             unverified
                               ? "AV не завершена: открыть оригинал осторожно"
-                              : isDocx(doc)
+                              : word
                                 ? "Скачать Word"
-                                : "Открыть оригинал"
+                                : pdf
+                                  ? "Открыть PDF в новой вкладке"
+                                  : "Открыть оригинал"
                           }
                           aria-label={`Оригинал: ${shortName(doc)}`}
                           onClick={() => onOpen(doc.id, openMode)}
                         >
                           Оригинал
                         </button>
+                        {pdf ? (
+                          <button
+                            type="button"
+                            className="linkish"
+                            disabled={busy}
+                            title="Скачать PDF"
+                            aria-label={`Скачать: ${shortName(doc)}`}
+                            onClick={() => onOpen(doc.id, "download")}
+                          >
+                            Скачать
+                          </button>
+                        ) : null}
                         {preview ? (
                           <button
                             type="button"
                             className="linkish"
                             disabled={busy}
                             aria-label={`Текст: ${shortName(doc)}`}
-                            onClick={() =>
-                              setTextOpenId((cur) => (cur === doc.id ? null : doc.id))
-                            }
+                            onClick={() => toggleText(doc.id)}
                           >
-                            {textOpenId === doc.id ? "Скрыть текст" : "Текст"}
+                            {textOpen ? "Скрыть текст" : "Текст"}
                           </button>
                         ) : (
                           <span className="hint" title="Нет извлечённого preview">
@@ -183,7 +242,7 @@ export function DocumentsTable({
                         {AV_BLOCKED.has(av) ? "Заблокирован антивирусом" : "Файл ещё недоступен"}
                       </span>
                     )}
-                    {textOpenId === doc.id && preview ? (
+                    {textOpen && preview ? (
                       <pre
                         className="draft"
                         style={{

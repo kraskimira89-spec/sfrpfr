@@ -43,3 +43,13 @@ def test_with_download_param_appends_filename() -> None:
     assert out.startswith(url)
     assert "download=" in out
     assert "pdf" in out
+    assert "response-content-disposition=attachment" in out
+
+
+def test_with_download_param_inline_skips_download_force() -> None:
+    """Supabase/Storage: query download= форсирует attachment — для preview нельзя."""
+    url = "https://storage.example/obj?token=abc"
+    out = _with_download_param(url, "scan.pdf", inline=True)
+    assert out.startswith(url)
+    assert "download=" not in out
+    assert "response-content-disposition=inline" in out

@@ -262,14 +262,52 @@ def _document_filename(storage_path: str | None) -> str:
 
 
 def _with_download_param(url: str, filename: str, *, inline: bool = False) -> str:
-    """inline=True — просмотр в новой вкладке; иначе скачивание."""
+    """inline=True — просмотр в новой вкладке; иначе скачивание.
+
+    Важно: query ``download=`` у Storage форсирует attachment — для preview
+    его нельзя добавлять (иначе PDF скачивается вместо открытия).
+    """
     name = quote(filename or "document", safe=".-_")
     joiner = "&" if "?" in url else "?"
     disposition = "inline" if inline else "attachment"
+    if inline:
+        return (
+            f"{url}{joiner}"
+            f"response-content-disposition={disposition}%3B%20filename%3D{name}"
+        )
     return (
         f"{url}{joiner}download={name}"
         f"&response-content-disposition={disposition}%3B%20filename%3D{name}"
     )
+
+
+def _mime_allows_inline(mime: str, filename: str) -> bool:
+    """PDF/image: по mime_verified или расширению имени файла."""
+    m = (mime or "").strip().lower()
+    if m.startswith("application/pdf") or m.startswith("image/"):
+        return True
+    name = (filename or "").strip().lower()
+    if name.endswith(".pdf"):
+        return True
+    return name.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+
+
+def _guess_media_type(mime: str, filename: str) -> str:
+    m = (mime or "").strip().lower()
+    if m:
+        return m
+    name = (filename or "").strip().lower()
+    if name.endswith(".pdf"):
+        return "application/pdf"
+    if name.endswith(".png"):
+        return "image/png"
+    if name.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if name.endswith(".gif"):
+        return "image/gif"
+    if name.endswith(".webp"):
+        return "image/webp"
+    return ""
 
 
 _DATE_IN_DOC_RE = re.compile(
@@ -407,6 +445,7 @@ def _client_document(item: dict[str, Any]) -> dict[str, Any]:
         "mime_verified": item.get("mime_verified"),
         "ingest_review_required": item.get("ingest_review_required"),
         "ingest_artifact_path": item.get("ingest_artifact_path"),
+        "checksum_sha256": item.get("checksum_sha256"),
         "downloadable": is_document_downloadable(item),
     }
 
@@ -2058,6 +2097,9 @@ def create_document_signed_url(
     ingest_status = str(row.get("ingest_status") or "")
     mime = str(row.get("mime_verified") or "").strip().lower()
     filename = _document_filename(storage_path or local_rel)
+    media_type = _guess_media_type(mime, filename)
+    # FastAPI отдаёт bool; прямой вызов теста без kwarg даёт Query(...) — не truthy.
+    force_attach = as_attachment is True
     use_local = storage_path.startswith("local-pending/") or (
         is_staff
         and bool(local_rel)
@@ -2075,9 +2117,7 @@ def create_document_signed_url(
             raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
         except Exception:  # noqa: BLE001
             raw_url = ""
-    inline = (not as_attachment) and (
-        mime.startswith("application/pdf") or mime.startswith("image/")
-    )
+    inline = (not force_attach) and _mime_allows_inline(media_type or mime, filename)
     if not raw_url and local_rel:
         from sfrfr.services.local_doc_download import issue_local_download
         from sfrfr.storage.local import path_from_uploads_relative
@@ -2091,7 +2131,7 @@ def create_document_signed_url(
             case_id=case_id,
             document_id=document_id,
             ttl_sec=float(expires_in),
-            media_type=mime or None,
+            media_type=media_type or mime or None,
             as_attachment=not inline,
         )
         base = get_settings().public_base_url.rstrip("/")
@@ -2137,9 +2177,7 @@ def download_tmp_local_document(token: str) -> FileResponse:
         or mimetypes.guess_type(entry.filename)[0]
         or "application/octet-stream"
     )
-    inline = (not entry.as_attachment) and (
-        media.startswith("application/pdf") or media.startswith("image/")
-    )
+    inline = (not entry.as_attachment) and _mime_allows_inline(media, entry.filename)
     return FileResponse(
         path=entry.path,
         filename=entry.filename,

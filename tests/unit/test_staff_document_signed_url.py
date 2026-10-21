@@ -125,7 +125,9 @@ def test_create_signed_url_staff_local_av_error(
     )
     out = portal_routes.create_document_signed_url(case_id, doc_id, staff)
     assert "/api/portal/tmp-docs/" in out.url
-    assert "response-content-disposition=inline" in out.url or "download=" in out.url
+    assert out.inline is True
+    assert "response-content-disposition=inline" in out.url
+    assert "download=" not in out.url
     assert out.staff_preview is True
     assert out.av_unverified is True
     assert out.warning and "не завершена" in out.warning.lower()
@@ -135,7 +137,114 @@ def test_create_signed_url_staff_local_av_error(
     token = out.url.split("/tmp-docs/")[1].split("?")[0]
     resp = portal_routes.download_tmp_local_document(token)
     assert resp.media_type == "application/pdf"
+    assert str(resp.headers.get("content-disposition", "")).startswith("inline")
     assert Path(str(resp.path)).read_bytes().startswith(b"%PDF")
+
+
+def test_create_signed_url_pdf_inline_by_filename_when_mime_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Без mime_verified, но имя .pdf — preview inline, не attachment."""
+    reset_for_tests()
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4 no-mime")
+    case_id = "c-mime"
+    doc_id = "d-mime"
+    row = {
+        "id": doc_id,
+        "storage_path": f"quarantine/{case_id}/{doc_id}/scan.pdf",
+        "local_path": "quarantine/case/scan.pdf",
+        "ingest_status": "manual_review",
+        "mime_verified": "",
+        "doc_type": "ils",
+        "antivirus_status": "error",
+    }
+    repo = MagicMock()
+    repo.require_case.return_value = {"id": case_id}
+    repo.audit = MagicMock()
+    monkeypatch.setattr(portal_routes, "_repo", lambda: repo)
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.eq.return_value
+    chain.limit.return_value.execute.return_value = SimpleNamespace(data=[row])
+    monkeypatch.setattr(portal_routes, "get_supabase_client", lambda: sb)
+    monkeypatch.setattr(
+        portal_routes.CaseRepository,
+        "_one_or_none",
+        staticmethod(lambda resp: (resp.data or [None])[0]),
+    )
+    monkeypatch.setattr(
+        "sfrfr.storage.local.path_from_uploads_relative",
+        lambda _rel: pdf,
+    )
+    monkeypatch.setattr(
+        portal_routes,
+        "get_settings",
+        lambda: SimpleNamespace(public_base_url="https://api.example.test"),
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.document_upload._audit_access",
+        lambda *_a, **_k: None,
+    )
+    staff = Principal(user_id="s", email="s@t", role=StaffRole.EXPERT)
+    out = portal_routes.create_document_signed_url(case_id, doc_id, staff)
+    assert out.inline is True
+    assert "download=" not in out.url
+    token = out.url.split("/tmp-docs/")[1].split("?")[0]
+    resp = portal_routes.download_tmp_local_document(token)
+    assert resp.media_type == "application/pdf"
+    assert str(resp.headers.get("content-disposition", "")).startswith("inline")
+
+
+def test_create_signed_url_as_attachment_forces_download(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reset_for_tests()
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4 attach")
+    case_id = "c-att"
+    doc_id = "d-att"
+    row = {
+        "id": doc_id,
+        "storage_path": f"quarantine/{case_id}/{doc_id}/scan.pdf",
+        "local_path": "quarantine/case/scan.pdf",
+        "ingest_status": "manual_review",
+        "mime_verified": "application/pdf",
+        "doc_type": "ils",
+        "antivirus_status": "clean",
+    }
+    repo = MagicMock()
+    repo.require_case.return_value = {"id": case_id}
+    repo.audit = MagicMock()
+    monkeypatch.setattr(portal_routes, "_repo", lambda: repo)
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.eq.return_value
+    chain.limit.return_value.execute.return_value = SimpleNamespace(data=[row])
+    monkeypatch.setattr(portal_routes, "get_supabase_client", lambda: sb)
+    monkeypatch.setattr(
+        portal_routes.CaseRepository,
+        "_one_or_none",
+        staticmethod(lambda resp: (resp.data or [None])[0]),
+    )
+    monkeypatch.setattr(
+        "sfrfr.storage.local.path_from_uploads_relative",
+        lambda _rel: pdf,
+    )
+    monkeypatch.setattr(
+        portal_routes,
+        "get_settings",
+        lambda: SimpleNamespace(public_base_url="https://api.example.test"),
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.document_upload._audit_access",
+        lambda *_a, **_k: None,
+    )
+    staff = Principal(user_id="s", email="s@t", role=StaffRole.EXPERT)
+    out = portal_routes.create_document_signed_url(
+        case_id, doc_id, staff, as_attachment=True
+    )
+    assert out.inline is False
+    assert "download=" in out.url
+    assert "response-content-disposition=attachment" in out.url
 
 
 def test_create_signed_url_infected_still_403(
