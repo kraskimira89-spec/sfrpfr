@@ -71,8 +71,25 @@ def test_format_document_event_includes_document_id() -> None:
     )
     assert body.startswith("[Документ] ils.pdf · Выписка ИЛС")
     assert f"doc_id={doc_id}" in body
+    assert body.endswith(f"doc_id={doc_id}")
     # Без id — старый формат, UI не должен открывать чужой файл по имени.
     assert "doc_id=" not in format_document_event(filename="ils.pdf", doc_type="ils")
+
+
+def test_format_document_event_note_before_doc_id() -> None:
+    """Суффикс вроде «нужна догрузка» не должен идти после doc_id (ломает UI regex)."""
+    doc_id = "538c5910-f2ac-4e29-bea8-7be3a62de30e"
+    body = format_document_event(
+        filename="scan.pdf",
+        document_id=doc_id,
+        note="[нужна догрузка в облако]",
+    )
+    assert body == (
+        f"[Документ] scan.pdf [нужна догрузка в облако] · doc_id={doc_id}"
+    )
+    assert body.endswith(f"doc_id={doc_id}")
+    assert "[нужна догрузка в облако]" in body
+    assert body.index("[нужна") < body.index("doc_id=")
 
 
 def test_pending_buffer_flush() -> None:

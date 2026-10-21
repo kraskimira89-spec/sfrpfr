@@ -1,5 +1,6 @@
 "use client";
 
+import { extractCaseChatDocumentId } from "@/lib/case-chat-doc-id";
 import { clientNameForChatHeader, clientNameNeedsConfirm } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
@@ -16,8 +17,6 @@ export type CaseChatMessage = {
 type ChatFilter = "all" | "staff" | "client" | "system";
 
 const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
-/** Связь журнала с documents.id — открывать только по id, не по имени файла. */
-const DOC_ID_RE = /\s·\sdoc_id=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*$/i;
 
 function splitBody(body: string): {
   text: string;
@@ -28,12 +27,9 @@ function splitBody(body: string): {
 } {
   const isDocument = body.startsWith("[Документ] ");
   let text = body.replace(/^\[\[internal\]\]\s*/i, "");
-  let documentId: string | null = null;
-  const docIdMatch = text.match(DOC_ID_RE);
-  if (docIdMatch) {
-    documentId = docIdMatch[1] || null;
-    text = text.replace(DOC_ID_RE, "").trimEnd();
-  }
+  const extracted = extractCaseChatDocumentId(text);
+  const documentId = extracted.documentId;
+  text = extracted.textWithoutDocId;
   let qrUrl: string | null = null;
   const qrMatch = text.match(/\nQR:\s*(https?:\/\/\S+)/);
   if (qrMatch) {

@@ -129,7 +129,7 @@ export function DocumentsTable({
           Всего: {groups.length}
           {hiddenDupCount > 0 ? ` · точных дублей скрыто в истории: ${hiddenDupCount}` : ""}
           {" · "}
-          Оригинал — preview PDF; Скачать — attachment; Текст — полный extract
+          PDF: Открыть (preview) · Скачать · Текст; Word: Скачать · Текст
         </p>
       </div>
       <div className="docs-table-scroll">
@@ -164,12 +164,11 @@ export function DocumentsTable({
               const openOk = canOpenOriginal(doc);
               const pdf = isPdfDoc(doc);
               const word = isDocx(doc);
-              const openMode = word || !pdf ? "download" : "open";
               const textOpen = textOpenId === doc.id;
 
+              /** Только панель текста — без open/download (не дублировать «Текст»/скачивание). */
               function openTextReview() {
                 setTextOpenId(doc.id);
-                if (openOk) onOpen(doc.id, openMode);
                 requestAnimationFrame(() => {
                   document
                     .getElementById(`doc-text-${doc.id}`)
@@ -216,8 +215,9 @@ export function DocumentsTable({
                                           isPdfDoc(dup) ? "open" : "download",
                                         )
                                       }
+                                      onDoubleClick={(e) => e.preventDefault()}
                                     >
-                                      открыть
+                                      {isPdfDoc(dup) ? "открыть" : "скачать"}
                                     </button>
                                   </>
                                 ) : null}
@@ -250,8 +250,8 @@ export function DocumentsTable({
                         className="linkish"
                         disabled={busy}
                         title={
-                          hasFullText || openOk
-                            ? "Открыть оригинал и полный текст для проверки"
+                          hasFullText
+                            ? "Показать полный текст для проверки (без скачивания)"
                             : "Текст ещё не извлечён"
                         }
                         aria-label={`Проверить текст: ${shortName(doc)}`}
@@ -266,46 +266,52 @@ export function DocumentsTable({
                   <td>
                     {openOk ? (
                       <span className="docs-actions">
-                        <button
-                          type="button"
-                          className="linkish"
-                          disabled={busy}
-                          title={
-                            unverified
-                              ? "AV не завершена: открыть оригинал осторожно"
-                              : word
-                                ? "Скачать Word"
-                                : pdf
-                                  ? "Открыть PDF в новой вкладке (inline)"
-                                  : "Открыть оригинал"
-                          }
-                          aria-label={`Оригинал: ${shortName(doc)}`}
-                          onClick={() => onOpen(doc.id, openMode)}
-                        >
-                          Оригинал
-                        </button>
                         {pdf ? (
                           <button
                             type="button"
                             className="linkish"
                             disabled={busy}
-                            title="Скачать PDF (attachment)"
-                            aria-label={`Скачать: ${shortName(doc)}`}
-                            onClick={() => onOpen(doc.id, "download")}
+                            title={
+                              unverified
+                                ? "AV не завершена: открыть PDF осторожно (только preview)"
+                                : "Открыть PDF в новой вкладке (inline, без скачивания)"
+                            }
+                            aria-label={`Открыть: ${shortName(doc)}`}
+                            onClick={() => onOpen(doc.id, "open")}
+                            onDoubleClick={(e) => e.preventDefault()}
                           >
-                            Скачать
+                            Открыть
                           </button>
                         ) : null}
+                        <button
+                          type="button"
+                          className="linkish"
+                          disabled={busy}
+                          title={
+                            word
+                              ? "Скачать Word"
+                              : pdf
+                                ? "Скачать PDF (attachment)"
+                                : "Скачать файл"
+                          }
+                          aria-label={`Скачать: ${shortName(doc)}`}
+                          onClick={() => onOpen(doc.id, "download")}
+                        >
+                          Скачать
+                        </button>
                         {hasFullText ? (
-                          <button
-                            type="button"
-                            className="linkish"
-                            disabled={busy}
-                            aria-label={`Текст: ${shortName(doc)}`}
-                            onClick={() => toggleText(doc.id)}
-                          >
-                            {textOpen ? "Скрыть текст" : "Текст"}
-                          </button>
+                          // При review CTA только в «Состояние» — не дублировать «Текст» рядом.
+                          needsTextReview(doc) && !textOpen ? null : (
+                            <button
+                              type="button"
+                              className="linkish"
+                              disabled={busy}
+                              aria-label={`Текст: ${shortName(doc)}`}
+                              onClick={() => toggleText(doc.id)}
+                            >
+                              {textOpen ? "Скрыть" : "Текст"}
+                            </button>
+                          )
                         ) : (
                           <span className="hint" title={textMissingHonest || "Нет извлечённого текста"}>
                             {textMissingHonest || "Текст недоступен"}
