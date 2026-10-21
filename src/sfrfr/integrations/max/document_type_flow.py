@@ -225,7 +225,7 @@ def clear_pending(rec: MaxIntakeRecord) -> None:
 
 def set_document_type(*, document_id: str, doc_type: str) -> bool:
     """Записать doc_type в documents. False при ошибке."""
-    from sfrfr.db.supabase_client import get_supabase_client
+    from sfrfr.db.session import get_supabase_client
 
     doc_id = str(document_id or "").strip()
     dtype = str(doc_type or "").strip().lower()
