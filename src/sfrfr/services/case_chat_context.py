@@ -303,11 +303,10 @@ def build_client_context_pack(
     docs = _document_buckets(work=work, documents=documents, max_user_id=max_user_id)
     confirmed = _confirmed_from_intake(intake)
     staff_active = staff_dialog_active(history)
-    order = work.get("order") if isinstance((work or {}).get("order"), dict) else {}
+    order_raw = (work or {}).get("order")
+    order: dict[str, Any] = order_raw if isinstance(order_raw, dict) else {}
     payment_status = str(
-        (order or {}).get("status_label")
-        or (order or {}).get("state")
-        or "нет заказа"
+        order.get("status_label") or order.get("state") or "нет заказа"
     )
     next_step = str((work or {}).get("now_need") or (work or {}).get("cta_label") or "—")
     stage = _conversation_stage(work=work, intake=intake, consent_ok=consent_ok)
@@ -321,7 +320,7 @@ def build_client_context_pack(
         "documents": docs,
         "document_content_available_to_model": False,
         "payment_status_trusted": payment_status,
-        "can_pay": bool((order or {}).get("can_pay")),
+        "can_pay": bool(order.get("can_pay")),
         "next_allowed_step": next_step,
         "staff_dialog_active": staff_active,
         "user_text_redacted": redact_for_llm(user_text or "")[:1500],
@@ -332,8 +331,13 @@ def build_client_context_pack(
 
 def format_context_pack_for_prompt(pack: dict[str, Any]) -> str:
     """Текстовый блок ContextPack для user-prompt."""
-    docs = pack.get("documents") if isinstance(pack.get("documents"), dict) else {}
-    confirmed = pack.get("confirmed_fields") or []
+    docs_raw = pack.get("documents")
+    docs: dict[str, Any] = docs_raw if isinstance(docs_raw, dict) else {}
+    confirmed_raw = pack.get("confirmed_fields") or []
+    confirmed = [str(x) for x in confirmed_raw] if isinstance(confirmed_raw, list) else []
+    avail = [str(x) for x in (docs.get("available") or [])]
+    pend = [str(x) for x in (docs.get("pending") or [])]
+    fail = [str(x) for x in (docs.get("failed") or [])]
     lines = [
         f"Стадия диалога: {pack.get('conversation_stage')}",
         f"Согласие ПДн: {pack.get('consent_status')}",
@@ -352,16 +356,9 @@ def format_context_pack_for_prompt(pack: dict[str, Any]) -> str:
         lines.append("Уже известно (не спрашивай повторно): " + "; ".join(confirmed))
     else:
         lines.append("Уже известно: (пока пусто)")
-    lines.append(
-        "Документы available: "
-        + (", ".join(docs.get("available") or []) or "—")
-    )
-    lines.append(
-        "Документы pending: " + (", ".join(docs.get("pending") or []) or "—")
-    )
-    lines.append(
-        "Документы failed: " + (", ".join(docs.get("failed") or []) or "—")
-    )
+    lines.append("Документы available: " + (", ".join(avail) or "—"))
+    lines.append("Документы pending: " + (", ".join(pend) or "—"))
+    lines.append("Документы failed: " + (", ".join(fail) or "—"))
     return "\n".join(lines)
 
 
