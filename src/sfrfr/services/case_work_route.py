@@ -36,10 +36,26 @@ def build_case_work_route(
         last_error=str(check.get("last_error") or "") or None,
     )
 
+    specialist_questions: list[str] = []
+    try:
+        from sfrfr.services.case_facts import (
+            normalize_findings_to_discrepancies,
+            pending_specialist_questions,
+        )
+
+        facts_bundle = normalize_findings_to_discrepancies(
+            findings or [],
+            documents=documents,
+        )
+        specialist_questions = pending_specialist_questions(facts_bundle)
+    except Exception:  # noqa: BLE001
+        specialist_questions = []
+
     facts_step = _facts_review_step(
         docs_step=docs_step,
         check_result=check_result,
         findings=findings or [],
+        specialist_questions=specialist_questions,
     )
 
     appeal_step = _appeal_draft_step(
