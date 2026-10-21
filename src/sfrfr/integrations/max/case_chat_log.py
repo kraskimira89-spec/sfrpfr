@@ -255,8 +255,9 @@ def format_document_event(
     filename: str,
     doc_type: str | None = None,
     document_id: str | None = None,
+    note: str | None = None,
 ) -> str:
-    """Строка журнала. ``doc_id=<uuid>`` — связь со штатным signed-url (не по имени)."""
+    """Строка журнала. ``doc_id=<uuid>`` всегда в конце — UI парсит по нему signed-url."""
     name = (filename or "файл").strip() or "файл"
     raw_type = (doc_type or "").strip()
     if not raw_type:
@@ -265,6 +266,9 @@ def format_document_event(
         from sfrfr.integrations.max.document_type_flow import journal_type_label
 
         body = f"[Документ] {name} · {journal_type_label(raw_type)}"
+    extra = (note or "").strip()
+    if extra:
+        body = f"{body} {extra}"
     did = str(document_id or "").strip()
     if did:
         body = f"{body} · doc_id={did}"

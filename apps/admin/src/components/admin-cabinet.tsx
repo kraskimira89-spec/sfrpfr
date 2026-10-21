@@ -410,6 +410,8 @@ export function AdminCabinet() {
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const lastClientMessageIdRef = useRef<string | null>(null);
   const suggestRepliesRef = useRef<() => Promise<void>>(async () => undefined);
+  /** Антидребезг: dblclick / повторный клик не вызывает второй download/open. */
+  const openSignedLockRef = useRef<Record<string, number>>({});
   const [stepHint, setStepHint] = useState<{
     action: string;
     reason: string;
@@ -1515,6 +1517,13 @@ export function AdminCabinet() {
 
   async function openSigned(docId: string, mode: "open" | "download" = "open") {
     if (!token || !detail) return;
+    // Двойной/повторный клик не должен второй раз дергать download или открывать вкладку.
+    const lockKey = `${docId}:${mode}`;
+    const now = Date.now();
+    if (now - (openSignedLockRef.current[lockKey] || 0) < 900) {
+      return;
+    }
+    openSignedLockRef.current[lockKey] = now;
     try {
       const qs = mode === "download" ? "?as_attachment=true" : "";
       const signed = await apiFetch<{
@@ -1540,8 +1549,8 @@ export function AdminCabinet() {
           return;
         }
       }
-      // Явное скачивание — через <a>; preview (mode=open) — всегда новая вкладка.
-      // Content-Disposition: inline/attachment задаёт бэкенд (?as_attachment).
+      // Явное скачивание — только mode=download через <a>.
+      // Preview (mode=open) — только новая вкладка; без download= / без повторного <a>-fallback как attachment.
       if (mode === "download") {
         const link = document.createElement("a");
         link.href = signed.url;
@@ -1556,6 +1565,7 @@ export function AdminCabinet() {
       }
       const opened = window.open(signed.url, "_blank", "noopener,noreferrer");
       if (!opened) {
+        // Popup blocked: новая вкладка через <a target=_blank>, не download.
         const link = document.createElement("a");
         link.href = signed.url;
         link.rel = "noopener noreferrer";

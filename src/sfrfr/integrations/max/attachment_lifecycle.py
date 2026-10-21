@@ -449,9 +449,12 @@ def _complete_download(job: dict[str, Any], *, data: bytes) -> None:
     doc_id = str(row["id"])
     mark_bound(jid, document_id=doc_id, case_id=case_id)
     try:
-        body = format_document_event(filename=filename, document_id=doc_id)
-        if str(row.get("cloud_status") or "") == "pending":
-            body = f"{body} [нужна догрузка в облако]"
+        cloud_pending = str(row.get("cloud_status") or "") == "pending"
+        body = format_document_event(
+            filename=filename,
+            document_id=doc_id,
+            note="[нужна догрузка в облако]" if cloud_pending else None,
+        )
         append_case_chat_message(
             case_id=case_id,
             author_kind="client",
