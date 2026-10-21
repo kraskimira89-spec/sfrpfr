@@ -251,8 +251,8 @@ def filter_downloadable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [row for row in rows if is_document_downloadable(row)]
 
 
-# Статусы, при которых клиенту ещё рано, а специалисту уже можно смотреть файл.
-_STAFF_PREVIEW_STATUSES = frozenset(
+# Ingest-статусы, где клиенту ещё рано, а staff может смотреть оригинал.
+_STAFF_PREVIEW_INGEST = frozenset(
     {
         "security_check",
         "quarantine",
@@ -260,6 +260,45 @@ _STAFF_PREVIEW_STATUSES = frozenset(
         "manual_review",
     }
 )
+
+# Явный allowlist AV для staff-preview (НЕ «всё кроме infected»).
+_STAFF_AV_ALLOWLIST = frozenset(
+    {
+        "clean",
+        "not_configured",
+        "disabled",
+        "error",
+        "pending",
+    }
+)
+
+# AV ещё не завершён — staff видит файл с предупреждением, не как «безопасный».
+_STAFF_AV_UNVERIFIED = frozenset({"error", "pending"})
+
+_CLIENT_AV_OK = frozenset({"clean", "not_configured", "disabled"})
+
+
+def _norm_av(row: dict[str, Any]) -> str:
+    return str(row.get("antivirus_status") or "").strip().lower()
+
+
+def is_staff_av_unverified(row: dict[str, Any]) -> bool:
+    """True: проверка AV не завершена (error/pending) — не считать файл чистым."""
+    return _norm_av(row) in _STAFF_AV_UNVERIFIED
+
+
+def staff_av_block_reason(row: dict[str, Any]) -> str | None:
+    """Причина блокировки staff-preview по AV; None если allowlist пропускает.
+
+    Пустой/отсутствующий antivirus_status = not_configured (в allowlist).
+    Неизвестный непустой статус и infected/malicious — блок.
+    """
+    av = _norm_av(row) or "not_configured"
+    if av in {"infected", "malicious"}:
+        return "document blocked by antivirus"
+    if av not in _STAFF_AV_ALLOWLIST:
+        return f"antivirus status not allowed for staff preview: {av}"
+    return None
 
 
 def is_document_downloadable(
@@ -269,15 +308,32 @@ def is_document_downloadable(
     allow_staff_preview: bool = False,
 ) -> bool:
     status = str(row.get("ingest_status") or "")
-    av = str(row.get("antivirus_status") or "").strip().lower()
-    # Подтверждённый malware — даже staff не открывает оригинал из кабинета.
+    av = _norm_av(row)
     if av in {"infected", "malicious"}:
         return False
-    # Staff: оригинал из quarantine/needs_reupload, даже если AV error/pending
-    # (иначе «Открыть» disabled — мёртвая кнопка на живых PDF).
-    if allow_staff_preview and status in _STAFF_PREVIEW_STATUSES:
-        return True
-    if av and av not in {"clean", "not_configured", "disabled"}:
+
+    if allow_staff_preview:
+        # Явный allowlist; пустой AV = not_configured. Неизвестный непустой — блок.
+        if staff_av_block_reason(row) is not None:
+            return False
+        if status in _STAFF_PREVIEW_INGEST:
+            return True
+        # Обычный downloadable путь, но с staff allowlist AV (error/pending ок).
+        if allow_local_pending and status == "needs_reupload" and str(
+            row.get("local_path") or ""
+        ).strip():
+            return True
+        blocked_ingest = {
+            "uploading",
+            "security_check",
+            "blocked_security",
+            "quarantine",
+            "needs_reupload",
+        }
+        return status not in blocked_ingest
+
+    # Клиент: error/pending/unknown — запрет. Пустой AV без ослабления (как раньше).
+    if av and av not in _CLIENT_AV_OK:
         return False
     if allow_local_pending and status == "needs_reupload" and str(
         row.get("local_path") or ""

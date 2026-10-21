@@ -2001,7 +2001,14 @@ def create_document_signed_url(
     as_attachment: bool = Query(False),
 ) -> SignedDocumentResponse:
     """Выдать краткоживущую ссылку после проверки доступа к делу."""
+    from sfrfr.services.document_upload import (
+        _audit_access,
+        is_staff_av_unverified,
+        staff_av_block_reason,
+    )
+
     repo = _repo()
+    # Явная проверка прав на дело (staff и клиент/представитель).
     repo.require_case(principal, case_id)
     row = CaseRepository._one_or_none(
         get_supabase_client()
@@ -2017,12 +2024,18 @@ def create_document_signed_url(
     )
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
-    allow_local = bool(principal.is_staff)
+
+    is_staff = bool(principal.is_staff)
+    staff_preview = is_staff
     if not is_document_downloadable(
         row,
-        allow_local_pending=allow_local,
-        allow_staff_preview=allow_local,
+        allow_local_pending=is_staff,
+        allow_staff_preview=staff_preview,
     ):
+        if is_staff:
+            reason = staff_av_block_reason(row)
+            if reason:
+                raise HTTPException(status_code=403, detail=reason)
         av = str(row.get("antivirus_status") or "").strip().lower()
         if av in {"infected", "malicious"}:
             raise HTTPException(
@@ -2031,6 +2044,14 @@ def create_document_signed_url(
             )
         raise HTTPException(status_code=403, detail="document not available yet")
 
+    av_unverified = bool(is_staff and is_staff_av_unverified(row))
+    warning: str | None = None
+    if av_unverified:
+        warning = (
+            "Проверка антивирусом не завершена (error/pending). "
+            "Файл не считается безопасным — открывайте осторожно."
+        )
+
     expires_in = SIGNED_URL_TTL_SECONDS
     storage_path = str(row["storage_path"] or "")
     local_rel = str(row.get("local_path") or "").strip()
@@ -2038,7 +2059,7 @@ def create_document_signed_url(
     mime = str(row.get("mime_verified") or "").strip().lower()
     filename = _document_filename(storage_path or local_rel)
     use_local = storage_path.startswith("local-pending/") or (
-        allow_local
+        is_staff
         and bool(local_rel)
         and ingest_status
         in {"needs_reupload", "security_check", "quarantine", "manual_review"}
@@ -2077,10 +2098,15 @@ def create_document_signed_url(
         raw_url = f"{base}/api/portal/tmp-docs/{token}"
     if not raw_url:
         raise HTTPException(status_code=502, detail="signed url failed")
-    repo.audit(case_id, principal.user_id, "document_download_url_created")
-    from sfrfr.services.document_upload import _audit_access
 
-    _audit_access(case_id, document_id, principal.user_id, "document_preview")
+    # Журнал: без URL и ПДн — только ids + режим.
+    audit_action = (
+        "document_staff_preview_unverified"
+        if av_unverified
+        else ("document_staff_preview" if is_staff else "document_preview")
+    )
+    repo.audit(case_id, principal.user_id, audit_action)
+    _audit_access(case_id, document_id, principal.user_id, audit_action)
     return SignedDocumentResponse(
         url=_with_download_param(
             raw_url,
@@ -2090,6 +2116,9 @@ def create_document_signed_url(
         expires_in=expires_in,
         inline=inline,
         filename=filename,
+        staff_preview=staff_preview,
+        av_unverified=av_unverified,
+        warning=warning,
     )
 
 
@@ -2685,42 +2714,9 @@ def list_messages(
     )
     if not principal.is_staff:
         messages = [row for row in messages if not _is_internal_staff_message(row)]
-    docs = (
-        client.table("documents")
-        .select("id, storage_path, doc_type, created_at, uploaded_by")
-        .eq("case_id", case_id)
-        .order("created_at")
-        .execute()
-        .data
-        or []
-    )
-    # Уже записанные [Документ] … — не дублировать из таблицы documents.
-    covered: set[str] = set()
-    for row in messages:
-        body = str(row.get("body") or "")
-        if body.startswith("[Документ] "):
-            covered.add(body.split("\n", 1)[0].strip().lower())
-
+    # Файлы — в списке документов карточки; не синтезировать [Документ] из
+    # таблицы documents в ленту (источник повторов в staff-чате).
     timeline: list[dict] = list(messages)
-    for doc in docs:
-        path = str(doc.get("storage_path") or "")
-        name = Path(path).name or "файл"
-        doc_type = doc.get("doc_type")
-        from sfrfr.integrations.max.case_chat_log import format_document_event
-
-        body = format_document_event(filename=name, doc_type=str(doc_type) if doc_type else None)
-        if body.lower() in covered:
-            continue
-        timeline.append(
-            {
-                "id": f"doc:{doc.get('id')}",
-                "case_id": case_id,
-                "author_user_id": doc.get("uploaded_by"),
-                "author_kind": "client",
-                "body": body,
-                "created_at": doc.get("created_at"),
-            }
-        )
     timeline.sort(key=lambda row: str(row.get("created_at") or ""))
     if not principal.is_staff:
         try:

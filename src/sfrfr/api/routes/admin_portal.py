@@ -211,13 +211,21 @@ def _staff_documents(
     """Таблица документов как у клиента; OCR-превью — только эксперт/админ."""
     from sfrfr.services.document_upload import is_document_downloadable
 
+    by_id = {
+        str(row.get("id") or ""): row
+        for row in (raw_docs or [])
+        if isinstance(row, dict) and row.get("id")
+    }
     docs = _client_documents(raw_docs)
     for item in docs:
+        raw = by_id.get(str(item.get("id") or ""), {})
+        # downloadable считаем по сырой строке (там local_path), не по _client_document.
         item["downloadable"] = is_document_downloadable(
-            item,
+            raw or item,
             allow_local_pending=True,
             allow_staff_preview=True,
         )
+        item["has_local_file"] = bool(str(raw.get("local_path") or "").strip())
         if not can_view_ocr:
             item.pop("content_preview", None)
     return docs

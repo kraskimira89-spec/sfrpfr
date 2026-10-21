@@ -78,6 +78,13 @@ type Detail = {
     inner_date?: string | null;
     inner_title?: string | null;
     content_preview?: string | null;
+    downloadable?: boolean | null;
+    ingest_status?: string | null;
+    antivirus_status?: string | null;
+    mime_verified?: string | null;
+    ingest_review_required?: boolean | null;
+    progress_message?: string | null;
+    has_local_file?: boolean | null;
   }[];
   checklist_items: {
     id: string;
@@ -268,6 +275,7 @@ export function CaseFunnelMain({
   onOpenSigned,
   onUploadDiagnosisReport,
   onPublishDiagnosis,
+  documentsWorkplace = null,
   staffToken,
   apiBase,
   onDeliveryNotice,
@@ -347,6 +355,8 @@ export function CaseFunnelMain({
   onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
+  /** Проверка ingest / доп. блок сразу под единым списком документов. */
+  documentsWorkplace?: ReactNode;
   staffToken?: string | null;
   apiBase?: string;
   onDeliveryNotice?: (msg: string) => void;
@@ -782,6 +792,15 @@ export function CaseFunnelMain({
         </div>
       </div>
 
+      <div className="case-docs-workplace" id="case-docs-workplace">
+        <DocumentsTable
+          documents={detail.documents}
+          onOpen={onOpenSigned}
+          busy={busy}
+        />
+        {documentsWorkplace}
+      </div>
+
       <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
       {onCloseCase ? (
         <CloseCaseBlock
@@ -967,11 +986,9 @@ export function CaseFunnelMain({
               </tr>
             </tbody>
           </table>
-          <DocumentsTable
-            documents={detail.documents}
-            onOpen={onOpenSigned}
-            busy={busy}
-          />
+          <p className="hint">
+            Полный список файлов — в блоке «Документы в деле» под шапкой карточки.
+          </p>
           {docItems.length > 0 ? (
             <ul className="plain-list case-doc-checklist">
               {docItems.map((item) => (

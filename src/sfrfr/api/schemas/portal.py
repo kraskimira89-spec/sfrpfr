@@ -39,6 +39,10 @@ class SignedDocumentResponse(BaseModel):
     expires_in: int
     inline: bool = False
     filename: str | None = None
+    # Staff-only: проверка AV не завершена (error/pending) — не «файл безопасен».
+    staff_preview: bool = False
+    av_unverified: bool = False
+    warning: str | None = None
 
 
 class ConsentAcceptRequest(BaseModel):

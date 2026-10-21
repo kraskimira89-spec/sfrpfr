@@ -77,10 +77,11 @@ export function deriveFunnel(detail: {
   const channelOk = Boolean(detail.client.max_linked || detail.client.web_linked);
   const items = detail.checklist_items || [];
   const docs = detail.documents || [];
+  // Согласовано с max_kit_status.classify_doc_bucket (ils / labor / other).
   const hasIls =
     hasDocType(docs, ["ils", "илс", "сзи"]) || checklistDone(items, /илс|выписк/i);
   const hasLabor =
-    hasDocType(docs, ["labor", "труд", "employment"]) ||
+    hasDocType(docs, ["workbook", "labor", "труд", "employment"]) ||
     checklistDone(items, /труд|стаж/i);
   const docsReady =
     docs.length > 0 ||

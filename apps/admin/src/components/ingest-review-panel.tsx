@@ -10,6 +10,8 @@ type ReviewDocument = {
   antivirus_status?: string | null;
   ingest_review_required?: boolean;
   content_preview?: string | null;
+  has_local_file?: boolean | null;
+  downloadable?: boolean | null;
 };
 
 type ManifestPage = {
@@ -28,6 +30,15 @@ type Props = {
   onNotice: (text: string) => void;
   onRefresh: () => void;
 };
+
+type PrimaryKind =
+  | "open_original"
+  | "open_text"
+  | "security_approve"
+  | "accept_text"
+  | "cloud_later"
+  | "request_reshoot"
+  | "none";
 
 async function requestJson<T>(
   apiBase: string,
@@ -60,6 +71,36 @@ async function requestJson<T>(
 }
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+function primaryFor(document: ReviewDocument, hasText: boolean): {
+  kind: PrimaryKind;
+  label: string;
+} {
+  const status = (document.ingest_status || "").toLowerCase();
+  const av = (document.antivirus_status || "").toLowerCase();
+
+  if (status === "needs_reupload" && document.has_local_file) {
+    return {
+      kind: "cloud_later",
+      label: "На сервере, облако позже",
+    };
+  }
+  if (status === "needs_reupload") {
+    return { kind: "request_reshoot", label: "Запросить пересъёмку" };
+  }
+  if (av !== "clean" && av !== "not_configured" && av !== "disabled" && av !== "") {
+    if (av === "pending" || av === "error" || status === "security_check") {
+      return { kind: "security_approve", label: "Подтвердить безопасность" };
+    }
+  }
+  if (!hasText) {
+    return { kind: "open_text", label: "Открыть текст" };
+  }
+  if (document.ingest_review_required || status === "manual_review") {
+    return { kind: "accept_text", label: "Принять текст" };
+  }
+  return { kind: "open_original", label: "Открыть оригинал" };
+}
 
 export function IngestReviewPanel({
   caseId,
@@ -118,7 +159,10 @@ export function IngestReviewPanel({
         token,
       );
       setTexts((previous) => ({ ...previous, [document.id]: payload.extracted_text || "" }));
-      setInitialTexts((previous) => ({ ...previous, [document.id]: payload.extracted_text || "" }));
+      setInitialTexts((previous) => ({
+        ...previous,
+        [document.id]: payload.extracted_text || "",
+      }));
       setPages((previous) => ({ ...previous, [document.id]: payload.manifest?.pages || [] }));
       try {
         const original = await requestJson<{ url?: string }>(
@@ -182,6 +226,35 @@ export function IngestReviewPanel({
     }
   }
 
+  async function runPrimary(document: ReviewDocument, kind: PrimaryKind) {
+    const documentText = texts[document.id] || "";
+    if (kind === "open_original") {
+      await openOriginal(document);
+      return;
+    }
+    if (kind === "open_text") {
+      await showArtifacts(document);
+      return;
+    }
+    if (kind === "security_approve") {
+      await action(document, "security-approve");
+      return;
+    }
+    if (kind === "accept_text") {
+      await action(document, "ingest-accept", {
+        extracted_text: documentText,
+        text_edited: initialTexts[document.id] !== documentText,
+      });
+      return;
+    }
+    if (kind === "request_reshoot") {
+      await action(document, "ingest-reject", {
+        reason:
+          window.prompt("Что нужно исправить?", "Нужна более чёткая копия документа.") || "",
+      });
+    }
+  }
+
   if (loading || documents.length === 0) return null;
 
   return (
@@ -189,13 +262,22 @@ export function IngestReviewPanel({
       <h2 id="ingest-review-title">Проверка файлов ingest</h2>
       <p className="hint">
         {canEdit
-          ? "Проверьте безопасность, сверяйте текст с оригиналом и принимайте результат."
-          : "Здесь видны документы на проверке. При проблеме запросите у клиента пересъёмку."}
+          ? "Одно основное действие по состоянию. Оригинал и доп. шаги — в «Ещё»."
+          : "Документы на проверке. Пересъёмка — только если файла нет на сервере."}
       </p>
       <ul className="plain-list">
         {documents.map((document) => {
           const documentText = texts[document.id] || "";
           const documentPages = pages[document.id] || [];
+          const primary = primaryFor(document, Boolean(documentText.trim()));
+          const showReshootSecondary =
+            canEdit &&
+            primary.kind !== "request_reshoot" &&
+            primary.kind !== "cloud_later" &&
+            !(
+              (document.ingest_status || "").toLowerCase() === "needs_reupload" &&
+              document.has_local_file
+            );
           return (
             <li key={document.id} className="ingest-review-item">
               <div className="ingest-review-head">
@@ -205,74 +287,113 @@ export function IngestReviewPanel({
                   {document.ingest_status || "неизвестно"}
                 </span>
               </div>
-              <p className="hint">{document.progress_message || "Нужна проверка."}</p>
+              <p className="hint">
+                {primary.kind === "cloud_later"
+                  ? "Файл на сервере; загрузка в облако позже. Клиента не просим снимать заново."
+                  : document.progress_message || "Нужна проверка."}
+              </p>
               <div className="row-actions">
-                {canEdit ? (
+                {canEdit && primary.kind !== "none" && primary.kind !== "cloud_later" ? (
                   <button
                     type="button"
-                    disabled={busy || actionBusy}
-                    onClick={() => void openOriginal(document)}
-                  >
-                    Открыть оригинал
-                  </button>
-                ) : null}
-                {canEdit ? (
-                  <button
-                    type="button"
-                    disabled={busy || actionBusy}
-                    onClick={() => void showArtifacts(document)}
-                  >
-                    {expandedId === document.id ? "Скрыть текст" : "Открыть текст"}
-                  </button>
-                ) : null}
-                {canEdit && document.antivirus_status !== "clean" ? (
-                  <button
-                    type="button"
-                    disabled={busy || actionBusy}
-                    onClick={() => void action(document, "security-approve")}
-                  >
-                    Подтвердить безопасность
-                  </button>
-                ) : null}
-                {canEdit ? (
-                  <button
-                    type="button"
-                    disabled={busy || actionBusy || !documentText.trim()}
-                    onClick={() =>
-                      void action(document, "ingest-accept", {
-                        extracted_text: documentText,
-                        text_edited: initialTexts[document.id] !== documentText,
-                      })
+                    disabled={
+                      busy ||
+                      actionBusy ||
+                      (primary.kind === "accept_text" && !documentText.trim())
                     }
+                    onClick={() => void runPrimary(document, primary.kind)}
                   >
-                    Принять текст
+                    {primary.label}
                   </button>
                 ) : null}
-                {canEdit && document.antivirus_status === "clean" ? (
+                {primary.kind === "cloud_later" ? (
+                  <span className="hint">{primary.label}</span>
+                ) : null}
+                {canEdit ? (
+                  <details className="ingest-more">
+                    <summary className="linkish">Ещё</summary>
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy || actionBusy}
+                        onClick={() => void openOriginal(document)}
+                      >
+                        Открыть оригинал
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy || actionBusy}
+                        onClick={() => void showArtifacts(document)}
+                      >
+                        {expandedId === document.id ? "Скрыть текст" : "Открыть текст"}
+                      </button>
+                      {document.antivirus_status !== "clean" ? (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy || actionBusy}
+                          onClick={() => void action(document, "security-approve")}
+                        >
+                          Подтвердить безопасность
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy || actionBusy || !documentText.trim()}
+                        onClick={() =>
+                          void action(document, "ingest-accept", {
+                            extracted_text: documentText,
+                            text_edited: initialTexts[document.id] !== documentText,
+                          })
+                        }
+                      >
+                        Принять текст
+                      </button>
+                      {(document.antivirus_status || "") === "clean" ? (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy || actionBusy}
+                          onClick={() => void action(document, "ingest-rerun")}
+                        >
+                          Перезапустить OCR
+                        </button>
+                      ) : null}
+                      {showReshootSecondary ? (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy || actionBusy}
+                          onClick={() =>
+                            void action(document, "ingest-reject", {
+                              reason:
+                                window.prompt(
+                                  "Что нужно исправить?",
+                                  "Нужна более чёткая копия документа.",
+                                ) || "",
+                            })
+                          }
+                        >
+                          Запросить пересъёмку
+                        </button>
+                      ) : null}
+                    </div>
+                  </details>
+                ) : (
                   <button
                     type="button"
-                    disabled={busy || actionBusy}
-                    onClick={() => void action(document, "ingest-rerun")}
+                    className="secondary"
+                    disabled={busy || actionBusy || primary.kind === "cloud_later"}
+                    onClick={() => void runPrimary(document, "request_reshoot")}
                   >
-                    Перезапустить OCR
+                    {primary.kind === "cloud_later"
+                      ? "На сервере, облако позже"
+                      : "Запросить пересъёмку"}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy || actionBusy}
-                  onClick={() =>
-                    void action(document, "ingest-reject", {
-                      reason:
-                        window.prompt(
-                          "Что нужно исправить?",
-                          "Нужна более чёткая копия документа.",
-                        ) || "",
-                    })
-                  }
-                >
-                  Запросить пересъёмку
-                </button>
+                )}
               </div>
               {canEdit && expandedId === document.id ? (
                 <div className="ingest-review-split">
@@ -284,7 +405,9 @@ export function IngestReviewPanel({
                         src={originalUrls[document.id]}
                       />
                     ) : (
-                      <p className="hint">Оригинал станет доступен после проверки безопасности.</p>
+                      <p className="hint">
+                        Оригинал станет доступен после проверки безопасности.
+                      </p>
                     )}
                   </div>
                   <div className="ingest-review-editor">
@@ -305,7 +428,8 @@ export function IngestReviewPanel({
                       <ul className="plain-list ingest-review-pages">
                         {documentPages.map((page) => (
                           <li key={`${page.page}-${page.source}`}>
-                            Стр. {page.page}: {page.source || "—"} · {page.char_count || 0} симв.
+                            Стр. {page.page}: {page.source || "—"} · {page.char_count || 0}{" "}
+                            симв.
                             {page.error ? ` · ${page.error}` : ""}
                           </li>
                         ))}
