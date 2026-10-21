@@ -261,6 +261,31 @@ def append_type_journal(
         body = f"[Документ] {name} · Клиент подтвердил: {journal_type_label(doc_type)}"
     else:
         body = format_document_event(filename=filename, doc_type=doc_type)
+    # Дедуп: не писать тот же [Документ] filename+type повторно (classify + ingest).
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        needle = body.split("\n", 1)[0].strip().lower()
+        name_key = (filename or "файл").strip().lower()
+        recent = (
+            get_supabase_client()
+            .table("case_messages")
+            .select("body")
+            .eq("case_id", cid)
+            .order("created_at", desc=True)
+            .limit(40)
+            .execute()
+            .data
+            or []
+        )
+        for row in recent:
+            prev = str(row.get("body") or "").split("\n", 1)[0].strip().lower()
+            if not prev.startswith("[документ] "):
+                continue
+            if prev == needle or name_key in prev:
+                return
+    except Exception:  # noqa: BLE001
+        pass
     try:
         append_case_chat_message(
             case_id=cid,

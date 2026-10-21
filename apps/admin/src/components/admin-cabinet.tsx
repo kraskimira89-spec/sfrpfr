@@ -1512,11 +1512,24 @@ export function AdminCabinet() {
         expires_in: number;
         inline?: boolean;
         filename?: string | null;
+        staff_preview?: boolean;
+        av_unverified?: boolean;
+        warning?: string | null;
       }>(
         `/api/portal/cases/${detail.id}/documents/${docId}/signed-url${qs}`,
         token,
         { method: "POST" },
       );
+      if (signed.av_unverified) {
+        const ok = window.confirm(
+          signed.warning ||
+            "Проверка антивирусом не завершена. Файл не считается безопасным. Открыть всё равно?",
+        );
+        if (!ok) {
+          setNotice("Открытие отменено: AV-проверка не завершена.");
+          return;
+        }
+      }
       const preferDownload = mode === "download" || signed.inline === false;
       if (preferDownload) {
         // Cross-origin download attribute игнорируется — опираемся на
@@ -1528,7 +1541,7 @@ export function AdminCabinet() {
         link.click();
         link.remove();
         setNotice(
-          `Скачивание начато${signed.filename ? `: ${signed.filename}` : ""}. Ссылка ${signed.expires_in} сек.`,
+          `${signed.av_unverified ? "⚠ AV не завершена. " : ""}Скачивание начато${signed.filename ? `: ${signed.filename}` : ""}. Ссылка ${signed.expires_in} сек.`,
         );
         return;
       }
@@ -1542,7 +1555,9 @@ export function AdminCabinet() {
         link.click();
         link.remove();
       }
-      setNotice(`Документ открыт. Ссылка действует ${signed.expires_in} сек.`);
+      setNotice(
+        `${signed.av_unverified ? "⚠ AV не завершена. " : ""}Документ открыт. Ссылка действует ${signed.expires_in} сек.`,
+      );
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : "Не удалось открыть документ.",

@@ -2714,42 +2714,9 @@ def list_messages(
     )
     if not principal.is_staff:
         messages = [row for row in messages if not _is_internal_staff_message(row)]
-    docs = (
-        client.table("documents")
-        .select("id, storage_path, doc_type, created_at, uploaded_by")
-        .eq("case_id", case_id)
-        .order("created_at")
-        .execute()
-        .data
-        or []
-    )
-    # Уже записанные [Документ] … — не дублировать из таблицы documents.
-    covered: set[str] = set()
-    for row in messages:
-        body = str(row.get("body") or "")
-        if body.startswith("[Документ] "):
-            covered.add(body.split("\n", 1)[0].strip().lower())
-
+    # Файлы — в списке документов карточки; не синтезировать [Документ] из
+    # таблицы documents в ленту (источник повторов в staff-чате).
     timeline: list[dict] = list(messages)
-    for doc in docs:
-        path = str(doc.get("storage_path") or "")
-        name = Path(path).name or "файл"
-        doc_type = doc.get("doc_type")
-        from sfrfr.integrations.max.case_chat_log import format_document_event
-
-        body = format_document_event(filename=name, doc_type=str(doc_type) if doc_type else None)
-        if body.lower() in covered:
-            continue
-        timeline.append(
-            {
-                "id": f"doc:{doc.get('id')}",
-                "case_id": case_id,
-                "author_user_id": doc.get("uploaded_by"),
-                "author_kind": "client",
-                "body": body,
-                "created_at": doc.get("created_at"),
-            }
-        )
     timeline.sort(key=lambda row: str(row.get("created_at") or ""))
     if not principal.is_staff:
         try:

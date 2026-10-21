@@ -105,7 +105,17 @@ type FeedItem =
       created_at: string;
       messages: CaseChatMessage[];
       collapsedExtra: number;
+    }
+  | {
+      type: "doc_journal";
+      key: string;
+      created_at: string;
+      messages: CaseChatMessage[];
     };
+
+function isDocEvent(body: string): boolean {
+  return body.trimStart().startsWith("[Документ] ");
+}
 
 function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] {
   const filtered = messages.filter((m) => filterKind(m.author_kind, filter));
@@ -119,17 +129,42 @@ function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] 
       out.push({ type: "day", key: `day-${dk}`, label: dayLabel(m.created_at) });
       lastDay = dk;
     }
+
+    // Подряд идущие [Документ] → свёрнутый журнал техсобытий.
+    if (isDocEvent(m.body)) {
+      const docs: CaseChatMessage[] = [m];
+      let j = i + 1;
+      while (j < filtered.length && dayKey(filtered[j].created_at) === dk && isDocEvent(filtered[j].body)) {
+        docs.push(filtered[j]);
+        j += 1;
+      }
+      const unique: CaseChatMessage[] = [];
+      for (const row of docs) {
+        const prev = unique[unique.length - 1];
+        if (prev && prev.body.trim() === row.body.trim()) continue;
+        unique.push(row);
+      }
+      out.push({
+        type: "doc_journal",
+        key: `dj-${m.id}`,
+        created_at: m.created_at,
+        messages: unique,
+      });
+      i = j;
+      continue;
+    }
+
     const group: CaseChatMessage[] = [m];
     let j = i + 1;
     while (
       j < filtered.length &&
       filtered[j].author_kind === m.author_kind &&
-      dayKey(filtered[j].created_at) === dk
+      dayKey(filtered[j].created_at) === dk &&
+      !isDocEvent(filtered[j].body)
     ) {
       group.push(filtered[j]);
       j += 1;
     }
-    // Схлопнуть точные дубли подряд в группе
     const unique: CaseChatMessage[] = [];
     let collapsed = 0;
     for (const row of group) {
@@ -354,12 +389,51 @@ export function CaseChatPanel({
                   </li>
                 );
               }
+              if (item.type === "doc_journal") {
+                const open = Boolean(expandedDup[item.key]);
+                const isLastBubble =
+                  !showBotTyping && !showBotTypingTimeout && item.key === lastFeedKey;
+                return (
+                  <li
+                    key={item.key}
+                    ref={isLastBubble ? lastBubbleRef : undefined}
+                    className="case-chat-bubble case-chat-bubble--bot case-chat-doc-journal"
+                  >
+                    <span className="meta">
+                      Журнал документов ·{" "}
+                      {new Date(item.created_at).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() =>
+                        setExpandedDup((s) => ({ ...s, [item.key]: !s[item.key] }))
+                      }
+                    >
+                      {open
+                        ? "Свернуть журнал"
+                        : `Техсобытия документов (${item.messages.length}) — развернуть`}
+                    </button>
+                    {open
+                      ? item.messages.map((m) => {
+                          const parsed = splitBody(m.body);
+                          return (
+                            <div key={m.id} className="case-chat-chunk">
+                              <p className="case-chat-doc">{linkify(parsed.text)}</p>
+                            </div>
+                          );
+                        })
+                      : null}
+                  </li>
+                );
+              }
               const showAll = expandedDup[item.key];
-              const visible = showAll
-                ? item.messages
-                : item.messages.length > 1 && item.collapsedExtra > 0
-                  ? item.messages
-                  : item.messages;
+              const visible = item.messages;
               const isLastBubble =
                 !showBotTyping && !showBotTypingTimeout && item.key === lastFeedKey;
               return (
