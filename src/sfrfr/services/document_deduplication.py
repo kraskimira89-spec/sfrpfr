@@ -17,7 +17,7 @@ from sfrfr.services.document_ingest import sha256_hex
 
 logger = logging.getLogger(__name__)
 
-# Тестовая точка синхронизации: после lookup, до claim/insert (без lock).
+# Тестовая точка: после hash lookup, до claim/insert (без удерживаемого lock).
 _test_after_hash_lookup: threading.Barrier | None = None
 
 
@@ -40,7 +40,6 @@ class AcceptResult:
 class DocumentAcceptStore(Protocol):
     """Хранилище приёма: in-memory (тесты) или Supabase-адаптер."""
 
-    root: Path
     ocr_calls: list[str]
     classify_calls: list[str]
     after_hash_lookup_barrier: threading.Barrier | None
@@ -73,7 +72,7 @@ class DocumentAcceptStore(Protocol):
         size_bytes: int,
         document_id: str,
     ) -> str:
-        """Вернуть document_id канона. Если checksum уже занят — id существующего."""
+        """Вернуть id канона. Если checksum занят — id существующего."""
         ...
 
     def insert_new_document(
@@ -105,10 +104,7 @@ def accept_case_document_bytes(
     uploaded_by: str | None = None,
     upload_source: str = "test",
 ) -> AcceptResult:
-    """Единый приём байтов: replay → SHA → exact dupe / restore / new + job.
-
-    ``doc_type`` / ``uploaded_by`` / ``upload_source`` — для production-адаптера.
-    """
+    """Единый приём байтов: replay → SHA → exact dupe / restore / new + job."""
     _ = (doc_type, uploaded_by, upload_source)
     if not data:
         raise ValueError("empty file")
@@ -120,7 +116,7 @@ def accept_case_document_bytes(
     checksum = sha256_hex(data)
     size_bytes = len(data)
 
-    barrier = store.after_hash_lookup_barrier or _test_after_hash_lookup
+    barrier = getattr(store, "after_hash_lookup_barrier", None) or _test_after_hash_lookup
     if barrier is not None:
         barrier.wait()
 
@@ -135,14 +131,12 @@ def accept_case_document_bytes(
                 attachment_id=attachment_id,
                 filename=filename,
             )
-            # Уже обработанный: OCR/classify не трогаем
             return AcceptResult(
                 document_id=doc_id,
                 deduped=True,
                 job_id="",
                 row=dict(canonical),
             )
-        # Оригинал утрачен — восстановить байты, без новой строки и без re-OCR если processed
         store.restore_original(doc_id, data)
         store.record_event(
             case_id=case_id,
@@ -167,7 +161,6 @@ def accept_case_document_bytes(
         document_id=document_id,
     )
     if claimed != document_id:
-        # Гонка: другой поток успел claim — линкуем на канон
         store.record_event(
             case_id=case_id,
             document_id=claimed,
@@ -194,7 +187,6 @@ def accept_case_document_bytes(
         content_type=content_type,
     )
     job_id = store.enqueue_ingest(case_id=case_id, document_id=document_id)
-    # Счётчики OCR/classify — только при реальной обработке job; здесь mock в store
     if not store.is_processed(document_id):
         store.ocr_calls.append(document_id)
         store.classify_calls.append(document_id)
@@ -213,139 +205,205 @@ def accept_case_document_bytes(
     )
 
 
-def wire_inmemory_store_methods(store: Any) -> None:
-    """Дополнить InMemoryDocumentStore методами Protocol (вызывается из harness)."""
+def find_canonical_by_checksum(
+    *,
+    case_id: str,
+    checksum: str,
+    size_bytes: int | None = None,
+) -> dict[str, Any] | None:
+    """Production lookup: documents с тем же checksum в деле (size — prefilter)."""
+    if not checksum:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
 
-    def lookup_event(*, event_id: str | None, attachment_id: str | None) -> str | None:
-        with store._lock:
-            if event_id:
-                found = store.events.get(f"event:{event_id}")
-                if found:
-                    return found
-            if attachment_id:
-                found = store.events.get(f"attach:{attachment_id}")
-                if found:
-                    return found
-            return None
-
-    def record_event(
-        *,
-        case_id: str,
-        document_id: str,
-        event_id: str | None,
-        attachment_id: str | None,
-        filename: str,
-    ) -> None:
-        _ = (case_id, filename)
-        with store._lock:
-            if event_id:
-                store.events[f"event:{event_id}"] = document_id
-            if attachment_id:
-                store.events[f"attach:{attachment_id}"] = document_id
-
-    def find_canonical(
-        *, case_id: str, checksum: str, size_bytes: int
-    ) -> dict[str, Any] | None:
-        # size — prefilter: сначала кандидаты того же размера
-        with store._lock:
-            doc_id = store.checksum_index.get((case_id, checksum))
-            if not doc_id:
-                return None
-            doc = store.documents.get(doc_id)
-            if not doc:
-                return None
-            if doc.size_bytes != size_bytes:
-                # size+sha must match; расхождение — не exact (не должно случаться)
-                return None
-            return {
-                "id": doc.id,
-                "case_id": doc.case_id,
-                "checksum_sha256": doc.checksum_sha256,
-                "size_bytes": doc.size_bytes,
-                "storage_path": doc.storage_path,
-                "content_preview": doc.content_preview,
-                "ingest_status": doc.ingest_status,
-            }
-
-    def original_available(document_id: str) -> bool:
-        with store._lock:
-            doc = store.documents.get(document_id)
-            if not doc or doc.original_lost:
-                return False
-            return doc.storage_path in store.permanent_files
-
-    def restore_original(document_id: str, data: bytes) -> None:
-        with store._lock:
-            doc = store.documents[document_id]
-            store.permanent_files[doc.storage_path] = data
-            doc.original_lost = False
-
-    def claim_canonical(
-        *,
-        case_id: str,
-        checksum: str,
-        size_bytes: int,
-        document_id: str,
-    ) -> str:
-        _ = size_bytes
-        with store._lock:
-            existing = store.checksum_index.get((case_id, checksum))
-            if existing:
-                return existing
-            store.checksum_index[(case_id, checksum)] = document_id
-            return document_id
-
-    def insert_new_document(
-        *,
-        case_id: str,
-        document_id: str,
-        filename: str,
-        data: bytes,
-        checksum: str,
-        content_type: str,
-    ) -> dict[str, Any]:
-        _ = content_type
-        from tests.unit.document_dedup_harness import _DocRow
-
-        storage_path = f"{case_id}/{document_id}/{Path(filename).name}"
-        with store._lock:
-            # unique race: если другой уже claim'нул другой id — не должны сюда попасть
-            row = _DocRow(
-                id=document_id,
-                case_id=case_id,
-                filename=filename,
-                checksum_sha256=checksum,
-                size_bytes=len(data),
-                storage_path=storage_path,
+        query = (
+            get_supabase_client()
+            .table("documents")
+            .select(
+                "id, case_id, checksum_sha256, size_bytes, storage_path, local_path, "
+                "content_preview, ingest_status, created_at"
             )
-            store.documents[document_id] = row
-            store.permanent_files[storage_path] = data
-            return {
-                "id": document_id,
+            .eq("case_id", case_id)
+            .eq("checksum_sha256", checksum)
+            .order("created_at", desc=False)
+            .limit(5)
+        )
+        rows = query.execute().data or []
+    except Exception as exc:  # noqa: BLE001
+        logger.info("find_canonical_by_checksum skipped: %s", type(exc).__name__)
+        return None
+    if not rows:
+        return None
+    if size_bytes is not None:
+        sized = [
+            r
+            for r in rows
+            if r.get("size_bytes") is None or int(r.get("size_bytes") or 0) == size_bytes
+        ]
+        if sized:
+            rows = sized
+    return rows[0] if rows else None
+
+
+def claim_case_checksum(
+    *,
+    case_id: str,
+    checksum: str,
+    size_bytes: int,
+    document_id: str,
+) -> str:
+    """Запись в case_document_checksums; при unique conflict — id существующего.
+
+    Без таблицы (миграция ещё не на проде) — fallback на find_canonical.
+    """
+    if not checksum:
+        return document_id
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        client = get_supabase_client()
+        client.table("case_document_checksums").insert(
+            {
                 "case_id": case_id,
-                "storage_path": storage_path,
                 "checksum_sha256": checksum,
-                "size_bytes": len(data),
+                "size_bytes": size_bytes,
+                "document_id": document_id,
             }
+        ).execute()
+        return document_id
+    except Exception as exc:  # noqa: BLE001
+        # Unique / missing table → lookup
+        existing = find_canonical_by_checksum(
+            case_id=case_id, checksum=checksum, size_bytes=size_bytes
+        )
+        if existing:
+            return str(existing["id"])
+        logger.info("claim_case_checksum fallback: %s", type(exc).__name__)
+        return document_id
 
-    def enqueue_ingest(*, case_id: str, document_id: str) -> str:
-        _ = case_id
-        with store._lock:
-            if document_id not in store.jobs:
-                store.jobs.append(document_id)
-            return f"job-{document_id}"
 
-    def is_processed(document_id: str) -> bool:
-        with store._lock:
-            doc = store.documents.get(document_id)
-            return bool(doc and doc.processed)
+def record_upload_event(
+    *,
+    case_id: str,
+    document_id: str,
+    event_id: str | None,
+    attachment_id: str | None,
+    filename: str | None = None,
+) -> None:
+    if not event_id and not attachment_id:
+        return
+    try:
+        from sfrfr.db.session import get_supabase_client
 
-    store.lookup_event = lookup_event  # type: ignore[attr-defined]
-    store.record_event = record_event  # type: ignore[attr-defined]
-    store.find_canonical = find_canonical  # type: ignore[attr-defined]
-    store.original_available = original_available  # type: ignore[attr-defined]
-    store.restore_original = restore_original  # type: ignore[attr-defined]
-    store.claim_canonical = claim_canonical  # type: ignore[attr-defined]
-    store.insert_new_document = insert_new_document  # type: ignore[attr-defined]
-    store.enqueue_ingest = enqueue_ingest  # type: ignore[attr-defined]
-    store.is_processed = is_processed  # type: ignore[attr-defined]
+        payload: dict[str, Any] = {
+            "case_id": case_id,
+            "document_id": document_id,
+            "filename": (filename or "")[:240] or None,
+        }
+        if event_id:
+            payload["event_id"] = str(event_id)[:200]
+        if attachment_id:
+            payload["attachment_id"] = str(attachment_id)[:200]
+        get_supabase_client().table("document_upload_events").insert(payload).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.info("record_upload_event skipped: %s", type(exc).__name__)
+
+
+def lookup_upload_event(
+    *,
+    case_id: str,
+    event_id: str | None,
+    attachment_id: str | None,
+) -> str | None:
+    if not event_id and not attachment_id:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        client = get_supabase_client()
+        if event_id:
+            rows = (
+                client.table("document_upload_events")
+                .select("document_id")
+                .eq("case_id", case_id)
+                .eq("event_id", str(event_id)[:200])
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            if rows:
+                return str(rows[0]["document_id"])
+        if attachment_id:
+            rows = (
+                client.table("document_upload_events")
+                .select("document_id")
+                .eq("case_id", case_id)
+                .eq("attachment_id", str(attachment_id)[:200])
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            if rows:
+                return str(rows[0]["document_id"])
+    except Exception as exc:  # noqa: BLE001
+        logger.info("lookup_upload_event skipped: %s", type(exc).__name__)
+    return None
+
+
+def canonical_original_available(row: dict[str, Any]) -> bool:
+    """Есть ли постоянная копия (local hash-ok или storage_path не local-pending)."""
+    storage = str(row.get("storage_path") or "")
+    local = str(row.get("local_path") or "").strip()
+    if local:
+        try:
+            from sfrfr.storage.local import path_from_uploads_relative
+
+            path = path_from_uploads_relative(local)
+            if path is not None and path.is_file() and path.stat().st_size > 0:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+    if storage.startswith("local-pending/"):
+        return False
+    return bool(storage)
+
+
+def restore_canonical_bytes(
+    *,
+    case_id: str,
+    document_id: str,
+    filename: str,
+    data: bytes,
+    checksum: str,
+    row: dict[str, Any],
+) -> None:
+    """Восстановить оригинал канона из новых байтов (без новой строки documents)."""
+    from sfrfr.storage.local import confirm_local_file, save_quarantine_upload
+
+    try:
+        qpath = save_quarantine_upload(
+            case_id,
+            document_id=document_id,
+            filename=Path(filename or "document").name,
+            data=data,
+        )
+        confirm_local_file(qpath, expected_sha256=checksum, expected_size=len(data))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("restore local failed: %s", type(exc).__name__)
+
+    storage_path = str(row.get("storage_path") or "")
+    if storage_path and not storage_path.startswith("local-pending/"):
+        try:
+            from sfrfr.db.session import get_supabase_client
+            from sfrfr.security.integrations import PRIVATE_STORAGE_BUCKET
+
+            get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET).upload(
+                storage_path,
+                data,
+                {"content-type": "application/octet-stream", "x-upsert": "true"},
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("restore storage failed: %s", type(exc).__name__)
