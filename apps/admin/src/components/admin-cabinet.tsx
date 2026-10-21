@@ -1503,14 +1503,35 @@ export function AdminCabinet() {
     }
   }
 
-  async function openSigned(docId: string) {
+  async function openSigned(docId: string, mode: "open" | "download" = "open") {
     if (!token || !detail) return;
     try {
-      const signed = await apiFetch<{ url: string; expires_in: number }>(
-        `/api/portal/cases/${detail.id}/documents/${docId}/signed-url`,
+      const qs = mode === "download" ? "?as_attachment=true" : "";
+      const signed = await apiFetch<{
+        url: string;
+        expires_in: number;
+        inline?: boolean;
+        filename?: string | null;
+      }>(
+        `/api/portal/cases/${detail.id}/documents/${docId}/signed-url${qs}`,
         token,
         { method: "POST" },
       );
+      const preferDownload = mode === "download" || signed.inline === false;
+      if (preferDownload) {
+        // Cross-origin download attribute игнорируется — опираемся на
+        // Content-Disposition: attachment с tmp-docs / Storage.
+        const link = document.createElement("a");
+        link.href = signed.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setNotice(
+          `Скачивание начато${signed.filename ? `: ${signed.filename}` : ""}. Ссылка ${signed.expires_in} сек.`,
+        );
+        return;
+      }
       const opened = window.open(signed.url, "_blank", "noopener,noreferrer");
       if (!opened) {
         const link = document.createElement("a");

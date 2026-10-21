@@ -162,6 +162,28 @@ def test_security_check_downloadable_for_staff_preview() -> None:
     assert is_document_downloadable(infected, allow_staff_preview=True) is False
 
 
+def test_manual_review_av_error_downloadable_for_staff_preview() -> None:
+    """AV error/pending не должен глушить «Открыть» у staff (иначе мёртвая кнопка)."""
+    row = {
+        "ingest_status": "manual_review",
+        "antivirus_status": "error",
+        "local_path": "quarantine/c/d/scan.pdf",
+    }
+    assert is_document_downloadable(row) is False
+    assert is_document_downloadable(row, allow_staff_preview=True) is True
+    pending = {**row, "antivirus_status": "pending"}
+    assert is_document_downloadable(pending, allow_staff_preview=True) is True
+    needs = {
+        "ingest_status": "needs_reupload",
+        "antivirus_status": "error",
+        "local_path": "quarantine/c/d/f.docx",
+    }
+    assert is_document_downloadable(needs, allow_local_pending=True) is False
+    assert is_document_downloadable(
+        needs, allow_local_pending=True, allow_staff_preview=True
+    ) is True
+
+
 def test_false_ack_metric_zero_on_media_without_bytes(
     tmp_path: Path, monkeypatch
 ) -> None:

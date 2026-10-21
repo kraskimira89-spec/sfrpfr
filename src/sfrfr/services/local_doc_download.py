@@ -19,6 +19,8 @@ class _Entry:
     expires_at: float
     case_id: str
     document_id: str
+    media_type: str | None = None
+    as_attachment: bool = False
 
 
 _tokens: dict[str, _Entry] = {}
@@ -31,6 +33,8 @@ def issue_local_download(
     case_id: str,
     document_id: str,
     ttl_sec: float = _TTL_SEC,
+    media_type: str | None = None,
+    as_attachment: bool = False,
 ) -> str:
     token = secrets.token_urlsafe(24)
     with _lock:
@@ -41,6 +45,8 @@ def issue_local_download(
             expires_at=time.time() + max(30.0, float(ttl_sec)),
             case_id=case_id,
             document_id=document_id,
+            media_type=(media_type or "").strip() or None,
+            as_attachment=bool(as_attachment),
         )
     return token
 

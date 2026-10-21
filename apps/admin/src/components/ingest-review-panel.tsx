@@ -43,7 +43,19 @@ async function requestJson<T>(
       ...(init?.headers ?? {}),
     },
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) {
+    const raw = (await response.text()) || `HTTP ${response.status}`;
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        detail = parsed.detail;
+      }
+    } catch {
+      /* сырой текст */
+    }
+    throw new Error(detail);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -138,8 +150,12 @@ export function IngestReviewPanel({
       if (!payload.url) throw new Error("signed URL missing");
       setOriginalUrls((previous) => ({ ...previous, [document.id]: payload.url || "" }));
       window.open(payload.url, "_blank", "noopener,noreferrer");
-    } catch {
-      onNotice("Оригинал пока недоступен: сначала завершите проверку безопасности.");
+    } catch (error) {
+      onNotice(
+        error instanceof Error
+          ? error.message
+          : "Оригинал недоступен (права или проверка безопасности).",
+      );
     }
   }
 

@@ -20,6 +20,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     UploadFile,
     status,
@@ -403,6 +404,7 @@ def _client_document(item: dict[str, Any]) -> dict[str, Any]:
         "requirement_code": item.get("requirement_code"),
         "client_declared_signed": item.get("client_declared_signed"),
         "antivirus_status": item.get("antivirus_status"),
+        "mime_verified": item.get("mime_verified"),
         "ingest_review_required": item.get("ingest_review_required"),
         "ingest_artifact_path": item.get("ingest_artifact_path"),
         "downloadable": is_document_downloadable(item),
@@ -1996,6 +1998,7 @@ def create_document_signed_url(
     case_id: str,
     document_id: str,
     principal: Principal = Depends(get_current_principal),
+    as_attachment: bool = Query(False),
 ) -> SignedDocumentResponse:
     """Выдать краткоживущую ссылку после проверки доступа к делу."""
     repo = _repo()
@@ -2020,12 +2023,20 @@ def create_document_signed_url(
         allow_local_pending=allow_local,
         allow_staff_preview=allow_local,
     ):
+        av = str(row.get("antivirus_status") or "").strip().lower()
+        if av in {"infected", "malicious"}:
+            raise HTTPException(
+                status_code=403,
+                detail="document blocked by antivirus",
+            )
         raise HTTPException(status_code=403, detail="document not available yet")
 
     expires_in = SIGNED_URL_TTL_SECONDS
     storage_path = str(row["storage_path"] or "")
     local_rel = str(row.get("local_path") or "").strip()
     ingest_status = str(row.get("ingest_status") or "")
+    mime = str(row.get("mime_verified") or "").strip().lower()
+    filename = _document_filename(storage_path or local_rel)
     use_local = storage_path.startswith("local-pending/") or (
         allow_local
         and bool(local_rel)
@@ -2043,6 +2054,9 @@ def create_document_signed_url(
             raw_url = str(signed.get("signedURL") or signed.get("signedUrl") or "")
         except Exception:  # noqa: BLE001
             raw_url = ""
+    inline = (not as_attachment) and (
+        mime.startswith("application/pdf") or mime.startswith("image/")
+    )
     if not raw_url and local_rel:
         from sfrfr.services.local_doc_download import issue_local_download
         from sfrfr.storage.local import path_from_uploads_relative
@@ -2052,10 +2066,12 @@ def create_document_signed_url(
             raise HTTPException(status_code=404, detail="local file missing")
         token = issue_local_download(
             path=local_path,
-            filename=_document_filename(storage_path or local_rel),
+            filename=filename,
             case_id=case_id,
             document_id=document_id,
             ttl_sec=float(expires_in),
+            media_type=mime or None,
+            as_attachment=not inline,
         )
         base = get_settings().public_base_url.rstrip("/")
         raw_url = f"{base}/api/portal/tmp-docs/{token}"
@@ -2065,16 +2081,15 @@ def create_document_signed_url(
     from sfrfr.services.document_upload import _audit_access
 
     _audit_access(case_id, document_id, principal.user_id, "document_preview")
-    inline = str(row.get("mime_verified") or "").startswith("application/pdf") or str(
-        row.get("mime_verified") or ""
-    ).startswith("image/")
     return SignedDocumentResponse(
         url=_with_download_param(
             raw_url,
-            _document_filename(storage_path or local_rel),
+            filename,
             inline=inline,
         ),
         expires_in=expires_in,
+        inline=inline,
+        filename=filename,
     )
 
 
@@ -2088,8 +2103,14 @@ def download_tmp_local_document(token: str) -> FileResponse:
     entry = take_local_download(token)
     if entry is None or not entry.path.is_file():
         raise HTTPException(status_code=404, detail="link expired or missing")
-    media = mimetypes.guess_type(entry.filename)[0] or "application/octet-stream"
-    inline = media.startswith("application/pdf") or media.startswith("image/")
+    media = (
+        (entry.media_type or "").strip()
+        or mimetypes.guess_type(entry.filename)[0]
+        or "application/octet-stream"
+    )
+    inline = (not entry.as_attachment) and (
+        media.startswith("application/pdf") or media.startswith("image/")
+    )
     return FileResponse(
         path=entry.path,
         filename=entry.filename,

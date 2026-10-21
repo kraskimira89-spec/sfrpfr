@@ -14,6 +14,8 @@ export type CabinetDocument = {
   inner_title?: string | null;
   downloadable?: boolean | null;
   ingest_status?: string | null;
+  antivirus_status?: string | null;
+  mime_verified?: string | null;
 };
 
 type SortKey = "created_at" | "filename" | "inner_date" | "inner_title";
@@ -21,10 +23,25 @@ type SortDir = "asc" | "desc";
 
 type Props = {
   documents: CabinetDocument[];
-  onOpen: (documentId: string) => void;
+  onOpen: (documentId: string, mode?: "open" | "download") => void;
   busy?: boolean;
   emptyHint?: string;
 };
+
+function isPdfDoc(doc: CabinetDocument): boolean {
+  const mime = (doc.mime_verified || "").toLowerCase();
+  if (mime.startsWith("application/pdf")) return true;
+  const name = (doc.filename || doc.storage_path || "").toLowerCase();
+  return name.endsWith(".pdf");
+}
+
+function blockReason(doc: CabinetDocument): string {
+  const av = (doc.antivirus_status || "").toLowerCase();
+  if (av === "infected" || av === "malicious") {
+    return "Заблокирован антивирусом";
+  }
+  return "Файл ещё недоступен";
+}
 
 function formatUploadAt(value?: string) {
   if (!value) return "—";
@@ -192,6 +209,7 @@ export function DocumentsTable({
                 (doc.doc_type_label || doc.inner_title || "Документ").trim() || "Документ";
               const preview = (doc.content_preview || "").trim();
               const canOpen = doc.downloadable !== false;
+              const pdf = isPdfDoc(doc);
               return (
                 <tr key={doc.id}>
                   <td className="docs-table-num">{index + 1}</td>
@@ -206,16 +224,36 @@ export function DocumentsTable({
                   <td>{cellValue(doc, "created_at")}</td>
                   <td>{cellValue(doc, "filename")}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="linkish"
-                      disabled={busy || !canOpen}
-                      title={canOpen ? "Открыть в новой вкладке" : "Файл ещё недоступен"}
-                      aria-label={`Открыть: ${cellValue(doc, "filename")}`}
-                      onClick={() => onOpen(doc.id)}
-                    >
-                      Открыть
-                    </button>
+                    {canOpen ? (
+                      <span className="docs-actions">
+                        {pdf ? (
+                          <button
+                            type="button"
+                            className="linkish"
+                            disabled={busy}
+                            title="Открыть PDF в новой вкладке"
+                            aria-label={`Открыть: ${cellValue(doc, "filename")}`}
+                            onClick={() => onOpen(doc.id, "open")}
+                          >
+                            Открыть
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="linkish"
+                          disabled={busy}
+                          title={pdf ? "Скачать PDF" : "Скачать файл"}
+                          aria-label={`Скачать: ${cellValue(doc, "filename")}`}
+                          onClick={() => onOpen(doc.id, "download")}
+                        >
+                          Скачать
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="hint" title={blockReason(doc)}>
+                        {blockReason(doc)}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );
