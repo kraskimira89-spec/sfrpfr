@@ -6,6 +6,12 @@ const CODE_MESSAGES: Record<string, string> = {
   duplicate_message: "Это сообщение уже отправлялось. Отправка отменена.",
   duplicate_message_limit:
     "Одинаковое сообщение уже отправлялось слишком часто. Измените текст или подтвердите повтор.",
+  "document blocked by antivirus":
+    "Файл заблокирован антивирусом — открытие недоступно.",
+  "document not available yet":
+    "Файл ещё недоступен для открытия. Дождитесь проверки или перезагрузки.",
+  "local file missing":
+    "Локальная копия файла не найдена на сервере. Нужна повторная загрузка.",
 };
 
 export function humanizeStaffApiError(raw: string): string {

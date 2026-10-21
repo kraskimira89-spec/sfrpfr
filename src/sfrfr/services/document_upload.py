@@ -270,10 +270,15 @@ def is_document_downloadable(
 ) -> bool:
     status = str(row.get("ingest_status") or "")
     av = str(row.get("antivirus_status") or "").strip().lower()
-    if av and av not in {"clean", "not_configured", "disabled"}:
+    # Подтверждённый malware — даже staff не открывает оригинал из кабинета.
+    if av in {"infected", "malicious"}:
         return False
+    # Staff: оригинал из quarantine/needs_reupload, даже если AV error/pending
+    # (иначе «Открыть» disabled — мёртвая кнопка на живых PDF).
     if allow_staff_preview and status in _STAFF_PREVIEW_STATUSES:
         return True
+    if av and av not in {"clean", "not_configured", "disabled"}:
+        return False
     if allow_local_pending and status == "needs_reupload" and str(
         row.get("local_path") or ""
     ).strip():

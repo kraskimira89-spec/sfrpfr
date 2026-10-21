@@ -344,7 +344,7 @@ export function CaseFunnelMain({
   onCreateTelemost: () => void;
   onSendEmail: () => void;
   onOpenTrackerModal: () => void;
-  onOpenSigned: (docId: string) => void;
+  onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
   staffToken?: string | null;

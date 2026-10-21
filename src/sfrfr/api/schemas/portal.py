@@ -37,6 +37,8 @@ class CaseStatusUpdate(BaseModel):
 class SignedDocumentResponse(BaseModel):
     url: str
     expires_in: int
+    inline: bool = False
+    filename: str | None = None
 
 
 class ConsentAcceptRequest(BaseModel):
