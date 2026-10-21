@@ -89,7 +89,11 @@ def normalize_findings_to_discrepancies(
         src_doc = raw.get("document_id") or raw.get("source_document_id")
         quote = str(raw.get("quote") or raw.get("citation") or "").strip()
         page = raw.get("page")
-        page_i = int(page) if isinstance(page, int) or (isinstance(page, str) and page.isdigit()) else None
+        page_i: int | None = None
+        if isinstance(page, int):
+            page_i = page
+        elif isinstance(page, str) and page.isdigit():
+            page_i = int(page)
         if src_doc or quote or page_i is not None:
             doc_id = str(src_doc).strip() if src_doc else _extract_doc_id(detail)
             if doc_id and doc_id not in doc_ids and doc_ids:
