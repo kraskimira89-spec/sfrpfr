@@ -2004,9 +2004,21 @@ export function AdminCabinet() {
               setTrackerTitle("");
               setTrackerForceNew(false);
             }}
-            onOpenSigned={(docId) => void openSigned(docId)}
+            onOpenSigned={(docId, mode) => void openSigned(docId, mode)}
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
             onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
+            documentsWorkplace={
+              token ? (
+                <IngestReviewPanel
+                  caseId={detail.id}
+                  token={token}
+                  busy={busy}
+                  canEdit={detail.role_capabilities.can_view_ocr}
+                  onNotice={setNotice}
+                  onRefresh={() => void openCase(detail.id)}
+                />
+              ) : null
+            }
             staffToken={token}
             apiBase={apiBase}
             onDeliveryNotice={setNotice}
@@ -2034,17 +2046,6 @@ export function AdminCabinet() {
             onAddRepresentative={(e) => void addRepresentative(e)}
             onRemoveRepresentative={(userId) => void removeRepresentative(userId)}
           />
-
-          {token ? (
-            <IngestReviewPanel
-              caseId={detail.id}
-              token={token}
-              busy={busy}
-              canEdit={detail.role_capabilities.can_view_ocr}
-              onNotice={setNotice}
-              onRefresh={() => void openCase(detail.id)}
-            />
-          ) : null}
 
           <CaseChatPanel
             messages={messages}

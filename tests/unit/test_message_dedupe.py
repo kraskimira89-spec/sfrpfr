@@ -95,6 +95,17 @@ def test_required_docs_ok() -> None:
     assert required_docs_missing(case) == []
 
 
+def test_required_docs_workbook_is_labor() -> None:
+    case = {
+        "documents": [
+            {"doc_type": "ils", "storage_path": "a.pdf"},
+            {"doc_type": "workbook", "storage_path": "tk.docx"},
+        ],
+        "checklist_items": [],
+    }
+    assert required_docs_missing(case) == []
+
+
 def test_service_consent() -> None:
     assert has_service_consent({"b2c_status": "paid"}) is True
     assert has_service_consent({"b2c_status": "lead"}, []) is False

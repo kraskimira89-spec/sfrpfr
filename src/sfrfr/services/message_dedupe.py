@@ -104,8 +104,9 @@ def required_docs_missing(case: dict[str, Any]) -> list[str]:
         return all(i.get("status") == "done" for i in matched)
 
     missing: list[str] = []
+    # Согласовано с max_kit_status.classify_doc_bucket (workbook = трудовая).
     has_ils = has_doc(["ils", "илс", "сзи"]) or checklist_ok(re.compile(r"илс|выписк", re.I))
-    has_labor = has_doc(["labor", "труд", "employment"]) or checklist_ok(
+    has_labor = has_doc(["workbook", "labor", "труд", "employment"]) or checklist_ok(
         re.compile(r"труд|стаж", re.I)
     )
     if not has_ils:

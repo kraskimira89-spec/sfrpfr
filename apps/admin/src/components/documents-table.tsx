@@ -16,9 +16,12 @@ export type CabinetDocument = {
   ingest_status?: string | null;
   antivirus_status?: string | null;
   mime_verified?: string | null;
+  ingest_review_required?: boolean | null;
+  progress_message?: string | null;
+  has_local_file?: boolean | null;
 };
 
-type SortKey = "created_at" | "filename" | "inner_date" | "inner_title";
+type SortKey = "created_at" | "filename" | "inner_title";
 type SortDir = "asc" | "desc";
 
 type Props = {
@@ -35,12 +38,18 @@ function isPdfDoc(doc: CabinetDocument): boolean {
   return name.endsWith(".pdf");
 }
 
-function blockReason(doc: CabinetDocument): string {
-  const av = (doc.antivirus_status || "").toLowerCase();
-  if (av === "infected" || av === "malicious") {
-    return "Заблокирован антивирусом";
-  }
-  return "Файл ещё недоступен";
+function isDocx(doc: CabinetDocument): boolean {
+  const mime = (doc.mime_verified || "").toLowerCase();
+  if (mime.includes("wordprocessingml") || mime.includes("msword")) return true;
+  const name = (doc.filename || doc.storage_path || "").toLowerCase();
+  return name.endsWith(".docx") || name.endsWith(".doc");
+}
+
+function shortName(doc: CabinetDocument): string {
+  const raw = (doc.filename || doc.storage_path.split("/").pop() || "документ").trim();
+  if (raw.length <= 42) return raw;
+  const ext = raw.includes(".") ? raw.slice(raw.lastIndexOf(".")) : "";
+  return `${raw.slice(0, 34)}…${ext}`;
 }
 
 function formatUploadAt(value?: string) {
@@ -56,28 +65,64 @@ function formatUploadAt(value?: string) {
   });
 }
 
-function uniqueValues(rows: CabinetDocument[], key: SortKey): string[] {
-  const set = new Set<string>();
-  for (const row of rows) {
-    if (key === "created_at") {
-      set.add(formatUploadAt(row.created_at));
-    } else if (key === "filename") {
-      set.add((row.filename || row.storage_path.split("/").pop() || "документ").trim());
-    } else if (key === "inner_date") {
-      set.add((row.inner_date || "—").trim());
-    } else {
-      set.add((row.inner_title || row.doc_type_label || "Документ").trim());
-    }
+function receiptLabel(doc: CabinetDocument): string {
+  const status = (doc.ingest_status || "").toLowerCase();
+  const av = (doc.antivirus_status || "").toLowerCase();
+  if (av === "infected" || av === "malicious") return "заблокирован AV";
+  if (status === "needs_reupload" && doc.has_local_file) {
+    return "на сервере, облако позже";
   }
-  return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
+  if (status === "needs_reupload") return "нужна пересъёмка";
+  if (status === "security_check" || status === "quarantine") return "проверка безопасности";
+  if (doc.downloadable === false) return "ещё недоступен";
+  return formatUploadAt(doc.created_at);
+}
+
+function textProcessLabel(doc: CabinetDocument): string {
+  const status = (doc.ingest_status || "").toLowerCase();
+  const preview = (doc.content_preview || "").trim();
+  if (status === "ocr_done" || status === "ready" || status === "classified") {
+    return preview ? "текст есть" : "обработан";
+  }
+  if (status === "ocr_running" || status === "extracting") return "идёт OCR";
+  if (status === "manual_review" || doc.ingest_review_required) return "на проверке";
+  if (status === "blocked_security") return "стоп: безопасность";
+  if (preview) return "превью есть";
+  if (doc.progress_message) return doc.progress_message;
+  return "текст ещё нет";
+}
+
+function needsReview(doc: CabinetDocument): boolean {
+  if (doc.ingest_review_required) return true;
+  const status = (doc.ingest_status || "").toLowerCase();
+  const av = (doc.antivirus_status || "").toLowerCase();
+  if (status === "manual_review" || status === "security_check") return true;
+  if (av === "pending" || av === "error") return true;
+  return false;
+}
+
+function blockReason(doc: CabinetDocument): string {
+  const av = (doc.antivirus_status || "").toLowerCase();
+  if (av === "infected" || av === "malicious") {
+    return "Заблокирован антивирусом";
+  }
+  return "Файл ещё недоступен";
+}
+
+function primaryAction(doc: CabinetDocument): {
+  kind: "open" | "download" | "blocked" | "wait";
+  label: string;
+} {
+  const canOpen = doc.downloadable !== false;
+  if (!canOpen) return { kind: "blocked", label: blockReason(doc) };
+  if (isDocx(doc)) return { kind: "download", label: "Скачать" };
+  if (isPdfDoc(doc)) return { kind: "open", label: "Открыть оригинал" };
+  return { kind: "download", label: "Скачать" };
 }
 
 function cellValue(row: CabinetDocument, key: SortKey): string {
   if (key === "created_at") return formatUploadAt(row.created_at);
-  if (key === "filename") {
-    return (row.filename || row.storage_path.split("/").pop() || "документ").trim();
-  }
-  if (key === "inner_date") return (row.inner_date || "—").trim();
+  if (key === "filename") return shortName(row);
   return (row.inner_title || row.doc_type_label || "Документ").trim();
 }
 
@@ -85,12 +130,6 @@ function sortValue(row: CabinetDocument, key: SortKey): string | number {
   if (key === "created_at") {
     const t = row.created_at ? Date.parse(row.created_at) : 0;
     return Number.isNaN(t) ? 0 : t;
-  }
-  if (key === "inner_date") {
-    const raw = (row.inner_date || "").trim();
-    const m = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (m) return Number(`${m[3]}${m[2]}${m[1]}`);
-    return raw;
   }
   return cellValue(row, key).toLowerCase();
 }
@@ -101,27 +140,11 @@ export function DocumentsTable({
   busy,
   emptyHint = "Пока файлов нет — клиент ещё не загрузил документы.",
 }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("inner_date");
+  const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [filters, setFilters] = useState<Record<SortKey, string>>({
-    created_at: "",
-    filename: "",
-    inner_date: "",
-    inner_title: "",
-  });
-
-  const filtered = useMemo(() => {
-    return documents.filter((row) =>
-      (Object.keys(filters) as SortKey[]).every((key) => {
-        const selected = filters[key];
-        if (!selected) return true;
-        return cellValue(row, key) === selected;
-      }),
-    );
-  }, [documents, filters]);
 
   const sorted = useMemo(() => {
-    const rows = [...filtered];
+    const rows = [...documents];
     rows.sort((a, b) => {
       const av = sortValue(a, sortKey);
       const bv = sortValue(b, sortKey);
@@ -131,7 +154,7 @@ export function DocumentsTable({
       return sortDir === "asc" ? cmp : -cmp;
     });
     return rows;
-  }, [filtered, sortKey, sortDir]);
+  }, [documents, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -139,7 +162,7 @@ export function DocumentsTable({
       return;
     }
     setSortKey(key);
-    setSortDir(key === "created_at" || key === "inner_date" ? "desc" : "asc");
+    setSortDir(key === "created_at" ? "desc" : "asc");
   }
 
   function sortMark(key: SortKey) {
@@ -147,21 +170,14 @@ export function DocumentsTable({
     return sortDir === "asc" ? "↑" : "↓";
   }
 
-  const columns: { key: SortKey; label: string }[] = [
-    { key: "inner_title", label: "Тип / название" },
-    { key: "created_at", label: "Загружен" },
-    { key: "filename", label: "Файл" },
-  ];
-
   return (
     <div className="docs-table-wrap" id="docs-table">
       <div className="docs-table-head">
         <h2>Документы в деле</h2>
         <p className="docs-count">
           Всего: {documents.length}
-          {filtered.length !== documents.length ? ` · показано: ${filtered.length}` : ""}
           {" · "}
-          откройте файл кнопкой «Открыть» — кабинет сотрудника достаточно
+          оригинал открывается, если безопасность позволяет — независимо от OCR
         </p>
       </div>
       <div className="docs-table-scroll">
@@ -171,35 +187,26 @@ export function DocumentsTable({
               <th scope="col" className="docs-table-num">
                 №
               </th>
-              {columns.map((col) => (
-                <th scope="col" key={col.key}>
-                  <button
-                    type="button"
-                    className="docs-sort-btn"
-                    onClick={() => toggleSort(col.key)}
-                    aria-label={`Сортировать: ${col.label}`}
-                  >
-                    {col.label} <span aria-hidden="true">{sortMark(col.key)}</span>
-                  </button>
-                  <label className="docs-filter">
-                    <span className="sr-only">Фильтр: {col.label}</span>
-                    <select
-                      value={filters[col.key]}
-                      disabled={busy}
-                      onChange={(e) =>
-                        setFilters((prev) => ({ ...prev, [col.key]: e.target.value }))
-                      }
-                    >
-                      <option value="">Все</option>
-                      {uniqueValues(documents, col.key).map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </th>
-              ))}
+              <th scope="col">
+                <button
+                  type="button"
+                  className="docs-sort-btn"
+                  onClick={() => toggleSort("inner_title")}
+                >
+                  Тип / имя <span aria-hidden="true">{sortMark("inner_title")}</span>
+                </button>
+              </th>
+              <th scope="col">
+                <button
+                  type="button"
+                  className="docs-sort-btn"
+                  onClick={() => toggleSort("created_at")}
+                >
+                  Получение <span aria-hidden="true">{sortMark("created_at")}</span>
+                </button>
+              </th>
+              <th scope="col">Обработка текста</th>
+              <th scope="col">Нужна проверка?</th>
               <th scope="col">Действие</th>
             </tr>
           </thead>
@@ -208,50 +215,73 @@ export function DocumentsTable({
               const typeLabel =
                 (doc.doc_type_label || doc.inner_title || "Документ").trim() || "Документ";
               const preview = (doc.content_preview || "").trim();
-              const canOpen = doc.downloadable !== false;
-              const pdf = isPdfDoc(doc);
+              const action = primaryAction(doc);
+              const review = needsReview(doc);
+              const err =
+                (doc.antivirus_status || "").toLowerCase() === "error" ||
+                (doc.ingest_status || "").toLowerCase() === "blocked_security"
+                  ? doc.progress_message || "Ошибка обработки"
+                  : null;
               return (
                 <tr key={doc.id}>
                   <td className="docs-table-num">{index + 1}</td>
                   <td>
-                    <div>{typeLabel}</div>
-                    {preview ? (
-                      <p className="hint" style={{ margin: "0.25rem 0 0", maxWidth: "28rem" }}>
-                        {preview.length > 160 ? `${preview.slice(0, 160)}…` : preview}
+                    <div>
+                      <strong>{typeLabel}</strong>
+                    </div>
+                    <div className="hint">{shortName(doc)}</div>
+                    {err ? (
+                      <p className="hint warning-inline" style={{ margin: "0.25rem 0 0" }}>
+                        {err}
                       </p>
                     ) : null}
                   </td>
-                  <td>{cellValue(doc, "created_at")}</td>
-                  <td>{cellValue(doc, "filename")}</td>
+                  <td>{receiptLabel(doc)}</td>
                   <td>
-                    {canOpen ? (
+                    <div>{textProcessLabel(doc)}</div>
+                    {preview ? (
+                      <p className="hint" style={{ margin: "0.25rem 0 0", maxWidth: "22rem" }}>
+                        {preview.length > 120 ? `${preview.slice(0, 120)}…` : preview}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td>{review ? "да" : "нет"}</td>
+                  <td>
+                    {action.kind === "blocked" || action.kind === "wait" ? (
+                      <span className="hint" title={action.label}>
+                        {action.label}
+                      </span>
+                    ) : (
                       <span className="docs-actions">
-                        {pdf ? (
-                          <button
-                            type="button"
-                            className="linkish"
-                            disabled={busy}
-                            title="Открыть PDF в новой вкладке"
-                            aria-label={`Открыть: ${cellValue(doc, "filename")}`}
-                            onClick={() => onOpen(doc.id, "open")}
-                          >
-                            Открыть
-                          </button>
-                        ) : null}
                         <button
                           type="button"
                           className="linkish"
                           disabled={busy}
-                          title={pdf ? "Скачать PDF" : "Скачать файл"}
-                          aria-label={`Скачать: ${cellValue(doc, "filename")}`}
-                          onClick={() => onOpen(doc.id, "download")}
+                          title={action.label}
+                          aria-label={`${action.label}: ${shortName(doc)}`}
+                          onClick={() =>
+                            onOpen(doc.id, action.kind === "open" ? "open" : "download")
+                          }
                         >
-                          Скачать
+                          {action.label}
                         </button>
-                      </span>
-                    ) : (
-                      <span className="hint" title={blockReason(doc)}>
-                        {blockReason(doc)}
+                        {action.kind === "open" ? (
+                          <button
+                            type="button"
+                            className="linkish"
+                            disabled={busy}
+                            title="Скачать файл"
+                            aria-label={`Скачать: ${shortName(doc)}`}
+                            onClick={() => onOpen(doc.id, "download")}
+                          >
+                            Скачать
+                          </button>
+                        ) : null}
+                        {preview ? (
+                          <span className="hint" title="Текст доступен в превью колонки">
+                            · текст в превью
+                          </span>
+                        ) : null}
                       </span>
                     )}
                   </td>
@@ -260,8 +290,8 @@ export function DocumentsTable({
             })}
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="hint">
-                  {documents.length === 0 ? emptyHint : "Нет строк по выбранным фильтрам."}
+                <td colSpan={6} className="hint">
+                  {emptyHint}
                 </td>
               </tr>
             ) : null}
