@@ -43,8 +43,10 @@ CLIENT_CHAT_SYSTEM = f"""Ты — вежливый агент сервиса «�
 - Согласие на ПДн и cookies — один раз кнопкой «Начать» в этом чате MAX; повторно не проси.
 - Оплата / оферта — ссылка или QR в этот чат, когда счёт — следующий шаг; не направляй в ЛК.
 - Не обещай «кабинет в MAX» / mini-app; не давай ссылку на /app/ как ЛК.
-- Если клиент прислал файл в MAX — можно сказать «получили, добавили к делу»;
-  не разбирай содержимое скана в чате (это делает специалист / диагностика).
+- Если в ContextPack документ available — можно сказать «файл в деле»;
+  если pending/failed — не говори «получили», попроси прислать ещё раз при failed.
+- Не разбирай содержимое скана в чате и не имитируй чтение файла
+  (содержание модели не передаётся; это делает специалист / диагностика).
 - Кроме выписки ИЛС по шагам обычно: (1) трудовая — скан бумажной или выписка
   из электронной трудовой; (2) если пенсия назначена — справка о размере пенсии,
   справка о выплатах СФР / о назначенных выплатах (часто за 12 месяцев) и
@@ -98,6 +100,8 @@ CLIENT_CHAT_SYSTEM = f"""Ты — вежливый агент сервиса «�
 2) зачем следующий шаг («чтобы …», 1 фраза);
 3) что сделать сейчас (кнопка шага / ответ или файл в этом чате / специалист;
    сайт и личный кабинет не упоминай; согласие на ПДн повторно не проси).
+Опирайся на ContextPack: не повторяй подтверждённые поля анкеты;
+один следующий шаг; при активном специалисте не дублируй его ответ.
 
 Примеры «зачем»:
 - чтобы понять, с чего начать — уточним, для кого проверка;
@@ -360,16 +364,17 @@ def reply_to_free_text(
     if max_turns > 0 and turns >= max_turns:
         return _turn_limit_reply(nudge_text, nudge_kb)
 
-    llm = LLMClient.for_analyze(allow_fallback=False)
-    if not llm.available:
-        logger.warning("max_llm_chat: DeepSeek unavailable model=%s", llm.model)
-        return nudge_text, nudge_kb, "free_text_nudge"
-
     step = intake.step() if intake is not None else "whom"
     cid = (case_id or "").strip()
     history: list[dict[str, Any]] = []
     deal_work = work
-    from sfrfr.services.case_chat_context import build_client_llm_user_prompt
+    case_docs: list[dict[str, Any]] = []
+    consent_ok: bool | None = None
+    from sfrfr.services.case_chat_context import (
+        build_client_context_pack,
+        build_client_llm_user_prompt,
+        staff_dialog_active,
+    )
 
     if cid:
         from sfrfr.services.case_chat_context import (
@@ -382,11 +387,43 @@ def reply_to_free_text(
             try:
                 from sfrfr.db.case_repository import CaseRepository
 
-                case_row = CaseRepository().get_case_row(cid)
+                repo = CaseRepository()
+                case_row = repo.get_case_row(cid)
                 if case_row:
                     deal_work = work_map_from_case(case_row)
+                    case_docs = list(case_row.get("documents") or [])
+                    try:
+                        consent_ok = repo.has_consent(cid)
+                    except Exception:  # noqa: BLE001
+                        consent_ok = None
             except Exception as exc:  # noqa: BLE001
                 logger.debug("max_llm work_map skipped: %s", exc)
+
+    if staff_dialog_active(history):
+        text = (
+            "Специалист уже отвечает в этом чате — напишите ему здесь. "
+            "Я рядом, если понадобится шаг по кнопкам ниже.\n\n"
+            + nudge_text
+        )
+        return text, nudge_kb, "max_llm_staff_active"
+
+    llm = LLMClient.for_analyze(allow_fallback=False)
+    if not llm.available:
+        logger.warning("max_llm_chat: DeepSeek unavailable model=%s", llm.model)
+        return nudge_text, nudge_kb, "free_text_nudge"
+
+    max_uid = str(getattr(intake, "max_user_id", "") or "") or None
+    pack = build_client_context_pack(
+        channel="max",
+        user_text=user_text,
+        work=deal_work,
+        history=history,
+        intake=intake,
+        intake_step=step,
+        documents=case_docs,
+        max_user_id=max_uid,
+        consent_accepted=consent_ok,
+    )
     user = build_client_llm_user_prompt(
         channel="max",
         user_text=user_text,
@@ -394,6 +431,11 @@ def reply_to_free_text(
         history=history,
         intake_step=step,
         exclude_message_id=exclude_message_id,
+        intake=intake,
+        documents=case_docs,
+        max_user_id=max_uid,
+        consent_accepted=consent_ok,
+        context_pack=pack,
     )
     use_stream = bool(stream) if stream is not None else bool(on_partial)
     try:

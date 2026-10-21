@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sfrfr.ai.guardrails import redact_for_llm
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_HISTORY_LIMIT = 20
 MAX_BODY_CHARS = 400
+STAFF_ACTIVE_WINDOW = timedelta(minutes=30)
 
 _AUTHOR_LABELS: dict[str, str] = {
     "client": "Клиент",
@@ -18,6 +20,14 @@ _AUTHOR_LABELS: dict[str, str] = {
     "staff": "Специалист",
     "system": "Бот",
     "bot": "Бот",
+}
+
+_EXPERIENCE_LABELS: dict[str, str] = {
+    "lt5": "до 5 лет",
+    "5_10": "5–10 лет",
+    "10_20": "10–20 лет",
+    "gt20": "более 20 лет",
+    "unknown": "не указан точно",
 }
 
 
@@ -137,6 +147,221 @@ def format_deal_context(work: dict[str, Any] | None, *, staff_chat: bool = False
     return "\n".join(parts)
 
 
+def _confirmed_from_intake(intake: Any | None) -> list[str]:
+    """Уже известные факты анкеты/FSM без сырых ПДн (телефон/email только флаг)."""
+    if intake is None:
+        return []
+    out: list[str] = []
+    answers = getattr(intake, "q_answers", None) or {}
+    if isinstance(answers, dict):
+        exp = str(answers.get("experience") or "").strip()
+        if exp:
+            out.append(f"стаж: {_EXPERIENCE_LABELS.get(exp, exp)}")
+        if str(answers.get("phone") or "").strip():
+            out.append("телефон: указан")
+        if str(answers.get("email") or "").strip():
+            out.append("email: указан")
+        problem = redact_for_llm(str(answers.get("problem") or "")).strip()
+        if problem:
+            out.append(f"проблема своими словами: {problem[:180]}")
+        if getattr(intake, "q_completed_at", None):
+            out.append("короткая анкета: завершена")
+    for_whom = getattr(intake, "for_whom", None)
+    if for_whom:
+        out.append(f"для кого: {for_whom}")
+    pension = getattr(intake, "pension_status", None)
+    if pension:
+        out.append(f"пенсия: {pension}")
+    goal = getattr(intake, "goal", None)
+    if goal:
+        out.append(f"цель (goal): {goal}")
+    problem_type = getattr(intake, "problem_type", None)
+    if problem_type:
+        out.append(f"тип проблемы: {problem_type}")
+    ils = getattr(intake, "ils_available", None)
+    if ils:
+        out.append(f"ИЛС: {ils}")
+    emp = getattr(intake, "employment_records_available", None)
+    if emp:
+        out.append(f"трудовая/записи: {emp}")
+    return out
+
+
+def _document_buckets(
+    *,
+    work: dict[str, Any] | None,
+    documents: list[dict[str, Any]] | None,
+    max_user_id: str | None,
+) -> dict[str, list[str]]:
+    available: list[str] = []
+    pending: list[str] = []
+    failed: list[str] = []
+    for doc in documents or []:
+        if not isinstance(doc, dict):
+            continue
+        name = str(doc.get("doc_type") or doc.get("filename") or "файл")[:40]
+        status = str(doc.get("ingest_status") or "").lower()
+        cloud = str(doc.get("cloud_status") or "").lower()
+        if status in {"blocked_security", "failed"} or cloud == "failed":
+            failed.append(name)
+        elif status in {"needs_reupload", "uploading", "security_check"} or cloud == "pending":
+            pending.append(f"{name} (ожидает)")
+        elif doc.get("id"):
+            # Только факт вложения — без «изучено»
+            available.append(f"{name} (файл в деле, содержание не передано модели)")
+    if work:
+        req_u = int(work.get("required_uploaded") or 0)
+        req_t = int(work.get("required_total") or 0)
+        if req_t:
+            available.append(f"обязательных слотов: {req_u}/{req_t}")
+    uid = str(max_user_id or "").strip()
+    if uid:
+        try:
+            from sfrfr.integrations.max import attachment_lifecycle as life
+
+            for job in life.list_jobs():
+                if str(job.get("user_id") or "") != uid:
+                    continue
+                stage = str(job.get("stage") or "")
+                hint = str(job.get("filename") or "вложение")[:40]
+                if stage in {"awaiting_bytes", "discovered", "saved"}:
+                    pending.append(f"{hint} (скачивание)")
+                elif stage == "failed":
+                    failed.append(f"{hint} (не получено)")
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("context pack attach jobs skipped: %s", exc)
+    return {
+        "available": available[:12],
+        "pending": pending[:12],
+        "failed": failed[:12],
+    }
+
+
+def staff_dialog_active(history: list[dict[str, Any]] | None) -> bool:
+    if not history:
+        return False
+    cutoff = datetime.now(UTC) - STAFF_ACTIVE_WINDOW
+    for row in reversed(history):
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("author_kind") or "").lower() != "staff":
+            continue
+        raw = str(row.get("created_at") or "").strip()
+        if not raw:
+            return True
+        try:
+            ts = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            return ts >= cutoff
+        except ValueError:
+            return True
+    return False
+
+
+def _conversation_stage(
+    *,
+    work: dict[str, Any] | None,
+    intake: Any | None,
+    consent_ok: bool,
+) -> str:
+    if not consent_ok:
+        return "consent"
+    if intake is not None and getattr(intake, "q_step", None) and not getattr(
+        intake, "q_completed_at", None
+    ):
+        return "intake"
+    cta = str((work or {}).get("cta_key") or "").strip().lower()
+    if cta in {"pay", "pay_link"}:
+        return "offer_analysis"
+    if cta in {"docs", "docs_max", "upload"}:
+        return "collecting_documents"
+    status = str((work or {}).get("status_key") or "").strip().lower()
+    if "review" in status or "diagn" in status:
+        return "preliminary_review"
+    if intake is not None and intake.step() not in {"summary", "whom"}:
+        return f"intake:{intake.step()}"
+    return "collecting_documents" if consent_ok else "consent"
+
+
+def build_client_context_pack(
+    *,
+    channel: str,
+    user_text: str,
+    work: dict[str, Any] | None,
+    history: list[dict[str, Any]] | None = None,
+    intake: Any | None = None,
+    intake_step: str | None = None,
+    documents: list[dict[str, Any]] | None = None,
+    max_user_id: str | None = None,
+    consent_accepted: bool | None = None,
+) -> dict[str, Any]:
+    """Серверный ContextPack для клиентского LLM (без сырых ПДн и без текста сканов)."""
+    consent_ok = bool(consent_accepted) if consent_accepted is not None else True
+    if work and "consent" in str(work.get("cta_key") or "").lower():
+        consent_ok = False
+    docs = _document_buckets(work=work, documents=documents, max_user_id=max_user_id)
+    confirmed = _confirmed_from_intake(intake)
+    staff_active = staff_dialog_active(history)
+    order_raw = (work or {}).get("order")
+    order: dict[str, Any] = order_raw if isinstance(order_raw, dict) else {}
+    payment_status = str(
+        order.get("status_label") or order.get("state") or "нет заказа"
+    )
+    next_step = str((work or {}).get("now_need") or (work or {}).get("cta_label") or "—")
+    stage = _conversation_stage(work=work, intake=intake, consent_ok=consent_ok)
+    return {
+        "channel": channel,
+        "conversation_stage": stage,
+        "consent_status": "accepted" if consent_ok else "needed",
+        "confirmed_fields": confirmed,
+        "client_goal": str(getattr(intake, "goal", None) or (work or {}).get("cta_label") or "—"),
+        "intake_step": intake_step or (intake.step() if intake is not None else None),
+        "documents": docs,
+        "document_content_available_to_model": False,
+        "payment_status_trusted": payment_status,
+        "can_pay": bool(order.get("can_pay")),
+        "next_allowed_step": next_step,
+        "staff_dialog_active": staff_active,
+        "user_text_redacted": redact_for_llm(user_text or "")[:1500],
+        "history": history or [],
+        "work": work,
+    }
+
+
+def format_context_pack_for_prompt(pack: dict[str, Any]) -> str:
+    """Текстовый блок ContextPack для user-prompt."""
+    docs_raw = pack.get("documents")
+    docs: dict[str, Any] = docs_raw if isinstance(docs_raw, dict) else {}
+    confirmed_raw = pack.get("confirmed_fields") or []
+    confirmed = [str(x) for x in confirmed_raw] if isinstance(confirmed_raw, list) else []
+    avail = [str(x) for x in (docs.get("available") or [])]
+    pend = [str(x) for x in (docs.get("pending") or [])]
+    fail = [str(x) for x in (docs.get("failed") or [])]
+    lines = [
+        f"Стадия диалога: {pack.get('conversation_stage')}",
+        f"Согласие ПДн: {pack.get('consent_status')}",
+        f"Цель клиента: {pack.get('client_goal')}",
+        f"Следующий разрешённый шаг: {pack.get('next_allowed_step')}",
+        f"Оплата (только доверенный статус сервера): {pack.get('payment_status_trusted')}; "
+        f"can_pay={'да' if pack.get('can_pay') else 'нет'}",
+        f"Активный диалог со специалистом: "
+        f"{'да — не дублируй специалиста' if pack.get('staff_dialog_active') else 'нет'}",
+        "Содержание документов модели НЕ передано "
+        "(есть только факт вложения / тип / статус).",
+    ]
+    if pack.get("intake_step"):
+        lines.append(f"Шаг кнопок intake: {pack.get('intake_step')}")
+    if confirmed:
+        lines.append("Уже известно (не спрашивай повторно): " + "; ".join(confirmed))
+    else:
+        lines.append("Уже известно: (пока пусто)")
+    lines.append("Документы available: " + (", ".join(avail) or "—"))
+    lines.append("Документы pending: " + (", ".join(pend) or "—"))
+    lines.append("Документы failed: " + (", ".join(fail) or "—"))
+    return "\n".join(lines)
+
+
 def build_client_llm_user_prompt(
     *,
     channel: str,
@@ -145,9 +370,26 @@ def build_client_llm_user_prompt(
     history: list[dict[str, Any]] | None = None,
     intake_step: str | None = None,
     exclude_message_id: str | None = None,
+    intake: Any | None = None,
+    documents: list[dict[str, Any]] | None = None,
+    max_user_id: str | None = None,
+    consent_accepted: bool | None = None,
+    context_pack: dict[str, Any] | None = None,
 ) -> str:
     """Единый user-prompt для клиентского бота (MAX / кабинет)."""
-    safe = redact_for_llm(user_text or "")[:1500]
+    del exclude_message_id  # история уже отфильтрована вызывающим
+    pack = context_pack or build_client_context_pack(
+        channel=channel,
+        user_text=user_text,
+        work=work,
+        history=history,
+        intake=intake,
+        intake_step=intake_step,
+        documents=documents,
+        max_user_id=max_user_id,
+        consent_accepted=consent_accepted,
+    )
+    safe = str(pack.get("user_text_redacted") or redact_for_llm(user_text or "")[:1500])
     thread = format_thread_for_llm(history or [])
     deal = format_deal_context(work)
     header = {
@@ -161,12 +403,20 @@ def build_client_llm_user_prompt(
             "кабинет — альтернатива для файлов / оплата / согласие)."
         ),
     }.get(channel, "Клиент пишет в единый чат по делу.")
-    blocks = [header, "", "Контекст сделки:", deal]
-    if intake_step:
+    blocks = [
+        header,
+        "",
+        "ContextPack (сервер, источник истины):",
+        format_context_pack_for_prompt(pack),
+        "",
+        "Контекст сделки:",
+        deal,
+    ]
+    if pack.get("intake_step"):
         blocks.extend(
             [
                 "",
-                f"Шаг сценария intake (кнопки): {intake_step}",
+                f"Шаг сценария intake (кнопки): {pack.get('intake_step')}",
                 "Системные кнопки шага будут под ответом — дополни мягкими BUTTONS.",
             ]
         )
@@ -179,11 +429,15 @@ def build_client_llm_user_prompt(
             "Новое сообщение клиента (обезличено):",
             safe,
             "",
-            "Учитывай всю историю: не повторяй уже данные инструкции, "
-            "не задавай тот же вопрос дважды. "
-            "Если can_pay=да — мягко предложи оплату в кабинете на сайте. "
-            "Если клиент сомневается в цене — объясни ценность диагностики 3 000 ₽ "
-            "без торга и без обещания суммы пенсии.",
+            "Правила ответа:",
+            "- Один вопрос или одно действие за сообщение.",
+            "- Не спрашивай повторно то, что в «Уже известно».",
+            "- Не говори «документ изучен/разобран», если содержание не передано.",
+            "- Не говори «получили файл», если он в pending/failed.",
+            "- Не обещай перерасчёт, сумму пенсии, подачу вместо клиента.",
+            "- Если staff_dialog_active=да — кратко поддержи и не перехватывай диалог.",
+            "- Если can_pay=да — мягко предложи оплату ссылкой/QR в этот чат "
+            "(не выдумывай URL); ценность диагностики 3 000 ₽ без торга.",
         ]
     )
     return "\n".join(blocks)
