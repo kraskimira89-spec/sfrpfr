@@ -27,6 +27,7 @@ import {
 import { caseCatalogLabel } from "@/components/cases-registry";
 import { displayClientFio } from "@/lib/client-display-name";
 import { DocumentsTable } from "@/components/documents-table";
+import { CaseWorkRoute, type WorkRoute } from "@/components/case-work-route";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
@@ -99,6 +100,7 @@ type Detail = {
   ils_periods?: unknown[];
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
+  work_route?: WorkRoute | null;
   document_check?: {
     job_id?: string;
     status?: string;
@@ -889,7 +891,20 @@ export function CaseFunnelMain({
           onOpen={onOpenSigned}
           busy={busy}
         />
-        {documentsWorkplace}
+        <CaseWorkRoute
+          route={detail.work_route}
+          busy={busy}
+          onRequestReview={onRequestReview}
+          onRequestPipeline={onRequestPipeline}
+          docsCheckPanel={<DocumentCheckPanel check={detail.document_check} />}
+        />
+        {/* Техжурнал ingest — свёрнут, не второй список файлов. */}
+        {documentsWorkplace ? (
+          <details className="case-tech-journal">
+            <summary className="linkish">Техжурнал ingest (свёрнут)</summary>
+            {documentsWorkplace}
+          </details>
+        ) : null}
       </div>
 
       <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
@@ -1108,26 +1123,9 @@ export function CaseFunnelMain({
               <button type="submit">Добавить в чек-лист</button>
             </form>
           ) : null}
-          <div className="row-actions">
-            <button
-              type="button"
-              disabled={
-                busy ||
-                detail.documents.length === 0 ||
-                (!canAct("documents") && !canAct("diagnostics"))
-              }
-              onClick={onRequestReview}
-              title={
-                detail.documents.length === 0
-                  ? "Нет документов в деле"
-                  : "Запустить проверку доступности, текста, типов и комплекта"
-              }
-            >
-              Проверить документы
-            </button>
-          </div>
-          <h3 className="case-subhead">Результат проверки</h3>
-          <DocumentCheckPanel check={detail.document_check} />
+          <p className="hint">
+            Проверка документов и маршрут — в блоке «Работа с делом» под таблицей файлов.
+          </p>
         </StageShell>
 
         {caps.can_view_ocr ? (
@@ -1144,22 +1142,9 @@ export function CaseFunnelMain({
               Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
               {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
             </p>
-            <div className="row-actions">
-              <button
-                type="button"
-                disabled={busy || detail.documents.length === 0 || !canAct("diagnostics")}
-                onClick={onRequestReview}
-                title={
-                  detail.documents.length === 0
-                    ? "Нет документов в деле"
-                    : "Запустить проверку доступности, текста, типов и комплекта"
-                }
-              >
-                Проверить документы
-              </button>
-            </div>
-            <h3 className="case-subhead">Результат проверки</h3>
-            <DocumentCheckPanel check={detail.document_check} />
+            <p className="hint">
+              «Проверить документы» — одна кнопка в блоке «Работа с делом» над воронкой.
+            </p>
             <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
             <p className="hint">
               Не результат новой проверки документов — только старые findings, если были.

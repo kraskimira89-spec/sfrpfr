@@ -164,6 +164,32 @@ type StaffCaseDetail = {
   ils_periods?: unknown[];
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
+  work_route?: {
+    steps?: Array<{
+      id: string;
+      title: string;
+      status: string;
+      status_label?: string;
+      result_summary?: string;
+      blocker_reason?: string | null;
+      needs_specialist?: boolean;
+      primary_action?: {
+        id: string;
+        label: string;
+        method?: string;
+        path_suffix?: string | null;
+      } | null;
+    }>;
+    current_step_id?: string;
+    primary_action?: {
+      id: string;
+      label: string;
+      method?: string;
+      path_suffix?: string | null;
+    } | null;
+    blocker_reason?: string | null;
+    summary_line?: string;
+  } | null;
   document_check?: {
     job_id?: string;
     status?: string;
@@ -2094,7 +2120,7 @@ export function AdminCabinet() {
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
             onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
             documentsWorkplace={
-              token ? (
+              token && detail.role_capabilities.can_view_ocr ? (
                 <IngestReviewPanel
                   caseId={detail.id}
                   token={token}

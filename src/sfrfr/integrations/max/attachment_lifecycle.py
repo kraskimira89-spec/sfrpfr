@@ -435,6 +435,8 @@ def _complete_download(job: dict[str, Any], *, data: bytes) -> None:
         filename=filename,
         data=data,
         uploaded_by=None,
+        event_id=str(job.get("message_mid") or "") or None,
+        attachment_id=jid,
     )
     if row is None or not str(row.get("id") or "").strip():
         updated = mark_attempt_failed(jid, error_code="ingest_failed")
@@ -448,12 +450,18 @@ def _complete_download(job: dict[str, Any], *, data: bytes) -> None:
         return
     doc_id = str(row["id"])
     mark_bound(jid, document_id=doc_id, case_id=case_id)
+    deduped = bool(row.get("deduped") or row.get("replayed"))
     try:
         cloud_pending = str(row.get("cloud_status") or "") == "pending"
+        note = None
+        if cloud_pending:
+            note = "[нужна догрузка в облако]"
+        elif deduped:
+            note = "[повтор — открыт основной документ]"
         body = format_document_event(
             filename=filename,
             document_id=doc_id,
-            note="[нужна догрузка в облако]" if cloud_pending else None,
+            note=note,
         )
         append_case_chat_message(
             case_id=case_id,
@@ -463,20 +471,21 @@ def _complete_download(job: dict[str, Any], *, data: bytes) -> None:
         )
     except Exception:  # noqa: BLE001
         pass
-    try:
-        document_background.schedule_document_background(
-            case_id=case_id,
-            document_id=doc_id,
-            filename=filename,
-            data=data,
-        )
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        document_background.schedule_settle_notify(user_id=user_id, case_id=case_id)
-    except Exception:  # noqa: BLE001
-        pass
-    _notify_got_documents(job, case_id=case_id)
+    if not deduped:
+        try:
+            document_background.schedule_document_background(
+                case_id=case_id,
+                document_id=doc_id,
+                filename=filename,
+                data=data,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            document_background.schedule_settle_notify(user_id=user_id, case_id=case_id)
+        except Exception:  # noqa: BLE001
+            pass
+        _notify_got_documents(job, case_id=case_id)
 
 
 def _notify_resend(job: dict[str, Any]) -> None:

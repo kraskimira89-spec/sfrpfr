@@ -356,6 +356,26 @@ def _filter_staff_case(
         base["document_check"] = get_case_document_check(str(case["id"]))
     except Exception:  # noqa: BLE001
         base["document_check"] = None
+    try:
+        from sfrfr.services.case_work_route import build_case_work_route
+
+        base["work_route"] = build_case_work_route(
+            documents=list(base.get("documents") or []),
+            document_check=base.get("document_check"),
+            findings=list(base.get("findings") or []),
+            draft=base.get("draft") if isinstance(base.get("draft"), dict) else None,
+        )
+    except Exception:  # noqa: BLE001
+        base["work_route"] = None
+    try:
+        from sfrfr.services.case_facts import normalize_findings_to_discrepancies
+
+        base["facts"] = normalize_findings_to_discrepancies(
+            list(base.get("findings") or []),
+            documents=list(base.get("documents") or []),
+        ).model_dump()
+    except Exception:  # noqa: BLE001
+        base["facts"] = None
     return base
 
 
@@ -1248,6 +1268,97 @@ def request_pipeline(
     repo = _repo()
     repo.require_case(principal, case_id)
     return repo.request_pipeline_run(case_id, principal.user_id)
+
+
+@router.post("/admin/cases/{case_id}/discrepancies/{discrepancy_id}/review")
+def review_discrepancy(
+    case_id: str,
+    discrepancy_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """HITL: сохранить исход/исправление/автора по конкретному расхождению."""
+    from datetime import UTC, datetime
+
+    from sfrfr.services.case_facts import (
+        apply_specialist_review,
+        normalize_findings_to_discrepancies,
+    )
+
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="forbidden")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    status = str(payload.get("status") or "confirmed").strip()
+    if status not in {"confirmed", "corrected", "rejected", "needs_review", "draft"}:
+        raise HTTPException(status_code=400, detail="invalid status")
+    correction = str(payload.get("correction") or "").strip() or None
+
+    client = get_supabase_client()
+    pipeline = CaseRepository._one_or_none(
+        client.table("case_pipeline_data")
+        .select("findings")
+        .eq("case_id", case_id)
+        .limit(1)
+        .execute()
+    )
+    raw_findings = list((pipeline or {}).get("findings") or [])
+    docs = (
+        client.table("documents")
+        .select("id")
+        .eq("case_id", case_id)
+        .execute()
+        .data
+        or []
+    )
+    bundle = normalize_findings_to_discrepancies(raw_findings, documents=list(docs))
+    if not any(d.id == discrepancy_id for d in bundle.discrepancies):
+        raise HTTPException(status_code=404, detail="discrepancy not found")
+    updated = apply_specialist_review(
+        bundle,
+        discrepancy_id=discrepancy_id,
+        status=status,  # type: ignore[arg-type]
+        correction=correction,
+        actor_id=principal.user_id,
+        reviewed_at=datetime.now(UTC).isoformat(),
+    )
+    # Persist back into findings list (статус/исправление на том же id).
+    by_id = {d.id: d for d in updated.discrepancies}
+    new_findings: list[dict[str, Any]] = []
+    for raw in raw_findings:
+        if not isinstance(raw, dict):
+            continue
+        rid = str(raw.get("id") or "")
+        if not rid:
+            # legacy without id — match by type+detail via normalize id
+            from sfrfr.services.case_facts import discrepancy_stable_id
+
+            rid = discrepancy_stable_id(
+                str(raw.get("type") or ""), str(raw.get("detail") or "")
+            )
+        disc = by_id.get(rid)
+        if disc is None:
+            new_findings.append(raw)
+            continue
+        row = dict(raw)
+        row["id"] = disc.id
+        row["status"] = disc.status
+        row["detail"] = disc.summary
+        row["original_summary"] = disc.original_summary
+        row["correction"] = disc.correction
+        row["reviewed_by"] = disc.reviewed_by
+        row["reviewed_at"] = disc.reviewed_at
+        new_findings.append(row)
+    client.table("case_pipeline_data").upsert(
+        {"case_id": case_id, "findings": new_findings},
+        on_conflict="case_id",
+    ).execute()
+    repo.audit(case_id, principal.user_id, "discrepancy_reviewed")
+    return {
+        "ok": True,
+        "facts": updated.model_dump(),
+        "fingerprint": updated.fingerprint,
+    }
 
 
 @router.post("/admin/cases/{case_id}/max-reply")

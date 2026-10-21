@@ -41,6 +41,8 @@ def upload_max_document(
     doc_type: str | None = None,
     uploaded_by: str | None = None,
     scenario_rows: list[Any] | None = None,
+    event_id: str | None = None,
+    attachment_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Сохранить файл дела в Supabase; None при ошибке или неподдерживаемом типе."""
     if not data:
@@ -61,6 +63,8 @@ def upload_max_document(
             upload_source="max",
             scenario_rows=scenario_rows,
             allow_local_fallback=True,
+            event_id=event_id,
+            attachment_id=attachment_id,
         )
         if row and str(row.get("cloud_status") or "") == "pending":
             logger.warning(
