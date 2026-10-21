@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from sfrfr.services.document_deduplication import set_test_after_hash_lookup_barrier
-from tests.unit.document_dedup_harness import InMemoryDocumentStore, UploadResult
+from document_dedup_harness import InMemoryDocumentStore, UploadResult
 
 
 @pytest.fixture()

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.unit.document_dedup_harness import InMemoryDocumentStore, sha256_hex
+from document_dedup_harness import InMemoryDocumentStore, sha256_hex
 
 
 @pytest.fixture()
