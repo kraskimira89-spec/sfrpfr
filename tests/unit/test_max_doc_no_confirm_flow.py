@@ -58,9 +58,10 @@ def test_upload_saved_no_type_question_schedules_background(tmp_path, monkeypatc
     bot = _upload(tmp_path, monkeypatch, scheduled)
     joined = "\n".join(t for _u, t in bot.sent if t)
     low = joined.lower()
-    assert "получил" in low or "обработ" in low
-    assert "время" in low or "разбор" in low
+    assert "получил" in low or "комплект" in low
+    assert "сверя" in low or "комплект" in low
     assert "следующ" not in low
+    assert "первичн" not in low
     flat = str([a for a in bot.attachments if a])
     assert "max:doc:done" not in flat
     assert "max:doc:confirm:" not in flat
@@ -106,9 +107,10 @@ def test_final_complete_proposes_analysis_without_promises() -> None:
         ]
     )
     assert complete is True
-    assert "приступать к анализу" in text.lower() or "анализ" in text.lower()
+    assert "комплект" in text.lower()
     assert "подаёте" in text.lower()
     assert "СФР" in text
+    assert "первичн" not in text.lower()
     assert "перерасчёт будет" not in text.lower()
 
 

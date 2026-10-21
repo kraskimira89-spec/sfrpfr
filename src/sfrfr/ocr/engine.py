@@ -46,12 +46,26 @@ def _extract_docx(path: Path) -> str:
 
     try:
         document = Document(str(path))
-        parts = [p.text.strip() for p in document.paragraphs if p.text and p.text.strip()]
+        parts: list[str] = []
+        title = str(getattr(document.core_properties, "title", "") or "").strip()
+        if title:
+            parts.append(title)
+        parts.extend(p.text.strip() for p in document.paragraphs if p.text and p.text.strip())
         for table in document.tables:
             for row in table.rows:
                 cells = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
                 if cells:
                     parts.append(" ".join(cells))
+        # Колонтитулы — часто там заголовок «Трудовая книжка».
+        for section in document.sections:
+            for header_footer in (section.header, section.footer):
+                try:
+                    for p in header_footer.paragraphs:
+                        raw = (p.text or "").strip()
+                        if raw:
+                            parts.append(raw)
+                except Exception:  # noqa: BLE001
+                    continue
         return "\n".join(parts).strip() or "[ocr_empty] docx без текста"
     except Exception as exc:  # noqa: BLE001
         return f"[ocr_error] docx: {exc}"
@@ -107,11 +121,29 @@ def _extract_image(path: Path) -> str:
     return text or f"[ocr_empty] изображение без текста: {path.name}"
 
 
+def _sniff_suffix(data: bytes, filename: str) -> str:
+    """Расширение по имени или magic bytes (MAX часто шлёт «document» без суффикса)."""
+    suffix = Path(filename or "document.bin").suffix.lower()
+    if suffix in _TEXT_SUFFIXES | _IMAGE_SUFFIXES | _DOCX_SUFFIXES | {".pdf", ".doc"}:
+        return suffix
+    head = data[:8] if data else b""
+    if head.startswith(b"%PDF"):
+        return ".pdf"
+    # DOCX = ZIP (PK); старый .doc — OLE, здесь не парсим.
+    if head.startswith(b"PK"):
+        return ".docx"
+    if head.startswith(b"\xd0\xcf\x11\xe0"):
+        return ".doc"
+    return suffix or ".bin"
+
+
 def extract_text_from_bytes(data: bytes, filename: str) -> str:
     """OCR из байтов (чек из MAX/кабинета) через временный файл."""
     import tempfile
 
-    suffix = Path(filename or "document.bin").suffix.lower() or ".bin"
+    suffix = _sniff_suffix(data, filename)
+    if suffix == ".doc":
+        return "[ocr_error] формат .doc не поддерживается — нужен .docx или PDF"
     tmp_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:

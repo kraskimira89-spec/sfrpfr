@@ -31,6 +31,7 @@ _last_ack_at: dict[str, float] = {}
 _quiet_cases: dict[str, float] = {}  # case_id → until (epoch)
 _settle_timers: dict[str, threading.Timer] = {}
 _user_case: dict[str, str] = {}
+_last_settle_body: dict[str, str] = {}  # case_id → последний текст settle
 
 _HUMAN_BY_TYPE = {
     "ils": "выписка о стаже",
@@ -57,14 +58,13 @@ def is_done_text(text: str) -> bool:
 
 
 def processing_ack_text(*, count: int = 1) -> str:
-    """Один спокойный ответ на пачку: без howto и без «пришлите следующий»."""
+    """Один спокойный ответ на пачку: без howto и без обещания анализа."""
     _ = count  # число файлов не обязательно озвучивать клиенту
     return (
         "Документы получили — спасибо!\n\n"
-        "Мне нужно немного времени, чтобы их обработать. "
-        "Не торопитесь присылать всё подряд — лучше дождаться разбора. "
-        "Напишу вам в этот же чат, когда будет готов первичный результат. "
-        "Пока можно просто подождать — отдельно ничего нажимать не нужно."
+        "Сверяю комплект с тем, что уже есть в деле. "
+        "Напишу сюда, если чего-то не хватает или можно идти дальше. "
+        "Пока отдельно ничего нажимать не нужно."
     )
 
 
@@ -85,6 +85,7 @@ def reset_quiet_state() -> None:
         _quiet_cases.clear()
         _settle_timers.clear()
         _user_case.clear()
+        _last_settle_body.clear()
 
 
 def mark_quiet_ack(user_id: str, *, case_id: str | None) -> None:
@@ -169,7 +170,17 @@ def _deliver_settle_notify(*, case_id: str, max_user_id: str) -> None:
             )
             return
 
+        # Перед итогом — добить типы у файлов с null (часто local-pending).
+        reclassify_case_untyped(case_id)
         body, _complete = final_message_for_case(case_id)
+        with _ack_lock:
+            prev = _last_settle_body.get(case_id)
+            if prev == body:
+                logger.info(
+                    "settle notify skipped unchanged case=%s", str(case_id)[:8]
+                )
+                return
+            _last_settle_body[case_id] = body
         enqueue_max_delivery(
             case_id=case_id,
             message_id=None,
@@ -278,13 +289,13 @@ def _dedupe_documents(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
     docs = _dedupe_documents([d for d in documents if isinstance(d, dict)])
     have = {_bucket(d) for d in docs}
+    # Не обещаем «разбор» — только учёт комплекта по реестру.
     lines = [
-        "Первичный разбор готов.",
+        "Документы получили — сверяем комплект.",
         "",
-        "Мы приняли документы:",
+        "Сейчас в деле:",
     ]
     if docs:
-        # Уникальные подписи типов (без дублей строк).
         labels: list[str] = []
         seen_labels: set[str] = set()
         for d in docs:
@@ -297,6 +308,21 @@ def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
     else:
         lines.append("— пока файлов в деле нет")
     missing = [code for code in ("ils", "labor") if code not in have]
+    if "labor" in have and "ils" in missing:
+        lines += [
+            "",
+            "Трудовую книжку получили, повторно присылать её не нужно. "
+            "Содержание ещё проверяем.",
+            "Для продолжения нужна выписка о стаже — если вы её ещё не отправляли.",
+        ]
+        return "\n".join(lines), False
+    if "ils" in have and "labor" in missing:
+        lines += [
+            "",
+            "Выписку о стаже получили, повторно присылать её не нужно.",
+            "Для продолжения нужна трудовая книжка — если вы её ещё не отправляли.",
+        ]
+        return "\n".join(lines), False
     if missing:
         need = " и ".join(_MISSING_RU[c] for c in missing)
         lines += [
@@ -308,7 +334,7 @@ def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
         return "\n".join(lines), False
     lines += [
         "",
-        "Комплект полный. Можно приступать к анализу.",
+        "Базовый комплект есть. Можно идти дальше к подготовке документов.",
         "Мы готовим документы, проект обращения и понятный план — расскажем "
         "по шагам, но обращение через СФР, МФЦ или Госуслуги подаёте вы сами. "
         "Решение о пенсии принимает только СФР.",
@@ -329,41 +355,115 @@ def final_message_for_case(case_id: str | None) -> tuple[str, bool]:
     return build_final_message(docs)
 
 
+def _persist_preview(document_id: str, text: str) -> None:
+    preview = (text or "").strip()
+    if not preview or preview.startswith("[ocr_"):
+        return
+    try:
+        from sfrfr.db.supabase_client import get_supabase_client
+
+        get_supabase_client().table("documents").update(
+            {"content_preview": preview[:2000]}
+        ).eq("id", document_id).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("content_preview update skipped: %s", exc)
+
+
 def analyze_document_background(
     *, case_id: str | None, document_id: str, filename: str, data: bytes
 ) -> str | None:
-    """Фон: определить тип, записать в БД и журнал. Ошибки не роняют приём."""
+    """Определить тип, записать в БД и журнал. Вызывать синхронно при приёме."""
+    doc_id = str(document_id or "").strip()
+    if not doc_id:
+        return None
+    doc_type = "other"
     try:
         from sfrfr.integrations.max.document_auto_type import guess_from_bytes
+        from sfrfr.ocr.engine import extract_text_from_bytes
 
-        guess = guess_from_bytes(filename=filename, data=data)
+        text = ""
+        if data:
+            try:
+                text = extract_text_from_bytes(data, filename) or ""
+            except Exception:  # noqa: BLE001
+                text = ""
+        guess = guess_from_bytes(filename=filename, data=data or b"")
         doc_type = str(guess.doc_type or "other").strip().lower()
         if doc_type == "payment_receipt":  # gate #151: обычный файл != чек
             doc_type = "other"
         if doc_type not in CLIENT_LABELS_RU:
             doc_type = "other"
-        dtf.set_document_type(document_id=document_id, doc_type=doc_type)
+        ok = dtf.set_document_type(document_id=doc_id, doc_type=doc_type)
+        if not ok:
+            logger.warning(
+                "doc_type not saved doc=%s type=%s", doc_id[:8], doc_type
+            )
+        _persist_preview(doc_id, text)
         dtf.append_type_journal(case_id=case_id, filename=filename, doc_type=doc_type)
         return doc_type
     except Exception as exc:  # noqa: BLE001
-        logger.warning("background doc analyze failed doc=%s: %s", str(document_id)[:8], exc)
-        return None
+        logger.warning("doc analyze failed doc=%s: %s", doc_id[:8], exc)
+        try:
+            dtf.set_document_type(document_id=doc_id, doc_type="other")
+        except Exception:  # noqa: BLE001
+            pass
+        return "other"
+
+
+def reclassify_case_untyped(case_id: str | None) -> int:
+    """Повторно классифицировать документы дела с пустым doc_type (без клиента)."""
+    cid = str(case_id or "").strip()
+    if not cid:
+        return 0
+    try:
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.storage.local import path_from_uploads_relative
+    except Exception:  # noqa: BLE001
+        return 0
+    updated = 0
+    try:
+        docs = list(CaseRepository().list_documents(cid) or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("reclassify list_documents failed: %s", exc)
+        return 0
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        if str(doc.get("doc_type") or "").strip():
+            continue
+        doc_id = str(doc.get("id") or "").strip()
+        if not doc_id:
+            continue
+        local_rel = str(doc.get("local_path") or "").strip()
+        storage = str(doc.get("storage_path") or "")
+        filename = Path(local_rel or storage).name or "document"
+        data = b""
+        if local_rel:
+            path = path_from_uploads_relative(local_rel)
+            if path is not None and path.is_file():
+                try:
+                    data = path.read_bytes()
+                except OSError:
+                    data = b""
+        if not data:
+            # Хотя бы по имени файла (ТК_… → workbook).
+            analyze_document_background(
+                case_id=cid, document_id=doc_id, filename=filename, data=b""
+            )
+            updated += 1
+            continue
+        analyze_document_background(
+            case_id=cid, document_id=doc_id, filename=filename, data=data
+        )
+        updated += 1
+    return updated
 
 
 def schedule_document_background(
     *, case_id: str | None, document_id: str, filename: str, data: bytes
-) -> threading.Thread:
-    """Запустить разбор после ответа клиенту (не блокируя handler)."""
-    thread = threading.Thread(
-        target=analyze_document_background,
-        kwargs={
-            "case_id": case_id,
-            "document_id": document_id,
-            "filename": filename,
-            "data": data,
-        },
-        name=f"max-doc-bg-{str(document_id)[:8]}",
-        daemon=True,
+) -> threading.Thread | None:
+    """Совместимость: классификация синхронно (тип должен быть до settle)."""
+    analyze_document_background(
+        case_id=case_id, document_id=document_id, filename=filename, data=data
     )
-    thread.start()
-    return thread
+    return None

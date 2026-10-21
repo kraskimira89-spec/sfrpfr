@@ -213,7 +213,11 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     res = handle_max_update(_msg(804, ""), bot=bot)
     assert res.action == "upload"
     reply_low = (bot.sent[-1][1] if bot.sent else "").lower()
-    assert "обработ" in reply_low or "время" in reply_low or "разбор" in reply_low
+    assert (
+        "получил" in reply_low
+        or "сверя" in reply_low
+        or "комплект" in reply_low
+    )
     assert "стаж" not in reply_low  # не повторяем вопрос анкеты сразу
     assert get_intake_store().get_active("804").q_step == "experience"
     get_settings.cache_clear()

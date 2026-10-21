@@ -57,10 +57,11 @@ def test_burst_uploads_one_ack_no_howto_no_next_pressure(tmp_path, monkeypatch) 
     assert r1.action == "upload"
     assert len([t for _u, t in bot.sent if t]) == 1
     text1 = bot.sent[-1][1].lower()
-    assert "время" in text1 or "обработ" in text1 or "разбор" in text1
+    assert "сверя" in text1 or "комплект" in text1 or "получил" in text1
     assert "следующ" not in text1
     assert "как получить" not in text1
-    assert "трудов" not in text1 or "обработ" in text1  # не howto про трудовую
+    assert "первичн" not in text1
+    assert "трудов" not in text1  # не howto про трудовую в ack
     flat = str(bot.attachments)
     assert "intake:docs:ils_howto" not in flat
     assert "intake:docs:stazh" not in flat
@@ -79,9 +80,10 @@ def test_processing_ack_text_is_calm() -> None:
     text = bg.processing_ack_text(count=3)
     low = text.lower()
     assert "получил" in low or "сохран" in low
-    assert "время" in low or "обработ" in low
+    assert "сверя" in low or "комплект" in low
     assert "напиш" in low or "сообще" in low
     assert "следующ" not in low
+    assert "первичн" not in low
     assert "pdf" not in low
     assert "docx" not in low
 

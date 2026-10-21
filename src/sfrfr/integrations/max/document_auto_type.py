@@ -34,6 +34,9 @@ _NAME_HINTS: list[tuple[tuple[str, ...], str]] = [
     (("справк", "spravk"), TYPE_SPRAVKA),
 ]
 
+# «ТК» как отдельный токен в имени файла (ТК_Иванов.docx, ТК Лопакова…).
+_TK_NAME_RE = re.compile(r"(^|[^0-9a-zа-яё])тк([^0-9a-zа-яё]|$)", re.IGNORECASE)
+
 _TEXT_HINTS: list[tuple[tuple[str, ...], str]] = [
     (
         (
@@ -48,8 +51,10 @@ _TEXT_HINTS: list[tuple[tuple[str, ...], str]] = [
     (
         (
             "трудовая книжка",
+            "трудовой книжки",
             "сведения о трудовой деятельности",
             "сведения о работе",
+            "запись в трудовой",
         ),
         TYPE_WORKBOOK,
     ),
@@ -92,9 +97,15 @@ def _match_hints(haystack: str, hints: list[tuple[tuple[str, ...], str]]) -> str
     return None
 
 
+def _normalize_ru(value: str) -> str:
+    return (value or "").lower().replace("ё", "е")
+
+
 def guess_document_type(*, filename: str, text: str = "") -> GuessedDocument:
     """Сначала содержимое (сильнее), потом имя файла. Чек не возвращаем."""
-    clean_text = re.sub(r"\[ocr_(?:error|empty)[^\]]*\]", "", text or "", flags=re.I).lower()
+    clean_text = _normalize_ru(
+        re.sub(r"\[ocr_(?:error|empty)[^\]]*\]", "", text or "", flags=re.I)
+    )
     if clean_text.strip():
         hit = _match_hints(clean_text, _TEXT_HINTS)
         if hit:
@@ -110,15 +121,17 @@ def guess_document_type(*, filename: str, text: str = "") -> GuessedDocument:
                 return GuessedDocument(mapped, float(result.confidence))
         except Exception:  # noqa: BLE001 — классификатор не должен ронять приём файла
             pass
-    name = (filename or "").lower()
+    name = _normalize_ru(filename or "")
     hit = _match_hints(name, _NAME_HINTS)
     if hit:
         return GuessedDocument(hit, 0.65)
+    if _TK_NAME_RE.search(name):
+        return GuessedDocument(TYPE_WORKBOOK, 0.7)
     return GuessedDocument(TYPE_OTHER, 0.2)
 
 
 def guess_from_bytes(*, filename: str, data: bytes) -> GuessedDocument:
-    """OCR по байтам (best-effort) + имя файла. Ошибки OCR не роняют приём."""
+    """Текст/OCR по байтам (best-effort) + имя файла. Ошибки не роняют приём."""
     text = ""
     if data:
         try:
