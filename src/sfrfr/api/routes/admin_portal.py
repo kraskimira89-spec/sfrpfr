@@ -203,12 +203,23 @@ def _sales_column(case: dict[str, Any], work: dict[str, Any] | None) -> str:
     )
 
 
+def _staff_full_text(raw: str, *, limit: int = 2000) -> str:
+    """Полный content_preview для staff: без клиентской обрезки 280, с абзацами."""
+    cleaned = (raw or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if cleaned.startswith("[ocr_"):
+        return ""
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "…"
+
+
 def _staff_documents(
     raw_docs: list[Any] | None,
     *,
     can_view_ocr: bool,
 ) -> list[dict[str, Any]]:
     """Таблица документов как у клиента; OCR-превью — только эксперт/админ."""
+    from sfrfr.api.routes.portal import _sanitize_content_preview
     from sfrfr.services.document_upload import is_document_downloadable
 
     by_id = {
@@ -228,6 +239,17 @@ def _staff_documents(
         item["has_local_file"] = bool(str(raw.get("local_path") or "").strip())
         if not can_view_ocr:
             item.pop("content_preview", None)
+            item.pop("content_summary", None)
+            continue
+        # Expert/admin: полный текст из БД + краткое описание отдельно.
+        # Клиентский _client_document уже обрезал preview до 280 — восстанавливаем.
+        full = _staff_full_text(str(raw.get("content_preview") or ""))
+        summary = _sanitize_content_preview(full, limit=280) if full else ""
+        item["content_preview"] = full or None
+        item["content_summary"] = summary or None
+        item["has_extracted_text"] = bool(full) or bool(
+            str(raw.get("ingest_artifact_path") or "").strip()
+        )
     return docs
 
 

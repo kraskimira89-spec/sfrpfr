@@ -1516,7 +1516,7 @@ def _ingest_max_file(
         return None
     cloud_pending = str(row.get("cloud_status") or "") == "pending"
     try:
-        body = format_document_event(filename=filename)
+        body = format_document_event(filename=filename, document_id=doc_id)
         if cloud_pending:
             body = f"{body} [нужна догрузка в облако]"
         append_case_chat_message(

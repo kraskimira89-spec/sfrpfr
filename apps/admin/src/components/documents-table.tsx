@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { dedupeCabinetDocuments } from "../lib/dedupe-cabinet-documents";
+import { groupCabinetDocumentsByChecksum } from "../lib/dedupe-cabinet-documents";
 
 export type CabinetDocument = {
   id: string;
@@ -11,7 +11,11 @@ export type CabinetDocument = {
   doc_type_label?: string | null;
   created_at?: string;
   filename?: string | null;
+  /** Полный извлечённый текст (до лимита БД). Не путать с кратким описанием. */
   content_preview?: string | null;
+  /** Короткий сниппет для подписи «Краткое описание». */
+  content_summary?: string | null;
+  has_extracted_text?: boolean | null;
   inner_date?: string | null;
   inner_title?: string | null;
   downloadable?: boolean | null;
@@ -72,6 +76,7 @@ function stateLabel(doc: CabinetDocument): string {
   if (status === "security_check" || status === "quarantine") return "проверка безопасности";
   if (needsTextReview(doc)) return "нужна проверка текста";
   if ((doc.content_preview || "").trim()) return "получен · текст есть";
+  if (doc.has_extracted_text) return "получен · текст в артефакте";
   if (doc.downloadable === false) return "ещё недоступен";
   return "получен";
 }
@@ -87,21 +92,33 @@ export function DocumentsTable({
   emptyHint = "Пока файлов нет — клиент ещё не загрузил документы.",
 }: Props) {
   const [textOpenId, setTextOpenId] = useState<string | null>(null);
+  const [dupOpenId, setDupOpenId] = useState<string | null>(null);
 
-  const unique = useMemo(() => dedupeCabinetDocuments(documents), [documents]);
-
-  const sorted = useMemo(() => {
-    const rows = [...unique];
-    rows.sort((a, b) => {
-      const at = a.created_at ? Date.parse(a.created_at) : 0;
-      const bt = b.created_at ? Date.parse(b.created_at) : 0;
-      return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
-    });
-    return rows;
-  }, [unique]);
+  const groups = useMemo(
+    () => groupCabinetDocumentsByChecksum(documents),
+    [documents],
+  );
+  const hiddenDupCount = documents.length - groups.length;
 
   function toggleText(docId: string) {
     setTextOpenId((cur) => (cur === docId ? null : docId));
+  }
+
+  function toggleDupHistory(docId: string) {
+    setDupOpenId((cur) => (cur === docId ? null : docId));
+  }
+
+  function formatWhen(iso?: string) {
+    if (!iso) return "—";
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return iso;
+    return new Date(t).toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   return (
@@ -109,12 +126,10 @@ export function DocumentsTable({
       <div className="docs-table-head">
         <h2>Документы в деле</h2>
         <p className="docs-count">
-          Всего: {unique.length}
-          {unique.length !== documents.length
-            ? ` · без дублей (было ${documents.length})`
-            : ""}
+          Всего: {groups.length}
+          {hiddenDupCount > 0 ? ` · точных дублей скрыто в истории: ${hiddenDupCount}` : ""}
           {" · "}
-          Оригинал — preview PDF; Скачать — отдельно; Текст — извлечённый preview
+          Оригинал — preview PDF; Скачать — attachment; Текст — полный extract
         </p>
       </div>
       <div className="docs-table-scroll">
@@ -130,10 +145,20 @@ export function DocumentsTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((doc, index) => {
+            {groups.map((group, index) => {
+              const doc = group.primary;
+              const dupOpen = dupOpenId === doc.id;
               const typeLabel =
                 (doc.doc_type_label || doc.inner_title || "Документ").trim() || "Документ";
-              const preview = (doc.content_preview || "").trim();
+              const fullText = (doc.content_preview || "").trim();
+              const summary = (doc.content_summary || "").trim();
+              const hasFullText = Boolean(fullText);
+              const textMissingHonest = !hasFullText
+                ? doc.has_extracted_text
+                  ? "полный текст в артефакте ingest — preview в карточке пуст"
+                  : "текст ещё не извлечён"
+                : null;
+              const reviewReason = (doc.progress_message || "").trim();
               const av = (doc.antivirus_status || "").toLowerCase();
               const unverified = AV_UNVERIFIED.has(av);
               const openOk = canOpenOriginal(doc);
@@ -141,6 +166,17 @@ export function DocumentsTable({
               const word = isDocx(doc);
               const openMode = word || !pdf ? "download" : "open";
               const textOpen = textOpenId === doc.id;
+
+              function openTextReview() {
+                setTextOpenId(doc.id);
+                if (openOk) onOpen(doc.id, openMode);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById(`doc-text-${doc.id}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                });
+              }
+
               return (
                 <tr key={doc.id} id={textOpen ? `doc-text-${doc.id}` : undefined}>
                   <td className="docs-table-num">{index + 1}</td>
@@ -149,6 +185,53 @@ export function DocumentsTable({
                       <strong>{typeLabel}</strong>
                     </div>
                     <div className="hint">{shortName(doc)}</div>
+                    {group.duplicates.length > 0 ? (
+                      <div style={{ marginTop: "0.25rem" }}>
+                        <button
+                          type="button"
+                          className="linkish"
+                          disabled={busy}
+                          onClick={() => toggleDupHistory(doc.id)}
+                          aria-expanded={dupOpen}
+                        >
+                          {dupOpen
+                            ? "Скрыть историю повторов"
+                            : `Точный дубль · ещё ${group.duplicates.length}`}
+                        </button>
+                        {dupOpen ? (
+                          <ul className="hint" style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem" }}>
+                            {group.duplicates.map((dup) => (
+                              <li key={dup.id}>
+                                {shortName(dup)} · {formatWhen(dup.created_at)}
+                                {canOpenOriginal(dup) ? (
+                                  <>
+                                    {" · "}
+                                    <button
+                                      type="button"
+                                      className="linkish"
+                                      disabled={busy}
+                                      onClick={() =>
+                                        onOpen(
+                                          dup.id,
+                                          isPdfDoc(dup) ? "open" : "download",
+                                        )
+                                      }
+                                    >
+                                      открыть
+                                    </button>
+                                  </>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {summary ? (
+                      <p className="hint" style={{ margin: "0.25rem 0 0" }}>
+                        <strong>Краткое описание.</strong> {summary}
+                      </p>
+                    ) : null}
                     {unverified ? (
                       <p className="hint warning-inline" style={{ margin: "0.25rem 0 0" }}>
                         ⚠ Проверка антивирусом не завершена — файл не считается безопасным
@@ -165,22 +248,14 @@ export function DocumentsTable({
                       <button
                         type="button"
                         className="linkish"
-                        disabled={busy || !preview}
+                        disabled={busy}
                         title={
-                          preview
-                            ? "Открыть извлечённый текст для проверки"
+                          hasFullText || openOk
+                            ? "Открыть оригинал и полный текст для проверки"
                             : "Текст ещё не извлечён"
                         }
                         aria-label={`Проверить текст: ${shortName(doc)}`}
-                        onClick={() => {
-                          if (!preview) return;
-                          toggleText(doc.id);
-                          requestAnimationFrame(() => {
-                            document
-                              .getElementById(`doc-text-${doc.id}`)
-                              ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                          });
-                        }}
+                        onClick={() => openTextReview()}
                       >
                         Проверить текст
                       </button>
@@ -201,7 +276,7 @@ export function DocumentsTable({
                               : word
                                 ? "Скачать Word"
                                 : pdf
-                                  ? "Открыть PDF в новой вкладке"
+                                  ? "Открыть PDF в новой вкладке (inline)"
                                   : "Открыть оригинал"
                           }
                           aria-label={`Оригинал: ${shortName(doc)}`}
@@ -214,14 +289,14 @@ export function DocumentsTable({
                             type="button"
                             className="linkish"
                             disabled={busy}
-                            title="Скачать PDF"
+                            title="Скачать PDF (attachment)"
                             aria-label={`Скачать: ${shortName(doc)}`}
                             onClick={() => onOpen(doc.id, "download")}
                           >
                             Скачать
                           </button>
                         ) : null}
-                        {preview ? (
+                        {hasFullText ? (
                           <button
                             type="button"
                             className="linkish"
@@ -232,8 +307,8 @@ export function DocumentsTable({
                             {textOpen ? "Скрыть текст" : "Текст"}
                           </button>
                         ) : (
-                          <span className="hint" title="Нет извлечённого preview">
-                            Текст недоступен
+                          <span className="hint" title={textMissingHonest || "Нет извлечённого текста"}>
+                            {textMissingHonest || "Текст недоступен"}
                           </span>
                         )}
                       </span>
@@ -242,24 +317,37 @@ export function DocumentsTable({
                         {AV_BLOCKED.has(av) ? "Заблокирован антивирусом" : "Файл ещё недоступен"}
                       </span>
                     )}
-                    {textOpen && preview ? (
-                      <pre
-                        className="draft"
-                        style={{
-                          marginTop: "0.5rem",
-                          maxHeight: "12rem",
-                          overflow: "auto",
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {preview.length > 4000 ? `${preview.slice(0, 4000)}…` : preview}
-                      </pre>
+                    {textOpen ? (
+                      <div className="docs-text-panel" style={{ marginTop: "0.5rem" }}>
+                        {reviewReason ? (
+                          <p className="hint" style={{ margin: "0 0 0.35rem" }}>
+                            Причина проверки: {reviewReason}
+                          </p>
+                        ) : null}
+                        {hasFullText ? (
+                          <pre
+                            className="draft"
+                            style={{
+                              margin: 0,
+                              maxHeight: "16rem",
+                              overflow: "auto",
+                              whiteSpace: "pre-wrap",
+                            }}
+                          >
+                            {fullText}
+                          </pre>
+                        ) : (
+                          <p className="hint" style={{ margin: 0 }}>
+                            {textMissingHonest || "Полный текст отсутствует — краткое описание вместо текста не показываем."}
+                          </p>
+                        )}
+                      </div>
                     ) : null}
                   </td>
                 </tr>
               );
             })}
-            {sorted.length === 0 ? (
+            {groups.length === 0 ? (
               <tr>
                 <td colSpan={4} className="hint">
                   {emptyHint}
