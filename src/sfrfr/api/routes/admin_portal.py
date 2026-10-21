@@ -356,6 +356,17 @@ def _filter_staff_case(
         base["document_check"] = get_case_document_check(str(case["id"]))
     except Exception:  # noqa: BLE001
         base["document_check"] = None
+    try:
+        from sfrfr.services.case_work_route import build_case_work_route
+
+        base["work_route"] = build_case_work_route(
+            documents=list(base.get("documents") or []),
+            document_check=base.get("document_check"),
+            findings=list(base.get("findings") or []),
+            draft=base.get("draft") if isinstance(base.get("draft"), dict) else None,
+        )
+    except Exception:  # noqa: BLE001
+        base["work_route"] = None
     return base
 
 

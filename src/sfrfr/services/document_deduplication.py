@@ -116,10 +116,6 @@ def accept_case_document_bytes(
     checksum = sha256_hex(data)
     size_bytes = len(data)
 
-    barrier = getattr(store, "after_hash_lookup_barrier", None) or _test_after_hash_lookup
-    if barrier is not None:
-        barrier.wait()
-
     canonical = store.find_canonical(case_id=case_id, checksum=checksum, size_bytes=size_bytes)
     if canonical is not None:
         doc_id = str(canonical["id"])
@@ -152,6 +148,11 @@ def accept_case_document_bytes(
             job_id="",
             row=dict(canonical),
         )
+
+    # После lookup «нет канона», до claim/insert — точка гонки для тестов (без lock).
+    barrier = getattr(store, "after_hash_lookup_barrier", None) or _test_after_hash_lookup
+    if barrier is not None:
+        barrier.wait()
 
     document_id = str(uuid4())
     claimed = store.claim_canonical(

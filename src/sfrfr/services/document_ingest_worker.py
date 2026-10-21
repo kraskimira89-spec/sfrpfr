@@ -61,12 +61,25 @@ def create_quarantine_document(
     client_declared_signed: bool = False,
     scenario_rows: list[Any] | None = None,
     allow_local_fallback: bool = False,
+    event_id: str | None = None,
+    attachment_id: str | None = None,
 ) -> dict[str, Any]:
     """Сохранить оригинал в quarantine и поставить job, не запуская OCR в запросе.
 
     При ``allow_local_fallback`` (канал MAX): если Storage/БД падают, но локальная
     копия уже записана — вернуть row с ``cloud_status=pending`` вместо исключения.
+
+    Exact-dupe (SHA-256 + size) до OCR: без второй permanent-копии и без нового job.
     """
+    from sfrfr.services.document_deduplication import (
+        canonical_original_available,
+        claim_case_checksum,
+        find_canonical_by_checksum,
+        lookup_upload_event,
+        record_upload_event,
+        restore_canonical_bytes,
+    )
+
     allow_signed = (doc_type or "").strip().lower() in {
         "client_signed_application",
         "client_signed_appeal",
@@ -80,8 +93,90 @@ def create_quarantine_document(
     if not security.ok:
         raise ValueError(security.client_message or "Файл не прошёл проверку.")
     checksum = sha256_hex(data)
-    duplicate = find_duplicate_checksum(case_id, checksum)
+    size_bytes = len(data)
+
+    replay_doc_id = lookup_upload_event(
+        case_id=case_id, event_id=event_id, attachment_id=attachment_id
+    )
+    if replay_doc_id:
+        return {
+            "id": replay_doc_id,
+            "case_id": case_id,
+            "checksum_sha256": checksum,
+            "deduped": True,
+            "replayed": True,
+            "job_id": "",
+            "cloud_status": "ok",
+        }
+
+    existing = find_canonical_by_checksum(
+        case_id=case_id, checksum=checksum, size_bytes=size_bytes
+    )
+    if existing is not None:
+        canon_id = str(existing["id"])
+        if canonical_original_available(existing):
+            record_upload_event(
+                case_id=case_id,
+                document_id=canon_id,
+                event_id=event_id,
+                attachment_id=attachment_id,
+                filename=filename,
+            )
+            return {
+                **existing,
+                "deduped": True,
+                "job_id": "",
+                "cloud_status": "ok",
+            }
+        restore_canonical_bytes(
+            case_id=case_id,
+            document_id=canon_id,
+            filename=filename,
+            data=data,
+            checksum=checksum,
+            row=existing,
+        )
+        record_upload_event(
+            case_id=case_id,
+            document_id=canon_id,
+            event_id=event_id,
+            attachment_id=attachment_id,
+            filename=filename,
+        )
+        return {
+            **existing,
+            "deduped": True,
+            "restored": True,
+            "job_id": "",
+            "cloud_status": "ok",
+        }
+
     document_id = str(uuid4())
+    claimed = claim_case_checksum(
+        case_id=case_id,
+        checksum=checksum,
+        size_bytes=size_bytes,
+        document_id=document_id,
+    )
+    if claimed != document_id:
+        record_upload_event(
+            case_id=case_id,
+            document_id=claimed,
+            event_id=event_id,
+            attachment_id=attachment_id,
+            filename=filename,
+        )
+        raced = find_canonical_by_checksum(
+            case_id=case_id, checksum=checksum, size_bytes=size_bytes
+        ) or {"id": claimed, "case_id": case_id, "checksum_sha256": checksum}
+        return {
+            **raced,
+            "deduped": True,
+            "job_id": "",
+            "cloud_status": "ok",
+        }
+
+    duplicate = find_duplicate_checksum(case_id, checksum)
     safe_name = Path(filename or "document").name
     group_id = document_group_id
     if document_group_id or page_index is not None:
@@ -206,6 +301,13 @@ def create_quarantine_document(
             doc_type=doc_type,
             document_id=document_id,
         )
+    record_upload_event(
+        case_id=case_id,
+        document_id=document_id,
+        event_id=event_id,
+        attachment_id=attachment_id,
+        filename=safe_name,
+    )
     return {**saved, "job_id": job_id, "cloud_status": "ok"}
 
 
