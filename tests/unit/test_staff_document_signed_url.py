@@ -11,7 +11,11 @@ from fastapi import HTTPException
 
 from sfrfr.api.routes import portal as portal_routes
 from sfrfr.security.auth import Principal, StaffRole
-from sfrfr.services.document_upload import is_document_downloadable
+from sfrfr.services.document_upload import (
+    is_document_downloadable,
+    is_staff_av_unverified,
+    staff_av_block_reason,
+)
 from sfrfr.services.local_doc_download import reset_for_tests
 
 
@@ -23,6 +27,36 @@ def test_av_error_blocks_client_allows_staff() -> None:
     }
     assert is_document_downloadable(row) is False
     assert is_document_downloadable(row, allow_staff_preview=True) is True
+    assert is_staff_av_unverified(row) is True
+
+
+def test_staff_av_allowlist_unknown_blocks() -> None:
+    """Неизвестный AV-статус — не «всё кроме infected», а явный deny."""
+    row = {
+        "ingest_status": "manual_review",
+        "antivirus_status": "weird_vendor_code",
+        "local_path": "quarantine/x/y.pdf",
+    }
+    assert is_document_downloadable(row) is False
+    assert is_document_downloadable(row, allow_staff_preview=True) is False
+    assert staff_av_block_reason(row) is not None
+
+
+def test_staff_av_allowlist_empty_blocks() -> None:
+    row = {
+        "ingest_status": "manual_review",
+        "antivirus_status": "",
+        "local_path": "quarantine/x/y.pdf",
+    }
+    assert is_document_downloadable(row, allow_staff_preview=True) is False
+    assert staff_av_block_reason(row)
+
+
+def test_staff_av_pending_is_unverified_not_clean() -> None:
+    row = {"ingest_status": "security_check", "antivirus_status": "pending"}
+    assert is_document_downloadable(row, allow_staff_preview=True) is True
+    assert is_staff_av_unverified(row) is True
+    assert is_document_downloadable(row) is False
 
 
 def test_create_signed_url_staff_local_av_error(
@@ -81,6 +115,11 @@ def test_create_signed_url_staff_local_av_error(
     out = portal_routes.create_document_signed_url(case_id, doc_id, staff)
     assert "/api/portal/tmp-docs/" in out.url
     assert "response-content-disposition=inline" in out.url or "download=" in out.url
+    assert out.staff_preview is True
+    assert out.av_unverified is True
+    assert out.warning and "не завершена" in out.warning.lower()
+    # Не переводим файл в clean — статус в БД не трогаем (мок не update).
+    sb.table.return_value.update.assert_not_called()
 
     token = out.url.split("/tmp-docs/")[1].split("?")[0]
     resp = portal_routes.download_tmp_local_document(token)
@@ -119,3 +158,37 @@ def test_create_signed_url_infected_still_403(
     with pytest.raises(HTTPException) as exc:
         portal_routes.create_document_signed_url(case_id, doc_id, staff)
     assert exc.value.status_code == 403
+
+
+def test_create_signed_url_unknown_av_403_staff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_for_tests()
+    case_id = "c1"
+    doc_id = "d1"
+    row = {
+        "id": doc_id,
+        "storage_path": "quarantine/c1/d1/a.pdf",
+        "local_path": "quarantine/c1/a.pdf",
+        "ingest_status": "manual_review",
+        "mime_verified": "application/pdf",
+        "doc_type": "ils",
+        "antivirus_status": "scanner_timeout_xyz",
+    }
+    repo = MagicMock()
+    repo.require_case.return_value = {"id": case_id}
+    monkeypatch.setattr(portal_routes, "_repo", lambda: repo)
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.eq.return_value
+    chain.limit.return_value.execute.return_value = SimpleNamespace(data=[row])
+    monkeypatch.setattr(portal_routes, "get_supabase_client", lambda: sb)
+    monkeypatch.setattr(
+        portal_routes.CaseRepository,
+        "_one_or_none",
+        staticmethod(lambda resp: (resp.data or [None])[0]),
+    )
+    staff = Principal(user_id="s", email="s@t", role=StaffRole.EXPERT)
+    with pytest.raises(HTTPException) as exc:
+        portal_routes.create_document_signed_url(case_id, doc_id, staff)
+    assert exc.value.status_code == 403
+    assert "not allowed" in str(exc.value.detail).lower()
