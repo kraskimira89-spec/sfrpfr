@@ -42,14 +42,25 @@ def test_staff_av_allowlist_unknown_blocks() -> None:
     assert staff_av_block_reason(row) is not None
 
 
-def test_staff_av_allowlist_empty_blocks() -> None:
+def test_staff_av_allowlist_empty_as_not_configured() -> None:
+    """Пустой/отсутствующий AV для staff-preview = not_configured (в allowlist)."""
     row = {
         "ingest_status": "manual_review",
         "antivirus_status": "",
         "local_path": "quarantine/x/y.pdf",
     }
-    assert is_document_downloadable(row, allow_staff_preview=True) is False
-    assert staff_av_block_reason(row)
+    assert staff_av_block_reason(row) is None
+    assert is_document_downloadable(row, allow_staff_preview=True) is True
+    # Клиентский путь без staff_preview — без ослабления (как раньше).
+    assert is_document_downloadable(row) is is_document_downloadable(
+        {**row, "antivirus_status": "not_configured"}
+    )
+    missing = {
+        "ingest_status": "manual_review",
+        "local_path": "quarantine/x/y.pdf",
+    }
+    assert staff_av_block_reason(missing) is None
+    assert is_document_downloadable(missing, allow_staff_preview=True) is True
 
 
 def test_staff_av_pending_is_unverified_not_clean() -> None:

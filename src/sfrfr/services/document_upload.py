@@ -288,10 +288,12 @@ def is_staff_av_unverified(row: dict[str, Any]) -> bool:
 
 
 def staff_av_block_reason(row: dict[str, Any]) -> str | None:
-    """Причина блокировки staff-preview по AV; None если allowlist пропускает."""
-    av = _norm_av(row)
-    if not av:
-        return "antivirus status missing"
+    """Причина блокировки staff-preview по AV; None если allowlist пропускает.
+
+    Пустой/отсутствующий antivirus_status = not_configured (в allowlist).
+    Неизвестный непустой статус и infected/malicious — блок.
+    """
+    av = _norm_av(row) or "not_configured"
     if av in {"infected", "malicious"}:
         return "document blocked by antivirus"
     if av not in _STAFF_AV_ALLOWLIST:
@@ -311,7 +313,7 @@ def is_document_downloadable(
         return False
 
     if allow_staff_preview:
-        # Неизвестный / пустой AV — блок (явный allowlist, не deny-list).
+        # Явный allowlist; пустой AV = not_configured. Неизвестный непустой — блок.
         if staff_av_block_reason(row) is not None:
             return False
         if status in _STAFF_PREVIEW_INGEST:
@@ -330,7 +332,7 @@ def is_document_downloadable(
         }
         return status not in blocked_ingest
 
-    # Клиент: error/pending/unknown — запрет.
+    # Клиент: error/pending/unknown — запрет. Пустой AV без ослабления (как раньше).
     if av and av not in _CLIENT_AV_OK:
         return False
     if allow_local_pending and status == "needs_reupload" and str(
