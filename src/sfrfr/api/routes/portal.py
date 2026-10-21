@@ -2015,14 +2015,22 @@ def create_document_signed_url(
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
     allow_local = bool(principal.is_staff)
-    if not is_document_downloadable(row, allow_local_pending=allow_local):
+    if not is_document_downloadable(
+        row,
+        allow_local_pending=allow_local,
+        allow_staff_preview=allow_local,
+    ):
         raise HTTPException(status_code=403, detail="document not available yet")
 
     expires_in = SIGNED_URL_TTL_SECONDS
     storage_path = str(row["storage_path"] or "")
     local_rel = str(row.get("local_path") or "").strip()
+    ingest_status = str(row.get("ingest_status") or "")
     use_local = storage_path.startswith("local-pending/") or (
-        allow_local and str(row.get("ingest_status") or "") == "needs_reupload"
+        allow_local
+        and bool(local_rel)
+        and ingest_status
+        in {"needs_reupload", "security_check", "quarantine", "manual_review"}
     )
     raw_url = ""
     if not use_local:
@@ -2073,15 +2081,20 @@ def create_document_signed_url(
 @router.get("/tmp-docs/{token}")
 def download_tmp_local_document(token: str) -> FileResponse:
     """Одноразовая по времени ссылка на локальный quarantine-файл (без ПДн в токене)."""
+    import mimetypes
+
     from sfrfr.services.local_doc_download import take_local_download
 
     entry = take_local_download(token)
     if entry is None or not entry.path.is_file():
         raise HTTPException(status_code=404, detail="link expired or missing")
+    media = mimetypes.guess_type(entry.filename)[0] or "application/octet-stream"
+    inline = media.startswith("application/pdf") or media.startswith("image/")
     return FileResponse(
         path=entry.path,
         filename=entry.filename,
-        media_type="application/octet-stream",
+        media_type=media,
+        content_disposition_type="inline" if inline else "attachment",
     )
 
 

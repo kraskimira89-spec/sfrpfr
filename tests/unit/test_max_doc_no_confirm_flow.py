@@ -112,6 +112,54 @@ def test_final_complete_proposes_analysis_without_promises() -> None:
     assert "перерасчёт будет" not in text.lower()
 
 
+def test_final_dedupes_checksum_and_nameless_typed() -> None:
+    text, complete = bg.build_final_message(
+        [
+            {
+                "id": "1",
+                "doc_type": "ils",
+                "checksum_sha256": "aaa",
+                "storage_path": "x/document.pdf",
+                "filename": "document.pdf",
+            },
+            {
+                "id": "2",
+                "doc_type": "ils",
+                "checksum_sha256": "aaa",
+                "storage_path": "x/document(1).pdf",
+                "filename": "document(1).pdf",
+            },
+            {
+                "id": "3",
+                "doc_type": "workbook",
+                "checksum_sha256": "bbb",
+                "storage_path": "x/file.docx",
+                "filename": "file.docx",
+            },
+        ]
+    )
+    assert complete is True
+    low = text.lower()
+    assert low.count("выписка о стаже") == 1
+    assert low.count("трудовая книжка") == 1
+    assert "— выписка о стаже" in low
+    assert "— трудовая книжка" in low
+    assert "document(1)" not in low
+
+
+def test_guess_docx_workbook_from_text() -> None:
+    from docx import Document
+
+    from sfrfr.integrations.max.document_auto_type import guess_from_bytes
+
+    doc = Document()
+    doc.add_paragraph("Трудовая книжка. Сведения о работе.")
+    buf = __import__("io").BytesIO()
+    doc.save(buf)
+    guess = guess_from_bytes(filename="scan.docx", data=buf.getvalue())
+    assert guess.doc_type == "workbook"
+
+
 def test_done_button_incomplete_and_complete(tmp_path, monkeypatch) -> None:
     scheduled: list = []
     bot = _upload(tmp_path, monkeypatch, scheduled)

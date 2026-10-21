@@ -156,7 +156,18 @@ def _clear_quiet_case(case_id: str) -> None:
 
 def _deliver_settle_notify(*, case_id: str, max_user_id: str) -> None:
     try:
+        from sfrfr.services.case_chat_context import (
+            fetch_recent_case_messages,
+            staff_dialog_active,
+        )
         from sfrfr.services.case_chat_delivery import enqueue_max_delivery
+
+        history = fetch_recent_case_messages(case_id)
+        if staff_dialog_active(history):
+            logger.info(
+                "settle notify skipped staff_active case=%s", str(case_id)[:8]
+            )
+            return
 
         body, _complete = final_message_for_case(case_id)
         enqueue_max_delivery(
@@ -212,16 +223,60 @@ def _bucket(doc: dict[str, Any]) -> str:
         return "other"
 
 
+_NAMELESS_STEMS = frozenset(
+    {
+        "document",
+        "file",
+        "scan",
+        "скан",
+        "файл",
+        "документ",
+        "image",
+        "img",
+        "photo",
+        "фото",
+    }
+)
+
+
 def _human_name(doc: dict[str, Any]) -> str:
+    """Строка для списка: «— тип»; безымянные — только тип, без сырого имени файла."""
     dtype = str(doc.get("doc_type") or "").strip().lower()
-    if dtype in _HUMAN_BY_TYPE:
-        return _HUMAN_BY_TYPE[dtype]
-    raw = str(doc.get("storage_path") or doc.get("filename") or "файл")
-    return Path(raw).stem.replace("_", " ").strip() or "файл"
+    label = _HUMAN_BY_TYPE.get(dtype) or CLIENT_LABELS_RU.get(dtype) or "другой документ"
+    raw = str(doc.get("filename") or doc.get("storage_path") or "").strip()
+    stem = Path(raw).stem.replace("_", " ").strip().lower() if raw else ""
+    if not stem or stem in _NAMELESS_STEMS or stem.startswith("document"):
+        return label
+    # Имя файла совпадает с типом или бесполезно — оставляем тип.
+    if label.lower() in stem or stem in label.lower():
+        return label
+    return label
+
+
+def _dedupe_documents(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Один файл на checksum (или id); дубликаты перезагрузок не показываем."""
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    # Свежие сверху — оставляем первый встреченный ключ.
+    ordered = sorted(
+        documents,
+        key=lambda d: str(d.get("created_at") or ""),
+        reverse=True,
+    )
+    for doc in ordered:
+        key = str(doc.get("checksum_sha256") or "").strip() or str(doc.get("id") or "").strip()
+        if not key:
+            key = f"path:{doc.get('storage_path') or doc.get('filename') or id(doc)}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(doc)
+    out.reverse()
+    return out
 
 
 def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
-    docs = [d for d in documents if isinstance(d, dict)]
+    docs = _dedupe_documents([d for d in documents if isinstance(d, dict)])
     have = {_bucket(d) for d in docs}
     lines = [
         "Первичный разбор готов.",
@@ -229,7 +284,16 @@ def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
         "Мы приняли документы:",
     ]
     if docs:
-        lines += [f"— {_human_name(d)}" for d in docs]
+        # Уникальные подписи типов (без дублей строк).
+        labels: list[str] = []
+        seen_labels: set[str] = set()
+        for d in docs:
+            name = _human_name(d)
+            if name in seen_labels:
+                continue
+            seen_labels.add(name)
+            labels.append(name)
+        lines += [f"— {name}" for name in labels]
     else:
         lines.append("— пока файлов в деле нет")
     missing = [code for code in ("ils", "labor") if code not in have]

@@ -9,6 +9,7 @@ from sfrfr.core.config import get_settings
 
 _TEXT_SUFFIXES = {".txt", ".md", ".csv"}
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+_DOCX_SUFFIXES = {".docx"}
 
 
 def extract_text(path: Path | str) -> str:
@@ -27,11 +28,33 @@ def extract_text(path: Path | str) -> str:
     if suffix in _IMAGE_SUFFIXES:
         return _extract_image(file_path)
 
+    if suffix in _DOCX_SUFFIXES:
+        return _extract_docx(file_path)
+
     # неизвестный тип — пробуем как текст
     try:
         return file_path.read_text(encoding="utf-8", errors="ignore").strip()
     except OSError:
         return f"[ocr_error] неподдерживаемый тип: {suffix or 'unknown'}"
+
+
+def _extract_docx(path: Path) -> str:
+    try:
+        from docx import Document
+    except ImportError:
+        return "[ocr_error] python-docx не установлен"
+
+    try:
+        document = Document(str(path))
+        parts = [p.text.strip() for p in document.paragraphs if p.text and p.text.strip()]
+        for table in document.tables:
+            for row in table.rows:
+                cells = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
+                if cells:
+                    parts.append(" ".join(cells))
+        return "\n".join(parts).strip() or "[ocr_empty] docx без текста"
+    except Exception as exc:  # noqa: BLE001
+        return f"[ocr_error] docx: {exc}"
 
 
 def extract_texts(paths: Sequence[Path | str]) -> list[str]:

@@ -12,6 +12,8 @@ export type CabinetDocument = {
   content_preview?: string | null;
   inner_date?: string | null;
   inner_title?: string | null;
+  downloadable?: boolean | null;
+  ingest_status?: string | null;
 };
 
 type SortKey = "created_at" | "filename" | "inner_date" | "inner_title";
@@ -129,19 +131,20 @@ export function DocumentsTable({
   }
 
   const columns: { key: SortKey; label: string }[] = [
-    { key: "inner_date", label: "Дата документа" },
-    { key: "inner_title", label: "Название документа" },
-    { key: "created_at", label: "Дата загрузки" },
+    { key: "inner_title", label: "Тип / название" },
+    { key: "created_at", label: "Загружен" },
     { key: "filename", label: "Файл" },
   ];
 
   return (
     <div className="docs-table-wrap" id="docs-table">
       <div className="docs-table-head">
-        <h2>Загруженные документы</h2>
+        <h2>Документы в деле</h2>
         <p className="docs-count">
           Всего: {documents.length}
           {filtered.length !== documents.length ? ` · показано: ${filtered.length}` : ""}
+          {" · "}
+          откройте файл кнопкой «Открыть» — кабинет сотрудника достаточно
         </p>
       </div>
       <div className="docs-table-scroll">
@@ -180,31 +183,43 @@ export function DocumentsTable({
                   </label>
                 </th>
               ))}
+              <th scope="col">Действие</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((doc, index) => (
-              <tr key={doc.id}>
-                <td className="docs-table-num">{index + 1}</td>
-                {columns.map((col) => (
-                  <td key={col.key}>
-                    {col.key === "filename" ? (
-                      <button
-                        type="button"
-                        className="linkish"
-                        title="Скачать файл"
-                        aria-label={`Скачать файл: ${cellValue(doc, "filename")}`}
-                        onClick={() => onOpen(doc.id)}
-                      >
-                        {cellValue(doc, "filename")}
-                      </button>
-                    ) : (
-                      cellValue(doc, col.key)
-                    )}
+            {sorted.map((doc, index) => {
+              const typeLabel =
+                (doc.doc_type_label || doc.inner_title || "Документ").trim() || "Документ";
+              const preview = (doc.content_preview || "").trim();
+              const canOpen = doc.downloadable !== false;
+              return (
+                <tr key={doc.id}>
+                  <td className="docs-table-num">{index + 1}</td>
+                  <td>
+                    <div>{typeLabel}</div>
+                    {preview ? (
+                      <p className="hint" style={{ margin: "0.25rem 0 0", maxWidth: "28rem" }}>
+                        {preview.length > 160 ? `${preview.slice(0, 160)}…` : preview}
+                      </p>
+                    ) : null}
                   </td>
-                ))}
-              </tr>
-            ))}
+                  <td>{cellValue(doc, "created_at")}</td>
+                  <td>{cellValue(doc, "filename")}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={busy || !canOpen}
+                      title={canOpen ? "Открыть в новой вкладке" : "Файл ещё недоступен"}
+                      aria-label={`Открыть: ${cellValue(doc, "filename")}`}
+                      onClick={() => onOpen(doc.id)}
+                    >
+                      Открыть
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={5} className="hint">

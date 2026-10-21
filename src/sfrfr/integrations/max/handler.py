@@ -3309,19 +3309,20 @@ def _handle_client_free_text(
         case_id=case_id,
         exclude_message_id=exclude_message_id,
     )
-    _reply(
-        bot,
-        user_id=user_id,
-        chat_id=chat_id,
-        text=reply,
-        attachments=attachments,
-        case_id=case_id,
-    )
+    if reply:
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=reply,
+            attachments=attachments,
+            case_id=case_id,
+        )
     return MaxHandleResult(
         ok=True,
         action=action,
         case_id=case_id,
-        reply=reply,
+        reply=reply or None,
     )
 
 
