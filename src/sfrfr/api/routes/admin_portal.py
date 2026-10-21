@@ -350,6 +350,12 @@ def _filter_staff_case(
         base["analysis_notes"] = (pipeline or {}).get("analysis_notes")
         base["draft"] = (pipeline or {}).get("draft")
         base["classifications"] = (pipeline or {}).get("classifications") or []
+    try:
+        from sfrfr.services.staff_document_check import get_case_document_check
+
+        base["document_check"] = get_case_document_check(str(case["id"]))
+    except Exception:  # noqa: BLE001
+        base["document_check"] = None
     return base
 
 
@@ -1204,7 +1210,41 @@ def request_review(
     case_id: str,
     principal: Principal = Depends(require_staff),
 ) -> dict:
-    """Оператор/эксперт: запросить проверку (единая семантика с client run, ТЗ-09)."""
+    """Staff: реальная проверка документов (очередь), не только статус/audit."""
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    from sfrfr.services.staff_document_check import enqueue_staff_document_check
+
+    queued = enqueue_staff_document_check(
+        case_id=case_id, actor_id=principal.user_id
+    )
+    # Статус дела — побочно, без выдачи старых findings за результат проверки.
+    pipeline: dict[str, Any] = {}
+    try:
+        pipeline = repo.request_pipeline_run(case_id, principal.user_id)
+    except HTTPException as exc:
+        if exc.status_code != 400:
+            raise
+        pipeline = {
+            "ok": False,
+            "message": str(exc.detail),
+            "pipeline_status": None,
+        }
+    return {
+        "ok": True,
+        "message": queued.get("message") or "Проверка запущена.",
+        "document_check": queued,
+        "pipeline_status": pipeline.get("pipeline_status"),
+        # Явно не прокидываем findings/analysis_notes/draft как «результат проверки».
+    }
+
+
+@router.post("/admin/cases/{case_id}/request-pipeline")
+def request_pipeline(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict:
+    """Только статус/audit пайплайна (проект обращения) — без docs-check job."""
     repo = _repo()
     repo.require_case(principal, case_id)
     return repo.request_pipeline_run(case_id, principal.user_id)

@@ -164,6 +164,29 @@ type StaffCaseDetail = {
   ils_periods?: unknown[];
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
+  document_check?: {
+    job_id?: string;
+    status?: string;
+    status_label?: string;
+    stale?: boolean;
+    current_stage?: string | null;
+    last_error?: string | null;
+    result?: {
+      documents_checked?: number;
+      originals_available?: number;
+      text_extracted?: number;
+      needs_recognition?: number;
+      needs_manual_review?: number;
+      types_found?: string[];
+      exact_duplicate_groups?: number;
+      missing_for_task?: string[];
+      missing_explanations?: string[];
+      next_action?: string;
+      ocr_allowed?: boolean;
+      legal_analysis_ran?: boolean;
+      status?: string;
+    } | null;
+  } | null;
   channels: {
     cabinet_url: string;
     staff_cabinet_url?: string | null;
@@ -796,8 +819,36 @@ export function AdminCabinet() {
 
   async function requestReview() {
     if (!token || !detail) return;
-    await apiFetch(`/api/portal/admin/cases/${detail.id}/request-review`, token, { method: "POST" });
-    setNotice("Проверка запрошена.");
+    setBusy(true);
+    try {
+      const res = await apiFetch<{
+        message?: string;
+        document_check?: { status?: string; deduped?: boolean };
+      }>(`/api/portal/admin/cases/${detail.id}/request-review`, token, { method: "POST" });
+      const deduped = Boolean(res.document_check?.deduped);
+      setNotice(
+        deduped
+          ? "Проверка уже выполняется для текущего набора."
+          : res.message || "Проверка запущена.",
+      );
+      await openCase(detail.id);
+      // Дождаться фона: один короткий poll без спама.
+      window.setTimeout(() => {
+        void openCase(detail.id);
+      }, 2500);
+    } catch {
+      setNotice("Не удалось запустить проверку документов.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestPipeline() {
+    if (!token || !detail) return;
+    await apiFetch(`/api/portal/admin/cases/${detail.id}/request-pipeline`, token, {
+      method: "POST",
+    });
+    setNotice("Запрос проекта / статуса пайплайна отправлен.");
     await openCase(detail.id);
   }
 
@@ -2030,6 +2081,7 @@ export function AdminCabinet() {
               })
             }
             onRequestReview={() => void requestReview()}
+            onRequestPipeline={() => void requestPipeline()}
             onCreateTelemost={() => void createTelemost()}
             onSendEmail={() => void sendWorkspaceEmail()}
             onOpenTrackerModal={() => {

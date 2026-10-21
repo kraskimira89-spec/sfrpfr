@@ -99,6 +99,29 @@ type Detail = {
   ils_periods?: unknown[];
   labor_periods?: unknown[];
   draft?: { title?: string; body?: string } | null;
+  document_check?: {
+    job_id?: string;
+    status?: string;
+    status_label?: string;
+    stale?: boolean;
+    current_stage?: string | null;
+    last_error?: string | null;
+    result?: {
+      documents_checked?: number;
+      originals_available?: number;
+      text_extracted?: number;
+      needs_recognition?: number;
+      needs_manual_review?: number;
+      types_found?: string[];
+      exact_duplicate_groups?: number;
+      missing_for_task?: string[];
+      missing_explanations?: string[];
+      next_action?: string;
+      ocr_allowed?: boolean;
+      legal_analysis_ran?: boolean;
+      status?: string;
+    } | null;
+  } | null;
   channels: {
     cabinet_url: string;
     max_ops_bot_url?: string | null;
@@ -174,6 +197,71 @@ function StageMark({ state }: { state: FunnelStageState }) {
   if (state === "waiting") return <span className="funnel-mark funnel-mark--waiting">…</span>;
   if (state === "blocked") return <span className="funnel-mark funnel-mark--blocked">✕</span>;
   return <span className="funnel-mark">○</span>;
+}
+
+function DocumentCheckPanel({
+  check,
+}: {
+  check: NonNullable<Detail["document_check"]> | null | undefined;
+}) {
+  if (!check) {
+    return (
+      <p className="hint">Результат проверки появится после «Проверить документы».</p>
+    );
+  }
+  const r = check.result;
+  return (
+    <div className="document-check-result">
+      <p>
+        Статус проверки: <strong>{check.status_label || check.status}</strong>
+        {check.stale ? (
+          <span className="hint"> · устарел: набор документов изменился — запустите снова</span>
+        ) : null}
+      </p>
+      {check.status === "queued" || check.status === "running" ? (
+        <p className="hint">Этап: {check.current_stage || check.status}</p>
+      ) : null}
+      {check.last_error ? <p className="hint">Ошибка: {check.last_error}</p> : null}
+      {r ? (
+        <>
+          <ul className="plain-list">
+            <li>Оригиналы доступны: {r.originals_available ?? 0}</li>
+            <li>Текст извлечён: {r.text_extracted ?? 0}</li>
+            <li>Требуют распознавания: {r.needs_recognition ?? 0}</li>
+            <li>Требуют ручной проверки: {r.needs_manual_review ?? 0}</li>
+            <li>
+              Полученные типы:{" "}
+              {(r.types_found ?? []).length > 0 ? (r.types_found ?? []).join(", ") : "—"}
+            </li>
+            {(r.exact_duplicate_groups ?? 0) > 0 ? (
+              <li>Точных дублей (групп): {r.exact_duplicate_groups}</li>
+            ) : null}
+          </ul>
+          {(r.missing_explanations ?? []).length > 0 ? (
+            <>
+              <h4 className="case-subhead">Недостающие</h4>
+              <ul className="plain-list">
+                {(r.missing_explanations ?? []).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          <p>
+            <strong>Следующее действие:</strong> {r.next_action || "—"}
+          </p>
+          {!r.ocr_allowed && (r.needs_recognition ?? 0) > 0 ? (
+            <p className="hint">
+              OCR по сканам не разрешён конфигом — это не «успешно завершено» для этих файлов.
+            </p>
+          ) : null}
+          {r.legal_analysis_ran ? null : (
+            <p className="hint">Юридический анализ ИИ в этой проверке не запускался.</p>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 function StageShell({
@@ -269,6 +357,7 @@ export function CaseFunnelMain({
   onFocusMax,
   onOpenFinance,
   onRequestReview,
+  onRequestPipeline,
   onCreateTelemost,
   onSendEmail,
   onOpenTrackerModal,
@@ -349,6 +438,8 @@ export function CaseFunnelMain({
   /** Переход на вкладку Финансы по этому делу (счета, не этап pipeline). */
   onOpenFinance?: () => void;
   onRequestReview: () => void;
+  /** Только статус пайплайна / проект — без docs-check job. */
+  onRequestPipeline?: () => void;
   onCreateTelemost: () => void;
   onSendEmail: () => void;
   onOpenTrackerModal: () => void;
@@ -1020,17 +1111,23 @@ export function CaseFunnelMain({
           <div className="row-actions">
             <button
               type="button"
-              disabled={busy || !funnel.docsRequiredOk || (!canAct("documents") && !canAct("diagnostics"))}
+              disabled={
+                busy ||
+                detail.documents.length === 0 ||
+                (!canAct("documents") && !canAct("diagnostics"))
+              }
               onClick={onRequestReview}
               title={
-                funnel.docsRequiredOk
-                  ? "Запустить проверку"
-                  : `Для диагностики не хватает: ${funnel.missingDocs.join(", ")}`
+                detail.documents.length === 0
+                  ? "Нет документов в деле"
+                  : "Запустить проверку доступности, текста, типов и комплекта"
               }
             >
               Проверить документы
             </button>
           </div>
+          <h3 className="case-subhead">Результат проверки</h3>
+          <DocumentCheckPanel check={detail.document_check} />
         </StageShell>
 
         {caps.can_view_ocr ? (
@@ -1050,21 +1147,26 @@ export function CaseFunnelMain({
             <div className="row-actions">
               <button
                 type="button"
-                disabled={busy || !funnel.docsRequiredOk || !canAct("diagnostics")}
+                disabled={busy || detail.documents.length === 0 || !canAct("diagnostics")}
                 onClick={onRequestReview}
                 title={
-                  funnel.docsRequiredOk
-                    ? "Запустить проверку"
-                    : `Для диагностики не хватает: ${funnel.missingDocs.join(", ")}`
+                  detail.documents.length === 0
+                    ? "Нет документов в деле"
+                    : "Запустить проверку доступности, текста, типов и комплекта"
                 }
               >
                 Проверить документы
               </button>
             </div>
-            <h3 className="case-subhead">Замечания / расхождения</h3>
+            <h3 className="case-subhead">Результат проверки</h3>
+            <DocumentCheckPanel check={detail.document_check} />
+            <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
+            <p className="hint">
+              Не результат новой проверки документов — только старые findings, если были.
+            </p>
             <ul className="plain-list">
               {(detail.findings ?? []).length === 0 && (
-                <li className="hint">Пока нет — запустите проверку</li>
+                <li className="hint">Нет сохранённых замечаний пайплайна</li>
               )}
               {(detail.findings ?? []).map((f, idx) => (
                 <li key={`${f.type}-${idx}`}>
@@ -1072,12 +1174,12 @@ export function CaseFunnelMain({
                 </li>
               ))}
             </ul>
-            <h3 className="case-subhead">Помощь в анализе</h3>
-            <p className="hint">Сформировано ИИ, требует проверки</p>
+            <h3 className="case-subhead">Помощь в анализе (пайплайн)</h3>
+            <p className="hint">Сформировано ИИ ранее, не подменяется новой проверкой комплекта</p>
             {detail.analysis_notes ? (
               <pre className="draft">{detail.analysis_notes}</pre>
             ) : (
-              <p className="hint">Появится после проверки.</p>
+              <p className="hint">Нет сохранённых notes пайплайна.</p>
             )}
             <h3 className="case-subhead">PDF результата клиенту</h3>
             <p className="hint">
@@ -1205,7 +1307,7 @@ export function CaseFunnelMain({
             <button
               type="button"
               disabled={busy || !caps.can_view_ocr || !canAct("plan")}
-              onClick={onRequestReview}
+              onClick={() => (onRequestPipeline ? onRequestPipeline() : onRequestReview())}
               title={stageById.plan.reason}
             >
               Сформировать / обновить проект
