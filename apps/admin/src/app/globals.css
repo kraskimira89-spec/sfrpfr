@@ -1314,6 +1314,30 @@ button.badge--clickable:hover {
   align-items: center;
   gap: 0.35rem 0.85rem;
 }
+.case-work-route {
+  margin-top: 1rem;
+}
+.case-work-steps {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+.case-work-step {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.case-work-step:last-child {
+  border-bottom: 0;
+}
+.case-work-step--done {
+  opacity: 0.85;
+}
+.case-work-step--upcoming {
+  opacity: 0.65;
+}
+.case-tech-journal {
+  margin-top: 0.75rem;
+}
 .docs-actions .linkish {
   display: inline;
 }
