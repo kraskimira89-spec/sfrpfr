@@ -172,6 +172,7 @@ def _facts_review_step(
     docs_step: dict[str, Any],
     check_result: dict[str, Any] | None,
     findings: list[dict[str, Any]],
+    specialist_questions: list[str] | None = None,
 ) -> dict[str, Any]:
     if docs_step["status"] != "done":
         return {
@@ -186,13 +187,20 @@ def _facts_review_step(
             "needs_specialist": False,
         }
     missing = list((check_result or {}).get("missing_for_task") or [])
+    questions = [q for q in (specialist_questions or []) if q]
     finding_n = len(findings)
-    if missing or finding_n:
+    pending_n = len(questions) if questions else finding_n
+    if missing or pending_n:
         parts = []
-        if finding_n:
-            parts.append(f"замечаний пайплайна: {finding_n}")
+        if pending_n:
+            parts.append(f"требуют сверки: {pending_n}")
         if missing:
             parts.append("не хватает: " + "; ".join(missing[:4]))
+        blocker = questions[0] if questions else (
+            f"Сверьте {pending_n} фрагмент(ов)."
+            if pending_n
+            else "Уточните недостающие сведения."
+        )
         return {
             "id": "facts_review",
             "title": "Сверка сведений",
@@ -205,12 +213,9 @@ def _facts_review_step(
                 "method": "UI",
                 "path_suffix": None,
             },
-            "blocker_reason": (
-                f"Сверьте {finding_n} фрагмент(ов)."
-                if finding_n
-                else "Уточните недостающие сведения."
-            ),
+            "blocker_reason": blocker,
             "needs_specialist": True,
+            "specialist_questions": questions[:8],
         }
     return {
         "id": "facts_review",
