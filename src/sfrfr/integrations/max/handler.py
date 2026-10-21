@@ -3188,7 +3188,7 @@ def _handle_marketing_consent(
     case_id = _case_id_for_max_user(user_id)
     client_id: str | None = None
     try:
-        from sfrfr.db.supabase_client import get_supabase_client
+        from sfrfr.db.session import get_supabase_client
 
         row = (
             get_supabase_client()

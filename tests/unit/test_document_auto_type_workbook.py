@@ -49,6 +49,31 @@ def test_docx_table_header_workbook() -> None:
     assert guess.doc_type == "workbook"
 
 
+def test_set_document_type_uses_session_client(monkeypatch) -> None:
+    """Регрессия: модуль supabase_client не существует — тип не сохранялся."""
+    from sfrfr.integrations.max import document_type_flow as dtf
+
+    calls: list[str] = []
+
+    class _Fake:
+        def table(self, name: str) -> _Fake:
+            calls.append(name)
+            return self
+
+        def update(self, *_a, **_k) -> _Fake:
+            return self
+
+        def eq(self, *_a, **_k) -> _Fake:
+            return self
+
+        def execute(self) -> object:
+            return type("R", (), {"data": []})()
+
+    monkeypatch.setattr("sfrfr.db.session.get_supabase_client", lambda: _Fake())
+    assert dtf.set_document_type(document_id="doc-1", doc_type="workbook") is True
+    assert calls == ["documents"]
+
+
 def test_settle_treats_workbook_not_missing_labor() -> None:
     from sfrfr.integrations.max import document_background as bg
 

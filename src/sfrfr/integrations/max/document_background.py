@@ -360,7 +360,7 @@ def _persist_preview(document_id: str, text: str) -> None:
     if not preview or preview.startswith("[ocr_"):
         return
     try:
-        from sfrfr.db.supabase_client import get_supabase_client
+        from sfrfr.db.session import get_supabase_client
 
         get_supabase_client().table("documents").update(
             {"content_preview": preview[:2000]}
