@@ -640,10 +640,23 @@ def process_next_document_ingest_job() -> dict[str, Any] | None:
     return process_document_ingest_job(str(jobs[0]["id"]))
 
 
+def process_next_queued_job() -> dict[str, Any] | None:
+    """Сначала staff docs check, затем обычный ingest (один job за тик)."""
+    try:
+        from sfrfr.services.staff_document_check import process_next_staff_document_check_job
+
+        staff = process_next_staff_document_check_job()
+        if staff is not None:
+            return staff
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("staff_docs_check poll skipped: %s", type(exc).__name__)
+    return process_next_document_ingest_job()
+
+
 def run_worker(*, once: bool = False, poll_seconds: float = 3.0) -> None:
     """Цикл одного процесса без параллельной обработки тяжёлых OCR-задач."""
     while True:
-        result = process_next_document_ingest_job()
+        result = process_next_queued_job()
         if once or result is not None:
             if once:
                 return

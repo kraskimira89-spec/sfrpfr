@@ -153,6 +153,14 @@ EXPECTED: tuple[Migration, ...] = (
             ("column", "clients", "cookie_consent_invalidated_at"),
         ),
     ),
+    Migration(
+        "20261021120000",
+        "staff_document_check_jobs",
+        (
+            ("table", "staff_document_check_jobs"),
+            ("index", "staff_document_check_jobs_active_fp_uidx"),
+        ),
+    ),
 )
 
 _CHECK_SQL = {
