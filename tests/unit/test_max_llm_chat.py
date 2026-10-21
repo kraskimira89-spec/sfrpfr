@@ -75,3 +75,34 @@ def test_reply_fallback_when_llm_disabled(monkeypatch) -> None:
     assert "кнопк" in text.lower() or "удобнее" in text.lower() or "проверк" in text.lower()
     assert kb
     get_settings.cache_clear()
+
+
+def test_reply_defers_when_staff_recently_active(monkeypatch) -> None:
+    from datetime import UTC, datetime
+
+    monkeypatch.setenv("MAX_LLM_CHAT_ENABLED", "1")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    def _fake_history(_cid: str, **_k):
+        return [
+            {
+                "author_kind": "staff",
+                "body": "Добрый день, смотрю ваше дело",
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        ]
+
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        _fake_history,
+    )
+    text, _kb, action = reply_to_free_text(
+        user_text="и что дальше?",
+        intake=None,
+        case_id="12345678-1234-1234-1234-123456789012",
+    )
+    assert action == "max_llm_staff_active"
+    assert "специалист" in text.lower()
+    get_settings.cache_clear()
