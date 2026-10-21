@@ -399,7 +399,12 @@ def analyze_document_background(
                 "doc_type not saved doc=%s type=%s", doc_id[:8], doc_type
             )
         _persist_preview(doc_id, text)
-        dtf.append_type_journal(case_id=case_id, filename=filename, doc_type=doc_type)
+        dtf.append_type_journal(
+            case_id=case_id,
+            filename=filename,
+            doc_type=doc_type,
+            document_id=doc_id,
+        )
         return doc_type
     except Exception as exc:  # noqa: BLE001
         logger.warning("doc analyze failed doc=%s: %s", doc_id[:8], exc)

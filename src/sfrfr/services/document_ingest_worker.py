@@ -493,7 +493,10 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                     )
 
                     append_type_journal(
-                        case_id=case_id, filename=filename, doc_type=str(effective_doc_type)
+                        case_id=case_id,
+                        filename=filename,
+                        doc_type=str(effective_doc_type),
+                        document_id=document_id,
                     )
                 except Exception:  # noqa: BLE001
                     logger.debug("background doc_type journal skipped", exc_info=True)

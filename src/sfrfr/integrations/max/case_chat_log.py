@@ -250,14 +250,25 @@ def keyboard_button_labels(attachments: list[dict[str, Any]] | None) -> list[str
     return [x for x in labels if x]
 
 
-def format_document_event(*, filename: str, doc_type: str | None = None) -> str:
+def format_document_event(
+    *,
+    filename: str,
+    doc_type: str | None = None,
+    document_id: str | None = None,
+) -> str:
+    """Строка журнала. ``doc_id=<uuid>`` — связь со штатным signed-url (не по имени)."""
     name = (filename or "файл").strip() or "файл"
     raw_type = (doc_type or "").strip()
     if not raw_type:
-        return f"[Документ] {name}"
-    from sfrfr.integrations.max.document_type_flow import journal_type_label
+        body = f"[Документ] {name}"
+    else:
+        from sfrfr.integrations.max.document_type_flow import journal_type_label
 
-    return f"[Документ] {name} · {journal_type_label(raw_type)}"
+        body = f"[Документ] {name} · {journal_type_label(raw_type)}"
+    did = str(document_id or "").strip()
+    if did:
+        body = f"{body} · doc_id={did}"
+    return body
 
 
 def _insert_case_message(

@@ -247,6 +247,7 @@ def append_type_journal(
     filename: str,
     doc_type: str,
     confirmed: bool = False,
+    document_id: str | None = None,
 ) -> None:
     from sfrfr.integrations.max.case_chat_log import (
         append_case_chat_message,
@@ -256,17 +257,22 @@ def append_type_journal(
     cid = str(case_id or "").strip()
     if not cid:
         return
+    did = str(document_id or "").strip() or None
     if confirmed:
         name = (filename or "файл").strip() or "файл"
         body = f"[Документ] {name} · Клиент подтвердил: {journal_type_label(doc_type)}"
+        if did:
+            body = f"{body} · doc_id={did}"
     else:
-        body = format_document_event(filename=filename, doc_type=doc_type)
-    # Дедуп: не писать тот же [Документ] filename+type повторно (classify + ingest).
+        body = format_document_event(
+            filename=filename, doc_type=doc_type, document_id=did
+        )
+    # Дедуп по document_id (не по имени — разные байты с одним именем не сливать).
     try:
         from sfrfr.db.session import get_supabase_client
 
         needle = body.split("\n", 1)[0].strip().lower()
-        name_key = (filename or "файл").strip().lower()
+        token = f"doc_id={did}".lower() if did else None
         recent = (
             get_supabase_client()
             .table("case_messages")
@@ -282,7 +288,9 @@ def append_type_journal(
             prev = str(row.get("body") or "").split("\n", 1)[0].strip().lower()
             if not prev.startswith("[документ] "):
                 continue
-            if prev == needle or name_key in prev:
+            if token and token in prev:
+                return
+            if not token and prev == needle:
                 return
     except Exception:  # noqa: BLE001
         pass
@@ -345,7 +353,11 @@ def handle(
             "специалист уточнит по файлу."
         )
     append_type_journal(
-        case_id=case_id, filename=filename, doc_type=doc_type, confirmed=confirmed
+        case_id=case_id,
+        filename=filename,
+        doc_type=doc_type,
+        confirmed=confirmed,
+        document_id=doc_id,
     )
     try:
         clear_pending(rec)

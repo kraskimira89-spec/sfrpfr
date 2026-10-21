@@ -16,15 +16,24 @@ export type CaseChatMessage = {
 type ChatFilter = "all" | "staff" | "client" | "system";
 
 const BUTTONS_RE = /\n\n\[Кнопки бота: ([^\]]+)\]\s*$/;
+/** Связь журнала с documents.id — открывать только по id, не по имени файла. */
+const DOC_ID_RE = /\s·\sdoc_id=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*$/i;
 
 function splitBody(body: string): {
   text: string;
   buttons: string[];
   isDocument: boolean;
   qrUrl: string | null;
+  documentId: string | null;
 } {
   const isDocument = body.startsWith("[Документ] ");
   let text = body.replace(/^\[\[internal\]\]\s*/i, "");
+  let documentId: string | null = null;
+  const docIdMatch = text.match(DOC_ID_RE);
+  if (docIdMatch) {
+    documentId = docIdMatch[1] || null;
+    text = text.replace(DOC_ID_RE, "").trimEnd();
+  }
   let qrUrl: string | null = null;
   const qrMatch = text.match(/\nQR:\s*(https?:\/\/\S+)/);
   if (qrMatch) {
@@ -32,12 +41,13 @@ function splitBody(body: string): {
     text = text.replace(qrMatch[0], "").trimEnd();
   }
   const match = text.match(BUTTONS_RE);
-  if (!match) return { text, buttons: [], isDocument, qrUrl };
+  if (!match) return { text, buttons: [], isDocument, qrUrl, documentId };
   return {
     text: text.slice(0, match.index).trimEnd(),
     buttons: match[1].split(" · ").map((x) => x.trim()).filter(Boolean),
     isDocument,
     qrUrl,
+    documentId,
   };
 }
 
@@ -188,6 +198,32 @@ function buildFeed(messages: CaseChatMessage[], filter: ChatFilter): FeedItem[] 
   return out;
 }
 
+function renderDocLine(
+  parsed: ReturnType<typeof splitBody>,
+  onOpenDocument: ((documentId: string) => void) | undefined,
+  busy: boolean | undefined,
+): ReactNode {
+  const label = linkify(parsed.text);
+  if (!parsed.isDocument) return <p>{label}</p>;
+  if (parsed.documentId && onOpenDocument) {
+    return (
+      <p className="case-chat-doc">
+        {label}{" "}
+        <button
+          type="button"
+          className="linkish"
+          disabled={busy}
+          onClick={() => onOpenDocument(parsed.documentId!)}
+        >
+          Открыть файл
+        </button>
+      </p>
+    );
+  }
+  // Старые события без doc_id — только текст, без открытия «по имени».
+  return <p className="case-chat-doc">{label}</p>;
+}
+
 export function CaseChatPanel({
   messages,
   clientName = null,
@@ -204,6 +240,7 @@ export function CaseChatPanel({
   onSuggest,
   composerHighlight = false,
   waitingOn = null,
+  onOpenDocument,
 }: {
   messages: CaseChatMessage[];
   /** ФИО клиента в шапке чата. */
@@ -230,6 +267,8 @@ export function CaseChatPanel({
   /** @deprecated marketing consent UI убран из чата. */
   onRequestMarketingConsent?: () => void;
   waitingOn?: string | null;
+  /** Staff signed-url по document_id (не по имени файла). */
+  onOpenDocument?: (documentId: string) => void;
 }) {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const lastBubbleRef = useRef<HTMLLIElement | null>(null);
@@ -424,7 +463,7 @@ export function CaseChatPanel({
                           const parsed = splitBody(m.body);
                           return (
                             <div key={m.id} className="case-chat-chunk">
-                              <p className="case-chat-doc">{linkify(parsed.text)}</p>
+                              {renderDocLine(parsed, onOpenDocument, busy)}
                             </div>
                           );
                         })
@@ -455,11 +494,7 @@ export function CaseChatPanel({
                     const parsed = splitBody(m.body);
                     return (
                       <div key={m.id} className="case-chat-chunk">
-                        {parsed.isDocument ? (
-                          <p className="case-chat-doc">{linkify(parsed.text)}</p>
-                        ) : (
-                          <p>{linkify(parsed.text)}</p>
-                        )}
+                        {renderDocLine(parsed, onOpenDocument, busy)}
                         {parsed.qrUrl ? (
                           <img
                             className="pay-qr case-chat-qr"

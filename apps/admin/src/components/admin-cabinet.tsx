@@ -140,6 +140,16 @@ type StaffCaseDetail = {
     inner_date?: string | null;
     inner_title?: string | null;
     content_preview?: string | null;
+    content_summary?: string | null;
+    has_extracted_text?: boolean | null;
+    checksum_sha256?: string | null;
+    downloadable?: boolean | null;
+    antivirus_status?: string | null;
+    mime_verified?: string | null;
+    ingest_status?: string | null;
+    ingest_review_required?: boolean | null;
+    progress_message?: string | null;
+    has_local_file?: boolean | null;
   }[];
   checklist_items: {
     id: string;
@@ -2077,6 +2087,7 @@ export function AdminCabinet() {
             onSuggest={() => void suggestReplies()}
             composerHighlight={composerFlash || maxReplyFocus}
             waitingOn={waitingOn}
+            onOpenDocument={(docId) => void openSigned(docId, "open")}
           />
           {trackerModalOpen && detail ? (
             <div className="dup-dialog-backdrop" role="dialog" aria-modal="true">

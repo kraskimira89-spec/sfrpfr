@@ -1969,7 +1969,11 @@ async def upload_case_document(
         append_case_chat_message(
             case_id=case_id,
             author_kind="staff" if principal.is_staff else "client",
-            body=format_document_event(filename=filename, doc_type=doc_type),
+            body=format_document_event(
+                filename=filename,
+                doc_type=doc_type,
+                document_id=document_id or None,
+            ),
             channel_origin="admin" if principal.is_staff else "cabinet",
         )
     except Exception as exc:  # noqa: BLE001

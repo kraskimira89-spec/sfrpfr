@@ -62,6 +62,19 @@ def test_format_document_event() -> None:
     )
 
 
+def test_format_document_event_includes_document_id() -> None:
+    doc_id = "538c5910-f2ac-4e29-bea8-7be3a62de30e"
+    body = format_document_event(
+        filename="ils.pdf",
+        doc_type="ils",
+        document_id=doc_id,
+    )
+    assert body.startswith("[Документ] ils.pdf · Выписка ИЛС")
+    assert f"doc_id={doc_id}" in body
+    # Без id — старый формат, UI не должен открывать чужой файл по имени.
+    assert "doc_id=" not in format_document_event(filename="ils.pdf", doc_type="ils")
+
+
 def test_pending_buffer_flush() -> None:
     from unittest.mock import patch
 
