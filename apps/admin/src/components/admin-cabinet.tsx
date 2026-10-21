@@ -1530,10 +1530,9 @@ export function AdminCabinet() {
           return;
         }
       }
-      const preferDownload = mode === "download" || signed.inline === false;
-      if (preferDownload) {
-        // Cross-origin download attribute игнорируется — опираемся на
-        // Content-Disposition: attachment с tmp-docs / Storage.
+      // Явное скачивание — через <a>; preview (mode=open) — всегда новая вкладка.
+      // Content-Disposition: inline/attachment задаёт бэкенд (?as_attachment).
+      if (mode === "download") {
         const link = document.createElement("a");
         link.href = signed.url;
         link.rel = "noopener noreferrer";

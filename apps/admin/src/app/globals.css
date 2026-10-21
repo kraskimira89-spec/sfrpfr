@@ -1308,6 +1308,18 @@ button.badge--clickable:hover {
   width: 3rem;
   white-space: nowrap;
 }
+.docs-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.85rem;
+}
+.docs-actions .linkish {
+  display: inline;
+}
+.docs-actions .hint {
+  white-space: nowrap;
+}
 .docs-sort-btn {
   display: inline-flex;
   align-items: center;
