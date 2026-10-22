@@ -37,10 +37,23 @@ _RECEIPT_HINTS = (
     "юmoney",
     "юмани",
 )
+# Ждём чек только после отправки счёта клиенту — не на draft/invoice_ready/голый pending.
 _AWAITING_INVOICE = frozenset(
-    {"invoice_ready", "invoice_sent", "awaiting_payment", "partially_paid"}
+    {"invoice_sent", "awaiting_payment", "partially_paid"}
 )
-_AWAITING_STATUS = frozenset({"pending", "awaiting_payment"})
+# Документы комплекта: даже при «квитанц»/шуме OCR не считаем фискальным чеком.
+_NOT_RECEIPT_DOC_HINTS = (
+    "трудовая книжка",
+    "трудовой книжки",
+    "сведения о трудовой",
+    "сведения о работе",
+    "запись в трудовой",
+    "индивидуального лицевого",
+    "сзи-илс",
+    "состоянии индивидуального",
+    "страхового стажа",
+    "индивидуальном лицевом",
+)
 
 
 def digits_only(value: str) -> str:
@@ -51,14 +64,27 @@ def _norm(text: str) -> str:
     return (text or "").lower().replace("ё", "е")
 
 
+def looks_like_case_document_not_receipt(text: str) -> bool:
+    """ИЛС/трудовая/типовой комплект — не чек оплаты (gate после #151/#179)."""
+    lowered = _norm(text)
+    return any(hint in lowered for hint in _NOT_RECEIPT_DOC_HINTS)
+
+
 def looks_like_receipt(text: str) -> bool:
     if (text or "").startswith("[ocr_"):
         return False
     lowered = _norm(text)
     compact = digits_only(text)
-    if ORG_INN in compact or ORG_RS in compact or YOOKASSA_INN in compact:
-        return True
-    if ORG_NAME in lowered:
+    has_org = (
+        ORG_INN in compact
+        or ORG_RS in compact
+        or YOOKASSA_INN in compact
+        or ORG_NAME in lowered
+    )
+    # ИЛС/трудовая: не принимать слабые hints («квитанц») за чек; реквизиты ООО — ок.
+    if looks_like_case_document_not_receipt(text) and not has_org:
+        return False
+    if has_org:
         return True
     return any(hint in lowered for hint in _RECEIPT_HINTS)
 
@@ -100,16 +126,14 @@ def _is_unpaid(order: dict[str, Any]) -> bool:
 
 
 def _is_awaiting_client_receipt(order: dict[str, Any]) -> bool:
-    """Ждём чек только после явного счёта/оплаты, не на draft DIAG."""
+    """Ждём чек только после отправки счёта клиенту (не draft/invoice_ready/голый pending)."""
     status = str(order.get("status") or "").lower()
     inv = str(order.get("invoice_status") or "").lower()
     if status in _PAID | _CANCELLED:
         return False
-    if status == "draft" and inv in {"", "draft"}:
-        return False
     if inv in _AWAITING_INVOICE:
         return True
-    if status in _AWAITING_STATUS:
+    if status == "awaiting_payment":
         return True
     return False
 

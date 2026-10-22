@@ -92,6 +92,29 @@ def test_draft_order_does_not_await_receipt() -> None:
     )
 
 
+def test_invoice_ready_or_bare_pending_does_not_await_receipt() -> None:
+    """До отправки счёта клиенту чек не ждём (иначе ТК ловит mismatch-текст)."""
+    assert (
+        should_ask_for_receipt(
+            [
+                {
+                    "id": "o1",
+                    "status": "pending",
+                    "invoice_status": "invoice_ready",
+                    "amount_rub": 3000,
+                }
+            ]
+        )
+        is False
+    )
+    assert (
+        should_ask_for_receipt(
+            [{"id": "o1", "status": "pending", "invoice_status": "", "amount_rub": 3000}]
+        )
+        is False
+    )
+
+
 def test_invoice_sent_awaits_receipt() -> None:
     assert (
         should_ask_for_receipt(
@@ -106,6 +129,26 @@ def test_invoice_sent_awaits_receipt() -> None:
         )
         is True
     )
+
+
+def test_labor_book_not_receipt_even_with_kvitanciya_noise() -> None:
+    """Трудовая с шумом «квитанция» не считается фискальным чеком."""
+    text = (
+        "Трудовая книжка. Сведения о работе. Приём 12.03.1998. "
+        "Квитанция к приходному ордеру — вкладыш архива."
+    )
+    assert looks_like_receipt(text) is False
+    orders = [
+        {
+            "id": "o1",
+            "status": "pending",
+            "invoice_status": "invoice_sent",
+            "amount_rub": 3000,
+        }
+    ]
+    out = evaluate_receipt_text(text, orders)
+    assert out["status"] == "not_a_receipt"
+    assert out["client_message"] is None
 
 
 def test_strong_receipt_hints_still_match() -> None:
