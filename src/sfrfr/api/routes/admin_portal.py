@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -1228,16 +1229,27 @@ def update_checklist_item(
 @router.post("/admin/cases/{case_id}/request-review")
 def request_review(
     case_id: str,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_staff),
 ) -> dict:
-    """Staff: реальная проверка документов (очередь), не только статус/audit."""
+    """Staff: реальная проверка документов (очередь), не только статус/audit.
+
+    Ответ уходит сразу после enqueue; анализ — в BackgroundTasks после ответа
+    (или ingest-worker), чтобы OOM/долгий extract не рвал HTTP/CORS в браузере.
+    """
     repo = _repo()
     repo.require_case(principal, case_id)
-    from sfrfr.services.staff_document_check import enqueue_staff_document_check
+    from sfrfr.services.staff_document_check import (
+        enqueue_staff_document_check,
+        process_staff_document_check_job_safe,
+    )
 
     queued = enqueue_staff_document_check(
         case_id=case_id, actor_id=principal.user_id
     )
+    job_id = str(queued.get("job_id") or "").strip()
+    if job_id and not queued.get("deduped"):
+        background_tasks.add_task(process_staff_document_check_job_safe, job_id)
     # Статус дела — побочно, без выдачи старых findings за результат проверки.
     pipeline: dict[str, Any] = {}
     try:

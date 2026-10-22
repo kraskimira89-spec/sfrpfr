@@ -39,6 +39,7 @@ __all__ = [
     "next_staff_action",
     "process_next_staff_document_check_job",
     "process_staff_document_check_job",
+    "process_staff_document_check_job_safe",
     "summarize_for_staff",
 ]
 
@@ -262,7 +263,11 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
         CaseRepository().audit(cid, actor_id, "staff_document_check_requested")
     except Exception:  # noqa: BLE001
         pass
-    _schedule_process(job_id)
+    # Не стартуем анализ в процессе API здесь: daemon-thread на VPS (~2 GiB)
+    # OOM-убивал uvicorn до ответа → в браузере «Failed to fetch» /
+    # «Не удалось запустить проверку». Обработка — BackgroundTasks после
+    # ответа или poll ingest-worker (`process_next_staff_document_check_job`).
+    logger.info("staff_docs_check queued job=%s (deferred process)", job_id[:8])
     return {
         "ok": True,
         "job_id": job_id,
@@ -274,17 +279,16 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
     }
 
 
-def _schedule_process(job_id: str) -> None:
-    """Фон после HTTP — тот же job_id, без второго enqueue (воркер тоже подхватит)."""
-    import threading
-
-    def _run() -> None:
-        try:
-            process_staff_document_check_job(job_id)
-        except Exception:  # noqa: BLE001
-            logger.debug("staff_docs_check bg process deferred job=%s", job_id[:8])
-
-    threading.Thread(target=_run, name="staff-docs-check", daemon=True).start()
+def process_staff_document_check_job_safe(job_id: str) -> None:
+    """Обёртка для BackgroundTasks / воркера: исключения не роняют HTTP."""
+    try:
+        process_staff_document_check_job(job_id)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "staff_docs_check bg process failed job=%s",
+            str(job_id)[:8],
+            exc_info=True,
+        )
 
 
 def process_staff_document_check_job(job_id: str) -> dict[str, Any]:

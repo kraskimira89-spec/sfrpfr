@@ -869,8 +869,14 @@ export function AdminCabinet() {
       window.setTimeout(() => {
         void openCase(detail.id);
       }, 2500);
-    } catch {
-      setNotice("Не удалось запустить проверку документов.");
+    } catch (err) {
+      const detailMsg =
+        err instanceof Error && err.message.trim() ? err.message.trim() : "";
+      setNotice(
+        detailMsg
+          ? `Не удалось запустить проверку документов: ${detailMsg}`
+          : "Не удалось запустить проверку документов.",
+      );
     } finally {
       setBusy(false);
     }
