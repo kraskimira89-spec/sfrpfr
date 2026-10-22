@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from sfrfr.api.routes.payments import _return_url
 from sfrfr.integrations.payments import (
     YooKassaClient,
     check_fiscalization_alignment,
@@ -11,6 +14,7 @@ from sfrfr.integrations.payments.notify import (
     format_amocrm_payment_note,
     format_payment_succeeded_message,
 )
+from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, payment_description
 
 
 def test_parse_yookassa_event_extracts_metadata() -> None:
