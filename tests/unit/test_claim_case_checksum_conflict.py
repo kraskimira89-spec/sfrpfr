@@ -40,7 +40,7 @@ class _ChecksumTable:
         chain.execute.return_value = MagicMock(data=[payload])
         return chain
 
-    def select(self, *_cols: str) -> "_ChecksumSelect":
+    def select(self, *_cols: str) -> _ChecksumSelect:
         return _ChecksumSelect(self)
 
 
@@ -50,14 +50,14 @@ class _ChecksumSelect:
         self._case: str | None = None
         self._checksum: str | None = None
 
-    def eq(self, col: str, value: object) -> "_ChecksumSelect":
+    def eq(self, col: str, value: object) -> _ChecksumSelect:
         if col == "case_id":
             self._case = str(value)
         elif col == "checksum_sha256":
             self._checksum = str(value)
         return self
 
-    def limit(self, _n: int) -> "_ChecksumSelect":
+    def limit(self, _n: int) -> _ChecksumSelect:
         return self
 
     def execute(self) -> MagicMock:
@@ -71,18 +71,18 @@ class _ChecksumSelect:
 class _DocumentsTable:
     """Пустая documents: имитирует окно до insert победителя."""
 
-    def select(self, *_a: object, **_k: object) -> "_DocumentsSelect":
+    def select(self, *_a: object, **_k: object) -> _DocumentsSelect:
         return _DocumentsSelect()
 
 
 class _DocumentsSelect:
-    def eq(self, *_a: object, **_k: object) -> "_DocumentsSelect":
+    def eq(self, *_a: object, **_k: object) -> _DocumentsSelect:
         return self
 
-    def order(self, *_a: object, **_k: object) -> "_DocumentsSelect":
+    def order(self, *_a: object, **_k: object) -> _DocumentsSelect:
         return self
 
-    def limit(self, *_a: object, **_k: object) -> "_DocumentsSelect":
+    def limit(self, *_a: object, **_k: object) -> _DocumentsSelect:
         return self
 
     def execute(self) -> MagicMock:

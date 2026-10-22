@@ -190,7 +190,7 @@ def test_create_quarantine_parallel_identical_one_document(
         return f"job-{document_id}"
 
     class _OkStorage:
-        def from_(self, _bucket: str) -> "_OkStorage":
+        def from_(self, _bucket: str) -> _OkStorage:
             return self
 
         def upload(self, path: str, data: bytes, *_a: object, **_k: object) -> None:
