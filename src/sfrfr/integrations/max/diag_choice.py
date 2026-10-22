@@ -193,6 +193,42 @@ def _evaluate_for_rec(rec: MaxIntakeRecord) -> Any:
     return evaluate_diag_offer(**flags)
 
 
+def _diag_already_paid_text(case_id: str | None) -> str | None:
+    """Если DIAG уже оплачена — текст next step, без повторной продажи."""
+    cid = str(case_id or "").strip()
+    if not cid:
+        return None
+    try:
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.services.max_bot_invoice import (
+            _find_open_order,
+            _has_open_or_paid_diag,
+        )
+
+        orders = CaseRepository().list_orders(cid) or []
+        if not _has_open_or_paid_diag(orders):
+            return None
+        if _find_open_order(orders, tariff="DIAG") is not None:
+            return None
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        from sfrfr.services.client_case_status import reply_text, resolve_for_case
+
+        status = resolve_for_case(cid)
+        if status.kind == "no_docs":
+            return (
+                "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
+                "PDF или фото. Вопросы по делу пишите здесь."
+            )
+        return "Диагностика уже оплачена. " + reply_text(status)
+    except Exception:  # noqa: BLE001
+        return (
+            "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
+            "PDF или фото. Вопросы по делу пишите здесь."
+        )
+
+
 def _start_payment_flow(
     rec: MaxIntakeRecord,
     reply: Reply,
@@ -278,6 +314,12 @@ def handle(
         return "diag_detail_no", DETAIL_DECLINED_TEXT
 
     if pl == brief.DETAIL_YES:
+        paid = _diag_already_paid_text(case_id)
+        if paid:
+            clear_pending(rec)
+            reply(paid, None)
+            log_event("Soft-ask да, но диагностика уже оплачена")
+            return "diag_detail_yes_paid", paid
         # Heal brief (persist сбрасывает consent). Сам payload = soft-ask
         # уже был в ленте → gaps нельзя откатывать в no_discrepancy.
         brief.ensure_brief_flags_for_offer(rec, case_id=case_id)
