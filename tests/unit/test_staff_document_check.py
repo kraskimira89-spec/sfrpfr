@@ -215,6 +215,10 @@ def test_enqueue_does_not_process_inline(
     assert out["deduped"] is False
     assert out["status"] == "queued"
     mock_process.assert_not_called()
+    # Prod: documents.cloud_status нет → 42703 → UI «Failed to fetch».
+    select_cols = str(docs_t.select.call_args.args[0])
+    assert "cloud_status" not in select_cols
+    assert "checksum_sha256" in select_cols
 
 
 @patch("sfrfr.db.session.get_supabase_client")

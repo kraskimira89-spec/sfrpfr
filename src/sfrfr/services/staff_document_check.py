@@ -210,12 +210,11 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
     if not cid:
         raise ValueError("case_id required")
     client = get_supabase_client()
+    # Только поля fingerprint: id+checksum. Не тянуть cloud_status —
+    # колонки нет на prod → PostgREST 42703 → HTTP 500 без CORS → «Failed to fetch».
     docs = (
         client.table("documents")
-        .select(
-            "id, checksum_sha256, storage_path, doc_type, local_path, content_preview, "
-            "cloud_status, antivirus_status"
-        )
+        .select("id, checksum_sha256")
         .eq("case_id", cid)
         .order("created_at", desc=True)
         .execute()
