@@ -165,49 +165,45 @@ def send_pay_link_max(
         attachments.append({"type": "image", "payload": {"url": qr_url}})
     attachments.extend(inline_link_keyboard("Оплатить", pay_url))
     if case_id:
+        message_id: str | None = None
         try:
-            from sfrfr.db.session import get_supabase_client
+            from sfrfr.integrations.max.case_chat_log import append_case_chat_message
             from sfrfr.services.case_chat_delivery import (
                 enqueue_max_delivery,
                 process_pending_outbox,
             )
 
-            inserted = (
-                get_supabase_client()
-                .table("case_messages")
-                .insert(
-                    {
-                        "case_id": case_id,
-                        "author_kind": "system",
-                        "author_user_id": None,
-                        "body": text,
-                        "channel_origin": "bot",
-                    }
-                )
-                .execute()
+            # append_* устойчив к FK/дублям; сырой insert ломался на ON CONFLICT 42P10.
+            row = append_case_chat_message(
+                case_id=case_id,
+                max_user_id=max_user_id,
+                author_kind="system",
+                body=text,
+                channel_origin="bot",
             )
-            message_row = (inserted.data or [{}])[0]
-            message_id = str(message_row.get("id") or "").strip() or None
-            if not enqueue_max_delivery(
+            message_id = str((row or {}).get("id") or "").strip() or None
+            if enqueue_max_delivery(
                 case_id=case_id,
                 message_id=message_id,
                 max_user_id=max_user_id,
                 body=text,
                 attachments=attachments,
             ):
-                raise RuntimeError("case_chat_outbox_enqueue_failed")
-            process_pending_outbox(limit=5)
-        except Exception:  # noqa: BLE001
-            logger.exception(
-                "pay_link_case_message_failed case=%s",
+                process_pending_outbox(limit=5)
+                return
+            logger.warning(
+                "pay_link outbox enqueue failed case=%s; fallback direct MAX",
                 str(case_id)[:8],
             )
-            raise
-    else:
-        bot = MaxBotClient()
-        if not bot.available:
-            raise RuntimeError("max_bot_not_configured")
-        bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "pay_link_case_message_failed case=%s; fallback direct MAX",
+                str(case_id)[:8],
+            )
+    bot = MaxBotClient()
+    if not bot.available:
+        raise RuntimeError("max_bot_not_configured")
+    bot.send_message(text=text, user_id=max_user_id, attachments=attachments)
 
 
 class PayLinkError(Exception):
