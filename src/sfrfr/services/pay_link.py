@@ -87,7 +87,18 @@ def ensure_yookassa_pay_url(
         order.get("service_label"),
     )
     client_row = case.get("clients") or {}
+    if isinstance(client_row, list):
+        client_row = client_row[0] if client_row else {}
     email = str(client_row.get("email") or "").strip() or None
+    phone = str(client_row.get("phone") or "").strip() or None
+    settings = get_settings()
+    if settings.yookassa_send_receipt and not email and not phone:
+        return {
+            "ok": False,
+            "pay_url": existing,
+            "kind": "need_contact",
+            "error": "email or phone required for fiscal receipt (54-FZ)",
+        }
     meta = {
         "order_id": str(order.get("id") or ""),
         "case_id": str(order.get("case_id") or ""),
@@ -100,6 +111,7 @@ def ensure_yookassa_pay_url(
         metadata=meta,
         expires_at=_expires_iso(str(order.get("due_at") or "") or None),
         customer_email=email,
+        customer_phone=phone,
     )
     if invoice.get("ok") and invoice.get("pay_url"):
         return {
@@ -115,6 +127,7 @@ def ensure_yookassa_pay_url(
         return_url=return_url,
         metadata=meta,
         customer_email=email,
+        customer_phone=phone,
     )
     if payment.get("ok") and payment.get("confirmation_url"):
         return {

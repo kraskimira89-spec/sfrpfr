@@ -179,6 +179,8 @@ class Settings(BaseSettings):
     yookassa_api_base: str = "https://api.yookassa.ru/v3"
     yookassa_return_url: str = ""
     yookassa_send_receipt: bool = False
+    # vat_code ЮKassa: 1=НДС20, 6=без НДС (УСН). Сверьте с карточкой магазина/Evotor.
+    yookassa_vat_code: int = 1
     public_lead_token: str = ""
     # Куда слать уведомления о новых заявках (email)
     ops_notify_email: str = "proverkastaza@yandex.ru"

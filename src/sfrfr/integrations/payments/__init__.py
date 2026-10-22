@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 
 import httpx
 
 from sfrfr.core.config import get_settings
+
+_PHONE_DIGITS = re.compile(r"\D+")
+
+
+def normalize_receipt_phone(phone: str | None) -> str | None:
+    """Телефон для receipt.customer: 7XXXXXXXXXX (ЮKassa/ККТ)."""
+    digits = _PHONE_DIGITS.sub("", str(phone or ""))
+    if len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    if len(digits) == 10 and digits.startswith("9"):
+        digits = "7" + digits
+    if len(digits) == 11 and digits.startswith("7"):
+        return digits
+    return None
 
 
 class YooKassaClient:
@@ -58,29 +73,63 @@ class YooKassaClient:
             "error": data.get("description") or data.get("message"),
         }
 
+    def fetch_payment(self, payment_id: str) -> dict[str, Any]:
+        """GET /v3/payments/{id} — статус и receipt_registration."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
+        pid = str(payment_id or "").strip()
+        if not pid:
+            return {"ok": False, "error": "payment_id required"}
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                f"{self.api_base}/payments/{pid}",
+                auth=(self.shop_id, self.secret_key),
+            )
+        raw = response.json() if response.content else {}
+        data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        return {
+            "ok": response.status_code < 300,
+            "status_code": response.status_code,
+            "payment": data,
+            "error": data.get("description") or data.get("message"),
+        }
+
     def _receipt(
         self,
         *,
         amount_rub: float,
         description: str,
-        customer_email: str | None,
-        vat_code: int,
+        customer_email: str | None = None,
+        customer_phone: str | None = None,
+        vat_code: int | None = None,
     ) -> dict[str, Any] | None:
         settings = get_settings()
-        if not (settings.yookassa_send_receipt and customer_email):
+        if not settings.yookassa_send_receipt:
             return None
+        email = (customer_email or "").strip() or None
+        phone = normalize_receipt_phone(customer_phone)
+        if not email and not phone:
+            return None
+        customer: dict[str, str] = {}
+        if email:
+            customer["email"] = email
+        if phone:
+            customer["phone"] = phone
+        code = int(vat_code if vat_code is not None else settings.yookassa_vat_code or 1)
         return {
-            "customer": {"email": customer_email},
+            "customer": customer,
             "items": [
                 {
                     "description": description[:128],
                     "quantity": "1.00",
                     "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
-                    "vat_code": vat_code,
+                    "vat_code": code,
                     "payment_mode": "full_payment",
                     "payment_subject": "service",
                 }
             ],
+            # интернет-расчёт — для онлайн-кассы Evotor / 54-ФЗ
+            "internet": True,
         }
 
     def _post(self, path: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -107,7 +156,8 @@ class YooKassaClient:
         metadata: dict[str, Any] | None = None,
         capture: bool = True,
         customer_email: str | None = None,
-        vat_code: int = 1,
+        customer_phone: str | None = None,
+        vat_code: int | None = None,
     ) -> dict[str, Any]:
         """Умный платёж (redirect): без payment_method_data — иначе один способ вместо списка.
 
@@ -128,6 +178,7 @@ class YooKassaClient:
             amount_rub=amount_rub,
             description=description,
             customer_email=customer_email,
+            customer_phone=customer_phone,
             vat_code=vat_code,
         )
         if receipt:
@@ -153,7 +204,8 @@ class YooKassaClient:
         metadata: dict[str, Any] | None = None,
         expires_at: str,
         customer_email: str | None = None,
-        vat_code: int = 1,
+        customer_phone: str | None = None,
+        vat_code: int | None = None,
         capture: bool = True,
     ) -> dict[str, Any]:
         """Счёт ЮKassa: короткая ссылка delivery_method.url (self, без SMS/email)."""
@@ -170,6 +222,7 @@ class YooKassaClient:
             amount_rub=amount_rub,
             description=description,
             customer_email=customer_email,
+            customer_phone=customer_phone,
             vat_code=vat_code,
         )
         if receipt:
@@ -201,6 +254,109 @@ class YooKassaClient:
             "status": data.get("status"),
             "error": data.get("description") or data.get("message"),
         }
+
+    def create_receipt(
+        self,
+        *,
+        payment_id: str,
+        amount_rub: float,
+        description: str,
+        customer_email: str | None = None,
+        customer_phone: str | None = None,
+        vat_code: int | None = None,
+    ) -> dict[str, Any]:
+        """POST /v3/receipts — повторная фискализация после сбоя доставки в ККТ."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
+        receipt = self._receipt(
+            amount_rub=amount_rub,
+            description=description,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            vat_code=vat_code,
+        )
+        if not receipt:
+            return {
+                "ok": False,
+                "error": "receipt requires YOOKASSA_SEND_RECEIPT and email or phone",
+            }
+        payload: dict[str, Any] = {
+            "type": "payment",
+            "payment_id": str(payment_id).strip(),
+            "send": True,
+            "customer": receipt["customer"],
+            "items": receipt["items"],
+            "internet": True,
+            "settlements": [
+                {
+                    "type": "cashless",
+                    "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                }
+            ],
+        }
+        status_code, data = self._post("/receipts", payload)
+        return {
+            "ok": status_code < 300,
+            "status_code": status_code,
+            "receipt": data,
+            "receipt_id": data.get("id"),
+            "status": data.get("status"),
+            "error": data.get("description") or data.get("message"),
+        }
+
+    def ensure_payment_receipt(
+        self,
+        *,
+        payment_id: str,
+        customer_email: str | None = None,
+        customer_phone: str | None = None,
+        description: str | None = None,
+        amount_rub: float | None = None,
+    ) -> dict[str, Any]:
+        """Если чек не зарегистрирован — создать через /receipts (автоповтор после Evotor)."""
+        fetched = self.fetch_payment(payment_id)
+        if not fetched.get("ok"):
+            return {
+                "ok": False,
+                "error": fetched.get("error") or "payment fetch failed",
+                "status_code": fetched.get("status_code"),
+            }
+        payment = fetched.get("payment") if isinstance(fetched.get("payment"), dict) else {}
+        reg = str(payment.get("receipt_registration") or "").strip().lower()
+        if reg == "succeeded":
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": "already_registered",
+                "registration": reg,
+            }
+        status_value = str(payment.get("status") or "")
+        if status_value not in {"succeeded", "waiting_for_capture"}:
+            return {
+                "ok": False,
+                "skipped": True,
+                "reason": f"payment_status={status_value or 'unknown'}",
+            }
+        amount = payment.get("amount") if isinstance(payment.get("amount"), dict) else {}
+        value_raw = amount.get("value")
+        try:
+            amount_value = float(amount_rub if amount_rub is not None else value_raw or 0)
+        except (TypeError, ValueError):
+            amount_value = 0.0
+        if amount_value <= 0:
+            return {"ok": False, "error": "amount missing"}
+        desc = (
+            (description or "").strip()
+            or str(payment.get("description") or "").strip()
+            or "Оплата услуг"
+        )
+        return self.create_receipt(
+            payment_id=str(payment.get("id") or payment_id),
+            amount_rub=amount_value,
+            description=desc,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+        )
 
 
 def check_fiscalization_alignment(
@@ -287,4 +443,5 @@ def parse_yookassa_event(payload: dict[str, Any]) -> dict[str, Any]:
         "channel": metadata.get("channel"),
         "amount_value": amount.get("value") if isinstance(amount, dict) else None,
         "fiscal": receipt.get("registered") if isinstance(receipt, dict) else None,
+        "receipt_registration": obj.get("receipt_registration"),
     }
