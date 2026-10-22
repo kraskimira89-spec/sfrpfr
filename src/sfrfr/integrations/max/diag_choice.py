@@ -243,8 +243,10 @@ def handle(
         return "diag_detail_no", DETAIL_DECLINED_TEXT
 
     if pl == brief.DETAIL_YES:
-        # Сначала heal brief (persist сбрасывает consent), потом согласие.
+        # Heal brief (persist сбрасывает consent). Сам payload = soft-ask
+        # уже был в ленте → gaps нельзя откатывать в no_discrepancy.
         brief.ensure_brief_flags_for_offer(rec, case_id=case_id)
+        brief.preserve_gaps_after_soft_ask_yes(rec)
         brief.mark_detail_consent(rec, wants=True)
         decision = _evaluate_for_rec(rec)
         if not decision.allowed:
