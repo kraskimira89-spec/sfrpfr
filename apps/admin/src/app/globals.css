@@ -1332,6 +1332,15 @@ button.badge--clickable:hover {
 .case-work-step--done {
   opacity: 0.85;
 }
+.case-work-step--current {
+  opacity: 1;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.case-work-step--blocked {
+  opacity: 0.9;
+  box-shadow: inset 3px 0 0 var(--warn-line);
+  background: var(--warn-bg);
+}
 .case-work-step--upcoming {
   opacity: 0.65;
 }
