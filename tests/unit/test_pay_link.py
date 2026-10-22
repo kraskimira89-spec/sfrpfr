@@ -132,6 +132,34 @@ def test_issue_and_deliver_sends_max_with_qr() -> None:
     assert send_max.call_args.kwargs["case_id"] == order["case_id"]
 
 
+def test_send_pay_link_max_falls_back_to_direct_bot() -> None:
+    """Insert case_messages/ON CONFLICT не должен блокировать кнопку «Оплатить» в MAX."""
+    bot = MagicMock()
+    bot.available = True
+    with (
+        patch(
+            "sfrfr.integrations.max.case_chat_log.append_case_chat_message",
+            side_effect=RuntimeError(
+                "there is no unique or exclusion constraint matching "
+                "the ON CONFLICT specification"
+            ),
+        ),
+        patch("sfrfr.services.pay_link.MaxBotClient", return_value=bot),
+    ):
+        from sfrfr.services.pay_link import send_pay_link_max
+
+        send_pay_link_max(
+            max_user_id="79841100",
+            service="Диагностика",
+            amount_rub=3000,
+            pay_url="https://yookassa.ru/my/i/test",
+            case_id="c3074452-ac27-4f43-b5ee-88af96792b17",
+        )
+    bot.send_message.assert_called_once()
+    assert "yookassa.ru" in str(bot.send_message.call_args.kwargs.get("text") or "")
+    assert bot.send_message.call_args.kwargs.get("user_id") == "79841100"
+
+
 def test_issue_requires_max_user_when_send() -> None:
     order = {
         "id": "11111111-1111-1111-1111-111111111111",
