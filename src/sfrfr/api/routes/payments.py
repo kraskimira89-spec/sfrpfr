@@ -13,7 +13,7 @@ from sfrfr.core.config import get_settings
 from sfrfr.db.case_repository import CaseRepository, PaymentSlotConflict
 from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.security.auth import Principal, get_current_principal
-from sfrfr.services.public_tariffs import PAYMENT_PURPOSE
+from sfrfr.services.public_tariffs import payment_description
 
 router = APIRouter()
 webhook_router = APIRouter()
@@ -105,7 +105,10 @@ def start_order_payment(
     try:
         result = client.create_payment(
             amount_rub=amount,
-            description=PAYMENT_PURPOSE,
+            description=payment_description(
+                str(order.get("package_code") or ""),
+                order.get("service_label"),
+            ),
             return_url=_return_url(case_id, channel),
             metadata={
                 "order_id": order_id,
