@@ -90,9 +90,24 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
         body = f"{WELCOME_BACK} {hint}"
         reply(body, None)
         return body, True
-    if docs_count > 0:
-        body = docs_text(docs_count)
-        reply(body, None)
-        return body, True
+    # Единый статус: не просить комплект, если файлы уже в деле.
+    try:
+        from sfrfr.services.client_case_status import reply_text, resolve_for_case
+
+        status = resolve_for_case(rec.case_id)
+        if status.kind != "no_docs":
+            body = f"{WELCOME_BACK} {reply_text(status)}"
+            reply(body, None)
+            return body, True
+        if docs_count > 0:
+            # fallback: БД недоступна, но локальный счётчик > 0
+            body = docs_text(docs_count)
+            reply(body, None)
+            return body, True
+    except Exception:  # noqa: BLE001
+        if docs_count > 0:
+            body = docs_text(docs_count)
+            reply(body, None)
+            return body, True
     reply(NEED_DOCS_TEXT, q.menu_keyboard())
     return NEED_DOCS_TEXT, True

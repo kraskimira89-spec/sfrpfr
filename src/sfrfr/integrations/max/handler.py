@@ -2438,14 +2438,27 @@ def _handle_questionnaire_or_menu(
             ok=True, action="menu_upload", case_id=case_id, reply=q.MENU_UPLOAD_TEXT
         )
     if callback == q.MENU_STATUS:
-        record = store.find_by_max_user(user_id)
-        if record is None:
-            body = q.MENU_STATUS_FALLBACK_TEXT
-        else:
-            body = (
-                f"{status_label_ru(record.ctx.status)}. "
-                f"Документов: {len(record.ctx.document_paths)}."
-            )
+        body = q.MENU_STATUS_FALLBACK_TEXT
+        try:
+            from sfrfr.services.client_case_status import reply_text, resolve_for_case
+
+            status = resolve_for_case(case_id)
+            if status.kind != "no_docs":
+                body = reply_text(status)
+            else:
+                record = store.find_by_max_user(user_id)
+                if record is not None:
+                    body = (
+                        f"{status_label_ru(record.ctx.status)}. "
+                        f"Документов: {len(record.ctx.document_paths)}."
+                    )
+        except Exception:  # noqa: BLE001
+            record = store.find_by_max_user(user_id)
+            if record is not None:
+                body = (
+                    f"{status_label_ru(record.ctx.status)}. "
+                    f"Документов: {len(record.ctx.document_paths)}."
+                )
         _q_reply(body, None)
         return MaxHandleResult(ok=True, action="status", case_id=case_id, reply=body)
 
@@ -3354,6 +3367,19 @@ def _handle_client_free_text(
         if handled is not None:
             return handled
 
+    # Единый статус дела: не просить комплект, если документы уже есть /
+    # идёт приём / задача / E/F закрыты без анализа.
+    status_handled = _reply_from_case_status(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=text,
+        case_id=case_id,
+        exclude_message_id=exclude_message_id,
+    )
+    if status_handled is not None:
+        return status_handled
+
     from sfrfr.integrations.max.llm_chat import reply_to_free_text
 
     reply, attachments, action = reply_to_free_text(
@@ -3376,6 +3402,43 @@ def _handle_client_free_text(
         action=action,
         case_id=case_id,
         reply=reply or None,
+    )
+
+
+def _reply_from_case_status(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    text: str,
+    case_id: str | None,
+    exclude_message_id: str | None = None,
+) -> MaxHandleResult | None:
+    """Ответ по SoT статуса. None — нет документов / staff ведёт / пусть LLM."""
+    _ = exclude_message_id  # сообщение клиента уже сохранено выше по handler
+    from sfrfr.services.client_case_status import (
+        classify_user_intent,
+        reply_text,
+        resolve_for_case,
+    )
+
+    cid = str(case_id or "").strip() or None
+    if not cid:
+        return None
+    try:
+        status = resolve_for_case(cid)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("case status resolve skipped: %s", exc)
+        return None
+    if status.kind in {"no_docs", "staff_active"}:
+        return None
+    intent = classify_user_intent(text)
+    body = reply_text(status, intent=intent)
+    if not body:
+        return None
+    _reply(bot, user_id=user_id, chat_id=chat_id, text=body, case_id=cid)
+    return MaxHandleResult(
+        ok=True, action="case_status_reply", case_id=cid, reply=body
     )
 
 

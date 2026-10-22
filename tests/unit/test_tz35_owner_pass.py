@@ -148,25 +148,45 @@ def test_submission_nudge_rhythm_4_8_12(tmp_path: Path, monkeypatch) -> None:
 def test_restart_keeps_nudge_counter(tmp_path: Path, monkeypatch) -> None:
     _setup(tmp_path, monkeypatch)
     store = get_intake_store()
+    path = store.path
     rec = store.upsert_started("2001")
     rec.logical_bot_msg_count = 10
     rec.submission_nudge_tier = 1
     rec.submission_nudge_at_count = 4
     store.save(rec)
-    fresh = store.restart("2001")
+    # Новый экземпляр хранилища после save — как после рестарта процесса.
+    from sfrfr.integrations.max.intake import MaxIntakeStore, reset_intake_store
+
+    reset_intake_store(path)
+    reloaded = MaxIntakeStore(path)
+    before = reloaded.get_active("2001")
+    assert before is not None
+    assert before.logical_bot_msg_count == 10
+    fresh = reloaded.restart("2001")
     assert fresh.logical_bot_msg_count == 10
     assert fresh.submission_nudge_tier == 1
     assert fresh.submission_nudge_at_count == 4
 
 
 def test_tech_split_one_logical_message_counts_once(tmp_path: Path, monkeypatch) -> None:
-    """Один логический ответ = один note; handler всегда шлёт count=1."""
-    _setup(tmp_path, monkeypatch)
+    """Consent gate: несколько частей → logical_bot_msg_count не растёт (logical=False)."""
+    from sfrfr.integrations.max.handler import handle_max_update
+    from sfrfr.services.client_pdn_consent import CONSENT_GATE_PARTS
+
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._client_has_pdn_consent",
+        lambda _uid: False,
+    )
     rec = get_intake_store().upsert_started("t1")
-    submission_nudge.note_logical_bot_message(rec, count=1)
-    assert rec.logical_bot_msg_count == 1
-    submission_nudge.note_logical_bot_message(rec, count=1)
-    assert rec.logical_bot_msg_count == 2
+    before = int(rec.logical_bot_msg_count or 0)
+    res = handle_max_update(_msg(1, "привет"), bot=bot)
+    assert res.action == "pdn_consent_gate"
+    assert len(CONSENT_GATE_PARTS) >= 2
+    assert len(bot.sent) >= len(CONSENT_GATE_PARTS)
+    after = get_intake_store().get_active("t1")
+    assert after is not None
+    assert int(after.logical_bot_msg_count or 0) == before
 
 
 def test_diag_gate_no_analysis() -> None:

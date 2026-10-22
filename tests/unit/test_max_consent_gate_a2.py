@@ -44,11 +44,21 @@ def test_file_without_consent_is_not_accepted(tmp_path: Path, monkeypatch) -> No
     bot = _setup(tmp_path, monkeypatch)
     _no_consent(monkeypatch)
     ingested = _files(monkeypatch)
+    queue_calls: list[object] = []
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.document_background.schedule_document_background",
+        lambda **kw: queue_calls.append(kw),
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.document_background.schedule_settle_notify",
+        lambda **kw: queue_calls.append(kw),
+    )
 
     result = handle_max_update(_msg(201, ""), bot=bot)
 
     assert result.action == "pdn_consent_gate"
     assert ingested == []
+    assert queue_calls == []
     get_settings.cache_clear()
 
 

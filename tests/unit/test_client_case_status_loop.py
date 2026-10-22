@@ -1,0 +1,310 @@
+"""Зацикливание после приёма документов: статус ↔ ответ бота (без E/F)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock
+
+from test_max_intake import _cb, _msg, _setup
+
+from sfrfr.core.config import get_settings
+from sfrfr.integrations.max import diag_choice as dc
+from sfrfr.integrations.max import document_background as bg
+from sfrfr.integrations.max import questionnaire as q
+from sfrfr.integrations.max.handler import handle_max_update
+from sfrfr.integrations.max.intake import get_intake_store
+from sfrfr.services import client_case_status as ccs
+
+CASE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+_KIT_DOCS = [
+    {"id": "d1", "doc_type": "ils", "filename": "ils.pdf", "ingest_status": "ready"},
+    {
+        "id": "d2",
+        "doc_type": "workbook",
+        "filename": "tk.pdf",
+        "ingest_status": "ready",
+    },
+]
+
+
+def _enable_q(monkeypatch) -> None:
+    monkeypatch.setenv("MAX_QUESTIONNAIRE_ENABLED", "1")
+    get_settings.cache_clear()
+
+
+def _complete_questionnaire(bot, user_id: int, monkeypatch) -> None:
+    monkeypatch.setattr(q, "save_questionnaire", lambda **_kw: True)
+    handle_max_update(
+        {
+            "callback": {
+                "user": {"user_id": user_id, "first_name": "Иван", "last_name": "И."},
+                "chat_id": 1,
+                "payload": "start_dialog",
+            }
+        },
+        bot=bot,
+    )
+    for upd in (
+        _cb(user_id, "q:exp:gt20"),
+        _msg(user_id, "+7 909 195-04-08"),
+        _cb(user_id, q.SKIP_EMAIL),
+        _msg(user_id, "Не учли стаж"),
+    ):
+        handle_max_update(upd, bot=bot)
+
+
+def _patch_kit(monkeypatch, *, quiet: bool = False, docs=None, staff: bool = False):
+    docs = docs if docs is not None else list(_KIT_DOCS)
+    monkeypatch.setattr(
+        ccs,
+        "resolve_for_case",
+        lambda case_id, **kw: ccs.resolve(
+            documents=docs,
+            case_quiet=quiet,
+            staff_active=staff,
+            ef_open=False,
+            ingest_pending=False,
+        ),
+    )
+    monkeypatch.setattr(bg, "is_case_quiet", lambda _cid: quiet)
+
+
+# --- unit: resolve / reply / intent ---
+
+
+def test_resolve_kit_ready_when_ef_closed() -> None:
+    st = ccs.resolve(documents=_KIT_DOCS, ef_open=False, ingest_pending=False)
+    assert st.kind == "kit_ready_no_analysis"
+    text = ccs.reply_text(st, intent="working_question")
+    assert "ещё не запущена" in text.lower() or "не запущена" in text.lower()
+    assert "диагностика идёт" not in text.lower()
+    assert "пришлите" not in text.lower() or "повторно" in text.lower()
+
+
+def test_resolve_receiving_during_quiet() -> None:
+    st = ccs.resolve(documents=_KIT_DOCS, case_quiet=True, ef_open=False)
+    assert st.kind == "receiving"
+    text = ccs.reply_text(st)
+    assert "обрабатываем" in text.lower()
+    assert "повторно" in text.lower()
+
+
+def test_resolve_missing_names_concrete_doc() -> None:
+    docs = [{"id": "d1", "doc_type": "ils", "ingest_status": "ready"}]
+    st = ccs.resolve(documents=docs, ef_open=False, ingest_pending=False)
+    assert st.kind == "missing"
+    assert "labor" in st.missing_buckets
+    text = ccs.reply_text(st)
+    assert "трудов" in text.lower()
+    assert "илс" in text.lower() or "стаже" in text.lower() or "стаж" in text.lower()
+
+
+def test_resolve_error_not_analysis_running() -> None:
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        document_check={"status": "failed", "last_error": "ocr timeout"},
+        ef_open=False,
+        ingest_pending=False,
+    )
+    assert st.kind == "error"
+    text = ccs.reply_text(st)
+    low = text.lower()
+    assert "идёт" not in low or "задержк" in low
+    assert "ocr timeout" in low or "задержк" in low
+    assert "проверк" not in low or "задержк" in low
+
+
+def test_resolve_checking_only_when_job_runs() -> None:
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        document_check={"status": "running"},
+        ef_open=False,
+        ingest_pending=False,
+    )
+    assert st.kind == "checking"
+    assert "идёт" in ccs.reply_text(st).lower()
+
+
+def test_intent_classifiers() -> None:
+    assert ccs.classify_user_intent("Спасибо") == "thanks"
+    assert ccs.classify_user_intent("Вы ещё работаете?") == "working_question"
+    assert (
+        ccs.classify_user_intent("В 1998–2001 работал на заводе Север")
+        == "clarification"
+    )
+
+
+def test_build_final_message_honest_kit_ready() -> None:
+    text, complete = bg.build_final_message(_KIT_DOCS)
+    assert complete is True
+    assert "базовый комплект" in text.lower()
+    assert "ещё не запущена" in text.lower() or "не запущена" in text.lower()
+    assert "можно идти дальше к подготовке" not in text.lower()
+
+
+# --- integration через handler ---
+
+
+def test_working_question_after_kit_no_docs_ask(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3101, monkeypatch)
+    rec = get_intake_store().get_active("3101")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    answers = dict(rec.q_answers or {})
+    answers["_docs_seen"] = "1"
+    rec.q_answers = answers
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch)
+    bot.sent.clear()
+    res = handle_max_update(_msg(3101, "Вы ещё работаете?"), bot=bot)
+    assert res.action == "case_status_reply"
+    reply = (res.reply or "").lower()
+    assert "пришлите фото" not in reply
+    assert "пришлите документы" not in reply
+    assert "не запущена" in reply or "в деле" in reply or "специалист" in reply
+    get_settings.cache_clear()
+
+
+def test_thanks_after_upload(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3102, monkeypatch)
+    rec = get_intake_store().get_active("3102")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch)
+    bot.sent.clear()
+    res = handle_max_update(_msg(3102, "Спасибо"), bot=bot)
+    assert res.action == "case_status_reply"
+    assert "пожалуйста" in (res.reply or "").lower()
+    get_settings.cache_clear()
+
+
+def test_clarification_saved(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3103, monkeypatch)
+    rec = get_intake_store().get_active("3103")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch)
+    logged: list[str] = []
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._append_client_case_message",
+        lambda **kw: logged.append(str(kw.get("text") or "")) or MagicMock(),
+    )
+    bot.sent.clear()
+    note = "В 1998–2001 работал на заводе, стаж не учли"
+    res = handle_max_update(_msg(3103, note), bot=bot)
+    assert res.action == "case_status_reply"
+    assert any(note in t for t in logged)
+    assert "пояснение сохранили" in (res.reply or "").lower()
+    get_settings.cache_clear()
+
+
+def test_receiving_while_quiet(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3104, monkeypatch)
+    rec = get_intake_store().get_active("3104")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch, quiet=True)
+    bot.sent.clear()
+    res = handle_max_update(_msg(3104, "пачка ещё идёт?"), bot=bot)
+    assert res.action == "case_status_reply"
+    assert "обрабатываем" in (res.reply or "").lower()
+    get_settings.cache_clear()
+
+
+def test_old_diag_yes_with_kit_no_blind_docs_ask(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3105, monkeypatch)
+    rec = get_intake_store().get_active("3105")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch)
+    started: list[dict] = []
+    monkeypatch.setattr(
+        dc, "start_diag_payment", lambda **kw: started.append(kw) or {"ok": True}
+    )
+    bot.sent.clear()
+    res = handle_max_update(_cb(3105, dc.YES), bot=bot)
+    assert res.action == "diag_yes_gated"
+    assert started == []
+    reply = (res.reply or "").lower()
+    assert "пришлите документы в этот чат — разберёмся" not in reply
+    assert "комплект" in reply or "документы" in reply or "не предлагаем" in reply
+    get_settings.cache_clear()
+
+
+def test_no_task_kit_ready_kind() -> None:
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        document_check=None,
+        ef_open=False,
+        ingest_pending=False,
+    )
+    assert st.kind == "kit_ready_no_analysis"
+
+
+def test_new_file_while_quiet_stays_receiving() -> None:
+    pending = [
+        {"id": "d1", "doc_type": "ils", "ingest_status": "ready"},
+        {"id": "d3", "doc_type": "other", "ingest_status": "uploading"},
+    ]
+    st = ccs.resolve(documents=pending, case_quiet=True, ef_open=False)
+    assert st.kind == "receiving"
+
+
+def test_duplicate_webhook_event_id(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.find_message_by_external_id",
+        lambda eid: {"id": "m1", "case_id": CASE_ID, "external_id": eid}
+        if eid
+        else None,
+    )
+    upd = _msg(3201, "повтор")
+    upd["message"]["mid"] = "ext-same-1"
+    saves: list[str] = []
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._append_client_case_message",
+        lambda **kw: saves.append(str(kw.get("text") or "")),
+    )
+    res1 = handle_max_update(upd, bot=bot)
+    res2 = handle_max_update(upd, bot=bot)
+    assert res1.action == "duplicate_webhook"
+    assert res2.action == "duplicate_webhook"
+    assert saves == []
+    get_settings.cache_clear()
+
+
+def test_staff_active_does_not_hijack(tmp_path: Path, monkeypatch) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3106, monkeypatch)
+    rec = get_intake_store().get_active("3106")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    _patch_kit(monkeypatch, staff=True)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.llm_chat.reply_to_free_text",
+        lambda **_kw: ("", [], "max_llm_staff_silent"),
+    )
+    bot.sent.clear()
+    res = handle_max_update(_msg(3106, "вопрос специалисту"), bot=bot)
+    # staff_active → пустой/тихий путь, не case_status_reply с «пришлите»
+    assert res.action in {"max_llm_staff_silent", "case_status_reply", "free_text_nudge"}
+    if res.reply:
+        assert "пришлите фото" not in res.reply.lower()
+    get_settings.cache_clear()

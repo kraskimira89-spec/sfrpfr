@@ -50,9 +50,34 @@ FAIL_TEXT = (
 
 NOT_AVAILABLE_TEXT = (
     "Подробную диагностику пока не предлагаем на этом шаге. "
-    "Пришлите документы в этот чат — разберёмся по ним. "
     "Бесплатный чек-лист можно запросить командой /checklist."
 )
+
+
+def _gated_reply(*, case_id: str | None) -> str:
+    """Отказ gate: не просить комплект, если документы уже в деле."""
+    try:
+        from sfrfr.services.client_case_status import reply_text, resolve_for_case
+
+        status = resolve_for_case(case_id)
+        if status.kind in {
+            "receiving",
+            "checking",
+            "missing",
+            "error",
+            "kit_ready_no_analysis",
+            "result_ready",
+        }:
+            return (
+                "Подробную диагностику пока не предлагаем на этом шаге. "
+                + reply_text(status)
+            )
+    except Exception:  # noqa: BLE001
+        pass
+    return (
+        f"{NOT_AVAILABLE_TEXT} "
+        "Если документы ещё не в деле — пришлите их в этот чат."
+    )
 
 
 def offer_keyboard() -> list[dict[str, Any]]:
@@ -145,9 +170,10 @@ def handle(
         client_wants_detailed_review=False,
     )
     if not decision.allowed:
-        reply(NOT_AVAILABLE_TEXT, None)
+        body = _gated_reply(case_id=case_id)
+        reply(body, None)
         log_event(f"Выбор диагностики отклонён gate={decision.reason}")
-        return "diag_yes_gated", NOT_AVAILABLE_TEXT
+        return "diag_yes_gated", body
 
     if not case_id:
         reply(NO_CASE_TEXT, None)
@@ -163,10 +189,22 @@ def handle(
         return "diag_yes_fail", FAIL_TEXT
 
     if result.get("already_paid"):
-        text = (
-            "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
-            "PDF или фото. Вопросы по делу пишите здесь."
-        )
+        try:
+            from sfrfr.services.client_case_status import reply_text, resolve_for_case
+
+            status = resolve_for_case(case_id)
+            if status.kind == "no_docs":
+                text = (
+                    "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
+                    "PDF или фото. Вопросы по делу пишите здесь."
+                )
+            else:
+                text = "Диагностика уже оплачена. " + reply_text(status)
+        except Exception:  # noqa: BLE001
+            text = (
+                "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
+                "PDF или фото. Вопросы по делу пишите здесь."
+            )
         reply(text, None)
         log_event("Выбор после анкеты: диагностика уже оплачена")
         return "diag_yes_paid", text
