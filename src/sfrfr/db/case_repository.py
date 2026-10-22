@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, status
 
@@ -15,6 +16,18 @@ from sfrfr.db.session import get_supabase_client
 from sfrfr.security.auth import Principal, StaffRole
 
 CURRENT_CONSENT_VERSION = "pdn-consent-2026-10-13"
+
+
+def coerce_audit_actor(actor_id: str | None) -> tuple[str | None, str]:
+    """access_audit/finance_audit.actor_id — uuid; bot/max токены → None + суффикс action."""
+    raw = str(actor_id or "").strip() or None
+    if not raw:
+        return None, ""
+    try:
+        return str(UUID(raw)), ""
+    except ValueError:
+        safe = "".join(ch if ch.isalnum() or ch in "._:-" else "_" for ch in raw)[:80]
+        return None, f":{safe}"
 
 
 class PaymentSlotConflict(Exception):
@@ -247,8 +260,9 @@ class CaseRepository:
         return updated
 
     def audit(self, case_id: str, actor_id: str | None, action: str) -> None:
+        uid, suffix = coerce_audit_actor(actor_id)
         self.client.table("access_audit").insert(
-            {"case_id": case_id, "actor_id": actor_id, "action": action}
+            {"case_id": case_id, "actor_id": uid, "action": f"{action}{suffix}"}
         ).execute()
 
     def list_representatives(self, case_id: str) -> list[dict[str, Any]]:
@@ -1118,13 +1132,17 @@ class CaseRepository:
         action: str,
         payload: dict[str, Any] | None = None,
     ) -> None:
+        uid, suffix = coerce_audit_actor(actor_id)
+        meta = dict(payload or {})
+        if suffix and actor_id:
+            meta.setdefault("actor_token", str(actor_id).strip())
         self.client.table("finance_audit").insert(
             {
                 "order_id": order_id,
                 "case_id": case_id,
-                "actor_id": actor_id,
-                "action": action,
-                "payload": payload or {},
+                "actor_id": uid,
+                "action": f"{action}{suffix}",
+                "payload": meta,
             }
         ).execute()
 

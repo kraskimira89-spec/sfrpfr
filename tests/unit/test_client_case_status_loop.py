@@ -274,6 +274,34 @@ def test_receiving_while_quiet(tmp_path: Path, monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_working_question_while_diag_offer_pending_no_receiving(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Пока висит оффер 3000 — не слать «обрабатываем» на «Вы ещё работаете?»."""
+    from sfrfr.integrations.max import diag_choice as dc
+
+    bot = _setup(tmp_path, monkeypatch)
+    _enable_q(monkeypatch)
+    _complete_questionnaire(bot, 3108, monkeypatch)
+    rec = get_intake_store().get_active("3108")
+    assert rec is not None
+    rec.case_id = CASE_ID
+    get_intake_store().save(rec)
+    dc.mark_pending(rec)
+    _patch_kit(monkeypatch, quiet=True)
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    bot.sent.clear()
+    res = handle_max_update(_msg(3108, "Вы ещё работаете?"), bot=bot)
+    assert res.action == "case_status_reply"
+    low = (res.reply or "").lower()
+    assert "обрабатываем" not in low
+    assert "оформить" in low or "диагност" in low or "3000" in low or "3 000" in low
+    get_settings.cache_clear()
+
+
 def test_old_diag_yes_with_kit_no_blind_docs_ask(tmp_path: Path, monkeypatch) -> None:
     bot = _setup(tmp_path, monkeypatch)
     _enable_q(monkeypatch)

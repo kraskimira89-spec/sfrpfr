@@ -3434,8 +3434,52 @@ def _reply_from_case_status(
         return None
     intent = classify_user_intent(text)
     body = reply_text(status, intent=intent)
+    # Поверх активного оффера 3000 / pending diag — не слать receiving «обрабатываем».
+    try:
+        from sfrfr.integrations.max import diag_choice
+        from sfrfr.integrations.max.intake import get_intake_store
+
+        rec = get_intake_store().get_active(str(user_id))
+        if diag_choice.is_pending(rec):
+            if intent == "working_question":
+                body = (
+                    "Мы на связи. Если оформляете диагностику — нажмите "
+                    "«Оформить диагностику 3 000 ₽» в сообщении выше."
+                )
+            elif intent == "thanks":
+                body = (
+                    "Пожалуйста. Кнопка «Оформить диагностику 3 000 ₽» — "
+                    "в сообщении выше."
+                )
+            elif status.kind in {"receiving", "checking"}:
+                body = (
+                    "Документы в деле. Следующий шаг — кнопка диагностики "
+                    "в сообщении выше или /checklist."
+                )
+    except Exception:  # noqa: BLE001
+        pass
     if not body:
         return None
+    # Не дублировать тот же статусный ответ подряд (каша «обрабатываем»).
+    try:
+        from sfrfr.services.case_chat_context import fetch_recent_case_messages
+
+        recent = fetch_recent_case_messages(cid, limit=6) or []
+        for row in recent:
+            kind = str(row.get("author_kind") or "").lower()
+            if kind not in {"bot", "system"}:
+                continue
+            prev = " ".join(str(row.get("body") or "").split())
+            if prev and prev == " ".join(body.split()):
+                return MaxHandleResult(
+                    ok=True,
+                    action="case_status_reply_dedup",
+                    case_id=cid,
+                    reply=None,
+                )
+            break
+    except Exception:  # noqa: BLE001
+        pass
     _reply(bot, user_id=user_id, chat_id=chat_id, text=body, case_id=cid)
     return MaxHandleResult(
         ok=True, action="case_status_reply", case_id=cid, reply=body
