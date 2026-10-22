@@ -28,6 +28,7 @@ SUMMARY_KEY = "_brief_summary"
 FP_KEY = "_brief_fp"
 SUMMARY_SHOWN_KEY = "_brief_summary_shown"
 SOFT_ASK_SENT_KEY = "_brief_soft_ask_sent"
+OFFER_REVIVE_KEY = "_brief_offer_revive"
 DETAIL_CONSENT_KEY = "_detail_consent"
 DETAIL_PENDING_KEY = "_detail_pending"
 
@@ -38,7 +39,19 @@ STATUS_ERROR = "error"
 DETAIL_YES = "diag:detail_yes"
 DETAIL_NO = "diag:detail_no"
 
-_PROBLEM_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
+EVIDENCE_DOCS = "docs"
+EVIDENCE_CLIENT = "client"
+EVIDENCE_NEEDS_CHECK = "needs_check"
+
+_EVIDENCE_LABEL_RU: dict[str, str] = {
+    EVIDENCE_DOCS: "подтверждено документами",
+    EVIDENCE_CLIENT: "со слов клиента",
+    EVIDENCE_NEEDS_CHECK: "требует проверки",
+}
+
+# Сильные темы анкеты → needs_check (могут открыть soft-ask).
+# Слабое «стаж»/goal check_experience сюда не входит.
+_NEEDS_CHECK_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"север|ркс|мкс|район\s+крайнего", re.I),
         "возможные вопросы по северному / льготному стажу",
@@ -51,10 +64,27 @@ _PROBLEM_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"архив|справк", re.I),
         "возможная нехватка подтверждающих / архивных справок",
     ),
+)
+
+# Слабые формулировки → только «со слов клиента», без soft-ask/оффера.
+_CLIENT_ONLY_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"дат|период|стаж", re.I),
         "возможные расхождения дат или периодов стажа",
     ),
+)
+
+_MAX_BRIEF_BULLETS = 3
+_NEXT_STEP_JUSTIFIED = (
+    "Следующий шаг: если нужен подробный разбор — ответьте кнопкой ниже "
+    "(или напишите специалисту /help)."
+)
+_NEXT_STEP_CLIENT_ONLY = (
+    "Следующий шаг: уточните, что именно сверить по документам, "
+    "или напишите специалисту /help."
+)
+_NEXT_STEP_NONE = (
+    "Следующий шаг: при необходимости сверьте комплект со специалистом (/help)."
 )
 
 _NO_DISCREPANCY_TEXT = (
@@ -95,6 +125,7 @@ class BriefAnalysisResult:
     has_justified_discrepancy: bool
     summary: str
     bullets: list[str] = field(default_factory=list)
+    evidence_kinds: list[str] = field(default_factory=list)
     fingerprint: str = ""
     source: str = "heuristic"
 
@@ -118,8 +149,13 @@ def _problem_text(
     intake: Any | None,
     *,
     client_texts: list[str] | None = None,
+    include_goal: bool = False,
 ) -> str:
-    """Формулировка проблемы: анкета, goal/type, недавние реплики клиента."""
+    """Формулировка проблемы: анкета, type, реплики клиента.
+
+    Goal по умолчанию не подмешиваем: check_experience → «стаж» ложно
+    ставил расхождение. Явный problem_type / текст анкеты — да.
+    """
     parts: list[str] = []
     if intake is not None:
         answers = getattr(intake, "q_answers", None) or {}
@@ -131,9 +167,10 @@ def _problem_text(
         ptype = str(getattr(intake, "problem_type", None) or "").strip()
         if ptype:
             parts.append(_PROBLEM_TYPE_HINTS.get(ptype, ptype.replace("_", " ")))
-        goal = str(getattr(intake, "goal", None) or "").strip()
-        if goal:
-            parts.append(_GOAL_HINTS.get(goal, goal.replace("_", " ")))
+        if include_goal:
+            goal = str(getattr(intake, "goal", None) or "").strip()
+            if goal:
+                parts.append(_GOAL_HINTS.get(goal, goal.replace("_", " ")))
     for raw in client_texts or []:
         text = str(raw or "").strip()
         if text:
@@ -141,14 +178,24 @@ def _problem_text(
     return "\n".join(parts)
 
 
-def _themes_from_problem(problem: str) -> list[str]:
+def _themes_from_problem(
+    problem: str,
+    *,
+    patterns: tuple[tuple[re.Pattern[str], str], ...],
+) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
-    for pattern, label in _PROBLEM_THEMES:
+    for pattern, label in patterns:
         if pattern.search(problem) and label not in seen:
             seen.add(label)
             out.append(label)
     return out
+
+
+def _format_brief_bullet(text: str, evidence: str) -> str:
+    label = _EVIDENCE_LABEL_RU.get(evidence, evidence)
+    clean = str(text or "").strip()
+    return f"{clean} ({label})" if clean else label
 
 
 def _bullets_from_findings(findings: list[dict[str, Any]] | None) -> list[str]:
