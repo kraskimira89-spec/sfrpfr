@@ -38,6 +38,7 @@ STATUS_ERROR = "error"
 
 DETAIL_YES = "diag:detail_yes"
 DETAIL_NO = "diag:detail_no"
+OFFER_REVIVE_KEY = "_brief_offer_revive"
 
 EVIDENCE_DOCS = "docs"
 EVIDENCE_CLIENT = "client"
@@ -235,35 +236,45 @@ def soft_ask_was_sent(rec: Any | None) -> bool:
 
 
 def preserve_gaps_after_soft_ask_yes(rec: Any) -> None:
-    """Callback diag:detail_yes = soft-ask уже был показан → gaps для gate.
+    """Callback diag:detail_yes = soft-ask уже был → gaps для gate.
 
-    Даже если пересчёт brief пустой (restart стёр problem) — не отказывать
-    «расхождений не видно».
+    Клик восстанавливает право на оффер, но сам по себе не доказывает
+    выполненную проверку: analysis-флаги поднимаем только если soft-ask
+    уже был зафиксирован до клика (или есть prior summary).
     """
     from sfrfr.integrations.max.intake import get_intake_store
 
+    prior_soft = soft_ask_was_sent(rec)
     target = _reload_intake_rec(rec)
     answers = dict(getattr(target, "q_answers", None) or {})
+    had_brief = (
+        str(answers.get(STATUS_KEY) or "") == STATUS_COMPLETED
+        or bool(str(answers.get(SUMMARY_KEY) or "").strip())
+        or str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1"
+    )
     answers[SOFT_ASK_SENT_KEY] = "1"
     answers[DISCREPANCY_KEY] = "1"
-    if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
-        answers[STATUS_KEY] = STATUS_COMPLETED
-    if str(answers.get(OK_KEY) or "") != "1":
-        answers[OK_KEY] = "1"
-    if str(answers.get(CURRENT_KEY) or "") != "1":
-        answers[CURRENT_KEY] = "1"
-    if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
-        answers[SUMMARY_SHOWN_KEY] = "1"
-    if not str(answers.get(SUMMARY_KEY) or "").strip():
-        answers[SUMMARY_KEY] = _force_discrepancy_result(
-            BriefAnalysisResult(
-                ok=True,
-                current=True,
-                has_justified_discrepancy=False,
-                summary="",
-                source="soft_ask_preserve",
-            )
-        ).summary[:3500]
+    if prior_soft or had_brief:
+        # Revive оффера после потерянных флагов — не «клик = анализ».
+        answers[OFFER_REVIVE_KEY] = "1"
+        if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
+            answers[STATUS_KEY] = STATUS_COMPLETED
+        if str(answers.get(OK_KEY) or "") != "1":
+            answers[OK_KEY] = "1"
+        if str(answers.get(CURRENT_KEY) or "") != "1":
+            answers[CURRENT_KEY] = "1"
+        if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
+            answers[SUMMARY_SHOWN_KEY] = "1"
+        if not str(answers.get(SUMMARY_KEY) or "").strip():
+            answers[SUMMARY_KEY] = _force_discrepancy_result(
+                BriefAnalysisResult(
+                    ok=True,
+                    current=True,
+                    has_justified_discrepancy=False,
+                    summary="",
+                    source="soft_ask_preserve",
+                )
+            ).summary[:3500]
     target.q_answers = answers
     rec.q_answers = answers
     get_intake_store().save(target)
@@ -282,17 +293,27 @@ def _force_discrepancy_result(
         summary = prior
         bullets = list(result.bullets)
     else:
-        bullets = list(result.bullets) or [
+        raw = list(result.bullets) or [
             "возможные неучтённые или не отражённые периоды",
         ]
+        bullets = []
+        for b in raw[:_MAX_BRIEF_BULLETS]:
+            low = b.lower()
+            already = "(" in b and (
+                "слов клиента" in low
+                or "требует проверки" in low
+                or "подтверждено документами" in low
+            )
+            bullets.append(
+                b if already else _format_brief_bullet(b, EVIDENCE_NEEDS_CHECK)
+            )
         lines = [
             "Предварительная проверка комплекта завершена.",
-            "По документам и вашей формулировке есть направления для "
-            "подробной проверки (черновик, не юридический вывод):",
+            "Направления для сверки (черновик, не юридический вывод):",
         ]
-        for i, item in enumerate(bullets[:5], start=1):
+        for i, item in enumerate(bullets, start=1):
             lines.append(f"{i}. {item}")
-        lines.extend(["", _DISCLAIMER])
+        lines.extend(["", _DISCLAIMER, "", _NEXT_STEP_JUSTIFIED])
         summary = "\n".join(lines)
     return BriefAnalysisResult(
         ok=result.ok,
@@ -300,6 +321,8 @@ def _force_discrepancy_result(
         has_justified_discrepancy=True,
         summary=summary,
         bullets=bullets,
+        evidence_kinds=list(result.evidence_kinds)
+        or [EVIDENCE_NEEDS_CHECK] * len(bullets),
         fingerprint=result.fingerprint,
         source=result.source if result.source != "none" else "soft_ask_preserve",
     )
@@ -331,33 +354,50 @@ def compute_brief_analysis(
     """Локальный краткий разбор без нового OCR и без обязательного LLM."""
     docs = [d for d in (documents or []) if isinstance(d, dict)]
     fp = documents_fingerprint(docs)
-    findings_bullets = _bullets_from_findings(pipeline_findings)
-    themes = _themes_from_problem(
-        _problem_text(intake, client_texts=client_texts)
-    )
-    bullets: list[str] = []
-    for item in findings_bullets:
-        clean = sanitize_finding_line(item)
-        if clean and clean not in bullets:
-            bullets.append(clean)
-    for theme in themes:
-        if theme not in bullets:
-            bullets.append(theme)
+    problem = _problem_text(intake, client_texts=client_texts)
 
-    has_disc = bool(findings_bullets) or bool(themes)
-    if has_disc:
+    labeled: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for item in _bullets_from_findings(pipeline_findings):
+        clean = sanitize_finding_line(item)
+        if clean and clean not in seen:
+            seen.add(clean)
+            labeled.append((clean, EVIDENCE_DOCS))
+    for theme in _themes_from_problem(problem, patterns=_NEEDS_CHECK_THEMES):
+        if theme not in seen:
+            seen.add(theme)
+            labeled.append((theme, EVIDENCE_NEEDS_CHECK))
+    for theme in _themes_from_problem(problem, patterns=_CLIENT_ONLY_THEMES):
+        if theme not in seen:
+            seen.add(theme)
+            labeled.append((theme, EVIDENCE_CLIENT))
+
+    labeled = labeled[:_MAX_BRIEF_BULLETS]
+    bullets = [_format_brief_bullet(text, kind) for text, kind in labeled]
+    evidence_kinds = [kind for _text, kind in labeled]
+    has_docs = EVIDENCE_DOCS in evidence_kinds
+    has_needs = EVIDENCE_NEEDS_CHECK in evidence_kinds
+    has_client = EVIDENCE_CLIENT in evidence_kinds
+    # Soft-ask / оффер — только docs или needs_check, не слабое «стаж».
+    has_disc = has_docs or has_needs
+
+    if has_disc or has_client:
         lines = [
             "Предварительная проверка комплекта завершена.",
-            "По документам и вашей формулировке есть направления для "
-            "подробной проверки (черновик, не юридический вывод):",
+            "Направления для сверки (черновик, не юридический вывод):",
         ]
-        for i, item in enumerate(bullets[:5], start=1):
+        for i, item in enumerate(bullets, start=1):
             lines.append(f"{i}. {item}")
-        lines.extend(["", _DISCLAIMER])
+        lines.extend(["", _DISCLAIMER, ""])
+        if has_disc:
+            lines.append(_NEXT_STEP_JUSTIFIED)
+            source = "findings" if has_docs else "questionnaire"
+        else:
+            lines.append(_NEXT_STEP_CLIENT_ONLY)
+            source = "client_only"
         summary = "\n".join(lines)
-        source = "findings" if findings_bullets else "questionnaire"
     else:
-        summary = _NO_DISCREPANCY_TEXT
+        summary = f"{_NO_DISCREPANCY_TEXT}\n\n{_NEXT_STEP_NONE}"
         source = "none"
 
     return BriefAnalysisResult(
@@ -366,6 +406,7 @@ def compute_brief_analysis(
         has_justified_discrepancy=has_disc,
         summary=summary,
         bullets=bullets,
+        evidence_kinds=evidence_kinds,
         fingerprint=fp,
         source=source,
     )
