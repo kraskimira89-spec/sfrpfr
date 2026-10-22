@@ -13,6 +13,7 @@ from sfrfr.core.config import get_settings
 from sfrfr.db.case_repository import CaseRepository, PaymentSlotConflict
 from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.security.auth import Principal, get_current_principal
+from sfrfr.services.payment_amount import yookassa_charge_amount_rub
 from sfrfr.services.public_tariffs import payment_description
 
 router = APIRouter()
@@ -75,9 +76,10 @@ def start_order_payment(
     body = payload or PayOrderRequest(return_channel=return_channel)
     channel = body.return_channel or return_channel
     email = (body.customer_email or principal.email or "").strip() or None
-    amount = float(order.get("amount_rub") or 0)
-    if amount <= 0:
+    order_amount = float(order.get("amount_rub") or 0)
+    if order_amount <= 0:
         raise HTTPException(status_code=400, detail="order amount must be positive")
+    amount = yookassa_charge_amount_rub(order_amount)
     settings = get_settings()
     if settings.yookassa_send_receipt and not email:
         raise HTTPException(

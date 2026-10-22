@@ -25,6 +25,7 @@ import segno
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
 from sfrfr.integrations.payments import YooKassaClient
+from sfrfr.services.payment_amount import yookassa_charge_amount_rub
 from sfrfr.services.public_tariffs import payment_description, staff_package_label
 from sfrfr.services.staff_finance import parse_dt
 
@@ -79,9 +80,10 @@ def ensure_yookassa_pay_url(
         return {"ok": True, "pay_url": existing, "kind": "reuse"}
     if not client.available:
         return {"ok": False, "pay_url": existing, "kind": "unconfigured"}
-    amount = float(order.get("amount_rub") or 0)
-    if amount <= 0:
+    order_amount = float(order.get("amount_rub") or 0)
+    if order_amount <= 0:
         return {"ok": False, "pay_url": existing, "kind": "bad_amount"}
+    amount = yookassa_charge_amount_rub(order_amount)
     description = payment_description(
         str(order.get("package_code") or ""),
         order.get("service_label"),
