@@ -128,7 +128,11 @@ def test_resolve_checking_only_when_job_runs() -> None:
 
 def test_intent_classifiers() -> None:
     assert ccs.classify_user_intent("Спасибо") == "thanks"
+    # Спряжения «работать» (работаете / работаешь / …), не только существительное.
     assert ccs.classify_user_intent("Вы ещё работаете?") == "working_question"
+    assert ccs.classify_user_intent("вы работаете?") == "working_question"
+    assert ccs.classify_user_intent("ещё работаете?") == "working_question"
+    assert ccs.classify_user_intent("Вы ещё работаешь?") == "working_question"
     assert (
         ccs.classify_user_intent("В 1998–2001 работал на заводе Север")
         == "clarification"
