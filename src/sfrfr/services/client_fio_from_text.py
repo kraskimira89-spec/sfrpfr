@@ -41,6 +41,17 @@ _LINE_FIO_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Поля ТК/анкеты на отдельных строках: «Фамилия … / Имя … / Отчество …».
+_FIELD_SURNAME_RE = re.compile(
+    rf"(?im)(?:^|\n)\s*фамилия\s*[:\-–—]?\s*({_NAME_TOKEN})\b"
+)
+_FIELD_GIVEN_RE = re.compile(
+    rf"(?im)(?:^|\n)\s*имя\s*[:\-–—]?\s*({_NAME_TOKEN})\b"
+)
+_FIELD_PATRONYMIC_RE = re.compile(
+    rf"(?im)(?:^|\n)\s*отчество\s*[:\-–—]?\s*({_NAME_TOKEN})\b"
+)
+
 # Клиент: «Меня зовут …» / «Я — …»
 _CLIENT_INTRO_RE = re.compile(
     rf"(?i)(?:меня\s+зовут|я\s*[-—:]\s*|мо[её]\s+имя\s*)"
@@ -48,6 +59,31 @@ _CLIENT_INTRO_RE = re.compile(
 )
 
 _CONF_RANK = {"none": 0, "low": 1, "medium": 2, "high": 3}
+
+
+def _extract_fielded_fio(blob: str) -> ParsedPersonName | None:
+    """Собрать ФИО из отдельных полей «Фамилия / Имя / Отчество»."""
+    surname_m = _FIELD_SURNAME_RE.search(blob)
+    given_m = _FIELD_GIVEN_RE.search(blob)
+    patronymic_m = _FIELD_PATRONYMIC_RE.search(blob)
+    if not (surname_m and given_m and patronymic_m):
+        return None
+    joined = f"{surname_m.group(1)} {given_m.group(1)} {patronymic_m.group(1)}"
+    parsed = parse_person_name(joined)
+    if not (parsed.is_usable and parsed.surname and parsed.given and parsed.patronymic):
+        return None
+    if parsed.confidence == "medium":
+        return ParsedPersonName(
+            raw=parsed.raw,
+            surname=parsed.surname,
+            given=parsed.given,
+            patronymic=parsed.patronymic,
+            confidence="high",
+            salutation=parsed.salutation,
+            display=parsed.display,
+            needs_confirm=False,
+        )
+    return parsed
 
 
 def extract_fio_from_text(
@@ -79,6 +115,9 @@ def extract_fio_from_text(
                         needs_confirm=False,
                     )
                 candidates.append(parsed)
+        fielded = _extract_fielded_fio(blob)
+        if fielded is not None:
+            candidates.append(fielded)
         for match in _LINE_FIO_RE.finditer(blob):
             parsed = parse_person_name(
                 f"{match.group(1)} {match.group(2)} {match.group(3)}"

@@ -33,6 +33,20 @@ def test_extract_line_fio_with_patronymic() -> None:
     assert parsed.patronymic == "Сергеевна"
 
 
+def test_extract_fielded_fio_from_tk_labels() -> None:
+    text = (
+        "Трудовая книжка\n"
+        "Фамилия Козлова\n"
+        "Имя Анна\n"
+        "Отчество Сергеевна\n"
+        "Дата рождения …\n"
+    )
+    parsed = extract_fio_from_text(text, source="document")
+    assert parsed is not None
+    assert parsed.display == "Козлова Анна Сергеевна"
+    assert parsed.confidence == "high"
+
+
 def test_ambiguous_two_strong_fio_returns_none() -> None:
     text = (
         "ФИО: Сидоров Пётр Николаевич\n"
