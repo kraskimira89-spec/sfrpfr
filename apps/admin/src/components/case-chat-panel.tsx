@@ -229,6 +229,7 @@ export function CaseChatPanel({
   body,
   onBodyChange,
   busy,
+  suggestBusy = false,
   onSendMax,
   onSendInternal,
   suggestions,
@@ -250,7 +251,10 @@ export function CaseChatPanel({
   maxBusinessUrl?: string | null;
   body: string;
   onBodyChange: (value: string) => void;
+  /** Блокирует отправку / textarea (не подсказки DeepSeek). */
   busy: boolean;
+  /** Только кнопка «Подсказать ответы» — не глушит «Отправить в MAX». */
+  suggestBusy?: boolean;
   onSendMax: () => void;
   onSendInternal: () => void;
   suggestions: string[];
@@ -615,7 +619,7 @@ export function CaseChatPanel({
           <button
             type="button"
             className="ghost"
-            disabled={busy}
+            disabled={busy || suggestBusy}
             onClick={onSuggest}
             title={
               suggestions.length > 0
@@ -623,8 +627,13 @@ export function CaseChatPanel({
                 : "DeepSeek предложит 2–3 варианта ответа по истории чата. Не отправляет само — только варианты для выбора"
             }
           >
-            {suggestions.length > 0 ? "Перегенерировать подсказки" : "Подсказать ответы (DeepSeek)"}
-          </button>          {maxLinked ? (
+            {suggestBusy
+              ? "Подсказки…"
+              : suggestions.length > 0
+                ? "Перегенерировать подсказки"
+                : "Подсказать ответы (DeepSeek)"}
+          </button>
+          {maxLinked ? (
             <button
               type="button"
               className="max-action-btn max-action-btn--inline"

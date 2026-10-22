@@ -124,9 +124,12 @@ def test_mirror_staff_processes_own_message_not_oldest() -> None:
     case = {"id": "case-1", "clients": {"max_user_id": "u-1"}}
     with (
         patch.object(delivery, "enqueue_max_delivery", return_value=True) as enqueue,
-        patch.object(delivery, "process_pending_outbox") as process,
+        patch.object(delivery, "process_pending_outbox", return_value=1) as process,
     ):
-        delivery.mirror_staff_message_to_max(case, "Ответ клиенту", message_id="m-9")
+        ok = delivery.mirror_staff_message_to_max(
+            case, "Ответ клиенту", message_id="m-9"
+        )
+    assert ok is True
     enqueue.assert_called_once()
     assert process.call_args.kwargs.get("message_id") == "m-9"
 

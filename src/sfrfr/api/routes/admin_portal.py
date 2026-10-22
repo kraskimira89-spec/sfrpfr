@@ -1378,9 +1378,19 @@ def send_max_reply_to_client(
     repo = _repo()
     case = repo.require_case(principal, case_id)
     client = case.get("clients") or {}
+    if isinstance(client, list):
+        client = client[0] if client else {}
+    if not isinstance(client, dict):
+        client = {}
     max_uid = str(client.get("max_user_id") or "").strip()
     if not max_uid:
-        raise HTTPException(status_code=400, detail="client_has_no_max_user_id")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "client_has_no_max_user_id",
+                "detail": "У клиента нет привязки MAX — отправка недоступна.",
+            },
+        )
     text = strip_internal_staff_prefix(payload.message.strip())
     if not text:
         raise HTTPException(status_code=400, detail="empty_message")
@@ -1491,15 +1501,29 @@ def send_max_reply_to_client(
             }
         )
         message_id = str(message_row.get("id") or "").strip() or None
-        from sfrfr.services.case_chat_delivery import mirror_staff_message_to_max
-
-        mirror_staff_message_to_max(case, text, message_id=message_id)
     except Exception as exc:  # noqa: BLE001
         detail = (
             "Не удалось сохранить сообщение общего чата. "
             "Проверьте связь с базой и повторите."
         )
         raise HTTPException(status_code=502, detail=detail) from exc
+
+    from sfrfr.services.case_chat_delivery import mirror_staff_message_to_max
+
+    delivered = mirror_staff_message_to_max(case, text, message_id=message_id)
+    if not delivered:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "max_send_failed",
+                "detail": (
+                    "Не удалось доставить сообщение в MAX "
+                    "(оно сохранено в ленте дела). "
+                    "Проверьте бота и привязку клиента, затем повторите."
+                ),
+                "message_id": message_id,
+            },
+        )
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
     return {
         "ok": True,
