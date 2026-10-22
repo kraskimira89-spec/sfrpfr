@@ -1020,6 +1020,29 @@ def yookassa_status(
         raise typer.Exit(code=1)
 
 
+@app.command("yookassa-retry-receipt")
+def yookassa_retry_receipt(
+    payment_id: str = typer.Argument(..., help="UUID платежа ЮKassa"),
+    email: str = typer.Option("", "--email", help="Email клиента для чека"),
+    phone: str = typer.Option("", "--phone", help="Телефон клиента (7XXXXXXXXXX)"),
+) -> None:
+    """Повторно отправить чек в ККТ (после письма «пробейте вручную»)."""
+    import json
+
+    from sfrfr.integrations.payments import YooKassaClient
+
+    result = YooKassaClient().ensure_payment_receipt(
+        payment_id=payment_id.strip(),
+        customer_email=(email or "").strip() or None,
+        customer_phone=(phone or "").strip() or None,
+    )
+    typer.echo(json.dumps(result, ensure_ascii=False))
+    if result.get("skipped") and result.get("ok"):
+        raise typer.Exit(code=0)
+    if not result.get("ok"):
+        raise typer.Exit(code=1)
+
+
 @app.command("amocrm-ensure-fields")
 def amocrm_ensure_fields() -> None:
     """Создать/обновить custom fields сделки: русские названия, ARCHIVE_*, скрыть черновики."""

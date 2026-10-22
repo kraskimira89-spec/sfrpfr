@@ -178,13 +178,17 @@ python -m sfrfr yookassa-status
 ### Настройка в коде
 
 1. В `.env`: `YOOKASSA_SEND_RECEIPT=true` (обязательно при `fiscalization_enabled`).
-2. У клиента — **email** (профиль или `customer_email` в `/pay`).
-3. Код передаёт `receipt.customer` + `items` с `vat_code` (по умолчанию `1`).
+2. У клиента — **email или телефон** (профиль / `customer_email` в `/pay`). Без контакта ссылку/платёж с чеком не создаём.
+3. Код передаёт `receipt.customer` + `items` + `internet=true`, `vat_code` из `YOOKASSA_VAT_CODE` (по умолчанию `1`).
+4. Если Evotor не принял чек (`receipt_registration` ≠ succeeded) — webhook вызывает `POST /v3/receipts`; вручную:  
+   `python -m sfrfr yookassa-retry-receipt <payment_id> --email client@example.com`
 
 **Не отправляйте фискальный чек через MAX или amoCRM** — это не ОФД.  
 После оплаты SFRFR шлёт в MAX/чат дела сервисное «оплата получена, чек на email», а в amo — служебную заметку.
 
 Пока `SEND_RECEIPT=false` при включённой фискализации ЮKassa вернёт `Receipt is missing or illegal`.
+
+Касса Evotor должна быть **включена и в сети** — иначе ЮKassa пришлёт письмо «пробейте вручную» даже при корректном API.
 
 ## Шаг 6. Боевой режим
 
@@ -210,7 +214,8 @@ python -m sfrfr yookassa-status
 | 503 на `/pay` | Пустые `YOOKASSA_SHOP_ID` / `SECRET_KEY` на VPS |
 | 502 yookassa create failed | Неверный ключ, сумма 0, ответ API в логах |
 | Оплатил, статус pending | Webhook URL / HTTPS / firewall; событие `payment.succeeded` |
-| Нет чека | `YOOKASSA_SEND_RECEIPT` и email клиента; ЛК [Платформа ОФД](https://lk.platformaofd.ru/) |
+| Нет чека | `YOOKASSA_SEND_RECEIPT` и email/телефон клиента; ЛК [Платформа ОФД](https://lk.platformaofd.ru/); Evotor онлайн |
+| Письмо «пробейте вручную» / чек не доставлен в ККТ | Evotor выкл./офлайн **или** неверный `vat_code`. Повтор: `sfrfr yookassa-retry-receipt <payment_id> --email …`. Webhook сам ретраит `/receipts` |
 | `Receipt is missing` | Фискализация вкл., а `SEND_RECEIPT=false` |
 | Двойной чек | В ЮKassa два режима сразу или ручной пробив в Evotor + API |
 | Тест не проходит | Используете боевой ключ или наоборот |

@@ -164,8 +164,115 @@ def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> 
     assert "Проверка стажа" in payload["description"]
     assert payload["confirmation"]["return_url"].startswith("https://cabinet.proverkastaza.ru")
     assert payload["receipt"]["items"][0]["description"] == desc[:128]
+    assert payload["receipt"]["customer"]["email"] == "a@b.ru"
+    assert payload["receipt"]["internet"] is True
     # Умный платёж: не фиксируем один способ — порядок СБП/Сбер только в ЛК ЮKassa
     assert "payment_method_data" not in payload
     assert "payment_method_types" not in payload
     assert payload["capture"] is True
     get_settings.cache_clear()
+
+
+def test_receipt_accepts_phone_without_email(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+        captured["payload"] = payload
+        return 200, {"id": "pay-phone", "status": "pending", "confirmation": {}}
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "true")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    client.create_payment(
+        amount_rub=3000,
+        description="diag",
+        return_url="https://cabinet.proverkastaza.ru/",
+        customer_phone="+7 (909) 195-04-08",
+    )
+    customer = captured["payload"]["receipt"]["customer"]
+    assert "email" not in customer
+    assert customer["phone"] == "79091950408"
+    get_settings.cache_clear()
+
+
+def test_create_receipt_retry_payload(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+        captured["path"] = path
+        captured["payload"] = payload
+        return 200, {"id": "rt-1", "status": "pending", "type": "payment"}
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "true")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="326bea92-000f-5001-8000-18aadc720fe4",
+        amount_rub=3000.0,
+        description="Проверка стажа — Диагностика",
+        customer_email="client@example.com",
+    )
+    assert out["ok"] is True
+    assert captured["path"] == "/receipts"
+    body = captured["payload"]
+    assert body["payment_id"] == "326bea92-000f-5001-8000-18aadc720fe4"
+    assert body["type"] == "payment"
+    assert body["send"] is True
+    assert body["internet"] is True
+    assert body["settlements"][0]["type"] == "cashless"
+    assert body["settlements"][0]["amount"]["value"] == "3000.00"
+    get_settings.cache_clear()
+
+
+def test_ensure_receipt_skips_when_already_succeeded(monkeypatch: Any) -> None:
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "succeeded",
+                "amount": {"value": "3000.00", "currency": "RUB"},
+                "description": "diag",
+            },
+        },
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        client,
+        "create_receipt",
+        lambda **kwargs: called.append("x") or {"ok": True},
+    )
+    out = client.ensure_payment_receipt(
+        payment_id="pay-1",
+        customer_email="a@b.ru",
+    )
+    assert out["ok"] is True
+    assert out.get("skipped") is True
+    assert called == []
+
+
+def test_parse_yookassa_event_receipt_registration() -> None:
+    parsed = parse_yookassa_event(
+        {
+            "event": "payment.succeeded",
+            "object": {
+                "id": "pay-reg",
+                "status": "succeeded",
+                "paid": True,
+                "receipt_registration": "canceled",
+                "amount": {"value": "3000.00"},
+                "metadata": {"order_id": "o1"},
+            },
+        }
+    )
+    assert parsed["receipt_registration"] == "canceled"

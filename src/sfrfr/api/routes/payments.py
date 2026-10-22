@@ -202,7 +202,68 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
                 str(applied.get("case_id") or "")[:8],
                 exc,
             )
+
+    # Автоповтор чека, если ЮKassa/Evotor не зарегистрировали (письмо «пробейте вручную»).
+    if paid and get_settings().yookassa_send_receipt:
+        reg = str(parsed.get("receipt_registration") or "").strip().lower()
+        if reg in {"", "pending", "canceled", "cancelled"}:
+            try:
+                amt = (
+                    str(parsed["amount_value"])
+                    if parsed.get("amount_value")
+                    else None
+                )
+                _retry_fiscal_receipt(
+                    provider_payment_id=str(provider_id),
+                    case_id=str(applied.get("case_id") or "") or None,
+                    amount_value=amt,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "receipt retry failed payment=%s: %s",
+                    str(provider_id)[:13],
+                    exc,
+                )
     return {"ok": "processed"}
+
+
+def _retry_fiscal_receipt(
+    *,
+    provider_payment_id: str,
+    case_id: str | None,
+    amount_value: str | None,
+) -> None:
+    email: str | None = None
+    phone: str | None = None
+    if case_id:
+        try:
+            row = _repo().get_case_row(case_id)
+            client = (row or {}).get("clients") if isinstance(row, dict) else None
+            if isinstance(client, list):
+                client = client[0] if client else {}
+            if isinstance(client, dict):
+                email = str(client.get("email") or "").strip() or None
+                phone = str(client.get("phone") or "").strip() or None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("receipt retry load case=%s: %s", case_id[:8], exc)
+    amount: float | None = None
+    if amount_value:
+        try:
+            amount = float(amount_value)
+        except ValueError:
+            amount = None
+    result = YooKassaClient().ensure_payment_receipt(
+        payment_id=provider_payment_id,
+        customer_email=email,
+        customer_phone=phone,
+        amount_rub=amount,
+    )
+    if not result.get("ok") and not result.get("skipped"):
+        logger.warning(
+            "ensure_payment_receipt payment=%s err=%s",
+            provider_payment_id[:13],
+            result.get("error") or result.get("reason"),
+        )
 
 
 @public_router.get("/pay/{order_id}/qr.png")
