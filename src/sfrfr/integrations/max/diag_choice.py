@@ -78,6 +78,11 @@ _FAIL_BY_REASON: dict[str, str] = {
         "(платёжный сервис или доставка в чат). "
         "Напишите «Нужна проверка» — пришлём ссылку или QR в этом чате."
     ),
+    "orders_load": (
+        "Не удалось проверить текущие заказы по делу. "
+        "Повторный счёт сейчас не выставляем. "
+        "Напишите «Нужна проверка» — оформим оплату вручную в этом чате."
+    ),
 }
 
 
@@ -238,6 +243,14 @@ def _start_payment_flow(
     log_event: Callable[[str], Any],
 ) -> tuple[str, str]:
     clear_pending(rec)
+    # Paid order ДО brief/gate: потеря флагов после restart не должна
+    # снова вести на продажу, если DIAG уже оплачена.
+    paid = _diag_already_paid_text(case_id)
+    if paid:
+        reply(paid, None)
+        log_event("Выбор после анкеты: диагностика уже оплачена")
+        return "diag_yes_paid", paid
+
     decision = _evaluate_for_rec(rec)
     if not decision.allowed:
         body = _gated_reply(case_id=case_id, reason=decision.reason)
