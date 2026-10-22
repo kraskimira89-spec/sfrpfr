@@ -4,7 +4,15 @@ import { extractCaseChatDocumentId } from "@/lib/case-chat-doc-id";
 import { clientNameForChatHeader, clientNameNeedsConfirm } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
 export type CaseChatMessage = {
@@ -342,10 +350,29 @@ export function CaseChatPanel({
   const fio = clientNameForChatHeader(clientName, messages);
   const fioNeedsConfirm = clientNameNeedsConfirm(clientName);
   const maxMeta = (maxUserId || "").trim() || null;
+  const maxOpenUrl = (maxBusinessUrl || "").trim() || "https://business.max.ru/self";
   const metaBits = [
     maxMeta ? `MAX ${maxMeta}` : null,
     caseLabel || null,
   ].filter(Boolean) as string[];
+
+  function pickSuggestion(item: string) {
+    if (onPickSuggestion) {
+      onPickSuggestion(item);
+      return;
+    }
+    onBodyChange(item);
+  }
+
+  function handleOpenMaxClick(event: MouseEvent<HTMLElement>) {
+    if (!onOpenMax) {
+      event.preventDefault();
+      return;
+    }
+    // Без user_id не уходим по href — родитель покажет ошибку.
+    if (!maxMeta) event.preventDefault();
+    onOpenMax();
+  }
 
   return (
     <aside className="case-chat panel" id="max-reply-panel" aria-label="Переписка с клиентом">
@@ -397,23 +424,6 @@ export function CaseChatPanel({
             <p className="case-chat-await" role="status">
               Нужен ответ сотрудника
             </p>
-          ) : null}
-          {onOpenMax ? (
-            <div className="row-actions case-chat-head-actions">
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={onOpenMax}
-                title={
-                  maxUserId
-                    ? `Открыть ${maxBusinessUrl || "MAX Business"} · найти диалог по user_id ${maxUserId}`
-                    : "Нужен MAX user_id клиента — без него диалог в Business не найти"
-                }
-              >
-                Открыть MAX
-              </button>
-            </div>
           ) : null}
         </div>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
@@ -597,7 +607,7 @@ export function CaseChatPanel({
                     "case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client" +
                     (pickedSuggestion === item ? " case-chat-btn-chip--picked" : "")
                   }
-                  onClick={() => (onPickSuggestion ? onPickSuggestion(item) : onBodyChange(item))}
+                  onClick={() => pickSuggestion(item)}
                   title="Подставить в поле и убрать черновики"
                 >
                   {item}
@@ -648,6 +658,30 @@ export function CaseChatPanel({
                 ? "Перегенерировать подсказки"
                 : "Подсказать ответы (DeepSeek)"}
           </button>
+          {onOpenMax ? (
+            maxMeta ? (
+              <a
+                className="ghost"
+                href={maxOpenUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={handleOpenMaxClick}
+                title={`MAX Business · диалоги. Ищите user_id ${maxMeta}`}
+              >
+                Открыть MAX
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onOpenMax}
+                title="Нужен MAX user_id клиента — без него диалог в Business не найти"
+              >
+                Открыть MAX
+              </button>
+            )
+          ) : null}
           {maxLinked ? (
             <button
               type="button"
