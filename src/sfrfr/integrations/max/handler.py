@@ -675,7 +675,11 @@ def _reply_consent_gate(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult:
-    """Один раз: согласие ПДн перед кнопкой «Начать» — короткими сообщениями подряд."""
+    """Один раз: согласие ПДн перед кнопкой «Начать» — короткими сообщениями подряд.
+
+    logical=False: текст согласия хешируется как evidence; техразбиение и ритм
+    submission_nudge/soft_offers не должны менять юридические части.
+    """
     from sfrfr.services.client_pdn_consent import CONSENT_GATE_PARTS, CONSENT_GATE_TEXT
 
     case_id = _case_id_for_max_user(user_id)
@@ -688,6 +692,7 @@ def _reply_consent_gate(
             text=part,
             attachments=_start_dialog_keyboard() if idx == last else None,
             case_id=case_id,
+            logical=False,
         )
     return MaxHandleResult(ok=True, action="pdn_consent_gate", reply=CONSENT_GATE_TEXT)
 
