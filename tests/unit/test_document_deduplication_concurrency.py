@@ -290,9 +290,17 @@ def test_create_quarantine_parallel_identical_one_document(
     canonical = next(iter(ids))
     assert len(registry.documents) == 1
     assert canonical in registry.documents
+    # Проигравший claim не ставит второй job и не пишет второй blob
     assert registry.jobs == [canonical]
+    assert all(str(r.get("job_id") or "") in ("", f"job-{canonical}") for r in rows)
+    assert sum(1 for r in rows if r.get("job_id")) <= 1
     assert registry.events["q-event-0"] == canonical
     assert registry.events["q-event-1"] == canonical
     assert len(registry.storage_blobs) == 1
     assert list(registry.storage_blobs.values()) == [content]
     assert checksum == sha256_hex(content)
+    # Оба ответа указывают на один канон; у проигравшего — deduped без своего id
+    for r in rows:
+        assert str(r["id"]) == canonical
+        if r.get("deduped"):
+            assert r.get("job_id") in ("", None) or r.get("job_id") == f"job-{canonical}"

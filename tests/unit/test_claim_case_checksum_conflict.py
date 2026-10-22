@@ -25,12 +25,16 @@ class _ChecksumTable:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.rows: dict[tuple[str, str], dict[str, Any]] = {}
+        self.insert_attempts = 0
+        self.unique_conflicts = 0
         self.after_insert_attempt: threading.Barrier | None = None
 
     def insert(self, payload: dict[str, Any]) -> MagicMock:
         key = (str(payload["case_id"]), str(payload["checksum_sha256"]))
         with self._lock:
+            self.insert_attempts += 1
             if key in self.rows:
+                self.unique_conflicts += 1
                 raise _UniqueConflict(
                     "duplicate key value violates unique constraint "
                     '\"case_document_checksums_pkey\" (23505)'
@@ -143,15 +147,19 @@ def test_claim_conflict_reads_registry_while_documents_empty(
 def test_two_independent_claims_one_canonical(
     fake_client: _FakeClient,
 ) -> None:
+    """Две независимые попытки claim: ровно один победитель, без зависания/исключений."""
     case_id = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
     checksum = "b" * 64
+    winner_candidate = "11111111-1111-1111-1111-111111111111"
+    loser_candidate = "22222222-2222-2222-2222-222222222222"
     barrier = threading.Barrier(2, timeout=10)
     set_test_after_hash_lookup_barrier(barrier)
 
     results: list[str] = []
+    errors: list[BaseException] = []
 
     def claim_one(doc_id: str) -> str:
-        # Оба «соединения» доходят до claim одновременно
+        # Оба «соединения» доходят до claim одновременно (независимые «транзакции»)
         barrier.wait()
         return claim_case_checksum(
             case_id=case_id,
@@ -163,14 +171,30 @@ def test_two_independent_claims_one_canonical(
     try:
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [
-                pool.submit(claim_one, "11111111-1111-1111-1111-111111111111"),
-                pool.submit(claim_one, "22222222-2222-2222-2222-222222222222"),
+                pool.submit(claim_one, winner_candidate),
+                pool.submit(claim_one, loser_candidate),
             ]
-            results = [f.result(timeout=15) for f in as_completed(futures)]
+            for f in as_completed(futures):
+                try:
+                    results.append(f.result(timeout=15))
+                except BaseException as exc:  # noqa: BLE001 — фиксируем любой сбой гонки
+                    errors.append(exc)
     finally:
         set_test_after_hash_lookup_barrier(None)
 
+    assert errors == [], f"гонка дала исключения: {errors!r}"
+    assert len(results) == 2
     assert len(set(results)) == 1
     assert len(fake_client.checksums.rows) == 1
+    assert fake_client.checksums.insert_attempts == 2
+    assert fake_client.checksums.unique_conflicts == 1
     canonical = results[0]
+    assert canonical in {winner_candidate, loser_candidate}
     assert fake_client.checksums.rows[(case_id, checksum)]["document_id"] == canonical
+    # Проигравший не оставляет вторую строку реестра (нет «побочной» записи claim)
+    loser = (
+        loser_candidate if canonical == winner_candidate else winner_candidate
+    )
+    assert loser not in {
+        r["document_id"] for r in fake_client.checksums.rows.values()
+    }

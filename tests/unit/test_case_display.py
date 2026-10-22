@@ -55,6 +55,23 @@ def test_public_number_concurrent_same_case_same_number() -> None:
     assert set(results) == {"CASE-2026-730545"}
 
 
+def test_public_number_repeat_does_not_change_existing() -> None:
+    """Повтор запроса / «пересоздание» отображения — тот же номер, PK не трогаем."""
+    first = case_public_number(CASE, when=date(2026, 10, 22))
+    again = case_public_number(CASE, when=date(2026, 10, 22))
+    assert first == again == "CASE-2026-730545"
+    # NNNNNN стабилен при той же дате открытия; год берётся из when
+    assert case_public_number(CASE, when=date(2026, 1, 1)) == first
+
+
+def test_public_number_different_cases_different_nnnnnn() -> None:
+    other = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    a = case_public_number(CASE, when=date(2026, 10, 22))
+    b = case_public_number(other, when=date(2026, 10, 22))
+    assert a != b
+    assert a and b and a.startswith("CASE-2026-") and b.startswith("CASE-2026-")
+
+
 def test_questionnaire_completed_text_includes_case_number(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
