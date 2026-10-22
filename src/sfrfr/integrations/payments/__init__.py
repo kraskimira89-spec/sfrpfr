@@ -109,6 +109,11 @@ class YooKassaClient:
         customer_email: str | None = None,
         vat_code: int = 1,
     ) -> dict[str, Any]:
+        """Умный платёж (redirect): без payment_method_data — иначе один способ вместо списка.
+
+        Порядок СБП→SberPay→остальное задаётся только в ЛК/у менеджера ЮKassa
+        (docs/yookassa-setup.md). capture=True нужен, чтобы СБП был доступен.
+        """
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
 

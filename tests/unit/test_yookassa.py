@@ -164,4 +164,8 @@ def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> 
     assert "Проверка стажа" in payload["description"]
     assert payload["confirmation"]["return_url"].startswith("https://cabinet.proverkastaza.ru")
     assert payload["receipt"]["items"][0]["description"] == desc[:128]
+    # Умный платёж: не фиксируем один способ — порядок СБП/Сбер только в ЛК ЮKassa
+    assert "payment_method_data" not in payload
+    assert "payment_method_types" not in payload
+    assert payload["capture"] is True
     get_settings.cache_clear()
