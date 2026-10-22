@@ -226,7 +226,9 @@ def _diag_paid_state(case_id: str | None) -> tuple[str, str | None]:
 
         orders = CaseRepository().list_orders(cid) or []
     except Exception:  # noqa: BLE001
-        return "error", fail_text_for_reason("orders_load")
+        # Не доказали оплату и не доказали «пусто» — gate/оплата сами
+        # остановят создание счёта через reason=orders_load.
+        return "ok", None
     if not _has_open_or_paid_diag(orders):
         return "ok", None
     if _find_open_order(orders, tariff="DIAG") is not None:
@@ -273,10 +275,6 @@ def _start_payment_flow(
         reply(paid_text, None)
         log_event("Выбор после анкеты: диагностика уже оплачена")
         return "diag_yes_paid", paid_text
-    if paid_state == "error" and paid_text:
-        reply(paid_text, None)
-        log_event("Выбор диагностики: заказы недоступны, счёт не создаём")
-        return "diag_yes_fail", paid_text
 
     decision = _evaluate_for_rec(rec, case_id=case_id)
     if not decision.allowed:
@@ -360,11 +358,6 @@ def handle(
             reply(paid_text, None)
             log_event("Soft-ask да, но диагностика уже оплачена")
             return "diag_detail_yes_paid", paid_text
-        if paid_state == "error" and paid_text:
-            clear_pending(rec)
-            reply(paid_text, None)
-            log_event("Soft-ask да, но заказы недоступны — без повторного счёта")
-            return "diag_detail_yes_fail", paid_text
         # Heal brief (persist сбрасывает consent). Сам payload = soft-ask
         # уже был в ленте → gaps нельзя откатывать в no_discrepancy.
         brief.ensure_brief_flags_for_offer(rec, case_id=case_id)

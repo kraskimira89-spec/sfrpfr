@@ -220,8 +220,8 @@ def test_diag_yes_paid_checked_before_gate(tmp_path: Path, monkeypatch) -> None:
     started: list[dict] = []
     monkeypatch.setattr(
         dc,
-        "_diag_already_paid_text",
-        lambda _cid: paid_text,
+        "_diag_paid_state",
+        lambda _cid: ("paid", paid_text),
     )
     monkeypatch.setattr(
         dc, "start_diag_payment", lambda **kw: started.append(kw) or {"ok": True}
