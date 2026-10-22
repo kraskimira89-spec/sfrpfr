@@ -86,9 +86,9 @@ def extract_fio_from_text(
             if parsed.is_usable:
                 candidates.append(parsed)
     else:
-        match = _CLIENT_INTRO_RE.search(blob)
-        if match:
-            parsed = parse_person_name(match.group(1))
+        intro = _CLIENT_INTRO_RE.search(blob)
+        if intro:
+            parsed = parse_person_name(intro.group(1))
             if parsed.is_usable:
                 candidates.append(parsed)
 
