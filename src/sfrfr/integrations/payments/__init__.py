@@ -321,7 +321,10 @@ class YooKassaClient:
                 "error": fetched.get("error") or "payment fetch failed",
                 "status_code": fetched.get("status_code"),
             }
-        payment = fetched.get("payment") if isinstance(fetched.get("payment"), dict) else {}
+        raw_payment = fetched.get("payment")
+        payment: dict[str, Any] = (
+            raw_payment if isinstance(raw_payment, dict) else {}
+        )
         reg = str(payment.get("receipt_registration") or "").strip().lower()
         if reg == "succeeded":
             return {
@@ -337,7 +340,8 @@ class YooKassaClient:
                 "skipped": True,
                 "reason": f"payment_status={status_value or 'unknown'}",
             }
-        amount = payment.get("amount") if isinstance(payment.get("amount"), dict) else {}
+        raw_amount = payment.get("amount")
+        amount: dict[str, Any] = raw_amount if isinstance(raw_amount, dict) else {}
         value_raw = amount.get("value")
         try:
             amount_value = float(amount_rub if amount_rub is not None else value_raw or 0)
