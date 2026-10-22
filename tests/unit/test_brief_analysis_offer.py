@@ -105,7 +105,7 @@ def test_findings_drive_discrepancy() -> None:
 def test_preserve_without_prior_soft_ask_does_not_invent_completed(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Клик без prior soft-ask не фабрикует analysis completed."""
+    """Клик без prior soft-ask / brief не фабрикует discrepancy и completed."""
     from sfrfr.integrations.max.intake import reset_intake_store
 
     path = tmp_path / "intake-preserve.json"
@@ -118,6 +118,9 @@ def test_preserve_without_prior_soft_ask_does_not_invent_completed(
     store.save(rec)
     ba.preserve_gaps_after_soft_ask_yes(rec)
     answers = rec.q_answers or {}
+    # Несогласованность: discrepancy=1 без analysis-флагов запрещена.
+    assert answers.get(ba.DISCREPANCY_KEY) != "1"
+    assert answers.get(ba.SOFT_ASK_SENT_KEY) != "1"
     assert answers.get(ba.STATUS_KEY) != ba.STATUS_COMPLETED
     assert answers.get(ba.SUMMARY_SHOWN_KEY) != "1"
     assert answers.get(ba.OFFER_REVIVE_KEY) != "1"
