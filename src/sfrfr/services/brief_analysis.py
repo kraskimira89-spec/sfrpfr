@@ -26,6 +26,7 @@ CURRENT_KEY = "_brief_current"
 DISCREPANCY_KEY = "_brief_discrepancy"
 SUMMARY_KEY = "_brief_summary"
 FP_KEY = "_brief_fp"
+CASE_KEY = "_brief_case_id"
 SUMMARY_SHOWN_KEY = "_brief_summary_shown"
 SOFT_ASK_SENT_KEY = "_brief_soft_ask_sent"
 OFFER_REVIVE_KEY = "_brief_offer_revive"
@@ -451,6 +452,9 @@ def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
     answers[DISCREPANCY_KEY] = "1" if result.has_justified_discrepancy else "0"
     answers[SUMMARY_KEY] = result.summary[:3500]
     answers[FP_KEY] = result.fingerprint
+    cid = str(getattr(target, "case_id", None) or getattr(rec, "case_id", "") or "").strip()
+    if cid:
+        answers[CASE_KEY] = cid
     answers[SUMMARY_SHOWN_KEY] = "0"
     answers[DETAIL_CONSENT_KEY] = "0"
     answers.pop(DETAIL_PENDING_KEY, None)
@@ -494,10 +498,33 @@ def is_detail_pending(rec: Any | None) -> bool:
     return str(answers.get(DETAIL_PENDING_KEY) or "") == "1"
 
 
+def brief_is_current_for_case(
+    answers: dict[str, Any],
+    *,
+    case_id: str | None,
+    documents: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True только если сохранённый brief того же дела и (опционально) того же состава docs."""
+    if str(answers.get(CURRENT_KEY) or "") != "1":
+        return False
+    cid = str(case_id or "").strip()
+    stored_case = str(answers.get(CASE_KEY) or "").strip()
+    if cid and stored_case and stored_case != cid:
+        return False
+    if documents is None:
+        return True
+    stored_fp = str(answers.get(FP_KEY) or "").strip()
+    if not stored_fp:
+        return False
+    return stored_fp == documents_fingerprint(documents)
+
+
 def gate_flags_from_intake(
     rec: Any | None,
     *,
     reload: bool = False,
+    case_id: str | None = None,
+    documents: list[dict[str, Any]] | None = None,
 ) -> dict[str, bool]:
     """Флаги для evaluate_diag_offer из intake (без обхода)."""
     target = rec
@@ -507,10 +534,18 @@ def gate_flags_from_intake(
     if not isinstance(answers, dict):
         answers = {}
     completed = str(answers.get(STATUS_KEY) or "") == STATUS_COMPLETED
+    cid = str(
+        case_id
+        or (getattr(target, "case_id", None) if target is not None else "")
+        or ""
+    ).strip()
+    analysis_current = brief_is_current_for_case(
+        answers, case_id=cid or None, documents=documents
+    )
     return {
         "has_completed_brief_analysis": completed,
         "analysis_ok": str(answers.get(OK_KEY) or "") == "1",
-        "analysis_current": str(answers.get(CURRENT_KEY) or "") == "1",
+        "analysis_current": analysis_current,
         "has_justified_discrepancy": str(answers.get(DISCREPANCY_KEY) or "") == "1",
         "client_got_clear_summary": str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1",
         "client_wants_detailed_review": str(answers.get(DETAIL_CONSENT_KEY) or "") == "1",
@@ -533,7 +568,19 @@ def ensure_brief_flags_for_offer(
     if not mid or not cid:
         return None
 
-    flags = gate_flags_from_intake(rec, reload=True)
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.case_chat_context import fetch_recent_case_messages
+    from sfrfr.services.max_kit_status import collect_case_doc_buckets
+
+    try:
+        docs = list(CaseRepository().list_documents(cid) or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ensure brief list_documents failed: %s", exc)
+        return None
+
+    flags = gate_flags_from_intake(
+        rec, reload=True, case_id=cid, documents=docs
+    )
     answers_now = dict(getattr(rec, "q_answers", None) or {})
     keep_gaps = soft_ask_was_sent(rec) or flags["has_justified_discrepancy"]
     prior_summary = str(answers_now.get(SUMMARY_KEY) or "")
@@ -566,15 +613,6 @@ def ensure_brief_flags_for_offer(
             return forced
         return None
 
-    from sfrfr.db.case_repository import CaseRepository
-    from sfrfr.services.case_chat_context import fetch_recent_case_messages
-    from sfrfr.services.max_kit_status import collect_case_doc_buckets
-
-    try:
-        docs = list(CaseRepository().list_documents(cid) or [])
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("ensure brief list_documents failed: %s", exc)
-        return None
     have = collect_case_doc_buckets(docs)
     if "ils" not in have or "labor" not in have:
         return None

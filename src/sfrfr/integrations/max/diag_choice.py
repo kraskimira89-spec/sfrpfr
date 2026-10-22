@@ -193,16 +193,30 @@ def start_diag_payment(*, case_id: str, max_user_id: str) -> dict[str, Any] | No
     )
 
 
-def _evaluate_for_rec(rec: MaxIntakeRecord) -> Any:
-    flags = brief.gate_flags_from_intake(rec, reload=True)
+def _evaluate_for_rec(rec: MaxIntakeRecord, *, case_id: str | None = None) -> Any:
+    cid = str(case_id or getattr(rec, "case_id", "") or "").strip()
+    docs: list[dict[str, Any]] | None = None
+    if cid:
+        try:
+            from sfrfr.db.case_repository import CaseRepository
+
+            docs = list(CaseRepository().list_documents(cid) or [])
+        except Exception:  # noqa: BLE001
+            docs = None
+    flags = brief.gate_flags_from_intake(
+        rec, reload=True, case_id=cid or None, documents=docs
+    )
     return evaluate_diag_offer(**flags)
 
 
-def _diag_already_paid_text(case_id: str | None) -> str | None:
-    """Если DIAG уже оплачена — текст next step, без повторной продажи."""
+def _diag_paid_state(case_id: str | None) -> tuple[str, str | None]:
+    """Состояние DIAG до brief/gate: paid | ok | error.
+
+    error = не удалось загрузить заказы (не трактуем как «нет заказов»).
+    """
     cid = str(case_id or "").strip()
     if not cid:
-        return None
+        return "ok", None
     try:
         from sfrfr.db.case_repository import CaseRepository
         from sfrfr.services.max_bot_invoice import (
@@ -211,27 +225,36 @@ def _diag_already_paid_text(case_id: str | None) -> str | None:
         )
 
         orders = CaseRepository().list_orders(cid) or []
-        if not _has_open_or_paid_diag(orders):
-            return None
-        if _find_open_order(orders, tariff="DIAG") is not None:
-            return None
     except Exception:  # noqa: BLE001
-        return None
+        return "error", fail_text_for_reason("orders_load")
+    if not _has_open_or_paid_diag(orders):
+        return "ok", None
+    if _find_open_order(orders, tariff="DIAG") is not None:
+        # Есть открытый (не оплаченный) — обычный поток оплаты/ссылки.
+        return "ok", None
     try:
         from sfrfr.services.client_case_status import reply_text, resolve_for_case
 
         status = resolve_for_case(cid)
         if status.kind == "no_docs":
-            return (
+            text = (
                 "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
                 "PDF или фото. Вопросы по делу пишите здесь."
             )
-        return "Диагностика уже оплачена. " + reply_text(status)
+        else:
+            text = "Диагностика уже оплачена. " + reply_text(status)
     except Exception:  # noqa: BLE001
-        return (
+        text = (
             "Диагностика уже оплачена. Пришлите документы прямо в этот чат — "
             "PDF или фото. Вопросы по делу пишите здесь."
         )
+    return "paid", text
+
+
+def _diag_already_paid_text(case_id: str | None) -> str | None:
+    """Если DIAG уже оплачена — текст next step, без повторной продажи."""
+    state, text = _diag_paid_state(case_id)
+    return text if state == "paid" else None
 
 
 def _start_payment_flow(
@@ -245,13 +268,17 @@ def _start_payment_flow(
     clear_pending(rec)
     # Paid order ДО brief/gate: потеря флагов после restart не должна
     # снова вести на продажу, если DIAG уже оплачена.
-    paid = _diag_already_paid_text(case_id)
-    if paid:
-        reply(paid, None)
+    paid_state, paid_text = _diag_paid_state(case_id)
+    if paid_state == "paid" and paid_text:
+        reply(paid_text, None)
         log_event("Выбор после анкеты: диагностика уже оплачена")
-        return "diag_yes_paid", paid
+        return "diag_yes_paid", paid_text
+    if paid_state == "error" and paid_text:
+        reply(paid_text, None)
+        log_event("Выбор диагностики: заказы недоступны, счёт не создаём")
+        return "diag_yes_fail", paid_text
 
-    decision = _evaluate_for_rec(rec)
+    decision = _evaluate_for_rec(rec, case_id=case_id)
     if not decision.allowed:
         body = _gated_reply(case_id=case_id, reason=decision.reason)
         reply(body, None)
@@ -327,18 +354,23 @@ def handle(
         return "diag_detail_no", DETAIL_DECLINED_TEXT
 
     if pl == brief.DETAIL_YES:
-        paid = _diag_already_paid_text(case_id)
-        if paid:
+        paid_state, paid_text = _diag_paid_state(case_id)
+        if paid_state == "paid" and paid_text:
             clear_pending(rec)
-            reply(paid, None)
+            reply(paid_text, None)
             log_event("Soft-ask да, но диагностика уже оплачена")
-            return "diag_detail_yes_paid", paid
+            return "diag_detail_yes_paid", paid_text
+        if paid_state == "error" and paid_text:
+            clear_pending(rec)
+            reply(paid_text, None)
+            log_event("Soft-ask да, но заказы недоступны — без повторного счёта")
+            return "diag_detail_yes_fail", paid_text
         # Heal brief (persist сбрасывает consent). Сам payload = soft-ask
         # уже был в ленте → gaps нельзя откатывать в no_discrepancy.
         brief.ensure_brief_flags_for_offer(rec, case_id=case_id)
         brief.preserve_gaps_after_soft_ask_yes(rec)
         brief.mark_detail_consent(rec, wants=True)
-        decision = _evaluate_for_rec(rec)
+        decision = _evaluate_for_rec(rec, case_id=case_id)
         if not decision.allowed:
             body = _gated_reply(case_id=case_id, reason=decision.reason)
             reply(body, None)

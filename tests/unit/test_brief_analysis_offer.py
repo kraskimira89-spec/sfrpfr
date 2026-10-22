@@ -713,3 +713,30 @@ def test_heal_finds_north_problem_from_chat(monkeypatch) -> None:
     assert out is not None
     assert out.has_justified_discrepancy
     assert "север" in out.summary.lower() or "льгот" in out.summary.lower()
+
+
+def test_brief_stale_when_case_or_fingerprint_mismatch() -> None:
+    """Сохранённый итог актуален только для того же дела и состава документов."""
+    rec = _rec(
+        **{
+            ba.STATUS_KEY: ba.STATUS_COMPLETED,
+            ba.OK_KEY: "1",
+            ba.CURRENT_KEY: "1",
+            ba.DISCREPANCY_KEY: "1",
+            ba.SUMMARY_SHOWN_KEY: "1",
+            ba.FP_KEY: ba.documents_fingerprint(_KIT),
+            ba.CASE_KEY: "c1",
+        }
+    )
+    flags_ok = ba.gate_flags_from_intake(rec, case_id="c1", documents=_KIT)
+    assert flags_ok["analysis_current"] is True
+
+    other_case = ba.gate_flags_from_intake(rec, case_id="c-other", documents=_KIT)
+    assert other_case["analysis_current"] is False
+
+    changed_docs = [
+        {"id": "d1", "doc_type": "ils", "checksum_sha256": "a" * 64},
+        {"id": "d2", "doc_type": "workbook", "checksum_sha256": "c" * 64},
+    ]
+    stale_fp = ba.gate_flags_from_intake(rec, case_id="c1", documents=changed_docs)
+    assert stale_fp["analysis_current"] is False
