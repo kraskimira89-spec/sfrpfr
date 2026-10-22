@@ -526,6 +526,7 @@ class MaxIntakeStore:
                 rec.soft_share_declined = old.soft_share_declined
                 # Soft-ask / оффер 3000: кнопки в ленте MAX остаются —
                 # без _brief_* повторный «Да» даёт ложный gate no_analysis.
+                # problem сохраняем: heal иначе пересчитывает пустой no_discrepancy.
                 preserved: dict[str, Any] = {}
                 for key, value in (old.q_answers or {}).items():
                     sk = str(key)
@@ -533,6 +534,7 @@ class MaxIntakeStore:
                         sk.startswith("_brief_")
                         or sk.startswith("_detail_")
                         or sk == "_diag_step"
+                        or sk == "problem"
                     ):
                         preserved[sk] = value
                 if preserved:
@@ -541,6 +543,10 @@ class MaxIntakeStore:
                     rec.case_id = old.case_id
                 if old.client_id:
                     rec.client_id = old.client_id
+                if old.goal is not None:
+                    rec.goal = old.goal
+                if old.problem_type is not None:
+                    rec.problem_type = old.problem_type
             self._rows[mid] = rec
             self._save()
             return rec

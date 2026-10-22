@@ -485,7 +485,8 @@ def test_restart_preserves_brief_flags(tmp_path: Path, monkeypatch) -> None:
         ba.SUMMARY_KEY: "итог",
         ba.SUMMARY_SHOWN_KEY: "1",
         ba.DETAIL_CONSENT_KEY: "1",
-        "problem": "Не учли стаж",
+        ba.SOFT_ASK_SENT_KEY: "1",
+        "problem": "Не учли северный стаж",
     }
     store.save(rec)
     fresh = store.restart("812")
@@ -493,4 +494,178 @@ def test_restart_preserves_brief_flags(tmp_path: Path, monkeypatch) -> None:
     assert flags["has_completed_brief_analysis"] is True
     assert flags["has_justified_discrepancy"] is True
     assert flags["client_wants_detailed_review"] is True
-    assert (fresh.q_answers or {}).get("problem") is None
+    # problem нужен heal'у после restart — иначе soft-ask «Да» → no_discrepancy.
+    assert (fresh.q_answers or {}).get("problem") == "Не учли северный стаж"
+    assert (fresh.q_answers or {}).get(ba.SOFT_ASK_SENT_KEY) == "1"
+
+
+def test_soft_ask_not_sent_without_gaps(monkeypatch) -> None:
+    """Без расхождений — только итог, без soft-ask кнопок."""
+    delivered: list[dict] = []
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    store = MagicMock()
+    rec = MaxIntakeRecord(
+        id="r-nogap",
+        max_user_id="u-nogap",
+        case_id="c-nogap",
+        q_answers={"problem": "Всё в порядке, просто проверка"},
+    )
+    store.get_active.return_value = rec
+    store.save.side_effect = lambda r: None
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **kw: delivered.append(kw) or True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.soft_offers.pick_soft_offer",
+        lambda *_a, **_k: None,
+    )
+
+    out = ba.run_brief_after_kit(case_id="c-nogap", max_user_id="u-nogap")
+    assert out is not None
+    assert not out.has_justified_discrepancy
+    assert delivered
+    assert not delivered[0].get("attachments")
+    assert (rec.q_answers or {}).get(ba.SOFT_ASK_SENT_KEY) != "1"
+
+
+def test_heal_does_not_downgrade_soft_ask_gaps(monkeypatch) -> None:
+    """Soft-ask уже ушёл → heal без problem не пишет discrepancy=0."""
+    store = MagicMock()
+    rec = MaxIntakeRecord(
+        id="r-heal",
+        max_user_id="79841100",
+        case_id="case-heal",
+        # Как после restart: soft-ask был, problem стёрт, brief-флаги неполные.
+        q_answers={ba.SOFT_ASK_SENT_KEY: "1"},
+    )
+    store.get_active.return_value = rec
+    store.reload = MagicMock()
+    saved: list[dict] = []
+
+    def _save(r: MaxIntakeRecord) -> None:
+        saved.append(dict(r.q_answers or {}))
+
+    store.save.side_effect = _save
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+
+    out = ba.ensure_brief_flags_for_offer(rec, case_id="case-heal")
+    assert out is not None
+    assert out.has_justified_discrepancy
+    assert saved
+    assert saved[-1].get(ba.DISCREPANCY_KEY) == "1"
+    assert saved[-1].get(ba.SOFT_ASK_SENT_KEY) == "1"
+
+
+def test_detail_yes_after_soft_ask_offers_even_if_recompute_empty(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Прод-smoke: soft-ask в ленте, problem нет → «Да» всё равно оффер 3000."""
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_DIAG_OFFER_EF_OPEN", "1")
+    get_settings.cache_clear()
+
+    uid = "79841101"
+    store = get_intake_store()
+    rec = store.upsert_started(uid)
+    rec.case_id = "case-prod-soft"
+    rec.q_answers = {ba.SOFT_ASK_SENT_KEY: "1"}
+    store.save(rec)
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+
+    bot.sent.clear()
+    res = handle_max_update(
+        _cb(int(uid), ba.DETAIL_YES, callback_id="cb-soft-empty"), bot=bot
+    )
+    assert res.action == "diag_detail_yes_offer"
+    body = (res.reply or bot.sent[-1][1]).lower()
+    assert "3 000" in body or "3000" in body
+    assert "расхождений не видно" not in body
+    get_settings.cache_clear()
+
+
+def test_heal_finds_north_problem_from_chat(monkeypatch) -> None:
+    """Без problem в анкете heal читает северный стаж из реплик клиента."""
+    store = MagicMock()
+    rec = MaxIntakeRecord(
+        id="r-chat",
+        max_user_id="u-chat",
+        case_id="case-chat",
+        q_answers={},
+    )
+    store.get_active.return_value = rec
+    store.reload = MagicMock()
+    store.save.side_effect = lambda r: None
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [
+            {
+                "author_kind": "client",
+                "body": "Здравствуйте, не учли северный стаж в ИЛС",
+            }
+        ],
+    )
+
+    out = ba.ensure_brief_flags_for_offer(rec, case_id="case-chat")
+    assert out is not None
+    assert out.has_justified_discrepancy
+    assert "север" in out.summary.lower() or "льгот" in out.summary.lower()

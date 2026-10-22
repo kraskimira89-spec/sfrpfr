@@ -27,6 +27,7 @@ DISCREPANCY_KEY = "_brief_discrepancy"
 SUMMARY_KEY = "_brief_summary"
 FP_KEY = "_brief_fp"
 SUMMARY_SHOWN_KEY = "_brief_summary_shown"
+SOFT_ASK_SENT_KEY = "_brief_soft_ask_sent"
 DETAIL_CONSENT_KEY = "_detail_consent"
 DETAIL_PENDING_KEY = "_detail_pending"
 
@@ -162,12 +163,99 @@ def _client_texts_from_history(history: list[dict[str, Any]] | None) -> list[str
         if not isinstance(row, dict):
             continue
         kind = str(row.get("author_kind") or "").strip().lower()
-        if kind not in {"client", "representative", "user"}:
+        # Пустой kind — чаще клиент из MAX; system/bot/staff пропускаем.
+        if kind in {"system", "bot", "staff"}:
+            continue
+        if kind and kind not in {"client", "representative", "user"}:
             continue
         body = str(row.get("body") or "").strip()
         if body:
             out.append(body)
     return out
+
+
+def soft_ask_was_sent(rec: Any | None) -> bool:
+    """Soft-ask уже ушёл клиенту (кнопка в ленте MAX остаётся)."""
+    if rec is None:
+        return False
+    answers = getattr(rec, "q_answers", None) or {}
+    if not isinstance(answers, dict):
+        return False
+    return (
+        str(answers.get(SOFT_ASK_SENT_KEY) or "") == "1"
+        or str(answers.get(DETAIL_PENDING_KEY) or "") == "1"
+    )
+
+
+def preserve_gaps_after_soft_ask_yes(rec: Any) -> None:
+    """Callback diag:detail_yes = soft-ask уже был показан → gaps для gate.
+
+    Даже если пересчёт brief пустой (restart стёр problem) — не отказывать
+    «расхождений не видно».
+    """
+    from sfrfr.integrations.max.intake import get_intake_store
+
+    target = _reload_intake_rec(rec)
+    answers = dict(getattr(target, "q_answers", None) or {})
+    answers[SOFT_ASK_SENT_KEY] = "1"
+    answers[DISCREPANCY_KEY] = "1"
+    if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
+        answers[STATUS_KEY] = STATUS_COMPLETED
+    if str(answers.get(OK_KEY) or "") != "1":
+        answers[OK_KEY] = "1"
+    if str(answers.get(CURRENT_KEY) or "") != "1":
+        answers[CURRENT_KEY] = "1"
+    if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
+        answers[SUMMARY_SHOWN_KEY] = "1"
+    if not str(answers.get(SUMMARY_KEY) or "").strip():
+        answers[SUMMARY_KEY] = _force_discrepancy_result(
+            BriefAnalysisResult(
+                ok=True,
+                current=True,
+                has_justified_discrepancy=False,
+                summary="",
+                source="soft_ask_preserve",
+            )
+        ).summary[:3500]
+    target.q_answers = answers
+    rec.q_answers = answers
+    get_intake_store().save(target)
+
+
+def _force_discrepancy_result(
+    result: BriefAnalysisResult,
+    *,
+    prior_summary: str | None = None,
+) -> BriefAnalysisResult:
+    """Не отзывать soft-ask: gaps остаются true без новой «уверенности в пустоте»."""
+    if result.has_justified_discrepancy:
+        return result
+    prior = str(prior_summary or "").strip()
+    if prior and "не выявила очевидных расхождений" not in prior.lower():
+        summary = prior
+        bullets = list(result.bullets)
+    else:
+        bullets = list(result.bullets) or [
+            "возможные неучтённые или не отражённые периоды",
+        ]
+        lines = [
+            "Предварительная проверка комплекта завершена.",
+            "По документам и вашей формулировке есть направления для "
+            "подробной проверки (черновик, не юридический вывод):",
+        ]
+        for i, item in enumerate(bullets[:5], start=1):
+            lines.append(f"{i}. {item}")
+        lines.extend(["", _DISCLAIMER])
+        summary = "\n".join(lines)
+    return BriefAnalysisResult(
+        ok=result.ok,
+        current=result.current,
+        has_justified_discrepancy=True,
+        summary=summary,
+        bullets=bullets,
+        fingerprint=result.fingerprint,
+        source=result.source if result.source != "none" else "soft_ask_preserve",
+    )
 
 
 def _reload_intake_rec(rec: Any) -> Any:
@@ -266,6 +354,9 @@ def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
 
     target = _reload_intake_rec(rec)
     answers = dict(getattr(target, "q_answers", None) or {})
+    # Soft-ask в ленте MAX переживает restart/recompute; discrepancy
+    # восстанавливает ensure_brief_flags_for_offer при «Да».
+    prev_soft = str(answers.get(SOFT_ASK_SENT_KEY) or "") == "1"
     answers[STATUS_KEY] = STATUS_COMPLETED if result.ok else STATUS_ERROR
     answers[OK_KEY] = "1" if result.ok else "0"
     answers[CURRENT_KEY] = "1" if result.current else "0"
@@ -275,6 +366,9 @@ def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
     answers[SUMMARY_SHOWN_KEY] = "0"
     answers[DETAIL_CONSENT_KEY] = "0"
     answers.pop(DETAIL_PENDING_KEY, None)
+    if prev_soft:
+        # Не сбрасываем факт ушедшего soft-ask при пустом пересчёте.
+        answers[SOFT_ASK_SENT_KEY] = "1"
     target.q_answers = answers
     rec.q_answers = answers
     get_intake_store().save(target)
@@ -288,6 +382,7 @@ def mark_summary_shown(rec: Any) -> None:
     answers[SUMMARY_SHOWN_KEY] = "1"
     if answers.get(DISCREPANCY_KEY) == "1":
         answers[DETAIL_PENDING_KEY] = "1"
+        answers[SOFT_ASK_SENT_KEY] = "1"
     target.q_answers = answers
     rec.q_answers = answers
     get_intake_store().save(target)
@@ -343,6 +438,7 @@ def ensure_brief_flags_for_offer(
 
     Не шлёт повторный soft-ask в чат — вызывается из callback «Да».
     persist сбрасывает consent; вызывающий должен снова mark_detail_consent.
+    Soft-ask уже ушёл → не даём пересчёту стереть has_gaps.
     """
     mid = str(getattr(rec, "max_user_id", "") or "").strip()
     cid = str(case_id or getattr(rec, "case_id", "") or "").strip()
@@ -350,6 +446,9 @@ def ensure_brief_flags_for_offer(
         return None
 
     flags = gate_flags_from_intake(rec, reload=True)
+    answers_now = dict(getattr(rec, "q_answers", None) or {})
+    keep_gaps = soft_ask_was_sent(rec) or flags["has_justified_discrepancy"]
+    prior_summary = str(answers_now.get(SUMMARY_KEY) or "")
     have_core = (
         flags["has_completed_brief_analysis"]
         and flags["analysis_ok"]
@@ -357,6 +456,26 @@ def ensure_brief_flags_for_offer(
         and flags["client_got_clear_summary"]
     )
     if have_core:
+        if keep_gaps and not flags["has_justified_discrepancy"]:
+            # Soft-ask был, а discrepancy уже «0» — восстановить для gate.
+            target = _reload_intake_rec(rec)
+            forced = _force_discrepancy_result(
+                BriefAnalysisResult(
+                    ok=True,
+                    current=True,
+                    has_justified_discrepancy=False,
+                    summary=prior_summary or _NO_DISCREPANCY_TEXT,
+                    fingerprint=str(
+                        (getattr(target, "q_answers", None) or {}).get(FP_KEY) or ""
+                    ),
+                    source="soft_ask_preserve",
+                ),
+                prior_summary=prior_summary,
+            )
+            persist_brief_to_intake(target, forced)
+            mark_summary_shown(target)
+            rec.q_answers = dict(getattr(target, "q_answers", None) or {})
+            return forced
         return None
 
     from sfrfr.db.case_repository import CaseRepository
@@ -380,24 +499,31 @@ def ensure_brief_flags_for_offer(
 
     history: list[dict[str, Any]] = []
     try:
-        history = fetch_recent_case_messages(cid)
+        history = fetch_recent_case_messages(cid, limit=40)
     except Exception:  # noqa: BLE001
         history = []
 
     target = _reload_intake_rec(rec)
+    keep_gaps = soft_ask_was_sent(target) or keep_gaps
+    prior_summary = str(
+        (getattr(target, "q_answers", None) or {}).get(SUMMARY_KEY) or prior_summary
+    )
     result = compute_brief_analysis(
         documents=docs,
         intake=target,
         pipeline_findings=findings,
         client_texts=_client_texts_from_history(history),
     )
+    if keep_gaps and not result.has_justified_discrepancy:
+        result = _force_discrepancy_result(result, prior_summary=prior_summary)
     persist_brief_to_intake(target, result)
     mark_summary_shown(target)
     rec.q_answers = dict(getattr(target, "q_answers", None) or {})
     logger.info(
-        "ensure brief flags case=%s disc=%s",
+        "ensure brief flags case=%s disc=%s soft=%s",
         cid[:8],
         result.has_justified_discrepancy,
+        soft_ask_was_sent(target),
     )
     return result
 
