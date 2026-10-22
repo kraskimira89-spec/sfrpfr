@@ -357,3 +357,140 @@ def test_settle_complete_schedules_brief(monkeypatch) -> None:
     assert scheduled
     assert scheduled[0]["case_id"] == "case-settle"
     assert scheduled[0]["max_user_id"] == "u-settle"
+
+
+def test_soft_ask_payload_is_diag_detail_yes() -> None:
+    """Кнопка MAX soft-ask должна слать diag:detail_yes, не diag:yes."""
+    assert ba.DETAIL_YES == "diag:detail_yes"
+    assert ba.DETAIL_NO == "diag:detail_no"
+    kb = ba.soft_ask_keyboard()
+    payloads: list[str] = []
+    for att in kb:
+        rows = (att.get("payload") or {}).get("buttons") or []
+        for row in rows:
+            for btn in row:
+                if isinstance(btn, dict) and btn.get("payload"):
+                    payloads.append(str(btn["payload"]))
+    assert ba.DETAIL_YES in payloads
+    assert ba.DETAIL_NO in payloads
+    assert dc.YES not in payloads
+
+
+def test_detail_yes_heals_missing_brief_flags_then_offers(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Прод: soft-ask в чате, intake после restart только с _detail_consent → heal → оффер."""
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_QUESTIONNAIRE_ENABLED", "1")
+    monkeypatch.setenv("MAX_DIAG_OFFER_EF_OPEN", "1")
+    get_settings.cache_clear()
+
+    store = get_intake_store()
+    rec = store.upsert_started("79841100")
+    rec.case_id = "case-prod-smoke"
+    rec.q_answers = {
+        "problem": "Не учли северный стаж",
+        ba.DETAIL_CONSENT_KEY: "1",
+    }
+    store.save(rec)
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    monkeypatch.setattr(
+        "sfrfr.db.case_repository.CaseRepository", lambda: _Repo()
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.client_case_status.resolve_for_case",
+        lambda *_a, **_k: SimpleNamespace(
+            kind="receiving",
+            result_summary=None,
+        ),
+    )
+
+    bot.sent.clear()
+    # Ровно тот payload, что у кнопки «Да, подробный разбор» в MAX.
+    res = handle_max_update(_cb(79841100, ba.DETAIL_YES), bot=bot)
+    assert res.action == "diag_detail_yes_offer"
+    body = (res.reply or bot.sent[-1][1]).lower()
+    assert "3 000" in body or "3000" in body
+    assert "обрабатываем" not in body
+    fresh = store.get_active("79841100")
+    assert fresh is not None
+    flags = ba.gate_flags_from_intake(fresh)
+    assert flags["has_completed_brief_analysis"] is True
+    assert flags["client_wants_detailed_review"] is True
+    get_settings.cache_clear()
+
+
+def test_detail_yes_repeat_reshows_offer_not_receiving(
+    tmp_path: Path, monkeypatch
+) -> None:
+    bot = _setup(tmp_path, monkeypatch)
+    monkeypatch.setenv("MAX_DIAG_OFFER_EF_OPEN", "1")
+    get_settings.cache_clear()
+    store = get_intake_store()
+    rec = store.upsert_started("811")
+    rec.case_id = "case-811"
+    rec.q_answers = {"problem": "Не учли северный стаж"}
+    store.save(rec)
+    result = ba.compute_brief_analysis(documents=_KIT, intake=rec, pipeline_findings=[])
+    ba.persist_brief_to_intake(rec, result)
+    ba.mark_summary_shown(rec)
+    ba.mark_detail_consent(rec, wants=True)
+
+    bot.sent.clear()
+    res1 = handle_max_update(_cb(811, ba.DETAIL_YES, callback_id="cb-811-a"), bot=bot)
+    assert res1.action == "diag_detail_yes_offer"
+
+    # Повторный soft-ask «Да» напрямую (handler режет тот же payload TTL-кулдауном).
+    rec2 = store.get_active("811")
+    assert rec2 is not None
+    replies: list[str] = []
+
+    def _reply(msg: str, _kb) -> None:
+        replies.append(msg)
+
+    action, body = dc.handle(
+        rec2,
+        _reply,
+        payload=ba.DETAIL_YES,
+        case_id="case-811",
+        max_user_id="811",
+        log_event=lambda _m: None,
+    )
+    assert action == "diag_detail_yes_offer"
+    assert "обрабатываем" not in body.lower()
+    assert replies and ("3 000" in replies[0] or "3000" in replies[0])
+    get_settings.cache_clear()
+
+
+def test_restart_preserves_brief_flags(tmp_path: Path, monkeypatch) -> None:
+    _setup(tmp_path, monkeypatch)
+    store = get_intake_store()
+    rec = store.upsert_started("812")
+    rec.q_answers = {
+        ba.STATUS_KEY: ba.STATUS_COMPLETED,
+        ba.OK_KEY: "1",
+        ba.CURRENT_KEY: "1",
+        ba.DISCREPANCY_KEY: "1",
+        ba.SUMMARY_KEY: "итог",
+        ba.SUMMARY_SHOWN_KEY: "1",
+        ba.DETAIL_CONSENT_KEY: "1",
+        "problem": "Не учли стаж",
+    }
+    store.save(rec)
+    fresh = store.restart("812")
+    flags = ba.gate_flags_from_intake(fresh)
+    assert flags["has_completed_brief_analysis"] is True
+    assert flags["has_justified_discrepancy"] is True
+    assert flags["client_wants_detailed_review"] is True
+    assert (fresh.q_answers or {}).get("problem") is None

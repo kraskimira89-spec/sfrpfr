@@ -114,6 +114,23 @@ def test_result_ready_beats_quiet_for_thanks() -> None:
     assert "проверк" in work or "завершен" in work
 
 
+def test_working_question_quiet_kit_not_processing_template() -> None:
+    """Quiet+полный комплект: kind receiving ок, но working_question ≠ «обрабатываем»."""
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=True,
+        ef_open=False,
+        ingest_pending=False,
+    )
+    assert st.kind == "receiving"
+    work = ccs.reply_text(st, intent="working_question").lower()
+    assert "обрабатываем" not in work
+    assert "в деле" in work or "проверк" in work
+    # Обычный other по-прежнему может сказать про обработку пачки.
+    other = ccs.reply_text(st, intent="other").lower()
+    assert "обрабатываем" in other
+
+
 def test_resolve_missing_names_concrete_doc() -> None:
     docs = [{"id": "d1", "doc_type": "ils", "ingest_status": "ready"}]
     st = ccs.resolve(documents=docs, ef_open=False, ingest_pending=False)
@@ -248,7 +265,12 @@ def test_receiving_while_quiet(tmp_path: Path, monkeypatch) -> None:
     bot.sent.clear()
     res = handle_max_update(_msg(3104, "пачка ещё идёт?"), bot=bot)
     assert res.action == "case_status_reply"
+    # other/quiet: шаблон receiving ок; working_question — см. unit выше.
     assert "обрабатываем" in (res.reply or "").lower()
+    bot.sent.clear()
+    res2 = handle_max_update(_msg(3104, "Вы ещё работаете?"), bot=bot)
+    assert res2.action == "case_status_reply"
+    assert "обрабатываем" not in (res2.reply or "").lower()
     get_settings.cache_clear()
 
 
