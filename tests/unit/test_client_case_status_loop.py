@@ -77,9 +77,10 @@ def test_resolve_kit_ready_when_ef_closed() -> None:
     st = ccs.resolve(documents=_KIT_DOCS, ef_open=False, ingest_pending=False)
     assert st.kind == "kit_ready_no_analysis"
     text = ccs.reply_text(st, intent="working_question")
-    assert "ещё не запущена" in text.lower() or "не запущена" in text.lower()
-    assert "диагностика идёт" not in text.lower()
-    assert "пришлите" not in text.lower() or "повторно" in text.lower()
+    low = text.lower()
+    assert "проверк" in low or "результат" in low
+    assert "диагностика идёт" not in low
+    assert "пришлите" not in low or "повторно" in low
 
 
 def test_resolve_receiving_during_quiet() -> None:
@@ -143,7 +144,8 @@ def test_build_final_message_honest_kit_ready() -> None:
     text, complete = bg.build_final_message(_KIT_DOCS)
     assert complete is True
     assert "базовый комплект" in text.lower()
-    assert "ещё не запущена" in text.lower() or "не запущена" in text.lower()
+    assert "кратк" in text.lower() or "предварительн" in text.lower()
+    assert "3 000" not in text
     assert "можно идти дальше к подготовке" not in text.lower()
 
 
@@ -168,7 +170,7 @@ def test_working_question_after_kit_no_docs_ask(tmp_path: Path, monkeypatch) -> 
     reply = (res.reply or "").lower()
     assert "пришлите фото" not in reply
     assert "пришлите документы" not in reply
-    assert "не запущена" in reply or "в деле" in reply or "специалист" in reply
+    assert "проверк" in reply or "в деле" in reply or "результат" in reply
     get_settings.cache_clear()
 
 

@@ -1,4 +1,4 @@
-"""Выбор после анкеты: диагностика 3 000 ₽ или чек-лист (clarity-funnel §4)."""
+"""Выбор диагностики 3 000 ₽: только после краткого разбора и согласия (ТЗ-35)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,9 @@ from typing import Any
 from sfrfr.core.copy import OFFER_URL, PAYMENT_LEGAL_ACCEPTANCE
 from sfrfr.integrations.max.client import inline_buttons_keyboard
 from sfrfr.integrations.max.intake import MaxIntakeRecord, get_intake_store
+from sfrfr.services import brief_analysis as brief
+from sfrfr.services.diag_offer_gate import OFFER_TEXT as GATE_OFFER_TEXT
+from sfrfr.services.diag_offer_gate import evaluate_diag_offer
 
 Reply = Callable[[str, list[dict[str, Any]] | None], Any]
 
@@ -29,8 +32,7 @@ OFFER_TEXT = (
 CONFIRM_TEXT = (
     "Спасибо. Оформляем диагностику документов. Стоимость — 3 000 рублей.\n"
     f"{PAYMENT_LEGAL_ACCEPTANCE} Оферта: {OFFER_URL}\n"
-    "После оплаты пришлите выписку ИЛС и трудовую (или сведения о трудовой) "
-    "прямо в этот чат — PDF или фото."
+    "После оплаты продолжим подробный разбор по вашему комплекту в этом чате."
 )
 
 NO_CASE_TEXT = (
@@ -51,6 +53,11 @@ FAIL_TEXT = (
 NOT_AVAILABLE_TEXT = (
     "Подробную диагностику пока не предлагаем на этом шаге. "
     "Бесплатный чек-лист можно запросить командой /checklist."
+)
+
+DETAIL_DECLINED_TEXT = (
+    "Хорошо. Если позже понадобится подробный разбор — напишите сюда. "
+    "Бесплатный чек-лист: /checklist."
 )
 
 
@@ -104,7 +111,9 @@ def offer_keyboard() -> list[dict[str, Any]]:
 def is_pending(rec: MaxIntakeRecord | None) -> bool:
     if rec is None:
         return False
-    return (rec.q_answers or {}).get(_STEP_KEY) == "pending"
+    if (rec.q_answers or {}).get(_STEP_KEY) == "pending":
+        return True
+    return brief.is_detail_pending(rec)
 
 
 def mark_pending(rec: MaxIntakeRecord) -> None:
@@ -132,43 +141,21 @@ def start_diag_payment(*, case_id: str, max_user_id: str) -> dict[str, Any] | No
     )
 
 
-def handle(
+def _evaluate_for_rec(rec: MaxIntakeRecord) -> Any:
+    flags = brief.gate_flags_from_intake(rec)
+    return evaluate_diag_offer(**flags)
+
+
+def _start_payment_flow(
     rec: MaxIntakeRecord,
     reply: Reply,
     *,
-    payload: str,
     case_id: str | None,
     max_user_id: str,
     log_event: Callable[[str], Any],
-) -> tuple[str, str] | None:
-    """Кнопки diag:*. None — не наш апдейт."""
-    pl = str(payload or "").strip()
-    if not pl.startswith(CALLBACK_PREFIX):
-        return None
-
-    if pl == CHECKLIST:
-        clear_pending(rec)
-        from sfrfr.integrations.max import checklist_offer
-
-        reply(checklist_offer.OFFER_TEXT, checklist_offer.offer_keyboard())
-        log_event("Выбор после анкеты: пока чек-лист")
-        return "diag_checklist", checklist_offer.OFFER_TEXT
-
-    if pl != YES:
-        return None
-
+) -> tuple[str, str]:
     clear_pending(rec)
-    # Старая кнопка не обходит серверный gate (E/F и условия допуска).
-    from sfrfr.services.diag_offer_gate import evaluate_diag_offer
-
-    decision = evaluate_diag_offer(
-        has_completed_brief_analysis=False,
-        analysis_ok=False,
-        analysis_current=False,
-        has_justified_discrepancy=False,
-        client_got_clear_summary=False,
-        client_wants_detailed_review=False,
-    )
+    decision = _evaluate_for_rec(rec)
     if not decision.allowed:
         body = _gated_reply(case_id=case_id)
         reply(body, None)
@@ -212,3 +199,59 @@ def handle(
     reply(CONFIRM_TEXT, None)
     log_event("Выбор после анкеты: оформить диагностику 3 000 ₽")
     return "diag_yes", CONFIRM_TEXT
+
+
+def handle(
+    rec: MaxIntakeRecord,
+    reply: Reply,
+    *,
+    payload: str,
+    case_id: str | None,
+    max_user_id: str,
+    log_event: Callable[[str], Any],
+) -> tuple[str, str] | None:
+    """Кнопки diag:*. None — не наш апдейт."""
+    pl = str(payload or "").strip()
+    if not pl.startswith(CALLBACK_PREFIX):
+        return None
+
+    if pl == CHECKLIST:
+        clear_pending(rec)
+        from sfrfr.integrations.max import checklist_offer
+
+        reply(checklist_offer.OFFER_TEXT, checklist_offer.offer_keyboard())
+        log_event("Выбор после анкеты: пока чек-лист")
+        return "diag_checklist", checklist_offer.OFFER_TEXT
+
+    if pl == brief.DETAIL_NO:
+        brief.mark_detail_consent(rec, wants=False)
+        clear_pending(rec)
+        reply(DETAIL_DECLINED_TEXT, None)
+        log_event("Подробный разбор: отказ клиента")
+        return "diag_detail_no", DETAIL_DECLINED_TEXT
+
+    if pl == brief.DETAIL_YES:
+        brief.mark_detail_consent(rec, wants=True)
+        decision = _evaluate_for_rec(rec)
+        if not decision.allowed:
+            body = _gated_reply(case_id=case_id)
+            reply(body, None)
+            log_event(f"Soft-ask да, но gate={decision.reason}")
+            return "diag_detail_yes_gated", body
+        offer = decision.offer_text or GATE_OFFER_TEXT
+        mark_pending(rec)
+        reply(offer, offer_keyboard())
+        log_event("Soft-ask да → оффер 3 000 ₽")
+        return "diag_detail_yes_offer", offer
+
+    if pl != YES:
+        return None
+
+    # Старая кнопка: только при полном допуске gate (не обход soft-ask).
+    return _start_payment_flow(
+        rec,
+        reply,
+        case_id=case_id,
+        max_user_id=max_user_id,
+        log_event=log_event,
+    )
