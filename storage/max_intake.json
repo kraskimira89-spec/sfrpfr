@@ -20,9 +20,9 @@
       "llm_turn_count": 0,
       "q_step": null,
       "q_answers": {
-        "_pending_doc_id": "doc-9",
+        "_pending_doc_id": "doc-42",
         "_pending_doc_name": "ils.pdf",
-        "_pending_doc_guess": "ils"
+        "_pending_doc_guess": "other"
       },
       "q_completed_at": null,
       "lm_step": null,
@@ -31,9 +31,9 @@
       "max_first_name": null,
       "max_last_name": null,
       "last_seen_at": null,
-      "started_at": "2026-10-22T04:08:16.004714+00:00",
+      "started_at": "2026-10-20T10:34:56.501805+00:00",
       "completed_at": null,
-      "updated_at": "2026-10-22T04:08:16.004727+00:00"
+      "updated_at": "2026-10-20T10:34:56.501822+00:00"
     }
   }
 }

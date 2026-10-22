@@ -51,9 +51,10 @@ def handle_answer(
     answers = dict(rec.q_answers or {})
     q.save_questionnaire(answers=answers, client_id=client_id, case_id=case_id)
     log_summary(q.summary_text(answers))
-    reply(q.COMPLETED_TEXT, q.menu_keyboard())
+    done_text = q.completed_text(case_id)
+    reply(done_text, q.menu_keyboard())
     from sfrfr.integrations.max import diag_choice
 
     diag_choice.mark_pending(rec)
     reply(diag_choice.OFFER_TEXT, diag_choice.offer_keyboard())
-    return "max_questionnaire_completed", q.COMPLETED_TEXT
+    return "max_questionnaire_completed", done_text

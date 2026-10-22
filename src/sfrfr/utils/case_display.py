@@ -60,3 +60,22 @@ def case_title(case_id: str) -> str:
     if n is None:
         return "Дело ПС-—"
     return f"Дело ПС-{n}"
+
+
+def case_public_number(
+    case_id: str | None,
+    *,
+    when: date | None = None,
+) -> str | None:
+    """
+    Публичный номер дела для клиента (ТЗ-35 D1): CASE-YYYY-NNNNNN.
+
+    UUID остаётся PK; NNNNNN — тот же короткий номер, что в «Дело ПС-…» / кабинете.
+    Год — из ``when`` (по умолчанию сегодня); для стабильности между годами
+    передавайте дату открытия дела.
+    """
+    n = case_short_number(case_id or "")
+    if n is None:
+        return None
+    yyyy = (when or date.today()).year
+    return f"CASE-{yyyy}-{n:06d}"
