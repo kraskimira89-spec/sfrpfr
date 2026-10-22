@@ -1330,8 +1330,18 @@ export function AdminCabinet() {
       );
       const url = result.pay_url || "";
       if (!url) throw new Error("Нет ссылки");
-      await navigator.clipboard.writeText(url);
-      setNotice("Короткая ссылка ЮKassa скопирована. QR — в карточке счёта.");
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+      setNotice(
+        copied
+          ? "Короткая ссылка ЮKassa скопирована. QR — в карточке счёта."
+          : `Ссылка готова (буфер недоступен): ${url}`,
+      );
       await loadFinance(financeQueue);
     } catch {
       setNotice("Не удалось получить ссылку на оплату.");
@@ -1398,8 +1408,18 @@ export function AdminCabinet() {
       );
       const url = result.pay_url || "";
       if (!url) throw new Error("Нет ссылки");
-      await navigator.clipboard.writeText(url);
-      setNotice("Ссылка скопирована. QR появится в блоке оплаты дела.");
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+      setNotice(
+        copied
+          ? "Ссылка скопирована. QR появится в блоке оплаты дела."
+          : `Ссылка готова (буфер недоступен): ${url}`,
+      );
       await openCase(detail.id);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось получить ссылку.");
