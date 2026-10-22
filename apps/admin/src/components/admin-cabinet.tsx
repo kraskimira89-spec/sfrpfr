@@ -173,6 +173,7 @@ type StaffCaseDetail = {
       result_summary?: string;
       blocker_reason?: string | null;
       needs_specialist?: boolean;
+      specialist_questions?: string[];
       primary_action?: {
         id: string;
         label: string;
