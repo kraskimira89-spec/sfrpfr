@@ -180,6 +180,43 @@ def test_summarize_does_not_expose_old_pipeline_findings() -> None:
     assert summary["documents_checked"] == 2
 
 
+@patch("sfrfr.services.staff_document_check.process_staff_document_check_job")
+@patch("sfrfr.db.session.get_supabase_client")
+def test_enqueue_does_not_process_inline(
+    mock_sb: MagicMock, mock_process: MagicMock
+) -> None:
+    """Enqueue только ставит queued — без in-process thread (OOM/Failed to fetch)."""
+    client = MagicMock()
+    mock_sb.return_value = client
+    jobs = MagicMock()
+    docs_t = MagicMock()
+
+    def table(name: str) -> MagicMock:
+        if name == "staff_document_check_jobs":
+            return jobs
+        if name == "documents":
+            return docs_t
+        return MagicMock()
+
+    client.table.side_effect = table
+    docs_t.select.return_value.eq.return_value.order.return_value.execute.return_value.data = [
+        {"id": "d1", "checksum_sha256": "aa", "storage_path": "a.pdf", "doc_type": "ils"}
+    ]
+    chain = jobs.select.return_value.eq.return_value.in_.return_value.eq.return_value
+    chain.limit.return_value.execute.return_value.data = []
+    jobs.insert.return_value.execute.return_value.data = [{"id": "new-job"}]
+    with patch(
+        "sfrfr.services.staff_document_check.documents_fingerprint", return_value="fp"
+    ):
+        out = enqueue_staff_document_check(
+            case_id="00000000-0000-4000-8000-000000000001",
+            actor_id="staff-1",
+        )
+    assert out["deduped"] is False
+    assert out["status"] == "queued"
+    mock_process.assert_not_called()
+
+
 @patch("sfrfr.db.session.get_supabase_client")
 def test_enqueue_dedupes_active_same_fingerprint(mock_sb: MagicMock) -> None:
     client = MagicMock()
