@@ -43,7 +43,7 @@ begin
       trim(target_max_user_id),
       new.body
     )
-    on conflict (message_id) do nothing;
+    on conflict (message_id) where message_id is not null do nothing;
   end if;
 
   return new;
