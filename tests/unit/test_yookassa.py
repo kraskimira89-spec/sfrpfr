@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from sfrfr.api.routes.payments import _return_url
 from sfrfr.integrations.payments import (
     YooKassaClient,
     check_fiscalization_alignment,
@@ -11,6 +14,7 @@ from sfrfr.integrations.payments.notify import (
     format_amocrm_payment_note,
     format_payment_succeeded_message,
 )
+from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, payment_description
 
 
 def test_parse_yookassa_event_extracts_metadata() -> None:
@@ -93,3 +97,75 @@ def test_fiscalization_alignment_fails_without_receipt() -> None:
     )
     assert res["ok"] is False
     assert any("SEND_RECEIPT=false" in w for w in res["warnings"])
+
+
+def test_payment_purpose_uses_current_brand() -> None:
+    assert "Проверка стажа" in PAYMENT_PURPOSE
+    assert "proverkastaza.ru" in PAYMENT_PURPOSE
+    assert "dorogadobra" not in PAYMENT_PURPOSE.lower()
+    assert "taxi" not in PAYMENT_PURPOSE.lower()
+
+
+def test_payment_description_diag_brand_and_service() -> None:
+    text = payment_description("DIAG")
+    assert text.startswith("Проверка стажа")
+    assert "Диагностика" in text
+    assert "dorogadobra" not in text.lower()
+    assert len(text) <= 128
+
+
+def test_payment_description_fallback_purpose() -> None:
+    text = payment_description("")
+    assert text == PAYMENT_PURPOSE[:128]
+    assert "Проверка стажа" in text
+
+
+def test_return_url_uses_cabinet_proverkastaza(monkeypatch: Any) -> None:
+    monkeypatch.setenv("YOOKASSA_RETURN_URL", "")
+    monkeypatch.setenv("CABINET_PUBLIC_URL", "https://cabinet.proverkastaza.ru")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    url = _return_url("case-abc", "web_cabinet")
+    assert "cabinet.proverkastaza.ru" in url
+    assert "dorogadobra" not in url.lower()
+    assert "view=payments" in url
+    get_settings.cache_clear()
+
+
+def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+        captured["path"] = path
+        captured["payload"] = payload
+        return 200, {
+            "id": "pay-brand",
+            "status": "pending",
+            "confirmation": {"confirmation_url": "https://yoomoney.ru/checkout/payments/v2/contract?orderId=1"},
+        }
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "true")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    desc = payment_description("DIAG")
+    result = client.create_payment(
+        amount_rub=3000,
+        description=desc,
+        return_url="https://cabinet.proverkastaza.ru/cases/x?view=payments&paid=1",
+        customer_email="a@b.ru",
+    )
+    assert result["ok"] is True
+    payload = captured["payload"]
+    assert payload["description"] == desc
+    assert "Проверка стажа" in payload["description"]
+    assert payload["confirmation"]["return_url"].startswith("https://cabinet.proverkastaza.ru")
+    assert payload["receipt"]["items"][0]["description"] == desc[:128]
+    # Умный платёж: не фиксируем один способ — порядок СБП/Сбер только в ЛК ЮKassa
+    assert "payment_method_data" not in payload
+    assert "payment_method_types" not in payload
+    assert payload["capture"] is True
+    get_settings.cache_clear()

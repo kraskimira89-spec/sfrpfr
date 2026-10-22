@@ -25,7 +25,7 @@ import segno
 from sfrfr.core.config import get_settings
 from sfrfr.integrations.max.client import MaxBotClient, inline_link_keyboard
 from sfrfr.integrations.payments import YooKassaClient
-from sfrfr.services.public_tariffs import PAYMENT_PURPOSE, staff_package_label
+from sfrfr.services.public_tariffs import payment_description, staff_package_label
 from sfrfr.services.staff_finance import parse_dt
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,10 @@ def ensure_yookassa_pay_url(
     amount = float(order.get("amount_rub") or 0)
     if amount <= 0:
         return {"ok": False, "pay_url": existing, "kind": "bad_amount"}
-    service = staff_package_label(str(order.get("package_code") or ""), order.get("service_label"))
-    description = (service or PAYMENT_PURPOSE)[:128]
+    description = payment_description(
+        str(order.get("package_code") or ""),
+        order.get("service_label"),
+    )
     client_row = case.get("clients") or {}
     email = str(client_row.get("email") or "").strip() or None
     meta = {
@@ -109,7 +111,7 @@ def ensure_yookassa_pay_url(
         }
     payment = client.create_payment(
         amount_rub=amount,
-        description=PAYMENT_PURPOSE,
+        description=description,
         return_url=return_url,
         metadata=meta,
         customer_email=email,

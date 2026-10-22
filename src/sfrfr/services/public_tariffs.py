@@ -8,8 +8,12 @@ from __future__ import annotations
 
 from typing import Any
 
+# Бренд сервиса (оферта / витрина). Юрлицо ООО «ПОД ПРИСМОТРОМ» — в реквизитах,
+# не в description платежа. Название магазина в форме ЮKassa задаётся только в ЛК.
+BRAND_NAME = "Проверка стажа"
+SITE_CANON = "proverkastaza.ru"
 PAYMENT_PURPOSE = (
-    "Оплата за информационно-документарную поддержку согласно выбранной услуге/договору"
+    f"{BRAND_NAME} — информационно-документарная поддержка ({SITE_CANON})"
 )
 FINANCE_DISCLAIMER = (
     "Оплаты за информационно-документарную поддержку. "
@@ -17,7 +21,7 @@ FINANCE_DISCLAIMER = (
     "Оплата счёта означает принятие условий публичной оферты. "
     "Согласие на обработку персональных данных оформляется отдельно."
 )
-TARIFFS_SOURCE_URL = "https://proverkastaza.ru/tarify/"
+TARIFFS_SOURCE_URL = f"https://{SITE_CANON}/tarify/"
 
 # Совпадает с scripts/assets/trust/tarify.html и yandex-business/price-list.yml
 PUBLIC_TARIFFS: list[dict[str, Any]] = [
@@ -62,7 +66,7 @@ DEFAULT_PACKAGE_AMOUNT: dict[str, int] = {
 }
 
 STAFF_PACKAGE_LABELS: dict[str, str] = {
-    "DIAG": "Диагностика",
+    "DIAG": "Диагностика документов",
     "ACCOMP": "Подготовка документов / сопровождение",
     "SF_LUMP": "Индивидуальное соглашение",
     "SF_MONTH": "Индивидуальное соглашение",
@@ -74,6 +78,20 @@ def staff_package_label(package_code: str, service_label: str | None = None) -> 
     if service_label and service_label.strip():
         return service_label.strip()
     return STAFF_PACKAGE_LABELS.get((package_code or "").upper(), package_code or "Услуга")
+
+
+def payment_description(
+    package_code: str = "",
+    service_label: str | None = None,
+) -> str:
+    """description / receipt.items для ЮKassa: бренд + услуга (≤128 символов)."""
+    code = (package_code or "").strip()
+    custom = (service_label or "").strip()
+    if custom:
+        return f"{BRAND_NAME} — {custom}"[:128]
+    if code.upper() in STAFF_PACKAGE_LABELS:
+        return f"{BRAND_NAME} — {STAFF_PACKAGE_LABELS[code.upper()]}"[:128]
+    return PAYMENT_PURPOSE[:128]
 
 
 def public_tariff(code: str) -> dict[str, Any] | None:

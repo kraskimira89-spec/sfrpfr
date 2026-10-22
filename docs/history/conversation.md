@@ -1,5 +1,11 @@
 # История бесед
 
+## 2026-10-22 — ЮKassa: бренд «Проверка стажа» + порядок СБП
+
+- В форме/чеке мелькали старый бренд (taxi / dorogadobra) — **название магазина только в ЛК ЮKassa**.
+- Код: `PAYMENT_PURPOSE` + `payment_description()` → «Проверка стажа — …» / `proverkastaza.ru`; invoice и `/pay` единообразно.
+- Порядок СБП→SberPay→ВТБ(в СБП)→остальное: **API Smart Payment не задаёт** — инструкция владельцу в `docs/yookassa-setup.md`; код без `payment_method_data`, `capture=true`.
+
 ## 2026-10-09 — ТЗ-35: сверка A–B, доки, следующий C1
 
 - A1–A3, B1/B2 и UX (#85–#95, #115, #118) на проде; SFRFR-56 закрыта.
