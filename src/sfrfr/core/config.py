@@ -181,6 +181,10 @@ class Settings(BaseSettings):
     yookassa_send_receipt: bool = False
     # vat_code ЮKassa: 1=НДС20, 6=без НДС (УСН). Сверьте с карточкой магазина/Evotor.
     yookassa_vat_code: int = 1
+    # Тестовые оплаты: при секрете test_… (или PAYMENT_TEST_AMOUNT_ENABLED=1)
+    # в create payment/invoice уходит эта сумма; PUBLIC_TARIFFS / order не трогаем.
+    payment_test_amount_rub: float = 1.0
+    payment_test_amount_enabled: bool = False
     public_lead_token: str = ""
     # Куда слать уведомления о новых заявках (email)
     ops_notify_email: str = "proverkastaza@yandex.ru"

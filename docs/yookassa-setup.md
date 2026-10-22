@@ -92,6 +92,9 @@ YOOKASSA_API_BASE=https://api.yookassa.ru/v3
 YOOKASSA_RETURN_URL=https://cabinet.proverkastaza.ru/
 # Чеки 54-ФЗ: true, если в магазине включена фискализация
 YOOKASSA_SEND_RECEIPT=true
+# Тест: секрет test_… → в ЮKassa уходит 1 ₽ (см. шаг 4)
+PAYMENT_TEST_AMOUNT_RUB=1
+PAYMENT_TEST_AMOUNT_ENABLED=0
 CABINET_PUBLIC_URL=https://cabinet.proverkastaza.ru
 MAX_MINIAPP_URL=https://proverkastaza.ru/app/
 PUBLIC_BASE_URL=https://api.proverkastaza.ru
@@ -127,8 +130,22 @@ https://api.proverkastaza.ru/api/integrations/payments/yookassa
 
 ## Шаг 4. Тестовый платёж (по доке)
 
-1. В admin создайте заказ `DIAG` / `ACCOMP` на дело (сумма > 0).
-2. В cabinet или mini-app нажмите **Оплатить онлайн**.
+### Сумма 1 ₽ в тестовом магазине
+
+| Условие | Сумма в `create payment` / `invoice` |
+|---|---|
+| `YOOKASSA_SECRET_KEY` начинается с `test_` | **`PAYMENT_TEST_AMOUNT_RUB`** (канон **1.00**) |
+| Live-ключ (`live_…`), флаг выкл. | `orders.amount_rub` (3000 / 5000 / 8000) |
+| `PAYMENT_TEST_AMOUNT_ENABLED=1` | принудительно test-сумма (даже на live — только отладка) |
+| `PAYMENT_TEST_AMOUNT_RUB=0` | override выключен |
+
+Код: `yookassa_charge_amount_rub` в `src/sfrfr/services/payment_amount.py`.  
+**Не** меняет `PUBLIC_TARIFFS`, витрину `/tarify/` и сумму в заказе — только запрос к ЮKassa.
+
+На VPS после смены env: перезапуск `sfrfr-api` (systemd). Секрет test/live — в `.env`, не в git.
+
+1. В admin создайте заказ `DIAG` / `ACCOMP` на дело (сумма > 0; в UI остаётся тариф).
+2. В cabinet или mini-app нажмите **Оплатить онлайн** (на test-ключе в ЮKassa будет **1 ₽**).
 3. Откроется `confirmation_url` ЮKassa.
 4. Тестовая карта (из [быстрого старта](https://yookassa.ru/developers/payment-acceptance/getting-started/quick-start)):
 
