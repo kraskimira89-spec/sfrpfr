@@ -78,6 +78,7 @@ def create_quarantine_document(
         lookup_upload_event,
         record_upload_event,
         restore_canonical_bytes,
+        wait_test_after_hash_lookup_barrier,
     )
 
     allow_signed = (doc_type or "").strip().lower() in {
@@ -151,6 +152,9 @@ def create_quarantine_document(
             "cloud_status": "ok",
         }
 
+    # Точка гонки для тестов: оба потока уже видели «нет канона», до claim.
+    wait_test_after_hash_lookup_barrier()
+
     document_id = str(uuid4())
     claimed = claim_case_checksum(
         case_id=case_id,
@@ -159,6 +163,20 @@ def create_quarantine_document(
         document_id=document_id,
     )
     if claimed != document_id:
+        raced = find_canonical_by_checksum(
+            case_id=case_id, checksum=checksum, size_bytes=size_bytes
+        ) or {"id": claimed, "case_id": case_id, "checksum_sha256": checksum}
+        restored = False
+        if not canonical_original_available(raced):
+            restore_canonical_bytes(
+                case_id=case_id,
+                document_id=claimed,
+                filename=filename,
+                data=data,
+                checksum=checksum,
+                row=raced,
+            )
+            restored = True
         record_upload_event(
             case_id=case_id,
             document_id=claimed,
@@ -166,12 +184,10 @@ def create_quarantine_document(
             attachment_id=attachment_id,
             filename=filename,
         )
-        raced = find_canonical_by_checksum(
-            case_id=case_id, checksum=checksum, size_bytes=size_bytes
-        ) or {"id": claimed, "case_id": case_id, "checksum_sha256": checksum}
         return {
             **raced,
             "deduped": True,
+            "restored": restored,
             "job_id": "",
             "cloud_status": "ok",
         }

@@ -27,6 +27,13 @@ def set_test_after_hash_lookup_barrier(barrier: threading.Barrier | None) -> Non
     _test_after_hash_lookup = barrier
 
 
+def wait_test_after_hash_lookup_barrier() -> None:
+    """Пауза после hash-lookup, если тест поставил barrier (иначе no-op)."""
+    barrier = _test_after_hash_lookup
+    if barrier is not None:
+        barrier.wait()
+
+
 @dataclass(frozen=True)
 class AcceptResult:
     document_id: str
@@ -150,9 +157,11 @@ def accept_case_document_bytes(
         )
 
     # После lookup «нет канона», до claim/insert — точка гонки для тестов (без lock).
-    barrier = getattr(store, "after_hash_lookup_barrier", None) or _test_after_hash_lookup
-    if barrier is not None:
-        barrier.wait()
+    store_barrier = getattr(store, "after_hash_lookup_barrier", None)
+    if store_barrier is not None:
+        store_barrier.wait()
+    else:
+        wait_test_after_hash_lookup_barrier()
 
     document_id = str(uuid4())
     claimed = store.claim_canonical(
@@ -247,6 +256,31 @@ def find_canonical_by_checksum(
     return rows[0] if rows else None
 
 
+def lookup_claimed_checksum(*, case_id: str, checksum: str) -> str | None:
+    """document_id из реестра case_document_checksums (без ожидания строки documents)."""
+    if not checksum:
+        return None
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("case_document_checksums")
+            .select("document_id")
+            .eq("case_id", case_id)
+            .eq("checksum_sha256", checksum)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if rows and rows[0].get("document_id"):
+            return str(rows[0]["document_id"])
+    except Exception as exc:  # noqa: BLE001
+        logger.info("lookup_claimed_checksum skipped: %s", type(exc).__name__)
+    return None
+
+
 def claim_case_checksum(
     *,
     case_id: str,
@@ -256,7 +290,8 @@ def claim_case_checksum(
 ) -> str:
     """Запись в case_document_checksums; при unique conflict — id существующего.
 
-    Без таблицы (миграция ещё не на проде) — fallback на find_canonical.
+    Важно: при гонке победитель уже в реестре, а строки documents ещё может не быть.
+    Поэтому сначала читаем реестр, и только потом documents (fallback без таблицы).
     """
     if not checksum:
         return document_id
@@ -274,7 +309,9 @@ def claim_case_checksum(
         ).execute()
         return document_id
     except Exception as exc:  # noqa: BLE001
-        # Unique / missing table → lookup
+        claimed = lookup_claimed_checksum(case_id=case_id, checksum=checksum)
+        if claimed:
+            return claimed
         existing = find_canonical_by_checksum(
             case_id=case_id, checksum=checksum, size_bytes=size_bytes
         )
