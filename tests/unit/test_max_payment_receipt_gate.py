@@ -139,3 +139,59 @@ def test_receipt_path_only_when_invoice_sent_and_strong_text() -> None:
     assert out is not None
     assert out["status"] == "confirmed"
     save_doc.assert_called_once()
+
+
+def test_workbook_before_pay_offer_never_sends_receipt_mismatch() -> None:
+    """До оффера оплаты трудовая не должна уходить в текст про чек/реквизиты.
+
+    Регресс живого MAX: после догрузки ТК бот писал
+    «Чек сохранили в деле, но реквизиты получателя не совпали…»
+    ещё до предложения диагностики.
+    """
+    # Слабый hint «квитанц» + трудовая — раньше хватало для looks_like_receipt.
+    labor_text = (
+        "Трудовая книжка. Сведения о работе. Приём 12.03.1998. "
+        "Оплата труда по окладу. Квитанция к приходному ордеру — вкладыш."
+    )
+    clients = [{"id": "client-1"}]
+    cases = [{"id": "case-1"}]
+    # invoice_ready / голый pending — счёт ещё не отправлен клиенту.
+    orders = [
+        {
+            "id": "ord-1",
+            "status": "pending",
+            "invoice_status": "invoice_ready",
+            "amount_rub": 3000,
+            "package_code": "DIAG",
+        }
+    ]
+
+    sb = MagicMock()
+
+    def table(name: str):
+        if name == "clients":
+            return _clients_table(clients)
+        if name == "cases":
+            return _cases_table(cases)
+        return MagicMock()
+
+    sb.table.side_effect = table
+    repo = MagicMock()
+    repo.list_orders.return_value = orders
+
+    with (
+        patch("sfrfr.db.session.get_supabase_client", return_value=sb),
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch(
+            "sfrfr.services.payment_receipt.ocr_receipt_bytes",
+            return_value=labor_text,
+        ),
+        patch("sfrfr.services.payment_receipt.save_receipt_document") as save_doc,
+    ):
+        out = ingest_max_receipt(
+            max_user_id="42",
+            files=[("TK_Lopakova.pdf", b"%PDF-1.4 workbook")],
+        )
+
+    assert out is None
+    save_doc.assert_not_called()
