@@ -115,6 +115,24 @@ def resolve(
     if not docs:
         return ClientCaseStatus(kind="no_docs", ef_open=ef)
 
+    result_ready = (
+        result_current
+        and bool(result_summary)
+        and check_status in {"completed", "needs_action"}
+        and not stale
+        and bool(check_result)
+    )
+    # Brief/итог уже у клиента важнее quiet «обрабатываем» (thanks / working_question).
+    if result_ready:
+        return ClientCaseStatus(
+            kind="result_ready",
+            doc_count=len(docs),
+            have_buckets=have,
+            check_status=check_status,
+            result_summary=result_summary,
+            ef_open=ef,
+        )
+
     if case_quiet or pending:
         return ClientCaseStatus(
             kind="receiving",
@@ -156,23 +174,6 @@ def resolve(
             check_status=check_status,
             ef_open=ef,
         )
-
-    if (
-        result_current
-        and result_summary
-        and check_status in {"completed", "needs_action"}
-        and not stale
-        and check_result
-    ):
-        return ClientCaseStatus(
-            kind="result_ready",
-            doc_count=len(docs),
-            have_buckets=have,
-            check_status=check_status,
-            result_summary=result_summary,
-            ef_open=ef,
-        )
-
     # Полный комплект, но краткая диагностика не запущена / E/F закрыты.
     return ClientCaseStatus(
         kind="kit_ready_no_analysis",
@@ -375,7 +376,9 @@ def _brief_summary_for_case(
         mid = str((clients or {}).get("max_user_id") or "").strip()
         if not mid:
             return None, False
-        rec = get_intake_store().get_active(mid)
+        store = get_intake_store()
+        store.reload()
+        rec = store.get_active(mid)
         if rec is None:
             return None, False
         answers = rec.q_answers or {}

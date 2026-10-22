@@ -74,6 +74,18 @@ _SOFT_ASK = (
     "Подробная диагностика — 3 000 ₽. Решение о пенсии принимает только СФР."
 )
 
+_PROBLEM_TYPE_HINTS: dict[str, str] = {
+    "north": "не учли северный стаж",
+    "ils_stazh": "стаж не отражён в ИЛС",
+    "documents": "нужна архивная справка о стаже",
+    "sfr_refusal": "отказ или вопросы по решению СФР",
+}
+_GOAL_HINTS: dict[str, str] = {
+    "missing_period": "не учли период стажа",
+    "check_experience": "проверка стажа",
+    "sfr_question": "вопрос по обращению в СФР",
+}
+
 
 @dataclass(frozen=True)
 class BriefAnalysisResult:
@@ -101,13 +113,31 @@ def documents_fingerprint(documents: list[dict[str, Any]]) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
 
 
-def _problem_text(intake: Any | None) -> str:
-    if intake is None:
-        return ""
-    answers = getattr(intake, "q_answers", None) or {}
-    if not isinstance(answers, dict):
-        return ""
-    return str(answers.get("problem") or "").strip()
+def _problem_text(
+    intake: Any | None,
+    *,
+    client_texts: list[str] | None = None,
+) -> str:
+    """Формулировка проблемы: анкета, goal/type, недавние реплики клиента."""
+    parts: list[str] = []
+    if intake is not None:
+        answers = getattr(intake, "q_answers", None) or {}
+        if isinstance(answers, dict):
+            for key in ("problem", "problem_text", "issue"):
+                val = str(answers.get(key) or "").strip()
+                if val:
+                    parts.append(val)
+        ptype = str(getattr(intake, "problem_type", None) or "").strip()
+        if ptype:
+            parts.append(_PROBLEM_TYPE_HINTS.get(ptype, ptype.replace("_", " ")))
+        goal = str(getattr(intake, "goal", None) or "").strip()
+        if goal:
+            parts.append(_GOAL_HINTS.get(goal, goal.replace("_", " ")))
+    for raw in client_texts or []:
+        text = str(raw or "").strip()
+        if text:
+            parts.append(text)
+    return "\n".join(parts)
 
 
 def _themes_from_problem(problem: str) -> list[str]:
@@ -126,18 +156,50 @@ def _bullets_from_findings(findings: list[dict[str, Any]] | None) -> list[str]:
     return brief_recommendations_from_findings(findings, limit=5)
 
 
+def _client_texts_from_history(history: list[dict[str, Any]] | None) -> list[str]:
+    out: list[str] = []
+    for row in history or []:
+        if not isinstance(row, dict):
+            continue
+        kind = str(row.get("author_kind") or "").strip().lower()
+        if kind not in {"client", "representative", "user"}:
+            continue
+        body = str(row.get("body") or "").strip()
+        if body:
+            out.append(body)
+    return out
+
+
+def _reload_intake_rec(rec: Any) -> Any:
+    """Актуальная запись с диска + синхронизация q_answers у переданного rec."""
+    from sfrfr.integrations.max.intake import get_intake_store
+
+    store = get_intake_store()
+    store.reload()
+    mid = str(getattr(rec, "max_user_id", "") or "").strip()
+    if not mid:
+        return rec
+    fresh = store.get_active(mid)
+    if fresh is None:
+        return rec
+    rec.q_answers = dict(getattr(fresh, "q_answers", None) or {})
+    return fresh
+
+
 def compute_brief_analysis(
     *,
     documents: list[dict[str, Any]] | None = None,
     intake: Any | None = None,
     pipeline_findings: list[dict[str, Any]] | None = None,
+    client_texts: list[str] | None = None,
 ) -> BriefAnalysisResult:
     """Локальный краткий разбор без нового OCR и без обязательного LLM."""
     docs = [d for d in (documents or []) if isinstance(d, dict)]
     fp = documents_fingerprint(docs)
     findings_bullets = _bullets_from_findings(pipeline_findings)
-    themes = _themes_from_problem(_problem_text(intake))
-
+    themes = _themes_from_problem(
+        _problem_text(intake, client_texts=client_texts)
+    )
     bullets: list[str] = []
     for item in findings_bullets:
         clean = sanitize_finding_line(item)
@@ -202,7 +264,8 @@ def soft_ask_keyboard() -> list[dict[str, Any]]:
 def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
     from sfrfr.integrations.max.intake import get_intake_store
 
-    answers = dict(getattr(rec, "q_answers", None) or {})
+    target = _reload_intake_rec(rec)
+    answers = dict(getattr(target, "q_answers", None) or {})
     answers[STATUS_KEY] = STATUS_COMPLETED if result.ok else STATUS_ERROR
     answers[OK_KEY] = "1" if result.ok else "0"
     answers[CURRENT_KEY] = "1" if result.current else "0"
@@ -212,30 +275,34 @@ def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
     answers[SUMMARY_SHOWN_KEY] = "0"
     answers[DETAIL_CONSENT_KEY] = "0"
     answers.pop(DETAIL_PENDING_KEY, None)
+    target.q_answers = answers
     rec.q_answers = answers
-    get_intake_store().save(rec)
+    get_intake_store().save(target)
 
 
 def mark_summary_shown(rec: Any) -> None:
     from sfrfr.integrations.max.intake import get_intake_store
 
-    answers = dict(getattr(rec, "q_answers", None) or {})
+    target = _reload_intake_rec(rec)
+    answers = dict(getattr(target, "q_answers", None) or {})
     answers[SUMMARY_SHOWN_KEY] = "1"
     if answers.get(DISCREPANCY_KEY) == "1":
         answers[DETAIL_PENDING_KEY] = "1"
+    target.q_answers = answers
     rec.q_answers = answers
-    get_intake_store().save(rec)
+    get_intake_store().save(target)
 
 
 def mark_detail_consent(rec: Any, *, wants: bool) -> None:
     from sfrfr.integrations.max.intake import get_intake_store
 
-    answers = dict(getattr(rec, "q_answers", None) or {})
+    target = _reload_intake_rec(rec)
+    answers = dict(getattr(target, "q_answers", None) or {})
     answers[DETAIL_CONSENT_KEY] = "1" if wants else "0"
     answers.pop(DETAIL_PENDING_KEY, None)
+    target.q_answers = answers
     rec.q_answers = answers
-    get_intake_store().save(rec)
-
+    get_intake_store().save(target)
 
 def is_detail_pending(rec: Any | None) -> bool:
     if rec is None:
@@ -244,9 +311,16 @@ def is_detail_pending(rec: Any | None) -> bool:
     return str(answers.get(DETAIL_PENDING_KEY) or "") == "1"
 
 
-def gate_flags_from_intake(rec: Any | None) -> dict[str, bool]:
+def gate_flags_from_intake(
+    rec: Any | None,
+    *,
+    reload: bool = False,
+) -> dict[str, bool]:
     """Флаги для evaluate_diag_offer из intake (без обхода)."""
-    answers = (getattr(rec, "q_answers", None) or {}) if rec is not None else {}
+    target = rec
+    if reload and rec is not None:
+        target = _reload_intake_rec(rec)
+    answers = (getattr(target, "q_answers", None) or {}) if target is not None else {}
     if not isinstance(answers, dict):
         answers = {}
     completed = str(answers.get(STATUS_KEY) or "") == STATUS_COMPLETED
@@ -258,7 +332,6 @@ def gate_flags_from_intake(rec: Any | None) -> dict[str, bool]:
         "client_got_clear_summary": str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1",
         "client_wants_detailed_review": str(answers.get(DETAIL_CONSENT_KEY) or "") == "1",
     }
-
 
 def run_brief_after_kit(
     *,
@@ -280,13 +353,14 @@ def run_brief_after_kit(
     from sfrfr.services.case_chat_delivery import enqueue_max_delivery
     from sfrfr.services.max_kit_status import collect_case_doc_buckets
 
+    history: list[dict[str, Any]] = []
     try:
         history = fetch_recent_case_messages(cid)
         if staff_dialog_active(history):
             logger.info("brief analysis skipped staff_active case=%s", cid[:8])
             return None
     except Exception:  # noqa: BLE001
-        pass
+        history = []
 
     repo = CaseRepository()
     try:
@@ -306,6 +380,7 @@ def run_brief_after_kit(
         findings = []
 
     store = get_intake_store()
+    store.reload()
     rec = store.get_active(mid)
     if rec is None:
         logger.info("brief analysis skipped no intake user=%s", mid[:8])
@@ -315,6 +390,7 @@ def run_brief_after_kit(
         documents=docs,
         intake=rec,
         pipeline_findings=findings,
+        client_texts=_client_texts_from_history(history),
     )
     prev_fp = str((rec.q_answers or {}).get(FP_KEY) or "")
     prev_shown = str((rec.q_answers or {}).get(SUMMARY_SHOWN_KEY) or "")

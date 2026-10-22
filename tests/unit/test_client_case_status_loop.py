@@ -91,6 +91,29 @@ def test_resolve_receiving_during_quiet() -> None:
     assert "повторно" in text.lower()
 
 
+def test_result_ready_beats_quiet_for_thanks() -> None:
+    """После brief «Спасибо» / working_question — итог, не «обрабатываем»."""
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=True,
+        ef_open=False,
+        result_summary="Предварительная проверка комплекта завершена.",
+        result_current=True,
+        document_check={
+            "status": "completed",
+            "stale": False,
+            "result": {"next_action": "ok"},
+        },
+    )
+    assert st.kind == "result_ready"
+    thanks = ccs.reply_text(st, intent="thanks").lower()
+    work = ccs.reply_text(st, intent="working_question").lower()
+    assert "обрабатываем" not in thanks
+    assert "пожалуйста" in thanks
+    assert "обрабатываем" not in work
+    assert "проверк" in work or "завершен" in work
+
+
 def test_resolve_missing_names_concrete_doc() -> None:
     docs = [{"id": "d1", "doc_type": "ils", "ingest_status": "ready"}]
     st = ccs.resolve(documents=docs, ef_open=False, ingest_pending=False)

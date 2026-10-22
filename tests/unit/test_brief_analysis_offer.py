@@ -248,3 +248,112 @@ def test_ef_kill_switch_still_blocks(monkeypatch) -> None:
     d = gate.evaluate_diag_offer(**ba.gate_flags_from_intake(rec))
     assert d.reason == gate.DENY_EF_CLOSED
     get_settings.cache_clear()
+
+
+def test_consent_reloads_brief_flags_written_by_other_store(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Brief мог записать флаги на диск (CLI/другой воркер), а API держит stale rec."""
+    from sfrfr.integrations.max.intake import MaxIntakeStore, reset_intake_store
+
+    path = tmp_path / "max_intake.json"
+    api_store = reset_intake_store(path)
+    seed = api_store.upsert_started("810")
+    seed.case_id = "case-810"
+    seed.q_answers = {"problem": "Не учли северный стаж"}
+    api_store.save(seed)
+
+    # Отдельный инстанс (как CLI) пишет brief на тот же файл.
+    writer = MaxIntakeStore(path)
+    written = writer.get_active("810")
+    assert written is not None
+    result = ba.compute_brief_analysis(
+        documents=_KIT, intake=written, pipeline_findings=[]
+    )
+    assert result.has_justified_discrepancy
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: writer
+    )
+    ba.persist_brief_to_intake(written, result)
+    ba.mark_summary_shown(written)
+
+    # API-store в памяти ещё без brief; consent не должен стереть флаги с диска.
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: api_store
+    )
+    stale = api_store.get_active("810")
+    assert stale is not None
+    assert ba.STATUS_KEY not in (stale.q_answers or {})
+    ba.mark_detail_consent(stale, wants=True)
+
+    api_store.reload()
+    fresh = api_store.get_active("810")
+    assert fresh is not None
+    flags = ba.gate_flags_from_intake(fresh)
+    assert flags["has_completed_brief_analysis"] is True
+    assert flags["analysis_ok"] is True
+    assert flags["has_justified_discrepancy"] is True
+    assert flags["client_got_clear_summary"] is True
+    assert flags["client_wants_detailed_review"] is True
+    monkeypatch.setenv("MAX_DIAG_OFFER_EF_OPEN", "1")
+    get_settings.cache_clear()
+    decision = gate.evaluate_diag_offer(**flags)
+    assert decision.allowed
+    get_settings.cache_clear()
+
+
+def test_problem_from_client_messages_without_q_answers() -> None:
+    result = ba.compute_brief_analysis(
+        documents=_KIT,
+        intake=_rec(),
+        pipeline_findings=[],
+        client_texts=["Здравствуйте, не учли северный стаж в ИЛС"],
+    )
+    assert result.has_justified_discrepancy
+    assert "возможн" in result.summary.lower()
+
+
+def test_problem_from_intake_goal_and_type() -> None:
+    rec = MaxIntakeRecord(
+        id="r2",
+        max_user_id="u2",
+        case_id="c2",
+        goal="missing_period",
+        problem_type="north",
+        q_answers={},
+    )
+    result = ba.compute_brief_analysis(
+        documents=_KIT, intake=rec, pipeline_findings=[]
+    )
+    assert result.has_justified_discrepancy
+
+
+def test_settle_complete_schedules_brief(monkeypatch) -> None:
+    from sfrfr.integrations.max import document_background as bg
+
+    scheduled: list[dict] = []
+    monkeypatch.setattr(
+        "sfrfr.services.brief_analysis.schedule_brief_after_kit",
+        lambda **kw: scheduled.append(kw),
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(bg, "reclassify_case_untyped", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        bg, "final_message_for_case", lambda _cid: ("Базовый комплект получен.", True)
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **_kw: True,
+    )
+    bg.reset_quiet_state()
+    bg._deliver_settle_notify(case_id="case-settle", max_user_id="u-settle")
+    assert scheduled
+    assert scheduled[0]["case_id"] == "case-settle"
+    assert scheduled[0]["max_user_id"] == "u-settle"

@@ -460,6 +460,11 @@ class MaxIntakeStore:
                 continue
         self._rows = loaded
 
+    def reload(self) -> None:
+        """Перечитать файл с диска (brief/CLI/другой воркер могли обновить)."""
+        with self._lock:
+            self._load()
+
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"rows": {mid: asdict(rec) for mid, rec in self._rows.items()}}
@@ -525,8 +530,19 @@ class MaxIntakeStore:
 
     def save(self, rec: MaxIntakeRecord) -> MaxIntakeRecord:
         with self._lock:
+            mid = str(rec.max_user_id)
+            # Чужие user_id — с диска. Overlay q_answers авторитетен, но
+            # _brief_* с диска сохраняем, если stale in-memory их не знает.
+            self._load()
+            disk_rec = self._rows.get(mid)
+            overlay = dict(rec.q_answers or {})
+            merged = dict(overlay)
+            for key, value in (getattr(disk_rec, "q_answers", None) or {}).items():
+                if str(key).startswith("_brief_") and key not in overlay:
+                    merged[key] = value
+            rec.q_answers = merged
             rec.updated_at = datetime.now(UTC).isoformat()
-            self._rows[str(rec.max_user_id)] = rec
+            self._rows[mid] = rec
             self._save()
             return rec
 
