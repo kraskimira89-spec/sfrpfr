@@ -253,29 +253,31 @@ def preserve_gaps_after_soft_ask_yes(rec: Any) -> None:
         or bool(str(answers.get(SUMMARY_KEY) or "").strip())
         or str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1"
     )
+    if not (prior_soft or had_brief):
+        # Холодный клик без soft-ask/brief: не помечаем discrepancy в одиночку.
+        return
+    # Revive оффера после потерянных флагов — не «клик = анализ».
     answers[SOFT_ASK_SENT_KEY] = "1"
     answers[DISCREPANCY_KEY] = "1"
-    if prior_soft or had_brief:
-        # Revive оффера после потерянных флагов — не «клик = анализ».
-        answers[OFFER_REVIVE_KEY] = "1"
-        if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
-            answers[STATUS_KEY] = STATUS_COMPLETED
-        if str(answers.get(OK_KEY) or "") != "1":
-            answers[OK_KEY] = "1"
-        if str(answers.get(CURRENT_KEY) or "") != "1":
-            answers[CURRENT_KEY] = "1"
-        if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
-            answers[SUMMARY_SHOWN_KEY] = "1"
-        if not str(answers.get(SUMMARY_KEY) or "").strip():
-            answers[SUMMARY_KEY] = _force_discrepancy_result(
-                BriefAnalysisResult(
-                    ok=True,
-                    current=True,
-                    has_justified_discrepancy=False,
-                    summary="",
-                    source="soft_ask_preserve",
-                )
-            ).summary[:3500]
+    answers[OFFER_REVIVE_KEY] = "1"
+    if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
+        answers[STATUS_KEY] = STATUS_COMPLETED
+    if str(answers.get(OK_KEY) or "") != "1":
+        answers[OK_KEY] = "1"
+    if str(answers.get(CURRENT_KEY) or "") != "1":
+        answers[CURRENT_KEY] = "1"
+    if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
+        answers[SUMMARY_SHOWN_KEY] = "1"
+    if not str(answers.get(SUMMARY_KEY) or "").strip():
+        answers[SUMMARY_KEY] = _force_discrepancy_result(
+            BriefAnalysisResult(
+                ok=True,
+                current=True,
+                has_justified_discrepancy=False,
+                summary="",
+                source="soft_ask_preserve",
+            )
+        ).summary[:3500]
     target.q_answers = answers
     rec.q_answers = answers
     get_intake_store().save(target)
