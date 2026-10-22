@@ -1,4 +1,4 @@
-"""ТЗ-35 B2: чек-лист на e-mail после анкеты — формат PDF/Word."""
+"""ТЗ-35 B2: чек-лист на e-mail — без повторного запроса известного адреса."""
 
 from __future__ import annotations
 
@@ -66,29 +66,19 @@ def _prepare(tmp_path: Path, monkeypatch, sent: list[dict] | None = None, ok: bo
     return bot
 
 
-def test_offer_after_questionnaire(tmp_path: Path, monkeypatch) -> None:
-    from sfrfr.integrations.max import diag_choice as dc
-
+def test_offer_via_send_after_questionnaire(tmp_path: Path, monkeypatch) -> None:
     bot = _prepare(tmp_path, monkeypatch)
     _complete_questionnaire(bot, 901)
-    assert bot.sent[-1][1] == dc.OFFER_TEXT
-    offer = str(bot.attachments[-1])
-    assert "Оформить диагностику" in offer
-    handle_max_update(_cb(901, dc.CHECKLIST), bot=bot)
-    assert bot.sent[-1][1] == lm.OFFER_TEXT
-    assert "Получить на почту" in str(bot.attachments[-1])
+    res = handle_max_update(_cb(901, lm.SEND), bot=bot)
+    assert res.action == "checklist_ask_format"
+    assert "PDF" in bot.sent[-1][1] and "Word" in bot.sent[-1][1]
 
 
 def test_send_asks_format_then_email_then_sends(tmp_path: Path, monkeypatch) -> None:
-    from sfrfr.integrations.max import diag_choice as dc
-
     sent: list[dict] = []
     bot = _prepare(tmp_path, monkeypatch, sent)
     _complete_questionnaire(bot, 902)
-    handle_max_update(_cb(902, dc.CHECKLIST), bot=bot)
-    res = handle_max_update(_cb(902, lm.SEND), bot=bot)
-    assert res.action == "checklist_ask_format"
-    assert "PDF" in bot.sent[-1][1] and "Word" in bot.sent[-1][1]
+    handle_max_update(_cb(902, lm.SEND), bot=bot)
     res = handle_max_update(_cb(902, lm.FMT_DOCX), bot=bot)
     assert res.action == "checklist_ask_email"
     res = handle_max_update(_msg(902, "Anna@Example.ru"), bot=bot)
@@ -100,19 +90,43 @@ def test_send_asks_format_then_email_then_sends(tmp_path: Path, monkeypatch) -> 
     assert rec is not None and rec.lm_step is None and rec.lm_send_count == 1
 
 
-def test_known_email_after_format(tmp_path: Path, monkeypatch) -> None:
-    from sfrfr.integrations.max import diag_choice as dc
-
+def test_known_email_auto_sends_without_reask(tmp_path: Path, monkeypatch) -> None:
     sent: list[dict] = []
     bot = _prepare(tmp_path, monkeypatch, sent)
     _complete_questionnaire(bot, 903, email="petrova@example.ru")
-    handle_max_update(_cb(903, dc.CHECKLIST), bot=bot)
     handle_max_update(_cb(903, lm.SEND), bot=bot)
-    handle_max_update(_cb(903, lm.FMT_PDF), bot=bot)
-    assert "Отправить на petrova@example.ru" in str(bot.attachments[-1])
-    res = handle_max_update(_cb(903, lm.USE_KNOWN), bot=bot)
+    res = handle_max_update(_cb(903, lm.FMT_PDF), bot=bot)
     assert res.action == "checklist_email_sent"
     assert sent[0] == {"to": "petrova@example.ru", "first_name": "Анна", "fmt": "pdf"}
+    assert not any("напишите e-mail" in (t or "").lower() for _u, t in bot.sent)
+
+
+def test_old_use_known_button_still_delivers(tmp_path: Path, monkeypatch) -> None:
+    sent: list[dict] = []
+    bot = _prepare(tmp_path, monkeypatch, sent)
+    _complete_questionnaire(bot, 913, email="old@example.ru")
+    handle_max_update(_cb(913, lm.SEND), bot=bot)
+    # Имитация старого сценария: шаг email + USE_KNOWN
+    rec = get_intake_store().get_active("913")
+    assert rec is not None
+    rec.lm_step = "email"
+    lm._set_format(rec, "pdf")
+    get_intake_store().save(rec)
+    res = handle_max_update(_cb(913, lm.USE_KNOWN), bot=bot)
+    assert res.action == "checklist_email_sent"
+    assert sent[0]["to"] == "old@example.ru"
+
+
+def test_change_email_explicit(tmp_path: Path, monkeypatch) -> None:
+    sent: list[dict] = []
+    bot = _prepare(tmp_path, monkeypatch, sent)
+    _complete_questionnaire(bot, 914, email="old@example.ru")
+    handle_max_update(_cb(914, lm.SEND), bot=bot)
+    handle_max_update(_cb(914, lm.CHANGE_EMAIL), bot=bot)
+    assert "новый e-mail" in bot.sent[-1][1].lower()
+    res = handle_max_update(_msg(914, "new@example.ru"), bot=bot)
+    assert res.action == "checklist_email_sent"
+    assert sent[0]["to"] == "new@example.ru"
 
 
 def test_already_have(tmp_path: Path, monkeypatch) -> None:
@@ -121,7 +135,7 @@ def test_already_have(tmp_path: Path, monkeypatch) -> None:
     _complete_questionnaire(bot, 904)
     res = handle_max_update(_cb(904, lm.HAVE), bot=bot)
     assert res.action == "checklist_have"
-    assert bot.sent[-1][1] == lm.HAVE_TEXT
+    assert lm.HAVE_TEXT in bot.sent[-1][1]
     assert sent == []
 
 
@@ -135,14 +149,15 @@ def test_invalid_email_reasks(tmp_path: Path, monkeypatch) -> None:
     assert get_intake_store().get_active("905").lm_step == "email"
 
 
-def test_send_failure_falls_back_to_chat(tmp_path: Path, monkeypatch) -> None:
+def test_send_failure_falls_back_to_chat_without_reask(tmp_path: Path, monkeypatch) -> None:
     bot = _prepare(tmp_path, monkeypatch, ok=False)
-    _complete_questionnaire(bot, 906)
+    _complete_questionnaire(bot, 906, email="a@b.ru")
     handle_max_update(_cb(906, lm.SEND), bot=bot)
-    handle_max_update(_cb(906, lm.FMT_PDF), bot=bot)
-    res = handle_max_update(_msg(906, "a@b.ru"), bot=bot)
+    res = handle_max_update(_cb(906, lm.FMT_PDF), bot=bot)
     assert res.action == "checklist_email_failed"
     assert "чек-лист" in bot.sent[-1][1].lower()
+    # Ошибка отправки ≠ повод заново спрашивать адрес
+    assert "напишите e-mail" not in bot.sent[-1][1].lower()
 
 
 def test_send_limit(tmp_path: Path, monkeypatch) -> None:

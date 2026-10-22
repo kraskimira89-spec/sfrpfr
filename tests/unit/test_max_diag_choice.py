@@ -1,4 +1,4 @@
-"""После анкеты: выбор диагностика 3 000 ₽ / чек-лист (clarity-funnel §4)."""
+"""После анкеты: ранний upsell диагностики снят; старая кнопка не обходит gate."""
 
 from __future__ import annotations
 
@@ -44,49 +44,38 @@ def _prepare(tmp_path: Path, monkeypatch):
     return bot
 
 
-def test_diag_choice_after_questionnaire(tmp_path: Path, monkeypatch) -> None:
+def test_no_early_diag_offer_after_questionnaire(tmp_path: Path, monkeypatch) -> None:
     bot = _prepare(tmp_path, monkeypatch)
     _complete_questionnaire(bot, 921)
-    assert bot.sent[-1][1] == dc.OFFER_TEXT
-    offer = str(bot.attachments[-1])
-    assert "Оформить диагностику" in offer
-    assert "чек-лист" in offer.lower()
+    texts = [t for _u, t in bot.sent]
+    assert texts[-1] == q.completed_text(get_intake_store().get_active("921").case_id) or (
+        "дело" in texts[-1].lower() and "создано" in texts[-1].lower()
+    )
+    assert dc.OFFER_TEXT not in texts
+    assert not any("оформить диагностику" in (t or "").lower() for t in texts)
     rec = get_intake_store().get_active("921")
-    assert rec is not None and dc.is_pending(rec)
-
-
-def test_diag_checklist_opens_lead_magnet(tmp_path: Path, monkeypatch) -> None:
-    bot = _prepare(tmp_path, monkeypatch)
-    _complete_questionnaire(bot, 922)
-    res = handle_max_update(_cb(922, dc.CHECKLIST), bot=bot)
-    assert res.action == "diag_checklist"
-    assert bot.sent[-1][1] == lm.OFFER_TEXT
-    assert "Получить на почту" in str(bot.attachments[-1])
-    rec = get_intake_store().get_active("922")
     assert rec is not None and not dc.is_pending(rec)
 
 
-def test_diag_yes_starts_payment(tmp_path: Path, monkeypatch) -> None:
+def test_old_diag_yes_callback_gated(tmp_path: Path, monkeypatch) -> None:
     bot = _prepare(tmp_path, monkeypatch)
     _complete_questionnaire(bot, 923)
-    monkeypatch.setattr(
-        "sfrfr.integrations.max.handler._case_id_for_max_user",
-        lambda _uid: "case-diag-1",
-    )
     started: list[dict] = []
-
-    def _fake_start(**kw):
-        started.append(kw)
-        return {"ok": True, "pay_sent": True}
-
-    monkeypatch.setattr(dc, "start_diag_payment", _fake_start)
+    monkeypatch.setattr(
+        dc, "start_diag_payment", lambda **kw: started.append(kw) or {"ok": True}
+    )
     res = handle_max_update(_cb(923, dc.YES), bot=bot)
-    assert res.action == "diag_yes"
-    assert started and started[0]["case_id"] == "case-diag-1"
-    assert "3 000" in bot.sent[-1][1]
-    assert "кабинет" not in bot.sent[-1][1].lower()
-    rec = get_intake_store().get_active("923")
-    assert rec is not None and not dc.is_pending(rec)
+    assert res.action == "diag_yes_gated"
+    assert started == []
+    assert "пока не предлагаем" in bot.sent[-1][1].lower()
+
+
+def test_diag_checklist_still_reachable_via_lm_send(tmp_path: Path, monkeypatch) -> None:
+    bot = _prepare(tmp_path, monkeypatch)
+    _complete_questionnaire(bot, 922)
+    res = handle_max_update(_cb(922, lm.SEND), bot=bot)
+    assert res.action == "checklist_ask_format"
+    assert "PDF" in bot.sent[-1][1]
 
 
 def test_start_diag_payment_accepts_contract(monkeypatch) -> None:

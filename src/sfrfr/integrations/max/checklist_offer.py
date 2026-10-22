@@ -28,11 +28,13 @@ CALLBACK_PREFIX = "lm:"
 SEND = "lm:send"
 HAVE = "lm:have"
 USE_KNOWN = "lm:use_known"
+CHANGE_EMAIL = "lm:change_email"
 CANCEL = "lm:cancel"
 FMT_PDF = "lm:fmt:pdf"
 FMT_DOCX = "lm:fmt:docx"
 MAX_SENDS = 3
 _FORMAT_KEY = "lm_format"
+_FORCE_ASK_EMAIL = "lm_force_ask_email"
 
 OFFER_TEXT = (
     f"Хотите бесплатный чек-лист «{CHECKLIST_TITLE}» — памятку для сбора документов?\n"
@@ -44,6 +46,7 @@ ASK_FORMAT_TEXT = (
     "• Word — удобно редактировать и отмечать"
 )
 ASK_EMAIL_TEXT = "Напишите e-mail, на который прислать чек-лист."
+CHANGE_EMAIL_TEXT = "Напишите новый e-mail, на который прислать чек-лист."
 INVALID_EMAIL_TEXT = "Похоже, в адресе ошибка. Пример: ivanova@yandex.ru. Напишите e-mail ещё раз."
 HAVE_TEXT = "Хорошо. Когда документы будут под рукой — пришлите их прямо в этот чат, фото или PDF."
 CANCEL_TEXT = "Хорошо, не отправляем. Чек-лист можно запросить позже командой /checklist."
@@ -83,8 +86,35 @@ def _ask_keyboard(known_email: str) -> list[dict[str, Any]]:
         rows.append(
             [{"type": "callback", "text": f"Отправить на {known_email}", "payload": USE_KNOWN}]
         )
+        rows.append(
+            [{"type": "callback", "text": "Изменить e-mail", "payload": CHANGE_EMAIL}]
+        )
     rows.append([{"type": "callback", "text": "Не нужно", "payload": CANCEL}])
     return inline_buttons_keyboard(rows)
+
+
+def _change_email_keyboard() -> list[dict[str, Any]]:
+    return inline_buttons_keyboard(
+        [[{"type": "callback", "text": "Не нужно", "payload": CANCEL}]]
+    )
+
+
+def _force_ask(rec: MaxIntakeRecord) -> bool:
+    return (rec.q_answers or {}).get(_FORCE_ASK_EMAIL) == "1"
+
+
+def _set_force_ask(rec: MaxIntakeRecord, value: bool) -> None:
+    answers = dict(rec.q_answers or {})
+    if value:
+        answers[_FORCE_ASK_EMAIL] = "1"
+    else:
+        answers.pop(_FORCE_ASK_EMAIL, None)
+    rec.q_answers = answers
+
+
+def known_valid_email(rec: MaxIntakeRecord) -> str:
+    raw = (rec.q_answers or {}).get("email") or ""
+    return q.clean_email(raw) or ""
 
 
 def _format_label(fmt: Format) -> str:
@@ -200,30 +230,47 @@ def handle(
     payload: str,
     log_event: Callable[[str], Any],
 ) -> tuple[str, str] | None:
-    """Кнопки lm:* и ввод e-mail. None — не наш апдейт."""
-    known = (rec.q_answers or {}).get("email") or ""
+    """Кнопки lm:* и ввод e-mail. None — не наш апдейт.
+
+    Если валидный e-mail уже есть — отправляем без повторного запроса.
+    Ошибка отправки письма не повод снова спрашивать адрес.
+    Старый callback USE_KNOWN / SEND ведёт в актуальное состояние.
+    """
+    known = known_valid_email(rec)
     if payload == HAVE:
         rec.lm_step = None
+        _set_force_ask(rec, False)
         get_intake_store().save(rec)
         reply(HAVE_TEXT, None)
         return "checklist_have", HAVE_TEXT
     if payload == CANCEL:
         rec.lm_step = None
+        _set_force_ask(rec, False)
         get_intake_store().save(rec)
         reply(CANCEL_TEXT, None)
         return "checklist_cancel", CANCEL_TEXT
     if payload == SEND:
         rec.lm_step = "format"
+        _set_force_ask(rec, False)
         get_intake_store().save(rec)
         reply(ASK_FORMAT_TEXT, format_keyboard())
         return "checklist_ask_format", ASK_FORMAT_TEXT
+    if payload == CHANGE_EMAIL:
+        _set_force_ask(rec, True)
+        rec.lm_step = "email"
+        get_intake_store().save(rec)
+        reply(CHANGE_EMAIL_TEXT, _change_email_keyboard())
+        return "checklist_change_email", CHANGE_EMAIL_TEXT
     if payload in (FMT_PDF, FMT_DOCX):
         _set_format(rec, "docx" if payload == FMT_DOCX else "pdf")
+        if known and not _force_ask(rec):
+            return _deliver(rec, reply, email=known, log_event=log_event)
         rec.lm_step = "email"
         get_intake_store().save(rec)
         reply(ASK_EMAIL_TEXT, _ask_keyboard(known))
         return "checklist_ask_email", ASK_EMAIL_TEXT
     if payload == USE_KNOWN and known:
+        # Старая кнопка: актуальное состояние — сразу отправка на сохранённый адрес.
         return _deliver(rec, reply, email=known, log_event=log_event)
     if payload or not is_active(rec):
         return None
@@ -232,6 +279,10 @@ def handle(
         return "checklist_ask_format", ASK_FORMAT_TEXT
     email = q.clean_email(text)
     if email is None:
-        reply(INVALID_EMAIL_TEXT, _ask_keyboard(known))
+        reply(INVALID_EMAIL_TEXT, _ask_keyboard(known) if known else _change_email_keyboard())
         return "checklist_email_invalid", INVALID_EMAIL_TEXT
+    answers = dict(rec.q_answers or {})
+    answers["email"] = email
+    rec.q_answers = answers
+    _set_force_ask(rec, False)
     return _deliver(rec, reply, email=email, log_event=log_event)
