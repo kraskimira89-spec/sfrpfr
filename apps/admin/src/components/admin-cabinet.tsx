@@ -1488,7 +1488,10 @@ export function AdminCabinet() {
     setMaxReplyFocus(true);
   }
 
-  /** Открыть раздел диалогов MAX Business; без user_id — явная ошибка специалисту. */
+  /**
+   * Диалоги MAX Business. Прямого deep-link на чат клиента у MAX нет.
+   * Навигация — через <a> в панели чата; здесь notice / clipboard / ошибка без user_id.
+   */
   function openClientMaxBusiness() {
     if (!detail) {
       setNotice("Сначала откройте дело.");
@@ -1501,22 +1504,18 @@ export function AdminCabinet() {
       );
       return;
     }
-    const url = String(detail.channels.max_business_url || "").trim();
-    if (!url) {
-      setNotice("Не задан URL MAX Business (channels.max_business_url).");
-      return;
-    }
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
-    if (!opened) {
-      setNotice("Браузер заблокировал окно. Разрешите всплывающие окна для кабинета.");
-      return;
-    }
-    setNotice(`MAX Business открыт. Найдите диалог по user_id ${uid}.`);
+    const url =
+      String(detail.channels.max_business_url || "").trim() || "https://business.max.ru/self";
+    void navigator.clipboard?.writeText(uid).catch(() => undefined);
+    setNotice(
+      `MAX Business открыт (${url}). Найдите диалог по user_id ${uid} — id скопирован в буфер.`,
+    );
   }
 
   function pickReplySuggestion(text: string) {
     setMaxReplyBody(text);
     setReplySuggestions([]);
+    setNotice("Черновик в поле сообщения. Блок подсказок скрыт — отправьте вручную.");
   }
 
   async function suggestReplies() {
