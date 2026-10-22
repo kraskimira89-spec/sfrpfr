@@ -219,6 +219,8 @@ type StaffCaseDetail = {
     staff_cabinet_url?: string | null;
     max_reply_url?: string | null;
     max_ops_bot_url?: string | null;
+    /** Диалоги бота в MAX Business (не клиентский бот). */
+    max_business_url?: string | null;
   };
   representatives?: {
     user_id: string;
@@ -1486,6 +1488,37 @@ export function AdminCabinet() {
     setMaxReplyFocus(true);
   }
 
+  /** Открыть раздел диалогов MAX Business; без user_id — явная ошибка специалисту. */
+  function openClientMaxBusiness() {
+    if (!detail) {
+      setNotice("Сначала откройте дело.");
+      return;
+    }
+    const uid = String(detail.client.max_user_id || "").trim();
+    if (!uid) {
+      setNotice(
+        "У клиента нет MAX user_id — открыть диалог в MAX Business нельзя. Проверьте привязку MAX.",
+      );
+      return;
+    }
+    const url = String(detail.channels.max_business_url || "").trim();
+    if (!url) {
+      setNotice("Не задан URL MAX Business (channels.max_business_url).");
+      return;
+    }
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      setNotice("Браузер заблокировал окно. Разрешите всплывающие окна для кабинета.");
+      return;
+    }
+    setNotice(`MAX Business открыт. Найдите диалог по user_id ${uid}.`);
+  }
+
+  function pickReplySuggestion(text: string) {
+    setMaxReplyBody(text);
+    setReplySuggestions([]);
+  }
+
   async function suggestReplies() {
     if (!token || !detail) return;
     // Не трогаем глобальный busy: иначе кнопка «Отправить в MAX» disabled без пояснения.
@@ -1567,9 +1600,11 @@ export function AdminCabinet() {
       method: "POST",
         body: JSON.stringify({ body: maxReplyBody.trim(), internal: true }),
     });
+      const sent = maxReplyBody.trim();
       setMaxReplyBody("");
-    const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
-    setMessages(next);
+      setReplySuggestions((prev) => withoutSentSuggestion(prev, sent));
+      const next = await apiFetch<typeof messages>(`/api/portal/cases/${detail.id}/messages`, token);
+      setMessages(next);
       setNotice("Сообщение сохранено в ленту дела.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось сохранить сообщение.");
@@ -2182,7 +2217,7 @@ export function AdminCabinet() {
             caseLabel={caseCatalogLabel(detail.id)}
             maxLinked={Boolean(detail.client.max_linked)}
             maxUserId={detail.client.max_user_id ?? null}
-            maxBusinessUrl={detail.channels.max_ops_bot_url ?? detail.channels.max_reply_url ?? null}
+            maxBusinessUrl={detail.channels.max_business_url ?? null}
             body={maxReplyBody}
             onBodyChange={setMaxReplyBody}
             busy={busy}
@@ -2191,6 +2226,8 @@ export function AdminCabinet() {
             onSendInternal={() => void sendMessage()}
             suggestions={replySuggestions}
             onSuggest={() => void suggestReplies()}
+            onPickSuggestion={pickReplySuggestion}
+            onOpenMax={openClientMaxBusiness}
             composerHighlight={composerFlash || maxReplyFocus}
             waitingOn={waitingOn}
             onOpenDocument={(docId) => void openSigned(docId, "open")}

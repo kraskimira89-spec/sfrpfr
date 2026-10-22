@@ -226,6 +226,7 @@ export function CaseChatPanel({
   caseLabel = null,
   maxLinked,
   maxUserId = null,
+  maxBusinessUrl = null,
   body,
   onBodyChange,
   busy,
@@ -235,6 +236,8 @@ export function CaseChatPanel({
   suggestions,
   pickedSuggestion = null,
   onSuggest,
+  onPickSuggestion,
+  onOpenMax,
   composerHighlight = false,
   waitingOn = null,
   onOpenDocument,
@@ -247,7 +250,7 @@ export function CaseChatPanel({
   maxLinked: boolean;
   /** MAX user_id клиента (мета под заголовком). */
   maxUserId?: string | null;
-  /** @deprecated оставлено для совместимости вызова; в UI не показывается. */
+  /** URL MAX Business (диалоги) — для «Открыть MAX». */
   maxBusinessUrl?: string | null;
   body: string;
   onBodyChange: (value: string) => void;
@@ -261,6 +264,10 @@ export function CaseChatPanel({
   /** Выбранный чип черновика (подсветка). */
   pickedSuggestion?: string | null;
   onSuggest: () => void;
+  /** Клик по черновику: подставить текст и убрать блок подсказок. */
+  onPickSuggestion?: (text: string) => void;
+  /** Открыть диалоги MAX Business (нужен user_id). */
+  onOpenMax?: () => void;
   composerHighlight?: boolean;
   /** @deprecated marketing consent UI убран из чата. */
   marketingConsentLabel?: string | null;
@@ -390,6 +397,23 @@ export function CaseChatPanel({
             <p className="case-chat-await" role="status">
               Нужен ответ сотрудника
             </p>
+          ) : null}
+          {onOpenMax ? (
+            <div className="row-actions case-chat-head-actions">
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onOpenMax}
+                title={
+                  maxUserId
+                    ? `Открыть ${maxBusinessUrl || "MAX Business"} · найти диалог по user_id ${maxUserId}`
+                    : "Нужен MAX user_id клиента — без него диалог в Business не найти"
+                }
+              >
+                Открыть MAX
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="case-chat-filters" role="group" aria-label="Фильтр сообщений">
@@ -563,15 +587,6 @@ export function CaseChatPanel({
                 Черновики клиенту
                 <span className="case-chat-suggest-count"> · осталось {suggestions.length}</span>
               </p>
-              <button
-                type="button"
-                className="ghost case-chat-suggest-regen"
-                disabled={busy}
-                onClick={onSuggest}
-                title="Сгенерировать новые варианты по актуальной истории чата"
-              >
-                Перегенерировать
-              </button>
             </div>
             <div className="case-chat-buttons">
               {suggestions.map((item, idx) => (
@@ -582,8 +597,8 @@ export function CaseChatPanel({
                     "case-chat-btn-chip case-chat-btn-chip--clickable case-chat-btn-chip--client" +
                     (pickedSuggestion === item ? " case-chat-btn-chip--picked" : "")
                   }
-                  onClick={() => onBodyChange(item)}
-                  title="Подставить этот вариант ответа в поле сообщения ниже"
+                  onClick={() => (onPickSuggestion ? onPickSuggestion(item) : onBodyChange(item))}
+                  title="Подставить в поле и убрать черновики"
                 >
                   {item}
                 </button>
