@@ -205,8 +205,10 @@ def start_diag_payment_after_yes(
 
     try:
         orders = repo.list_orders(cid)
-    except Exception:  # noqa: BLE001
-        orders = []
+    except Exception as exc:  # noqa: BLE001
+        # Ошибка загрузки ≠ «нет заказов»: иначе можно выставить повторный счёт.
+        logger.warning("diag pay-after-yes list_orders failed case=%s: %s", cid[:8], exc)
+        return {"ok": False, "reason": "orders_load"}
 
     order: dict[str, Any] | None = None
     if _has_open_or_paid_diag(orders):

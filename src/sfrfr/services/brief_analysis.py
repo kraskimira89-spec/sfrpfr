@@ -26,8 +26,10 @@ CURRENT_KEY = "_brief_current"
 DISCREPANCY_KEY = "_brief_discrepancy"
 SUMMARY_KEY = "_brief_summary"
 FP_KEY = "_brief_fp"
+CASE_KEY = "_brief_case_id"
 SUMMARY_SHOWN_KEY = "_brief_summary_shown"
 SOFT_ASK_SENT_KEY = "_brief_soft_ask_sent"
+OFFER_REVIVE_KEY = "_brief_offer_revive"
 DETAIL_CONSENT_KEY = "_detail_consent"
 DETAIL_PENDING_KEY = "_detail_pending"
 
@@ -37,8 +39,21 @@ STATUS_ERROR = "error"
 
 DETAIL_YES = "diag:detail_yes"
 DETAIL_NO = "diag:detail_no"
+OFFER_REVIVE_KEY = "_brief_offer_revive"
 
-_PROBLEM_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
+EVIDENCE_DOCS = "docs"
+EVIDENCE_CLIENT = "client"
+EVIDENCE_NEEDS_CHECK = "needs_check"
+
+_EVIDENCE_LABEL_RU: dict[str, str] = {
+    EVIDENCE_DOCS: "подтверждено документами",
+    EVIDENCE_CLIENT: "со слов клиента",
+    EVIDENCE_NEEDS_CHECK: "требует проверки",
+}
+
+# Сильные темы анкеты → needs_check (могут открыть soft-ask).
+# Слабое «стаж»/goal check_experience сюда не входит.
+_NEEDS_CHECK_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"север|ркс|мкс|район\s+крайнего", re.I),
         "возможные вопросы по северному / льготному стажу",
@@ -51,10 +66,27 @@ _PROBLEM_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"архив|справк", re.I),
         "возможная нехватка подтверждающих / архивных справок",
     ),
+)
+
+# Слабые формулировки → только «со слов клиента», без soft-ask/оффера.
+_CLIENT_ONLY_THEMES: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"дат|период|стаж", re.I),
         "возможные расхождения дат или периодов стажа",
     ),
+)
+
+_MAX_BRIEF_BULLETS = 3
+_NEXT_STEP_JUSTIFIED = (
+    "Следующий шаг: если нужен подробный разбор — ответьте кнопкой ниже "
+    "(или напишите специалисту /help)."
+)
+_NEXT_STEP_CLIENT_ONLY = (
+    "Следующий шаг: уточните, что именно сверить по документам, "
+    "или напишите специалисту /help."
+)
+_NEXT_STEP_NONE = (
+    "Следующий шаг: при необходимости сверьте комплект со специалистом (/help)."
 )
 
 _NO_DISCREPANCY_TEXT = (
@@ -95,6 +127,7 @@ class BriefAnalysisResult:
     has_justified_discrepancy: bool
     summary: str
     bullets: list[str] = field(default_factory=list)
+    evidence_kinds: list[str] = field(default_factory=list)
     fingerprint: str = ""
     source: str = "heuristic"
 
@@ -118,8 +151,13 @@ def _problem_text(
     intake: Any | None,
     *,
     client_texts: list[str] | None = None,
+    include_goal: bool = False,
 ) -> str:
-    """Формулировка проблемы: анкета, goal/type, недавние реплики клиента."""
+    """Формулировка проблемы: анкета, type, реплики клиента.
+
+    Goal по умолчанию не подмешиваем: check_experience → «стаж» ложно
+    ставил расхождение. Явный problem_type / текст анкеты — да.
+    """
     parts: list[str] = []
     if intake is not None:
         answers = getattr(intake, "q_answers", None) or {}
@@ -131,9 +169,10 @@ def _problem_text(
         ptype = str(getattr(intake, "problem_type", None) or "").strip()
         if ptype:
             parts.append(_PROBLEM_TYPE_HINTS.get(ptype, ptype.replace("_", " ")))
-        goal = str(getattr(intake, "goal", None) or "").strip()
-        if goal:
-            parts.append(_GOAL_HINTS.get(goal, goal.replace("_", " ")))
+        if include_goal:
+            goal = str(getattr(intake, "goal", None) or "").strip()
+            if goal:
+                parts.append(_GOAL_HINTS.get(goal, goal.replace("_", " ")))
     for raw in client_texts or []:
         text = str(raw or "").strip()
         if text:
@@ -141,14 +180,24 @@ def _problem_text(
     return "\n".join(parts)
 
 
-def _themes_from_problem(problem: str) -> list[str]:
+def _themes_from_problem(
+    problem: str,
+    *,
+    patterns: tuple[tuple[re.Pattern[str], str], ...],
+) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
-    for pattern, label in _PROBLEM_THEMES:
+    for pattern, label in patterns:
         if pattern.search(problem) and label not in seen:
             seen.add(label)
             out.append(label)
     return out
+
+
+def _format_brief_bullet(text: str, evidence: str) -> str:
+    label = _EVIDENCE_LABEL_RU.get(evidence, evidence)
+    clean = str(text or "").strip()
+    return f"{clean} ({label})" if clean else label
 
 
 def _bullets_from_findings(findings: list[dict[str, Any]] | None) -> list[str]:
@@ -188,35 +237,45 @@ def soft_ask_was_sent(rec: Any | None) -> bool:
 
 
 def preserve_gaps_after_soft_ask_yes(rec: Any) -> None:
-    """Callback diag:detail_yes = soft-ask уже был показан → gaps для gate.
+    """Callback diag:detail_yes = soft-ask уже был → gaps для gate.
 
-    Даже если пересчёт brief пустой (restart стёр problem) — не отказывать
-    «расхождений не видно».
+    Клик восстанавливает право на оффер, но сам по себе не доказывает
+    выполненную проверку: analysis-флаги поднимаем только если soft-ask
+    уже был зафиксирован до клика (или есть prior summary).
     """
     from sfrfr.integrations.max.intake import get_intake_store
 
+    prior_soft = soft_ask_was_sent(rec)
     target = _reload_intake_rec(rec)
     answers = dict(getattr(target, "q_answers", None) or {})
+    had_brief = (
+        str(answers.get(STATUS_KEY) or "") == STATUS_COMPLETED
+        or bool(str(answers.get(SUMMARY_KEY) or "").strip())
+        or str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1"
+    )
     answers[SOFT_ASK_SENT_KEY] = "1"
     answers[DISCREPANCY_KEY] = "1"
-    if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
-        answers[STATUS_KEY] = STATUS_COMPLETED
-    if str(answers.get(OK_KEY) or "") != "1":
-        answers[OK_KEY] = "1"
-    if str(answers.get(CURRENT_KEY) or "") != "1":
-        answers[CURRENT_KEY] = "1"
-    if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
-        answers[SUMMARY_SHOWN_KEY] = "1"
-    if not str(answers.get(SUMMARY_KEY) or "").strip():
-        answers[SUMMARY_KEY] = _force_discrepancy_result(
-            BriefAnalysisResult(
-                ok=True,
-                current=True,
-                has_justified_discrepancy=False,
-                summary="",
-                source="soft_ask_preserve",
-            )
-        ).summary[:3500]
+    if prior_soft or had_brief:
+        # Revive оффера после потерянных флагов — не «клик = анализ».
+        answers[OFFER_REVIVE_KEY] = "1"
+        if str(answers.get(STATUS_KEY) or "") != STATUS_COMPLETED:
+            answers[STATUS_KEY] = STATUS_COMPLETED
+        if str(answers.get(OK_KEY) or "") != "1":
+            answers[OK_KEY] = "1"
+        if str(answers.get(CURRENT_KEY) or "") != "1":
+            answers[CURRENT_KEY] = "1"
+        if str(answers.get(SUMMARY_SHOWN_KEY) or "") != "1":
+            answers[SUMMARY_SHOWN_KEY] = "1"
+        if not str(answers.get(SUMMARY_KEY) or "").strip():
+            answers[SUMMARY_KEY] = _force_discrepancy_result(
+                BriefAnalysisResult(
+                    ok=True,
+                    current=True,
+                    has_justified_discrepancy=False,
+                    summary="",
+                    source="soft_ask_preserve",
+                )
+            ).summary[:3500]
     target.q_answers = answers
     rec.q_answers = answers
     get_intake_store().save(target)
@@ -235,17 +294,27 @@ def _force_discrepancy_result(
         summary = prior
         bullets = list(result.bullets)
     else:
-        bullets = list(result.bullets) or [
+        raw = list(result.bullets) or [
             "возможные неучтённые или не отражённые периоды",
         ]
+        bullets = []
+        for b in raw[:_MAX_BRIEF_BULLETS]:
+            low = b.lower()
+            already = "(" in b and (
+                "слов клиента" in low
+                or "требует проверки" in low
+                or "подтверждено документами" in low
+            )
+            bullets.append(
+                b if already else _format_brief_bullet(b, EVIDENCE_NEEDS_CHECK)
+            )
         lines = [
             "Предварительная проверка комплекта завершена.",
-            "По документам и вашей формулировке есть направления для "
-            "подробной проверки (черновик, не юридический вывод):",
+            "Направления для сверки (черновик, не юридический вывод):",
         ]
-        for i, item in enumerate(bullets[:5], start=1):
+        for i, item in enumerate(bullets, start=1):
             lines.append(f"{i}. {item}")
-        lines.extend(["", _DISCLAIMER])
+        lines.extend(["", _DISCLAIMER, "", _NEXT_STEP_JUSTIFIED])
         summary = "\n".join(lines)
     return BriefAnalysisResult(
         ok=result.ok,
@@ -253,6 +322,8 @@ def _force_discrepancy_result(
         has_justified_discrepancy=True,
         summary=summary,
         bullets=bullets,
+        evidence_kinds=list(result.evidence_kinds)
+        or [EVIDENCE_NEEDS_CHECK] * len(bullets),
         fingerprint=result.fingerprint,
         source=result.source if result.source != "none" else "soft_ask_preserve",
     )
@@ -284,33 +355,50 @@ def compute_brief_analysis(
     """Локальный краткий разбор без нового OCR и без обязательного LLM."""
     docs = [d for d in (documents or []) if isinstance(d, dict)]
     fp = documents_fingerprint(docs)
-    findings_bullets = _bullets_from_findings(pipeline_findings)
-    themes = _themes_from_problem(
-        _problem_text(intake, client_texts=client_texts)
-    )
-    bullets: list[str] = []
-    for item in findings_bullets:
-        clean = sanitize_finding_line(item)
-        if clean and clean not in bullets:
-            bullets.append(clean)
-    for theme in themes:
-        if theme not in bullets:
-            bullets.append(theme)
+    problem = _problem_text(intake, client_texts=client_texts)
 
-    has_disc = bool(findings_bullets) or bool(themes)
-    if has_disc:
+    labeled: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for item in _bullets_from_findings(pipeline_findings):
+        clean = sanitize_finding_line(item)
+        if clean and clean not in seen:
+            seen.add(clean)
+            labeled.append((clean, EVIDENCE_DOCS))
+    for theme in _themes_from_problem(problem, patterns=_NEEDS_CHECK_THEMES):
+        if theme not in seen:
+            seen.add(theme)
+            labeled.append((theme, EVIDENCE_NEEDS_CHECK))
+    for theme in _themes_from_problem(problem, patterns=_CLIENT_ONLY_THEMES):
+        if theme not in seen:
+            seen.add(theme)
+            labeled.append((theme, EVIDENCE_CLIENT))
+
+    labeled = labeled[:_MAX_BRIEF_BULLETS]
+    bullets = [_format_brief_bullet(text, kind) for text, kind in labeled]
+    evidence_kinds = [kind for _text, kind in labeled]
+    has_docs = EVIDENCE_DOCS in evidence_kinds
+    has_needs = EVIDENCE_NEEDS_CHECK in evidence_kinds
+    has_client = EVIDENCE_CLIENT in evidence_kinds
+    # Soft-ask / оффер — только docs или needs_check, не слабое «стаж».
+    has_disc = has_docs or has_needs
+
+    if has_disc or has_client:
         lines = [
             "Предварительная проверка комплекта завершена.",
-            "По документам и вашей формулировке есть направления для "
-            "подробной проверки (черновик, не юридический вывод):",
+            "Направления для сверки (черновик, не юридический вывод):",
         ]
-        for i, item in enumerate(bullets[:5], start=1):
+        for i, item in enumerate(bullets, start=1):
             lines.append(f"{i}. {item}")
-        lines.extend(["", _DISCLAIMER])
+        lines.extend(["", _DISCLAIMER, ""])
+        if has_disc:
+            lines.append(_NEXT_STEP_JUSTIFIED)
+            source = "findings" if has_docs else "questionnaire"
+        else:
+            lines.append(_NEXT_STEP_CLIENT_ONLY)
+            source = "client_only"
         summary = "\n".join(lines)
-        source = "findings" if findings_bullets else "questionnaire"
     else:
-        summary = _NO_DISCREPANCY_TEXT
+        summary = f"{_NO_DISCREPANCY_TEXT}\n\n{_NEXT_STEP_NONE}"
         source = "none"
 
     return BriefAnalysisResult(
@@ -319,6 +407,7 @@ def compute_brief_analysis(
         has_justified_discrepancy=has_disc,
         summary=summary,
         bullets=bullets,
+        evidence_kinds=evidence_kinds,
         fingerprint=fp,
         source=source,
     )
@@ -363,6 +452,9 @@ def persist_brief_to_intake(rec: Any, result: BriefAnalysisResult) -> None:
     answers[DISCREPANCY_KEY] = "1" if result.has_justified_discrepancy else "0"
     answers[SUMMARY_KEY] = result.summary[:3500]
     answers[FP_KEY] = result.fingerprint
+    cid = str(getattr(target, "case_id", None) or getattr(rec, "case_id", "") or "").strip()
+    if cid:
+        answers[CASE_KEY] = cid
     answers[SUMMARY_SHOWN_KEY] = "0"
     answers[DETAIL_CONSENT_KEY] = "0"
     answers.pop(DETAIL_PENDING_KEY, None)
@@ -406,10 +498,33 @@ def is_detail_pending(rec: Any | None) -> bool:
     return str(answers.get(DETAIL_PENDING_KEY) or "") == "1"
 
 
+def brief_is_current_for_case(
+    answers: dict[str, Any],
+    *,
+    case_id: str | None,
+    documents: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True только если сохранённый brief того же дела и (опционально) того же состава docs."""
+    if str(answers.get(CURRENT_KEY) or "") != "1":
+        return False
+    cid = str(case_id or "").strip()
+    stored_case = str(answers.get(CASE_KEY) or "").strip()
+    if cid and stored_case and stored_case != cid:
+        return False
+    if documents is None:
+        return True
+    stored_fp = str(answers.get(FP_KEY) or "").strip()
+    if not stored_fp:
+        return False
+    return stored_fp == documents_fingerprint(documents)
+
+
 def gate_flags_from_intake(
     rec: Any | None,
     *,
     reload: bool = False,
+    case_id: str | None = None,
+    documents: list[dict[str, Any]] | None = None,
 ) -> dict[str, bool]:
     """Флаги для evaluate_diag_offer из intake (без обхода)."""
     target = rec
@@ -419,10 +534,18 @@ def gate_flags_from_intake(
     if not isinstance(answers, dict):
         answers = {}
     completed = str(answers.get(STATUS_KEY) or "") == STATUS_COMPLETED
+    cid = str(
+        case_id
+        or (getattr(target, "case_id", None) if target is not None else "")
+        or ""
+    ).strip()
+    analysis_current = brief_is_current_for_case(
+        answers, case_id=cid or None, documents=documents
+    )
     return {
         "has_completed_brief_analysis": completed,
         "analysis_ok": str(answers.get(OK_KEY) or "") == "1",
-        "analysis_current": str(answers.get(CURRENT_KEY) or "") == "1",
+        "analysis_current": analysis_current,
         "has_justified_discrepancy": str(answers.get(DISCREPANCY_KEY) or "") == "1",
         "client_got_clear_summary": str(answers.get(SUMMARY_SHOWN_KEY) or "") == "1",
         "client_wants_detailed_review": str(answers.get(DETAIL_CONSENT_KEY) or "") == "1",
@@ -445,7 +568,19 @@ def ensure_brief_flags_for_offer(
     if not mid or not cid:
         return None
 
-    flags = gate_flags_from_intake(rec, reload=True)
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.case_chat_context import fetch_recent_case_messages
+    from sfrfr.services.max_kit_status import collect_case_doc_buckets
+
+    try:
+        docs = list(CaseRepository().list_documents(cid) or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ensure brief list_documents failed: %s", exc)
+        return None
+
+    flags = gate_flags_from_intake(
+        rec, reload=True, case_id=cid, documents=docs
+    )
     answers_now = dict(getattr(rec, "q_answers", None) or {})
     keep_gaps = soft_ask_was_sent(rec) or flags["has_justified_discrepancy"]
     prior_summary = str(answers_now.get(SUMMARY_KEY) or "")
@@ -478,15 +613,6 @@ def ensure_brief_flags_for_offer(
             return forced
         return None
 
-    from sfrfr.db.case_repository import CaseRepository
-    from sfrfr.services.case_chat_context import fetch_recent_case_messages
-    from sfrfr.services.max_kit_status import collect_case_doc_buckets
-
-    try:
-        docs = list(CaseRepository().list_documents(cid) or [])
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("ensure brief list_documents failed: %s", exc)
-        return None
     have = collect_case_doc_buckets(docs)
     if "ils" not in have or "labor" not in have:
         return None

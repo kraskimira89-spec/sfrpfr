@@ -62,9 +62,29 @@ def test_questionnaire_themes_are_careful_possible() -> None:
     assert result.has_justified_discrepancy
     blob = result.summary.lower()
     assert "возможн" in blob
+    assert "требует проверки" in blob
+    assert "подтверждено документами" not in blob
     assert "не учли северный стаж" not in blob or "возможн" in blob
+    assert "следующий шаг" in blob
     assert "гарант" not in blob
     assert "перерасчёт" not in blob
+
+
+def test_goal_check_experience_alone_not_discrepancy() -> None:
+    """Слабый goal check_experience не открывает soft-ask."""
+    from sfrfr.integrations.max.intake import MaxIntakeRecord
+
+    rec = MaxIntakeRecord(
+        id="r-goal",
+        max_user_id="u-goal",
+        case_id="c-goal",
+        goal="check_experience",
+        q_answers={},
+    )
+    result = ba.compute_brief_analysis(
+        documents=_KIT, intake=rec, pipeline_findings=[]
+    )
+    assert not result.has_justified_discrepancy
 
 
 def test_findings_drive_discrepancy() -> None:
@@ -77,6 +97,30 @@ def test_findings_drive_discrepancy() -> None:
     )
     assert result.has_justified_discrepancy
     assert "илс" in result.summary.lower() or "трудов" in result.summary.lower()
+    assert "подтверждено документами" in result.summary.lower()
+    assert "следующий шаг" in result.summary.lower()
+    assert len(result.bullets) <= 3
+
+
+def test_preserve_without_prior_soft_ask_does_not_invent_completed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Клик без prior soft-ask не фабрикует analysis completed."""
+    from sfrfr.integrations.max.intake import reset_intake_store
+
+    path = tmp_path / "intake-preserve.json"
+    store = reset_intake_store(path)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    rec = store.upsert_started("u-click")
+    rec.case_id = "c-click"
+    store.save(rec)
+    ba.preserve_gaps_after_soft_ask_yes(rec)
+    answers = rec.q_answers or {}
+    assert answers.get(ba.STATUS_KEY) != ba.STATUS_COMPLETED
+    assert answers.get(ba.SUMMARY_SHOWN_KEY) != "1"
+    assert answers.get(ba.OFFER_REVIVE_KEY) != "1"
 
 
 def test_discrepancy_without_consent_no_pay_button_path(tmp_path: Path, monkeypatch) -> None:
@@ -669,3 +713,30 @@ def test_heal_finds_north_problem_from_chat(monkeypatch) -> None:
     assert out is not None
     assert out.has_justified_discrepancy
     assert "север" in out.summary.lower() or "льгот" in out.summary.lower()
+
+
+def test_brief_stale_when_case_or_fingerprint_mismatch() -> None:
+    """Сохранённый итог актуален только для того же дела и состава документов."""
+    rec = _rec(
+        **{
+            ba.STATUS_KEY: ba.STATUS_COMPLETED,
+            ba.OK_KEY: "1",
+            ba.CURRENT_KEY: "1",
+            ba.DISCREPANCY_KEY: "1",
+            ba.SUMMARY_SHOWN_KEY: "1",
+            ba.FP_KEY: ba.documents_fingerprint(_KIT),
+            ba.CASE_KEY: "c1",
+        }
+    )
+    flags_ok = ba.gate_flags_from_intake(rec, case_id="c1", documents=_KIT)
+    assert flags_ok["analysis_current"] is True
+
+    other_case = ba.gate_flags_from_intake(rec, case_id="c-other", documents=_KIT)
+    assert other_case["analysis_current"] is False
+
+    changed_docs = [
+        {"id": "d1", "doc_type": "ils", "checksum_sha256": "a" * 64},
+        {"id": "d2", "doc_type": "workbook", "checksum_sha256": "c" * 64},
+    ]
+    stale_fp = ba.gate_flags_from_intake(rec, case_id="c1", documents=changed_docs)
+    assert stale_fp["analysis_current"] is False
