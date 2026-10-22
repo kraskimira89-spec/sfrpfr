@@ -111,14 +111,16 @@ def test_steps_do_not_ask_fio_or_birth() -> None:
     assert q.STEPS == ("experience", "phone", "email", "problem")
 
 
-def test_question_progress_is_words_and_dynamic() -> None:
+def test_question_progress_is_n_of_total() -> None:
     text, _kb = q.question("experience")
-    assert text.startswith("Первый вопрос из четырёх вопросов.")
+    assert text.startswith("Вопрос 1 из 4.")
     assert "1/4" not in text
     text2, _kb2 = q.question("phone")
-    assert text2.startswith("Второй вопрос из четырёх вопросов.")
+    assert text2.startswith("Вопрос 2 из 4.")
+    text3, _kb3 = q.question("email")
+    assert text3.startswith("Вопрос 3 из 4.")
     text4, _kb4 = q.question("problem")
-    assert text4.startswith("Четвёртый вопрос из четырёх вопросов.")
+    assert text4.startswith("Вопрос 4 из 4.")
 
 
 def _enable(monkeypatch) -> None:
@@ -134,6 +136,9 @@ def test_start_begins_questionnaire_for_new_client(tmp_path: Path, monkeypatch) 
     texts = " ".join(t for _u, t in bot.sent)
     assert "Фамилия" not in texts
     assert "Год рождения" not in texts
+    assert "извлек" not in texts.lower()
+    assert "профиля max" not in texts.lower()
+    assert "четыре коротких вопроса" in texts.lower()
     assert "стаж" in texts.lower()
     assert not any("чек-лист" in (t or "").lower() for _u, t in bot.sent)
     rec = get_intake_store().get_active("801")
@@ -159,13 +164,16 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     assert saved["answers"]["email"] == "petrov@example.ru"
     assert "last_name" not in saved["answers"]
     assert "birth_year" not in saved["answers"]
-    # ТЗ-35 D1: при case_id — «Ваше дело создано: CASE-YYYY-NNNNNN»
+    # ТЗ-35 D1: «Ваше дело CASE-… создано» без немедленной продажи диагностики
     assert res.case_id
     done = q.completed_text(res.case_id)
     assert "CASE-" in done
-    assert "Сохраните этот номер" in done
+    assert "создано" in done
+    assert "в любой момент нашего диалога" in done
     assert done in [t for _u, t in bot.sent]
-    menu = str(bot.attachments[-2])
+    assert not any("оформить диагностику" in (t or "").lower() for _u, t in bot.sent)
+    assert not any("3 000" in (t or "") for _u, t in bot.sent)
+    menu = str(bot.attachments[-1])
     for label in (
         "Загрузить документы",
         "Какие документы нужны",
@@ -195,18 +203,23 @@ def test_invalid_phone_reasks(tmp_path: Path, monkeypatch) -> None:
 def test_file_during_questionnaire_accepted_and_question_repeated(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Файл посреди анкеты: спокойный ack без howto и без повтора вопроса."""
+    """Файл посреди анкеты: ack + продолжение незавершённого вопроса (тот же N)."""
     from sfrfr.integrations.max import document_background as bg
 
     bg.reset_quiet_state()
     bot = _setup(tmp_path, monkeypatch)
     _enable(monkeypatch)
     handle_max_update(_cb(804, "start_dialog"), bot=bot)
+    handle_max_update(_cb(804, "q:exp:gt20"), bot=bot)
+    assert get_intake_store().get_active("804").q_step == "phone"
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._collect_max_files",
         lambda _u: ([("ils.pdf", b"%PDF-1.4")], []),
     )
-    monkeypatch.setattr("sfrfr.integrations.max.handler._ingest_max_file", lambda **_kw: True)
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.handler._ingest_max_file",
+        lambda **_kw: "doc-1",
+    )
     monkeypatch.setattr(
         "sfrfr.integrations.max.handler._try_max_payment_receipt", lambda *a, **kw: None
     )
@@ -217,14 +230,10 @@ def test_file_during_questionnaire_accepted_and_question_repeated(
     monkeypatch.setattr(bg, "schedule_settle_notify", lambda **_kw: None)
     res = handle_max_update(_msg(804, ""), bot=bot)
     assert res.action == "upload"
-    reply_low = (bot.sent[-1][1] if bot.sent else "").lower()
-    assert (
-        "получил" in reply_low
-        or "сверя" in reply_low
-        or "комплект" in reply_low
-    )
-    assert "стаж" not in reply_low  # не повторяем вопрос анкеты сразу
-    assert get_intake_store().get_active("804").q_step == "experience"
+    joined = " ".join(t for _u, t in bot.sent).lower()
+    assert "вопрос 2 из 4" in joined
+    assert "телефон" in joined
+    assert get_intake_store().get_active("804").q_step == "phone"
     get_settings.cache_clear()
 
 

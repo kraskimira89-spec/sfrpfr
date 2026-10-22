@@ -21,11 +21,7 @@ def send_current_question(rec: MaxIntakeRecord, reply: Reply, *, prefix: str = "
 def start(rec: MaxIntakeRecord, reply: Reply) -> str:
     q.begin(rec)
     get_intake_store().save(rec)
-    intro = q.INTRO_TEXT
-    name = q.prefilled_name(rec.q_answers)
-    if name:
-        intro += f"\n\nБудем обращаться: {name} (имя из профиля MAX)."
-    reply(intro, None)
+    reply(q.INTRO_TEXT, None)
     return send_current_question(rec, reply)
 
 
@@ -52,9 +48,6 @@ def handle_answer(
     q.save_questionnaire(answers=answers, client_id=client_id, case_id=case_id)
     log_summary(q.summary_text(answers))
     done_text = q.completed_text(case_id)
+    # Без раннего upsell диагностики: только «дело создано» + меню документов.
     reply(done_text, q.menu_keyboard())
-    from sfrfr.integrations.max import diag_choice
-
-    diag_choice.mark_pending(rec)
-    reply(diag_choice.OFFER_TEXT, diag_choice.offer_keyboard())
     return "max_questionnaire_completed", done_text

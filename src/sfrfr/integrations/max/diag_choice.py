@@ -48,6 +48,12 @@ FAIL_TEXT = (
     "Напишите «Нужна проверка» или позовите специалиста — поможем оформить оплату в чате."
 )
 
+NOT_AVAILABLE_TEXT = (
+    "Подробную диагностику пока не предлагаем на этом шаге. "
+    "Пришлите документы в этот чат — разберёмся по ним. "
+    "Бесплатный чек-лист можно запросить командой /checklist."
+)
+
 
 def offer_keyboard() -> list[dict[str, Any]]:
     return inline_buttons_keyboard(
@@ -127,6 +133,22 @@ def handle(
         return None
 
     clear_pending(rec)
+    # Старая кнопка не обходит серверный gate (E/F и условия допуска).
+    from sfrfr.services.diag_offer_gate import evaluate_diag_offer
+
+    decision = evaluate_diag_offer(
+        has_completed_brief_analysis=False,
+        analysis_ok=False,
+        analysis_current=False,
+        has_justified_discrepancy=False,
+        client_got_clear_summary=False,
+        client_wants_detailed_review=False,
+    )
+    if not decision.allowed:
+        reply(NOT_AVAILABLE_TEXT, None)
+        log_event(f"Выбор диагностики отклонён gate={decision.reason}")
+        return "diag_yes_gated", NOT_AVAILABLE_TEXT
+
     if not case_id:
         reply(NO_CASE_TEXT, None)
         return "diag_yes_no_case", NO_CASE_TEXT

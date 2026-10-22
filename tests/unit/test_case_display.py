@@ -86,7 +86,9 @@ def test_questionnaire_completed_text_includes_case_number(
     )
     text = q.completed_text(CASE)
     assert "CASE-2026-730545" in text
-    assert "Сохраните этот номер" in text
+    assert "Ваше дело CASE-2026-730545 создано" in text
+    assert "в любой момент нашего диалога" in text
     assert "перерасч" not in text.lower()
+    assert "диагностик" not in text.lower()
     assert q.completed_text(None) == q.COMPLETED_TEXT
     assert q.completed_text("") == q.COMPLETED_TEXT

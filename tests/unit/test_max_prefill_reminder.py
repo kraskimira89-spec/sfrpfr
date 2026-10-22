@@ -68,9 +68,13 @@ def test_start_uses_profile_first_name_only(tmp_path: Path, monkeypatch) -> None
     bot = _enable(tmp_path, monkeypatch)
     handle_max_update(_start(961, first="Мария", last="Иванова"), bot=bot)
     texts = [t for _u, t in bot.sent]
-    assert any("Будем обращаться: Мария" in t for t in texts)
+    # Вступление больше не озвучивает имя из профиля MAX.
+    assert not any("Будем обращаться" in t for t in texts)
     assert not any("Иванова Мария" in t for t in texts)
-    assert any(t.startswith("Первый вопрос из четырёх вопросов.") for t in texts)
+    assert any(t.startswith("Вопрос 1 из 4.") for t in texts)
+    rec = get_intake_store().get_active("961")
+    assert rec is not None
+    assert (rec.q_answers or {}).get("first_name") == "Мария"
 
 
 def _age(user_id: str, hours: int) -> MaxIntakeRecord:
@@ -113,7 +117,9 @@ def test_return_after_questionnaire_single_reminder_reply(tmp_path: Path, monkey
     res = handle_max_update(_msg(964, "подскажите, что дальше"), bot=bot)
     assert res.action == "return_reminder"
     new = bot.sent[before:]
-    assert len(new) == 1 and "Сейчас нужно прислать документы" in new[0][1]
+    assert len(new) == 1
+    assert "дело создано" in new[0][1].lower()
+    assert "документы" in new[0][1].lower()
 
 
 def test_default_reminder_threshold_is_72_hours(tmp_path: Path, monkeypatch) -> None:

@@ -373,6 +373,15 @@ class MaxIntakeRecord:
     lm_step: str | None = None
     lm_send_count: int = 0
     lm_sent_at: str | None = None
+    # Напоминание о подаче/решении СФР (устойчиво к restart)
+    logical_bot_msg_count: int = 0
+    submission_nudge_tier: int = 0
+    submission_nudge_at_count: int = 0
+    # Мягкие предложения: чек-лист / рекомендация друзьям
+    soft_checklist_offered_at: str | None = None
+    soft_share_offered_at: str | None = None
+    soft_checklist_declined: bool = False
+    soft_share_declined: bool = False
     # Имя из профиля MAX (подставляется в анкету) и последний контакт (напоминание о шаге)
     max_first_name: str | None = None
     max_last_name: str | None = None
@@ -501,6 +510,15 @@ class MaxIntakeStore:
                 old.status = "abandoned"
                 old.updated_at = datetime.now(UTC).isoformat()
             rec = MaxIntakeRecord(id=str(uuid.uuid4()), max_user_id=mid, status="started")
+            # Перезапуск не сбрасывает ритм напоминаний о подаче/СФР.
+            if old is not None:
+                from sfrfr.integrations.max.submission_nudge import copy_nudge_state
+
+                copy_nudge_state(old, rec)
+                rec.soft_checklist_offered_at = old.soft_checklist_offered_at
+                rec.soft_share_offered_at = old.soft_share_offered_at
+                rec.soft_checklist_declined = old.soft_checklist_declined
+                rec.soft_share_declined = old.soft_share_declined
             self._rows[mid] = rec
             self._save()
             return rec

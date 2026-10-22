@@ -15,9 +15,9 @@ Reply = Callable[[str, list[dict[str, Any]] | None], Any]
 
 WELCOME_BACK = "С возвращением!"
 NEED_DOCS_TEXT = (
-    f"{WELCOME_BACK} Ваше дело создано. Сейчас нужно прислать документы: "
-    "выписку из ИЛС (сведения о стаже) и трудовую книжку — фото или PDF прямо в этот чат. "
-    "Если есть вопрос — напишите его, отвечу."
+    f"{WELCOME_BACK} Ваше дело создано. "
+    "Пришлите документы, которые хотите проверить. Файлы можно присылать "
+    "в любой момент нашего диалога."
 )
 
 
@@ -74,12 +74,11 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
             rec, reply, prefix=f"{WELCOME_BACK} Продолжим анкету — осталось немного."
         )
         return body, True
+    # Ранний upsell диагностики после анкеты снят; старый pending не реанимируем оффером.
     from sfrfr.integrations.max import diag_choice
 
     if diag_choice.is_pending(rec):
-        body = f"{WELCOME_BACK} {diag_choice.OFFER_TEXT}"
-        reply(body, diag_choice.offer_keyboard())
-        return body, True
+        diag_choice.clear_pending(rec)
     if checklist_offer.is_active(rec):
         if rec.lm_step == "email" and q.clean_email(text):
             return "", False

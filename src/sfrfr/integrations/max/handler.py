@@ -560,6 +560,7 @@ def _reply(
     attachments: list[dict[str, Any]] | None = None,
     case_id: str | None = None,
     text_format: str | None = None,
+    logical: bool = True,
 ) -> bool:
     try:
         from sfrfr.integrations.max.cabinet_link import CABINET_PHRASE, linkify_cabinet
@@ -567,8 +568,37 @@ def _reply(
 
         cid = _chat_case_id(user_id, preferred=case_id)
         outgoing = text
-        if text_format is None and CABINET_PHRASE in text:
-            outgoing, text_format = linkify_cabinet(text, documents_cabinet_url(cid))
+        # Ритм напоминания о подаче/СФР + редкие soft-офферы (не ack файла).
+        if logical and user_id:
+            try:
+                from sfrfr.integrations.max import questionnaire as _q
+                from sfrfr.integrations.max import soft_offers, submission_nudge
+
+                rec = get_intake_store().get_active(str(user_id))
+                if rec is not None:
+                    submission_nudge.note_logical_bot_message(rec)
+                    outgoing, added_nudge = submission_nudge.maybe_append_disclaimer(
+                        rec, outgoing
+                    )
+                    # Не во время анкеты, не с оговоркой СФР, не к «дело создано».
+                    low = outgoing.lower()
+                    skip_soft = (
+                        added_nudge
+                        or _q.is_active(rec)
+                        or ("дело" in low and "создано" in low)
+                    )
+                    if not skip_soft:
+                        soft = soft_offers.pick_soft_offer(
+                            rec,
+                            logical_msg_count=int(rec.logical_bot_msg_count or 0),
+                            other_offer_this_turn=added_nudge,
+                        )
+                        if soft:
+                            outgoing = f"{outgoing.rstrip()}\n\n{soft[1]}"
+            except Exception:  # noqa: BLE001
+                pass
+        if text_format is None and CABINET_PHRASE in outgoing:
+            outgoing, text_format = linkify_cabinet(outgoing, documents_cabinet_url(cid))
         result = bot.send_message(
             text=outgoing,
             user_id=user_id,
@@ -580,7 +610,7 @@ def _reply(
 
         _append_bot_case_message(
             case_id=cid,
-            text=text,
+            text=outgoing,
             attachments=attachments,
             max_user_id=str(user_id) if user_id else None,
             external_message_id=max_message_id_from_response(result),
@@ -645,7 +675,11 @@ def _reply_consent_gate(
     user_id: str,
     chat_id: int | str | None,
 ) -> MaxHandleResult:
-    """Один раз: согласие ПДн перед кнопкой «Начать» — короткими сообщениями подряд."""
+    """Один раз: согласие ПДн перед кнопкой «Начать» — короткими сообщениями подряд.
+
+    logical=False: текст согласия хешируется как evidence; техразбиение и ритм
+    submission_nudge/soft_offers не должны менять юридические части.
+    """
     from sfrfr.services.client_pdn_consent import CONSENT_GATE_PARTS, CONSENT_GATE_TEXT
 
     case_id = _case_id_for_max_user(user_id)
@@ -658,6 +692,7 @@ def _reply_consent_gate(
             text=part,
             attachments=_start_dialog_keyboard() if idx == last else None,
             case_id=case_id,
+            logical=False,
         )
     return MaxHandleResult(ok=True, action="pdn_consent_gate", reply=CONSENT_GATE_TEXT)
 
@@ -3270,11 +3305,27 @@ def _handle_client_free_text(
     from sfrfr.integrations.max.staff_client_ping import notify_staff_client_message
 
     notify_staff_client_message(user_id=user_id, case_id=case_id, snippet=text)
+    from sfrfr.integrations.max import submission_nudge
     from sfrfr.integrations.max.bot_owned import (
         WAITING_FOR_STAFF_TEXT,
         is_handed_to_operator,
     )
     from sfrfr.integrations.max.intake_from_text import try_resolve_from_user_text
+
+    # Прямой вопрос о гарантии/подаче/решении СФР — сразу, вне счётчика ритма.
+    if submission_nudge.is_direct_submission_question(text):
+        body = submission_nudge.direct_answer_text()
+        _reply(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=body,
+            case_id=case_id,
+            logical=False,
+        )
+        return MaxHandleResult(
+            ok=True, action="submission_position_direct", case_id=case_id, reply=body
+        )
 
     if is_handed_to_operator(intake):
         _reply(
@@ -4068,6 +4119,11 @@ def handle_max_update(
                     text=reply,
                     attachments=None,
                     case_id=upload_case_id,
+                    logical=False,
+                )
+                # Файл посреди анкеты: не теряем шаг, продолжаем незавершённый вопрос.
+                _resume_questionnaire_after_upload(
+                    bot, user_id=user_id, chat_id=chat_id, case_id=upload_case_id
                 )
                 return MaxHandleResult(
                     ok=True,
@@ -4075,6 +4131,9 @@ def handle_max_update(
                     case_id=upload_case_id or record_case_id,
                     reply=reply,
                 )
+            _resume_questionnaire_after_upload(
+                bot, user_id=user_id, chat_id=chat_id, case_id=upload_case_id
+            )
             return MaxHandleResult(
                 ok=True,
                 action="upload_quiet",
