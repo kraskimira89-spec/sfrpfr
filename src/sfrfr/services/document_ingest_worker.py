@@ -604,6 +604,21 @@ def process_document_ingest_job(job_id: str) -> dict[str, Any]:
                 "page_count": result.get("page_count"),
             }
             _update_document(client, document_id, fields)
+            preview = str(result.get("extracted_text") or "").strip()
+            if preview:
+                try:
+                    from sfrfr.services.client_fio_from_text import (
+                        maybe_apply_client_fio_from_text,
+                    )
+
+                    maybe_apply_client_fio_from_text(
+                        case_id=case_id,
+                        text=preview,
+                        source="document",
+                        actor_id="system:ingest_fio",
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.debug("client fio from extract skipped", exc_info=True)
             if effective_doc_type and not str(row.get("doc_type") or "").strip():
                 try:
                     from sfrfr.integrations.max.document_type_flow import (

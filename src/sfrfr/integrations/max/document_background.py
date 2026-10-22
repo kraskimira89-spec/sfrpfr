@@ -414,6 +414,20 @@ def analyze_document_background(
                 "doc_type not saved doc=%s type=%s", doc_id[:8], doc_type
             )
         _persist_preview(doc_id, text)
+        if text.strip() and case_id:
+            try:
+                from sfrfr.services.client_fio_from_text import (
+                    maybe_apply_client_fio_from_text,
+                )
+
+                maybe_apply_client_fio_from_text(
+                    case_id=str(case_id),
+                    text=text,
+                    source="document",
+                    actor_id="system:max_doc_fio",
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug("client fio from max doc skipped", exc_info=True)
         dtf.append_type_journal(
             case_id=case_id,
             filename=filename,
