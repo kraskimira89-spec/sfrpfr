@@ -4,7 +4,15 @@ import { extractCaseChatDocumentId } from "@/lib/case-chat-doc-id";
 import { clientNameForChatHeader, clientNameNeedsConfirm } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
 
 export type CaseChatMessage = {
@@ -356,7 +364,7 @@ export function CaseChatPanel({
     onBodyChange(item);
   }
 
-  function handleOpenMaxClick(event: React.MouseEvent<HTMLElement>) {
+  function handleOpenMaxClick(event: MouseEvent<HTMLElement>) {
     if (!onOpenMax) {
       event.preventDefault();
       return;
@@ -650,6 +658,30 @@ export function CaseChatPanel({
                 ? "Перегенерировать подсказки"
                 : "Подсказать ответы (DeepSeek)"}
           </button>
+          {onOpenMax ? (
+            maxMeta ? (
+              <a
+                className="ghost"
+                href={maxOpenUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={handleOpenMaxClick}
+                title={`MAX Business · диалоги. Ищите user_id ${maxMeta}`}
+              >
+                Открыть MAX
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={onOpenMax}
+                title="Нужен MAX user_id клиента — без него диалог в Business не найти"
+              >
+                Открыть MAX
+              </button>
+            )
+          ) : null}
           {maxLinked ? (
             <button
               type="button"
