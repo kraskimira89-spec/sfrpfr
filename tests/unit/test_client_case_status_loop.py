@@ -78,9 +78,23 @@ def test_resolve_kit_ready_when_ef_closed() -> None:
     assert st.kind == "kit_ready_no_analysis"
     text = ccs.reply_text(st, intent="working_question")
     low = text.lower()
-    assert "проверк" in low or "результат" in low
+    assert "не запущ" in low or "ещё не" in low
+    assert "выполняется" not in low
+    assert "ещё идёт" not in low
     assert "диагностика идёт" not in low
     assert "пришлите" not in low or "повторно" in low
+
+
+def test_kit_ready_base_reply_honest_not_running() -> None:
+    """Комплект есть, анализ не запущен — не врать что проверка уже идёт."""
+    st = ccs.resolve(documents=_KIT_DOCS, ef_open=False, ingest_pending=False)
+    assert st.kind == "kit_ready_no_analysis"
+    for intent in ("other", "thanks", "working_question"):
+        low = ccs.reply_text(st, intent=intent).lower()  # type: ignore[arg-type]
+        assert "выполняется" not in low
+        assert "ещё идёт" not in low
+        assert "сейчас выполняется" not in low
+        assert "повторно" in low
 
 
 def test_resolve_receiving_during_quiet() -> None:
