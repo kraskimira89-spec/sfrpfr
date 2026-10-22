@@ -78,6 +78,26 @@ def _has_open_or_paid_diag(orders: list[dict[str, Any]]) -> bool:
     return st["DIAG"] in {"open", "paid"}
 
 
+_OPEN_ORDER_STATUSES = frozenset(
+    {
+        "draft",
+        "pending",
+        "pending_payment",
+        "awaiting_payment",
+    }
+)
+_OPEN_INVOICE_STATUSES = frozenset(
+    {
+        "draft",
+        "invoice_ready",
+        "invoice_sent",
+        "pending_payment",
+        "awaiting_payment",
+        "overdue",
+    }
+)
+
+
 def _find_open_order(
     orders: list[dict[str, Any]],
     *,
@@ -93,13 +113,13 @@ def _find_open_order(
             continue
         elif classify_accomp_tariff(o) != tariff:
             continue
-        if str(o.get("status") or "") == "paid":
+        if str(o.get("status") or "").lower() == "paid":
             return None
         if str(o.get("pay_url") or "").strip():
             return o
-        if str(o.get("status") or "") in {"draft", "pending"} or str(
-            o.get("invoice_status") or ""
-        ) in {"draft", "invoice_ready", "invoice_sent"}:
+        status = str(o.get("status") or "").lower()
+        inv = str(o.get("invoice_status") or "").lower()
+        if status in _OPEN_ORDER_STATUSES or inv in _OPEN_INVOICE_STATUSES:
             return o
     return None
 
@@ -210,6 +230,7 @@ def start_diag_payment_after_yes(
             logger.warning("diag pay-after-yes create failed case=%s: %s", cid[:8], exc)
             return {"ok": False, "reason": "create_order"}
 
+    accepted_now = False
     if not repo.has_contract(cid):
         try:
             repo.accept_contract(
@@ -223,15 +244,49 @@ def start_diag_payment_after_yes(
                     "channel": "max",
                 },
             )
+            accepted_now = True
         except Exception as exc:  # noqa: BLE001
             logger.warning("diag pay-after-yes accept failed case=%s: %s", cid[:8], exc)
             return {"ok": False, "reason": "accept_contract"}
-        return {"ok": True, "accepted": True, "order": order}
+
+    if not settings.max_bot_owned_pay_link:
+        return {
+            "ok": False,
+            "reason": "pay_link_off",
+            "accepted": accepted_now,
+            "order": order,
+        }
 
     pay = maybe_send_pay_link_after_contract(
         repo=repo, case_id=cid, actor_id=f"max:{mid}"
     )
-    return {"ok": True, "accepted": False, "order": order, "pay": pay}
+    if not pay or not str((pay or {}).get("pay_url") or "").strip():
+        # accept_contract уже мог дернуть pay link; если URL так и нет — явная причина.
+        try:
+            refreshed = repo.list_orders(cid)
+        except Exception:  # noqa: BLE001
+            refreshed = orders
+        open_diag = _find_open_order(refreshed, tariff="DIAG") or order
+        if open_diag and str(open_diag.get("pay_url") or "").strip():
+            return {
+                "ok": True,
+                "accepted": accepted_now,
+                "order": open_diag,
+                "pay": {"pay_url": open_diag.get("pay_url")},
+            }
+        return {
+            "ok": False,
+            "reason": "pay_link",
+            "accepted": accepted_now,
+            "order": order,
+            "pay": pay,
+        }
+    return {
+        "ok": True,
+        "accepted": accepted_now,
+        "order": order,
+        "pay": pay,
+    }
 
 
 def maybe_offer_diag_invoice(

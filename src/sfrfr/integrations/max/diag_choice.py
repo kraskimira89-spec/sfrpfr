@@ -50,6 +50,41 @@ FAIL_TEXT = (
     "Напишите «Нужна проверка» или позовите специалиста — поможем оформить оплату в чате."
 )
 
+_FAIL_BY_REASON: dict[str, str] = {
+    "consent": CONSENT_NEEDED_TEXT,
+    "bot_owned_off": (
+        "Автооформление счёта временно выключено. "
+        "Напишите «Нужна проверка» — выставим счёт вручную в этом чате."
+    ),
+    "no_case": NO_CASE_TEXT,
+    "case_load": (
+        "Не удалось открыть дело для счёта. "
+        "Напишите «Нужна проверка» — оформим оплату здесь."
+    ),
+    "create_order": (
+        "Черновик счёта не создался. "
+        "Напишите «Нужна проверка» — повторим оформление в чате."
+    ),
+    "accept_contract": (
+        "Не удалось зафиксировать согласие с офертой для оплаты. "
+        "Нажмите согласие в чате ещё раз или напишите «Нужна проверка»."
+    ),
+    "pay_link_off": (
+        "Счёт подготовили, но автоссылка на оплату выключена. "
+        "Напишите «Нужна проверка» — пришлём ссылку вручную."
+    ),
+    "pay_link": (
+        "Счёт по диагностике создали, но ссылку на оплату сейчас не отправили "
+        "(платёжный сервис или доставка в чат). "
+        "Напишите «Нужна проверка» — пришлём ссылку или QR в этом чате."
+    ),
+}
+
+
+def fail_text_for_reason(reason: str | None) -> str:
+    key = str(reason or "").strip()
+    return _FAIL_BY_REASON.get(key, FAIL_TEXT)
+
 NOT_AVAILABLE_TEXT = (
     "Подробную диагностику пока не предлагаем на этом шаге. "
     "Бесплатный чек-лист можно запросить командой /checklist."
@@ -180,12 +215,12 @@ def _start_payment_flow(
 
     result = start_diag_payment(case_id=case_id, max_user_id=max_user_id)
     if not result or not result.get("ok"):
-        reason = (result or {}).get("reason")
-        if reason == "consent":
-            reply(CONSENT_NEEDED_TEXT, None)
-            return "diag_yes_consent", CONSENT_NEEDED_TEXT
-        reply(FAIL_TEXT, None)
-        return "diag_yes_fail", FAIL_TEXT
+        reason = str((result or {}).get("reason") or "")
+        body = fail_text_for_reason(reason)
+        reply(body, None)
+        log_event(f"Выбор диагностики: счёт не выставлен reason={reason or 'unknown'}")
+        action = "diag_yes_consent" if reason == "consent" else "diag_yes_fail"
+        return action, body
 
     if result.get("already_paid"):
         try:

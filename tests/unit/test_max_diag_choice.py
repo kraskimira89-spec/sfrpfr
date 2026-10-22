@@ -102,13 +102,77 @@ def test_start_diag_payment_accepts_contract(monkeypatch) -> None:
             "sfrfr.services.client_pdn_consent.ensure_case_consent_from_client",
             return_value=True,
         ),
+        patch(
+            "sfrfr.services.max_bot_invoice.maybe_send_pay_link_after_contract",
+            return_value={"pay_url": "https://yookassa.ru/my/i/test"},
+        ) as pay,
     ):
         out = dc.start_diag_payment(case_id="c1", max_user_id="99")
 
     assert out is not None and out.get("ok") and out.get("accepted")
+    assert out.get("pay", {}).get("pay_url")
     repo.create_order.assert_called_once()
     repo.accept_contract.assert_called_once()
+    assert pay.called
     get_settings.cache_clear()
+
+
+def test_start_diag_payment_accept_max_actor_then_pay(monkeypatch) -> None:
+    """Регресс: actor_id max:* раньше ронял access_audit (uuid) → FAIL_TEXT."""
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    monkeypatch.setenv("MAX_BOT_OWNED_PAY_LINK", "1")
+    get_settings.cache_clear()
+    repo = MagicMock()
+    repo.has_consent.return_value = True
+    repo.has_contract.return_value = False
+    repo.get_case_row.return_value = {
+        "id": "c3074452-ac27-4f43-b5ee-88af96792b17",
+        "client_id": "cl1",
+        "clients": {"max_user_id": "79841100"},
+    }
+    repo.list_orders.return_value = [
+        {
+            "id": "o1",
+            "package_code": "DIAG",
+            "status": "pending_payment",
+            "invoice_status": "pending_payment",
+            "pay_url": "",
+        }
+    ]
+    accepted_actors: list[str] = []
+
+    def _accept(_cid: str, **kwargs):
+        accepted_actors.append(str(kwargs.get("actor_id") or ""))
+        return {"id": "ca1"}
+
+    repo.accept_contract.side_effect = _accept
+
+    with (
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch(
+            "sfrfr.services.client_pdn_consent.ensure_case_consent_from_client",
+            return_value=True,
+        ),
+        patch(
+            "sfrfr.services.max_bot_invoice.maybe_send_pay_link_after_contract",
+            return_value={"pay_url": "https://yookassa.ru/my/i/x"},
+        ),
+    ):
+        out = dc.start_diag_payment(
+            case_id="c3074452-ac27-4f43-b5ee-88af96792b17",
+            max_user_id="79841100",
+        )
+
+    assert out is not None and out.get("ok")
+    assert accepted_actors == ["max:79841100"]
+    assert "yookassa.ru" in str((out.get("pay") or {}).get("pay_url") or "")
+    get_settings.cache_clear()
+
+
+def test_fail_text_for_reason_is_specific() -> None:
+    assert "оферт" in dc.fail_text_for_reason("accept_contract").lower()
+    assert "ссылк" in dc.fail_text_for_reason("pay_link").lower()
+    assert "специалист" in dc.fail_text_for_reason("unknown").lower()
 
 
 def test_start_diag_payment_resends_link_if_contracted(monkeypatch) -> None:
