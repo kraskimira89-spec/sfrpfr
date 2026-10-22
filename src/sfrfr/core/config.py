@@ -129,8 +129,9 @@ class Settings(BaseSettings):
     max_questionnaire_enabled: bool = True
     # Клиент вернулся в чат после паузы (часы) — напомнить, на чём остановились; 0 = выкл.
     max_return_reminder_hours: int = 72
-    # ТЗ-35 E/F: платное предложение диагностики 3 000 ₽ (пока выкл. до приёмки A→D)
-    max_diag_offer_ef_open: bool = False
+    # ТЗ-35: оффер диагностики 3 000 ₽ после краткого разбора + согласия
+    # (не открывает пакеты 5 000/8 000). 0 = kill-switch.
+    max_diag_offer_ef_open: bool = True
     # Внутренний канал команды («Проверка стажа — команда»); не на сайт
     max_specialists_channel_url: str = "https://max.ru/id8905998693_biz"
     max_specialists_channel_chat_id: str = ""

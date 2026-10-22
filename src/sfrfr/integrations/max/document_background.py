@@ -172,13 +172,15 @@ def _deliver_settle_notify(*, case_id: str, max_user_id: str) -> None:
 
         # Перед итогом — добить типы у файлов с null (часто local-pending).
         reclassify_case_untyped(case_id)
-        body, _complete = final_message_for_case(case_id)
+        body, complete = final_message_for_case(case_id)
         with _ack_lock:
             prev = _last_settle_body.get(case_id)
             if prev == body:
                 logger.info(
                     "settle notify skipped unchanged case=%s", str(case_id)[:8]
                 )
+                if complete:
+                    _schedule_brief_safe(case_id=case_id, max_user_id=max_user_id)
                 return
             _last_settle_body[case_id] = body
         enqueue_max_delivery(
@@ -188,10 +190,21 @@ def _deliver_settle_notify(*, case_id: str, max_user_id: str) -> None:
             body=body,
             attachments=None,
         )
+        if complete:
+            _schedule_brief_safe(case_id=case_id, max_user_id=max_user_id)
     except Exception as exc:  # noqa: BLE001
         logger.warning("settle notify failed case=%s: %s", str(case_id)[:8], exc)
     finally:
         _clear_quiet_case(case_id)
+
+
+def _schedule_brief_safe(*, case_id: str, max_user_id: str) -> None:
+    try:
+        from sfrfr.services.brief_analysis import schedule_brief_after_kit
+
+        schedule_brief_after_kit(case_id=case_id, max_user_id=str(max_user_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("brief schedule skipped: %s", exc)
 
 
 def schedule_settle_notify(*, user_id: str, case_id: str | None) -> None:
@@ -332,7 +345,7 @@ def build_final_message(documents: list[dict[str, Any]]) -> tuple[str, bool]:
             "Если нет — напишите, подскажем, как получить.",
         ]
         return "\n".join(lines), False
-    # Реестр типов полный — это не запуск анализа (E/F могут быть закрыты).
+    # Реестр типов полный — краткий разбор стартует отдельно после settle.
     lines += [
         "",
         "Базовый комплект получен. Краткая диагностика ещё не запущена — "

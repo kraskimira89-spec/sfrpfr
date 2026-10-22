@@ -246,6 +246,27 @@ def resolve_for_case(
                 "needs_action",
             }
 
+    if not result_current:
+        brief_summary, brief_current = _brief_summary_for_case(cid, docs=docs)
+        if brief_current and brief_summary:
+            result_summary = brief_summary
+            result_current = True
+            if not isinstance(check, dict):
+                check = {
+                    "status": "completed",
+                    "stale": False,
+                    "result": {"next_action": brief_summary},
+                }
+            else:
+                check = {
+                    **check,
+                    "status": check.get("status") or "completed",
+                    "stale": False,
+                    "result": check.get("result")
+                    if isinstance(check.get("result"), dict)
+                    else {"next_action": brief_summary},
+                }
+
     return resolve(
         documents=docs,
         document_check=check,
@@ -272,8 +293,8 @@ def reply_text(
             return base
         if status.kind == "kit_ready_no_analysis":
             return (
-                "Документы в деле. Краткая диагностика ещё не запущена — "
-                "специалист увидит комплект и напишет сюда. "
+                "Документы в деле. Краткая проверка ещё идёт или сейчас "
+                "запустится — результат придёт в этот чат. "
                 "Повторно присылать те же файлы не нужно."
             )
     return base
@@ -324,12 +345,49 @@ def _base_reply(status: ClientCaseStatus) -> str:
         return status.result_summary or "Проверка комплекта завершена."
     # kit_ready_no_analysis
     return (
-        "Базовый комплект получен. Краткая диагностика ещё не запущена — "
-        "специалист увидит документы и напишет в этот чат. "
+        "Базовый комплект получен. Краткая предварительная проверка "
+        "сейчас выполняется — результат придёт в этот чат. "
         "Повторно присылать те же файлы не нужно. "
         "Мы готовим документы и план — обращение через СФР или Госуслуги "
         "подаёте вы сами. Решение принимает СФР."
     )
+
+
+def _brief_summary_for_case(
+    case_id: str,
+    *,
+    docs: list[dict[str, Any]],
+) -> tuple[str | None, bool]:
+    """Читает краткий разбор из intake по max_user_id дела."""
+    del docs
+    cid = str(case_id or "").strip()
+    if not cid:
+        return None, False
+    try:
+        import sfrfr.services.brief_analysis as ba
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.integrations.max.intake import get_intake_store
+
+        case = CaseRepository().get_case_row(cid) or {}
+        clients = case.get("clients") or {}
+        if isinstance(clients, list):
+            clients = clients[0] if clients else {}
+        mid = str((clients or {}).get("max_user_id") or "").strip()
+        if not mid:
+            return None, False
+        rec = get_intake_store().get_active(mid)
+        if rec is None:
+            return None, False
+        answers = rec.q_answers or {}
+        if str(answers.get(ba.STATUS_KEY) or "") != ba.STATUS_COMPLETED:
+            return None, False
+        if str(answers.get(ba.SUMMARY_SHOWN_KEY) or "") != "1":
+            return None, False
+        summary = str(answers.get(ba.SUMMARY_KEY) or "").strip()
+        current = str(answers.get(ba.CURRENT_KEY) or "") == "1"
+        return (summary or None), current
+    except Exception:  # noqa: BLE001
+        return None, False
 
 
 def _docs_ingest_pending(docs: list[dict[str, Any]]) -> bool:
