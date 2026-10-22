@@ -61,30 +61,42 @@ DETAIL_DECLINED_TEXT = (
 )
 
 
-def _gated_reply(*, case_id: str | None) -> str:
-    """Отказ gate: не просить комплект, если документы уже в деле."""
+def _gated_reply(*, case_id: str | None, reason: str | None = None) -> str:
+    """Отказ gate: не подменять причину шаблоном «обрабатываем»."""
+    from sfrfr.services.diag_offer_gate import (
+        DENY_ANALYSIS_ERROR,
+        DENY_NO_ANALYSIS,
+        DENY_NO_DISCREPANCY,
+        DENY_STALE_ANALYSIS,
+    )
+
+    if reason == DENY_NO_DISCREPANCY:
+        return (
+            "По краткому разбору явных расхождений не видно — "
+            "подробную диагностику сейчас не предлагаем. "
+            "Бесплатный чек-лист: /checklist."
+        )
+    if reason in {DENY_NO_ANALYSIS, DENY_STALE_ANALYSIS, DENY_ANALYSIS_ERROR}:
+        return (
+            "Краткий разбор по комплекту ещё не готов или был сброшен. "
+            "Когда итог снова появится в чате — нажмите «Да, подробный разбор». "
+            "Чек-лист: /checklist."
+        )
     try:
         from sfrfr.services.client_case_status import reply_text, resolve_for_case
 
         status = resolve_for_case(case_id)
-        if status.kind in {
-            "receiving",
-            "checking",
-            "missing",
-            "error",
-            "kit_ready_no_analysis",
-            "result_ready",
-        }:
+        # receiving/checking — не клеим: это ложный «сейчас обрабатываем» после soft-ask.
+        if status.kind == "no_docs":
             return (
-                "Подробную диагностику пока не предлагаем на этом шаге. "
-                + reply_text(status)
+                f"{NOT_AVAILABLE_TEXT} "
+                "Если документы ещё не в деле — пришлите их в этот чат."
             )
+        if status.kind == "missing":
+            return f"{NOT_AVAILABLE_TEXT} {reply_text(status)}"
     except Exception:  # noqa: BLE001
         pass
-    return (
-        f"{NOT_AVAILABLE_TEXT} "
-        "Если документы ещё не в деле — пришлите их в этот чат."
-    )
+    return f"{NOT_AVAILABLE_TEXT} Бесплатный чек-лист можно запросить командой /checklist."
 
 
 def offer_keyboard() -> list[dict[str, Any]]:
@@ -157,7 +169,7 @@ def _start_payment_flow(
     clear_pending(rec)
     decision = _evaluate_for_rec(rec)
     if not decision.allowed:
-        body = _gated_reply(case_id=case_id)
+        body = _gated_reply(case_id=case_id, reason=decision.reason)
         reply(body, None)
         log_event(f"Выбор диагностики отклонён gate={decision.reason}")
         return "diag_yes_gated", body
@@ -231,10 +243,12 @@ def handle(
         return "diag_detail_no", DETAIL_DECLINED_TEXT
 
     if pl == brief.DETAIL_YES:
+        # Сначала heal brief (persist сбрасывает consent), потом согласие.
+        brief.ensure_brief_flags_for_offer(rec, case_id=case_id)
         brief.mark_detail_consent(rec, wants=True)
         decision = _evaluate_for_rec(rec)
         if not decision.allowed:
-            body = _gated_reply(case_id=case_id)
+            body = _gated_reply(case_id=case_id, reason=decision.reason)
             reply(body, None)
             log_event(f"Soft-ask да, но gate={decision.reason}")
             return "diag_detail_yes_gated", body

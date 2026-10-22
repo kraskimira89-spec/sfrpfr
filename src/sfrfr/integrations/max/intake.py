@@ -524,6 +524,23 @@ class MaxIntakeStore:
                 rec.soft_share_offered_at = old.soft_share_offered_at
                 rec.soft_checklist_declined = old.soft_checklist_declined
                 rec.soft_share_declined = old.soft_share_declined
+                # Soft-ask / оффер 3000: кнопки в ленте MAX остаются —
+                # без _brief_* повторный «Да» даёт ложный gate no_analysis.
+                preserved: dict[str, Any] = {}
+                for key, value in (old.q_answers or {}).items():
+                    sk = str(key)
+                    if (
+                        sk.startswith("_brief_")
+                        or sk.startswith("_detail_")
+                        or sk == "_diag_step"
+                    ):
+                        preserved[sk] = value
+                if preserved:
+                    rec.q_answers = preserved
+                if old.case_id:
+                    rec.case_id = old.case_id
+                if old.client_id:
+                    rec.client_id = old.client_id
             self._rows[mid] = rec
             self._save()
             return rec

@@ -290,6 +290,19 @@ def reply_text(
     if intent == "clarification":
         return f"Спасибо, пояснение сохранили к делу. {base}"
     if intent == "working_question":
+        kit_complete = (
+            "ils" in status.have_buckets
+            and "labor" in status.have_buckets
+            and not status.missing_buckets
+        )
+        # Quiet/receiving при полном комплекте — не шаблон «обрабатываем»
+        # (после brief soft-ask / «Вы ещё работаете?»).
+        if status.kind == "receiving" and kit_complete:
+            return (
+                "Документы в деле. Краткая проверка ещё идёт или уже была — "
+                "результат смотрите в этом чате. "
+                "Повторно присылать те же файлы не нужно."
+            )
         if status.kind in {"receiving", "checking", "error"}:
             return base
         if status.kind == "kit_ready_no_analysis":

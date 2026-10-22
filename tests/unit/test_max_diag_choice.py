@@ -67,7 +67,9 @@ def test_old_diag_yes_callback_gated(tmp_path: Path, monkeypatch) -> None:
     res = handle_max_update(_cb(923, dc.YES), bot=bot)
     assert res.action == "diag_yes_gated"
     assert started == []
-    assert "пока не предлагаем" in bot.sent[-1][1].lower()
+    low = bot.sent[-1][1].lower()
+    assert "пока не предлагаем" in low or "краткий разбор" in low
+    assert "обрабатываем" not in low
 
 
 def test_diag_checklist_still_reachable_via_lm_send(tmp_path: Path, monkeypatch) -> None:

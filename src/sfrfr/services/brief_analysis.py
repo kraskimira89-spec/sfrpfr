@@ -333,6 +333,74 @@ def gate_flags_from_intake(
         "client_wants_detailed_review": str(answers.get(DETAIL_CONSENT_KEY) or "") == "1",
     }
 
+
+def ensure_brief_flags_for_offer(
+    rec: Any,
+    *,
+    case_id: str | None,
+) -> BriefAnalysisResult | None:
+    """Восстановить _brief_* из дела, если флаги потеряны (restart / stale store).
+
+    Не шлёт повторный soft-ask в чат — вызывается из callback «Да».
+    persist сбрасывает consent; вызывающий должен снова mark_detail_consent.
+    """
+    mid = str(getattr(rec, "max_user_id", "") or "").strip()
+    cid = str(case_id or getattr(rec, "case_id", "") or "").strip()
+    if not mid or not cid:
+        return None
+
+    flags = gate_flags_from_intake(rec, reload=True)
+    have_core = (
+        flags["has_completed_brief_analysis"]
+        and flags["analysis_ok"]
+        and flags["analysis_current"]
+        and flags["client_got_clear_summary"]
+    )
+    if have_core:
+        return None
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.case_chat_context import fetch_recent_case_messages
+    from sfrfr.services.max_kit_status import collect_case_doc_buckets
+
+    try:
+        docs = list(CaseRepository().list_documents(cid) or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ensure brief list_documents failed: %s", exc)
+        return None
+    have = collect_case_doc_buckets(docs)
+    if "ils" not in have or "labor" not in have:
+        return None
+
+    findings: list[dict[str, Any]] = []
+    try:
+        findings = list(CaseRepository().get_pipeline_findings(cid) or [])
+    except Exception:  # noqa: BLE001
+        findings = []
+
+    history: list[dict[str, Any]] = []
+    try:
+        history = fetch_recent_case_messages(cid)
+    except Exception:  # noqa: BLE001
+        history = []
+
+    target = _reload_intake_rec(rec)
+    result = compute_brief_analysis(
+        documents=docs,
+        intake=target,
+        pipeline_findings=findings,
+        client_texts=_client_texts_from_history(history),
+    )
+    persist_brief_to_intake(target, result)
+    mark_summary_shown(target)
+    rec.q_answers = dict(getattr(target, "q_answers", None) or {})
+    logger.info(
+        "ensure brief flags case=%s disc=%s",
+        cid[:8],
+        result.has_justified_discrepancy,
+    )
+    return result
+
 def run_brief_after_kit(
     *,
     case_id: str,
