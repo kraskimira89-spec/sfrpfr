@@ -92,11 +92,16 @@ def remind(rec: MaxIntakeRecord, reply: Reply, *, text: str, docs_count: int) ->
         return body, True
     # Единый статус: не просить комплект, если файлы уже в деле.
     try:
-        from sfrfr.services.client_case_status import reply_text, resolve_for_case
+        from sfrfr.services.client_case_status import (
+            classify_user_intent,
+            reply_text,
+            resolve_for_case,
+        )
 
         status = resolve_for_case(rec.case_id)
         if status.kind != "no_docs":
-            body = f"{WELCOME_BACK} {reply_text(status)}"
+            intent = classify_user_intent(text)
+            body = f"{WELCOME_BACK} {reply_text(status, intent=intent)}"
             reply(body, None)
             return body, True
         if docs_count > 0:

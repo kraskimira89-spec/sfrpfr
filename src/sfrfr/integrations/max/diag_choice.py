@@ -142,7 +142,7 @@ def start_diag_payment(*, case_id: str, max_user_id: str) -> dict[str, Any] | No
 
 
 def _evaluate_for_rec(rec: MaxIntakeRecord) -> Any:
-    flags = brief.gate_flags_from_intake(rec)
+    flags = brief.gate_flags_from_intake(rec, reload=True)
     return evaluate_diag_offer(**flags)
 
 
