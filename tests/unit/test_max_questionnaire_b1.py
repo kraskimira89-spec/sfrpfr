@@ -159,7 +159,12 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     assert saved["answers"]["email"] == "petrov@example.ru"
     assert "last_name" not in saved["answers"]
     assert "birth_year" not in saved["answers"]
-    assert q.COMPLETED_TEXT in [t for _u, t in bot.sent]
+    # ТЗ-35 D1: при case_id — «Ваше дело создано: CASE-YYYY-NNNNNN»
+    assert res.case_id
+    done = q.completed_text(res.case_id)
+    assert "CASE-" in done
+    assert "Сохраните этот номер" in done
+    assert done in [t for _u, t in bot.sent]
     menu = str(bot.attachments[-2])
     for label in (
         "Загрузить документы",
