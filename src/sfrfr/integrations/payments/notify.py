@@ -232,7 +232,12 @@ def notify_payment_succeeded(
         except Exception as exc:  # noqa: BLE001
             logger.warning("payment notify MAX queue failed case=%s: %s", case_id[:8], exc)
 
-    # amoCRM: обновить сделку (b2c уже в БД) + заметка об оплате
+    # amoCRM (резерв): только при AMOCRM_ENABLED=1. Фискальный чек — не здесь.
+    if not settings.amocrm_enabled:
+        result["amocrm_skipped"] = True
+        result["amocrm_skip_reason"] = "amocrm_disabled"
+        return result
+
     try:
         from sfrfr.integrations.amocrm import AmoCrmClient
         from sfrfr.integrations.amocrm.sync import persist_crm_external_id, push_case_to_amocrm

@@ -79,6 +79,83 @@ def test_format_amocrm_payment_note_is_ops_not_fiscal() -> None:
     assert "не через CRM" in note
 
 
+def test_notify_skips_amocrm_when_disabled(monkeypatch: Any) -> None:
+    """AMOCRM_ENABLED=0: после оплаты не трогаем amo; чек остаётся у ЮKassa."""
+    from sfrfr.integrations.payments import notify as notify_mod
+
+    class _Settings:
+        amocrm_enabled = False
+        yookassa_send_receipt = True
+        max_secure_link_buttons_enabled = False
+        secure_action_links_enabled = False
+
+    monkeypatch.setattr(notify_mod, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(
+        notify_mod,
+        "cabinet_case_url",
+        lambda case_id, view="payments": f"https://example.test/{case_id}",
+    )
+
+    class _FakeTable:
+        def select(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def eq(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def limit(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+        def execute(self) -> Any:
+            return type(
+                "R",
+                (),
+                {
+                    "data": [
+                        {
+                            "id": "case-1",
+                            "clients": {"email": "a@b.c", "max_user_id": None},
+                        }
+                    ]
+                },
+            )()
+
+        def insert(self, *_a: Any, **_k: Any) -> Any:
+            return self
+
+    class _FakeSb:
+        def table(self, _name: str) -> _FakeTable:
+            return _FakeTable()
+
+    monkeypatch.setattr(
+        "sfrfr.db.session.get_supabase_client",
+        lambda: _FakeSb(),
+    )
+
+    called: list[str] = []
+
+    def _boom(*_a: Any, **_k: Any) -> dict[str, Any]:
+        called.append("amo")
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        "sfrfr.integrations.amocrm.sync.push_case_to_amocrm",
+        _boom,
+        raising=False,
+    )
+
+    res = notify_mod.notify_payment_succeeded(
+        case_id="case-1",
+        package_code="DIAG",
+        amount_value="3000.00",
+        provider_payment_id="pay-1",
+    )
+    assert res.get("ok") is True
+    assert res.get("amocrm_skipped") is True
+    assert res.get("amocrm_skip_reason") == "amocrm_disabled"
+    assert called == []
+
+
 def test_fiscalization_alignment_ok_for_evotor_with_receipt() -> None:
     res = check_fiscalization_alignment(
         fiscalization_enabled=True,
