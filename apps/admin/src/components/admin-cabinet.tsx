@@ -440,7 +440,9 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
         ? detail
         : typeof detail.detail === "string"
           ? detail.detail
-          : `HTTP ${response.status}`;
+          : typeof detail.code === "string"
+            ? String(detail.code)
+            : `HTTP ${response.status}`;
     const message = humanizeStaffApiError(rawMessage);
     const err = new Error(message) as Error & {
       status?: number;
@@ -458,6 +460,8 @@ export function AdminCabinet() {
   const [session, setSession] = useState<Session | null>(null);
   const [maxReplyBody, setMaxReplyBody] = useState("");
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  /** Подсказки DeepSeek — отдельно от busy отправки, иначе «Отправить в MAX» глушится. */
+  const [suggestBusy, setSuggestBusy] = useState(false);
   const lastClientMessageIdRef = useRef<string | null>(null);
   const suggestRepliesRef = useRef<() => Promise<void>>(async () => undefined);
   /** Антидребезг: dblclick / повторный клик не вызывает второй download/open. */
@@ -1484,7 +1488,8 @@ export function AdminCabinet() {
 
   async function suggestReplies() {
     if (!token || !detail) return;
-    setBusy(true);
+    // Не трогаем глобальный busy: иначе кнопка «Отправить в MAX» disabled без пояснения.
+    setSuggestBusy(true);
     try {
       const result = await apiFetch<{ suggestions?: string[] }>(
         `/api/portal/admin/cases/${detail.id}/suggest-replies`,
@@ -1498,7 +1503,7 @@ export function AdminCabinet() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось получить подсказки.");
     } finally {
-      setBusy(false);
+      setSuggestBusy(false);
     }
   }
 
@@ -1507,7 +1512,18 @@ export function AdminCabinet() {
   });
 
   async function sendMaxReply(opts?: { force?: boolean }) {
-    if (!token || !detail || !maxReplyBody.trim() || !detail.client.max_linked) return;
+    if (!token || !detail) {
+      setNotice("Сессия недоступна. Обновите страницу и войдите снова.");
+      return;
+    }
+    if (!maxReplyBody.trim()) {
+      setNotice("Введите текст сообщения перед отправкой в MAX.");
+      return;
+    }
+    if (!detail.client.max_linked) {
+      setNotice("У клиента нет привязки MAX — отправка недоступна.");
+      return;
+    }
     const sent = maxReplyBody.trim();
     setBusy(true);
     try {
@@ -2170,6 +2186,7 @@ export function AdminCabinet() {
             body={maxReplyBody}
             onBodyChange={setMaxReplyBody}
             busy={busy}
+            suggestBusy={suggestBusy}
             onSendMax={() => void sendMaxReply()}
             onSendInternal={() => void sendMessage()}
             suggestions={replySuggestions}

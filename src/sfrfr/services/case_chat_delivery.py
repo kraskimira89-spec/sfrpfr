@@ -194,19 +194,47 @@ def mirror_client_message_to_max(
     )
 
 
+def _outbox_is_sent(message_id: str | None) -> bool:
+    """True, если outbox уже пометил сообщение как sent (повторный вызов)."""
+    mid = str(message_id or "").strip()
+    if not mid:
+        return False
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("case_chat_outbox")
+            .select("status")
+            .eq("message_id", mid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return bool(rows) and str(rows[0].get("status") or "") == "sent"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def mirror_staff_message_to_max(
     case: dict[str, Any],
     body: str,
     *,
     message_id: str | None = None,
-) -> None:
-    """Доставить видимое клиенту сообщение специалиста в тот же чат MAX."""
+) -> bool:
+    """Доставить видимое клиенту сообщение специалиста в тот же чат MAX.
+
+    Returns:
+        True — сообщение ушло в MAX (или уже было sent в outbox).
+        False — доставка не состоялась (токен, API, outbox).
+    """
     client_row = case.get("clients") or {}
     if isinstance(client_row, list):
         client_row = client_row[0] if client_row else {}
     max_uid = str((client_row or {}).get("max_user_id") or "").strip()
     if not max_uid:
-        return
+        return False
     if enqueue_max_delivery(
         case_id=str(case.get("id") or "").strip(),
         message_id=message_id,
@@ -214,23 +242,37 @@ def mirror_staff_message_to_max(
         body=body,
     ):
         if message_id:
-            process_pending_outbox(limit=1, message_id=message_id)
+            sent = process_pending_outbox(limit=1, message_id=message_id)
         else:
-            process_pending_outbox(limit=1)
-        return
+            sent = process_pending_outbox(limit=1)
+        if sent > 0 or _outbox_is_sent(message_id):
+            return True
+        # Не дублируем прямым send: outbox уже есть и уйдёт ретраем воркера.
+        return False
     try:
         from sfrfr.integrations.max.client import MaxBotClient
 
         bot = MaxBotClient()
         if not bot.available:
-            return
-        bot.send_message(text=body, user_id=max_uid)
+            return False
+        result = bot.send_message(text=body, user_id=max_uid)
+        if isinstance(result, dict) and (
+            result.get("skipped") or result.get("ok") is False
+        ):
+            logger.warning(
+                "direct MAX staff mirror skipped case=%s: %s",
+                str(case.get("id") or "")[:8],
+                result.get("reason") or "skipped",
+            )
+            return False
+        return True
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "direct MAX staff mirror failed case=%s: %s",
             str(case.get("id") or "")[:8],
             exc,
         )
+        return False
 
 
 def notify_client_new_chat_message(
