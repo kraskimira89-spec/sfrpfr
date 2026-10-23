@@ -535,7 +535,7 @@ Cookie-согласие сайта больше не записывается и
 
 - Куплены: `proverkastaza.ru` (основной), `proverka-staza.ru`, `prostaz.ru`.
 - Apache vhosts + cutover: `scripts/vps_cutover_proverkastaza.sh`, DNS: `docs/ops/dns-proverkastaza.md`.
-- 301 со старого `taxi-doroga-dobra.ru` и алиасов; WP остаётся в `/var/www/proverkastaza`.
+- 301 с алиасов и бывшего apex; WP в `/var/www/proverkastaza`.
 
 ## 2026-07-26 (dbt: Tier-1 тесты)
 
@@ -823,10 +823,10 @@ Cookie-согласие сайта больше не записывается и
 ## 2026-07-22 (шаг 3: WordPress)
 
 - WP ru_RU в `/var/www/proverkastaza`, сайт «SFRFR».
-- Учётки/БД: `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` (только root).
+- Учётки/БД: `/root/.sfrfr-secrets/wp-proverkastaza.env` (только root).
 - Админка: https://proverkastaza.ru/wp-admin/ (user `sfrfr_admin`).
 
-- Домен витрины SFRFR: **https://proverkastaza.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
+- Домен витрины SFRFR: **https://proverkastaza.ru/** (reg.ru); API: `api.proverkastaza.ru`.
 - Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.
 - VPS IP: **91.229.11.147**; DNS A: `@`, `www`, `api` → этот IP.
 - План по очереди: 1) DNS → 2) nginx+SSL+папка → 3) WordPress → 4) связка с API.

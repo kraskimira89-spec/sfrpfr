@@ -742,14 +742,14 @@ Briefly inform the user about the task result and perform any follow-up actions 
 ```text
 Здравствуйте!
 
-Для домена taxi-doroga-dobra.ru используются DNS ns1.reg.ru и ns2.reg.ru, управление зоной домена осуществляется из личного кабинета Рег.ру.
+Для домена proverkastaza.ru используются DNS ns1.reg.ru и ns2.reg.ru, управление зоной домена осуществляется из личного кабинета Рег.ру.
 
 Добавили записи:
 
-cabinet.taxi-doroga-dobra.ru    A   91.229.11.147
-admin.taxi-doroga-dobra.ru      A   91.229.11.147
+cabinet.proverkastaza.ru    A   91.229.11.147
+admin.proverkastaza.ru      A   91.229.11.147
 
-На текущий момент для домена taxi-doroga-dobra.ru указаны следующие записи. Ознакомиться с управлением ресурсными записями в личном кабинете Рег.ру вы можете в следующей инструкции.
+На текущий момент для домена proverkastaza.ru указаны следующие записи. Ознакомиться с управлением ресурсными записями в личном кабинете Рег.ру вы можете в следующей инструкции.
 
 С нашей стороны нет ограничений на доступ к 80 и 443 портам облачного сервера reg target ID 6047189.
 
@@ -1745,7 +1745,7 @@ P0 сделан и выложен на VPS (`9f24a90`).
 - Текст «Подтвердить вход через MAX» / «Подтвердить вход в браузере»  
 - Отдельная ссылка «Открыть чат» без кода  
 
-Проверка: [admin.taxi-doroga-dobra.ru](https://admin.proverkastaza.ru/)
+Проверка: [admin.proverkastaza.ru](https://admin.proverkastaza.ru/)
 ```
 
 ## 2e2794ae-0ef9-4a4c-a7b9-45af48dec0b8

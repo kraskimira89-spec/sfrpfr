@@ -59,7 +59,7 @@ Dashboard → проект `frualvycousvvyjivybu` → **Authentication** → **U
 
 Опционально (если форма когда-то откроется с алиаса до редиректа): `prostaz.ru`, `www.prostaz.ru`, `proverka-staza.ru`, `www.proverka-staza.ru`.
 
-Старый `taxi-doroga-dobra.ru` можно оставить до полного отказа от домена.
+Бывший apex в DNS можно оставить до полного отказа — Apache отдаёт 301 на `proverkastaza.ru`.
 
 ### Вариант A — скрипт на VPS
 
