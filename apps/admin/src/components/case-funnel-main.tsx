@@ -122,6 +122,28 @@ type Detail = {
       ocr_allowed?: boolean;
       legal_analysis_ran?: boolean;
       status?: string;
+      honest_brief?: {
+        current?: boolean;
+        stale_reason?: string;
+        has_justified_discrepancy?: boolean;
+        offer_diag_allowed?: boolean;
+        offer_amount_rub?: number;
+        headline?: string;
+        next_step?: string;
+        items?: {
+          text?: string;
+          evidence?: string;
+          evidence_label?: string;
+          basis?: string;
+        }[];
+        disclaimer?: string;
+      } | null;
+      diag_offer?: {
+        allowed?: boolean;
+        amount_rub?: number;
+        label?: string;
+        note?: string;
+      } | null;
     } | null;
   } | null;
   channels: {
@@ -252,6 +274,52 @@ function DocumentCheckPanel({
           <p>
             <strong>Следующее действие:</strong> {r.next_action || "—"}
           </p>
+          {r.honest_brief ? (
+            <div className="honest-brief-block">
+              <h4 className="case-subhead">Краткое резюме по разделам</h4>
+              {!r.honest_brief.current && r.honest_brief.stale_reason ? (
+                <p className="hint">{r.honest_brief.stale_reason}</p>
+              ) : null}
+              <p>{r.honest_brief.headline || "—"}</p>
+              {(r.honest_brief.items ?? []).length > 0 ? (
+                <ul className="plain-list">
+                  {(r.honest_brief.items ?? []).slice(0, 3).map((item, idx) => (
+                    <li key={`${item.evidence || "x"}-${idx}`}>
+                      {item.text || "—"}
+                      {item.evidence_label ? (
+                        <>
+                          {" "}
+                          <em>({item.evidence_label})</em>
+                        </>
+                      ) : null}
+                      {item.basis ? (
+                        <span className="hint"> — основание: {item.basis}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint">Пунктов с основаниями нет — давление на оплату не нужно.</p>
+              )}
+              {r.honest_brief.next_step ? <p>{r.honest_brief.next_step}</p> : null}
+              {r.diag_offer?.allowed ? (
+                <p>
+                  <strong>{r.diag_offer.label || "Подробная диагностика — 3 000 ₽"}</strong>
+                  {r.diag_offer.note ? (
+                    <span className="hint"> — {r.diag_offer.note}</span>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="hint">
+                  Офер 3 000 ₽ не показываем: нет подтверждённого основания
+                  (анкета/слова ≠ доказательство).
+                </p>
+              )}
+              {r.honest_brief.disclaimer ? (
+                <p className="hint">{r.honest_brief.disclaimer}</p>
+              ) : null}
+            </div>
+          ) : null}
           {!r.ocr_allowed && (r.needs_recognition ?? 0) > 0 ? (
             <p className="hint">
               OCR по сканам не разрешён конфигом — это не «успешно завершено» для этих файлов.

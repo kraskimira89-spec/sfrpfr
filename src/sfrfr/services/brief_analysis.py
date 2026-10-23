@@ -128,6 +128,7 @@ class BriefAnalysisResult:
     summary: str
     bullets: list[str] = field(default_factory=list)
     evidence_kinds: list[str] = field(default_factory=list)
+    bases: list[str] = field(default_factory=list)
     fingerprint: str = ""
     source: str = "heuristic"
 
@@ -194,16 +195,77 @@ def _themes_from_problem(
     return out
 
 
+_DOC_TYPE_RU: dict[str, str] = {
+    "ils": "ИЛС",
+    "workbook": "трудовая",
+    "labor": "трудовая",
+    "archive": "архивная справка",
+    "sfr": "ответ СФР",
+}
+
+
 def _format_brief_bullet(text: str, evidence: str) -> str:
     label = _EVIDENCE_LABEL_RU.get(evidence, evidence)
     clean = str(text or "").strip()
     return f"{clean} ({label})" if clean else label
 
 
+def _basis_from_finding(row: dict[str, Any]) -> str:
+    """Короткое основание пункта: документ + период (без ПДн)."""
+    bits: list[str] = []
+    dtype = str(
+        row.get("doc_type")
+        or row.get("source_doc_type")
+        or row.get("document_type")
+        or ""
+    ).strip().lower()
+    if dtype:
+        bits.append(_DOC_TYPE_RU.get(dtype, dtype))
+    period = str(row.get("period") or row.get("period_label") or "").strip()
+    if not period:
+        detail = str(row.get("detail") or "")
+        m = re.search(
+            r"(\d{1,2}[./]\d{4}\s*[–—\-]\s*\d{1,2}[./]\d{4}"
+            r"|\d{4}\s*[–—\-]\s*\d{4})",
+            detail,
+        )
+        if m:
+            period = m.group(1).replace("—", "–").replace("-", "–")
+    if period:
+        bits.append(f"период {period}")
+    label = str(row.get("source_label") or "").strip()
+    if label and label.lower() not in {b.lower() for b in bits}:
+        bits.append(label[:80])
+    return ", ".join(bits)
+
+
 def _bullets_from_findings(findings: list[dict[str, Any]] | None) -> list[str]:
     from sfrfr.services.max_post_diagnosis import brief_recommendations_from_findings
 
     return brief_recommendations_from_findings(findings, limit=5)
+
+
+def _labeled_from_findings(
+    findings: list[dict[str, Any]] | None,
+) -> list[tuple[str, str, str]]:
+    """(text, evidence=docs, basis) из pipeline findings."""
+    from sfrfr.services.max_post_diagnosis import brief_recommendations_from_findings
+
+    out: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for row in findings or []:
+        if not isinstance(row, dict):
+            continue
+        clean = sanitize_finding_line(str(row.get("detail") or ""))
+        if not clean or clean in seen:
+            continue
+        # тот же фильтр интересности, что у brief_recommendations_from_findings
+        probe = brief_recommendations_from_findings([row], limit=1)
+        if not probe:
+            continue
+        seen.add(clean)
+        out.append((clean, EVIDENCE_DOCS, _basis_from_finding(row)))
+    return out
 
 
 def _client_texts_from_history(history: list[dict[str, Any]] | None) -> list[str]:
@@ -359,25 +421,25 @@ def compute_brief_analysis(
     fp = documents_fingerprint(docs)
     problem = _problem_text(intake, client_texts=client_texts)
 
-    labeled: list[tuple[str, str]] = []
+    labeled: list[tuple[str, str, str]] = []
     seen: set[str] = set()
-    for item in _bullets_from_findings(pipeline_findings):
-        clean = sanitize_finding_line(item)
-        if clean and clean not in seen:
-            seen.add(clean)
-            labeled.append((clean, EVIDENCE_DOCS))
+    for text, kind, basis in _labeled_from_findings(pipeline_findings):
+        if text not in seen:
+            seen.add(text)
+            labeled.append((text, kind, basis))
     for theme in _themes_from_problem(problem, patterns=_NEEDS_CHECK_THEMES):
         if theme not in seen:
             seen.add(theme)
-            labeled.append((theme, EVIDENCE_NEEDS_CHECK))
+            labeled.append((theme, EVIDENCE_NEEDS_CHECK, "анкета / формулировка клиента"))
     for theme in _themes_from_problem(problem, patterns=_CLIENT_ONLY_THEMES):
         if theme not in seen:
             seen.add(theme)
-            labeled.append((theme, EVIDENCE_CLIENT))
+            labeled.append((theme, EVIDENCE_CLIENT, "со слов клиента"))
 
     labeled = labeled[:_MAX_BRIEF_BULLETS]
-    bullets = [_format_brief_bullet(text, kind) for text, kind in labeled]
-    evidence_kinds = [kind for _text, kind in labeled]
+    bullets = [_format_brief_bullet(text, kind) for text, kind, _b in labeled]
+    evidence_kinds = [kind for _text, kind, _b in labeled]
+    bases = [basis for _text, _kind, basis in labeled]
     has_docs = EVIDENCE_DOCS in evidence_kinds
     has_needs = EVIDENCE_NEEDS_CHECK in evidence_kinds
     has_client = EVIDENCE_CLIENT in evidence_kinds
@@ -410,9 +472,76 @@ def compute_brief_analysis(
         summary=summary,
         bullets=bullets,
         evidence_kinds=evidence_kinds,
+        bases=bases,
         fingerprint=fp,
         source=source,
     )
+
+
+def honest_brief_ui_payload(
+    result: BriefAnalysisResult,
+    *,
+    current_fingerprint: str | None = None,
+) -> dict[str, Any]:
+    """Структура для UI (MAX/staff): статусы, основания, офер без давления."""
+    fp_now = str(current_fingerprint or "").strip()
+    current = True
+    stale_reason = ""
+    if fp_now and fp_now != str(result.fingerprint or "").strip():
+        current = False
+        stale_reason = (
+            "Состав документов изменился — прежнее резюме не актуально. "
+            "Запустите проверку снова."
+        )
+    items: list[dict[str, str]] = []
+    bases = list(result.bases or [])
+    kinds = list(result.evidence_kinds or [])
+    for idx, bullet in enumerate(list(result.bullets or [])[:_MAX_BRIEF_BULLETS]):
+        kind = kinds[idx] if idx < len(kinds) else EVIDENCE_NEEDS_CHECK
+        # текст без хвоста «(статус)»
+        text = str(bullet or "").strip()
+        for label in _EVIDENCE_LABEL_RU.values():
+            suffix = f" ({label})"
+            if text.endswith(suffix):
+                text = text[: -len(suffix)].strip()
+                break
+        items.append(
+            {
+                "text": text,
+                "evidence": kind,
+                "evidence_label": _EVIDENCE_LABEL_RU.get(kind, kind),
+                "basis": bases[idx] if idx < len(bases) else "",
+            }
+        )
+    offer_ok = bool(
+        current
+        and result.has_justified_discrepancy
+        and any(k in {EVIDENCE_DOCS, EVIDENCE_NEEDS_CHECK} for k in kinds)
+    )
+    if result.has_justified_discrepancy:
+        headline = "Направления для сверки (черновик, не юридический вывод)"
+        next_step = _NEXT_STEP_JUSTIFIED if offer_ok else _NEXT_STEP_CLIENT_ONLY
+    elif items:
+        headline = "По анкете есть темы для уточнения"
+        next_step = _NEXT_STEP_CLIENT_ONLY
+    else:
+        headline = (
+            "По представленным документам автоматическая проверка "
+            "не выявила очевидных расхождений"
+        )
+        next_step = _NEXT_STEP_NONE
+    return {
+        "current": current,
+        "stale_reason": stale_reason,
+        "has_justified_discrepancy": bool(result.has_justified_discrepancy),
+        "offer_diag_allowed": offer_ok,
+        "offer_amount_rub": 3000 if offer_ok else 0,
+        "headline": headline,
+        "next_step": next_step,
+        "items": items,
+        "fingerprint": result.fingerprint,
+        "disclaimer": _DISCLAIMER,
+    }
 
 
 def soft_ask_text() -> str:

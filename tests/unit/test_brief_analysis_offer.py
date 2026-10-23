@@ -743,3 +743,67 @@ def test_brief_stale_when_case_or_fingerprint_mismatch() -> None:
     ]
     stale_fp = ba.gate_flags_from_intake(rec, case_id="c1", documents=changed_docs)
     assert stale_fp["analysis_current"] is False
+
+
+def test_honest_brief_ui_three_evidence_and_basis() -> None:
+    """UI-payload: 3 статуса, <=3 пункта, основание, офер только docs/needs_check."""
+    result = ba.compute_brief_analysis(
+        documents=_KIT,
+        intake=_rec(problem="Не учли северный стаж"),
+        pipeline_findings=[
+            {
+                "type": "missing_in_ils",
+                "detail": "Период 01.2010–06.2012 есть в трудовой, нет в ИЛС",
+                "doc_type": "workbook",
+                "period": "01.2010–06.2012",
+            }
+        ],
+    )
+    ui = ba.honest_brief_ui_payload(result)
+    assert ui["items"]
+    assert len(ui["items"]) <= 3
+    kinds = {i["evidence"] for i in ui["items"]}
+    assert kinds <= {ba.EVIDENCE_DOCS, ba.EVIDENCE_CLIENT, ba.EVIDENCE_NEEDS_CHECK}
+    docs_item = next(i for i in ui["items"] if i["evidence"] == ba.EVIDENCE_DOCS)
+    assert docs_item["evidence_label"] == "подтверждено документами"
+    basis = (docs_item.get("basis") or "").lower()
+    assert "трудов" in basis or "2010" in basis
+    assert ui["offer_diag_allowed"] is True
+    assert ui["has_justified_discrepancy"] is True
+
+
+def test_honest_brief_ui_no_offer_when_client_only() -> None:
+    result = ba.compute_brief_analysis(
+        documents=_KIT,
+        intake=_rec(problem="Нужно сверить даты стажа"),
+        pipeline_findings=[],
+    )
+    ui = ba.honest_brief_ui_payload(result)
+    assert ui["offer_diag_allowed"] is False
+    assert all(i["evidence"] == ba.EVIDENCE_CLIENT for i in ui["items"])
+
+
+def test_honest_brief_ui_no_discrepancy_honest() -> None:
+    result = ba.compute_brief_analysis(
+        documents=_KIT,
+        intake=_rec(problem="Всё в порядке"),
+        pipeline_findings=[],
+    )
+    ui = ba.honest_brief_ui_payload(result)
+    assert ui["offer_diag_allowed"] is False
+    assert ui["has_justified_discrepancy"] is False
+    blob = (ui["headline"] + " " + ui["next_step"]).lower()
+    assert "не выявила" in blob or "расхожд" in blob
+
+
+def test_honest_brief_ui_stale_when_fingerprint_changes() -> None:
+    first = ba.compute_brief_analysis(documents=_KIT, intake=_rec(), pipeline_findings=[])
+    changed = [
+        {"id": "d1", "doc_type": "ils", "checksum_sha256": "a" * 64},
+        {"id": "d2", "doc_type": "workbook", "checksum_sha256": "ZZ" * 32},
+    ]
+    second = ba.compute_brief_analysis(documents=changed, intake=_rec(), pipeline_findings=[])
+    assert first.fingerprint != second.fingerprint
+    stale = ba.honest_brief_ui_payload(first, current_fingerprint=second.fingerprint)
+    assert stale["current"] is False
+    assert "не актуаль" in stale["stale_reason"].lower()

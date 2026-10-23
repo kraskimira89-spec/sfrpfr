@@ -108,7 +108,7 @@ def build_check_result(
         status = "needs_action"
     else:
         status = "completed"
-    return {
+    out: dict[str, Any] = {
         "documents_checked": checked,
         "originals_available": originals,
         "text_extracted": text_ok,
@@ -136,6 +136,37 @@ def build_check_result(
             for d in documents
         ],
     }
+    return out
+
+
+def attach_honest_brief(
+    result: dict[str, Any],
+    *,
+    brief: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Добавить честное резюме по разделам (без выдуманного «анализ идёт»)."""
+    if not brief:
+        return result
+    merged = dict(result)
+    merged["honest_brief"] = brief
+    if brief.get("offer_diag_allowed"):
+        merged["diag_offer"] = {
+            "allowed": True,
+            "amount_rub": int(brief.get("offer_amount_rub") or 3000),
+            "label": "Подробная диагностика — 3 000 ₽",
+            "note": (
+                "Офер только при подтверждённом основании "
+                "(документы / требует проверки). Анкета ≠ доказательство."
+            ),
+        }
+    else:
+        merged["diag_offer"] = {
+            "allowed": False,
+            "amount_rub": 0,
+            "label": "",
+            "note": str(brief.get("next_step") or ""),
+        }
+    return merged
 
 
 def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
@@ -154,4 +185,6 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         "ocr_allowed": bool(result.get("ocr_allowed")),
         "legal_analysis_ran": False,
         "status": str(result.get("status") or ""),
+        "honest_brief": result.get("honest_brief"),
+        "diag_offer": result.get("diag_offer"),
     }
