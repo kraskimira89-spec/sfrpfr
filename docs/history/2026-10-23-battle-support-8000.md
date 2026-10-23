@@ -64,9 +64,22 @@ Refund = 0. Один `payment_id`, два succeeded `type=payment` → **жёс�
 
 Вывод по email: контакт на клиенте и путь в create — ок; доставка чека на почту по API receipts не подтверждается полями customer; отдельного notify в БД нет.
 
+## Root cause (расследование)
+
+| FD | Receipt id | Источник | Доказательство |
+|----|------------|----------|----------------|
+| **777** | `ra-326d824f-…136b` | авточек из `create_invoice` → `payment_data.receipt` | **нет** `settlements` (как SMOKE/DIAG/DOCS) |
+| **778** | `ra-326d8251-…93e5` | webhook → `ensure_payment_receipt` → `POST /v3/receipts` | **есть** `settlements: cashless` (только наш `create_receipt`) |
+
+Timeline (UTC): payment `created_at` 14:25:35 → `captured_at`/`webhook` 14:26:23 → оба FD `registered_at` 11:26:00 (минута Evotor/ОФД, без секунд). Один webhook 200. Email `@yandex.ru` vs `@example.invalid` на путь дубля **не** влияет (fingerprint settlements).
+
+Гонка: webhook при `receipt_registration=pending` (или пусто) вызывал ensure; `GET /receipts` ещё пуст → второй create. SUPPORT не особый тариф — та же invoice-схема, что DOCS.
+
+Фикс: webhook retry только при `canceled`; ensure skip при `reg=pending` (см. PR фикса). Коррекцию лишнего FD **не** делаем без бухгалтера / «да, возвращаем».
+
 ## Стоп
 
 - Не создавать новые боевые счета.
-- Статус прогона: **`BLOCKED_DUP_RECEIPT`**.
+- Статус прогона: **`BLOCKED_DUP_RECEIPT`** → после деплоя фикса: `FIX_IN_FLIGHT` / smoke 1₽.
 - Блокер: **SFRFR-89** (дубль FD 777/778 на `326d821f…`).
 - Возврат / правка кассы — только по решению владельца после фикса.

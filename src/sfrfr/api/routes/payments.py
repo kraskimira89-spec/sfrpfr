@@ -11,7 +11,11 @@ from pydantic import BaseModel, Field
 
 from sfrfr.core.config import get_settings
 from sfrfr.db.case_repository import CaseRepository, PaymentSlotConflict
-from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
+from sfrfr.integrations.payments import (
+    YooKassaClient,
+    parse_yookassa_event,
+    should_auto_retry_fiscal_receipt,
+)
 from sfrfr.security.auth import Principal, get_current_principal
 from sfrfr.services.payment_amount import yookassa_charge_amount_rub
 from sfrfr.services.public_tariffs import payment_description
@@ -195,10 +199,11 @@ def yookassa_webhook(payload: dict[str, Any]) -> dict[str, str]:
                 exc,
             )
 
-    # Автоповтор чека, если ЮKassa/Evotor не зарегистрировали (письмо «пробейте вручную»).
+    # Автоповтор чека только после canceled (письмо «пробейте вручную»).
+    # pending/пусто: чек из invoice уже летит — ensure давал дубль FD (777+778).
     if paid and get_settings().yookassa_send_receipt:
         reg = str(parsed.get("receipt_registration") or "").strip().lower()
-        if reg in {"", "pending", "canceled", "cancelled"}:
+        if should_auto_retry_fiscal_receipt(reg):
             try:
                 amt = (
                     str(parsed["amount_value"])

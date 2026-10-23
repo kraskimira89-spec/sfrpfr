@@ -372,6 +372,15 @@ class YooKassaClient:
                 "reason": "already_registered",
                 "registration": reg,
             }
+        # pending = чек из create_payment/invoice уже в полёте (Evotor).
+        # POST /receipts здесь даёт второй type=payment (FD 777+778 SUPPORT 8000).
+        if reg == "pending":
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": "registration_pending",
+                "registration": reg,
+            }
         listed = self.list_receipts(pid)
         if not listed.get("ok"):
             return {
@@ -416,6 +425,17 @@ class YooKassaClient:
             customer_email=customer_email,
             customer_phone=customer_phone,
         )
+
+
+def should_auto_retry_fiscal_receipt(receipt_registration: str | None) -> bool:
+    """Webhook: автоповтор только после явного сбоя регистрации в ЮKassa.
+
+    ``pending`` / пусто — фискализация с чека create_payment/invoice уже идёт;
+    повторный POST /receipts даёт второй succeeded type=payment (FD 777+778).
+    ``canceled`` — письмо «пробейте вручную»; тогда ensure + gate по GET /receipts.
+    """
+    reg = str(receipt_registration or "").strip().lower()
+    return reg in {"canceled", "cancelled"}
 
 
 def payment_receipt_retry_gate(items: list[Any]) -> dict[str, Any]:

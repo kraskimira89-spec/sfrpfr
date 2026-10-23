@@ -9,6 +9,7 @@ from sfrfr.integrations.payments import (
     YooKassaClient,
     check_fiscalization_alignment,
     parse_yookassa_event,
+    should_auto_retry_fiscal_receipt,
 )
 from sfrfr.integrations.payments.notify import (
     format_amocrm_payment_note,
@@ -364,6 +365,60 @@ def test_create_receipt_retry_payload(monkeypatch: Any) -> None:
     assert body["settlements"][0]["type"] == "cashless"
     assert body["settlements"][0]["amount"]["value"] == "3000.00"
     get_settings.cache_clear()
+
+
+def test_should_auto_retry_fiscal_only_after_canceled() -> None:
+    """Webhook не должен дергать ensure при pending/пусто (гонка FD 777+778)."""
+    assert should_auto_retry_fiscal_receipt("canceled") is True
+    assert should_auto_retry_fiscal_receipt("cancelled") is True
+    assert should_auto_retry_fiscal_receipt("pending") is False
+    assert should_auto_retry_fiscal_receipt("succeeded") is False
+    assert should_auto_retry_fiscal_receipt("") is False
+    assert should_auto_retry_fiscal_receipt(None) is False
+
+
+def test_ensure_receipt_skips_when_registration_pending_even_if_list_empty(
+    monkeypatch: Any,
+) -> None:
+    """Гонка SUPPORT 8000: webhook при reg=pending, GET /receipts ещё пуст.
+
+    Чек из invoice уже летит в Evotor (FD 777 без settlements); POST /receipts
+    даёт второй type=payment (FD 778 с settlements). Pending = не создавать.
+    """
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "pending",
+                "amount": {"value": "8000.00", "currency": "RUB"},
+                "description": "support",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {"ok": True, "items": []},
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        client,
+        "create_receipt",
+        lambda **kwargs: called.append("x") or {"ok": True},
+    )
+    out = client.ensure_payment_receipt(
+        payment_id="326d821f-000f-5001-9000-1a272330e2d3",
+        customer_email="nataliylo@yandex.ru",
+    )
+    assert out["ok"] is True
+    assert out.get("skipped") is True
+    assert out.get("reason") == "registration_pending"
+    assert called == []
 
 
 def test_ensure_receipt_skips_when_already_succeeded(monkeypatch: Any) -> None:
