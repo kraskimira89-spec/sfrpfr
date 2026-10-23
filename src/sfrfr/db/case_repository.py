@@ -6,7 +6,7 @@ RLS остаётся вторым уровнем защиты для browser-к�
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -1475,6 +1475,75 @@ class CaseRepository:
             "package_code": code,
             "provider_payment_id": provider_payment_id,
         }
+
+    def list_succeeded_payments_for_reconcile(
+        self,
+        *,
+        now: datetime | None = None,
+        window_hours: int = 48,
+        grace_minutes: int = 2,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Paid за окно без fiscal_status=registered (SFRFR-93).
+
+        PostgREST: NULL fiscal через or_; точное окно coalesce(paid_at, created_at)
+        — в Python (см. fiscal_reconcile.filter_reconcile_candidates).
+        """
+        from sfrfr.services.fiscal_reconcile import filter_reconcile_candidates
+
+        now_dt = now or datetime.now(UTC)
+        rows = (
+            self.client.table("payments")
+            .select("*, orders(id, case_id)")
+            .eq("status", "succeeded")
+            .not_.is_("provider_payment_id", "null")
+            .or_("fiscal_status.is.null,fiscal_status.neq.registered")
+            .order("id", desc=True)
+            .limit(max(limit * 3, 100))
+            .execute()
+            .data
+            or []
+        )
+        filtered = filter_reconcile_candidates(
+            list(rows),
+            now=now_dt,
+            window_hours=window_hours,
+            grace_minutes=grace_minutes,
+        )
+        return filtered[:limit]
+
+    def list_payments_for_stale_fiscal_alert(
+        self,
+        *,
+        alert_since: datetime,
+        now: datetime | None = None,
+        window_hours: int = 48,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Алерт «48 ч без чека» с нижней границей ALERT_SINCE (SFRFR-93)."""
+        from sfrfr.services.fiscal_reconcile import filter_stale_alert_candidates
+
+        now_dt = now or datetime.now(UTC)
+        rows = (
+            self.client.table("payments")
+            .select("*, orders(id, case_id)")
+            .eq("status", "succeeded")
+            .not_.is_("provider_payment_id", "null")
+            .is_("reconcile_alerted_at", "null")
+            .or_("fiscal_status.is.null,fiscal_status.neq.registered")
+            .order("id", desc=True)
+            .limit(max(limit * 5, 100))
+            .execute()
+            .data
+            or []
+        )
+        filtered = filter_stale_alert_candidates(
+            list(rows),
+            now=now_dt,
+            alert_since=alert_since,
+            window_hours=window_hours,
+        )
+        return filtered[:limit]
 
     def upsert_checklist_item(
         self,

@@ -13,7 +13,7 @@ ALTER TABLE public.payments
 COMMENT ON COLUMN public.payments.reconcile_attempts IS
   'Increments only at POST create start (single UPDATE with post_at/payload).';
 COMMENT ON COLUMN public.payments.reconcile_pre_error_streak IS
-  'Consecutive error_before_post ticks; alert at >= 12; reset on POST start / full successful pre-POST pass.';
+  'Consecutive error_before_post ticks; alert at >= 12; reset only after full fetch+list OK or POST start.';
 COMMENT ON COLUMN public.payments.last_reconcile_at IS
   'Lease stamp (DB now()); overwritten every tick, never used as TTL anchor.';
 COMMENT ON COLUMN public.payments.reconcile_post_at IS
