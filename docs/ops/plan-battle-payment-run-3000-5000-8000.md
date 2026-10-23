@@ -1,6 +1,6 @@
 # План боевого прогона платежей 3000 / 5000 / 8000
 
-Дата плана: **2026-10-23** (обновление: smoke #226 PASS формально, **живая гонка pending не проверена**; HTTP-путь pending закрыт тестом; боевые 3/5/8k возвращены).
+Дата плана: **2026-10-23** (обновление: повторный SUPPORT 8000 **PASS**; DIAG/DOCS PASS; первый 8000 FAIL+refund; live pending не воспроизведён).
 Не смешивать с приёмкой механики на малых суммах (1/3/5/8 ₽) — кроме **шага 0** (smoke 1₽ для снятия блокера дублей).
 
 ## Предусловия (до первой полной суммы)
@@ -18,7 +18,7 @@
 
 | Поле | Значение |
 |------|----------|
-| Решение оставить / вернуть | **Вернули** боевые 3000+5000+8000 (2026-10-23, команда владельца). Smoke 1₽ **не** возвращали |
+| Решение оставить / вернуть | Вернули первый круг 3+5+8k; **повторный SUPPORT 8000 оставлен** (PASS). Smoke 1₽ не возвращали |
 | Кто подтверждает оплату | владелец («да, платим N») |
 | Кто инициирует возврат в YK | владелец («сделай возврат…» / «да, возвращаем») |
 
@@ -36,10 +36,9 @@
    Payment `326d7d8c-000f-5001-9000-1ed138d35859`, order `fc6c80b4-…906e` paid, shop **1421177**, **5000.00**, FD **776**, webhook 200, 1 payment, 1× `type=payment`, ENABLED=0.
    Тариф **ACCOMP / DOCS** (не «анализ+обращения»). Дело → `service_paid`.
    История: `docs/history/2026-10-23-battle-docs-5000.md`.
-3. **SUPPORT — 8000 ₽** — ❌ **FAIL** 2026-10-23 (`FAIL_DUP_RECEIPT`) → деньги **возвращены**; smoke #226 PASS
-   Payment (fail) `326d821f-…e2d3`, 2× `type=payment` FD **777**+**778**. История fail: `docs/history/2026-10-23-battle-support-8000.md`.
-   Возврат: `326d87d8-…` + 1× `type=refund` (лишний приход в ОФД остаётся — бухгалтер).
-   Повторный SUPPORT 8000 — **только** по новому «да, платим 8000» (после `BLOCKER_CLEARED` #226).
+3. **SUPPORT — 8000 ₽**
+   - ❌ FAIL 2026-10-23 (`FAIL_DUP_RECEIPT`): `326d821f-…`, FD **777**+**778** → возврат `326d87d8-…`. История: `docs/history/2026-10-23-battle-support-8000.md`. Лишний FD 778 в ОФД — бухгалтер.
+   - ✅ **PASS retry** 2026-10-23: payment `326d8f33-000f-5001-9000-14edf85c8cb0`, order `8c468c1d-…` **paid**, 1× `type=payment` (`ra-326d8f83-…`), 8000.00, ENABLED=0, webhook 200. История: `docs/history/2026-10-23-battle-support-8000-retry.md`.
 
 Между шагами: зафиксировать FD / сумму / shop; при **втором** `type=payment` succeeded на один `payment_id` — **стоп**, блокер не снят (SFRFR-89), не плодить платежи.
 
@@ -79,7 +78,7 @@
 - [x] Charge API = полная сумма (3000 / 5000 / 8000), shop 1421177 — шаги 1–3 charge ок
 - [x] Apache `POST …/yookassa/webhook` **200** → order **paid** без reconcile — шаги 1–3
 - [x] Ровно один `payments` на order — шаги 1–3
-- [ ] Чек(и): 1× `type=payment` — FD **775** / **776** ок; шаг 3 → **2×** (FD **777**+**778**) ❌
+- [x] Чек(и): 1× `type=payment` — FD **775** / **776** ок; шаг 3 fail FD **777**+**778**, retry `326d8f33…` → **1×** ✅
 - [x] `PAYMENT_TEST_AMOUNT_ENABLED=0` не меняли на 1
 
 ## Стоп-правила
@@ -102,14 +101,13 @@
 | `PENDING_PATH_HTTP_VERIFIED` | HTTP `POST …/yookassa/webhook` с `receipt_registration=pending` не зовёт ensure/create_receipt (юнит) |
 | `BATTLE_READY` | `BLOCKER_CLEARED` (или smoke + HTTP pending) + Evotor online + `ENABLED=0` + «да, платим» |
 | `BATTLE_DIAG_DOCS_PASS` | Шаги 0–2 PASS; шаг 3 SUPPORT 8000 ждёт «да, платим 8000» |
+| `BATTLE_THREE_PASS` | DIAG+DOCS+SUPPORT (retry) PASS по 1× type=payment; оговорка live-pending может оставаться |
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` — **не** полный `BLOCKER_CLEARED` по смыслу Стратега.
-- Smoke #226 (`326d88ae…`): 1× payment; webhook при `succeeded`; ensure/skipped нет.
-- Live closed-shift (`326d8c70…`, 2026-10-23): владелец закрыл смену → оплатил 1₽ → к webhook уже `receipt_registration=succeeded`, 1× payment без settlements, ensure в journal нет. **Pending не получен.** История: `docs/history/2026-10-23-smoke-pending-live-closed-shift.md`.
-- HTTP: `test_webhook_http_pending_does_not_call_ensure_or_create_receipt` — ensure/create_receipt не вызываются при `pending`.
-- Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»** с явным принятием остаточного риска гонки. Коррекция FD 778 — с бухгалтером.
-- Деньги net: smoke 1₽ ×3 (#220+#226+closed-shift); не «8002 без возвратов».
+**Текущий статус (обновлять при смене):** `BATTLE_THREE_PASS` — DIAG 3000 + DOCS 5000 + SUPPORT 8000 retry ✅; при этом live-гонка pending **не** воспроизведена (`SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` остаются в силе как оговорка).
+- SUPPORT retry: `326d8f33…`, 1× payment, webhook 200, ENABLED=0.
+- Коррекция лишнего FD 778 (после первого 8000+refund) — с бухгалтером.
+- Деньги net сейчас: smoke 1₽ ×3 + повторный SUPPORT **8000** (первый круг 3+5+8 возвращён).
 
 ### Пробел после #226 (stuck pending → canceled)
 
@@ -131,6 +129,7 @@ Follow-up (не в этом smoke): узкий reconcile **только** для
 - Боевой DIAG 3000: `docs/history/2026-10-23-battle-diag-3000.md`
 - Боевой DOCS 5000: `docs/history/2026-10-23-battle-docs-5000.md`
 - Боевой SUPPORT 8000 (**FAIL**): `docs/history/2026-10-23-battle-support-8000.md`
+- Боевой SUPPORT 8000 retry (**PASS**): `docs/history/2026-10-23-battle-support-8000-retry.md`
 - Возврат 3/5/8k: `docs/history/2026-10-23-battle-refund-3000-5000-8000.md`
 - Касса / дубли: SFRFR-89
 - UI резюме + офер 3000: PR #214 / staff «Проверить документы»
