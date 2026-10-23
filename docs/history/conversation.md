@@ -1,5 +1,9 @@
 # История бесед
 
+## 2026-10-23 — retry #3 чека 3₽: ok, FD 768
+
+Тот же payment `326d2067-…`, shop **1421177**. Receipt `ra-326d35fb-…`, FD **768**, FN `7385440800007929`. `payment.receipt_registration` может ещё canceled. Приёмка webhook+чек 3₽: webhook ok ранее, чек ok (ручной retry после привязки). Риск: офлайн точка без роутера. Новый платёж не создавали. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 ## 2026-10-23 — retry #2 чека 3₽ после «смена открыта»
 
 Владелец: смена открыта. Один `yookassa-retry-receipt` → `ra-326d24b5-…` **canceled**, FD нет, cancel_details пусто. Новый платёж не создавали. Стоп. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
