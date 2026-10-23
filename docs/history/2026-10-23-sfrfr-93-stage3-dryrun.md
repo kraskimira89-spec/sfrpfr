@@ -24,3 +24,39 @@
 - DB: attempts=0 streak=0 payload=false alerted=false outcome=NULL leased=true
 - ERROR: нет
 - Следующий тик timer ~10 мин
+
+## Снимок 2026-10-23T18:25:01Z (loop #1 / 6)
+
+- Timer тики 21:07 / 21:17 MSK: **7× `dry_run`** каждый
+- DB: attempts=0 streak=0 payload=false alerted=false outcome=NULL
+- ERROR: нет
+
+## Снимок 2026-10-23T18:55:07Z (loop #2 / 6)
+
+- Timer 21:27 / 21:37 / 21:47 MSK: **7× `dry_run`**
+- DB: attempts/streak/payload/alert = 0 — без изменений
+- ERROR: нет (~1 ч наблюдения)
+
+## Снимок 2026-10-23T19:25:06Z (loop #3 / 6)
+
+- Timer 21:57 / 22:07 / 22:17 MSK: **7× `dry_run`**
+- DB: без изменений (только lease)
+- ERROR: нет (~1.5 ч наблюдения)
+
+## Снимок 2026-10-23T19:55:06Z (loop #4 / 6)
+
+- Timer 22:27 / 22:37 / 22:47 MSK: **7× `dry_run`**
+- DB: attempts/streak/payload/alert = 0
+- ERROR: нет (~2 ч наблюдения)
+
+## Снимок 2026-10-23T20:25:05Z (loop #5 / 6)
+
+- Timer 22:57 / 23:07 / 23:17 MSK: **7× `dry_run`**
+- DB: без изменений
+- ERROR: нет (~2.5 ч наблюдения)
+
+## Снимок 2026-10-23T20:55:05Z (loop #6 / 6) — этап 3 DONE
+
+- Timer 23:27 / 23:37 / 23:47 MSK: **7× `dry_run`**
+- ~3 ч: только lease; attempts/streak/payload/alert = 0; ERROR нет
+- Вердикт: **этап 3 зелёный** → этап 4
