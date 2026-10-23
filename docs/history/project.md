@@ -1,7 +1,8 @@
-## 2026-10-23 — фискализация 3₽: retry fail
+## 2026-10-23 — фискализация 3₽: retry #2 fail (после «смена открыта»)
 
-Payment `326d2067-…eb6d` (shop 1421177): webhook→paid ок; повтор `/receipts` → canceled, FD нет.
-Блокер: смена Evotor. SFRFR-89. `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+Payment `326d2067-…eb6d` (shop 1421177): снова `ra-326d24b5-…` → **canceled**, FD нет, `cancellation_details` пусто.
+Стоп. SFRFR-89. `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 
 ## 2026-10-13 — юрдокументы: рабочие БД на РЕГ.РУ
 
