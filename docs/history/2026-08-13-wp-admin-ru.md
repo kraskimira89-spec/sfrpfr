@@ -1,6 +1,6 @@
 # 2026-08-13 — русификация админки WordPress
 
-На VPS (`/var/www/taxi-doroga-dobra`):
+На VPS (`/var/www/proverkastaza`):
 
 - `wp language core install ru_RU --activate`
 - `wp user meta update 1 locale ru_RU` (sfrfr_admin)

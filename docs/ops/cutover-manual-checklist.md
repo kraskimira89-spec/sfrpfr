@@ -42,7 +42,7 @@ Dashboard → проект `frualvycousvvyjivybu` → **Authentication** → **U
 - **Additional Redirect URLs:**
   - `https://cabinet.proverkastaza.ru/**`
   - `https://cabinet.proverkastaza.ru/?mode=recover`
-  - (временно) `https://cabinet.taxi-doroga-dobra.ru/**`
+  - (временно) `https://cabinet.proverkastaza.ru/**`
 
 Проверка: «Забыли пароль» в кабинете → письмо → ссылка открывает recovery без ошибки redirect.
 

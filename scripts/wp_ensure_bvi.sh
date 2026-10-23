@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Установить/включить BVI (версия для слабовидящих) на WordPress.
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_ensure_bvi.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_ensure_bvi.sh
 set -euo pipefail
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

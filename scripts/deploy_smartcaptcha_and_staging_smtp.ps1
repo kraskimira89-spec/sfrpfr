@@ -43,17 +43,17 @@ ssh -o BatchMode=yes $VpsHost @'
 set -euo pipefail
 cd /opt/sfrfr
 git pull --ff-only origin main
-SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_apply_landing_vps.sh
+SITE_DIR=/var/www/proverkastaza bash scripts/wp_apply_landing_vps.sh
 if [ -d /var/www/html/wp-content/mu-plugins ]; then
-  cp -f /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-recaptcha-lead.php /var/www/html/wp-content/mu-plugins/ || true
-  cp -f /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-recaptcha-lead.js /var/www/html/wp-content/mu-plugins/ || true
-  cp -f /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-lead.config.php /var/www/html/wp-content/mu-plugins/ || true
+  cp -f /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-recaptcha-lead.php /var/www/html/wp-content/mu-plugins/ || true
+  cp -f /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-recaptcha-lead.js /var/www/html/wp-content/mu-plugins/ || true
+  cp -f /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-lead.config.php /var/www/html/wp-content/mu-plugins/ || true
 fi
 systemctl restart sfrfr-api
 sleep 2
 systemctl is-active sfrfr-api
-test -f /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-lead.config.php
-php -r '$c=include "/var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-lead.config.php"; echo "clientKey_prefix=".substr($c["SMARTCAPTCHA_CLIENT_KEY"]??"",0,5)." len=".strlen($c["SMARTCAPTCHA_CLIENT_KEY"]??"")."\n";'
+test -f /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-lead.config.php
+php -r '$c=include "/var/www/proverkastaza/wp-content/mu-plugins/sfrfr-lead.config.php"; echo "clientKey_prefix=".substr($c["SMARTCAPTCHA_CLIENT_KEY"]??"",0,5)." len=".strlen($c["SMARTCAPTCHA_CLIENT_KEY"]??"")."\n";'
 grep -E "^(CAPTCHA_PROVIDER)=" /opt/sfrfr/.env
 '@
 

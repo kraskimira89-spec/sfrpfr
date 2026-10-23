@@ -8,11 +8,11 @@
 #   Really Simple SSL: НЕ ставим — SSL уже через certbot/Apache
 #
 # На VPS:
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_install_stack.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_install_stack.sh
 
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 WP=(wp --path="$SITE_DIR" --allow-root)
 
 echo "==> Тема Astra"

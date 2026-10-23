@@ -2,7 +2,7 @@
 # Применить короткую главную + CSS + статьи 01–09 на VPS WordPress.
 # Запуск на сервере: bash /opt/sfrfr/scripts/wp_apply_landing_vps.sh
 set -euo pipefail
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 APP_DIR="${APP_DIR:-/opt/sfrfr}"
 WP=(wp --allow-root --path="$SITE_DIR")
 

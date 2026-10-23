@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ТЗ-18 этап 2: страницы доверия/коммерции на VPS.
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_trust_pages_tz18.sh
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

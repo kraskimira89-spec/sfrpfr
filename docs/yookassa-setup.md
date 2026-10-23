@@ -57,9 +57,10 @@ SMS и email ЮKassa не включаем — клиенту пишем в MAX.
 | Сайт / ссылка магазина на форме | **Только ЛК ЮKassa** | `https://proverkastaza.ru` |
 | Юр. наименование в чеке (ИНН и т.п.) | Договор / карточка магазина в ЛК | ООО «ПОД ПРИСМОТРОМ» (см. `docs/history/requisites-pod-prismotrom.md`) |
 | `description` платежа и позиция чека | Код: `payment_description()` / `PAYMENT_PURPOSE` | «Проверка стажа — Диагностика документов» и т.п. |
-| `return_url` после оплаты | Код + `YOOKASSA_RETURN_URL` / cabinet | `cabinet.proverkastaza.ru` |
+| `return_url` после оплаты | Код + `YOOKASSA_RETURN_URL` (иначе cabinet / mini-app) | `https://proverkastaza.ru/` |
+| Ссылка магазина на форме счёта | **Только ЛК ЮKassa** (счета часто без своего return в UI) | `https://proverkastaza.ru` |
 
-Если на форме всё ещё «такси» / dorogadobra.ru — это **не баг API**: владелец меняет название и сайт магазина в [кабинете ЮKassa](https://yookassa.ru/my). В коде старых доменов в платежах нет.
+Если на форме всё ещё «такси» / taxi-doroga-dobra — это **не баг API**: владелец меняет название и сайт магазина в [кабинете ЮKassa](https://yookassa.ru/my). В коде return_url legacy taxi переписывается на `proverkastaza.ru`.
 
 ### Порядок способов оплаты: СБП → Сбер → ВТБ → остальное
 
@@ -89,7 +90,7 @@ YOOKASSA_SHOP_ID=ваш_shop_id
 YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 YOOKASSA_API_BASE=https://api.yookassa.ru/v3
 # Куда вернуть клиента после оплаты (опционально; иначе cabinet/mini-app)
-YOOKASSA_RETURN_URL=https://cabinet.proverkastaza.ru/
+YOOKASSA_RETURN_URL=https://proverkastaza.ru/
 # Чеки 54-ФЗ: true, если в магазине включена фискализация
 YOOKASSA_SEND_RECEIPT=true
 # Тест: секрет test_… → в ЮKassa уходит 1 ₽ (см. шаг 4)
@@ -254,6 +255,7 @@ python -m sfrfr yookassa-status
 | `Receipt is missing` | Фискализация вкл., а `SEND_RECEIPT=false` |
 | Двойной чек | В ЮKassa два режима сразу или ручной пробив в Evotor + API |
 | Тест не проходит | Используете боевой ключ или наоборот |
+| После оплаты редирект на taxi / «дорога добра» | 1) VPS `YOOKASSA_RETURN_URL=https://proverkastaza.ru/` + рестарт API; 2) ЛК ЮKassa → магазин → сайт `https://proverkastaza.ru` (для счетов без API return) |
 | На форме/в шапке «дорога добра» / taxi / старый сайт | ЛК ЮKassa → название и сайт магазина → «Проверка стажа», `proverkastaza.ru` (не правится кодом) |
 | В позиции чека нет «Проверка стажа» | Новый платёж после деплоя; `payment_description` / `PAYMENT_PURPOSE` |
 | На форме не тот порядок (не СБП первым) | Только ЛК/менеджер ЮKassa; в API Smart Payment порядка нет (см. выше) |

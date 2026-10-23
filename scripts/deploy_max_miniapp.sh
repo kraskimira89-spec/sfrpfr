@@ -12,7 +12,7 @@ if [[ -z "$SRC" ]]; then
   ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   SRC="$ROOT/web/max-miniapp"
 fi
-DEST="${DEST:-/var/www/taxi-doroga-dobra/app}"
+DEST="${DEST:-/var/www/proverkastaza/app}"
 
 if [[ ! -f "$SRC/index.html" ]]; then
   echo "нет $SRC/index.html" >&2

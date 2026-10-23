@@ -3,7 +3,7 @@
 # Публичный config Метрики (только COUNTER_ID) — www-data не читает /opt/sfrfr/.env
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 MU="${SITE_DIR}/wp-content/mu-plugins"
 ENVF="${ENVF:-/opt/sfrfr/.env}"
 SRC="${ROOT}/scripts/wp-mu-plugins"

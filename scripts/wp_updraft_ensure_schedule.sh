@@ -8,7 +8,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/sfrfr}"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 
 if ! command -v wp >/dev/null 2>&1; then
   echo "ERR: wp-cli not found" >&2

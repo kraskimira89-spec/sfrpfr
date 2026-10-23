@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -15,13 +15,12 @@ from sfrfr.integrations.payments import YooKassaClient, parse_yookassa_event
 from sfrfr.security.auth import Principal, get_current_principal
 from sfrfr.services.payment_amount import yookassa_charge_amount_rub
 from sfrfr.services.public_tariffs import payment_description
+from sfrfr.services.yookassa_urls import ReturnChannel, payment_return_url
 
 router = APIRouter()
 webhook_router = APIRouter()
 public_router = APIRouter()
 logger = logging.getLogger("sfrfr.payments")
-
-ReturnChannel = Literal["web_cabinet", "max_miniapp"]
 
 
 class PayOrderRequest(BaseModel):
@@ -34,16 +33,7 @@ def _repo() -> CaseRepository:
 
 
 def _return_url(case_id: str, channel: ReturnChannel) -> str:
-    settings = get_settings()
-    if settings.yookassa_return_url:
-        base = settings.yookassa_return_url.rstrip("/")
-        sep = "&" if "?" in base else "?"
-        return f"{base}{sep}case={case_id}&view=payments&paid=1"
-    if channel == "max_miniapp":
-        mini = settings.max_miniapp_url.rstrip("/") + "/"
-        return f"{mini}?case={case_id}&view=payments&paid=1"
-    cabinet = settings.cabinet_public_url.rstrip("/")
-    return f"{cabinet}/cases/{case_id}?view=payments&paid=1"
+    return payment_return_url(case_id, channel)
 
 
 @router.post("/cases/{case_id}/orders/{order_id}/pay")

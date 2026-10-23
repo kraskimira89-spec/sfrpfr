@@ -12,7 +12,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/sfrfr}"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 UPDRAFT_DIR="${SITE_DIR}/wp-content/updraft"
 ENV_FILE="${APP_DIR}/.env"
 REMOTE_FOLDER="disk:/SFRFR-ops/wp-backups"

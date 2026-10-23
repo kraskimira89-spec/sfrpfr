@@ -295,7 +295,7 @@ I need to add the CORS environment and set up a default storage backend, maybe w
 #### Запрос 1
 
 ```text
-Здесь будем работать с сайта который будет размещён на нашем vps, В отдельной папке, он будет иметь доменное имя   https://taxi-doroga-dobra.ru/ которая у нас приобретено в рэг.ру.
+Здесь будем работать с сайта который будет размещён на нашем vps, В отдельной папке, он будет иметь доменное имя   https://proverkastaza.ru/ которая у нас приобретено в рэг.ру.
 ```
 
 #### Запрос 2
@@ -1682,7 +1682,7 @@ _До 5 фрагментов (если ответов больше: первые
 #### Фрагмент 1
 
 ```text
-Понял контекст: сайт на VPS в отдельной папке, домен `https://taxi-doroga-dobra.ru/`. Сначала сверю с текущими docs по деплою и структурой проекта.
+Понял контекст: сайт на VPS в отдельной папке, домен `https://proverkastaza.ru/`. Сначала сверю с текущими docs по деплою и структурой проекта.
 ```
 
 #### Фрагмент 2
@@ -1745,7 +1745,7 @@ P0 сделан и выложен на VPS (`9f24a90`).
 - Текст «Подтвердить вход через MAX» / «Подтвердить вход в браузере»  
 - Отдельная ссылка «Открыть чат» без кода  
 
-Проверка: [admin.taxi-doroga-dobra.ru](https://admin.taxi-doroga-dobra.ru/)
+Проверка: [admin.taxi-doroga-dobra.ru](https://admin.proverkastaza.ru/)
 ```
 
 ## 2e2794ae-0ef9-4a4c-a7b9-45af48dec0b8
@@ -2175,7 +2175,7 @@ StazhIPensiyaBot
 #### Запрос 4
 
 ```text
-https://taxi-doroga-dobra.ru/app/
+https://proverkastaza.ru/app/
 ```
 
 #### Запрос 5
@@ -2192,7 +2192,7 @@ https://taxi-doroga-dobra.ru/app/
 Сначала разместите само веб-приложение по публичному HTTPS-адресу, например:
 
 ```text
-https://taxi-doroga-dobra.ru/app/
+https://proverkastaza.ru/app/
 ```
 
 Затем в кабинете партнёра MAX откройте: **Чат-боты → «Стаж и пенсия» → Расширенные настройки → Настроить**, вставьте этот URL и сохраните.
@@ -2294,7 +2294,7 @@ _До 5 фрагментов (если ответов больше: первые
 ```text
 ## ✅ Готово
 
-Мини-приложение обновлено: https://taxi-doroga-dobra.ru/app/
+Мини-приложение обновлено: https://proverkastaza.ru/app/
 
 ### Что изменилось
 - **Первый экран** — короткий «Обзор»: текущий этап + загрузка / проверка / обновить
@@ -3141,8 +3141,8 @@ SSH снова работает. Синхронизирую dbt на VPS: `DBT_*
 | Аналитика (каждые 5) | **5** | `/blog/rubrika/analitika/` |
 
 Примеры:
-- https://taxi-doroga-dobra.ru/blog/primer-pedagogicheskiy-i-severnyy-stazh/
-- https://taxi-doroga-dobra.ru/blog/analitika-sever-i-ils-chto-povtoryaetsya/
+- https://proverkastaza.ru/blog/primer-pedagogicheskiy-i-severnyy-stazh/
+- https://proverkastaza.ru/blog/analitika-sever-i-ils-chto-povtoryaetsya/
 
 ### Правила обезличивания
 - Нет ФИО, инициалов, адресов, номеров документов
@@ -3153,7 +3153,7 @@ SSH снова работает. Синхронизирую dbt на VPS: `DBT_*
 ### Как обновлять
 ```bash
 python scripts/generate_blog_situations.py
-SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_blog_situations.sh
+SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_blog_situations.sh
 ```
 
 Манифест: `scripts/assets/blo

@@ -2,7 +2,7 @@
 # Deploy ТЗ-11 §13 blog UI to WordPress MU-plugins on VPS.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-WP_CONTENT="${WP_CONTENT:-/var/www/taxi-doroga-dobra/wp-content}"
+WP_CONTENT="${WP_CONTENT:-/var/www/proverkastaza/wp-content}"
 WP_ROOT="${WP_ROOT:-$(dirname "${WP_CONTENT}")}"
 MU="${WP_CONTENT}/mu-plugins"
 ASSETS_SRC="${ROOT}/scripts/assets/blog/ui"

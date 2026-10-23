@@ -38,7 +38,7 @@
 Первичный набор статей:
 
 ```bash
-SITE_DIR=/var/www/taxi-doroga-dobra bash /opt/sfrfr/scripts/wp_seed_blog_tz11.sh
+SITE_DIR=/var/www/proverkastaza bash /opt/sfrfr/scripts/wp_seed_blog_tz11.sh
 ```
 
 После правок главной (`sfrfr-home.html`) — обычный `wp_seed_site_tz02.sh` или `wp_apply_home.php`.
@@ -69,7 +69,7 @@ Smoke:
 
 ```bash
 curl -sI https://proverkastaza.ru/blog/ | head -n1
-curl -sI https://taxi-doroga-dobra.ru/blog/ | head -n1
+curl -sI https://proverkastaza.ru/blog/ | head -n1
 ```
 
 ## Серия «Примеры ситуаций» / аналитика

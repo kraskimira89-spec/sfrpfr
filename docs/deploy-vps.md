@@ -6,21 +6,21 @@ SSH с ПК владельца: `ssh sfrfr-vps` — см. [ops/vps-ssh.md](ops/v
 
 Основной: **proverkastaza.ru**. Алиасы с 301: `proverka-staza.ru`, `prostaz.ru`, старый `taxi-doroga-dobra.ru`.  
 DNS: [ops/dns-proverkastaza.md](ops/dns-proverkastaza.md). Cutover на VPS: `scripts/vps_cutover_proverkastaza.sh`.  
-Папка WP на диске: `/var/www/taxi-doroga-dobra` (имя каталога не меняли).
+Папка WP на диске: `/var/www/proverkastaza` (имя каталога не меняли).
 
 ## Топология
 
 ```text
 домен proverkastaza.ru (reg.ru DNS)
 ├── proverkastaza.ru      → WordPress (витрина / посадочная SFRFR)
-│                             папка: /var/www/taxi-doroga-dobra
+│                             папка: /var/www/proverkastaza
 │   └── /app/            → мини-приложение MAX (статика web/max-miniapp)
 ├── api.proverkastaza.ru  → FastAPI SFRFR (uvicorn + Apache proxy)
 ├── cabinet.proverkastaza.ru → Next.js клиент (:3001)
 └── admin.proverkastaza.ru   → Next.js staff (:3002)
 ```
 
-Витрина: `/var/www/taxi-doroga-dobra` (Apache). На VPS уже Apache/PHP/MySQL — nginx не используем.
+Витрина: `/var/www/proverkastaza` (Apache). На VPS уже Apache/PHP/MySQL — nginx не используем.
 
 Автодеплой: `push` в `main` → GitHub Actions (`deploy-vps.yml`) → SSH → `scripts/vps_deploy.sh` в `/opt/sfrfr`.
 
@@ -122,7 +122,7 @@ SSL: Let's Encrypt (certbot). Для MAX webhook нужен **валидный H
 
 Порты 80/443 заняты Apache. Конфиги в репозитории:
 
-- `docs/apache-vhost-proverkastaza.ru.conf` → `/var/www/taxi-doroga-dobra`
+- `docs/apache-vhost-proverkastaza.ru.conf` → `/var/www/proverkastaza`
 - `docs/apache-vhost-api.proverkastaza.ru.conf` → proxy на `127.0.0.1:8011`
 - `docs/apache-vhost-cabinet.proverkastaza.ru.conf` → Next.js `127.0.0.1:3001`
 - `docs/apache-vhost-admin.proverkastaza.ru.conf` → Next.js `127.0.0.1:3002`
@@ -147,8 +147,8 @@ systemd units кабинетов: `docs/systemd/sfrfr-cabinet.service`, `docs/sy
 <VirtualHost *:80>
     ServerName proverkastaza.ru
     ServerAlias www.proverkastaza.ru
-    DocumentRoot /var/www/taxi-doroga-dobra
-    <Directory /var/www/taxi-doroga-dobra>
+    DocumentRoot /var/www/proverkastaza
+    <Directory /var/www/proverkastaza>
         AllowOverride All
         Require all granted
     </Directory>
@@ -191,7 +191,7 @@ npx supabase db push
 
 ## 7. Связка с WordPress
 
-- Витрина: https://proverkastaza.ru/ → `/var/www/taxi-doroga-dobra` (WP ru_RU, тема **Astra** + **Spectra**).
+- Витрина: https://proverkastaza.ru/ → `/var/www/proverkastaza` (WP ru_RU, тема **Astra** + **Spectra**).
 - Админ: https://proverkastaza.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
 - Стек (в репо GitHub): `scripts/wp_install_stack.sh`
   - Astra + Spectra (без Elementor);
