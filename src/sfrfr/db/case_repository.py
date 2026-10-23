@@ -1275,11 +1275,14 @@ class CaseRepository:
         order_id: str,
         provider_payment_id: str,
         status_value: str,
+        allow_stale_rebind: bool = False,
     ) -> dict[str, Any] | None:
-        """Привязать provider_payment_id к reservation заказа (provider_payment_id IS NULL).
+        """Привязать provider_payment_id к reservation / stale pending заказа.
 
-        Используется reconciliation-path: webhook мог прийти раньше, чем
-        /pay сохранил provider_payment_id в reservation-row.
+        1) reservation с provider_payment_id IS NULL (webhook раньше ответа /pay);
+        2) при allow_stale_rebind — active unpaid с другим provider id
+           (клиент оплатил новую ссылку, в БД остался pending старой).
+        Уже paid/succeeded не перепривязываем.
         """
         candidates = (
             self.client.table("payments")
@@ -1292,6 +1295,16 @@ class CaseRepository:
             .data
             or []
         )
+        if not candidates and allow_stale_rebind:
+            active = self.find_active_payment(order_id)
+            if active:
+                existing = str(active.get("provider_payment_id") or "")
+                status_l = str(active.get("status") or "").lower()
+                if (
+                    status_l not in ("succeeded", "paid")
+                    and existing != provider_payment_id
+                ):
+                    candidates = [active]
         if not candidates:
             return None
         target = candidates[0]
@@ -1366,14 +1379,19 @@ class CaseRepository:
         if order_id:
             query = query.eq("order_id", order_id)
         rows = query.limit(1).execute().data or []
+        marking_paid = bool(paid or status_value in ("succeeded", "paid"))
         if not rows and order_id:
             # Webhook пришёл раньше ответа /pay (reservation ещё без
             # provider_payment_id). Пробуем привязать существующую reservation,
             # иначе — создать запись с обработкой unique conflict.
+            # При succeeded: ещё и stale pending с другим provider id.
+            # status в bind оставляем pending, чтобы ниже newly_paid=True.
+            bind_status = "pending" if marking_paid else status_value
             bound = self._bind_reservation(
                 order_id=order_id,
                 provider_payment_id=provider_payment_id,
-                status_value=status_value,
+                status_value=bind_status,
+                allow_stale_rebind=marking_paid,
             )
             if not bound:
                 order_row = self.get_order_by_id(order_id)
@@ -1393,14 +1411,14 @@ class CaseRepository:
                         self._bind_reservation(
                             order_id=order_id,
                             provider_payment_id=provider_payment_id,
-                            status_value=status_value,
+                            status_value=bind_status,
+                            allow_stale_rebind=marking_paid,
                         )
             rows = query.limit(1).execute().data or []
         if not rows:
             raise HTTPException(status_code=404, detail="payment not found")
         row = rows[0]
         already_paid = str(row.get("status") or "") in ("succeeded", "paid")
-        marking_paid = bool(paid or status_value in ("succeeded", "paid"))
         newly_paid = marking_paid and not already_paid
         updates: dict[str, Any] = {"status": status_value}
         if fiscal_status is not None:
