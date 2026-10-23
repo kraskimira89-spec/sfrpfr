@@ -266,7 +266,7 @@ Runbook: перед массовым ручным retry — `systemctl stop sfrf
 - [x] Только `FISCAL_RECONCILE_ALERT_SINCE` (без backfill); dry-run без алертов.
 - [x] CLI: lease + **всегда** reconcile-ключ с инкрементом.
 - [x] `reconcile_pre_error_streak` + алерт при ≥12; attempts не жжёт.
-- [ ] Реализовать в коде (после «делаем SFRFR-93»).
+- [x] Реализовать в коде (после «делаем SFRFR-93»).
 
 ## Порядок коммитов (когда скажут «делаем SFRFR-93»)
 

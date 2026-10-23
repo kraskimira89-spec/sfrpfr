@@ -263,6 +263,51 @@ python -m sfrfr yookassa-status
 | На форме не тот порядок (не СБП первым) | Только ЛК/менеджер ЮKassa; в API Smart Payment порядка нет (см. выше) |
 | Нет СБП на форме | `capture` должен быть `true`; способ СБП подключён в магазине |
 
+## Fiscal reconcile (SFRFR-93)
+
+Фоновый повтор `POST /v3/receipts` для succeeded-платежей без `fiscal_status=registered`
+в окне ~48 ч. Дизайн: `docs/ops/design-sfrfr-93-fiscal-reconcile.md` (rev12).
+
+### Env (default безопасный)
+
+| Переменная | Default | Смысл |
+|---|---|---|
+| `FISCAL_RECONCILE_ENABLED` | `0` | Без `1` тик сразу выходит |
+| `FISCAL_RECONCILE_DRY_RUN` | `1` | Только lease (`last_reconcile_at`); без create / attempts / алертов |
+| `FISCAL_RECONCILE_ALERT_SINCE` | пусто | ISO timestamptz cutover алертов «48 ч»; **обязателен** при `ENABLED=1` |
+
+### Systemd
+
+```bash
+# юниты: docs/systemd/sfrfr-fiscal-reconcile.{service,timer}
+sudo systemctl enable --now sfrfr-fiscal-reconcile.timer   # только после ENABLED=1 + ALERT_SINCE
+journalctl -u sfrfr-fiscal-reconcile.service -n 50
+```
+
+Тик вручную: `python -m sfrfr fiscal-reconcile-tick`
+
+### Ручной retry (CLI)
+
+```bash
+# Сначала остановить таймер — иначе lease 120 с блокирует CLI
+sudo systemctl stop sfrfr-fiscal-reconcile.timer
+
+python -m sfrfr yookassa-retry-receipt <payments.id|yk_payment_id> --email client@example.com
+
+# Сброс алерта + attempts + streak + payload вместе:
+python -m sfrfr fiscal-reconcile-reset-alert <payments.id>
+
+sudo systemctl start sfrfr-fiscal-reconcile.timer
+```
+
+**Не** дергать CLI во время dry-run тика: тик держит lease 120 с → CLI получит
+«lease занят» (exit 2). Webhook по-прежнему без lease (короткий uuid4).
+
+### Чек-лист ревью (время)
+
+- Окно кандидатов / 48 ч в `list_*`: допустим `datetime.now(UTC)` процесса (±сек).
+- **Lease, TTL Idempotence-Key, cutover алертов** — только `now()` БД (RPC/SQL).
+
 ## Минимальный чеклист приёмки
 
 - [ ] `python -m sfrfr yookassa-status` → `evotor`, `SEND_RECEIPT=true`, без warnings

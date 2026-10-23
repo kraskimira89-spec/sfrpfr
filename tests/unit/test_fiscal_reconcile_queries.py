@@ -98,16 +98,21 @@ def test_filter_stale_alert_candidates() -> None:
 
 
 class _ChainClient:
-    """Минимальный PostgREST-chain для list_*_reconcile."""
+    """Минимальный PostgREST-chain для list_*_reconcile (ловит or_/select)."""
 
     def __init__(self, rows: list[dict[str, object]]) -> None:
         self._rows = rows
         self._not = self
+        self.selects: list[object] = []
+        self.ors: list[object] = []
+        self.orders: list[tuple[object, object]] = []
 
     def table(self, _name: str) -> _ChainClient:
         return self
 
-    def select(self, *_a: object, **_k: object) -> _ChainClient:
+    def select(self, *a: object, **_k: object) -> _ChainClient:
+        if a:
+            self.selects.append(a[0])
         return self
 
     def eq(self, *_a: object, **_k: object) -> _ChainClient:
@@ -120,10 +125,13 @@ class _ChainClient:
     def is_(self, *_a: object, **_k: object) -> _ChainClient:
         return self
 
-    def or_(self, *_a: object, **_k: object) -> _ChainClient:
+    def or_(self, *a: object, **_k: object) -> _ChainClient:
+        if a:
+            self.ors.append(a[0])
         return self
 
-    def order(self, *_a: object, **_k: object) -> _ChainClient:
+    def order(self, *a: object, **k: object) -> _ChainClient:
+        self.orders.append((a[0] if a else None, k.get("desc")))
         return self
 
     def limit(self, *_a: object, **_k: object) -> _ChainClient:
@@ -135,8 +143,22 @@ class _ChainClient:
         return SimpleNamespace(data=list(self._rows))
 
 
+def test_reconcile_window_or_filter_shape() -> None:
+    from sfrfr.services.fiscal_reconcile import reconcile_window_or_filter
+
+    s = reconcile_window_or_filter(now=NOW)
+    assert "paid_at.gte." in s
+    assert "paid_at.lte." in s
+    assert "paid_at.is.null" in s
+    assert "created_at.gte." in s
+
+
 def test_repo_list_succeeded_payments_for_reconcile_filters_null_fiscal() -> None:
     from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.fiscal_reconcile import (
+        FISCAL_STATUS_OR,
+        RECONCILE_PAYMENT_COLUMNS,
+    )
 
     rows = [
         _row(id="ok"),
@@ -144,16 +166,27 @@ def test_repo_list_succeeded_payments_for_reconcile_filters_null_fiscal() -> Non
         _row(id="old", paid_at=(NOW - timedelta(hours=60)).isoformat()),
     ]
     repo = CaseRepository.__new__(CaseRepository)
-    repo.client = _ChainClient(rows)
+    chain = _ChainClient(rows)
+    repo.client = chain
     got = repo.list_succeeded_payments_for_reconcile(now=NOW)
     assert [r["id"] for r in got] == ["ok"]
+    assert chain.selects == [RECONCILE_PAYMENT_COLUMNS]
+    assert FISCAL_STATUS_OR in chain.ors
+    assert any("paid_at.gte." in str(x) for x in chain.ors)
+    assert ("paid_at", False) in chain.orders
+    assert "reconcile_post_payload" not in str(chain.selects[0])
 
 
 def test_repo_list_stale_alert_requires_alert_since() -> None:
     from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.fiscal_reconcile import FISCAL_STATUS_OR
 
     rows = [_row(id="stale", paid_at=(NOW - timedelta(hours=60)).isoformat())]
     repo = CaseRepository.__new__(CaseRepository)
-    repo.client = _ChainClient(rows)
+    chain = _ChainClient(rows)
+    repo.client = chain
     got = repo.list_payments_for_stale_fiscal_alert(alert_since=ALERT_SINCE, now=NOW)
     assert [r["id"] for r in got] == ["stale"]
+    assert FISCAL_STATUS_OR in chain.ors
+    assert any("paid_at.lt." in str(x) for x in chain.ors)
+    assert any("paid_at.gte." in str(x) for x in chain.ors)

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SFRFR fiscal reconcile every 10 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Unit=sfrfr-fiscal-reconcile.service
+
+[Install]
+WantedBy=timers.target

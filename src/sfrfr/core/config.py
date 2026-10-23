@@ -227,6 +227,12 @@ class Settings(BaseSettings):
     ops_monitor_token: str = ""
     ops_failed_alert_threshold: int = 1
 
+    # SFRFR-93: fiscal reconcile (ЮKassa receipts). Default OFF / dry-run.
+    fiscal_reconcile_enabled: bool = False
+    fiscal_reconcile_dry_run: bool = True
+    # timestamptz ISO; обязателен при ENABLED=1 (cutover алертов 48ч)
+    fiscal_reconcile_alert_since: str = ""
+
     # Яндекс Трекер — внутренние задачи качества (очередь STAZH)
     tracker_enabled: bool = True
     tracker_token: str = ""  # TRACKER_TOKEN

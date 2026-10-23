@@ -1,5 +1,5 @@
 -- SFRFR-93: fiscal reconcile state on public.payments (additive only).
--- Design: docs/ops/design-sfrfr-93-fiscal-reconcile.md (rev11).
+-- Design: docs/ops/design-sfrfr-93-fiscal-reconcile.md (rev12).
 
 ALTER TABLE public.payments
   ADD COLUMN IF NOT EXISTS reconcile_attempts integer NOT NULL DEFAULT 0,
@@ -38,3 +38,83 @@ BEGIN
       );
   END IF;
 END $$;
+
+-- Lease / TTL / alert claim: только now() базы (не Python).
+
+CREATE OR REPLACE FUNCTION public.try_fiscal_reconcile_lease(
+  p_payment_id uuid,
+  p_lease_secs integer DEFAULT 120
+)
+RETURNS SETOF public.payments
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.payments
+  SET last_reconcile_at = now()
+  WHERE id = p_payment_id
+    AND (
+      last_reconcile_at IS NULL
+      OR last_reconcile_at < now() - make_interval(secs => p_lease_secs)
+    )
+  RETURNING *;
+$$;
+
+CREATE OR REPLACE FUNCTION public.fiscal_reconcile_ttl_alive(
+  p_payment_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT (
+    reconcile_post_at IS NOT NULL
+    AND now() - reconcile_post_at < interval '24 hours' - interval '15 minutes'
+  )
+  FROM public.payments
+  WHERE id = p_payment_id;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_fiscal_reconcile_post_started(
+  p_payment_id uuid,
+  p_attempts integer,
+  p_payload jsonb
+)
+RETURNS SETOF public.payments
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.payments
+  SET
+    reconcile_attempts = p_attempts,
+    reconcile_pre_error_streak = 0,
+    reconcile_post_at = now(),
+    reconcile_post_payload = p_payload,
+    reconcile_last_outcome = 'post_started'
+  WHERE id = p_payment_id
+  RETURNING *;
+$$;
+
+CREATE OR REPLACE FUNCTION public.claim_fiscal_reconcile_alert(
+  p_payment_id uuid
+)
+RETURNS SETOF public.payments
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.payments
+  SET reconcile_alerted_at = now()
+  WHERE id = p_payment_id
+    AND reconcile_alerted_at IS NULL
+  RETURNING *;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.try_fiscal_reconcile_lease(uuid, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.fiscal_reconcile_ttl_alive(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_fiscal_reconcile_post_started(uuid, integer, jsonb)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_fiscal_reconcile_alert(uuid) TO service_role;

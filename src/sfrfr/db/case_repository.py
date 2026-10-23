@@ -1486,31 +1486,39 @@ class CaseRepository:
     ) -> list[dict[str, Any]]:
         """Paid за окно без fiscal_status=registered (SFRFR-93).
 
-        PostgREST: NULL fiscal через or_; точное окно coalesce(paid_at, created_at)
-        — в Python (см. fiscal_reconcile.filter_reconcile_candidates).
+        Границы окна и fiscal NULL — в PostgREST; Python-фильтр — страховка.
+        now() процесса для границ (±сек); lease/TTL — только SQL (см. дизайн).
         """
-        from sfrfr.services.fiscal_reconcile import filter_reconcile_candidates
+        from sfrfr.services.fiscal_reconcile import (
+            FISCAL_STATUS_OR,
+            RECONCILE_PAYMENT_COLUMNS,
+            filter_reconcile_candidates,
+            reconcile_window_or_filter,
+        )
 
         now_dt = now or datetime.now(UTC)
+        window_or = reconcile_window_or_filter(
+            now=now_dt, window_hours=window_hours, grace_minutes=grace_minutes
+        )
         rows = (
             self.client.table("payments")
-            .select("*, orders(id, case_id)")
+            .select(RECONCILE_PAYMENT_COLUMNS)
             .eq("status", "succeeded")
             .not_.is_("provider_payment_id", "null")
-            .or_("fiscal_status.is.null,fiscal_status.neq.registered")
-            .order("id", desc=True)
-            .limit(max(limit * 3, 100))
+            .or_(FISCAL_STATUS_OR)
+            .or_(window_or)
+            .order("paid_at", desc=False)
+            .limit(limit)
             .execute()
             .data
             or []
         )
-        filtered = filter_reconcile_candidates(
+        return filter_reconcile_candidates(
             list(rows),
             now=now_dt,
             window_hours=window_hours,
             grace_minutes=grace_minutes,
         )
-        return filtered[:limit]
 
     def list_payments_for_stale_fiscal_alert(
         self,
@@ -1521,29 +1529,140 @@ class CaseRepository:
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Алерт «48 ч без чека» с нижней границей ALERT_SINCE (SFRFR-93)."""
-        from sfrfr.services.fiscal_reconcile import filter_stale_alert_candidates
+        from sfrfr.services.fiscal_reconcile import (
+            FISCAL_STATUS_OR,
+            RECONCILE_PAYMENT_COLUMNS,
+            filter_stale_alert_candidates,
+            stale_alert_or_filter,
+        )
 
         now_dt = now or datetime.now(UTC)
+        age_or = stale_alert_or_filter(
+            now=now_dt, alert_since=alert_since, window_hours=window_hours
+        )
         rows = (
             self.client.table("payments")
-            .select("*, orders(id, case_id)")
+            .select(RECONCILE_PAYMENT_COLUMNS)
             .eq("status", "succeeded")
             .not_.is_("provider_payment_id", "null")
             .is_("reconcile_alerted_at", "null")
-            .or_("fiscal_status.is.null,fiscal_status.neq.registered")
-            .order("id", desc=True)
-            .limit(max(limit * 5, 100))
+            .or_(FISCAL_STATUS_OR)
+            .or_(age_or)
+            .order("paid_at", desc=False)
+            .limit(limit)
             .execute()
             .data
             or []
         )
-        filtered = filter_stale_alert_candidates(
+        return filter_stale_alert_candidates(
             list(rows),
             now=now_dt,
             alert_since=alert_since,
             window_hours=window_hours,
         )
-        return filtered[:limit]
+
+    def try_fiscal_reconcile_lease(
+        self,
+        payment_id: str,
+        *,
+        lease_secs: int = 120,
+    ) -> dict[str, Any] | None:
+        """Условный lease: last_reconcile_at = now() БД. 0 rows → занято."""
+        from sfrfr.services.fiscal_reconcile import LEASE_SECS
+
+        secs = lease_secs if lease_secs > 0 else LEASE_SECS
+        rows = (
+            self.client.rpc(
+                "try_fiscal_reconcile_lease",
+                {"p_payment_id": payment_id, "p_lease_secs": secs},
+            )
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+
+    def fiscal_reconcile_ttl_alive(self, payment_id: str) -> bool:
+        """TTL Idempotence-Key жив — только SQL now()."""
+        raw = (
+            self.client.rpc(
+                "fiscal_reconcile_ttl_alive",
+                {"p_payment_id": payment_id},
+            )
+            .execute()
+            .data
+        )
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, list) and raw:
+            return bool(raw[0])
+        return bool(raw)
+
+    def get_payment_reconcile_payload(self, payment_id: str) -> dict[str, Any] | None:
+        rows = (
+            self.client.table("payments")
+            .select("id, reconcile_post_payload, reconcile_attempts, reconcile_last_outcome")
+            .eq("id", payment_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+
+    def mark_fiscal_reconcile_post_started(
+        self,
+        payment_id: str,
+        *,
+        attempts: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        rows = (
+            self.client.rpc(
+                "mark_fiscal_reconcile_post_started",
+                {
+                    "p_payment_id": payment_id,
+                    "p_attempts": attempts,
+                    "p_payload": payload,
+                },
+            )
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+
+    def update_payment_reconcile_fields(
+        self,
+        payment_id: str,
+        fields: dict[str, Any],
+    ) -> None:
+        if not fields:
+            return
+        self.client.table("payments").update(fields).eq("id", payment_id).execute()
+
+    def claim_fiscal_reconcile_alert(self, payment_id: str) -> dict[str, Any] | None:
+        rows = (
+            self.client.rpc(
+                "claim_fiscal_reconcile_alert",
+                {"p_payment_id": payment_id},
+            )
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+
+    def reset_fiscal_reconcile_alert(self, payment_id: str) -> None:
+        """CLI: alerted_at + attempts + streak + payload вместе."""
+        self.client.table("payments").update(
+            {
+                "reconcile_alerted_at": None,
+                "reconcile_attempts": 0,
+                "reconcile_pre_error_streak": 0,
+                "reconcile_post_payload": None,
+            }
+        ).eq("id", payment_id).execute()
 
     def upsert_checklist_item(
         self,

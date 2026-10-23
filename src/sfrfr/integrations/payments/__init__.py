@@ -165,18 +165,24 @@ class YooKassaClient:
     ) -> tuple[int, dict[str, Any]]:
         key = (idempotence_key or "").strip() or str(uuid.uuid4())
         if len(key) > 64:
-            return 0, {"error": "idempotence_key longer than 64 characters"}
+            return 0, {
+                "error": "idempotence_key longer than 64 characters",
+                "phase": "pre_post",
+            }
         headers = {
             "Idempotence-Key": key,
             "Content-Type": "application/json",
         }
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{self.api_base}{path}",
-                json=payload,
-                headers=headers,
-                auth=(self.shop_id, self.secret_key),
-            )
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    f"{self.api_base}{path}",
+                    json=payload,
+                    headers=headers,
+                    auth=(self.shop_id, self.secret_key),
+                )
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            return 0, {"error": str(exc) or type(exc).__name__, "phase": "transport"}
         data = response.json() if response.content else {}
         return response.status_code, data if isinstance(data, dict) else {}
 
@@ -349,16 +355,26 @@ class YooKassaClient:
         status_code, data = self._post(
             "/receipts", payload, idempotence_key=idempotence_key
         )
+        # phase: job отличает pre_post / transport / http (не по тексту ошибки).
         if status_code == 0 and data.get("error"):
-            return {"ok": False, "error": str(data.get("error"))}
+            phase = str(data.get("phase") or "pre_post")
+            if phase not in {"pre_post", "transport"}:
+                phase = "pre_post"
+            return {
+                "ok": False,
+                "phase": phase,
+                "error": str(data.get("error")),
+            }
+        # request_body с PII не возвращаем: webhook логирует error, CLI echo
+        # результата; job уже имеет body_snapshot для payload в БД.
         return {
             "ok": status_code < 300,
+            "phase": "http",
             "status_code": status_code,
             "receipt": data,
             "receipt_id": data.get("id"),
             "status": data.get("status"),
             "error": data.get("description") or data.get("message"),
-            "request_body": payload,
         }
 
     def ensure_payment_receipt(

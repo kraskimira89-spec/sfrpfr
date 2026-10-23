@@ -461,7 +461,46 @@ def test_create_receipt_uses_body_snapshot_without_rebuild(monkeypatch: Any) -> 
     assert out["ok"] is True
     assert captured["payload"] == snap
     assert captured["payload"]["customer"]["email"] == "snap@example.com"
-    assert out.get("request_body") == snap
+    assert out.get("phase") == "http"
+    assert "request_body" not in out
+
+
+def test_create_receipt_phase_pre_post_on_long_key() -> None:
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="pid",
+        amount_rub=1.0,
+        description="t",
+        customer_email="a@b.c",
+        body_snapshot={"type": "payment", "payment_id": "pid"},
+        idempotence_key="k" * 65,
+    )
+    assert out["ok"] is False
+    assert out.get("phase") == "pre_post"
+    assert "64" in str(out.get("error") or "")
+
+
+def test_create_receipt_phase_transport_on_timeout(monkeypatch: Any) -> None:
+    def boom(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict]:
+        return 0, {"error": "timed out", "phase": "transport"}
+
+    monkeypatch.setattr(YooKassaClient, "_post", boom)
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="pid",
+        amount_rub=1.0,
+        description="t",
+        body_snapshot={"type": "payment"},
+        idempotence_key="reconcile:pid:1",
+    )
+    assert out["ok"] is False
+    assert out.get("phase") == "transport"
 
 
 def test_post_rejects_idempotence_key_over_64() -> None:
@@ -469,6 +508,7 @@ def test_post_rejects_idempotence_key_over_64() -> None:
     status, data = client._post("/receipts", {"x": 1}, idempotence_key="k" * 65)
     assert status == 0
     assert "64" in str(data.get("error") or "")
+    assert data.get("phase") == "pre_post"
 
 
 def test_should_auto_retry_fiscal_only_after_canceled() -> None:
@@ -663,6 +703,95 @@ def test_ensure_receipt_retries_only_without_succeeded_payment(
     assert len(called) == 1
     assert called[0]["payment_id"] == "pay-retry"
     get_settings.cache_clear()
+
+
+def test_ensure_passes_idempotence_key_and_body_snapshot(monkeypatch: Any) -> None:
+    """Job вызывает ensure — ключ и snapshot должны дойти до create."""
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    snap = {"type": "payment", "payment_id": "pay-ens", "send": True}
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "0.00", "currency": "RUB"},
+                "description": "docs",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {"ok": True, "items": []},
+    )
+    called: list[dict[str, Any]] = []
+
+    def fake_create(**kwargs: Any) -> dict[str, Any]:
+        called.append(kwargs)
+        return {"ok": True, "phase": "http", "receipt_id": "ra-n"}
+
+    monkeypatch.setattr(client, "create_receipt", fake_create)
+    out = client.ensure_payment_receipt(
+        payment_id="pay-ens",
+        amount_rub=0.0,
+        idempotence_key="reconcile:pay-ens:1",
+        body_snapshot=snap,
+    )
+    assert out["ok"] is True
+    assert len(called) == 1
+    assert called[0]["idempotence_key"] == "reconcile:pay-ens:1"
+    assert called[0]["body_snapshot"] == snap
+
+
+def test_ensure_gate_before_create_even_with_snapshot(monkeypatch: Any) -> None:
+    """Снимок не обходит list_receipts gate."""
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "5.00", "currency": "RUB"},
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {
+            "ok": True,
+            "items": [
+                {
+                    "id": "ra-ok",
+                    "type": "payment",
+                    "status": "succeeded",
+                    "payment_id": payment_id,
+                }
+            ],
+        },
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        client,
+        "create_receipt",
+        lambda **kwargs: called.append("x") or {"ok": True},
+    )
+    out = client.ensure_payment_receipt(
+        payment_id="pay-gated",
+        body_snapshot={"type": "payment", "payment_id": "pay-gated"},
+        idempotence_key="reconcile:pay-gated:1",
+    )
+    assert out["ok"] is True
+    assert out.get("skipped") is True
+    assert called == []
 
 
 def test_parse_yookassa_event_receipt_registration() -> None:
