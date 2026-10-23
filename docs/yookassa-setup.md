@@ -216,7 +216,8 @@ python -m sfrfr yookassa-status
 1. В `.env`: `YOOKASSA_SEND_RECEIPT=true` (обязательно при `fiscalization_enabled`).
 2. У клиента — **email или телефон** (профиль / `customer_email` в `/pay`). Без контакта ссылку/платёж с чеком не создаём.
 3. Код передаёт `receipt.customer` + `items` + `internet=true`, `vat_code` из `YOOKASSA_VAT_CODE` (по умолчанию `1`).
-4. Если Evotor не принял чек — webhook/`ensure_payment_receipt` вызывает `POST /v3/receipts` **только** при отсутствии succeeded (и pending) `type=payment` в `GET /receipts?payment_id=`. Не ориентироваться только на `payment.receipt_registration` (FD 770/771). Вручную:
+4. Если Evotor не принял чек — webhook вызывает `ensure_payment_receipt` **только** когда в событии `receipt_registration` = `canceled`/`cancelled` (не при `pending`/`пусто` — иначе дубль FD, см. SUPPORT 8000 / PR #226). Сам ensure: skip при `reg=pending` или при уже succeeded/pending `type=payment` в `GET /receipts`. Не ориентироваться только на `payment.receipt_registration` (FD 770/771).
+   **Пробел:** если `pending` сорвался в `canceled` после webhook — автоповтора нет; вручную:
    `python -m sfrfr yookassa-retry-receipt <payment_id> --email client@example.com`
 
 **Не отправляйте фискальный чек через MAX или amoCRM** — это не ОФД.

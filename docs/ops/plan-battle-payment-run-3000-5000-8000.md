@@ -97,7 +97,18 @@
 | `BATTLE_DIAG_DOCS_PASS` | Шаги 0–2 PASS; шаг 3 SUPPORT 8000 ждёт «да, платим 8000» |
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `BLOCKED_DUP_RECEIPT` → код-фикс гонки pending→ensure (webhook только `canceled`; ensure skip `pending`). После merge/deploy: **повторный smoke 1₽** (ENABLED=0), затем статус `BLOCKER_CLEARED` / `FIX_IN_FLIGHT`. Боевой 8000 **не** повторять. Деньги **оставляем**; коррекцию FD 778 без бухгалтера / «да, возвращаем» — **нет**.
+**Текущий статус (обновлять при смене):** `FIX_IN_FLIGHT` — PR **#226** в `main` / на VPS (`should_auto_retry_fiscal_receipt`, ensure skip `pending`). Ждём владельца **«да, платим 1»** → smoke 1₽ → `BLOCKER_CLEARED`. Боевой 8000 / коррекцию FD 778 **не** делать. Деньги **оставляем**.
+
+### Пробел после #226 (stuck pending → canceled)
+
+Webhook больше **не** ретраит при `pending`/`пусто` (анти-дубль). Если авточек invoice сорвётся в `canceled` **после** уже обработанного webhook — автоповтор **не** сработает.
+
+| Есть сейчас | Нет |
+|-------------|-----|
+| CLI `python -m sfrfr yookassa-retry-receipt <payment_id> --email …` (тот же ensure + gate) | Job/timer reconcile зависших fiscal (`pending`→потом `canceled`) |
+| Webhook retry только при `canceled` **в момент** webhook | Периодический опрос `receipt_registration` у paid без succeeded `type=payment` |
+
+Follow-up (не в этом smoke): узкий reconcile **только** для paid с `reg=canceled` и без succeeded/pending receipt — либо ручной CLI по письму ЮKassa. Не создавать при `pending`. См. SFRFR-89.
 
 ## Связанные артефакты
 
