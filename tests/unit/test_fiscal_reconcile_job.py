@@ -209,6 +209,18 @@ def test_tick_requires_alert_since_when_enabled() -> None:
     repo.list_succeeded_payments_for_reconcile.assert_not_called()
 
 
+def test_tick_rejects_garbage_alert_since() -> None:
+    repo = MagicMock()
+    stats = run_fiscal_reconcile_tick(
+        repo,
+        enabled=True,
+        dry_run=True,
+        alert_since_raw="abc",
+    )
+    assert "invalid ISO" in str(stats.get("error") or "")
+    repo.list_succeeded_payments_for_reconcile.assert_not_called()
+
+
 def test_tick_disabled() -> None:
     repo = MagicMock()
     stats = run_fiscal_reconcile_tick(

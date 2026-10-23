@@ -300,8 +300,16 @@ python -m sfrfr fiscal-reconcile-reset-alert <payments.id>
 sudo systemctl start sfrfr-fiscal-reconcile.timer
 ```
 
+Если в `journalctl` есть `fiscal_reconcile_alert_claimed_but_not_delivered` или
+`no_chat_id` — claim уже записан (`reconcile_alerted_at`), повтор сам не уйдёт.
+После починки канала (MAX chat id) выполните `fiscal-reconcile-reset-alert`,
+иначе алерт останется «потерянным» осознанно (без спама).
+
 **Не** дергать CLI во время dry-run тика: тик держит lease 120 с → CLI получит
 «lease занят» (exit 2). Webhook по-прежнему без lease (короткий uuid4).
+
+`ALERT_SINCE` должен быть валидным ISO; мусор (`abc`) → тик сразу exit 1 с ERROR
+`invalid ISO` (не ждать 10 минут «молча»).
 
 ### Чек-лист ревью (время)
 

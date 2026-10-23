@@ -33,7 +33,8 @@ AlertSend = Callable[[str, dict[str, Any]], bool]
 
 
 def _parse_alert_since(raw: str | None) -> datetime | None:
-    text = (raw or "").strip()
+    """ISO timestamptz. None = пусто или мусор (нельзя включать ENABLED)."""
+    text = (raw or "").strip().strip("'\"")
     if not text:
         return None
     if text.endswith("Z"):
@@ -41,6 +42,10 @@ def _parse_alert_since(raw: str | None) -> datetime | None:
     try:
         dt = datetime.fromisoformat(text)
     except ValueError:
+        return None
+    # отсечь мусор вроде «abc», который fromisoformat мог бы не принять,
+    # и значения без даты (чистое число и т.п.)
+    if not hasattr(dt, "year") or dt.year < 2020:
         return None
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
@@ -454,9 +459,20 @@ def run_fiscal_reconcile_tick(
     if not enabled:
         stats["skipped"] = "FISCAL_RECONCILE_ENABLED=0"
         return stats
-    alert_since = _parse_alert_since(alert_since_raw)
+    raw = (alert_since_raw or "").strip()
+    if not raw:
+        stats["error"] = (
+            "FISCAL_RECONCILE_ALERT_SINCE required when ENABLED=1 "
+            "(ISO timestamptz, e.g. 2026-10-23T00:00:00+00:00)"
+        )
+        logger.error("%s", stats["error"])
+        return stats
+    alert_since = _parse_alert_since(raw)
     if alert_since is None:
-        stats["error"] = "FISCAL_RECONCILE_ALERT_SINCE required when ENABLED=1"
+        stats["error"] = (
+            f"FISCAL_RECONCILE_ALERT_SINCE invalid ISO: {raw[:40]!r} "
+            "(fix .env; timer will keep failing until corrected)"
+        )
         logger.error("%s", stats["error"])
         return stats
 

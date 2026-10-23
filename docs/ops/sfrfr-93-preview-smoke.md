@@ -37,6 +37,24 @@ SELECT id FROM claim_fiscal_reconcile_alert('PAYMENT_UUID'::uuid);
 
 ## 3. Dry-run tick
 
+До и после тика — один снимок (без PII; подставьте id кандидата или `LIMIT 20`):
+
+```sql
+SELECT id,
+       last_reconcile_at,
+       reconcile_attempts,
+       reconcile_pre_error_streak,
+       reconcile_post_at,
+       (reconcile_post_payload IS NOT NULL) AS has_payload,
+       reconcile_last_outcome,
+       reconcile_alerted_at
+FROM public.payments
+WHERE status = 'succeeded'
+  AND provider_payment_id IS NOT NULL
+ORDER BY last_reconcile_at DESC NULLS LAST
+LIMIT 20;
+```
+
 ```bash
 # на preview / VPS с preview DATABASE_URL
 FISCAL_RECONCILE_ENABLED=1
@@ -46,8 +64,9 @@ FISCAL_RECONCILE_ALERT_SINCE=2026-10-23T00:00:00+00:00
 python -m sfrfr fiscal-reconcile-tick
 ```
 
-Ожидание: лог «создал бы…»; в БД меняется только `last_reconcile_at`;
-`reconcile_attempts` / streak / payload / alerted_at / create — без изменений.
+Повторите SQL. Ожидание: лог «создал бы…»; изменился только `last_reconcile_at`;
+`reconcile_attempts` / streak / `has_payload` / `reconcile_alerted_at` / outcome —
+как до тика. Create к ЮKassa не было.
 
 ## 4. После smoke
 
