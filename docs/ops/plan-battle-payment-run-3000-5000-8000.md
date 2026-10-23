@@ -1,6 +1,6 @@
 # План боевого прогона платежей 3000 / 5000 / 8000
 
-Дата плана: **2026-10-23** (обновление: DIAG+DOCS PASS; деньги оставить, возврат позже).
+Дата плана: **2026-10-23** (обновление: SUPPORT 8000 **FAIL** дубль FD 777/778; деньги оставить; прогон **стоп**).
 Не смешивать с приёмкой механики на малых суммах (1/3/5/8 ₽) — кроме **шага 0** (smoke 1₽ для снятия блокера дублей).
 
 ## Предусловия (до первой полной суммы)
@@ -35,8 +35,10 @@
    Payment `326d7d8c-000f-5001-9000-1ed138d35859`, order `fc6c80b4-…906e` paid, shop **1421177**, **5000.00**, FD **776**, webhook 200, 1 payment, 1× `type=payment`, ENABLED=0.
    Тариф **ACCOMP / DOCS** (не «анализ+обращения»). Дело → `service_paid`.
    История: `docs/history/2026-10-23-battle-docs-5000.md`.
-3. **SUPPORT — 8000 ₽** — ⏳ ждёт отдельного «да, платим 8000»
-   Сопровождение до подачи → 8000 → оплата → webhook → paid → чек. **Не** запускать без команды владельца.
+3. **SUPPORT — 8000 ₽** — ❌ **FAIL** 2026-10-23 (`FAIL_DUP_RECEIPT`)
+   Payment `326d821f-000f-5001-9000-1a272330e2d3`, order `af921028-…82cd` **paid**, shop **1421177**, **8000.00**, webhook 200, 1 payment, ENABLED=0.
+   Чеки: **2×** `type=payment` succeeded — FD **777** + **778**. Email клиента **nataliylo@yandex.ru**.
+   История: `docs/history/2026-10-23-battle-support-8000.md`. **Стоп** → SFRFR-89.
 
 Между шагами: зафиксировать FD / сумму / shop; при **втором** `type=payment` succeeded на один `payment_id` — **стоп**, блокер не снят (SFRFR-89), не плодить платежи.
 
@@ -69,10 +71,10 @@
 
 ## Критерии шага (каждый боевой 3/5/8k)
 
-- [x] Charge API = полная сумма (3000 / 5000), shop 1421177 — для шагов 1–2; 8000 — ⏳
-- [x] Apache `POST …/yookassa/webhook` **200** → order **paid** без reconcile — шаги 1–2
-- [x] Ровно один `payments` на order — шаги 1–2
-- [x] Чек(и): сумма позиции = charge; 1× `type=payment` — FD **775** / **776**
+- [x] Charge API = полная сумма (3000 / 5000 / 8000), shop 1421177 — шаги 1–3 charge ок
+- [x] Apache `POST …/yookassa/webhook` **200** → order **paid** без reconcile — шаги 1–3
+- [x] Ровно один `payments` на order — шаги 1–3
+- [ ] Чек(и): 1× `type=payment` — FD **775** / **776** ок; шаг 3 → **2×** (FD **777**+**778**) ❌
 - [x] `PAYMENT_TEST_AMOUNT_ENABLED=0` не меняли на 1
 
 ## Стоп-правила
@@ -93,8 +95,9 @@
 | `BLOCKER_CLEARED` | Фикс в проде + smoke: один payment_id → один succeeded/pending `type=payment` |
 | `BATTLE_READY` | `BLOCKER_CLEARED` + Evotor online + `PAYMENT_TEST_AMOUNT_ENABLED=0` + «да, платим» на шаг |
 | `BATTLE_DIAG_DOCS_PASS` | Шаги 0–2 PASS; шаг 3 SUPPORT 8000 ждёт «да, платим 8000» |
+| `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `BATTLE_DIAG_DOCS_PASS` — smoke FD **774**; DIAG FD **775**; DOCS FD **776**; деньги **оставляем**, возврат **позже** («да, возвращаем» не было); SUPPORT 8000 — только по «да, платим 8000».
+**Текущий статус (обновлять при смене):** `BLOCKED_DUP_RECEIPT` — smoke FD **774**; DIAG FD **775**; DOCS FD **776**; SUPPORT 8000 **FAIL** (FD **777**+**778** на `326d821f…`); деньги **оставляем**; возврат **позже**; новые боевые счета **не** создавать до фикса + smoke.
 
 ## Связанные артефакты
 
@@ -102,6 +105,7 @@
 - Smoke дедуп #220: `docs/history/2026-10-23-smoke-dedup-220-1rub.md`
 - Боевой DIAG 3000: `docs/history/2026-10-23-battle-diag-3000.md`
 - Боевой DOCS 5000: `docs/history/2026-10-23-battle-docs-5000.md`
+- Боевой SUPPORT 8000 (**FAIL**): `docs/history/2026-10-23-battle-support-8000.md`
 - Касса / дубли: SFRFR-89
 - UI резюме + офер 3000: PR #214 / staff «Проверить документы»
-- Фикс дублей ensure/retry: PR #220
+- Фикс дублей ensure/retry: PR #220 (на 8000 дубль снова — gate неполный / второй путь фискализации)
