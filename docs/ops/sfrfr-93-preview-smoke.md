@@ -80,6 +80,7 @@ python -m sfrfr fiscal-reconcile-tick
 
 ## 4. После smoke
 
-1. Squash-merge #247 (auto-merge вручную).
-2. Timer на prod: только после логов dry-run и выбранного `ALERT_SINCE`;
-   в `.env` строго `FISCAL_RECONCILE_ENABLED=1` (не `true`).
+1. Squash-merge #247 — **done**.
+2. Timer: dry-run (этап 3) → CLI gate (этап 4) → `DRY_RUN=0` (этап 5).
+   В `.env` строго `FISCAL_RECONCILE_ENABLED=1` (не `true`).
+3. История: `docs/history/2026-10-23-sfrfr-93-stage{3,4,5}-*.md`.
