@@ -535,7 +535,7 @@ Cookie-согласие сайта больше не записывается и
 
 - Куплены: `proverkastaza.ru` (основной), `proverka-staza.ru`, `prostaz.ru`.
 - Apache vhosts + cutover: `scripts/vps_cutover_proverkastaza.sh`, DNS: `docs/ops/dns-proverkastaza.md`.
-- 301 со старого `taxi-doroga-dobra.ru` и алиасов; WP остаётся в `/var/www/taxi-doroga-dobra`.
+- 301 со старого `taxi-doroga-dobra.ru` и алиасов; WP остаётся в `/var/www/proverkastaza`.
 
 ## 2026-07-26 (dbt: Tier-1 тесты)
 
@@ -764,11 +764,11 @@ Cookie-согласие сайта больше не записывается и
 
 - Первый экран — только текущий этап и 3 действия (загрузка / проверка / обновить).
 - Всегда видимый бургер: этапы пайплайна + разделы (документы, чек-лист, черновик, оплаты, результат, сообщения).
-- URL: https://taxi-doroga-dobra.ru/app/
+- URL: https://proverkastaza.ru/app/
 
 ## 2026-07-22 (MAX mini-app кабинет v1)
 
-- Статика: `web/max-miniapp/` → `https://taxi-doroga-dobra.ru/app/`.
+- Статика: `web/max-miniapp/` → `https://proverkastaza.ru/app/`.
 - API: `POST /api/cases/open` + CORS с витрины; upload/status/run из кабинета.
 - Бот: отображаемое имя «Стаж и пенсия», технический username `id8905998693_1_bot`; диплинк `https://max.ru/id8905998693_1_bot?startapp`.
 - В кабинете партнёра MAX нужно вручную вставить URL мини-приложения.
@@ -797,7 +797,7 @@ Cookie-согласие сайта больше не записывается и
 
 - `MAX_BOT_TOKEN` синхронизирован на VPS; `bot_configured=yes`.
 - TLS к `platform-api2.max.ru`: добавлены CA Минцифры в `certs/` + `ssl_context.py`.
-- `sfrfr max-subscribe` → success на `https://api.taxi-doroga-dobra.ru/api/integrations/max/webhook`.
+- `sfrfr max-subscribe` → success на `https://api.proverkastaza.ru/api/integrations/max/webhook`.
 - `MAX_PUBLIC_BOT_URL` = `https://max.ru/id8905998693_1_bot?startapp` (технический username из `/me`).
 - Кнопка на лендинге ведёт на этот диплинк (не StazhIPensiyaBot).
 
@@ -809,24 +809,24 @@ Cookie-согласие сайта больше не записывается и
 ## 2026-07-22 (шаг 2: Apache + SSL)
 
 - DNS OK: `@` / `www` / `api` → `91.229.11.147`.
-- Папка витрины: `/var/www/taxi-doroga-dobra` (заглушка index.html).
-- Apache vhosts + Let's Encrypt: https://taxi-doroga-dobra.ru , https://api.taxi-doroga-dobra.ru → `8011`.
+- Папка витрины: `/var/www/proverkastaza` (заглушка index.html).
+- Apache vhosts + Let's Encrypt: https://proverkastaza.ru , https://api.proverkastaza.ru → `8011`.
 - Дальше шаг 3: WordPress в эту папку.
 
 ## 2026-07-22 (шаг 4: env API + Zakra + MAX stub)
 
-- `/opt/sfrfr/.env`: `PUBLIC_BASE_URL=https://api.taxi-doroga-dobra.ru`, `APP_ENV=production`.
+- `/opt/sfrfr/.env`: `PUBLIC_BASE_URL=https://api.proverkastaza.ru`, `APP_ENV=production`.
 - `MAX_BOT_TOKEN` пуст → `max-subscribe` пропущен; max health: `bot_configured=no`, webhook URL корректный.
 - WP: тема Zakra, главная page_id=7 — SFRFR + CTA «Написать в MAX (скоро)» (`#`).
 - Сид: `scripts/wp_seed_landing.sh`; аватар в медиатеке; `MAX_PUBLIC_BOT_URL` в `.env.example`.
 
 ## 2026-07-22 (шаг 3: WordPress)
 
-- WP ru_RU в `/var/www/taxi-doroga-dobra`, сайт «SFRFR».
+- WP ru_RU в `/var/www/proverkastaza`, сайт «SFRFR».
 - Учётки/БД: `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` (только root).
-- Админка: https://taxi-doroga-dobra.ru/wp-admin/ (user `sfrfr_admin`).
+- Админка: https://proverkastaza.ru/wp-admin/ (user `sfrfr_admin`).
 
-- Домен витрины SFRFR: **https://taxi-doroga-dobra.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
+- Домен витрины SFRFR: **https://proverkastaza.ru/** (reg.ru); API: `api.taxi-doroga-dobra.ru`.
 - Сайт = посадочная/витрина SFRFR; папка на VPS отдельно от `/opt/sfrfr`.
 - VPS IP: **91.229.11.147**; DNS A: `@`, `www`, `api` → этот IP.
 - План по очереди: 1) DNS → 2) nginx+SSL+папка → 3) WordPress → 4) связка с API.

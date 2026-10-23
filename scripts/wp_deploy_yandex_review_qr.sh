@@ -2,7 +2,7 @@
 # Выложить QR отзыва Яндекс Бизнеса в корень WP-сайта.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SRC="${ROOT}/scripts/assets/yandex-business/promo/qr-review.png"
 DST="${SITE_DIR}/yandex-review-qr.png"
 

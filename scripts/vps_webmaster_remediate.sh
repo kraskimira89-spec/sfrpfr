@@ -3,7 +3,7 @@
 # Вызывается из yandex_webmaster_diagnostics.py --fix --ssh и из GH Actions.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 WP="wp --path=${SITE_DIR} --allow-root"
 
 echo "==> git pull"

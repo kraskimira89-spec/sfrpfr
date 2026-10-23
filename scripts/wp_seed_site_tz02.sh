@@ -3,12 +3,12 @@
 # Главная + оферта + ПДн + согласие + CTA MAX + форма лида (без файлов/СНИЛС).
 #
 # На VPS:
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_site_tz02.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_site_tz02.sh
 #   MAX_PUBLIC_BOT_URL=https://max.ru/... bash scripts/wp_seed_site_tz02.sh
 
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 MAX_BTN_URL="${MAX_CHAT_URL:-${MAX_PUBLIC_BOT_URL:-https://max.ru/id8905998693_1_bot}}"
 # ТЗ-20/21: CTA — личный чат без mini-app
 MAX_BTN_URL="${MAX_BTN_URL%%\?startapp*}"

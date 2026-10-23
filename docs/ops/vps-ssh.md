@@ -58,7 +58,7 @@ chmod 600 ~/.ssh/authorized_keys
 |------|------------|
 | `/opt/sfrfr` | код API / скрипты деплоя |
 | `/opt/sfrfr/.env` | секреты приложения |
-| `/var/www/taxi-doroga-dobra` | WordPress-витрина |
+| `/var/www/proverkastaza` | WordPress-витрина |
 | `/root/.sfrfr-secrets/` | локальные секреты (WP и т.п.) |
 
 Автодеплой: `push` в `main` → Actions `deploy-vps.yml`. Ручной `vps_deploy.sh` не запускать, пока в очереди уже есть `deploy-vps`.

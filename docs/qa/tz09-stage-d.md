@@ -6,7 +6,7 @@
 
 | Роль | URL |
 |---|---|
-| Витрина WP | `https://proverkastaza.ru/` (временно может жить `https://taxi-doroga-dobra.ru/`) |
+| Витрина WP | `https://proverkastaza.ru/` (временно может жить `https://proverkastaza.ru/`) |
 | Mini-app | `https://proverkastaza.ru/app/` |
 | Кабинет | `https://cabinet.proverkastaza.ru/` |
 | API | `https://api.proverkastaza.ru/` |
@@ -118,8 +118,8 @@
 curl -fsS https://api.proverkastaza.ru/health
 curl -fsS https://api.proverkastaza.ru/api/portal/meta/status-labels
 # запасной хост до cutover:
-curl -fsS https://api.taxi-doroga-dobra.ru/health
-curl -fsS https://api.taxi-doroga-dobra.ru/api/portal/meta/status-labels
+curl -fsS https://api.proverkastaza.ru/health
+curl -fsS https://api.proverkastaza.ru/api/portal/meta/status-labels
 ```
 
 | Проверка | Статус | Дата / заметка |

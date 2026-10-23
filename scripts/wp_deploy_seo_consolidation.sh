@@ -3,7 +3,7 @@
 #   bash scripts/wp_deploy_seo_consolidation.sh
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)

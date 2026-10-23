@@ -2,7 +2,7 @@
 # Выложить YML-прайс Яндекс Бизнеса в корень WP-сайта.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SRC="${ROOT}/scripts/assets/yandex-business/price-list.yml"
 DST="${SITE_DIR}/yandex-business-price.yml"
 

@@ -24,7 +24,7 @@ Production SFRFR состоит из **двух VM**: приложение (reg.
 | SSH user | `root`, порт 22 | `[R]` docs/ops/vps-ssh.md | 2026-09-15 |
 | DNS | `proverkastaza.ru`, `www`, алиасы `proverka-staza.ru`, `prostaz.ru`, `taxi-doroga-dobra.ru` | `[N]` → `91.229.11.147` | 2026-09-15 |
 | API / cabinet domains | `api.` / `cabinet.` / `admin.`proverkastaza.ru | `[N]` → `91.229.11.147` | 2026-09-15 |
-| Сервисы | Apache vhosts (`docs/apache-vhost-*.conf`), каталоги `/var/www/taxi-doroga-dobra*` | `[R]` + `[P]` скрин файлового менеджера | 2026-09-15 |
+| Сервисы | Apache vhosts (`docs/apache-vhost-*.conf`), каталоги `/var/www/proverkastaza*` | `[R]` + `[P]` скрин файлового менеджера | 2026-09-15 |
 | Database location | **Не на этой VM.** Клиент app-сервера ходит в БД по `DATABASE_URL`; фактический адресат — см. VM C, состояние требует подтверждения | `[R]` | — |
 | Deployment method | GitHub Actions `deploy-vps.yml` → SSH → `sudo bash /opt/sfrfr/scripts/vps_deploy.sh` (git fetch + reset --hard origin/main, venv reinstall, `systemctl restart sfrfr-api` + Next-кабинеты) | `[R]` | 2026-09-15 |
 | systemd units | `sfrfr-api`, `sfrfr-cabinet`, `sfrfr-admin`, `sfrfr-document-ingest`, `sfrfr-case-chat-outbox` | `[R]` scripts/vps_deploy.sh, vps_apply_supabase_yc_env.sh | 2026-09-15 |

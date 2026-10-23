@@ -205,8 +205,32 @@ def test_return_url_uses_cabinet_proverkastaza(monkeypatch: Any) -> None:
     get_settings.cache_clear()
     url = _return_url("case-abc", "web_cabinet")
     assert "cabinet.proverkastaza.ru" in url
+    assert "taxi-doroga-dobra" not in url.lower()
     assert "dorogadobra" not in url.lower()
     assert "view=payments" in url
+    get_settings.cache_clear()
+
+
+def test_return_url_rewrites_legacy_taxi_env(monkeypatch: Any) -> None:
+    monkeypatch.setenv("YOOKASSA_RETURN_URL", "https://proverkastaza.ru/")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    url = _return_url("case-abc", "web_cabinet")
+    assert url.startswith("https://proverkastaza.ru/")
+    assert "taxi-doroga-dobra" not in url.lower()
+    assert "case=case-abc" in url
+    get_settings.cache_clear()
+
+
+def test_return_url_prefers_yookassa_site(monkeypatch: Any) -> None:
+    monkeypatch.setenv("YOOKASSA_RETURN_URL", "https://proverkastaza.ru/")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    url = _return_url("case-xyz", "web_cabinet")
+    assert url.startswith("https://proverkastaza.ru/")
+    assert "case=case-xyz" in url
     get_settings.cache_clear()
 
 
@@ -247,6 +271,39 @@ def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> 
     assert "payment_method_data" not in payload
     assert "payment_method_types" not in payload
     assert payload["capture"] is True
+    get_settings.cache_clear()
+
+
+def test_create_invoice_includes_return_url(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+        captured["path"] = path
+        captured["payload"] = payload
+        return 200, {
+            "id": "in-1",
+            "status": "pending",
+            "delivery_method": {"type": "self", "url": "https://yookassa.ru/my/i/x"},
+        }
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "false")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    result = client.create_invoice(
+        amount_rub=1,
+        description="test",
+        expires_at="2030-01-01T00:00:00.000Z",
+        return_url="https://proverkastaza.ru/?case=c1&view=payments&paid=1",
+    )
+    assert result["ok"] is True
+    assert captured["path"] == "/invoices"
+    conf = captured["payload"]["payment_data"]["confirmation"]
+    assert conf["type"] == "redirect"
+    assert conf["return_url"].startswith("https://proverkastaza.ru/")
+    assert "taxi-doroga-dobra" not in conf["return_url"]
     get_settings.cache_clear()
 
 

@@ -36,13 +36,13 @@ UI: [диагностика apex](https://webmaster.yandex.ru/site/https%3Aprove
 - OK ensure_site
 - OK vps_ssh remediate
 stra-copyright.php
-OK: /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-site-footer.php
-OK: /var/www/taxi-doroga-dobra/wp-content/mu-plugins/sfrfr-blog-ui-assets/
-OK: /var/www/taxi-doroga-dobra/favicon.ico
+OK: /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-site-footer.php
+OK: /var/www/proverkastaza/wp-content/mu-plugins/sfrfr-blog-ui-assets/
+OK: /var/www/proverkastaza/favicon.ico
 ==> favicons in site root
-OK: /var/www/taxi-doroga-dobra/favicon.ico
-OK: /var/www/taxi-doroga-dobra/favicon.svg
-OK: /var/www/taxi-doroga-dobra/favicon-120.png
+OK: /var/www/proverkastaza/favicon.ico
+OK: /var/www/proverkastaza/favicon.svg
+OK: /var/www/proverkastaza/favicon-120.png
 ==> webmaster ensure (sitemap API)
 SKIP: no secrets/yandex-webmaster.env on VPS
 ==> cache flush

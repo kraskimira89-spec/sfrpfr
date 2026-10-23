@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ТЗ-11: изолированный backup + публикация только блога.
 #
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_blog_tz11.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_blog_tz11.sh
 
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

@@ -53,8 +53,8 @@ sfrfr site-reviews-set <uuid> --status rejected
 ## Деплой / ensure
 
 ```bash
-SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_ensure_cf7_site_review.sh
-SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_trust_pages_tz18.sh
+SITE_DIR=/var/www/proverkastaza bash scripts/wp_ensure_cf7_site_review.sh
+SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_trust_pages_tz18.sh
 ```
 
 Форму CF7 перезаписывает `wp_ensure_cf7_site_review.php` — поля править в репозитории.

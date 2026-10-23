@@ -114,6 +114,7 @@ def ensure_yookassa_pay_url(
         expires_at=_expires_iso(str(order.get("due_at") or "") or None),
         customer_email=email,
         customer_phone=phone,
+        return_url=return_url,
     )
     if invoice.get("ok") and invoice.get("pay_url"):
         return {
@@ -257,8 +258,9 @@ def issue_and_deliver_pay_link(
     settings = get_settings()
     resolved_channel = channel or ("max" if send_max else "web_cabinet")
     if return_url is None:
-        cabinet = settings.cabinet_public_url.rstrip("/")
-        return_url = f"{cabinet}/cases/{case_id}?view=payments&paid=1"
+        from sfrfr.services.yookassa_urls import payment_return_url
+
+        return_url = payment_return_url(case_id, "web_cabinet")
 
     created = ensure_yookassa_pay_url(
         client=yookassa or YooKassaClient(),

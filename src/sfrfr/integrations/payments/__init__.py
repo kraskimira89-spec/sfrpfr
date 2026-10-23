@@ -207,8 +207,13 @@ class YooKassaClient:
         customer_phone: str | None = None,
         vat_code: int | None = None,
         capture: bool = True,
+        return_url: str | None = None,
     ) -> dict[str, Any]:
-        """Счёт ЮKassa: короткая ссылка delivery_method.url (self, без SMS/email)."""
+        """Счёт ЮKassa: короткая ссылка delivery_method.url (self, без SMS/email).
+
+        return_url в payment_data.confirmation — если API примет; иначе после оплаты
+        ЮKassa берёт сайт магазина из ЛК (должен быть proverkastaza.ru).
+        """
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
         meta = metadata or {}
@@ -218,6 +223,11 @@ class YooKassaClient:
             "description": description[:128],
             "metadata": meta,
         }
+        if return_url:
+            payment_data["confirmation"] = {
+                "type": "redirect",
+                "return_url": return_url,
+            }
         receipt = self._receipt(
             amount_rub=amount_rub,
             description=description,

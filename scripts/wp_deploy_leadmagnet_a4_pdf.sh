@@ -2,7 +2,7 @@
 # Выложить PDF лид-магнита A4 в корень WP-сайта (рассылка / прямая ссылка).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SRC="${ROOT}/scripts/assets/leadmagnets/pension-checklist-a4-standard.pdf"
 DST="${SITE_DIR}/pension-checklist-a4.pdf"
 SRC_BW="${ROOT}/scripts/assets/leadmagnets/pension-checklist-a4-bw.pdf"

@@ -99,7 +99,7 @@ https://proverkastaza.ru/yandex-business-price.yml
 Перевыкладка фида на VPS после правок:
 
 ```bash
-scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/taxi-doroga-dobra/yandex-business-price.yml
+scp scripts/assets/yandex-business/price-list.yml root@VPS:/var/www/proverkastaza/yandex-business-price.yml
 # или: bash scripts/wp_deploy_yandex_business_price.sh
 ```
 

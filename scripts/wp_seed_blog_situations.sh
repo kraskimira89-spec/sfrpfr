@@ -7,7 +7,7 @@
 # - ИИ даёт рекомендации, не пересиживает контент.
 #
 # Аварийный обход:
-#   SFRFR_ALLOW_SITUATIONS_SEED=1 SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_seed_blog_situations.sh
+#   SFRFR_ALLOW_SITUATIONS_SEED=1 SITE_DIR=/var/www/proverkastaza bash scripts/wp_seed_blog_situations.sh
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ if [[ "${SFRFR_ALLOW_SITUATIONS_SEED:-}" != "1" ]]; then
   exit 2
 fi
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

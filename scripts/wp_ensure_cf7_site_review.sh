@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Contact Form 7: форма «Отзыв на сайте» + MU.
-#   SITE_DIR=/var/www/taxi-doroga-dobra bash scripts/wp_ensure_cf7_site_review.sh
+#   SITE_DIR=/var/www/proverkastaza bash scripts/wp_ensure_cf7_site_review.sh
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:-/var/www/taxi-doroga-dobra}"
+SITE_DIR="${SITE_DIR:-/var/www/proverkastaza}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WP=(wp --path="$SITE_DIR" --allow-root)
 

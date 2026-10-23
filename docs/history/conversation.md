@@ -869,7 +869,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 
 - Личный кабинет: меню «Начать проверку» → `#zayavka`; пункт «Личный кабинет»;
   вход email+пароль / MAX / код на email; регистрация с назначением пароля; восстановление.
-  Redirect recovery: `https://cabinet.taxi-doroga-dobra.ru/?mode=recover`
+  Redirect recovery: `https://cabinet.proverkastaza.ru/?mode=recover`
   (в Supabase Auth → URL Configuration должен быть allow-list на cabinet.*).
 - Синхронизация веб-мастера и MAX: шаг «Начать» ↔ кнопка «Начать»; шаг 3 ↔ код + «Подтвердить вход»; без ложных confirm и ручного `/start`.
 - MAX: кнопка «Подтвердить вход в веб кабинет» снова link (`?auth=max&t=`) — открывает браузер; poll на ПК одобряется при открытии ссылки.
@@ -941,11 +941,11 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - API/CLI завязаны на `CaseStore` + local upload + OCR при `advance`/`run`.
 - Клиентский канал: MAX Bot API; LLM-провайдер: Yandex AI Studio.
 - Витрина: WordPress на VPS; API на поддомене; DNS reg.ru.
-- Сайт витрины: домен `https://taxi-doroga-dobra.ru/` (reg.ru) — **витрина и посадочная SFRFR**; на VPS в отдельной папке (не в `/opt/sfrfr`). API: `api.taxi-doroga-dobra.ru`.
+- Сайт витрины: домен `https://proverkastaza.ru/` (reg.ru) — **витрина и посадочная SFRFR**; на VPS в отдельной папке (не в `/opt/sfrfr`). API: `api.taxi-doroga-dobra.ru`.
 - Витрина: тема Zakra + блоки; CTA MAX — заглушка `#` / «скоро» до появления deeplink.
-- `PUBLIC_BASE_URL` на VPS: `https://api.taxi-doroga-dobra.ru`; `MAX_BOT_TOKEN` пока пуст → webhook не подписан.
+- `PUBLIC_BASE_URL` на VPS: `https://api.proverkastaza.ru`; `MAX_BOT_TOKEN` пока пуст → webhook не подписан.
 - Публичный сайт ТЗ-02 этап 1: лендинг + оферта + ПДн/согласие + кнопка MAX + форма лида (WPForms, без сканов).
-- Кабинет v1 мини-приложения: статус дела + загрузка документов; URL `https://taxi-doroga-dobra.ru/app/`; технический username бота `id8905998693_1_bot`.
+- Кабинет v1 мини-приложения: статус дела + загрузка документов; URL `https://proverkastaza.ru/app/`; технический username бота `id8905998693_1_bot`.
 - Кнопка на лендинге: «Открыть в MAX» → `https://max.ru/id8905998693_1_bot?startapp` (username из `/me`, не StazhIPensiyaBot).
 
 ## 2026-07-27 — CTA «Задать вопрос» + FAQ

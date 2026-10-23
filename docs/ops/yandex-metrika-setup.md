@@ -78,8 +78,8 @@ Smoke: management + агрегаты Reports API (без Logs).
 
 ```bash
 sudo bash /opt/sfrfr/scripts/wp_deploy_metrika.sh
-sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_upsert_legal_pages.php --path=/var/www/taxi-doroga-dobra
-sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_fix_sample_page.php --path=/var/www/taxi-doroga-dobra
+sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_upsert_legal_pages.php --path=/var/www/proverkastaza
+sudo -u www-data wp eval-file /opt/sfrfr/scripts/wp_fix_sample_page.php --path=/var/www/proverkastaza
 ```
 
 MU: `sfrfr-yandex-metrika.php`, `sfrfr-seo-robots.php` (Clean-param), verification.
