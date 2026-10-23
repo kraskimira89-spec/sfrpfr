@@ -156,9 +156,18 @@ class YooKassaClient:
             "internet": True,
         }
 
-    def _post(self, path: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    def _post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict[str, Any]]:
+        key = (idempotence_key or "").strip() or str(uuid.uuid4())
+        if len(key) > 64:
+            return 0, {"error": "idempotence_key longer than 64 characters"}
         headers = {
-            "Idempotence-Key": str(uuid.uuid4()),
+            "Idempotence-Key": key,
             "Content-Type": "application/json",
         }
         with httpx.Client(timeout=30.0) as client:
@@ -298,37 +307,50 @@ class YooKassaClient:
         customer_email: str | None = None,
         customer_phone: str | None = None,
         vat_code: int | None = None,
+        idempotence_key: str | None = None,
+        body_snapshot: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """POST /v3/receipts — повторная фискализация после сбоя доставки в ККТ."""
+        """POST /v3/receipts — повторная фискализация после сбоя доставки в ККТ.
+
+        ``body_snapshot`` / ``idempotence_key`` — только reconcile/CLI (SFRFR-93);
+        webhook оставляет uuid4 и сборку тела как раньше.
+        """
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
-        receipt = self._receipt(
-            amount_rub=amount_rub,
-            description=description,
-            customer_email=customer_email,
-            customer_phone=customer_phone,
-            vat_code=vat_code,
-        )
-        if not receipt:
-            return {
-                "ok": False,
-                "error": "receipt requires YOOKASSA_SEND_RECEIPT and email or phone",
-            }
-        payload: dict[str, Any] = {
-            "type": "payment",
-            "payment_id": str(payment_id).strip(),
-            "send": True,
-            "customer": receipt["customer"],
-            "items": receipt["items"],
-            "internet": True,
-            "settlements": [
-                {
-                    "type": "cashless",
-                    "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+        if body_snapshot is not None:
+            payload = dict(body_snapshot)
+        else:
+            receipt = self._receipt(
+                amount_rub=amount_rub,
+                description=description,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                vat_code=vat_code,
+            )
+            if not receipt:
+                return {
+                    "ok": False,
+                    "error": "receipt requires YOOKASSA_SEND_RECEIPT and email or phone",
                 }
-            ],
-        }
-        status_code, data = self._post("/receipts", payload)
+            payload = {
+                "type": "payment",
+                "payment_id": str(payment_id).strip(),
+                "send": True,
+                "customer": receipt["customer"],
+                "items": receipt["items"],
+                "internet": True,
+                "settlements": [
+                    {
+                        "type": "cashless",
+                        "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                    }
+                ],
+            }
+        status_code, data = self._post(
+            "/receipts", payload, idempotence_key=idempotence_key
+        )
+        if status_code == 0 and data.get("error"):
+            return {"ok": False, "error": str(data.get("error"))}
         return {
             "ok": status_code < 300,
             "status_code": status_code,
@@ -336,6 +358,7 @@ class YooKassaClient:
             "receipt_id": data.get("id"),
             "status": data.get("status"),
             "error": data.get("description") or data.get("message"),
+            "request_body": payload,
         }
 
     def ensure_payment_receipt(
@@ -346,6 +369,8 @@ class YooKassaClient:
         customer_phone: str | None = None,
         description: str | None = None,
         amount_rub: float | None = None,
+        idempotence_key: str | None = None,
+        body_snapshot: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Повтор POST /receipts только если нет успешного type=payment чека.
 
@@ -411,7 +436,7 @@ class YooKassaClient:
             amount_value = float(amount_rub if amount_rub is not None else value_raw or 0)
         except (TypeError, ValueError):
             amount_value = 0.0
-        if amount_value <= 0:
+        if amount_value <= 0 and body_snapshot is None:
             return {"ok": False, "error": "amount missing"}
         desc = (
             (description or "").strip()
@@ -420,10 +445,12 @@ class YooKassaClient:
         )
         return self.create_receipt(
             payment_id=pid,
-            amount_rub=amount_value,
+            amount_rub=amount_value if amount_value > 0 else 0.0,
             description=desc,
             customer_email=customer_email,
             customer_phone=customer_phone,
+            idempotence_key=idempotence_key,
+            body_snapshot=body_snapshot,
         )
 
 
