@@ -1,3 +1,9 @@
+## 2026-10-23 — фискализация 3₽: чек ok, FD 768
+
+Payment `326d2067-…` (shop 1421177): receipt `ra-326d35fb-…`, FD **768**, FN `7385440800007929`.
+`payment.receipt_registration` может ещё canceled. Приёмка 3₽ webhook+чек: ✅ с оговоркой (ручной retry, риск офлайн). SFRFR-89.
+`docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 ## 2026-10-23 — фискализация 3₽: retry #2 fail (после «смена открыта»)
 
 Payment `326d2067-…eb6d` (shop 1421177): снова `ra-326d24b5-…` → **canceled**, FD нет, `cancellation_details` пусто.
