@@ -26,7 +26,13 @@ RECONCILE_PAYMENT_COLUMNS = (
     "reconcile_alerted_at, orders(id, case_id)"
 )
 
-FISCAL_STATUS_OR = "fiscal_status.is.null,fiscal_status.neq.registered"
+# Терминальные статусы вне reconcile-выборки (чек есть / чек не требуется).
+FISCAL_TERMINAL_STATUSES = frozenset({"registered", "not_required"})
+# PostgREST: NULL + не terminal (neq.registered AND neq.not_required).
+FISCAL_STATUS_OR = (
+    "fiscal_status.is.null,"
+    "and(fiscal_status.neq.registered,fiscal_status.neq.not_required)"
+)
 
 # Окно/алерт в list_* могут брать now() процесса (±секунды OK).
 # Lease, TTL Idempotence-Key и cutover — только now() БД (SQL/RPC), не Python.
@@ -97,11 +103,11 @@ def payment_effective_paid_at(row: dict[str, Any]) -> datetime | None:
 
 
 def fiscal_status_needs_reconcile(row: dict[str, Any]) -> bool:
-    """Предфильтр: fiscal_status IS DISTINCT FROM 'registered' (NULL тоже кандидат)."""
+    """Предфильтр: NULL/pending и пр. в выборке; registered/not_required — нет."""
     status = row.get("fiscal_status")
     if status is None:
         return True
-    return str(status).strip().lower() != "registered"
+    return str(status).strip().lower() not in FISCAL_TERMINAL_STATUSES
 
 
 def payment_in_reconcile_window(
