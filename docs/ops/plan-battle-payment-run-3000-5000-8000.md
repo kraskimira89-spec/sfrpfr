@@ -37,7 +37,7 @@
    Тариф **ACCOMP / DOCS** (не «анализ+обращения»). Дело → `service_paid`.
    История: `docs/history/2026-10-23-battle-docs-5000.md`.
 3. **SUPPORT — 8000 ₽**
-   - ❌ FAIL 2026-10-23 (`FAIL_DUP_RECEIPT`): `326d821f-…`, FD **777**+**778** → возврат `326d87d8-…`. История: `docs/history/2026-10-23-battle-support-8000.md`. FD 778 offset: второй `type=refund` `ra-326d9272-…`, net 0; бухгалтер согласовал **без** повторного возврата денег, пометка **«ТЕСТ»** (`docs/history/2026-10-23-fd778-offset-refund-receipt.md`).
+   - ❌ FAIL 2026-10-23 (`FAIL_DUP_RECEIPT`): `326d821f-…`, FD **777**+**778** → возврат `326d87d8-…`. История: `docs/history/2026-10-23-battle-support-8000.md`. FD 778 offset: второй `type=refund` `ra-326d9272-…` → **FD 787**, net 0; бухгалтер согласовал **без** повторного возврата денег, пометка **«ТЕСТ»** в учёте / тексте позиции (`docs/history/2026-10-23-fd778-offset-refund-receipt.md`).
    - ✅ **PASS retry** 2026-10-23: payment `326d8f33-000f-5001-9000-14edf85c8cb0`, order `8c468c1d-…` **paid**, 1× `type=payment` (`ra-326d8f83-…`), 8000.00, ENABLED=0, webhook 200. История: `docs/history/2026-10-23-battle-support-8000-retry.md`.
 
 Между шагами: зафиксировать FD / сумму / shop; при **втором** `type=payment` succeeded на один `payment_id` — **стоп**, блокер не снят (SFRFR-89), не плодить платежи.
