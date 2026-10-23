@@ -17,6 +17,7 @@ from sfrfr.services.staff_document_check_result import (
     ACTIVE_STATUSES,
     JOB_TYPE,
     STATUS_LABELS_RU,
+    attach_honest_brief,
     build_check_result,
     documents_fingerprint,
     is_embedded_text,
@@ -183,6 +184,47 @@ def _analyze_one(
     }
 
 
+def _honest_brief_for_case(
+    *,
+    case_id: str,
+    docs: list[dict[str, Any]],
+    repo: Any,
+) -> dict[str, Any] | None:
+    """Честное бесплатное резюме для UI staff — без ложного «анализ идёт»."""
+    try:
+        from sfrfr.services import brief_analysis as ba
+    except Exception:  # noqa: BLE001
+        return None
+    findings: list[dict[str, Any]] = []
+    try:
+        findings = list(repo.get_pipeline_findings(case_id) or [])
+    except Exception:  # noqa: BLE001
+        findings = []
+    problem = ""
+    try:
+        row = repo.get_case_row(case_id) or {}
+        problem = str(row.get("problem_text") or "").strip()
+    except Exception:  # noqa: BLE001
+        problem = ""
+    intake = None
+    if problem:
+        intake = type(
+            "I",
+            (),
+            {
+                "q_answers": {"problem": problem},
+                "problem_type": None,
+                "goal": None,
+            },
+        )()
+    result = ba.compute_brief_analysis(
+        documents=docs,
+        intake=intake,
+        pipeline_findings=findings,
+    )
+    return ba.honest_brief_ui_payload(result)
+
+
 def _analyze_case_documents(case_id: str) -> dict[str, Any]:
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.services.message_dedupe import required_docs_missing
@@ -195,11 +237,13 @@ def _analyze_case_documents(case_id: str) -> dict[str, Any]:
     if "documents" not in case or not case.get("documents"):
         case = {**case, "documents": docs}
     missing = required_docs_missing(case)
-    return build_check_result(
+    base = build_check_result(
         documents=analyzed,
         missing_for_task=missing,
         ocr_allowed=ocr_allowed,
     )
+    brief = _honest_brief_for_case(case_id=case_id, docs=docs, repo=repo)
+    return attach_honest_brief(base, brief=brief)
 
 
 def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, Any]:
