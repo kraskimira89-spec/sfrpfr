@@ -37,7 +37,7 @@
    Тариф **ACCOMP / DOCS** (не «анализ+обращения»). Дело → `service_paid`.
    История: `docs/history/2026-10-23-battle-docs-5000.md`.
 3. **SUPPORT — 8000 ₽**
-   - ❌ FAIL 2026-10-23 (`FAIL_DUP_RECEIPT`): `326d821f-…`, FD **777**+**778** → возврат `326d87d8-…`. История: `docs/history/2026-10-23-battle-support-8000.md`. Лишний FD 778 в ОФД — бухгалтер.
+   - ❌ FAIL 2026-10-23 (`FAIL_DUP_RECEIPT`): `326d821f-…`, FD **777**+**778** → возврат `326d87d8-…`. История: `docs/history/2026-10-23-battle-support-8000.md`. FD 778 offset: второй `type=refund` `ra-326d9272-…`, net 0; бухгалтер согласовал **без** повторного возврата денег, пометка **«ТЕСТ»** (`docs/history/2026-10-23-fd778-offset-refund-receipt.md`).
    - ✅ **PASS retry** 2026-10-23: payment `326d8f33-000f-5001-9000-14edf85c8cb0`, order `8c468c1d-…` **paid**, 1× `type=payment` (`ra-326d8f83-…`), 8000.00, ENABLED=0, webhook 200. История: `docs/history/2026-10-23-battle-support-8000-retry.md`.
 
 Между шагами: зафиксировать FD / сумму / shop; при **втором** `type=payment` succeeded на один `payment_id` — **стоп**, блокер не снят (SFRFR-89), не плодить платежи.
@@ -59,7 +59,7 @@
   - DOCS: refund `326d87d5-…748c` succeeded, 1× `type=refund`
   - SUPPORT: refund `326d87d8-…93ee` succeeded, 1× `type=refund` при **2×** `type=payment` (FD 777+778)
 - История: `docs/history/2026-10-23-battle-refund-3000-5000-8000.md`
-- ⚠️ SUPPORT: после возврата денег в учёте остаётся **лишний приход 8000** (2 payment − 1 refund) — коррекция FD с бухгалтером
+- ✅ SUPPORT fail: лишний FD 778 закрыт фискально (2 payment + 2 refund = 0); бухгалтер — «ТЕСТ», без повторного возврата денег
 - Smoke 1₽ и любые новые возвраты — только по отдельной команде
 
 ## Чеклист #220 / pre-smoke (владелец)
@@ -106,7 +106,7 @@
 
 **Текущий статус (обновлять при смене):** `BATTLE_THREE_PASS` — DIAG 3000 + DOCS 5000 + SUPPORT 8000 retry ✅; при этом live-гонка pending **не** воспроизведена (`SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` остаются в силе как оговорка).
 - SUPPORT retry: `326d8f33…`, 1× payment, webhook 200, ENABLED=0.
-- Коррекция лишнего FD 778 (после первого 8000+refund) — с бухгалтером.
+- FD 778: offset сделан + бухгалтер согласовал («ТЕСТ»).
 - Деньги net сейчас: smoke 1₽ ×3 + повторный SUPPORT **8000** (первый круг 3+5+8 возвращён).
 
 ### Пробел после #226 (stuck pending → canceled)
