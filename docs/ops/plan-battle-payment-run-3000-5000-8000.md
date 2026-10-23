@@ -10,7 +10,7 @@
 | Shop | **1421177** (`YOOKASSA_SHOP_ID`) |
 | Тест-флаг | `PAYMENT_TEST_AMOUNT_ENABLED=0` на **всех** шагах (smoke и боевые). **Не** включать `=1` |
 | Касса | Evotor **online**, смена открыта |
-| Дубли FD | Smoke #220 PASS (FD **774**); после FAIL 8000 — smoke #226 **PASS** (`326d88ae…`, 1× `type=payment`). Статус: **`BLOCKER_CLEARED`** |
+| Дубли FD | Smoke #220/#226 без дубля; live closed-shift (`326d8c70…`) тоже 1× payment, но `reg=succeeded` сразу. Статус: **`SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED`** (не полный `BLOCKER_CLEARED`) |
 | Владелец денег | явное «да, платим N» на **каждый** шаг; иначе стоп |
 | Reconcile | руками **не** делать без отдельного разрешения |
 
@@ -105,11 +105,11 @@
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
 **Текущий статус (обновлять при смене):** `SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` — **не** полный `BLOCKER_CLEARED` по смыслу Стратега.
-- Smoke #226 (`326d88ae…`): 1× `type=payment` без settlements, webhook 1× 200; ensure/skipped **не** в логах → гонка live **не** проверялась.
-- HTTP: `test_webhook_http_pending_does_not_call_ensure_or_create_receipt` — ensure/create_receipt **не** вызываются при `pending`.
-- Живая задержка Evotor / закрытая смена — **не** делали.
-- Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»** (решение владельца с учётом оговорки). Коррекция FD 778 — с бухгалтером.
-- Деньги: net после возвратов — два smoke 1₽ (#220+#226); не путать с «8002 без возвратов».
+- Smoke #226 (`326d88ae…`): 1× payment; webhook при `succeeded`; ensure/skipped нет.
+- Live closed-shift (`326d8c70…`, 2026-10-23): владелец закрыл смену → оплатил 1₽ → к webhook уже `receipt_registration=succeeded`, 1× payment без settlements, ensure в journal нет. **Pending не получен.** История: `docs/history/2026-10-23-smoke-pending-live-closed-shift.md`.
+- HTTP: `test_webhook_http_pending_does_not_call_ensure_or_create_receipt` — ensure/create_receipt не вызываются при `pending`.
+- Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»** с явным принятием остаточного риска гонки. Коррекция FD 778 — с бухгалтером.
+- Деньги net: smoke 1₽ ×3 (#220+#226+closed-shift); не «8002 без возвратов».
 
 ### Пробел после #226 (stuck pending → canceled)
 
@@ -127,6 +127,7 @@ Follow-up (не в этом smoke): узкий reconcile **только** для
 - Механика малых сумм: `docs/history/2026-10-23-payment-5rub-8rub-links.md`
 - Smoke дедуп #220: `docs/history/2026-10-23-smoke-dedup-220-1rub.md`
 - Smoke дедуп #226 (после FAIL 8000): `docs/history/2026-10-23-smoke-dedup-226-1rub.md`
+- Live closed-shift (pending не воспроизведён): `docs/history/2026-10-23-smoke-pending-live-closed-shift.md`
 - Боевой DIAG 3000: `docs/history/2026-10-23-battle-diag-3000.md`
 - Боевой DOCS 5000: `docs/history/2026-10-23-battle-docs-5000.md`
 - Боевой SUPPORT 8000 (**FAIL**): `docs/history/2026-10-23-battle-support-8000.md`
