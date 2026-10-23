@@ -1,5 +1,13 @@
 # История бесед
 
+## 2026-10-23 — расшифровка FD 770–773, SFRFR-89, smoke #214, план боевого
+
+Стратег: 5/8 ₽ = только механика, не тарифы 5000/8000. Вердикт: «механика webhook→paid и чеков подтверждена на малых суммах; полные суммы не прогонялись». Пары FD 770/771 и 772/773 — оба `type=payment` (дубль как 759–761, не приход+refund). SFRFR-89: передано кассе, срок 2026-10-28. Smoke staff #214: ПС-647587, офер 3000 только с основанием; платёж 3000 не создавали. План: `docs/ops/plan-battle-payment-run-3000-5000-8000.md`. Детали: `docs/history/2026-10-23-receipt-pairs-5-8-and-battle-plan.md`.
+
+## 2026-10-23 — приёмка DOCS 5₽ + SUPPORT 8₽ после «оплатил»
+
+ПС-878680, shop **1421177**. Оба: YK `succeeded` (5.00 / 8.00), Apache webhook POST **200** → order **paid** без reconcile, чеки FD 770/771 и 772/773, `PAYMENT_TEST_AMOUNT_ENABLED=0`. Новый платёж не создавали. `docs/history/2026-10-23-payment-5rub-8rub-links.md`.
+
 ## 2026-10-23 — retry #3 чека 3₽: ok, FD 768
 
 Тот же payment `326d2067-…`, shop **1421177**. Receipt `ra-326d35fb-…`, FD **768**, FN `7385440800007929`. `payment.receipt_registration` может ещё canceled. Приёмка webhook+чек 3₽: webhook ok ранее, чек ok (ручной retry после привязки). Риск: офлайн точка без роутера. Новый платёж не создавали. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
