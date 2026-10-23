@@ -105,7 +105,8 @@ snippet = (
     "\n    RewriteEngine On\n"
     f"    RewriteRule ^ https://{target}%{{REQUEST_URI}} [R=301,L]\n"
 )
-if f"https://{target}" in text and "RewriteRule" in text:
+# Только правило для этого target (не любой RewriteRule / не голый URL).
+if f"RewriteRule ^ https://{target}" in text:
     sys.exit(0)
 idx = text.rfind("</VirtualHost>")
 if idx < 0:
