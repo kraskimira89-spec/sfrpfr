@@ -35,3 +35,8 @@
 ## Итог
 
 **Провал приёмки** из‑за чека. Платёжный путь (webhook → order paid, один payment) — **принят как факт**, reconcile не требовался.
+
+## Retry фискализации (тот же payment)
+
+См. `2026-10-23-payment-3rub-receipt-retry.md`: `yookassa-retry-receipt` → `ra-326d2266-…` **canceled**, FD нет.
+**Стоп** — нужна открытая смена Evotor (SFRFR-89).

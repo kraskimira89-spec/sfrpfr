@@ -1,5 +1,9 @@
 # История бесед
 
+## 2026-10-23 — retry чека 3₽ (без нового платежа)
+
+Оплата 3₽ уже paid; чек canceled. `yookassa-retry-receipt` на VPS (1421177) → снова canceled, FD нет. Стоп: нужна смена Evotor. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 ## 2026-10-22 — ЮKassa: бренд «Проверка стажа» + порядок СБП
 
 - В форме/чеке мелькали старый бренд (taxi / proverkastaza) — **название магазина только в ЛК ЮKassa**.

@@ -1,3 +1,8 @@
+## 2026-10-23 — фискализация 3₽: retry fail
+
+Payment `326d2067-…eb6d` (shop 1421177): webhook→paid ок; повтор `/receipts` → canceled, FD нет.
+Блокер: смена Evotor. SFRFR-89. `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 ## 2026-10-13 — юрдокументы: рабочие БД на РЕГ.РУ
 
 Редакции `pdn-policy-2026-10-13` / `pdn-consent-2026-10-13`: рабочие БД у РЕГ.РУ,
