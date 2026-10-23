@@ -24,3 +24,9 @@
 - DB: attempts=0 streak=0 payload=false alerted=false outcome=NULL leased=true
 - ERROR: нет
 - Следующий тик timer ~10 мин
+
+## Снимок 2026-10-23T18:25:01Z (loop #1 / 6)
+
+- Timer тики 21:07 / 21:17 MSK: **7× `dry_run`** каждый
+- DB: attempts=0 streak=0 payload=false alerted=false outcome=NULL
+- ERROR: нет
