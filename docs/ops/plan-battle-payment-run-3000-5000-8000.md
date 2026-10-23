@@ -1,6 +1,6 @@
 # План боевого прогона платежей 3000 / 5000 / 8000
 
-Дата плана: **2026-10-23** (обновление: возврат 3/5/8k выполнен; SUPPORT всё ещё **FAIL** дубль; `FIX_IN_FLIGHT` после #226).
+Дата плана: **2026-10-23** (обновление: smoke #226 **PASS** → `BLOCKER_CLEARED`; боевые 3/5/8k возвращены; повторный SUPPORT 8000 ждёт команду).
 Не смешивать с приёмкой механики на малых суммах (1/3/5/8 ₽) — кроме **шага 0** (smoke 1₽ для снятия блокера дублей).
 
 ## Предусловия (до первой полной суммы)
@@ -10,7 +10,7 @@
 | Shop | **1421177** (`YOOKASSA_SHOP_ID`) |
 | Тест-флаг | `PAYMENT_TEST_AMOUNT_ENABLED=0` на **всех** шагах (smoke и боевые). **Не** включать `=1` |
 | Касса | Evotor **online**, смена открыта |
-| Дубли FD | Smoke #220 **PASS** (`326d7173…`, FD **774**, ровно 1× `type=payment` succeeded). Статус: **`BLOCKER_CLEARED`** |
+| Дубли FD | Smoke #220 PASS (FD **774**); после FAIL 8000 — smoke #226 **PASS** (`326d88ae…`, 1× `type=payment`). Статус: **`BLOCKER_CLEARED`** |
 | Владелец денег | явное «да, платим N» на **каждый** шаг; иначе стоп |
 | Reconcile | руками **не** делать без отдельного разрешения |
 
@@ -24,9 +24,10 @@
 
 ## Порядок прогона
 
-0. **SMOKE — 1 ₽** (снятие блокера дублей, не боевой тариф) — ✅ **PASS** 2026-10-23
-   Payment `326d7173-000f-5000-b000-11426487b1f7` → 1× `type=payment` succeeded, FD **774**. Статус → `BLOCKER_CLEARED`.
-   История: `docs/history/2026-10-23-smoke-dedup-220-1rub.md`.
+0. **SMOKE — 1 ₽** (снятие блокера дублей, не боевой тариф)
+   - #220: ✅ PASS `326d7173…`, FD **774** → `BLOCKER_CLEARED` (затем FAIL на SUPPORT 8000).
+   - #226: ✅ PASS `326d88ae-000f-5001-9000-1b6e2eb6d4fc`, 1× `type=payment` → снова **`BLOCKER_CLEARED`**.
+   История #226: `docs/history/2026-10-23-smoke-dedup-226-1rub.md`.
 1. **DIAG — 3000 ₽** — ✅ **PASS** 2026-10-23
    Payment `326d7bdd-000f-5001-8000-1d4633098c55`, shop **1421177**, **3000.00**, FD **775**, webhook 200 → order paid без reconcile, 1 payment, 1× `type=payment`, ENABLED=0.
    Дело **ПС-786706** (`is_test`) → `diagnostic_paid`.
@@ -35,10 +36,10 @@
    Payment `326d7d8c-000f-5001-9000-1ed138d35859`, order `fc6c80b4-…906e` paid, shop **1421177**, **5000.00**, FD **776**, webhook 200, 1 payment, 1× `type=payment`, ENABLED=0.
    Тариф **ACCOMP / DOCS** (не «анализ+обращения»). Дело → `service_paid`.
    История: `docs/history/2026-10-23-battle-docs-5000.md`.
-3. **SUPPORT — 8000 ₽** — ❌ **FAIL** 2026-10-23 (`FAIL_DUP_RECEIPT`)
-   Payment `326d821f-000f-5001-9000-1a272330e2d3`, order `af921028-…82cd` **paid**, shop **1421177**, **8000.00**, webhook 200, 1 payment, ENABLED=0.
-   Чеки: **2×** `type=payment` succeeded — FD **777** + **778**. Email клиента **nataliylo@yandex.ru**.
-   История: `docs/history/2026-10-23-battle-support-8000.md`. **Стоп** → SFRFR-89.
+3. **SUPPORT — 8000 ₽** — ❌ **FAIL** 2026-10-23 (`FAIL_DUP_RECEIPT`) → деньги **возвращены**; smoke #226 PASS
+   Payment (fail) `326d821f-…e2d3`, 2× `type=payment` FD **777**+**778**. История fail: `docs/history/2026-10-23-battle-support-8000.md`.
+   Возврат: `326d87d8-…` + 1× `type=refund` (лишний приход в ОФД остаётся — бухгалтер).
+   Повторный SUPPORT 8000 — **только** по новому «да, платим 8000» (после `BLOCKER_CLEARED` #226).
 
 Между шагами: зафиксировать FD / сумму / shop; при **втором** `type=payment` succeeded на один `payment_id` — **стоп**, блокер не снят (SFRFR-89), не плодить платежи.
 
@@ -101,7 +102,7 @@
 | `BATTLE_DIAG_DOCS_PASS` | Шаги 0–2 PASS; шаг 3 SUPPORT 8000 ждёт «да, платим 8000» |
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `FIX_IN_FLIGHT` — PR **#226** в `main` / на VPS. Боевые 3/5/8k **возвращены** (см. history refund). Ждём **«да, платим 1»** → smoke 1₽ → `BLOCKER_CLEARED`. Коррекцию лишнего FD 778 — с бухгалтером (после 1× refund на SUPPORT остаётся +8000 в ОФД).
+**Текущий статус (обновлять при смене):** `BLOCKER_CLEARED` — smoke #226 PASS (`326d88ae…`, 1× `type=payment`, webhook 200, ENABLED=0). История: `docs/history/2026-10-23-smoke-dedup-226-1rub.md`. Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»**. Коррекция лишнего FD 778 — с бухгалтером.
 
 ### Пробел после #226 (stuck pending → canceled)
 
@@ -118,6 +119,7 @@ Follow-up (не в этом smoke): узкий reconcile **только** для
 
 - Механика малых сумм: `docs/history/2026-10-23-payment-5rub-8rub-links.md`
 - Smoke дедуп #220: `docs/history/2026-10-23-smoke-dedup-220-1rub.md`
+- Smoke дедуп #226 (после FAIL 8000): `docs/history/2026-10-23-smoke-dedup-226-1rub.md`
 - Боевой DIAG 3000: `docs/history/2026-10-23-battle-diag-3000.md`
 - Боевой DOCS 5000: `docs/history/2026-10-23-battle-docs-5000.md`
 - Боевой SUPPORT 8000 (**FAIL**): `docs/history/2026-10-23-battle-support-8000.md`
