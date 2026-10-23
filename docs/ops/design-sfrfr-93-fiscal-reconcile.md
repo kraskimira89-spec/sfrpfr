@@ -1,7 +1,7 @@
 # SFRFR-93: fiscal reconcile — дизайн (без кода)
 
-Дата: **2026-10-23** (rev9: gate+TTL-истёк, 4xx/`rejected`, jsonb≠байты — замечание Стратега к #244).
-Источник: разбор Стратега по `main` + пути в репо + [дока ЮKassa](https://yookassa.ru/developers/using-api/interaction-format).
+Дата: **2026-10-23** (rev10: ensure API, cutover алертов, lease CLI — блокирующие 3–5 к #244).
+Источник: разбор Стратега + [дока ЮKassa](https://yookassa.ru/developers/using-api/interaction-format).
 Код **не** стартовать без команды владельца («делаем SFRFR-93»).
 
 ## Цель
@@ -16,9 +16,9 @@
 
 ## Алгоритм (согласован)
 
-Для кандидата: предфильтр БД → окно 48 ч / grace ≥2 мин → lock → backoff/attempts → `fetch_payment` → `should_auto_retry_fiscal_receipt` → иначе skip → `ensure_payment_receipt` (email/phone как webhook) → запись попытки → после 48 ч без succeeded receipt — алерт владельцу.
+Для кандидата: предфильтр БД → окно 48 ч / grace ≥2 мин → lease → `fetch_payment` → `should_auto_retry_fiscal_receipt` → иначе skip → `ensure_payment_receipt(..., idempotence_key=, body_snapshot=)` → запись исхода → алерт по правилам ниже.
 
-Флаг по умолчанию: `FISCAL_RECONCILE_ENABLED=0`. Первый этап — **dry-run** (лог «создал бы»), без `create_receipt`. Период: **каждые 10 мин**, отдельный systemd timer (не смешивать с `finance-due-tick`).
+Флаги: `FISCAL_RECONCILE_ENABLED=0` (default); `FISCAL_RECONCILE_DRY_RUN=1` (default при первом включении). Период: **каждые 10 мин**. Отдельный systemd timer. Слово «backoff» = пауза между тиками (**10 мин**) + `lease_secs=120`; отдельной экспоненты нет.
 
 ## Пути в коде (ответы на допущения)
 
@@ -27,14 +27,15 @@
 | Где платежи | Таблица `public.payments` (миграции `supabase/migrations/20260722122128_b2c_schema_rls.sql`, `…_payments_one_active_per_order.sql`). Поля: `status`, `provider_payment_id`, `paid_at`, `created_at`, `fiscal_status`, `order_id`. |
 | Предфильтр `fiscal_status` | Колонка **есть и пишется**: webhook ставит `fiscal_status="registered"`, если в событии `fiscal` truthy (`payments.py` → `apply_provider_payment`). Кандидаты reconcile: `status=succeeded` и `fiscal_status IS DISTINCT FROM 'registered'` (плюс окно по `paid_at`). Это **дешёвый** отсев; решающий фильтр всё равно YK `reg` + gate. Не полагаться на `fiscal_status` как на «чека точно нет». |
 | Как достать за 48 ч | Готового list-by-window **нет**. Нужен метод `list_succeeded_payments(since, until)` в `src/sfrfr/db/case_repository.py`: `status=succeeded` + `paid_at` (fallback `created_at`) + непустой `provider_payment_id` + предфильтр `fiscal_status`. **PostgREST:** `IS DISTINCT FROM 'registered'` для NULL — через `.or_("fiscal_status.is.null,fiscal_status.neq.registered")` (или эквивалент); на реальном клиенте проверить, что строки с `NULL` не теряются. |
-| Лимит попыток | **`reconcile_attempts` max = 3** (учтённые: create и ошибки **до** POST; в т.ч. серия `canceled`). После исчерпания → **один** алерт (см. `reconcile_alerted_at`), дальше только CLI. |
-| Email/телефон | Как webhook: `_retry_fiscal_receipt` в `src/sfrfr/api/routes/payments.py` → `get_case_row` → `clients.email` / `phone`. |
-| CLI retry | `yookassa-retry-receipt` в `src/sfrfr/cli/main.py` (~1023). Логику ensure **не дублировать**. |
-| Ensure / gate | `src/sfrfr/integrations/payments/__init__.py`. |
-| Таймер finance | `docs/systemd/sfrfr-finance-due.timer` → `finance-due-tick`. Reconcile — **отдельные** `sfrfr-fiscal-reconcile.timer` + CLI `fiscal-reconcile-tick`. |
-| Тесты эталон | `tests/unit/test_yookassa.py`. |
+| Лимит попыток | **`reconcile_attempts` max = 3**: create разрешён, пока `attempts < 3` **до** инкремента. Инкремент **только** при старте POST create (в т.ч. повтор после `canceled`/`rejected`). Ошибки **до** POST (`fetch`/`list` на обычном пути) → **без** +1 (как сбой gate на unknown). |
+| Email/телефон | Как webhook: `_retry_fiscal_receipt` → `clients.email` / `phone`; в payload только на время unknown. |
+| CLI retry | `yookassa-retry-receipt` **берёт тот же lease**, что reconcile; при занятом lease — exit non-zero. Runbook: перед ручным массовым retry — `systemctl stop sfrfr-fiscal-reconcile.timer`. |
+| Ensure / gate | `src/sfrfr/integrations/payments/__init__.py` — см. § «Сигнатура ensure» (rev10). |
+| Cutover алертов | `FISCAL_RECONCILE_ALERT_SINCE` (timestamptz) — нижняя граница `paid_at` для алертов 48ч; иначе шторм по всей истории. |
+| Таймер | `sfrfr-fiscal-reconcile.timer` + `fiscal-reconcile-tick`; не смешивать с finance-due. |
+| Тесты | `tests/unit/test_yookassa.py` + новые reconcile. |
 
-## Решения реализации (rev2–rev9)
+## Решения реализации (rev2–rev10)
 
 ### 1. Хранение попыток / исхода / алерта / момента POST — миграция Supabase
 
@@ -50,12 +51,16 @@ supabase/migrations/<timestamp>_payments_fiscal_reconcile_attempts.sql
   + reconcile_post_payload   jsonb null         -- снимок тела первой отправки (повтор ключа)
   + reconcile_last_outcome   text null
   + reconcile_alerted_at     timestamptz null
-  + CHECK (reconcile_last_outcome IS NULL OR reconcile_last_outcome IN (
-       'error_before_post', 'post_started', 'unknown_after_post',
-       'canceled', 'succeeded', 'pending', 'rejected',
-       'skip_reg', 'skip_pending'
-     ))
+  + CONSTRAINT payments_reconcile_last_outcome_chk CHECK (
+       reconcile_last_outcome IS NULL OR reconcile_last_outcome IN (
+         'error_before_post', 'post_started', 'unknown_after_post',
+         'canceled', 'succeeded', 'pending', 'rejected',
+         'skip_reg', 'skip_pending'
+       )
+     )
 ```
+
+Имя `payments_reconcile_last_outcome_chk` — чтобы расширять список отдельной миграцией без поиска автогенерации.
 
 - **`reconcile_post_at`:** пишется **одним UPDATE** вместе с `+1`, `post_started` и `reconcile_post_payload` **перед** HTTP (`now()` БД). Lease **не** трогает. Сброс — только на новом create-пути (TTL expiry / после `canceled` / после `rejected` при новом create).
 - **`reconcile_post_payload`:** снимок тела; на повторе с тем же ключом — **смысловое** совпадение (см. rev9 jsonb), не побайтовое. После `succeeded` → **очистить** payload (`NULL`), чтобы email/телефон не лежали в `payments` вечно. На пути «TTL истёк» → **пересобрать** снимок заново, не брать старый.
@@ -69,7 +74,14 @@ supabase/migrations/<timestamp>_payments_fiscal_reconcile_attempts.sql
 
 Через PostgREST/`supabase-py` **нет** прямого `FOR UPDATE SKIP LOCKED` / advisory lock без RPC.
 
-**Время:** во всех условиях lease/backoff использовать **`now()` базы**, не `datetime.now()` из Python (записать в код-ревью чек-лист).
+**Время:** lease, TTL и cutover — только **`now()` базы** (SQL/RPC), не `datetime.now()` Python. Флаг «TTL жив» считать в SQL, например:
+
+```sql
+(reconcile_post_at IS NOT NULL
+ AND now() - reconcile_post_at < interval '24 hours' - interval '15 minutes')
+```
+
+Чек-лист ревью: запрет Python-времени для TTL/lease.
 
 **Взятие lease** — только штамп, **без** инкремента попыток:
 
@@ -93,7 +105,7 @@ RETURNING *;
 | Момент сбоя / шага | `reconcile_attempts` | Idempotence-Key |
 |--------------------|----------------------|-----------------|
 | skip: пустой/`pending` reg, gate, dry-run | **не** трогать | не используется |
-| ошибка **до** POST на **обычном** пути (упал `fetch_payment` / `list_receipts`, outcome ≠ unknown/post_started) | **+1** | не использовался |
+| ошибка **до** POST на обычном пути (`fetch`/`list`) | **не** +1; outcome=`error_before_post`; следующий тик | не использовался |
 | сбой `list_receipts` / gate на ветке unknown/`post_started` (**TTL жив или истёк**) | **не** трогать; **не** create; следующий тик | прежний (если жив) / не слать новый |
 | **перед** POST `create_receipt` (один UPDATE: +1, `post_started`, `post_at`, payload) | **+1** → в ключ | `reconcile:{yk_id}:{attempt}` (≤64) |
 | таймаут / обрыв / **HTTP 500 / 502 / 503 / 504 / 429** после POST | **не** +1; `unknown_after_post` | тот же ключ в пределах TTL |
@@ -166,26 +178,29 @@ reconcile_attempts   = 0
 
 Если сбросить только `reconcile_alerted_at` при `attempts >= 3`, следующий тик снова алертит. Не делать partial reset по умолчанию.
 
-**Выборка для алерта «48 ч» (rev6):** отдельный запрос, **не** тот же, что кандидаты reconcile в окне 48 ч:
+**Выборка для алерта «48 ч» (rev6 + rev10 cutover):** отдельный запрос. Одинаковое время с кандидатами: `coalesce(paid_at, created_at)`.
 
 ```text
-paid_at < now() - interval '48 hours'
-AND fiscal_status IS DISTINCT FROM 'registered'   -- или через or_ NULL
+coalesce(paid_at, created_at) < now() - interval '48 hours'
+AND coalesce(paid_at, created_at) >= FISCAL_RECONCILE_ALERT_SINCE   -- обязателен при ENABLED=1
+AND fiscal_status IS DISTINCT FROM 'registered'   -- or_ NULL в PostgREST
 AND reconcile_alerted_at IS NULL
 AND status = 'succeeded'
 AND provider_payment_id IS NOT NULL
 ```
 
-Иначе платёж на границе окна выпадет из reconcile-выборки и алерт не уйдёт никогда. Кандидаты create остаются: `paid_at` в `[now-48h, now-grace]`.
+Без `ALERT_SINCE` включать ENABLED **запрещено** (иначе шторм по всей истории, где webhook не ставил `registered`). Альтернатива cutover: разовый SQL `UPDATE payments SET reconcile_alerted_at = now() WHERE coalesce(paid_at,created_at) < :since AND reconcile_alerted_at IS NULL` перед первым ENABLED=1.
+
+**Dry-run (rev10):** пишет только `last_reconcile_at` (lease); **не** трогает attempts / post_at / payload / outcome; **не** шлёт алерты; **не** вызывает create. Лог: «создал бы для payment_id=…».
 
 | Исход после lease | `reconcile_attempts` | `reconcile_last_outcome` |
 |-------------------|----------------------|--------------------------|
 | skip: `reg` пустой / не canceled (не pending) | **не** трогать | `skip_reg` |
 | skip: `reg=pending` | **не** трогать | `skip_pending` |
 | skip: gate | **не** трогать | `succeeded` / `pending` |
-| dry-run | **не** трогать | не менять / `null` |
-| ошибка **до** POST create | **+1** | `error_before_post` |
-| старт POST create | **+1** до HTTP; **`reconcile_post_at = now()`** | `post_started` → по ответу |
+| dry-run | только `last_reconcile_at` | не менять |
+| ошибка **до** POST create | **не** +1 | `error_before_post` |
+| старт POST create | **+1** + post_at + payload одним UPDATE | `post_started` → по ответу |
 | таймаут / 500–504 / 429 после POST | **не** трогать attempts/`post_at`/payload | `unknown_after_post` |
 | HTTP 4xx (не 429) | attempt уже +1 | `rejected` |
 | сбой gate (TTL жив **или** истёк) | **не** трогать; **не** create | оставить unknown/post_started |
@@ -194,50 +209,97 @@ AND provider_payment_id IS NOT NULL
 
 **Не** закладывать `pg_advisory_lock` / `SKIP LOCKED` в v1 без RPC. Follow-up: RPC + `FOR UPDATE SKIP LOCKED`.
 
-### 3. Idempotence-Key (rev3–rev9)
+### 3. Сигнатура ensure / `_post` (rev10 — блокер)
 
-Ключ: `reconcile:{yk_payment_id}:{attempt}` после инкремента и до HTTP. Unknown + живой TTL → тот же ключ и **то же смысловое тело**. TTL истёк + list пуст → +1, новый ключ, новый payload.
+Логику фискализации **не** дублировать; расширить существующие методы:
+
+```text
+YooKassaClient._post(path, payload, *, idempotence_key: str | None = None)
+  # если key задан → заголовок Idempotence-Key = key (после len<=64)
+  # иначе → uuid4 (как сейчас: webhook / старый CLI без snapshot)
+
+YooKassaClient.create_receipt(..., *, idempotence_key: str | None = None)
+  # прокидывает key в _post; body = собранный payload
+
+YooKassaClient.ensure_payment_receipt(
+    ...,
+    *,
+    idempotence_key: str | None = None,
+    body_snapshot: dict | None = None,
+)
+  # если body_snapshot задан → POST этим телом (после sort_keys-сериализации),
+  #   не пересобирать customer/amount из карточки;
+  # иначе → текущая сборка тела (webhook-путь);
+  # idempotence_key только на reconcile / CLI-с-lease
+```
+
+Webhook `_retry_fiscal_receipt` и обычный CLI без snapshot → `uuid4`, без lease (кроме обновлённого CLI — см. ниже).
+
+### 4. Гонка webhook / CLI / reconcile (rev10 — блокер)
+
+| Путь | Lease | Idempotence-Key |
+|------|-------|-----------------|
+| reconcile tick | да | `reconcile:…` |
+| `yookassa-retry-receipt` | **да** (тот же UPDATE lease) | предпочтительно `reconcile:…` если attempts уже есть, иначе uuid4 + WARNING |
+| webhook `_retry_fiscal_receipt` | нет (короткий request) | uuid4 |
+
+Минимум ops: в `docs/yookassa-setup.md` — «ручной retry при остановленном `sfrfr-fiscal-reconcile.timer`».  
+Лучше (канон кода): CLI всегда lease; если 0 rows — «занято, повторите позже».
+
+### 5. Idempotence-Key (rev3–rev10)
+
+Ключ: `reconcile:{yk_payment_id}:{attempt}` после инкремента и до HTTP. Unknown + живой TTL → тот же ключ и смысловое тело. TTL истёк + list пуст → +1, новый ключ, новый payload.
 
 Чек-лист:
 
-- [x] TTL 24 ч; запас 15 мин; якорь `reconcile_post_at`.
+- [x] TTL 24 ч; запас 15 мин; якорь `reconcile_post_at`; TTL-флаг в **SQL**.
 - [x] 500–504 / 429 / таймаут → unknown; 4xx (не 429) → `rejected`.
-- [x] Ключ ≤ 64; тело = jsonb-снимок с `sort_keys` (не байт-в-байт).
+- [x] Ключ ≤ 64; тело = jsonb + `sort_keys`.
 - [x] Сбой gate при любом TTL → без create / без +1.
-- [ ] Прокинуть ключ + payload в путь reconcile only.
+- [x] Сигнатура ensure/create/`_post` с `idempotence_key` + `body_snapshot` (только reconcile/CLI).
+- [x] `FISCAL_RECONCILE_ALERT_SINCE` / backfill; dry-run без алертов.
+- [x] CLI берёт lease; runbook stop timer.
+- [ ] Реализовать в коде (после «делаем SFRFR-93»).
 
 ## Порядок коммитов (когда скажут «делаем SFRFR-93»)
 
-1. Миграция (6 колонок + CHECK с `rejected`) на preview + `list_succeeded_payments` + stale-48h.
-2. Job dry-run; границы rev4–rev9.
-3. CLI tick + reset-алерта + systemd.
-4. Тесты **1–21** (единственный список ниже).
-5. `docs/yookassa-setup.md`.
+1. Миграция (6 колонок + **именованный** CHECK) на preview + `list_succeeded_payments` + stale-48h с `ALERT_SINCE`.
+2. Расширение `_post` / `create_receipt` / `ensure_payment_receipt` + тесты сигнатуры.
+3. Job dry-run; границы rev4–rev10; lease CLI.
+4. CLI tick + reset-алерта + systemd + runbook.
+5. Тесты **1–27**; `docs/yookassa-setup.md`.
 
 ## Тесты (канон, один список)
 
 1. `reg=canceled`, нет чека → 1 create  
-2. `reg=canceled` + succeeded payment receipt → skip gate (в т.ч. после таймаута)  
+2. `reg=canceled` + succeeded payment receipt → skip gate  
 3. `reg=pending` → skip, без роста attempts (`skip_pending`)  
-4. `reg` пустой → skip, без create / без роста attempts (`skip_reg`)  
-5. Два тика подряд → 1 чек (lease + idem)  
-6. Вне create-окна → skip; алерт 48ч — отдельным SELECT  
-7. Ошибка `list_receipts` на **обычном** пути (не unknown) → +1, `error_before_post`  
-8. `attempts >= 3` и не unknown-с-живым-TTL → алерт один раз (RETURNING)  
-9. Таймаут / **500** / **502** на ответе → `unknown_after_post`; повтор: тот же ключ; тела сравнить как dict (`sort_keys`), не как строки  
+4. `reg` пустой → skip, без create / без роста (`skip_reg`)  
+5. Два тика подряд → 1 чек (lease; пауза = период тика)  
+6. Вне create-окна → skip; алерт 48ч — отдельный SELECT с cutover  
+7. Ошибка `list_receipts` на обычном пути → **без** +1, `error_before_post`  
+8. `attempts >= 3` и не unknown-с-живым-TTL → алерт один раз  
+9. Таймаут / 500 / 502 → unknown; повтор: тот же ключ; тела как dict  
 10. После `canceled` → +1 / новый ключ / новый payload  
 11. Повторный тик после алерта → второй алерт не уходит  
-12. `unknown_after_post` + gate succeeded → skip, payload NULL  
-13. TTL истёк + list **успешно** пуст → +1, новый ключ, **новый** payload  
-14. Kill после `post_started` → следующий тик без +1 / тот же ключ (TTL жив)  
+12. unknown + gate succeeded → skip, payload NULL  
+13. TTL истёк + list пуст → +1, новый ключ, новый payload  
+14. Kill после `post_started` → следующий тик без +1 / тот же ключ  
 15. Lease не двигает `reconcile_post_at`  
-16. CLI reset: `alerted_at` + `attempts` вместе  
-17. Сбой gate на unknown при **живом** TTL → без +1 / без create  
+16. CLI reset: `alerted_at` + `attempts` вместе (+ payload NULL)  
+17. Сбой gate, TTL жив → без +1 / без create  
 18. `reconcile_post_at IS NULL` → WARNING + путь TTL-истёк  
 19. Ключ > 64 → skip  
-20. Сбой gate на unknown при **истёкшем** TTL → без +1 / без create (не новый ключ)  
-21. HTTP 400 → `rejected`; следующий create — новый ключ (не повтор)  
+20. Сбой gate, TTL истёк → без +1 / без create  
+21. HTTP 400 → `rejected`; следующий create — новый ключ  
+22. Сериализация снимка стабильна (`sort_keys`); повтор ≡ dict  
+23. Снимок очищается после `succeeded`  
+24. Первый запуск с `ALERT_SINCE` / backfill **не** алертит историю  
+25. `fiscal_status IS NULL` попадает в предфильтр (PostgREST)  
+26. Dry-run: только `last_reconcile_at`; без attempts/post_at/outcome/алертов/create  
+27. Три сетевых сбоя `fetch_payment` подряд **не** доводят attempts до 3  
 
 ## Критерий старта кода
 
-Явная команда владельца: **«делаем SFRFR-93»**. До неё — только этот дизайн + Tracker.
+Явная команда владельца: **«делаем SFRFR-93»**. До неё — только этот дизайн + Tracker.  
+Блокеры Стратега 1–5 закрыты в rev9–rev10 (текст); реализация — после команды.
