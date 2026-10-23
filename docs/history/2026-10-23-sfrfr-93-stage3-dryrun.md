@@ -30,3 +30,9 @@
 - Timer тики 21:07 / 21:17 MSK: **7× `dry_run`** каждый
 - DB: attempts=0 streak=0 payload=false alerted=false outcome=NULL
 - ERROR: нет
+
+## Снимок 2026-10-23T18:55:07Z (loop #2 / 6)
+
+- Timer 21:27 / 21:37 / 21:47 MSK: **7× `dry_run`**
+- DB: attempts/streak/payload/alert = 0 — без изменений
+- ERROR: нет (~1 ч наблюдения)
