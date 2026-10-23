@@ -96,10 +96,24 @@ ensure_ssl_redirect() {
   if grep -q "RewriteRule \^ https://${target}" "$conf"; then
     return 0
   fi
-  # Упрощённый патч: вставить Rewrite перед закрытием VirtualHost
-  if ! grep -q "RewriteEngine" "$conf"; then
-    sed -i "/<\/VirtualHost>/i\\    RewriteEngine On\\n    RewriteRule ^ https://${target}%{REQUEST_URI} [R=301,L]" "$conf"
-  fi
+  # Вставка перед </VirtualHost> последнего блока (python: реальные переводы строк и %{REQUEST_URI}).
+  python3 - "$conf" "$target" <<'PY'
+import sys
+path, target = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+snippet = (
+    "\n    RewriteEngine On\n"
+    f"    RewriteRule ^ https://{target}%{{REQUEST_URI}} [R=301,L]\n"
+)
+if f"https://{target}" in text and "RewriteRule" in text:
+    sys.exit(0)
+idx = text.rfind("</VirtualHost>")
+if idx < 0:
+    sys.exit(0)
+text = text[:idx] + snippet + text[idx:]
+open(path, "w", encoding="utf-8").write(text)
+print(f"  patched redirect in {path} → {target}")
+PY
 }
 
 run_certbot() {
@@ -198,12 +212,50 @@ replace_env "$ENVF" "MAX_MINIAPP_URL" "https://$NEW_ROOT/app/"
 replace_env "$ENVF" "SITE_URL" "https://$NEW_ROOT"
 replace_env "$ENVF" "YOOKASSA_RETURN_URL" "https://$NEW_ROOT/"
 
+cors_origins="https://$NEW_ROOT,https://www.$NEW_ROOT,https://cabinet.$NEW_ROOT,https://admin.$NEW_ROOT"
+if [[ -n "$OLD_ROOT" ]]; then
+  cors_origins="${cors_origins},https://$OLD_ROOT,https://cabinet.$OLD_ROOT,https://admin.$OLD_ROOT"
+fi
+replace_env "$ENVF" "CORS_ALLOWED_ORIGINS" "$cors_origins"
+
 for app_env in "$APP_DIR/apps/cabinet/.env" "$APP_DIR/apps/admin/.env"; do
   replace_env "$app_env" "NEXT_PUBLIC_API_BASE_URL" "https://api.$NEW_ROOT"
   replace_env "$app_env" "NEXT_PUBLIC_CABINET_PUBLIC_URL" "https://cabinet.$NEW_ROOT"
 done
 
-echo "==> Cutover done → https://$NEW_ROOT"
+echo "==> Restart API + rebuild Next.js (подхватить .env)"
+systemctl restart sfrfr-api
+bash "$APP_DIR/scripts/vps_deploy.sh" --post-update || {
+  systemctl restart sfrfr-cabinet sfrfr-admin 2>/dev/null || true
+}
+
+# Мини-приложение в SITE_DIR/app — URL из MAX_MINIAPP_URL / деплой статики.
+if [[ -x "$APP_DIR/scripts/deploy_max_miniapp.sh" ]]; then
+  bash "$APP_DIR/scripts/deploy_max_miniapp.sh" || true
+fi
+
+echo "==> Smoke"
+smoke_urls=(
+  "https://$NEW_ROOT/"
+  "https://api.$NEW_ROOT/health"
+  "https://cabinet.$NEW_ROOT/"
+  "https://admin.$NEW_ROOT/"
+  "https://proverka-staza.ru/"
+  "https://prostaz.ru/"
+)
 if [[ -n "$OLD_ROOT" ]]; then
-  echo "    Legacy 301: $OLD_ROOT → $NEW_ROOT"
+  smoke_urls+=("https://$OLD_ROOT/")
+fi
+for u in "${smoke_urls[@]}"; do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' -L --max-redirs 5 "$u" || echo ERR)"
+  echo "  $code  $u"
+done
+
+echo
+echo "Готово. Дальше вручную:"
+echo "  1) MAX mini-app URL → https://$NEW_ROOT/app/"
+echo "  2) Supabase Auth redirects → docs/ops/supabase-auth-redirects.md"
+echo "  3) sfrfr max-subscribe  (webhook на api.$NEW_ROOT)"
+if [[ -n "$OLD_ROOT" ]]; then
+  echo "  Legacy 301: $OLD_ROOT → $NEW_ROOT"
 fi
