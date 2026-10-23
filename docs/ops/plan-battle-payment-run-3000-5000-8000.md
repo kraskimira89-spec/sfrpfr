@@ -63,7 +63,7 @@
 | `BLOCKER_CLEARED` | Фикс в проде + smoke: один payment_id → один succeeded `type=payment` (малая сумма или read-only API) |
 | `BATTLE_READY` | `BLOCKER_CLEARED` + Evotor online + `PAYMENT_TEST_AMOUNT_ENABLED=0` + «да, платим» на шаг |
 
-**Текущий статус (обновлять при смене):** `FIX_IN_FLIGHT` — причина дубля: автоповтор PR #195 + чек из `create_payment`; gate по списку receipts.
+**Текущий статус (обновлять при смене):** `FIX_IN_FLIGHT` — PR #220 в `main`, deploy-vps ✅; до `BLOCKER_CLEARED` нужен smoke (не боевые 3/5/8k): один payment → один succeeded `type=payment`.
 
 ## Связанные артефакты
 
