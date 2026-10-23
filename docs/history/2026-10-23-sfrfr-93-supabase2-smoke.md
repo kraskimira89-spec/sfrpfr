@@ -37,7 +37,17 @@
 Код ветки временно checkout path-only для tick, затем возврат к HEAD deploy.
 Timer не включали.
 
+## Post-check (Strategist follow-up)
+
+| Проверка | Результат |
+|----------|-----------|
+| `reconcile_alerted_at IS NOT NULL` | **0** строк (restore claim OK) |
+| Окно 48ч `fiscal_status` | NULL=9, pending=2, registered=1 (в reconcile-выборку registered не попадает) |
+| Владелец RPC | все 4 → **`supabase_admin`**, `SECURITY DEFINER` |
+| `mark_fiscal_reconcile_post_started` | 1 row → attempts=1, post_at set, outcome=`post_started`, streak=0; затем restore в 0/NULL |
+
 ## Дальше
 
-Merge #247 (auto-merge вручную после ревью вывода). Timer prod — только с
-`ENABLED=1` + `ALERT_SINCE` после логов «создал бы».
+Auto-merge #247 после зелёного CI. Timer prod — только с `ENABLED=1` +
+`ALERT_SINCE` после логов «создал бы»; перед `DRY_RUN=0` — разбор 11
+кандидатов (в т.ч. 2× pending) и один CLI retry.
