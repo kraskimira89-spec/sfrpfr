@@ -1,6 +1,6 @@
 # План боевого прогона платежей 3000 / 5000 / 8000
 
-Дата плана: **2026-10-23** (обновление: smoke #226 **PASS** → `BLOCKER_CLEARED`; боевые 3/5/8k возвращены; повторный SUPPORT 8000 ждёт команду).
+Дата плана: **2026-10-23** (обновление: smoke #226 PASS формально, **живая гонка pending не проверена**; HTTP-путь pending закрыт тестом; боевые 3/5/8k возвращены).
 Не смешивать с приёмкой механики на малых суммах (1/3/5/8 ₽) — кроме **шага 0** (smoke 1₽ для снятия блокера дублей).
 
 ## Предусловия (до первой полной суммы)
@@ -97,12 +97,19 @@
 |-----|----------------|
 | `BLOCKED_DUP_RECEIPT` | Дубль FD/двух succeeded `type=payment` на один payment; фикс не в проде или не проверен |
 | `FIX_IN_FLIGHT` | PR/деплой ensure-gate есть, боевой ещё не возобновляли; ждём smoke |
-| `BLOCKER_CLEARED` | Фикс в проде + smoke: один payment_id → один succeeded/pending `type=payment` |
-| `BATTLE_READY` | `BLOCKER_CLEARED` + Evotor online + `PAYMENT_TEST_AMOUNT_ENABLED=0` + «да, платим» на шаг |
+| `BLOCKER_CLEARED` | Фикс в проде + smoke: один payment_id → один succeeded/pending `type=payment` **и** ветка `pending` проверена (live или HTTP webhook) |
+| `SMOKE_OK_RACE_UNVERIFIED` | Smoke без дубля, но webhook пришёл уже при `succeeded`; ensure/skipped в логах нет — гонка не воспроизведена |
+| `PENDING_PATH_HTTP_VERIFIED` | HTTP `POST …/yookassa/webhook` с `receipt_registration=pending` не зовёт ensure/create_receipt (юнит) |
+| `BATTLE_READY` | `BLOCKER_CLEARED` (или smoke + HTTP pending) + Evotor online + `ENABLED=0` + «да, платим» |
 | `BATTLE_DIAG_DOCS_PASS` | Шаги 0–2 PASS; шаг 3 SUPPORT 8000 ждёт «да, платим 8000» |
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `BLOCKER_CLEARED` — smoke #226 PASS (`326d88ae…`, 1× `type=payment`, webhook 200, ENABLED=0). История: `docs/history/2026-10-23-smoke-dedup-226-1rub.md`. Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»**. Коррекция лишнего FD 778 — с бухгалтером.
+**Текущий статус (обновлять при смене):** `SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` — **не** полный `BLOCKER_CLEARED` по смыслу Стратега.
+- Smoke #226 (`326d88ae…`): 1× `type=payment` без settlements, webhook 1× 200; ensure/skipped **не** в логах → гонка live **не** проверялась.
+- HTTP: `test_webhook_http_pending_does_not_call_ensure_or_create_receipt` — ensure/create_receipt **не** вызываются при `pending`.
+- Живая задержка Evotor / закрытая смена — **не** делали.
+- Боевые 3/5/8k **возвращены**. Повторный SUPPORT 8000 — только по **«да, платим 8000»** (решение владельца с учётом оговорки). Коррекция FD 778 — с бухгалтером.
+- Деньги: net после возвратов — два smoke 1₽ (#220+#226); не путать с «8002 без возвратов».
 
 ### Пробел после #226 (stuck pending → canceled)
 
