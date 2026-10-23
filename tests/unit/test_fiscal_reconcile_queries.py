@@ -38,6 +38,15 @@ def test_fiscal_registered_skipped() -> None:
     assert fiscal_status_needs_reconcile({"fiscal_status": "registered"}) is False
 
 
+def test_fiscal_not_required_skipped() -> None:
+    """Smoke/1₽ и т.п.: чек не нужен — вне reconcile-выборки."""
+    assert fiscal_status_needs_reconcile({"fiscal_status": "not_required"}) is False
+
+
+def test_fiscal_pending_still_needs_reconcile() -> None:
+    assert fiscal_status_needs_reconcile({"fiscal_status": "pending"}) is True
+
+
 def test_window_includes_paid_inside() -> None:
     row = _row(paid_at=(NOW - timedelta(hours=5)).isoformat())
     assert payment_in_reconcile_window(row, now=NOW) is True
@@ -62,6 +71,7 @@ def test_filter_candidates_drops_registered_and_pending_status() -> None:
     rows = [
         _row(id="ok"),
         _row(id="reg", fiscal_status="registered"),
+        _row(id="nr", fiscal_status="not_required"),
         _row(id="pend", status="pending"),
         _row(id="noprov", provider_payment_id=""),
     ]
