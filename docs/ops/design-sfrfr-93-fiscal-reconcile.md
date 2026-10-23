@@ -1,6 +1,6 @@
 # SFRFR-93: fiscal reconcile — дизайн (без кода)
 
-Дата: **2026-10-23** (rev3: lease / счётчик / Idempotence-Key — замечания Стратега к #239).
+Дата: **2026-10-23** (rev4: граница до/после POST create — замечание Стратега к rev3/#239).
 Источник: разбор Стратега по `main` + пути в репо.
 Код **не** стартовать без команды владельца («делаем SFRFR-93»).
 
@@ -26,14 +26,15 @@
 |--------|--------|
 | Где платежи | Таблица `public.payments` (миграции `supabase/migrations/20260722122128_b2c_schema_rls.sql`, `…_payments_one_active_per_order.sql`). Поля: `status`, `provider_payment_id`, `paid_at`, `created_at`, `fiscal_status`, `order_id`. |
 | Предфильтр `fiscal_status` | Колонка **есть и пишется**: webhook ставит `fiscal_status="registered"`, если в событии `fiscal` truthy (`payments.py` → `apply_provider_payment`). Кандидаты reconcile: `status=succeeded` и `fiscal_status IS DISTINCT FROM 'registered'` (плюс окно по `paid_at`). Это **дешёвый** отсев; решающий фильтр всё равно YK `reg` + gate. Не полагаться на `fiscal_status` как на «чека точно нет». |
-| Как достать за 48 ч | Готового list-by-window **нет**. Нужен метод `list_succeeded_payments(since, until)` в `src/sfrfr/db/case_repository.py`: `status=succeeded` + `paid_at` (fallback `created_at`) + непустой `provider_payment_id` + предфильтр `fiscal_status`. |
+| Как достать за 48 ч | Готового list-by-window **нет**. Нужен метод `list_succeeded_payments(since, until)` в `src/sfrfr/db/case_repository.py`: `status=succeeded` + `paid_at` (fallback `created_at`) + непустой `provider_payment_id` + предфильтр `fiscal_status`. **PostgREST:** `IS DISTINCT FROM 'registered'` для NULL — через `.or_("fiscal_status.is.null,fiscal_status.neq.registered")` (или эквивалент); на реальном клиенте проверить, что строки с `NULL` не теряются. |
+| Лимит попыток | **`reconcile_attempts` max = 3** (после 3-го учтённого create/ошибки-до-POST → алерт, дальше только CLI). |
 | Email/телефон | Как webhook: `_retry_fiscal_receipt` в `src/sfrfr/api/routes/payments.py` → `get_case_row` → `clients.email` / `phone`. |
 | CLI retry | `yookassa-retry-receipt` в `src/sfrfr/cli/main.py` (~1023). Логику ensure **не дублировать**. |
 | Ensure / gate | `src/sfrfr/integrations/payments/__init__.py`. |
 | Таймер finance | `docs/systemd/sfrfr-finance-due.timer` → `finance-due-tick`. Reconcile — **отдельные** `sfrfr-fiscal-reconcile.timer` + CLI `fiscal-reconcile-tick`. |
 | Тесты эталон | `tests/unit/test_yookassa.py`. |
 
-## Решения реализации (rev2 + rev3)
+## Решения реализации (rev2–rev4)
 
 ### 1. Хранение попыток — миграция Supabase (явно)
 
@@ -75,29 +76,34 @@ RETURNING *;
 - **`$lease_secs` ≥ HTTP timeout клиента** (сейчас `httpx` timeout **30 с** у ЮKassa) с запасом: канон v1 = **120 с**. Один таймер раз в 10 мин → риск гонки двух тиков мал; 120 с закрывает «ensure дольше N».
 - Отдельное поле `reconcile_lease_until` в v1 **не** вводим: при одном воркере хватает `last_reconcile_at` + `lease_secs`. Follow-up — если появятся параллельные воркеры.
 
-**Инкремент `reconcile_attempts`** — только когда реально зовём `create_receipt` **или** после ошибки сети/`list_receipts`/`create`, из‑за которой нужна новая попытка:
+**Граница инкремента (rev4 — обязательно):**
+
+| Момент сбоя / шага | `reconcile_attempts` | Idempotence-Key |
+|--------------------|----------------------|-----------------|
+| skip: пустой/`pending` reg, gate, dry-run | **не** трогать | не используется |
+| ошибка **до** POST `create_receipt` (упал `fetch_payment` / `list_receipts`) | **+1** (ключ ещё не слали; лимит 3, чтобы не крутить вечно) | не использовался |
+| **перед** успешным стартом POST `create_receipt` | **+1**, значение → в ключ | `reconcile:{yk_id}:{attempt}` |
+| таймаут / обрыв **после** отправки POST `create_receipt` (неизвестно, создала ли ЮKassa чек) | **не** инкрементировать | **повторить тот же ключ** в пределах TTL |
+| HTTP-ответ: receipt `canceled`, нужен новый чек | **+1** → новый ключ | новый attempt |
+| HTTP-ответ: succeeded / pending | стоп; при succeeded можно выставить `fiscal_status=registered` | — |
+| TTL ключа истёк, нужен повтор create | **+1** (старый ключ нельзя) | новый attempt |
+
+Одной строкой канон: **таймаут или обрыв после POST `create_receipt` → попытку не инкрементировать, повторить с прежним ключом в пределах TTL.** Иначе новый ключ = второй чек (дубль как 777+778).
 
 | Исход после lease | `reconcile_attempts` | `last_reconcile_at` |
 |-------------------|----------------------|---------------------|
 | skip: `reg` пустой / pending / не canceled | **не** трогать | уже обновлён при lease |
 | skip: gate (чек уже есть) | **не** трогать | уже обновлён |
 | dry-run «создал бы» | **не** трогать | уже обновлён |
-| вызов `create_receipt` (до HTTP) | **+1** (и это число → в Idempotence-Key) | уже обновлён |
-| ошибка сети / list до create | **+1** (фиксируем «потратили» попытку диагностики) **или** отдельный счётчик — канон: **+1**, чтобы не крутить бесконечно | уже обновлён |
-
-Иначе лимит попыток съедят «пустые» тики (пустой/`pending` reg), а чек так и не создастся.
+| ошибка **до** POST create | **+1** | уже обновлён |
+| старт POST create | **+1** до HTTP (→ ключ) | уже обновлён |
+| таймаут **после** POST | **не** трогать | уже обновлён; retry тем же ключом |
 
 **Не** закладывать `pg_advisory_lock` / `SKIP LOCKED` в v1 без RPC. Follow-up: RPC + `FOR UPDATE SKIP LOCKED`.
 
-### 3. Idempotence-Key (rev3)
+### 3. Idempotence-Key (rev3 + граница rev4)
 
-Ключ: `reconcile:{yk_payment_id}:{attempt}`, где **`attempt` = значение `reconcile_attempts` после инкремента и до HTTP** (то, что уже в БД).
-
-| Сценарий | Поведение |
-|----------|-----------|
-| Сбой сети после POST, повтор с **тем же** `attempt` | ЮKassa вернёт прежний ответ — **желательно** (не второй чек) |
-| Первый create завершился `canceled` / нужен новый чек | Сначала **новый** инкремент → новый `attempt` → новый ключ; иначе ЮKassa может отдать старый canceled |
-| TTL ключа истёк | Не слать тот же ключ; инкремент `attempt` обязателен |
+Ключ: `reconcile:{yk_payment_id}:{attempt}`, где **`attempt` = значение `reconcile_attempts` после инкремента и до HTTP** (уже в БД).
 
 Чек-лист до кода:
 
@@ -106,15 +112,15 @@ RETURNING *;
 
 ### 4. Тесты на ключ (добавить к 1–8)
 
-9. Повтор после сетевой ошибки с тем же `attempt` → один логический create (тот же Idempotence-Key).  
-10. После `canceled` receipt → инкремент `attempt` → **новый** ключ (не залипаем на старом ответе).
+9. Имитировать **таймаут на ответе** POST `create_receipt` (не ошибку до запроса) → повтор с **тем же** `attempt` / тем же Idempotence-Key → один логический create.  
+10. После `canceled` receipt → инкремент `attempt` → **новый** ключ.
 
 ## Порядок коммитов (когда скажут «делаем SFRFR-93»)
 
-1. Миграция попыток (на preview/копии) + `list_succeeded_payments` (предфильтр `fiscal_status`).
-2. Job/service в **dry-run** (`FISCAL_RECONCILE_ENABLED=0` / флаг dry-run); lease без инкремента; инкремент только у create/ошибки.
+1. Миграция попыток (на preview/копии) + `list_succeeded_payments` (предфильтр `fiscal_status`, проверка NULL в PostgREST).
+2. Job/service в **dry-run**; lease без инкремента; инкремент по таблице границ rev4.
 3. CLI `fiscal-reconcile-tick` + systemd timer/service.
-4. Тесты 1–8 + 9–10 (lease, пустой `reg`, два сценария ключа).
+4. Тесты 1–10.
 5. Документ в `docs/yookassa-setup.md`.
 
 ## Тесты (минимум)
@@ -125,9 +131,9 @@ RETURNING *;
 4. `reg` пустой → skip, create **не** вызывается (**без** роста attempts)  
 5. Два тика подряд → 1 чек (lease + backoff + idem key)  
 6. Вне окна 48 ч / младше grace → skip  
-7. Ошибка `list_receipts` → попытка учтена (+1), create нет  
-8. Исчерпаны попытки → алерт, не бесконечный цикл  
-9. Сеть: тот же `attempt` → тот же Idempotence-Key  
+7. Ошибка **`list_receipts` до POST create** → +1, create нет  
+8. После **3** учтённых попыток (`reconcile_attempts >= 3`) → алерт, create не зовём  
+9. Таймаут **на ответе** POST → тот же `attempt` / тот же Idempotence-Key  
 10. После canceled receipt → новый `attempt` / новый ключ  
 
 ## Критерий старта кода
