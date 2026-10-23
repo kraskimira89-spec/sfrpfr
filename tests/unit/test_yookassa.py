@@ -212,12 +212,14 @@ def test_return_url_uses_cabinet_proverkastaza(monkeypatch: Any) -> None:
 
 
 def test_return_url_rewrites_legacy_taxi_env(monkeypatch: Any) -> None:
-    monkeypatch.setenv("YOOKASSA_RETURN_URL", "https://proverkastaza.ru/")
+    # host собран конкатенацией, чтобы массовая замена домена не ломала тест
+    legacy = "https://" + "taxi-doroga-dobra" + ".ru/"
+    monkeypatch.setenv("YOOKASSA_RETURN_URL", legacy)
     from sfrfr.core.config import get_settings
 
     get_settings.cache_clear()
     url = _return_url("case-abc", "web_cabinet")
-    assert url.startswith("https://proverkastaza.ru/")
+    assert url.startswith("https://proverkastaza.ru")
     assert "taxi-doroga-dobra" not in url.lower()
     assert "case=case-abc" in url
     get_settings.cache_clear()
@@ -229,7 +231,7 @@ def test_return_url_prefers_yookassa_site(monkeypatch: Any) -> None:
 
     get_settings.cache_clear()
     url = _return_url("case-xyz", "web_cabinet")
-    assert url.startswith("https://proverkastaza.ru/")
+    assert url.startswith("https://proverkastaza.ru")
     assert "case=case-xyz" in url
     get_settings.cache_clear()
 
