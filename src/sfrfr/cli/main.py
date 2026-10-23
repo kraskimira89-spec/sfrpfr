@@ -1022,25 +1022,158 @@ def yookassa_status(
 
 @app.command("yookassa-retry-receipt")
 def yookassa_retry_receipt(
-    payment_id: str = typer.Argument(..., help="UUID платежа ЮKassa"),
-    email: str = typer.Option("", "--email", help="Email клиента для чека"),
+    payment_id: str = typer.Argument(
+        ...,
+        help="UUID платежа в БД (payments.id) или provider_payment_id ЮKassa",
+    ),
+    email: str = typer.Option("", "--email", help="Email клиента для чека (если нет в деле)"),
     phone: str = typer.Option("", "--phone", help="Телефон клиента (7XXXXXXXXXX)"),
 ) -> None:
-    """Повторно отправить чек в ККТ (после письма «пробейте вручную»)."""
+    """Повтор чека с lease + reconcile Idempotence-Key (SFRFR-93).
+
+    Перед массовым retry: ``systemctl stop sfrfr-fiscal-reconcile.timer``.
+    Не вызывать во время dry-run тика (lease 120 с). Лимит attempts=3
+    обходится с WARNING.
+    """
     import json
+    import logging
+    import uuid as uuid_mod
 
+    from sfrfr.db.case_repository import CaseRepository
     from sfrfr.integrations.payments import YooKassaClient
+    from sfrfr.services.fiscal_reconcile_job import process_payment_reconcile
 
-    result = YooKassaClient().ensure_payment_receipt(
-        payment_id=payment_id.strip(),
+    log = logging.getLogger("sfrfr.cli")
+    repo = CaseRepository()
+    pid = payment_id.strip()
+    select_cols = (
+        "id, order_id, status, provider, provider_payment_id, fiscal_status, "
+        "paid_at, created_at, reconcile_attempts, reconcile_pre_error_streak, "
+        "last_reconcile_at, reconcile_post_at, reconcile_last_outcome, "
+        "reconcile_alerted_at, orders(id, case_id)"
+    )
+    # payments.id — uuid: не-UUID в id.eq → 22P02. YK id тоже uuid → сначала id, иначе yk.
+    rows: list[dict] = []
+    try:
+        uuid_mod.UUID(pid)
+        rows = (
+            repo.client.table("payments")
+            .select(select_cols)
+            .eq("id", pid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not rows:
+            rows = (
+                repo.client.table("payments")
+                .select(select_cols)
+                .eq("provider_payment_id", pid)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+    except ValueError:
+        rows = (
+            repo.client.table("payments")
+            .select(select_cols)
+            .eq("provider_payment_id", pid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+    if not rows:
+        typer.echo(json.dumps({"ok": False, "error": "payment not found"}, ensure_ascii=False))
+        raise typer.Exit(code=1)
+    row = rows[0]
+    log.warning(
+        "yookassa-retry-receipt: CLI bypass attempt limit=3 payment=%s",
+        str(row.get("id") or "")[:8],
+    )
+    result = process_payment_reconcile(
+        repo,
+        row,
+        client=YooKassaClient(),
+        dry_run=False,
+        bypass_attempt_limit=True,
         customer_email=(email or "").strip() or None,
         customer_phone=(phone or "").strip() or None,
     )
-    typer.echo(json.dumps(result, ensure_ascii=False))
-    if result.get("skipped") and result.get("ok"):
+    if result.get("action") == "lease_busy":
+        typer.echo(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": "lease занят — повторите позже (или stop timer)",
+                    **result,
+                },
+                ensure_ascii=False,
+            )
+        )
+        raise typer.Exit(code=2)
+    # Без ПДн: не echo request_body / payload.
+    safe = {
+        k: v
+        for k, v in result.items()
+        if k not in {"request_body", "receipt", "payload"}
+    }
+    typer.echo(json.dumps(safe, ensure_ascii=False, default=str))
+    if result.get("action") in {
+        "dry_run",
+        "skip_reg",
+        "skip_pending",
+        "gate_succeeded",
+        "gate_pending",
+        "succeeded",
+        "pending",
+    }:
         raise typer.Exit(code=0)
-    if not result.get("ok"):
+    if result.get("action") in {"rejected", "canceled", "error_before_post", "key_too_long"}:
         raise typer.Exit(code=1)
+    # unknown / attempts_exhausted: exit 0, но stderr — не путать с успехом.
+    typer.echo(
+        "исход не подтверждён, проверьте в ЛК ЮKassa / list_receipts "
+        f"(action={result.get('action')})",
+        err=True,
+    )
+    raise typer.Exit(code=0)
+
+
+@app.command("fiscal-reconcile-tick")
+def fiscal_reconcile_tick() -> None:
+    """Тик SFRFR-93: кандидаты в окне 48ч + алерты (см. FISCAL_RECONCILE_*)."""
+    import json
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.fiscal_reconcile_job import run_fiscal_reconcile_tick
+
+    settings = get_settings()
+    stats = run_fiscal_reconcile_tick(
+        CaseRepository(),
+        enabled=bool(settings.fiscal_reconcile_enabled),
+        dry_run=bool(settings.fiscal_reconcile_dry_run),
+        alert_since_raw=settings.fiscal_reconcile_alert_since or None,
+    )
+    typer.echo(json.dumps(stats, ensure_ascii=False, default=str))
+    if stats.get("error"):
+        raise typer.Exit(code=1)
+
+
+@app.command("fiscal-reconcile-reset-alert")
+def fiscal_reconcile_reset_alert(
+    payment_id: str = typer.Argument(..., help="payments.id UUID"),
+) -> None:
+    """Сброс alerted_at + attempts + streak + payload (вместе)."""
+    import json
+
+    from sfrfr.db.case_repository import CaseRepository
+
+    CaseRepository().reset_fiscal_reconcile_alert(payment_id.strip())
+    typer.echo(json.dumps({"ok": True, "payment_id": payment_id.strip()}, ensure_ascii=False))
 
 
 @app.command("amocrm-ensure-fields")

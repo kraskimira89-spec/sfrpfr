@@ -1,8 +1,8 @@
 # SFRFR-93: fiscal reconcile — дизайн (без кода)
 
-Дата: **2026-10-23** (rev11: алерт после TTL, sticky error_before_post, CLI-ключ, только ALERT_SINCE — к #245).
+Дата: **2026-10-23** (rev12: streak только после полного pre-POST; CLI обходит лимит 3 — старт SFRFR-93).
 Источник: разбор Стратега + [дока ЮKassa](https://yookassa.ru/developers/using-api/interaction-format).
-Код **не** стартовать без команды владельца («делаем SFRFR-93»).
+Старт кода: **«делаем 93»** (2026-10-23).
 
 ## Цель
 
@@ -29,7 +29,7 @@
 | Как достать за 48 ч | Готового list-by-window **нет**. Нужен метод `list_succeeded_payments(since, until)` в `src/sfrfr/db/case_repository.py`: `status=succeeded` + `paid_at` (fallback `created_at`) + непустой `provider_payment_id` + предфильтр `fiscal_status`. **PostgREST:** `IS DISTINCT FROM 'registered'` для NULL — через `.or_("fiscal_status.is.null,fiscal_status.neq.registered")` (или эквивалент); на реальном клиенте проверить, что строки с `NULL` не теряются. |
 | Лимит попыток | **`reconcile_attempts` max = 3**: create разрешён, пока `attempts < 3` **до** инкремента. Инкремент **только** при старте POST create (в т.ч. повтор после `canceled`/`rejected`). Ошибки **до** POST (`fetch`/`list` на обычном пути) → **без** +1 (как сбой gate на unknown). |
 | Email/телефон | Как webhook: `_retry_fiscal_receipt` → `clients.email` / `phone`; в payload только на время unknown. |
-| CLI retry | `yookassa-retry-receipt`: lease + **всегда** reconcile-ключ с инкрементом (как tick). Занят lease → exit ≠0. Runbook: stop timer перед массовым retry. |
+| CLI retry | `yookassa-retry-receipt`: lease + reconcile-ключ. **Лимит 3 обходит** (оператор сам пришёл) + WARNING в лог. При `unknown_after_post`/`post_started` + живой TTL → **без** +1, тот же attempt/ключ. Иначе UPDATE (+1…). Занят lease → exit ≠0. Dry-run tick держит lease 120 с — в runbook: stop timer / не дергать CLI во время dry-run. |
 | Ensure / gate | `src/sfrfr/integrations/payments/__init__.py` — см. раздел «Сигнатура ensure / `_post`». |
 | Cutover алертов | **только** `FISCAL_RECONCILE_ALERT_SINCE` (timestamptz); без неё `ENABLED=1` запрещён. Backfill `alerted_at` **не** использовать. |
 | Таймер | `sfrfr-fiscal-reconcile.timer` + `fiscal-reconcile-tick`; не смешивать с finance-due. |
@@ -163,7 +163,7 @@ TTL жив ⇔ (now() - reconcile_post_at) < (24h - 15min)
 2. «48 ч без succeeded receipt» (запрос с `ALERT_SINCE`).
 3. `reconcile_pre_error_streak >= 12` (~2 ч при тике 10 мин) — постоянный `error_before_post` (напр. вечный 404), не ждать 48 ч; текст «sticky pre-POST error».
 
-**Счётчик pre-POST (rev11, без отдельного лимита attempts):** колонка `reconcile_pre_error_streak int not null default 0` (7-я additive). На `error_before_post` → `+1`; на любом успешном fetch/list или на старте POST → сброс в `0`. После streak≥12 — алерт (п.3), create по-прежнему не жжёт `reconcile_attempts`.
+**Счётчик pre-POST:** колонка `reconcile_pre_error_streak`. На `error_before_post` → `+1`. Сброс в `0` **только** когда успешно пройдены **все** шаги до решения create/skip: `fetch_payment` **и** gate/`list_receipts` (оба OK), либо при старте POST. Если fetch OK, а list упал — streak **растёт** (не сбрасывать на половине пути). После streak≥12 — алерт (п.3); `reconcile_attempts` не жжёт.
 
 Порядок v1:
 
@@ -247,7 +247,7 @@ Webhook `_retry_fiscal_receipt` и обычный CLI без snapshot → `uuid4
 | Путь | Lease | Idempotence-Key |
 |------|-------|-----------------|
 | reconcile tick | да | `reconcile:…` |
-| `yookassa-retry-receipt` | **да** (тот же lease) | **всегда** `reconcile:{id}:{attempt}`: один UPDATE (+1, post_at, payload, post_started) как у tick, затем ensure с этим ключом; после обрыва повтор CLI с тем же attempt (unknown) |
+| `yookassa-retry-receipt` | **да** | `reconcile:{id}:{attempt}`: при unknown/post_started+TTL жив — тот же attempt (**без** +1); иначе +1 (лимит 3 **не** блокирует CLI, WARNING). Затем ensure |
 | webhook `_retry_fiscal_receipt` | нет (короткий request) | uuid4 |
 
 Runbook: перед массовым ручным retry — `systemctl stop sfrfr-fiscal-reconcile.timer`. CLI при 0 rows lease — «занято, повторите позже».
@@ -266,7 +266,7 @@ Runbook: перед массовым ручным retry — `systemctl stop sfrf
 - [x] Только `FISCAL_RECONCILE_ALERT_SINCE` (без backfill); dry-run без алертов.
 - [x] CLI: lease + **всегда** reconcile-ключ с инкрементом.
 - [x] `reconcile_pre_error_streak` + алерт при ≥12; attempts не жжёт.
-- [ ] Реализовать в коде (после «делаем SFRFR-93»).
+- [x] Реализовать в коде (после «делаем SFRFR-93»).
 
 ## Порядок коммитов (когда скажут «делаем SFRFR-93»)
 

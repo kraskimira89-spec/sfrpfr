@@ -101,6 +101,26 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" ]]; then
   systemctl enable --now sfrfr-tech-debt.timer
 fi
 
+# SFRFR-93: fiscal reconcile (default ENABLED=0 / DRY_RUN=1 — не enable без ALERT_SINCE)
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.timer" ]]; then
+  echo "Installing fiscal-reconcile timer (not enabled until FISCAL_RECONCILE_ENABLED=1) …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.service" \
+    /etc/systemd/system/sfrfr-fiscal-reconcile.service
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.timer" \
+    /etc/systemd/system/sfrfr-fiscal-reconcile.timer
+  systemctl daemon-reload
+  # Timer только при ENABLED=1 (строго) и непустом ALERT_SINCE без кавычек-пустышек.
+  # ENABLED=true pydantic примет, grep — нет: timer не включится (безопасно). См. runbook.
+  if [[ -f "$APP_DIR/.env" ]] \
+    && grep -qE '^FISCAL_RECONCILE_ENABLED=1([[:space:]]|$|#)' "$APP_DIR/.env" \
+    && grep -qE '^FISCAL_RECONCILE_ALERT_SINCE=[^[:space:]'\''"]+' "$APP_DIR/.env"; then
+    systemctl enable --now sfrfr-fiscal-reconcile.timer
+  else
+    systemctl disable sfrfr-fiscal-reconcile.timer 2>/dev/null || true
+    systemctl stop sfrfr-fiscal-reconcile.timer 2>/dev/null || true
+  fi
+fi
+
 rebuild_next_app() {
   local name="$1"
   local dir="$2"

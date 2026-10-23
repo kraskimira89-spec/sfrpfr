@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from typing import Any
@@ -10,6 +11,7 @@ import httpx
 
 from sfrfr.core.config import get_settings
 
+logger = logging.getLogger(__name__)
 _PHONE_DIGITS = re.compile(r"\D+")
 
 
@@ -156,20 +158,43 @@ class YooKassaClient:
             "internet": True,
         }
 
-    def _post(self, path: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    def _post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict[str, Any]]:
+        key = (idempotence_key or "").strip() or str(uuid.uuid4())
+        if len(key) > 64:
+            return 0, {
+                "error": "idempotence_key longer than 64 characters",
+                "phase": "pre_post",
+            }
         headers = {
-            "Idempotence-Key": str(uuid.uuid4()),
+            "Idempotence-Key": key,
             "Content-Type": "application/json",
         }
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{self.api_base}{path}",
-                json=payload,
-                headers=headers,
-                auth=(self.shop_id, self.secret_key),
-            )
-        data = response.json() if response.content else {}
-        return response.status_code, data if isinstance(data, dict) else {}
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    f"{self.api_base}{path}",
+                    json=payload,
+                    headers=headers,
+                    auth=(self.shop_id, self.secret_key),
+                )
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            return 0, {"error": str(exc) or type(exc).__name__, "phase": "transport"}
+        # 502/прокси с HTML: не ронять после POST — пустой data → classify → unknown.
+        data: dict[str, Any] = {}
+        if response.content:
+            try:
+                parsed = response.json()
+                if isinstance(parsed, dict):
+                    data = parsed
+            except ValueError:
+                data = {}
+        return response.status_code, data
 
     def create_payment(
         self,
@@ -298,39 +323,71 @@ class YooKassaClient:
         customer_email: str | None = None,
         customer_phone: str | None = None,
         vat_code: int | None = None,
+        idempotence_key: str | None = None,
+        body_snapshot: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """POST /v3/receipts — повторная фискализация после сбоя доставки в ККТ."""
+        """POST /v3/receipts — повторная фискализация после сбоя доставки в ККТ.
+
+        ``body_snapshot`` / ``idempotence_key`` — только reconcile/CLI (SFRFR-93);
+        webhook оставляет uuid4 и сборку тела как раньше.
+        """
         if not self.available:
             return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
-        receipt = self._receipt(
-            amount_rub=amount_rub,
-            description=description,
-            customer_email=customer_email,
-            customer_phone=customer_phone,
-            vat_code=vat_code,
+        if body_snapshot is not None:
+            payload = dict(body_snapshot)
+        else:
+            receipt = self._receipt(
+                amount_rub=amount_rub,
+                description=description,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                vat_code=vat_code,
+            )
+            if not receipt:
+                return {
+                    "ok": False,
+                    "error": "receipt requires YOOKASSA_SEND_RECEIPT and email or phone",
+                }
+            payload = {
+                "type": "payment",
+                "payment_id": str(payment_id).strip(),
+                "send": True,
+                "customer": receipt["customer"],
+                "items": receipt["items"],
+                "internet": True,
+                "settlements": [
+                    {
+                        "type": "cashless",
+                        "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                    }
+                ],
+            }
+        status_code, data = self._post(
+            "/receipts", payload, idempotence_key=idempotence_key
         )
-        if not receipt:
+        # phase: job отличает pre_post / transport / http (не по тексту ошибки).
+        if status_code == 0 and data.get("error"):
+            phase = str(data.get("phase") or "pre_post")
+            if phase not in {"pre_post", "transport"}:
+                phase = "pre_post"
             return {
                 "ok": False,
-                "error": "receipt requires YOOKASSA_SEND_RECEIPT and email or phone",
+                "phase": phase,
+                "error": str(data.get("error")),
             }
-        payload: dict[str, Any] = {
-            "type": "payment",
-            "payment_id": str(payment_id).strip(),
-            "send": True,
-            "customer": receipt["customer"],
-            "items": receipt["items"],
-            "internet": True,
-            "settlements": [
-                {
-                    "type": "cashless",
-                    "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
-                }
-            ],
-        }
-        status_code, data = self._post("/receipts", payload)
+        # 2xx без JSON/status → classify=pending; следующий тик сверит gate.
+        if status_code < 300 and not data.get("status"):
+            logger.warning(
+                "create_receipt 2xx without status payment_id=%s status_code=%s "
+                "(treat as pending; next tick uses list_receipts gate)",
+                str(payload.get("payment_id") or "")[:13],
+                status_code,
+            )
+        # request_body с PII не возвращаем: webhook логирует error, CLI echo
+        # результата; job уже имеет body_snapshot для payload в БД.
         return {
             "ok": status_code < 300,
+            "phase": "http",
             "status_code": status_code,
             "receipt": data,
             "receipt_id": data.get("id"),
@@ -346,6 +403,8 @@ class YooKassaClient:
         customer_phone: str | None = None,
         description: str | None = None,
         amount_rub: float | None = None,
+        idempotence_key: str | None = None,
+        body_snapshot: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Повтор POST /receipts только если нет успешного type=payment чека.
 
@@ -411,7 +470,7 @@ class YooKassaClient:
             amount_value = float(amount_rub if amount_rub is not None else value_raw or 0)
         except (TypeError, ValueError):
             amount_value = 0.0
-        if amount_value <= 0:
+        if amount_value <= 0 and body_snapshot is None:
             return {"ok": False, "error": "amount missing"}
         desc = (
             (description or "").strip()
@@ -420,10 +479,12 @@ class YooKassaClient:
         )
         return self.create_receipt(
             payment_id=pid,
-            amount_rub=amount_value,
+            amount_rub=amount_value if amount_value > 0 else 0.0,
             description=desc,
             customer_email=customer_email,
             customer_phone=customer_phone,
+            idempotence_key=idempotence_key,
+            body_snapshot=body_snapshot,
         )
 
 

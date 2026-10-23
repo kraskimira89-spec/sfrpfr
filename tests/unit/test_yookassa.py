@@ -240,7 +240,12 @@ def test_return_url_prefers_yookassa_site(monkeypatch: Any) -> None:
 def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        **_kw: Any,
+    ) -> tuple[int, dict]:
         captured["path"] = path
         captured["payload"] = payload
         return 200, {
@@ -280,7 +285,12 @@ def test_create_payment_payload_description_and_return_url(monkeypatch: Any) -> 
 def test_create_invoice_includes_return_url(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        **_kw: Any,
+    ) -> tuple[int, dict]:
         captured["path"] = path
         captured["payload"] = payload
         return 200, {
@@ -313,7 +323,12 @@ def test_create_invoice_includes_return_url(monkeypatch: Any) -> None:
 def test_receipt_accepts_phone_without_email(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        **_kw: Any,
+    ) -> tuple[int, dict]:
         captured["payload"] = payload
         return 200, {"id": "pay-phone", "status": "pending", "confirmation": {}}
 
@@ -338,7 +353,12 @@ def test_receipt_accepts_phone_without_email(monkeypatch: Any) -> None:
 def test_create_receipt_retry_payload(monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(self: YooKassaClient, path: str, payload: dict[str, Any]) -> tuple[int, dict]:
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        **_kw: Any,
+    ) -> tuple[int, dict]:
         captured["path"] = path
         captured["payload"] = payload
         return 200, {"id": "rt-1", "status": "pending", "type": "payment"}
@@ -365,6 +385,157 @@ def test_create_receipt_retry_payload(monkeypatch: Any) -> None:
     assert body["settlements"][0]["type"] == "cashless"
     assert body["settlements"][0]["amount"]["value"] == "3000.00"
     get_settings.cache_clear()
+
+
+def test_create_receipt_passes_idempotence_key(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict]:
+        captured["key"] = idempotence_key
+        captured["payload"] = payload
+        return 200, {"id": "rt-key", "status": "pending"}
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "true")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="pid-1",
+        amount_rub=1.0,
+        description="t",
+        customer_email="a@b.c",
+        idempotence_key="reconcile:pid-1:1",
+    )
+    assert out["ok"] is True
+    assert captured["key"] == "reconcile:pid-1:1"
+    get_settings.cache_clear()
+
+
+def test_create_receipt_uses_body_snapshot_without_rebuild(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+    snap = {
+        "type": "payment",
+        "payment_id": "pid-snap",
+        "send": True,
+        "customer": {"email": "snap@example.com"},
+        "items": [
+            {
+                "description": "snap",
+                "quantity": "1",
+                "amount": {"value": "2.00", "currency": "RUB"},
+                "vat_code": 1,
+            }
+        ],
+        "internet": True,
+        "settlements": [{"type": "cashless", "amount": {"value": "2.00", "currency": "RUB"}}],
+    }
+
+    def fake_post(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict]:
+        captured["payload"] = payload
+        return 200, {"id": "rt-snap", "status": "pending"}
+
+    monkeypatch.setattr(YooKassaClient, "_post", fake_post)
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="ignored",
+        amount_rub=0.0,
+        description="ignored",
+        customer_email="other@example.com",
+        body_snapshot=snap,
+        idempotence_key="reconcile:pid-snap:2",
+    )
+    assert out["ok"] is True
+    assert captured["payload"] == snap
+    assert captured["payload"]["customer"]["email"] == "snap@example.com"
+    assert out.get("phase") == "http"
+    assert "request_body" not in out
+
+
+def test_create_receipt_phase_pre_post_on_long_key() -> None:
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="pid",
+        amount_rub=1.0,
+        description="t",
+        customer_email="a@b.c",
+        body_snapshot={"type": "payment", "payment_id": "pid"},
+        idempotence_key="k" * 65,
+    )
+    assert out["ok"] is False
+    assert out.get("phase") == "pre_post"
+    assert "64" in str(out.get("error") or "")
+
+
+def test_create_receipt_phase_transport_on_timeout(monkeypatch: Any) -> None:
+    def boom(
+        self: YooKassaClient,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        idempotence_key: str | None = None,
+    ) -> tuple[int, dict]:
+        return 0, {"error": "timed out", "phase": "transport"}
+
+    monkeypatch.setattr(YooKassaClient, "_post", boom)
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    out = client.create_receipt(
+        payment_id="pid",
+        amount_rub=1.0,
+        description="t",
+        body_snapshot={"type": "payment"},
+        idempotence_key="reconcile:pid:1",
+    )
+    assert out["ok"] is False
+    assert out.get("phase") == "transport"
+
+
+def test_post_rejects_idempotence_key_over_64() -> None:
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    status, data = client._post("/receipts", {"x": 1}, idempotence_key="k" * 65)
+    assert status == 0
+    assert "64" in str(data.get("error") or "")
+    assert data.get("phase") == "pre_post"
+
+
+def test_post_non_json_body_returns_empty_data(monkeypatch: Any) -> None:
+    """502 HTML после POST не должен ронять classify (→ unknown по status_code)."""
+
+    class _Resp:
+        status_code = 502
+        content = b"<html>bad gateway</html>"
+
+        def json(self) -> dict:
+            raise ValueError("No JSON object could be decoded")
+
+    class _Client:
+        def __enter__(self) -> _Client:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+        def post(self, *_a: Any, **_k: Any) -> _Resp:
+            return _Resp()
+
+    monkeypatch.setattr("sfrfr.integrations.payments.httpx.Client", lambda **_k: _Client())
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    status, data = client._post("/receipts", {"x": 1}, idempotence_key="reconcile:a:1")
+    assert status == 502
+    assert data == {}
 
 
 def test_should_auto_retry_fiscal_only_after_canceled() -> None:
@@ -559,6 +730,95 @@ def test_ensure_receipt_retries_only_without_succeeded_payment(
     assert len(called) == 1
     assert called[0]["payment_id"] == "pay-retry"
     get_settings.cache_clear()
+
+
+def test_ensure_passes_idempotence_key_and_body_snapshot(monkeypatch: Any) -> None:
+    """Job вызывает ensure — ключ и snapshot должны дойти до create."""
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    snap = {"type": "payment", "payment_id": "pay-ens", "send": True}
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "0.00", "currency": "RUB"},
+                "description": "docs",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {"ok": True, "items": []},
+    )
+    called: list[dict[str, Any]] = []
+
+    def fake_create(**kwargs: Any) -> dict[str, Any]:
+        called.append(kwargs)
+        return {"ok": True, "phase": "http", "receipt_id": "ra-n"}
+
+    monkeypatch.setattr(client, "create_receipt", fake_create)
+    out = client.ensure_payment_receipt(
+        payment_id="pay-ens",
+        amount_rub=0.0,
+        idempotence_key="reconcile:pay-ens:1",
+        body_snapshot=snap,
+    )
+    assert out["ok"] is True
+    assert len(called) == 1
+    assert called[0]["idempotence_key"] == "reconcile:pay-ens:1"
+    assert called[0]["body_snapshot"] == snap
+
+
+def test_ensure_gate_before_create_even_with_snapshot(monkeypatch: Any) -> None:
+    """Снимок не обходит list_receipts gate."""
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "5.00", "currency": "RUB"},
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {
+            "ok": True,
+            "items": [
+                {
+                    "id": "ra-ok",
+                    "type": "payment",
+                    "status": "succeeded",
+                    "payment_id": payment_id,
+                }
+            ],
+        },
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        client,
+        "create_receipt",
+        lambda **kwargs: called.append("x") or {"ok": True},
+    )
+    out = client.ensure_payment_receipt(
+        payment_id="pay-gated",
+        body_snapshot={"type": "payment", "payment_id": "pay-gated"},
+        idempotence_key="reconcile:pay-gated:1",
+    )
+    assert out["ok"] is True
+    assert out.get("skipped") is True
+    assert called == []
 
 
 def test_parse_yookassa_event_receipt_registration() -> None:
