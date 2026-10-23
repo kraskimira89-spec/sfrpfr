@@ -104,9 +104,9 @@ nslookup -type=TXT mail._domainkey.proverkastaza.ru 8.8.8.8
 | A | `@` | `91.229.11.147` |
 | A | `www` | `91.229.11.147` |
 
-## Старый `taxi-doroga-dobra.ru`
+## Бывший apex (если ещё в DNS)
 
-Оставить A `@` / `www` / `api` / `cabinet` / `admin` на тот же IP — после cutover Apache отдаёт **301** на `proverkastaza.ru` (и поддомены API/кабинетов на новые имена).
+Оставить A `@` / `www` / `api` / `cabinet` / `admin` на тот же IP — Apache отдаёт **301** на `proverkastaza.ru` (поддомены — на `api`/`cabinet`/`admin.proverkastaza.ru`). Повторный cutover: `OLD_ROOT=<бывший-apex>`.
 
 ## После DNS
 

@@ -2,7 +2,7 @@
 
 ## 2026-10-22 — ЮKassa: бренд «Проверка стажа» + порядок СБП
 
-- В форме/чеке мелькали старый бренд (taxi / dorogadobra) — **название магазина только в ЛК ЮKassa**.
+- В форме/чеке мелькали старый бренд (taxi / proverkastaza) — **название магазина только в ЛК ЮKassa**.
 - Код: `PAYMENT_PURPOSE` + `payment_description()` → «Проверка стажа — …» / `proverkastaza.ru`; invoice и `/pay` единообразно.
 - Порядок СБП→SberPay→ВТБ(в СБП)→остальное: **API Smart Payment не задаёт** — инструкция владельцу в `docs/yookassa-setup.md`; код без `payment_method_data`, `capture=true`.
 
@@ -568,7 +568,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 
 ## 2026-07-29 (MAX miniapp: Failed to fetch)
 
-- Живой `/app/config.js` указывал на `api.taxi-doroga-dobra.ru` → «Failed to fetch».
+- Живой `/app/config.js` указывал на `api.proverkastaza.ru` → «Failed to fetch».
 - Выложен актуальный miniapp; `vps_deploy.sh` теперь всегда обновляет `/app/`.
 
 ## 2026-07-29 (безопасность: фиксированные тарифы)
@@ -752,7 +752,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 
 - Восстановлен `docs/specs/11-blog.md` (был DISK FULL) + §13 UI; ref `11-blog-ref-entuziastov.md`.
 - UI блога: `scripts/assets/blog/ui/` + MU `sfrfr-blog-ui.php` + `wp_deploy_blog_ui.sh`.
-- **Деплой:** MU на VPS (`taxi-doroga-dobra.ru/blog/` — чипы/CSS live); хук в `vps_deploy.sh`.
+- **Деплой:** MU на VPS (`proverkastaza.ru/blog/` — чипы/CSS live); хук в `vps_deploy.sh`.
 - **Cutover DNS/SSL:** `vps_cutover_proverkastaza.sh` — LE-сертификаты на `proverkastaza.ru` + api/cabinet/admin + алиасы; WP home/siteurl → новый домен.
 - ТЗ-09 D: детальный runbook в `docs/qa/tz09-stage-d.md`; E2E 1–5 ещё `[ ]` (нужен MAX).
 - Лид→amoCRM: чеклист `docs/qa/lead-amocrm-e2e.md`; POST leads без токена → 401.
@@ -941,7 +941,7 @@ Compose на staging ВМ поднят (healthy); публично 8000 закр
 - API/CLI завязаны на `CaseStore` + local upload + OCR при `advance`/`run`.
 - Клиентский канал: MAX Bot API; LLM-провайдер: Yandex AI Studio.
 - Витрина: WordPress на VPS; API на поддомене; DNS reg.ru.
-- Сайт витрины: домен `https://proverkastaza.ru/` (reg.ru) — **витрина и посадочная SFRFR**; на VPS в отдельной папке (не в `/opt/sfrfr`). API: `api.taxi-doroga-dobra.ru`.
+- Сайт витрины: домен `https://proverkastaza.ru/` (reg.ru) — **витрина и посадочная SFRFR**; на VPS в отдельной папке (не в `/opt/sfrfr`). API: `api.proverkastaza.ru`.
 - Витрина: тема Zakra + блоки; CTA MAX — заглушка `#` / «скоро» до появления deeplink.
 - `PUBLIC_BASE_URL` на VPS: `https://api.proverkastaza.ru`; `MAX_BOT_TOKEN` пока пуст → webhook не подписан.
 - Публичный сайт ТЗ-02 этап 1: лендинг + оферта + ПДн/согласие + кнопка MAX + форма лида (WPForms, без сканов).

@@ -5,4 +5,4 @@
 - Пользователь: `sfrfr_admin` (ID 1)
 - Email: `info@proverkastaza.ru`
 - URL: https://proverkastaza.ru/wp-admin/
-- Секрет на сервере: `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` (не в git)
+- Секрет на сервере: `/root/.sfrfr-secrets/wp-proverkastaza.env` (не в git)

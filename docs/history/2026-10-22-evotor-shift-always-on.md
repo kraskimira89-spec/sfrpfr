@@ -8,7 +8,7 @@
 
 1. ЮKassa `yookassa-status`: `fiscal_provider=evotor`, `SEND_RECEIPT=true`, warnings=[].
 2. Повтор чека API: `326bea92-…` → receipt `ra-326c0204-…` сначала `pending`, затем **`canceled`** (Evotor не принял).
-3. ЛК ЮKassa → `fiscalization-settings`: сайт для чеков обновлён на `https://proverkastaza.ru/` (было taxi-doroga-dobra.ru). Касса: Эвотор. Режим: «Принимать платёж» если чек не доставлен. Код группы касс — пуст.
+3. ЛК ЮKassa → `fiscalization-settings`: сайт для чеков обновлён на `https://proverkastaza.ru/` (было proverkastaza.ru). Касса: Эвотор. Режим: «Принимать платёж» если чек не доставлен. Код группы касс — пуст.
 4. ОФД ранее: **смена закрыта**, нет документов 48+ ч.
 5. Вход в `digital.evotor.ru` (magic link на `prismotr89@yandex.ru`) — письмо с кодом/ссылкой **не пришло** в открытый ящик; без ЛК Evotor смену вручную не открыть.
 

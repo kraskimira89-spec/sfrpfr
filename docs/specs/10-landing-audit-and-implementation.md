@@ -22,7 +22,7 @@
 
 | Приоритет | Проблема | Требуемое изменение |
 |---|---|---|
-| P0 | Домен `taxi-doroga-dobra.ru` не соответствует пенсионной услуге | ✅ Выбран `proverkastaza.ru`; 301 со старого и алиасов — `docs/ops/dns-proverkastaza.md` + `scripts/vps_cutover_proverkastaza.sh` (DNS у reg.ru в работе; до cutover прод = taxi) |
+| P0 | Домен витрины должен соответствовать пенсионной услуге | ✅ Канон `proverkastaza.ru`; 301 с алиасов — `docs/ops/dns-proverkastaza.md` + `scripts/vps_cutover_proverkastaza.sh` |
 | P0 | В footer указаны незаполненные реквизиты | До приёма оплат добавить ФИО исполнителя, статус (самозанятый/ИП), ИНН, email, рабочий телефон, ссылку на оферту |
 | P0 | Веб-кабинет может быть не готов | Не вести пользователя на неработающий URL; до запуска оставить MAX основным каналом, кабинет пометить «Скоро» или скрыть |
 | P0 | Не проверена доставка формы | 🟡 Частично: эндпоинт жив (`POST /api/public/leads` → 401 без токена). Полный E2E WP→case→amoCRM — [docs/qa/lead-amocrm-e2e.md](../qa/lead-amocrm-e2e.md) |

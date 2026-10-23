@@ -22,7 +22,7 @@ Production SFRFR состоит из **двух VM**: приложение (reg.
 | Region / DC | РФ, конкретная площадка — TBD | `[—]` | — |
 | OS / image | TBD (предположительно Ubuntu) | `[—]` вкладка «Информация» | — |
 | SSH user | `root`, порт 22 | `[R]` docs/ops/vps-ssh.md | 2026-09-15 |
-| DNS | `proverkastaza.ru`, `www`, алиасы `proverka-staza.ru`, `prostaz.ru`, `taxi-doroga-dobra.ru` | `[N]` → `91.229.11.147` | 2026-09-15 |
+| DNS | `proverkastaza.ru`, `www`, алиасы `proverka-staza.ru`, `prostaz.ru` | `[N]` → `91.229.11.147` | 2026-09-15 |
 | API / cabinet domains | `api.` / `cabinet.` / `admin.`proverkastaza.ru | `[N]` → `91.229.11.147` | 2026-09-15 |
 | Сервисы | Apache vhosts (`docs/apache-vhost-*.conf`), каталоги `/var/www/proverkastaza*` | `[R]` + `[P]` скрин файлового менеджера | 2026-09-15 |
 | Database location | **Не на этой VM.** Клиент app-сервера ходит в БД по `DATABASE_URL`; фактический адресат — см. VM C, состояние требует подтверждения | `[R]` | — |
@@ -102,7 +102,7 @@ Production VM считается подтвержденной только ес�
 | `www.proverkastaza.ru` CNAME→A | `91.229.11.147` |
 | `api/cabinet/admin.proverkastaza.ru` A | `91.229.11.147` |
 | `supabase.proverkastaza.ru` A | `51.250.13.240` |
-| `proverka-staza.ru`, `prostaz.ru`, `taxi-doroga-dobra.ru` A | `91.229.11.147` |
+| `proverka-staza.ru`, `prostaz.ru` A | `91.229.11.147` |
 | `130.193.51.181` (VM A) | ни одного DNS-имени |
 | `github.com/kraskimira89-spec/sfrpfr` (API, без токена) | HTTP 404 → репозиторий приватный |
 

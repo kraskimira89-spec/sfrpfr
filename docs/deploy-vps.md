@@ -4,7 +4,7 @@ SSH с ПК владельца: `ssh sfrfr-vps` — см. [ops/vps-ssh.md](ops/v
 
 ## Домены (актуально)
 
-Основной: **proverkastaza.ru**. Алиасы с 301: `proverka-staza.ru`, `prostaz.ru`, старый `taxi-doroga-dobra.ru`.  
+Основной: **proverkastaza.ru**. Алиасы с 301: `proverka-staza.ru`, `prostaz.ru` (и бывший apex через `OLD_ROOT` в cutover, если ещё в DNS).  
 DNS: [ops/dns-proverkastaza.md](ops/dns-proverkastaza.md). Cutover на VPS: `scripts/vps_cutover_proverkastaza.sh`.  
 Папка WP на диске: `/var/www/proverkastaza` (имя каталога не меняли).
 
@@ -192,7 +192,7 @@ npx supabase db push
 ## 7. Связка с WordPress
 
 - Витрина: https://proverkastaza.ru/ → `/var/www/proverkastaza` (WP ru_RU, тема **Astra** + **Spectra**).
-- Админ: https://proverkastaza.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-taxi-doroga-dobra.env` на VPS.
+- Админ: https://proverkastaza.ru/wp-admin/ — логин/пароль в `/root/.sfrfr-secrets/wp-proverkastaza.env` на VPS.
 - Стек (в репо GitHub): `scripts/wp_install_stack.sh`
   - Astra + Spectra (без Elementor);
   - WPForms Lite (заявки; **не** сканы ПДн);

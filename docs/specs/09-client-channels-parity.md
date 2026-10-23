@@ -280,7 +280,7 @@ GET|POST messages, consents, orders, result  -- как в текущем portal
 ### Этап D — приёмка и регресс (частично ✅)
 
 1. Unit/авто: конфликт `max_user_id` 409, CTA по `preferred_channel`, `/cases/{id}`, representatives API.
-2. Чеклист QA: [docs/qa/tz09-stage-d.md](../qa/tz09-stage-d.md) — пошаговый runbook; ручные E2E 1–5 ещё открыты (нужен тестовый MAX). Smoke API/витрина на `taxi-doroga-dobra.ru` — OK; `proverkastaza.ru` ждёт DNS.
+2. Чеклист QA: [docs/qa/tz09-stage-d.md](../qa/tz09-stage-d.md) — пошаговый runbook; ручные E2E 1–5 ещё открыты (нужен тестовый MAX). Smoke API/витрина на `proverkastaza.ru` — OK.
 3. Уведомления о новых сообщениях и смене статуса: нейтральный текст без ПДн,
    без дубля при активном чате; системное сообщение хранится в общей истории.
 

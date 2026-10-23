@@ -124,7 +124,7 @@ curl -fsS https://api.proverkastaza.ru/api/portal/meta/status-labels
 
 | Проверка | Статус | Дата / заметка |
 |---|---|---|
-| `GET /health` (taxi) | [x] | 2026-07-26 — 200 `api.taxi-doroga-dobra.ru` |
+| `GET /health` (taxi) | [x] | 2026-07-26 — 200 `api.proverkastaza.ru` |
 | `GET /api/portal/meta/status-labels` (taxi) | [x] | 2026-07-26 — путь с префиксом `/api/portal` |
 | Витрина `/` (taxi) | [x] | 2026-07-26 — 200 |
 | `/blog/` (taxi) | [x] | 2026-07-26 — 200 |

@@ -60,7 +60,7 @@ SMS и email ЮKassa не включаем — клиенту пишем в MAX.
 | `return_url` после оплаты | Код + `YOOKASSA_RETURN_URL` (иначе cabinet / mini-app) | `https://proverkastaza.ru/` |
 | Ссылка магазина на форме счёта | **Только ЛК ЮKassa** (счета часто без своего return в UI) | `https://proverkastaza.ru` |
 
-Если на форме всё ещё «такси» / taxi-doroga-dobra — это **не баг API**: владелец меняет название и сайт магазина в [кабинете ЮKassa](https://yookassa.ru/my). В коде return_url legacy taxi переписывается на `proverkastaza.ru`.
+Если на форме всё ещё старый бренд или чужой сайт — это **не баг API**: владелец меняет название и сайт магазина в [кабинете ЮKassa](https://yookassa.ru/my) на «Проверка стажа» / `https://proverkastaza.ru`. В коде return_url с legacy-хоста переписывается на канон.
 
 ### Порядок способов оплаты: СБП → Сбер → ВТБ → остальное
 
@@ -255,8 +255,9 @@ python -m sfrfr yookassa-status
 | `Receipt is missing` | Фискализация вкл., а `SEND_RECEIPT=false` |
 | Двойной чек | В ЮKassa два режима сразу или ручной пробив в Evotor + API |
 | Тест не проходит | Используете боевой ключ или наоборот |
-| После оплаты редирект на taxi / «дорога добра» | 1) VPS `YOOKASSA_RETURN_URL=https://proverkastaza.ru/` + рестарт API; 2) ЛК ЮKassa → магазин → сайт `https://proverkastaza.ru` (для счетов без API return) |
-| На форме/в шапке «дорога добра» / taxi / старый сайт | ЛК ЮKassa → название и сайт магазина → «Проверка стажа», `proverkastaza.ru` (не правится кодом) |
+| После оплаты редирект на чужой/старый сайт | 1) VPS `YOOKASSA_RETURN_URL=https://proverkastaza.ru/` + рестарт API; 2) ЛК ЮKassa → магазин → сайт `https://proverkastaza.ru` |
+| На форме/в шапке старый бренд или чужой сайт | ЛК ЮKassa → название и сайт магазина → «Проверка стажа», `proverkastaza.ru` (не правится кодом) |
+| Return URL после оплаты | Кабинет/сайт `proverkastaza.ru` (канон), не чужой домен |
 | В позиции чека нет «Проверка стажа» | Новый платёж после деплоя; `payment_description` / `PAYMENT_PURPOSE` |
 | На форме не тот порядок (не СБП первым) | Только ЛК/менеджер ЮKassa; в API Smart Payment порядка нет (см. выше) |
 | Нет СБП на форме | `capture` должен быть `true`; способ СБП подключён в магазине |
