@@ -75,7 +75,9 @@ Timeline (UTC): payment `created_at` 14:25:35 → `captured_at`/`webhook` 14:26:
 
 Гонка: webhook при `receipt_registration=pending` (или пусто) вызывал ensure; `GET /receipts` ещё пуст → второй create. SUPPORT не особый тариф — та же invoice-схема, что DOCS.
 
-Фикс: webhook retry только при `canceled`; ensure skip при `reg=pending` (см. PR фикса). Коррекцию лишнего FD **не** делаем без бухгалтера / «да, возвращаем».
+Фикс: webhook retry только при `canceled`; ensure skip при `reg=pending` (PR **#226**). Коррекцию лишнего FD **не** делаем без бухгалтера / «да, возвращаем».
+
+**Пробел:** нет job reconcile для «webhook видел `pending`, позже `canceled`». Workaround: CLI `yookassa-retry-receipt` / письмо ЮKassa. Follow-up в SFRFR-89 — не гадать код до smoke.
 
 ## Стоп
 
