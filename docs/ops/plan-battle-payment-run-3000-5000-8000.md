@@ -88,7 +88,7 @@
 - Полные суммы без отдельного «да, платим N» → **запрещены**.
 - Провал webhook/paid/чека → не второй счёт без Стратега.
 - Дубль чека (`type=payment` ×2 succeeded на один payment) → **жёсткий блокер** боевого прогона до фикса в проде + повторного smoke.
-- Не писать «тарифы приняты» до успешного прогона **всех трёх** полных сумм по этому плану.
+- ~~Не писать «тарифы приняты»…~~ → **тарифы приняты** (владелец, 2026-10-23; SFRFR-96).
 
 ## Статус для отчёта Стратегу (копипаст)
 
@@ -104,10 +104,12 @@
 | `BATTLE_THREE_PASS` | DIAG+DOCS+SUPPORT (retry) PASS по 1× type=payment; оговорка live-pending может оставаться |
 | `BLOCKED_DUP_RECEIPT` | Дубль FD на SUPPORT 8000 (`326d821f…`, FD **777**+**778**); боевой прогон стоп |
 
-**Текущий статус (обновлять при смене):** `BATTLE_THREE_PASS` — DIAG 3000 + DOCS 5000 + SUPPORT 8000 retry ✅; при этом live-гонка pending **не** воспроизведена (`SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` остаются в силе как оговорка).
+**Текущий статус (обновлять при смене):** `BATTLE_THREE_PASS` + **тарифы приняты** (SFRFR-96, 2026-10-23).
+- DIAG 3000 + DOCS 5000 + SUPPORT 8000 retry ✅; live-гонка pending **не** воспроизведена (`SMOKE_OK_RACE_UNVERIFIED` + `PENDING_PATH_HTTP_VERIFIED` — оговорка).
 - SUPPORT retry: `326d8f33…`, 1× payment, webhook 200, ENABLED=0.
 - FD 778: offset сделан + бухгалтер согласовал («ТЕСТ»).
 - Деньги net сейчас: smoke 1₽ ×3 + повторный SUPPORT **8000** (первый круг 3+5+8 возвращён).
+- Follow-up fiscal reconcile: дизайн `docs/ops/design-sfrfr-93-fiscal-reconcile.md` (код — только по «делаем SFRFR-93»).
 
 ### Пробел после #226 (stuck pending → canceled)
 
