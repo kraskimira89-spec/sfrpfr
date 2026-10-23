@@ -272,9 +272,9 @@ python -m sfrfr yookassa-status
 
 | Переменная | Default | Смысл |
 |---|---|---|
-| `FISCAL_RECONCILE_ENABLED` | `0` | Без `1` тик сразу выходит |
+| `FISCAL_RECONCILE_ENABLED` | `0` | Тик и systemd: только строгое `=1` (не `true`) |
 | `FISCAL_RECONCILE_DRY_RUN` | `1` | Только lease (`last_reconcile_at`); без create / attempts / алертов |
-| `FISCAL_RECONCILE_ALERT_SINCE` | пусто | ISO timestamptz cutover алертов «48 ч»; **обязателен** при `ENABLED=1` |
+| `FISCAL_RECONCILE_ALERT_SINCE` | пусто | ISO timestamptz cutover алертов «48 ч»; **обязателен** при `ENABLED=1`; не `""` |
 
 ### Systemd
 

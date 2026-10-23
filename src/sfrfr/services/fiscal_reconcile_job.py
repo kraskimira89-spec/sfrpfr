@@ -108,7 +108,12 @@ def _default_alert_send(reason: str, payment: dict[str, Any]) -> bool:
         settings = get_settings()
         chat = (settings.max_specialists_channel_chat_id or "").strip()
         if not chat:
-            return True
+            # False: claim уже мог проставить alerted_at — не маскировать как успех.
+            logger.error(
+                "fiscal_reconcile_alert_send_failed payment=%s reason=no_chat_id",
+                pid,
+            )
+            return False
         MaxBotClient().send_message(chat_id=chat, text=text[:3500])
         return True
     except Exception:  # noqa: BLE001
@@ -418,7 +423,14 @@ def _maybe_alert(
     claimed = repo.claim_fiscal_reconcile_alert(payment_id)
     if claimed is None:
         return
-    send_alert(alert_reason, {**payment, **claimed})
+    # Claim до send: лучше потерять повтор, чем спамить. False → ERROR (без отката).
+    ok = send_alert(alert_reason, {**payment, **claimed})
+    if not ok:
+        logger.error(
+            "fiscal_reconcile_alert_claimed_but_not_delivered payment=%s reason=%s",
+            payment_id[:8],
+            alert_reason,
+        )
 
 
 def run_fiscal_reconcile_tick(

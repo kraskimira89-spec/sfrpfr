@@ -109,10 +109,11 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.timer" ]]; then
   install -m 0644 "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.timer" \
     /etc/systemd/system/sfrfr-fiscal-reconcile.timer
   systemctl daemon-reload
-  # Timer только при ENABLED=1 и непустом ALERT_SINCE (иначе exit 1 каждые 10 мин).
+  # Timer только при ENABLED=1 (строго) и непустом ALERT_SINCE без кавычек-пустышек.
+  # ENABLED=true pydantic примет, grep — нет: timer не включится (безопасно). См. runbook.
   if [[ -f "$APP_DIR/.env" ]] \
-    && grep -qE '^FISCAL_RECONCILE_ENABLED=1' "$APP_DIR/.env" \
-    && grep -qE '^FISCAL_RECONCILE_ALERT_SINCE=.+' "$APP_DIR/.env"; then
+    && grep -qE '^FISCAL_RECONCILE_ENABLED=1([[:space:]]|$|#)' "$APP_DIR/.env" \
+    && grep -qE '^FISCAL_RECONCILE_ALERT_SINCE=[^[:space:]'\''"]+' "$APP_DIR/.env"; then
     systemctl enable --now sfrfr-fiscal-reconcile.timer
   else
     systemctl disable sfrfr-fiscal-reconcile.timer 2>/dev/null || true

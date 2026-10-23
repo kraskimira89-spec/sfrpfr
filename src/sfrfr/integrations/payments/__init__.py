@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from typing import Any
@@ -10,6 +11,7 @@ import httpx
 
 from sfrfr.core.config import get_settings
 
+logger = logging.getLogger(__name__)
 _PHONE_DIGITS = re.compile(r"\D+")
 
 
@@ -373,6 +375,14 @@ class YooKassaClient:
                 "phase": phase,
                 "error": str(data.get("error")),
             }
+        # 2xx без JSON/status → classify=pending; следующий тик сверит gate.
+        if status_code < 300 and not data.get("status"):
+            logger.warning(
+                "create_receipt 2xx without status payment_id=%s status_code=%s "
+                "(treat as pending; next tick uses list_receipts gate)",
+                str(payload.get("payment_id") or "")[:13],
+                status_code,
+            )
         # request_body с PII не возвращаем: webhook логирует error, CLI echo
         # результата; job уже имеет body_snapshot для payload в БД.
         return {

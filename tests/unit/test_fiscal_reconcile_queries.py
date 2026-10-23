@@ -153,6 +153,22 @@ def test_reconcile_window_or_filter_shape() -> None:
     assert "created_at.gte." in s
 
 
+def test_postgrest_two_or_params_are_added_not_overwritten() -> None:
+    """Клиент postgrest: два .or_() → два query-param `or` (AND), не overwrite."""
+    from httpx import QueryParams
+
+    from sfrfr.services.fiscal_reconcile import FISCAL_STATUS_OR, reconcile_window_or_filter
+
+    window = reconcile_window_or_filter(now=NOW)
+    q = QueryParams()
+    q = q.add("or", f"({FISCAL_STATUS_OR})")
+    q = q.add("or", f"({window})")
+    ors = [v for k, v in q.multi_items() if k == "or"]
+    assert len(ors) == 2
+    assert FISCAL_STATUS_OR in ors[0]
+    assert "paid_at.gte." in ors[1]
+
+
 def test_repo_list_succeeded_payments_for_reconcile_filters_null_fiscal() -> None:
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.services.fiscal_reconcile import (

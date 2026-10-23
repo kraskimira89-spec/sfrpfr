@@ -117,6 +117,49 @@ def test_attempts_block_and_alert_with_ttl() -> None:
     assert should_alert_streak(11) is False
 
 
+def test_default_alert_send_false_without_chat(monkeypatch: Any) -> None:
+    from sfrfr.services import fiscal_reconcile_job as job
+
+    class _S:
+        max_specialists_channel_chat_id = ""
+
+    monkeypatch.setattr(
+        "sfrfr.core.config.get_settings", lambda: _S()
+    )
+    assert (
+        job._default_alert_send("attempts", {"id": "p1", "provider_payment_id": "yk"})
+        is False
+    )
+
+
+def test_maybe_alert_logs_when_send_fails() -> None:
+    repo = MagicMock()
+    repo.claim_fiscal_reconcile_alert.return_value = {"id": "p1", "reconcile_alerted_at": "x"}
+    repo.fiscal_reconcile_ttl_alive.return_value = False
+    sent: list[bool] = []
+
+    def _send(_r: str, _p: dict[str, Any]) -> bool:
+        sent.append(True)
+        return False
+
+    from sfrfr.services.fiscal_reconcile_job import _maybe_alert
+
+    _maybe_alert(
+        repo,
+        {
+            "id": "p1",
+            "reconcile_attempts": 3,
+            "reconcile_last_outcome": "rejected",
+            "reconcile_pre_error_streak": 0,
+            "reconcile_alerted_at": None,
+        },
+        _send,
+        reason="attempts",
+    )
+    assert sent == [True]
+    repo.claim_fiscal_reconcile_alert.assert_called_once()
+
+
 def test_dry_run_only_lease() -> None:
     repo = MagicMock()
     repo.try_fiscal_reconcile_lease.return_value = {
