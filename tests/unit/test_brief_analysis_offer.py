@@ -766,7 +766,8 @@ def test_honest_brief_ui_three_evidence_and_basis() -> None:
     assert kinds <= {ba.EVIDENCE_DOCS, ba.EVIDENCE_CLIENT, ba.EVIDENCE_NEEDS_CHECK}
     docs_item = next(i for i in ui["items"] if i["evidence"] == ba.EVIDENCE_DOCS)
     assert docs_item["evidence_label"] == "подтверждено документами"
-    assert "трудов" in (docs_item.get("basis") or "").lower() or "2010" in (docs_item.get("basis") or "")
+    basis = (docs_item.get("basis") or "").lower()
+    assert "трудов" in basis or "2010" in basis
     assert ui["offer_diag_allowed"] is True
     assert ui["has_justified_discrepancy"] is True
 
