@@ -1,8 +1,9 @@
 # История бесед
 
-## 2026-10-23 — retry чека 3₽ (без нового платежа)
+## 2026-10-23 — retry #2 чека 3₽ после «смена открыта»
 
-Оплата 3₽ уже paid; чек canceled. `yookassa-retry-receipt` на VPS (1421177) → снова canceled, FD нет. Стоп: нужна смена Evotor. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+Владелец: смена открыта. Один `yookassa-retry-receipt` → `ra-326d24b5-…` **canceled**, FD нет, cancel_details пусто. Новый платёж не создавали. Стоп. SFRFR-89, `docs/history/2026-10-23-payment-3rub-receipt-retry.md`.
+
 
 ## 2026-10-22 — ЮKassa: бренд «Проверка стажа» + порядок СБП
 
