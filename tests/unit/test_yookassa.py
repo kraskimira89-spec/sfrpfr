@@ -576,3 +576,75 @@ def test_parse_yookassa_event_receipt_registration() -> None:
         }
     )
     assert parsed["receipt_registration"] == "canceled"
+
+
+def test_webhook_http_pending_does_not_call_ensure_or_create_receipt(
+    monkeypatch: Any,
+) -> None:
+    """Стратег: smoke 1₽ не проверил ветку pending — закрываем HTTP-путём.
+
+    POST /yookassa/webhook с receipt_registration=pending не должен звать
+    ensure_payment_receipt / create_receipt (гонка FD 777+778).
+    """
+    from fastapi.testclient import TestClient
+
+    import sfrfr.api.routes.payments as payments_mod
+    from sfrfr.api import create_app
+    from sfrfr.core.config import get_settings
+
+    ensure_calls: list[dict[str, Any]] = []
+    create_calls: list[str] = []
+
+    class _FakeRepo:
+        def apply_provider_payment(self, **kwargs: Any) -> dict[str, Any]:
+            return {
+                "newly_paid": True,
+                "case_id": "case-pending-race",
+                "package_code": "ACCOMP",
+            }
+
+        def get_case_row(self, case_id: str) -> dict[str, Any]:
+            return {"clients": {"email": "nataliylo@yandex.ru", "phone": "+79001113344"}}
+
+    class _FakeYk:
+        def ensure_payment_receipt(self, **kwargs: Any) -> dict[str, Any]:
+            ensure_calls.append(kwargs)
+            return {"ok": True, "skipped": False}
+
+        def create_receipt(self, **kwargs: Any) -> dict[str, Any]:
+            create_calls.append("x")
+            return {"ok": True}
+
+    monkeypatch.setattr(payments_mod, "_repo", lambda: _FakeRepo())
+    monkeypatch.setattr(payments_mod, "YooKassaClient", _FakeYk)
+    monkeypatch.setattr(
+        "sfrfr.integrations.payments.notify.notify_payment_succeeded",
+        lambda **kw: None,
+    )
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "1")
+    get_settings.cache_clear()
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/api/integrations/payments/yookassa/webhook",
+        json={
+            "event": "payment.succeeded",
+            "object": {
+                "id": "326d821f-pending-race-test",
+                "status": "succeeded",
+                "paid": True,
+                "receipt_registration": "pending",
+                "amount": {"value": "8000.00", "currency": "RUB"},
+                "metadata": {
+                    "order_id": "order-pending",
+                    "case_id": "case-pending-race",
+                    "package_code": "ACCOMP",
+                },
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json().get("ok") == "processed"
+    assert ensure_calls == []
+    assert create_calls == []
+    get_settings.cache_clear()
