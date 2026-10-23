@@ -15,7 +15,7 @@ RECONCILE_GRACE_MINUTES = 2
 PRE_ERROR_STREAK_ALERT = 12
 MAX_RECONCILE_ATTEMPTS = 3
 LEASE_SECS = 120
-UNKNOWN_HTTP_STATUSES = frozenset({500, 502, 503, 504, 429})
+UNKNOWN_HTTP_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 
 # Явный select без reconcile_post_payload (PII email/phone) — для list_*.
 # Payload подтягивается отдельным select при повторе TTL.

@@ -511,6 +511,33 @@ def test_post_rejects_idempotence_key_over_64() -> None:
     assert data.get("phase") == "pre_post"
 
 
+def test_post_non_json_body_returns_empty_data(monkeypatch: Any) -> None:
+    """502 HTML после POST не должен ронять classify (→ unknown по status_code)."""
+
+    class _Resp:
+        status_code = 502
+        content = b"<html>bad gateway</html>"
+
+        def json(self) -> dict:
+            raise ValueError("No JSON object could be decoded")
+
+    class _Client:
+        def __enter__(self) -> _Client:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+        def post(self, *_a: Any, **_k: Any) -> _Resp:
+            return _Resp()
+
+    monkeypatch.setattr("sfrfr.integrations.payments.httpx.Client", lambda **_k: _Client())
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    status, data = client._post("/receipts", {"x": 1}, idempotence_key="reconcile:a:1")
+    assert status == 502
+    assert data == {}
+
+
 def test_should_auto_retry_fiscal_only_after_canceled() -> None:
     """Webhook не должен дергать ensure при pending/пусто (гонка FD 777+778)."""
     assert should_auto_retry_fiscal_receipt("canceled") is True

@@ -1500,6 +1500,8 @@ class CaseRepository:
         window_or = reconcile_window_or_filter(
             now=now_dt, window_hours=window_hours, grace_minutes=grace_minutes
         )
+        # Два .or_(): postgrest params.add → два query-param `or`, PostgREST AND.
+        # nullsfirst: paid_at NULL (fallback created_at) не отсекаются limit'ом.
         rows = (
             self.client.table("payments")
             .select(RECONCILE_PAYMENT_COLUMNS)
@@ -1507,7 +1509,8 @@ class CaseRepository:
             .not_.is_("provider_payment_id", "null")
             .or_(FISCAL_STATUS_OR)
             .or_(window_or)
-            .order("paid_at", desc=False)
+            .order("paid_at", desc=False, nullsfirst=True)
+            .order("created_at", desc=False)
             .limit(limit)
             .execute()
             .data
@@ -1548,7 +1551,8 @@ class CaseRepository:
             .is_("reconcile_alerted_at", "null")
             .or_(FISCAL_STATUS_OR)
             .or_(age_or)
-            .order("paid_at", desc=False)
+            .order("paid_at", desc=False, nullsfirst=True)
+            .order("created_at", desc=False)
             .limit(limit)
             .execute()
             .data

@@ -1037,6 +1037,7 @@ def yookassa_retry_receipt(
     """
     import json
     import logging
+    import uuid as uuid_mod
 
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.integrations.payments import YooKassaClient
@@ -1045,20 +1046,45 @@ def yookassa_retry_receipt(
     log = logging.getLogger("sfrfr.cli")
     repo = CaseRepository()
     pid = payment_id.strip()
-    rows = (
-        repo.client.table("payments")
-        .select(
-            "id, order_id, status, provider, provider_payment_id, fiscal_status, "
-            "paid_at, created_at, reconcile_attempts, reconcile_pre_error_streak, "
-            "last_reconcile_at, reconcile_post_at, reconcile_last_outcome, "
-            "reconcile_alerted_at, orders(id, case_id)"
-        )
-        .or_(f"id.eq.{pid},provider_payment_id.eq.{pid}")
-        .limit(1)
-        .execute()
-        .data
-        or []
+    select_cols = (
+        "id, order_id, status, provider, provider_payment_id, fiscal_status, "
+        "paid_at, created_at, reconcile_attempts, reconcile_pre_error_streak, "
+        "last_reconcile_at, reconcile_post_at, reconcile_last_outcome, "
+        "reconcile_alerted_at, orders(id, case_id)"
     )
+    # payments.id — uuid: не-UUID в id.eq → 22P02. YK id тоже uuid → сначала id, иначе yk.
+    rows: list[dict] = []
+    try:
+        uuid_mod.UUID(pid)
+        rows = (
+            repo.client.table("payments")
+            .select(select_cols)
+            .eq("id", pid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not rows:
+            rows = (
+                repo.client.table("payments")
+                .select(select_cols)
+                .eq("provider_payment_id", pid)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+    except ValueError:
+        rows = (
+            repo.client.table("payments")
+            .select(select_cols)
+            .eq("provider_payment_id", pid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
     if not rows:
         typer.echo(json.dumps({"ok": False, "error": "payment not found"}, ensure_ascii=False))
         raise typer.Exit(code=1)
@@ -1107,7 +1133,12 @@ def yookassa_retry_receipt(
         raise typer.Exit(code=0)
     if result.get("action") in {"rejected", "canceled", "error_before_post", "key_too_long"}:
         raise typer.Exit(code=1)
-    # unknown / lease / exhausted — не обязательно hard fail
+    # unknown / attempts_exhausted: exit 0, но stderr — не путать с успехом.
+    typer.echo(
+        "исход не подтверждён, проверьте в ЛК ЮKassa / list_receipts "
+        f"(action={result.get('action')})",
+        err=True,
+    )
     raise typer.Exit(code=0)
 
 

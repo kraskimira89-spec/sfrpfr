@@ -131,7 +131,7 @@ class _ChainClient:
         return self
 
     def order(self, *a: object, **k: object) -> _ChainClient:
-        self.orders.append((a[0] if a else None, k.get("desc")))
+        self.orders.append((a[0] if a else None, k.get("desc"), k.get("nullsfirst")))
         return self
 
     def limit(self, *_a: object, **_k: object) -> _ChainClient:
@@ -173,7 +173,9 @@ def test_repo_list_succeeded_payments_for_reconcile_filters_null_fiscal() -> Non
     assert chain.selects == [RECONCILE_PAYMENT_COLUMNS]
     assert FISCAL_STATUS_OR in chain.ors
     assert any("paid_at.gte." in str(x) for x in chain.ors)
-    assert ("paid_at", False) in chain.orders
+    assert len(chain.ors) == 2  # fiscal + window → два params `or` (AND)
+    assert ("paid_at", False, True) in chain.orders
+    assert ("created_at", False, None) in chain.orders
     assert "reconcile_post_payload" not in str(chain.selects[0])
 
 

@@ -60,6 +60,15 @@ def test_classify_429_unknown() -> None:
     )
 
 
+def test_classify_408_unknown() -> None:
+    assert (
+        classify_create_receipt_result(
+            {"ok": False, "phase": "http", "status_code": 408}
+        )
+        == "unknown_after_post"
+    )
+
+
 def test_classify_ok_succeeded() -> None:
     assert (
         classify_create_receipt_result(

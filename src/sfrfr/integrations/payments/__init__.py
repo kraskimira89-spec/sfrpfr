@@ -183,8 +183,16 @@ class YooKassaClient:
                 )
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             return 0, {"error": str(exc) or type(exc).__name__, "phase": "transport"}
-        data = response.json() if response.content else {}
-        return response.status_code, data if isinstance(data, dict) else {}
+        # 502/прокси с HTML: не ронять после POST — пустой data → classify → unknown.
+        data: dict[str, Any] = {}
+        if response.content:
+            try:
+                parsed = response.json()
+                if isinstance(parsed, dict):
+                    data = parsed
+            except ValueError:
+                data = {}
+        return response.status_code, data
 
     def create_payment(
         self,

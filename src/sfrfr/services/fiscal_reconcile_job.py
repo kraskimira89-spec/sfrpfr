@@ -103,13 +103,13 @@ def _default_alert_send(reason: str, payment: dict[str, Any]) -> bool:
     logger.error("%s", text)
     try:
         from sfrfr.core.config import get_settings
-        from sfrfr.integrations.max.client import MaxClient
+        from sfrfr.integrations.max.client import MaxBotClient
 
         settings = get_settings()
         chat = (settings.max_specialists_channel_chat_id or "").strip()
         if not chat:
             return True
-        MaxClient().send_message(chat_id=chat, text=text[:3500])
+        MaxBotClient().send_message(chat_id=chat, text=text[:3500])
         return True
     except Exception:  # noqa: BLE001
         logger.exception("fiscal_reconcile_alert_send_failed payment=%s", pid)
@@ -128,9 +128,12 @@ def _resolve_contacts(repo: Any, payment: dict[str, Any]) -> tuple[str | None, s
         case = getter(case_id) or {}
     except Exception:  # noqa: BLE001
         return None, None
-    clients = case.get("clients") if isinstance(case.get("clients"), dict) else {}
-    email = (clients.get("email") or case.get("email") or "").strip() or None
-    phone = (clients.get("phone") or case.get("phone") or "").strip() or None
+    if not isinstance(case, dict):
+        return None, None
+    raw_clients = case.get("clients")
+    clients: dict[str, Any] = raw_clients if isinstance(raw_clients, dict) else {}
+    email = (str(clients.get("email") or case.get("email") or "")).strip() or None
+    phone = (str(clients.get("phone") or case.get("phone") or "")).strip() or None
     return email, phone
 
 
