@@ -79,7 +79,7 @@ SFRFR использует **Умный платёж** (`confirmation.type=redir
 
 1. [ЛК ЮKassa](https://yookassa.ru/my) → нужный магазин → **Настройки → Магазин** ([справка](https://yookassa.ru/docs/support/merchant/payments/settings)).
 2. Проверить, что подключены **СБП** и **SberPay**; при необходимости — заявка менеджеру (карандаш / обращение, часто до 3 раб. дней).
-3. Написать в поддержку / менеджеру ЮKassa (`ecommerce@yoomoney.ru` или чат ЛК):  
+3. Написать в поддержку / менеджеру ЮKassa (`ecommerce@yoomoney.ru` или чат ЛК):
    *«Нужен порядок способов на странице Умного платежа и счетов: СБП → SberPay → остальные (ВТБ внутри СБП). Ранжирование по настройкам магазина, не только по популярности.»*
 4. Кодом мы **не** передаём `payment_method_data` и держим `capture=true` (иначе СБП на форме не появится).
 
@@ -103,8 +103,8 @@ PUBLIC_BASE_URL=https://api.proverkastaza.ru
 
 Перезапустите API (`sfrfr-api` / systemd).
 
-Проверка: `GET /v3/me` → `status=enabled`. Без ключей `POST .../pay` → **503**.  
-Без email при `SEND_RECEIPT=true` → **400**.  
+Проверка: `GET /v3/me` → `status=enabled`. Без ключей `POST .../pay` → **503**.
+Без email при `SEND_RECEIPT=true` → **400**.
 Фискализация вкл. + `SEND_RECEIPT=false` → ЮKassa `Receipt is missing or illegal`.
 
 ## Шаг 3. HTTP-уведомления (webhook)
@@ -140,7 +140,7 @@ https://api.proverkastaza.ru/api/integrations/payments/yookassa
 | `PAYMENT_TEST_AMOUNT_ENABLED=1` | принудительно test-сумма (даже на live — только отладка) |
 | `PAYMENT_TEST_AMOUNT_RUB=0` | override выключен |
 
-Код: `yookassa_charge_amount_rub` в `src/sfrfr/services/payment_amount.py`.  
+Код: `yookassa_charge_amount_rub` в `src/sfrfr/services/payment_amount.py`.
 **Не** меняет `PUBLIC_TARIFFS`, витрину `/tarify/` и сумму в заказе — только запрос к ЮKassa.
 
 На VPS после смены env: перезапуск `sfrfr-api` (systemd). Секрет test/live — в `.env`, не в git.
@@ -216,10 +216,10 @@ python -m sfrfr yookassa-status
 1. В `.env`: `YOOKASSA_SEND_RECEIPT=true` (обязательно при `fiscalization_enabled`).
 2. У клиента — **email или телефон** (профиль / `customer_email` в `/pay`). Без контакта ссылку/платёж с чеком не создаём.
 3. Код передаёт `receipt.customer` + `items` + `internet=true`, `vat_code` из `YOOKASSA_VAT_CODE` (по умолчанию `1`).
-4. Если Evotor не принял чек (`receipt_registration` ≠ succeeded) — webhook вызывает `POST /v3/receipts`; вручную:  
+4. Если Evotor не принял чек — webhook/`ensure_payment_receipt` вызывает `POST /v3/receipts` **только** при отсутствии succeeded (и pending) `type=payment` в `GET /receipts?payment_id=`. Не ориентироваться только на `payment.receipt_registration` (FD 770/771). Вручную:
    `python -m sfrfr yookassa-retry-receipt <payment_id> --email client@example.com`
 
-**Не отправляйте фискальный чек через MAX или amoCRM** — это не ОФД.  
+**Не отправляйте фискальный чек через MAX или amoCRM** — это не ОФД.
 После оплаты SFRFR шлёт в MAX/чат дела сервисное «оплата получена, чек на email»; заметка в amo — только если `AMOCRM_ENABLED=1` (сейчас выключен).
 
 Пока `SEND_RECEIPT=false` при включённой фискализации ЮKassa вернёт `Receipt is missing or illegal`.
@@ -253,7 +253,7 @@ python -m sfrfr yookassa-status
 | Нет чека | `YOOKASSA_SEND_RECEIPT` и email/телефон клиента; ЛК [Платформа ОФД](https://lk.platformaofd.ru/); Evotor онлайн |
 | Письмо «пробейте вручную» / чек не доставлен в ККТ | Evotor выкл./офлайн **или** неверный `vat_code`. Повтор: `sfrfr yookassa-retry-receipt <payment_id> --email …`. Webhook сам ретраит `/receipts` |
 | `Receipt is missing` | Фискализация вкл., а `SEND_RECEIPT=false` |
-| Двойной чек | В ЮKassa два режима сразу или ручной пробив в Evotor + API |
+| Двойной чек | Раньше: автоповтор + чек из create_payment (см. ensure-gate). Также: два режима фискализации в ЛК или ручной пробив Evotor + API |
 | Тест не проходит | Используете боевой ключ или наоборот |
 | После оплаты редирект на чужой/старый сайт | 1) VPS `YOOKASSA_RETURN_URL=https://proverkastaza.ru/` + рестарт API; 2) ЛК ЮKassa → магазин → сайт `https://proverkastaza.ru` |
 | На форме/в шапке старый бренд или чужой сайт | ЛК ЮKassa → название и сайт магазина → «Проверка стажа», `proverkastaza.ru` (не правится кодом) |

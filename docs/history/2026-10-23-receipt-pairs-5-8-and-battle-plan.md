@@ -21,7 +21,7 @@ Payment ids из `2026-10-23-payment-5rub-8rub-links.md`. API `GET /v3/receipts?
 | **772** | **payment** | succeeded | **8.00** | cashless 8.00 | 2026-10-23T07:47:00Z |
 | **773** | **payment** | succeeded | **8.00** | null | 2026-10-23T07:47:00Z |
 
-**Вывод для Стратега:** это **не** нормальная пара приход+возврат (`type=refund` нет). Оба чека в паре — `type=payment` / `succeeded` на один payment_id → **дубль того же класса, что FD 759–761**. Суммы позиций совпадают с 5.00 / 8.00. Разбор — касса/Evotor (SFRFR-89).
+**Вывод для Стратега:** это **не** нормальная пара приход+возврат (`type=refund` нет). Оба чека в паре — `type=payment` / `succeeded` на один payment_id. Маркер: чек со `settlements=cashless` = наш `POST /receipts` (PR #195), без settlements = чек из `create_payment` → **причина: автоповтор ensure**, не ручной Evotor. Фикс/блокер: `docs/history/2026-10-23-receipt-dedup-ensure-gate.md`, SFRFR-89.
 
 ## 2. Дубли FD 759–761 (SFRFR-89)
 
