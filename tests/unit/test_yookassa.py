@@ -397,6 +397,115 @@ def test_ensure_receipt_skips_when_already_succeeded(monkeypatch: Any) -> None:
     assert called == []
 
 
+def test_ensure_receipt_skips_when_succeeded_type_payment_exists(
+    monkeypatch: Any,
+) -> None:
+    """Один payment_id не должен получить второй succeeded type=payment.
+
+    Кейс FD 770/771: payment.receipt_registration ещё canceled, но чек из
+    create_payment уже succeeded — автоповтор POST /receipts запрещён.
+    """
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "5.00", "currency": "RUB"},
+                "description": "docs",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {
+            "ok": True,
+            "items": [
+                {
+                    "id": "ra-existing",
+                    "type": "payment",
+                    "status": "succeeded",
+                    "payment_id": payment_id,
+                    "fiscal_document_number": "770",
+                }
+            ],
+        },
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        client,
+        "create_receipt",
+        lambda **kwargs: called.append("x") or {"ok": True},
+    )
+    out = client.ensure_payment_receipt(
+        payment_id="326d4ecc-000f-5000-8000-0000000003b4",
+        customer_email="a@b.ru",
+    )
+    assert out["ok"] is True
+    assert out.get("skipped") is True
+    assert out.get("reason") == "succeeded_payment_receipt_exists"
+    assert called == []
+
+
+def test_ensure_receipt_retries_only_without_succeeded_payment(
+    monkeypatch: Any,
+) -> None:
+    client = YooKassaClient(shop_id="shop", secret_key="secret")
+    monkeypatch.setattr(
+        client,
+        "fetch_payment",
+        lambda payment_id: {
+            "ok": True,
+            "payment": {
+                "id": payment_id,
+                "status": "succeeded",
+                "receipt_registration": "canceled",
+                "amount": {"value": "5.00", "currency": "RUB"},
+                "description": "docs",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        client,
+        "list_receipts",
+        lambda payment_id: {
+            "ok": True,
+            "items": [
+                {
+                    "id": "ra-canceled",
+                    "type": "payment",
+                    "status": "canceled",
+                    "payment_id": payment_id,
+                }
+            ],
+        },
+    )
+    monkeypatch.setenv("YOOKASSA_SEND_RECEIPT", "true")
+    from sfrfr.core.config import get_settings
+
+    get_settings.cache_clear()
+    called: list[dict[str, Any]] = []
+
+    def fake_create(**kwargs: Any) -> dict[str, Any]:
+        called.append(kwargs)
+        return {"ok": True, "receipt_id": "ra-new", "status": "pending"}
+
+    monkeypatch.setattr(client, "create_receipt", fake_create)
+    out = client.ensure_payment_receipt(
+        payment_id="pay-retry",
+        customer_email="a@b.ru",
+    )
+    assert out["ok"] is True
+    assert len(called) == 1
+    assert called[0]["payment_id"] == "pay-retry"
+    get_settings.cache_clear()
+
+
 def test_parse_yookassa_event_receipt_registration() -> None:
     parsed = parse_yookassa_event(
         {

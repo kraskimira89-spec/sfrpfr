@@ -94,6 +94,30 @@ class YooKassaClient:
             "error": data.get("description") or data.get("message"),
         }
 
+    def list_receipts(self, payment_id: str) -> dict[str, Any]:
+        """GET /v3/receipts?payment_id= — чеки платежа (дедуп автоповтора)."""
+        if not self.available:
+            return {"ok": False, "skipped": True, "reason": "yookassa not configured"}
+        pid = str(payment_id or "").strip()
+        if not pid:
+            return {"ok": False, "error": "payment_id required"}
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                f"{self.api_base}/receipts",
+                params={"payment_id": pid},
+                auth=(self.shop_id, self.secret_key),
+            )
+        raw = response.json() if response.content else {}
+        data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        items_raw = data.get("items")
+        items: list[Any] = items_raw if isinstance(items_raw, list) else []
+        return {
+            "ok": response.status_code < 300,
+            "status_code": response.status_code,
+            "items": [row for row in items if isinstance(row, dict)],
+            "error": data.get("description") or data.get("message"),
+        }
+
     def _receipt(
         self,
         *,
@@ -323,7 +347,11 @@ class YooKassaClient:
         description: str | None = None,
         amount_rub: float | None = None,
     ) -> dict[str, Any]:
-        """Если чек не зарегистрирован — создать через /receipts (автоповтор после Evotor)."""
+        """Повтор POST /receipts только если нет успешного type=payment чека.
+
+        Поле payment.receipt_registration может оставаться canceled после FD
+        (см. FD 770/771) — ориентир: список receipts, не только registration.
+        """
         fetched = self.fetch_payment(payment_id)
         if not fetched.get("ok"):
             return {
@@ -335,6 +363,7 @@ class YooKassaClient:
         payment: dict[str, Any] = (
             raw_payment if isinstance(raw_payment, dict) else {}
         )
+        pid = str(payment.get("id") or payment_id)
         reg = str(payment.get("receipt_registration") or "").strip().lower()
         if reg == "succeeded":
             return {
@@ -342,6 +371,22 @@ class YooKassaClient:
                 "skipped": True,
                 "reason": "already_registered",
                 "registration": reg,
+            }
+        listed = self.list_receipts(pid)
+        if not listed.get("ok"):
+            return {
+                "ok": False,
+                "error": listed.get("error") or "receipts list failed",
+                "status_code": listed.get("status_code"),
+            }
+        gate = payment_receipt_retry_gate(listed.get("items") or [])
+        if gate.get("skip"):
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": str(gate.get("reason") or "receipt_exists"),
+                "registration": reg,
+                "receipt_id": gate.get("receipt_id"),
             }
         status_value = str(payment.get("status") or "")
         if status_value not in {"succeeded", "waiting_for_capture"}:
@@ -365,12 +410,36 @@ class YooKassaClient:
             or "Оплата услуг"
         )
         return self.create_receipt(
-            payment_id=str(payment.get("id") or payment_id),
+            payment_id=pid,
             amount_rub=amount_value,
             description=desc,
             customer_email=customer_email,
             customer_phone=customer_phone,
         )
+
+
+def payment_receipt_retry_gate(items: list[Any]) -> dict[str, Any]:
+    """Повтор type=payment запрещён, если уже есть succeeded (или pending в полёте)."""
+    for row in items:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("type") or "").strip().lower() != "payment":
+            continue
+        status = str(row.get("status") or "").strip().lower()
+        rid = str(row.get("id") or "") or None
+        if status == "succeeded":
+            return {
+                "skip": True,
+                "reason": "succeeded_payment_receipt_exists",
+                "receipt_id": rid,
+            }
+        if status == "pending":
+            return {
+                "skip": True,
+                "reason": "pending_payment_receipt_exists",
+                "receipt_id": rid,
+            }
+    return {"skip": False}
 
 
 def check_fiscalization_alignment(
