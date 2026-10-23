@@ -42,3 +42,9 @@
 - Timer 21:57 / 22:07 / 22:17 MSK: **7× `dry_run`**
 - DB: без изменений (только lease)
 - ERROR: нет (~1.5 ч наблюдения)
+
+## Снимок 2026-10-23T19:55:06Z (loop #4 / 6)
+
+- Timer 22:27 / 22:37 / 22:47 MSK: **7× `dry_run`**
+- DB: attempts/streak/payload/alert = 0
+- ERROR: нет (~2 ч наблюдения)
