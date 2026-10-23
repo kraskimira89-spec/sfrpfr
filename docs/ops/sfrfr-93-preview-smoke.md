@@ -1,7 +1,17 @@
-# SFRFR-93: preview smoke (до merge #247)
+# SFRFR-93: preview / prod smoke (до merge #247)
 
-Миграция: `supabase/migrations/20261023180000_payments_fiscal_reconcile_attempts.sql`  
-Применение на YC VM C: `scripts/vm_supabase_apply_migrations.sh` (не GitHub Actions).
+Миграция: `supabase/migrations/20261023180000_payments_fiscal_reconcile_attempts.sql`
+
+**Целевая БД (канон после SFRFR-73):** supabase2 на reg.ru  
+`194.67.116.168` / `https://supabase2.proverkastaza.ru`  
+(копия/cutover с YC; app `91.229.11.147` → этот SoT).
+
+Применение: SSH на **DB-VM** supabase2 → `docker compose exec` + роль
+`supabase_admin` (роль `postgres` не owner `payments`). Реестр:
+`sfrfr_ops.schema_migrations`. App-VPS миграции **не** применяет.
+
+YC VM C — только если снова станет SoT; сейчас при недоступном Яндексе smoke
+делается на supabase2.
 
 Auto-merge **не** включать, пока этот чек-лист не зелёный.
 
