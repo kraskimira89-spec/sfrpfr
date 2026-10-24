@@ -1,6 +1,7 @@
 """Staff «Проверить документы»: persistable job (extract/classify/dupes/kit).
 
-Без уведомлений клиенту. OCR/сканы — только при staff_docs_check_allow_ocr.
+Клиентский precheck-notify — один раз после finalize (с догоном при crash).
+OCR/сканы — только при staff_docs_check_allow_ocr.
 Юр.анализ LLM в этом модуле не запускается.
 """
 
@@ -480,6 +481,64 @@ def process_staff_document_check_job_safe(job_id: str) -> None:
         )
 
 
+def _enqueue_notify_once(
+    *,
+    case_id: str,
+    job_id: str,
+    primary: dict[str, Any],
+) -> dict[str, Any] | None:
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.primary_doc_precheck_notify import enqueue_precheck_client_notify
+
+    case_row = CaseRepository().get_case_row(case_id) or {}
+    clients = case_row.get("clients") or {}
+    if isinstance(clients, list):
+        clients = clients[0] if clients else {}
+    mid = None
+    if isinstance(clients, dict):
+        mid = clients.get("max_user_id")
+    return enqueue_precheck_client_notify(
+        case_id=case_id,
+        check_id=job_id,
+        primary=primary,
+        max_user_id=str(mid) if mid else None,
+    )
+
+
+def _maybe_retry_client_notify(job: dict[str, Any]) -> dict[str, Any]:
+    """После crash: результат сохранён, enqueue notify не подтверждён → один догон."""
+    from sfrfr.db.session import get_supabase_client
+    from sfrfr.services.staff_document_check_lifecycle import notify_already_recorded
+
+    if notify_already_recorded(job):
+        return job
+    result = job.get("result") if isinstance(job.get("result"), dict) else {}
+    primary = result.get("primary_precheck") if isinstance(result, dict) else None
+    status = str(job.get("status") or "")
+    if not isinstance(primary, dict) or status not in {"completed", "needs_action"}:
+        return job
+    job_id = str(job.get("id") or "")
+    case_id = str(job.get("case_id") or "")
+    if not job_id or not case_id:
+        return job
+    try:
+        notify_meta = _enqueue_notify_once(
+            case_id=case_id, job_id=job_id, primary=primary
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "precheck notify retry skipped job=%s", job_id[:8], exc_info=True
+        )
+        return job
+    if not notify_meta:
+        return job
+    merged = {**result, "client_notify": notify_meta}
+    get_supabase_client().table("staff_document_check_jobs").update(
+        {"result": merged, "updated_at": _now()}
+    ).eq("id", job_id).execute()
+    return {**job, "result": merged}
+
+
 def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
     from sfrfr.db.session import get_supabase_client
     from sfrfr.services.staff_document_check_lifecycle import (
@@ -501,8 +560,8 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
         raise LookupError(f"staff docs check job not found: {job_id}")
     job = rows[0]
     if result_already_finalized(job):
-        # Повтор worker/BackgroundTasks: не второй результат и не второй notify.
-        return job
+        # Результат уже есть: не пересчитывать. Если notify не записан — один догон.
+        return _maybe_retry_client_notify(job)
     attempts = int(job.get("attempts") or 0) + 1
     claimed = (
         client.table("staff_document_check_jobs")
@@ -541,25 +600,11 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
             and not notify_already_recorded(job)
         ):
             try:
-                from sfrfr.db.case_repository import CaseRepository
-                from sfrfr.services.primary_doc_precheck_notify import (
-                    enqueue_precheck_client_notify,
+                notify_meta = _enqueue_notify_once(
+                    case_id=case_id, job_id=job_id, primary=primary
                 )
-
-                case_row = CaseRepository().get_case_row(case_id) or {}
-                clients = case_row.get("clients") or {}
-                if isinstance(clients, list):
-                    clients = clients[0] if clients else {}
-                mid = None
-                if isinstance(clients, dict):
-                    mid = clients.get("max_user_id")
-                notify_meta = enqueue_precheck_client_notify(
-                    case_id=case_id,
-                    check_id=job_id,
-                    primary=primary,
-                    max_user_id=str(mid) if mid else None,
-                )
-                result = {**result, "client_notify": notify_meta}
+                if notify_meta:
+                    result = {**result, "client_notify": notify_meta}
             except Exception:  # noqa: BLE001
                 logger.warning(
                     "precheck notify skipped job=%s", job_id[:8], exc_info=True

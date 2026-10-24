@@ -234,6 +234,45 @@ def test_outcome_examples_discrepancy_none_insufficient() -> None:
     assert not missing.recommendation.offer_paid_analysis
 
 
+@patch("sfrfr.services.staff_document_check._enqueue_notify_once")
+@patch("sfrfr.db.session.get_supabase_client")
+def test_finalized_job_retries_missing_notify_once(
+    mock_sb: MagicMock, mock_enqueue: MagicMock
+) -> None:
+    """Результат сохранён, notify нет → повтор process догоняет notify, не пересчёт."""
+    from sfrfr.services.staff_document_check import process_staff_document_check_job
+
+    client = MagicMock()
+    mock_sb.return_value = client
+    jobs = MagicMock()
+    client.table.return_value = jobs
+    jobs.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {
+            "id": "job-done",
+            "case_id": "case-1",
+            "status": "completed",
+            "result": {
+                "primary_precheck": {
+                    "outcome": "discrepancies_found",
+                    "client_summary": "есть различие",
+                }
+            },
+        }
+    ]
+    mock_enqueue.return_value = {"ok": True, "message_id": "m1"}
+    jobs.update.return_value.eq.return_value.execute.return_value.data = [{"id": "job-done"}]
+    out = process_staff_document_check_job("job-done")
+    mock_enqueue.assert_called_once()
+    assert (out.get("result") or {}).get("client_notify", {}).get("message_id") == "m1"
+    # второй вызов с уже записанным notify — без повторного enqueue
+    jobs.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        out
+    ]
+    mock_enqueue.reset_mock()
+    process_staff_document_check_job("job-done")
+    mock_enqueue.assert_not_called()
+
+
 @patch("sfrfr.db.session.get_supabase_client")
 def test_reclaim_exhausted_marks_failed(mock_sb: MagicMock) -> None:
     """После «перезапуска» процесса: stale running с исчерпанными attempts → failed."""

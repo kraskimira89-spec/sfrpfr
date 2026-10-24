@@ -1,8 +1,8 @@
 # SFRFR-111 цикл 2: job recovery + precheck:* + периоды
 
-**Head #269:** `2a2b334d`  
+**Head #269:** см. `git rev-parse` после push (ветка `feat/sfrfr-primary-doc-precheck`).  
 **PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
-**Unit:** 43 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
+**Unit:** 44 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
 **Не** merge / deploy / live MAX / закрытие SFRFR-110/111.
 
 ## Формулировка статуса
@@ -21,7 +21,7 @@
   tests/unit/test_staff_document_check.py -q --basetemp=tmp/pytest-precheck-c2
 ```
 
-Результат: **43 passed**.
+Результат: **44 passed**.
 
 ## Job lifecycle (доказано unit)
 
