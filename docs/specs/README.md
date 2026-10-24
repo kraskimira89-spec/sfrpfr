@@ -43,6 +43,7 @@
 33. [33-staff-kanban-llm-stages.md](33-staff-kanban-llm-stages.md) — kanban этапов воронки (3/5/8 тыс.): автоперенос карточек правилами; LLM не пишет колонку.
 34. [34-max-document-task.md](34-max-document-task.md) — задача «комплект документов» в MAX: персональная secure-ссылка, статусы CRM, A/B вместо welcome.
 35. [35-sfr-client-chatbot-tz-v1.md](35-sfr-client-chatbot-tz-v1.md) — единое ТЗ v1.0 клиентского чат-бота (текст владельца): согласие ПДн, анкета, личное дело, документы, OCR, 5 000 / 8 000 ₽. Сверка с кодом и этапы — [35a](35a-sfr-client-chatbot-gap-plan.md) (A–B ✅ на 2026-10-09; дальше C1). Статус: `docs/history/2026-10-09-tz35-a-b-status.md`, Трекер SFRFR-56.
+36. [client-ai-dialogue-quality.md](client-ai-dialogue-quality.md) — качество ИИ-диалога: сопровождение дела, допустимые утверждения, связь SFRFR-82…91 / 100; матрица и каталог в `docs/ops/`.
 
 ## Принцип
 

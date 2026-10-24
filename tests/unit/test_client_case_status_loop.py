@@ -276,8 +276,11 @@ def test_resolve_receiving_during_quiet() -> None:
     st = ccs.resolve(documents=_KIT_DOCS, case_quiet=True, ef_open=False)
     assert st.kind == "receiving"
     text = ccs.reply_text(st)
-    assert "обрабатываем" in text.lower()
-    assert "повторно" in text.lower()
+    low = text.lower()
+    assert "приём" in low or "обработк" in low
+    assert "итоговая проверка" in low
+    assert "повторно" in low
+    assert "напишем" not in low
 
 
 def test_result_ready_beats_quiet_for_thanks() -> None:
@@ -315,9 +318,12 @@ def test_working_question_quiet_kit_not_processing_template() -> None:
     work = ccs.reply_text(st, intent="working_question").lower()
     assert "обрабатываем" not in work
     assert "в деле" in work or "проверк" in work
-    # Обычный other по-прежнему может сказать про обработку пачки.
+    # other: приём файлов, без ложного «итоговая проверка» / «напишем».
     other = ccs.reply_text(st, intent="other").lower()
-    assert "обрабатываем" in other
+    assert "обрабатываем" not in other
+    assert "приём" in other or "обработк" in other
+    assert "напишем" not in other
+    assert "итоговая проверка" not in other or "ещё не" in other
 
 
 def test_resolve_missing_names_concrete_doc() -> None:
@@ -340,9 +346,26 @@ def test_resolve_error_not_analysis_running() -> None:
     assert st.kind == "error"
     text = ccs.reply_text(st)
     low = text.lower()
-    assert "идёт" not in low or "задержк" in low
-    assert "ocr timeout" in low or "задержк" in low
-    assert "проверк" not in low or "задержк" in low
+    assert "задержк" in low
+    assert "ocr timeout" not in low
+    assert "специалист" not in low
+    assert "напишет" not in low
+    assert st.last_error == "ocr timeout"
+
+
+def test_error_kind_hides_poison_last_error() -> None:
+    poison = "SECRET=abc; https://internal.example/job"
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        document_check={"status": "failed", "last_error": poison},
+        ef_open=False,
+        ingest_pending=False,
+    )
+    assert st.kind == "error"
+    low = ccs.reply_text(st).lower()
+    assert "secret" not in low
+    assert "internal.example" not in low
+    assert "напишите сюда" in low
 
 
 def test_resolve_checking_only_when_job_runs() -> None:
@@ -457,12 +480,15 @@ def test_receiving_while_quiet(tmp_path: Path, monkeypatch) -> None:
     bot.sent.clear()
     res = handle_max_update(_msg(3104, "пачка ещё идёт?"), bot=bot)
     assert res.action == "case_status_reply"
-    # other/quiet: шаблон receiving ок; working_question — см. unit выше.
-    assert "обрабатываем" in (res.reply or "").lower()
+    # other/quiet: приём файлов; working_question — см. unit выше.
+    low = (res.reply or "").lower()
+    assert "приём" in low or "обработк" in low
+    assert "обрабатываем" not in low
     bot.sent.clear()
     res2 = handle_max_update(_msg(3104, "Вы ещё работаете?"), bot=bot)
     assert res2.action == "case_status_reply"
     assert "обрабатываем" not in (res2.reply or "").lower()
+    assert "приём и первичная" not in (res2.reply or "").lower()
     get_settings.cache_clear()
 
 
