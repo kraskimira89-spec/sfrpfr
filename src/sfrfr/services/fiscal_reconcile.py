@@ -110,18 +110,20 @@ def fiscal_status_needs_reconcile(row: dict[str, Any]) -> bool:
     return str(status).strip().lower() not in FISCAL_TERMINAL_STATUSES
 
 
-def provider_payment_is_yookassa_reconcile_target(row: dict[str, Any]) -> bool:
-    """Исключаем известные OCR-платежи; остальные provider не whitelist'им.
+def provider_payment_passes_ocr_exclusions(row: dict[str, Any]) -> bool:
+    """Проходит ли строка известные OCR-исключения (не валидация ЮKassa).
 
-    Контракт (срочный патч SFRFR-93):
+    Контракт (срочный патч SFRFR-93) — **exclude known OCR**, не whitelist:
     - False, если provider ∈ {receipt_ocr, receipt} (даже без префикса receipt:);
+      ``receipt`` — защитный алиас (писателей в коде не найдено; пишется
+      только ``receipt_ocr`` из ``confirm_order_from_receipt``);
     - False, если provider_payment_id пуст или начинается с ``receipt:``
       (независимо от provider);
-    - True иначе — **не** доказательство, что provider = yookassa.
-      Допустимость прочих значений provider — отдельная проверка (не этот PR).
+    - True иначе — **не** значит, что provider = yookassa и ID валиден.
+      Допустимость прочих provider — отдельный follow-up.
 
-    Источник OCR-строк: ``payment_receipt.confirm_order_from_receipt`` пишет
-    синтетический ключ ``receipt:{doc|order}``, не ID платежа магазина ЮKassa.
+    Источник OCR: ``payment_receipt.confirm_order_from_receipt`` →
+    ``provider=receipt_ocr``, ``provider_payment_id=receipt:{doc|order}``.
     """
     provider = str(row.get("provider") or "").strip().lower()
     if provider in {"receipt_ocr", "receipt"}:
@@ -132,6 +134,10 @@ def provider_payment_is_yookassa_reconcile_target(row: dict[str, Any]) -> bool:
     if yk.lower().startswith("receipt:"):
         return False
     return True
+
+
+# Совместимость со старыми импортами/тестами (семантика = passes_ocr_exclusions).
+provider_payment_is_yookassa_reconcile_target = provider_payment_passes_ocr_exclusions
 
 
 def payment_in_reconcile_window(
@@ -190,7 +196,7 @@ def filter_reconcile_candidates(
             continue
         if not str(row.get("provider_payment_id") or "").strip():
             continue
-        if not provider_payment_is_yookassa_reconcile_target(row):
+        if not provider_payment_passes_ocr_exclusions(row):
             continue
         if not fiscal_status_needs_reconcile(row):
             continue
@@ -212,7 +218,7 @@ def filter_stale_alert_candidates(
     return [
         row
         for row in rows
-        if provider_payment_is_yookassa_reconcile_target(row)
+        if provider_payment_passes_ocr_exclusions(row)
         and payment_needs_stale_alert(
             row, now=now, alert_since=alert_since, window_hours=window_hours
         )

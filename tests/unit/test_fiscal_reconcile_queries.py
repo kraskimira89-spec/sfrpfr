@@ -10,7 +10,7 @@ from sfrfr.services.fiscal_reconcile import (
     fiscal_status_needs_reconcile,
     payment_in_reconcile_window,
     payment_needs_stale_alert,
-    provider_payment_is_yookassa_reconcile_target,
+    provider_payment_passes_ocr_exclusions,
 )
 
 NOW = datetime(2026, 10, 23, 16, 0, 0, tzinfo=UTC)
@@ -82,7 +82,7 @@ def test_filter_candidates_drops_registered_and_pending_status() -> None:
 
 def test_exclude_receipt_ocr_provider_even_without_receipt_prefix() -> None:
     assert (
-        provider_payment_is_yookassa_reconcile_target(
+        provider_payment_passes_ocr_exclusions(
             {
                 "provider": "receipt_ocr",
                 "provider_payment_id": "326d8f33-000f-5001-9000-aaaaaaaaaaaa",
@@ -92,9 +92,22 @@ def test_exclude_receipt_ocr_provider_even_without_receipt_prefix() -> None:
     )
 
 
+def test_exclude_provider_receipt_alias() -> None:
+    """Защитный алиас: в коде пишет только receipt_ocr, но receipt тоже режем."""
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {
+                "provider": "receipt",
+                "provider_payment_id": "326d8f33-000f-5001-9000-cccccccccccc",
+            }
+        )
+        is False
+    )
+
+
 def test_exclude_receipt_prefix_regardless_of_provider() -> None:
     assert (
-        provider_payment_is_yookassa_reconcile_target(
+        provider_payment_passes_ocr_exclusions(
             {
                 "provider": "yookassa",
                 "provider_payment_id": "receipt:synthetic-doc-or-order",
@@ -103,8 +116,29 @@ def test_exclude_receipt_prefix_regardless_of_provider() -> None:
         is False
     )
     assert (
-        provider_payment_is_yookassa_reconcile_target(
+        provider_payment_passes_ocr_exclusions(
             {"provider": "", "provider_payment_id": "Receipt:ABC"}
+        )
+        is False
+    )
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "other", "provider_payment_id": "receipt:x"}
+        )
+        is False
+    )
+
+
+def test_exclude_empty_provider_payment_id() -> None:
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "yookassa", "provider_payment_id": ""}
+        )
+        is False
+    )
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "yookassa", "provider_payment_id": "   "}
         )
         is False
     )
@@ -116,7 +150,7 @@ def test_yookassa_payment_remains_reconcile_and_stale_candidate() -> None:
         provider="yookassa",
         provider_payment_id="326d8f33-000f-5001-9000-14edf85c8cb0",
     )
-    assert provider_payment_is_yookassa_reconcile_target(yk) is True
+    assert provider_payment_passes_ocr_exclusions(yk) is True
     assert [r["id"] for r in filter_reconcile_candidates([yk], now=NOW)] == ["yk-ok"]
     stale = dict(yk)
     stale["id"] = "yk-stale"
