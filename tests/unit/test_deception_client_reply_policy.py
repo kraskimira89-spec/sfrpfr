@@ -102,8 +102,9 @@ def test_payment_impact_registered() -> None:
     assert "не заменяет рассмотрение" in got["text"]
 
 
-def test_impact_unknown_requires_provisional() -> None:
-    blocked = build_confirmed_error_reply(
+def test_impact_unknown_without_provisional_ok() -> None:
+    """Неопределённость допустима без отметки ограничения (канон E05/F04)."""
+    got = build_confirmed_error_reply(
         ConfirmedErrorReplyKind.IMPACT_UNKNOWN,
         facts={
             "confirmed_point": "дате",
@@ -111,17 +112,53 @@ def test_impact_unknown_requires_provisional() -> None:
             "unknown_impact_area": "расчёт",
         },
     )
-    assert blocked["send"] is False
-    ok = build_confirmed_error_reply(
+    assert got["ok"] is True
+    assert "пока не установлено" in got["text"].casefold()
+    assert "отмечен как требующий проверки" not in got["text"].casefold()
+    assert "использование ограничено" not in got["text"].casefold()
+
+
+def test_impact_unknown_with_trusted_provisional() -> None:
+    facing = client_facing_error_reply(
         ConfirmedErrorReplyKind.IMPACT_UNKNOWN,
         facts={
             "confirmed_point": "дате",
             "provisional_limit_applied": True,
             "unknown_impact_area": "расчёт",
         },
+        limit_source="db_write_ack",
     )
-    assert ok["ok"] is True
-    assert "требующий проверки" in ok["text"]
+    assert facing["ok"] is True
+    assert "отмечен как требующий проверки" in facing["text"].casefold()
+    assert "использование ограничено" in facing["text"].casefold()
+
+
+def test_f04_limit_failed_honest_uncertainty() -> None:
+    """F04: отметка не сохранилась — неопределённость есть, «отмечен» нет."""
+    facing = client_facing_error_reply(
+        ConfirmedErrorReplyKind.IMPACT_UNKNOWN,
+        facts={
+            "confirmed_point": "дате",
+            "provisional_limit_applied": True,  # модель/caller думает, что ок
+            "unknown_impact_area": "расчёт",
+        },
+        limit_source="llm_self_report",  # не system-ack → не доверяем
+    )
+    assert facing["ok"] is True
+    assert "пока не установлено" in facing["text"].casefold()
+    assert "отмечен как требующий проверки" not in facing["text"].casefold()
+    assert "использование ограничено" not in facing["text"].casefold()
+
+    no_source = client_facing_error_reply(
+        ConfirmedErrorReplyKind.IMPACT_UNKNOWN,
+        facts={
+            "confirmed_point": "дате",
+            "provisional_limit_applied": True,
+            "unknown_impact_area": "расчёт",
+        },
+        # limit_source отсутствует
+    )
+    assert "отмечен как требующий проверки" not in no_source["text"].casefold()
 
 
 def test_placeholders_and_internals() -> None:

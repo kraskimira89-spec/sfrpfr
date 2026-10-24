@@ -147,11 +147,12 @@ def client_facing_error_reply(
     facts: dict[str, Any],
     client_reported: bool = True,
     persist_source: str | None = None,
+    limit_source: str | None = None,
 ) -> dict[str, Any]:
     """Исходящий ответ клиенту: либо точный текст, либо безопасный fallback.
 
     Не молчание и не выдуманный успех. Handoff/регистрацию не объявлять
-    без успешного действия в facts.
+    без успешного действия в facts. Отметка ограничения — только system-ack.
     """
     facts_use = dict(facts)
     if "date_persist_succeeded" in facts_use and persist_source is not None:
@@ -159,6 +160,16 @@ def client_facing_error_reply(
             source=persist_source,
             value=bool(facts_use.get("date_persist_succeeded")),
         )
+    if "provisional_limit_applied" in facts_use:
+        raw_limit = bool(facts_use.get("provisional_limit_applied"))
+        if limit_source is None:
+            # без явного system-ack не считаем отметку применённой
+            facts_use["provisional_limit_applied"] = False
+        else:
+            facts_use["provisional_limit_applied"] = persist_flag_is_trusted(
+                source=limit_source,
+                value=raw_limit,
+            )
 
     built = build_confirmed_error_reply(
         kind, facts=facts_use, client_reported=client_reported
@@ -198,7 +209,6 @@ def _required_missing(
         ],
         ConfirmedErrorReplyKind.IMPACT_UNKNOWN: [
             "confirmed_point",
-            "provisional_limit_applied",
             "unknown_impact_area",
         ],
         ConfirmedErrorReplyKind.AFTER_FIX: [
@@ -210,14 +220,8 @@ def _required_missing(
     missing: list[str] = []
     for key in need:
         val = facts.get(key)
-        if key in (
-            "date_persist_succeeded",
-            "demand_registered",
-            "provisional_limit_applied",
-        ):
+        if key in ("date_persist_succeeded", "demand_registered"):
             if val is None:
-                missing.append(key)
-            elif key == "provisional_limit_applied" and val is not True:
                 missing.append(key)
             continue
         if val is None or val == "":
@@ -323,13 +327,19 @@ def _render(
         )
 
     if kind == ConfirmedErrorReplyKind.IMPACT_UNKNOWN:
-        return (
+        base = (
             f"Ошибка подтверждена в {facts['confirmed_point']}. Пока не установлено, "
-            f"повлияла ли она на {facts['unknown_impact_area']}.\n\n"
-            f"Поэтому соответствующий результат отмечен как требующий проверки. "
+            f"повлияла ли она на {facts['unknown_impact_area']}. "
             f"Не буду сообщать, что вопрос полностью исправлен, пока последствия "
             f"не проверены."
         )
+        if facts.get("provisional_limit_applied") is True:
+            return (
+                f"{base}\n\n"
+                f"Соответствующий результат отмечен как требующий проверки; "
+                f"его использование ограничено до завершения проверки."
+            )
+        return base
 
     # AFTER_FIX
     open_q = ""
