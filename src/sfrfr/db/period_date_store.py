@@ -263,7 +263,7 @@ class PostgresPeriodDateStore:
         # Только для integration: исключение до UPDATE → rollback всей TX.
         self.raise_before_update: BaseException | None = None
 
-    def _connect(self) -> psycopg.Connection:
+    def _connect(self) -> psycopg.Connection[dict[str, Any]]:
         return psycopg.connect(self._dsn, row_factory=dict_row)
 
     def lookup_by_operation_id(
@@ -655,7 +655,8 @@ def _find_event_in_periods(
 
 
 def _event_from_dict(raw: dict[str, Any]) -> PeriodDateCorrectedEvent:
-    pref = raw.get("period_ref") if isinstance(raw.get("period_ref"), dict) else {}
+    pref_raw = raw.get("period_ref")
+    pref: dict[str, Any] = pref_raw if isinstance(pref_raw, dict) else {}
     return PeriodDateCorrectedEvent(
         event_type=str(raw.get("event_type") or "period_date_corrected"),
         operation_id=str(raw.get("operation_id") or ""),
@@ -760,7 +761,7 @@ def database_reachable(dsn: str | None = None, timeout_sec: float = 2.0) -> bool
     if host not in {"127.0.0.1", "localhost"} and "test" not in host:
         return False
     try:
-        with psycopg.connect(url, connect_timeout=timeout_sec) as conn:
+        with psycopg.connect(url, connect_timeout=int(timeout_sec)) as conn:
             with conn.cursor() as cur:
                 cur.execute("select 1")
                 cur.fetchone()
