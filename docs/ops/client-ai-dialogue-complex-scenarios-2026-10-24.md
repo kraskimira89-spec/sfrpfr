@@ -316,3 +316,6 @@
 | S20.26I | Признать мошенничество | legal_label_fight |
 | S20.26J | Составное: обман+отказ+возврат+расчёт | single_handoff_reply |
 | S20.26K | Подтверждённая ошибка даты | apology_closes_finance |
+| S20.26L | Ответ после persist периода | say_fixed_before_persist |
+| S20.26M | Ошибка до оплаты + регистрация | text_fix_closes_refund |
+| S20.26N | Регистрация до полной проверки | proof_before_claim |

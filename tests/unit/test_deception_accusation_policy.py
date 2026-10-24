@@ -132,7 +132,7 @@ def test_banned_rhetoric() -> None:
 def test_json_s2026_scenarios() -> None:
     rows = json.loads(_ASSETS.read_text(encoding="utf-8"))
     calc = [r for r in rows if str(r["id"]).startswith("S20.26")]
-    assert {f"S20.26{x}" for x in "ABCDEFGHIJK"} <= {r["id"] for r in calc}
+    assert {f"S20.26{x}" for x in "ABCDEFGHIJKLMN"} <= {r["id"] for r in calc}
     for scenario in calc:
         client = next(t for t in scenario["turns"] if t["role"] == "client")
         got = classify_deception_signal(client["text"])

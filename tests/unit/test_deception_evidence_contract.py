@@ -83,9 +83,10 @@ def test_multi_intent_wires_deception_subtype() -> None:
 
 def test_integration_order_and_side_effects() -> None:
     steps = integration_transition_order()
-    assert steps[0] == "client_message"
-    assert steps[-1] == "reply_to_client"
-    assert "preserve_source_evidence" in steps
+    assert steps[0] == "possible_error_message"
+    assert steps[-1] == "separate_closure_checks"
+    assert "register_needed_claims" in steps
+    assert "preserve_message_and_demands" in steps
     assert may_keep_spreading_false_claims_while_investigating() is False
     banned = set(claim_registration_must_not_auto())
     assert "cancel_payment" in banned

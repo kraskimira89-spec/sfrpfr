@@ -220,20 +220,10 @@ def deception_protocol_steps() -> tuple[str, ...]:
 
 
 def integration_transition_order() -> tuple[str, ...]:
-    """§63.3 — сквозной порядок; аварийный стоп ложных утверждений — отдельно."""
-    return (
-        "client_message",
-        "access_and_context",
-        "extract_demands",
-        "preserve_source_evidence",
-        "register_needed_processes",
-        "check_each_disputed_point",
-        "finding_per_point",
-        "authorized_decision",
-        "execute_allowed",
-        "verify_result",
-        "reply_to_client",
-    )
+    """§63.3 + уточнение §70: регистрация до полной проверки доказательств."""
+    from sfrfr.services.deception_transition_refine import refined_error_pipeline
+
+    return refined_error_pipeline()
 
 
 def may_keep_spreading_false_claims_while_investigating() -> bool:

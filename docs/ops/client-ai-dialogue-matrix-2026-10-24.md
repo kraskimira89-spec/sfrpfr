@@ -88,7 +88,7 @@
 | G25 | S20.25A–N + E2E отказ из-за цены → выдача | subtype G23 / silence≠accept | `price_refuse_policy` |
 | G-CX | SX01–03,06,12 пересечения | multi-intent / no single label | `multi_intent_policy` |
 | G-TR | §49–59 переходы | said≠done≠confirmed / queued≠running | `transition_contract_policy` |
-| G26 | S20.26A–K обвинение + §63–68 evidence | subtype 20.21 / traceability | `deception_accusation_policy` + `deception_evidence_contract` |
+| G26 | S20.26A–N + §63–72 | subtype 20.21 / replies from events | deception_* policies |
 
 Консолидация: каталог + конфликты. Переходы: `client-ai-dialogue-transition-model-2026-10-24.md`.  
 Запрет: объявление без доказательства; авто-защита сервиса; юрквалификация «мошенничество» от бота.

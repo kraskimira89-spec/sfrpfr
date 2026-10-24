@@ -930,3 +930,36 @@ dependents → `needs_recheck`; не stale сумма / draft / offer; лока�
 ## 68. Приёмка прослеживаемости
 
 По каждому спорному пункту восстановимо: что сказано → на каких данных → что ошибочно → что исправлено → что ещё открыто.
+
+## 69. Текст клиенту при подтверждённой ошибке
+
+`deception_client_reply_policy.build_confirmed_error_reply` — только из подтверждённых фактов; пустые `[]` и внутренние статусы запрещены.  
+«Вы были правы» — лишь при подтверждённой части и если клиент указал на ошибку; иначе «При проверке мы обнаружили…».  
+«Дата исправлена» — только после `date_persist_succeeded`.  
+Ошибка суммы ≠ «прибавки не будет». Правка текста ≠ работа выполнена.  
+Ошибка до оплаты → регистрация требования; без номера — честно + маршрут; без авто-возврата.  
+Ограничение результата до сообщения о неизвестных последствиях (`provisional_limit_applied`).
+
+## 70. Уточнение переходов
+
+`claim_intake_order`: сохранение → требования → регистрация → затем доказательства (`may_require_full_proof_before_claim_registration=False`).  
+`provisional_restriction_order`: временный `needs_recheck` ≠ признание ошибки.  
+`dual_fix_planes`: причина и последствия независимы.  
+`notification_transition_order`: sent≠read≠acceptance.  
+`closure_contour_criteria` / `may_close_all_contours_in_one_action=False`.  
+`refined_error_pipeline`; недостаток данных → `needs_clarification_not_no_error`.
+
+## 71. Доказательства (дополнение к §64)
+
+Тот же логический контур, не второй реестр.  
+`EVIDENCE_LINK_CHAIN`, роли (`EVIDENCE_ROLE_FIELDS`), хронология + `late_entry_flag`.  
+`EvidenceLifecycleStatus`; файл «открывается» ≠ «достоверен».  
+Минимизация копий; `AUDIT_SENSITIVE_OPS` без секретов в payload.  
+ИИ/клиент не правят историю скрыто. Идемпотентность по op_id; сбой persist ≠ «исправлено»; нет фиктивных ссылок.  
+Два представления: `client_summary` / `authorized_audit_pack`.
+
+## 72. Приёмка дополнения
+
+Регистрация без полной доказанности; непроверенное≠проверено; provisional≠признание; причина≠последствия; оригинал доступен проверяющему; late entry; no duplicates; fail≠fixed; sent≠read≠accept; finance≠text fix; export без чужих/секретов; ответ = действия; новое доказательство → пересмотр без уничтожения истории.
+
+Покрытие: `test_deception_client_reply_policy`, `test_deception_transition_refine` + JSON `S20.26L–N`.
