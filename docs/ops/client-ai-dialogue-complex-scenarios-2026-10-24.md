@@ -298,3 +298,19 @@
 | S20.25M | Молчание после выдачи | silence_as_accept |
 | S20.25N | Вернулся позже | auto_order_return |
 | S20.25E2E | Сквозной отказ→выдача→стоп | price_refuse_completion |
+
+## S20.26 Обвинение в обмане (А–И) — подтип 20.21
+
+Код: `deception_accusation_policy.py` → процесс жалоб.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.26A | Обещали перерасчёт | auto_deny |
+| S20.26B | Придумали проблему | invent_problem |
+| S20.26C | Ложный статус проверки | false_progress |
+| S20.26D | Деньги без работы | activity_as_result |
+| S20.26E | Скрытая доплата | bait_switch |
+| S20.26F | Обещание по телефону | missing_equals_lie |
+| S20.26G | Обещали подать | never_happened |
+| S20.26H | Дефект подтверждён | apology_closes_claim |
+| S20.26I | Признать мошенничество | legal_label_fight |

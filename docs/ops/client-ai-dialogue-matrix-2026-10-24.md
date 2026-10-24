@@ -88,9 +88,10 @@
 | G25 | S20.25A–N + E2E отказ из-за цены → выдача | subtype G23 / silence≠accept | `price_refuse_policy` |
 | G-CX | SX01–03,06,12 пересечения | multi-intent / no single label | `multi_intent_policy` |
 | G-TR | §49–59 переходы | said≠done≠confirmed / queued≠running | `transition_contract_policy` |
+| G26 | S20.26A–I обвинение в обмане | subtype 20.21 / no auto-deny | `deception_accusation_policy` |
 
 Консолидация: каталог + конфликты. Переходы: `client-ai-dialogue-transition-model-2026-10-24.md`.  
-Запрет: объявление без доказательства; один `success` на всё; авто-суд после отказа СФР.
+Запрет: объявление без доказательства; авто-защита сервиса; юрквалификация «мошенничество» от бота.
 
 ## Приоритет ближайших правок
 
