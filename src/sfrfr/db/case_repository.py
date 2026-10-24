@@ -742,19 +742,40 @@ class CaseRepository:
         return str(notes) if notes else None
 
     def save_pipeline_snapshot(self, case_id: str, snapshot: dict[str, Any]) -> dict[str, Any]:
-        """Upsert результатов пайплайна (в т.ч. analysis_notes) в case_pipeline_data."""
+        """Upsert результатов пайплайна (в т.ч. analysis_notes) в case_pipeline_data.
+
+        Staff-исправления дат (`staff_date_correction` по `period_id`) не затираются
+        повторным snapshot пайплайна (SFRFR-110 / E01 prep).
+        """
+        from sfrfr.services.period_date_correction import merge_periods_preserve_corrections
+
+        existing = self.get_pipeline_row(case_id) or {}
+        ils_in = snapshot.get("ils_periods")
+        labor_in = snapshot.get("labor_periods")
+        ils_merged = (
+            merge_periods_preserve_corrections(
+                existing=existing.get("ils_periods"),
+                incoming=ils_in if isinstance(ils_in, list) else [],
+            )
+            if ils_in is not None
+            else (existing.get("ils_periods") or [])
+        )
+        labor_merged = (
+            merge_periods_preserve_corrections(
+                existing=existing.get("labor_periods"),
+                incoming=labor_in if isinstance(labor_in, list) else [],
+            )
+            if labor_in is not None
+            else (existing.get("labor_periods") or [])
+        )
         payload: dict[str, Any] = {
             "case_id": case_id,
             "ocr_texts": snapshot.get("ocr_texts") if snapshot.get("ocr_texts") is not None else [],
             "classifications": snapshot.get("classifications")
             if snapshot.get("classifications") is not None
             else [],
-            "ils_periods": snapshot.get("ils_periods")
-            if snapshot.get("ils_periods") is not None
-            else [],
-            "labor_periods": snapshot.get("labor_periods")
-            if snapshot.get("labor_periods") is not None
-            else [],
+            "ils_periods": ils_merged,
+            "labor_periods": labor_merged,
             "findings": snapshot.get("findings") if snapshot.get("findings") is not None else [],
             "analysis_notes": snapshot.get("analysis_notes"),
             "draft": snapshot.get("draft"),

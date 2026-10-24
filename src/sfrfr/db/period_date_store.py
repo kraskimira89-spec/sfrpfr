@@ -1,0 +1,483 @@
+"""Хранилище точечной правки даты периода.
+
+Атомарность: одна граница «прочитать FOR UPDATE / сверить version /
+записать periods+findings+embedded event». Отдельный access_audit после
+успеха не используется как доказательство (запрет двойного write).
+"""
+
+from __future__ import annotations
+
+import threading
+from copy import deepcopy
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
+from urllib.parse import urlparse
+
+import psycopg
+from psycopg.rows import dict_row
+from psycopg.types.json import Json
+
+from sfrfr.core.config import get_settings
+from sfrfr.services.period_date_correction import (
+    CorrectionOutcome,
+    CorrectPeriodDateCommand,
+    PeriodDateCorrectedEvent,
+    StoreApplyFailure,
+    StoreApplySuccess,
+    build_event,
+    event_matches_command,
+    mark_dependents_needs_recheck,
+    utc_now_iso,
+    validate_period_interval,
+)
+
+
+def _psycopg_dsn(url: str) -> str:
+    raw = (url or "").strip()
+    if raw.startswith("postgresql+psycopg://"):
+        return "postgresql://" + raw[len("postgresql+psycopg://") :]
+    return raw
+
+
+@dataclass
+class _CasePipelineState:
+    ils_periods: list[dict[str, Any]] = field(default_factory=list)
+    labor_periods: list[dict[str, Any]] = field(default_factory=list)
+    findings: list[dict[str, Any]] = field(default_factory=list)
+    draft: dict[str, Any] | None = None
+    version: str = "1"
+    operations: dict[str, PeriodDateCorrectedEvent] = field(default_factory=dict)
+
+
+class InMemoryPeriodDateStore:
+    """Потокобезопасный CAS-store для unit-тестов (не замена БД)."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._cases: dict[str, _CasePipelineState] = {}
+        self.fail_next_write: bool = False
+        self.raise_on_apply: BaseException | None = None
+
+    def seed(
+        self,
+        case_id: str,
+        *,
+        ils_periods: list[dict[str, Any]] | None = None,
+        labor_periods: list[dict[str, Any]] | None = None,
+        findings: list[dict[str, Any]] | None = None,
+        draft: dict[str, Any] | None = None,
+        version: str = "1",
+    ) -> None:
+        with self._lock:
+            self._cases[case_id] = _CasePipelineState(
+                ils_periods=deepcopy(ils_periods or []),
+                labor_periods=deepcopy(labor_periods or []),
+                findings=deepcopy(findings or []),
+                draft=deepcopy(draft) if draft else None,
+                version=str(version),
+            )
+
+    def get_state(self, case_id: str) -> _CasePipelineState | None:
+        with self._lock:
+            st = self._cases.get(case_id)
+            return deepcopy(st) if st else None
+
+    def apply_pipeline_snapshot(
+        self,
+        case_id: str,
+        *,
+        ils_periods: list[dict[str, Any]] | None = None,
+        labor_periods: list[dict[str, Any]] | None = None,
+        findings: list[dict[str, Any]] | None = None,
+    ) -> None:
+        from sfrfr.services.period_date_correction import merge_periods_preserve_corrections
+
+        with self._lock:
+            st = self._cases.setdefault(case_id, _CasePipelineState())
+            if ils_periods is not None:
+                st.ils_periods = merge_periods_preserve_corrections(
+                    existing=st.ils_periods, incoming=ils_periods
+                )
+            if labor_periods is not None:
+                st.labor_periods = merge_periods_preserve_corrections(
+                    existing=st.labor_periods, incoming=labor_periods
+                )
+            if findings is not None:
+                st.findings = deepcopy(findings)
+            st.version = str(int(st.version) + 1)
+
+    def lookup_by_operation_id(
+        self, *, case_id: str, operation_id: str
+    ) -> PeriodDateCorrectedEvent | None:
+        with self._lock:
+            st = self._cases.get(case_id)
+            if not st:
+                return None
+            return st.operations.get(operation_id)
+
+    def apply_correction(
+        self,
+        *,
+        command: CorrectPeriodDateCommand,
+        actor_id: str,
+    ) -> StoreApplySuccess | StoreApplyFailure:
+        if self.raise_on_apply is not None:
+            exc = self.raise_on_apply
+            self.raise_on_apply = None
+            raise exc
+        with self._lock:
+            return self._apply_locked(command=command, actor_id=actor_id)
+
+    def _apply_locked(
+        self,
+        *,
+        command: CorrectPeriodDateCommand,
+        actor_id: str,
+    ) -> StoreApplySuccess | StoreApplyFailure:
+        st = self._cases.get(command.case_id)
+        if st is None:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN,
+                detail="pipeline missing",
+            )
+
+        existing = st.operations.get(command.operation_id)
+        if existing is not None:
+            if event_matches_command(existing, command):
+                return StoreApplyFailure(
+                    outcome=CorrectionOutcome.IDEMPOTENT_REPLAY,
+                    event=existing,
+                    detail="replay",
+                )
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.OP_ID_PAYLOAD_CONFLICT,
+                detail="operation_id payload mismatch",
+                event=existing,
+            )
+
+        if st.version != command.expected_version:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.VERSION_CONFLICT,
+                detail="version mismatch",
+            )
+
+        collection = (
+            st.ils_periods
+            if command.collection.value == "ils_periods"
+            else st.labor_periods
+        )
+        idx = next(
+            (
+                i
+                for i, p in enumerate(collection)
+                if str(p.get("period_id") or "") == command.period_id
+            ),
+            None,
+        )
+        if idx is None:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN,
+                detail="period not found",
+            )
+
+        period = dict(collection[idx])
+        field = command.field.value
+        if field not in period and field not in {"date_from", "date_to"}:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.INVALID_DATA,
+                detail="field not allowed",
+            )
+        interval_err = validate_period_interval(period, field, command.new_value)
+        if interval_err:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.INVALID_DATA,
+                detail=interval_err,
+            )
+
+        before = period.get(field)
+        before_s = str(before) if before is not None else None
+        period[field] = command.new_value
+        version_after = str(int(st.version) + 1)
+        persisted_at = utc_now_iso()
+        event = build_event(
+            command=command,
+            actor_id=actor_id,
+            before=before_s,
+            version_before=st.version,
+            version_after=version_after,
+            persisted_at=persisted_at,
+            persist_ack_source="repository_update_ok",
+        )
+        period["staff_date_correction"] = event.as_dict()
+        period["value_source"] = command.value_source
+
+        if self.fail_next_write:
+            self.fail_next_write = False
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.WRITE_REJECTED,
+                detail="forced write failure",
+            )
+
+        new_collection = list(collection)
+        new_collection[idx] = period
+        if command.collection.value == "ils_periods":
+            st.ils_periods = new_collection
+        else:
+            st.labor_periods = new_collection
+        st.findings = mark_dependents_needs_recheck(st.findings)
+        if isinstance(st.draft, dict):
+            draft = dict(st.draft)
+            draft.pop("recalculated", None)
+            draft["dependents_status"] = "needs_recheck"
+            st.draft = draft
+        st.version = version_after
+        st.operations[command.operation_id] = event
+        return StoreApplySuccess(event=event, version_after=version_after)
+
+
+class PostgresPeriodDateStore:
+    """CAS через SELECT FOR UPDATE + UPDATE в одной транзакции psycopg."""
+
+    def __init__(self, dsn: str | None = None) -> None:
+        settings = get_settings()
+        self._dsn = _psycopg_dsn(dsn or settings.database_url)
+
+    def _connect(self) -> psycopg.Connection:
+        return psycopg.connect(self._dsn, row_factory=dict_row)
+
+    def lookup_by_operation_id(
+        self, *, case_id: str, operation_id: str
+    ) -> PeriodDateCorrectedEvent | None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select ils_periods, labor_periods
+                    from public.case_pipeline_data
+                    where case_id = %s::uuid
+                    """,
+                    (case_id,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return _find_event_in_periods(
+            list(row.get("ils_periods") or []) + list(row.get("labor_periods") or []),
+            operation_id,
+        )
+
+    def apply_correction(
+        self,
+        *,
+        command: CorrectPeriodDateCommand,
+        actor_id: str,
+    ) -> StoreApplySuccess | StoreApplyFailure:
+        try:
+            with self._connect() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        return self._apply_in_tx(
+                            cur, command=command, actor_id=actor_id
+                        )
+        except Exception as exc:  # noqa: BLE001
+            # После возможного commit-сбоя вызывающий делает reconcile.
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.UNKNOWN,
+                detail=f"tx_error:{type(exc).__name__}:{exc}",
+            )
+
+    def _apply_in_tx(
+        self,
+        cur: Any,
+        *,
+        command: CorrectPeriodDateCommand,
+        actor_id: str,
+    ) -> StoreApplySuccess | StoreApplyFailure:
+        cur.execute(
+            """
+            select ils_periods, labor_periods, findings, draft, updated_at
+            from public.case_pipeline_data
+            where case_id = %s::uuid
+            for update
+            """,
+            (command.case_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN,
+                detail="pipeline missing",
+            )
+
+        version_token = _version_token(row["updated_at"])
+        ils = [dict(x) for x in (row.get("ils_periods") or []) if isinstance(x, dict)]
+        labor = [dict(x) for x in (row.get("labor_periods") or []) if isinstance(x, dict)]
+        findings = list(row.get("findings") or [])
+        draft = row.get("draft")
+
+        existing = _find_event_in_periods(ils + labor, command.operation_id)
+        if existing is not None:
+            if event_matches_command(existing, command):
+                return StoreApplyFailure(
+                    outcome=CorrectionOutcome.IDEMPOTENT_REPLAY,
+                    event=existing,
+                    detail="replay",
+                )
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.OP_ID_PAYLOAD_CONFLICT,
+                detail="operation_id payload mismatch",
+                event=existing,
+            )
+
+        if version_token != command.expected_version:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.VERSION_CONFLICT,
+                detail="version mismatch",
+            )
+
+        collection = ils if command.collection.value == "ils_periods" else labor
+        idx = next(
+            (
+                i
+                for i, p in enumerate(collection)
+                if str(p.get("period_id") or "") == command.period_id
+            ),
+            None,
+        )
+        if idx is None:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN,
+                detail="period not found",
+            )
+
+        period = dict(collection[idx])
+        field = command.field.value
+        interval_err = validate_period_interval(period, field, command.new_value)
+        if interval_err:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.INVALID_DATA,
+                detail=interval_err,
+            )
+
+        before = period.get(field)
+        before_s = str(before) if before is not None else None
+        period[field] = command.new_value
+        persisted_at = utc_now_iso()
+        new_updated_at = datetime.now(UTC).replace(microsecond=0)
+        version_after = _version_token(new_updated_at)
+        event = build_event(
+            command=command,
+            actor_id=actor_id,
+            before=before_s,
+            version_before=version_token,
+            version_after=version_after,
+            persisted_at=persisted_at,
+            persist_ack_source="db_write_ack",
+        )
+        period["staff_date_correction"] = event.as_dict()
+        period["value_source"] = command.value_source
+        collection[idx] = period
+        new_findings = mark_dependents_needs_recheck(findings)
+        new_draft = draft
+        if isinstance(draft, dict):
+            new_draft = dict(draft)
+            new_draft.pop("recalculated", None)
+            new_draft["dependents_status"] = "needs_recheck"
+
+        ils_out = collection if command.collection.value == "ils_periods" else ils
+        labor_out = collection if command.collection.value == "labor_periods" else labor
+
+        cur.execute(
+            """
+            update public.case_pipeline_data
+            set ils_periods = %s::jsonb,
+                labor_periods = %s::jsonb,
+                findings = %s::jsonb,
+                draft = %s::jsonb,
+                updated_at = %s
+            where case_id = %s::uuid
+              and updated_at = %s
+            returning updated_at
+            """,
+            (
+                Json(ils_out),
+                Json(labor_out),
+                Json(new_findings),
+                Json(new_draft) if new_draft is not None else None,
+                new_updated_at,
+                command.case_id,
+                row["updated_at"],
+            ),
+        )
+        updated = cur.fetchone()
+        if not updated:
+            return StoreApplyFailure(
+                outcome=CorrectionOutcome.VERSION_CONFLICT,
+                detail="concurrent update",
+            )
+        return StoreApplySuccess(event=event, version_after=version_after)
+
+
+def _version_token(updated_at: Any) -> str:
+    if isinstance(updated_at, datetime):
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+        return updated_at.isoformat()
+    return str(updated_at)
+
+
+def _find_event_in_periods(
+    periods: list[Any], operation_id: str
+) -> PeriodDateCorrectedEvent | None:
+    for item in periods:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("staff_date_correction")
+        if not isinstance(raw, dict):
+            continue
+        if str(raw.get("operation_id") or "") != operation_id:
+            continue
+        return _event_from_dict(raw)
+    return None
+
+
+def _event_from_dict(raw: dict[str, Any]) -> PeriodDateCorrectedEvent:
+    pref = raw.get("period_ref") if isinstance(raw.get("period_ref"), dict) else {}
+    return PeriodDateCorrectedEvent(
+        event_type=str(raw.get("event_type") or "period_date_corrected"),
+        operation_id=str(raw.get("operation_id") or ""),
+        case_id=str(raw.get("case_id") or ""),
+        collection=str(pref.get("collection") or ""),
+        period_id=str(pref.get("period_id") or ""),
+        field=str(raw.get("field") or ""),
+        before=None if raw.get("before") is None else str(raw.get("before")),
+        after=str(raw.get("after") or ""),
+        value_source=str(raw.get("value_source") or ""),
+        correction_basis=str(raw.get("correction_basis") or ""),
+        actor_id=str(raw.get("actor_id") or ""),
+        version_before=str(raw.get("version_before") or ""),
+        version_after=str(raw.get("version_after") or ""),
+        persisted_at=str(raw.get("persisted_at") or ""),
+        persist_ack_source=str(raw.get("persist_ack_source") or ""),
+        dependents_status=str(raw.get("dependents_status") or "needs_recheck"),
+    )
+
+
+def database_reachable(dsn: str | None = None, timeout_sec: float = 2.0) -> bool:
+    """Короткий probe: не использовать production; только для skip integration."""
+    settings = get_settings()
+    url = _psycopg_dsn(dsn or settings.database_url)
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    # Защита: не считать cloud-prod «тестовой БД» без явного local/test маркера.
+    if host not in {"127.0.0.1", "localhost"} and "test" not in host:
+        return False
+    try:
+        with psycopg.connect(url, connect_timeout=timeout_sec) as conn:
+            with conn.cursor() as cur:
+                cur.execute("select 1")
+                cur.fetchone()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
