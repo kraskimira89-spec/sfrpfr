@@ -354,6 +354,7 @@ def _execute_precheck_order(
         os.environ.get("PRECHECK_ORDER_SANDBOX", "").strip() == "1"
     )
 
+    result: dict[str, Any] | None
     if sandbox:
         result = _sandbox_diag_order(
             case_id=case_id, max_user_id=max_user_id, tariff=tariff
