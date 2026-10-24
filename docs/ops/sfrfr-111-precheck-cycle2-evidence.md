@@ -1,6 +1,7 @@
 # SFRFR-111 цикл 2: job recovery + precheck:* + периоды
 
-**Head ветки:** см. PR #269 после push.  
+**Head #269:** `2d15764f`  
+**Unit:** 40 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
 **Не** merge / deploy / live MAX / закрытие SFRFR-110/111.
 
 ## Формулировка статуса
