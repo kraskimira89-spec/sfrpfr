@@ -1,6 +1,6 @@
 # SFRFR-84 — матрица критериев ↔ evidence → offer (2026-10-24)
 
-**Дата проверки (UTC):** 2026-10-24T12:05:19Z (матрица); синхрон арифметики — follow-up PR #259  
+**Дата проверки (UTC):** 2026-10-24T12:05:19Z (матрица); синхрон арифметики — follow-up PR #259
 **Исходный `main` SHA:** `7e18c2ddfc67a509ab1348015737c173f7bf147a`  
 **Задача:** [SFRFR-84](https://tracker.yandex.ru/SFRFR-84) · эпик [SFRFR-82](https://tracker.yandex.ru/SFRFR-82)  
 **PR доказательств:** https://github.com/kraskimira89-spec/sfrpfr/pull/259 (без auto-merge)
