@@ -1,6 +1,6 @@
 # SFRFR-111 цикл 4: тестовая БД + reclaim + browser UI
 
-**Head:** после push (см. `git rev-parse`).  
+**Head #269:** `8cdb479e`  
 **PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
 Auto-merge **OFF**. Merge / deploy / prod-миграции / live MAX — **нет**.  
 SFRFR-110 / SFRFR-111 — открыты.
