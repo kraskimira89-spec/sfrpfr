@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | Изолированный срез E05/F04 (принят) | `.\.venv\Scripts\python.exe -m pytest tests/unit/test_max_e05_f04_wire_path.py tests/unit/test_max_sfrfr110_e05_f04_slice.py -q` | `4f60e930858943ee1b9f50e6224966f5c80470f2` | **25 passed** (заявлено в отчёте среза) | Базовый принятый счётчик до Null-блока |
 | Контрольная точка Null/исходы (локально) | та же | `4bb8c0d78bf07c993097e19f668ec341b114beb8` | **28 passed** (локально агентом) | Не независимое ревью; не CI |
-| Audit PR (локально) | та же (+ новый тест enqueue fail≠unknown) | *(SHA после commit audit)* | **33 passed** локально | Не CI; не подмена 25/28 |
+| Audit PR (локально) | та же (+ тест enqueue fail≠unknown) | `41d957eb` (+ follow-up commit) | **33 passed** локально (до follow-up links) | Не CI; не подмена 25/28 |
 | CI GitHub | Checks на PR | head PR | pending/green/red | Только статус Actions |
 
 ## PR #263 описание

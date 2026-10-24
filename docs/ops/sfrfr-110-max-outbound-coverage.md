@@ -162,3 +162,10 @@ Outbox или прямой send: enqueue и/или MaxBotClient.send_message
 5. [ ] Повторный grep после merge #261/#263
 
 Карта **не полна** до пункта 3–4. Не утверждать «MAX защищён».
+
+## Связанные документы контрольной точки
+
+- Callback subcodes: `docs/ops/sfrfr-110-max-callback-intake-q-subcodes.md`
+- Null→LLM gap: `docs/ops/sfrfr-110-null-llm-gap.md`
+- Period-date audit: `docs/ops/sfrfr-110-period-date-write-audit.md`
+- Test evidence: `docs/ops/sfrfr-110-test-evidence-registry.md`
