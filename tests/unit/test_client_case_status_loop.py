@@ -97,6 +97,39 @@ def test_kit_ready_base_reply_honest_not_running() -> None:
         assert "повторно" in low
 
 
+def test_quiet_kit_working_question_not_claiming_check_running() -> None:
+    """SFRFR-83: quiet+полный комплект ≠ «проверка ещё идёт», если check не running."""
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=True,
+        ef_open=False,
+        ingest_pending=False,
+        document_check=None,
+    )
+    assert st.kind == "receiving"
+    assert "ils" in st.have_buckets and "labor" in st.have_buckets
+    low = ccs.reply_text(st, intent="working_question").lower()
+    assert "не запущ" in low or "ещё не" in low
+    assert "ещё идёт" not in low
+    assert "уже была" not in low
+    assert "выполняется" not in low
+    assert "повторно" in low
+
+
+def test_quiet_kit_working_question_when_check_running_may_say_in_progress() -> None:
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=True,
+        ef_open=False,
+        ingest_pending=False,
+        document_check={"status": "running"},
+    )
+    assert st.kind == "receiving"
+    low = ccs.reply_text(st, intent="working_question").lower()
+    assert "ещё идёт" in low
+    assert "повторно" in low
+
+
 def test_resolve_receiving_during_quiet() -> None:
     st = ccs.resolve(documents=_KIT_DOCS, case_quiet=True, ef_open=False)
     assert st.kind == "receiving"
