@@ -86,8 +86,10 @@
 | G22 | S20.22A–I,K,L ожидания vs объём | pay≠SFR / upload≠submit | `expectation_alignment_policy` |
 | G23 | S20.23A–I отказ от next-оплаты | reoffer / block deliverables | `refuse_next_stage_policy` |
 | G25 | S20.25A–N + E2E отказ из-за цены → выдача | subtype G23 / silence≠accept | `price_refuse_policy` |
+| G-CX | SX01–03,06,12 пересечения | multi-intent / no single label | `multi_intent_policy` |
 
-Запрет: давление после отказа; удержание результата; молчание как приёмка; услуга≠пенсионный успех.
+Консолидация: `client-ai-dialogue-scenario-catalog-consolidated-2026-10-24.md`, конфликты — `…-conflicts-…`.  
+Запрет: один ярлык на всю реплику; «претензия принята» без регистрации; авто-offer после отказа.
 
 ## Приоритет ближайших правок
 
