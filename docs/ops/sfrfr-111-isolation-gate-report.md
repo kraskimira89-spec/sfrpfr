@@ -13,8 +13,8 @@ PG-harness ≠ полная схема Supabase приложения. PostgREST 
 ## Результат ворот (после фикса контракта)
 
 ```text
-SHA: (см. git HEAD после push; прогон на d056b73b + uncommitted contract fix)
-Идентификатор: cycle5-iso-gate-469caed7 (или новый из up.ps1)
+SHA: e3209b6657e2d88e5c089a75aac64a5d79ae4cca
+Идентификатор: cycle5-iso-gate-469caed7
 Компоненты:
   - probe → PRECHECK_PG_DSN (JSON PASS)
   - pytest isolation + job_pg + job_postgrest → 21 passed
@@ -24,7 +24,7 @@ SHA: (см. git HEAD после push; прогон на d056b73b + uncommitted c
 Результат: PASS
 Изменяющие запросы до подтверждения: отсутствуют
 Код probe: 0 · gate: 0 · pytest: 0
-Логи: tmp/cycle5/db-probe.log, tmp/cycle5/precheck-pg.log
+Логи: tmp/cycle5/db-probe.log, docs/ops/logs/sfrfr-111-db-probe-contract.jsonl
 ```
 
 Статическая рецензия со старым `DATABASE_URL` fallback — устаревший снимок; на ветке #269 снят.
