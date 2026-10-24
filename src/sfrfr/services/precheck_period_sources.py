@@ -1,6 +1,7 @@
 """Периоды для предпроверки: pipeline или эфемерное извлечение.
 
 Не пишет в case_pipeline_data — не затирает staff_date_correction.
+Пустой pipeline ≠ отсутствие стажа; ошибка OCR ≠ отсутствие расхождений.
 """
 
 from __future__ import annotations
@@ -20,8 +21,11 @@ def classify_period_source_state(
 ) -> str:
     if not has_documents:
         return "documents_missing"
-    if ils or labor:
+    if ils and labor:
         return "periods_ready"
+    if ils or labor:
+        # Одна сторона — частичное извлечение, не полный комплект.
+        return "extract_partial"
     if extract_error:
         return "extract_failed"
     if not extract_attempted:
@@ -29,17 +33,51 @@ def classify_period_source_state(
     return "extract_empty_unreadable"
 
 
+def _doc_text_candidates(doc: dict[str, Any]) -> list[tuple[str, str]]:
+    """(source_tag, text) из сохранённых артефактов OCR/extract без полного re-OCR."""
+    out: list[tuple[str, str]] = []
+    for key, tag in (
+        ("text_sample", "text_sample"),
+        ("content_preview", "content_preview"),
+        ("ocr_text", "ocr_artifact"),
+        ("extracted_text", "extracted_text"),
+        ("text_content", "text_content"),
+    ):
+        raw = str(doc.get(key) or "").strip()
+        if not raw:
+            continue
+        if raw.startswith("[ocr_"):
+            # маркер «OCR не готов / failed» — не текст периодов
+            continue
+        out.append((tag, raw))
+    return out
+
+
 def periods_for_precheck(
     *,
     pipeline_row: dict[str, Any] | None,
     analyzed_documents: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str, str | None]:
-    """Вернуть (ils, labor, source_state, extract_error)."""
+    """Вернуть (ils, labor, source_state, extract_error).
+
+    При пустом pipeline — эфемерный extract по пригодным артефактам.
+    Каждая запись периода помечается value_source / extract_provenance.
+    """
     row = pipeline_row or {}
     ils = [dict(p) for p in (row.get("ils_periods") or []) if isinstance(p, dict)]
     labor = [dict(p) for p in (row.get("labor_periods") or []) if isinstance(p, dict)]
     if ils or labor:
-        return ils, labor, "periods_ready", None
+        for p in ils + labor:
+            p.setdefault("value_source", "pipeline")
+            p.setdefault("extract_provenance", "case_pipeline_data")
+        state = classify_period_source_state(
+            has_documents=True,
+            ils=ils,
+            labor=labor,
+            extract_attempted=False,
+            extract_error=None,
+        )
+        return ils, labor, state, None
 
     if not analyzed_documents:
         return [], [], "documents_missing", None
@@ -51,31 +89,34 @@ def periods_for_precheck(
     for doc in analyzed_documents:
         if not isinstance(doc, dict):
             continue
-        text = str(doc.get("text_sample") or doc.get("content_preview") or "").strip()
-        if not text or text.startswith("[ocr_"):
+        candidates = _doc_text_candidates(doc)
+        if not candidates:
             continue
         tried = True
         guessed = str(doc.get("guessed_type") or doc.get("doc_type") or "").lower()
+        tag, text = candidates[0]
         try:
             extracted = extract_periods(text)
         except Exception as exc:  # noqa: BLE001
             extract_error = type(exc).__name__
             continue
-        periods = []
+        periods: list[dict[str, Any]] = []
         for p in extracted.periods or []:
             raw = p.model_dump() if hasattr(p, "model_dump") else dict(p)  # type: ignore[arg-type]
             if not isinstance(raw, dict):
                 continue
             raw.setdefault("period_id", f"ephem:{doc.get('id')}:{len(periods)}")
             raw.setdefault("employer", raw.get("employer") or "не указан")
-            raw["value_source"] = "ocr_extract"
+            raw["value_source"] = "ephemeral_extract"
+            raw["extract_provenance"] = tag
+            raw["source_document_id"] = str(doc.get("id") or "")
             periods.append(raw)
-        if "ils" in guessed or "сзи" in guessed or "лицевой" in text.casefold():
+        blob = text.casefold()
+        if "ils" in guessed or "сзи" in guessed or "лицевой" in blob:
             ils_out.extend(periods)
         elif "labor" in guessed or "труд" in guessed or "workbook" in guessed:
             labor_out.extend(periods)
         else:
-            # неизвестный тип — в labor как подтверждающий документ
             labor_out.extend(periods)
 
     state = classify_period_source_state(

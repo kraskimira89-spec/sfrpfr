@@ -25,48 +25,62 @@ def _callback_rows(buttons: list[dict[str, str]]) -> list[list[dict[str, str]]]:
     ]
 
 
-def build_precheck_max_message(primary: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
-    """Текст + inline buttons по ветке (не все сразу)."""
+def _payload(sub: str, check_id: str | None) -> str:
+    cid = (check_id or "").strip()
+    return f"precheck:{sub}:{cid}" if cid else f"precheck:{sub}"
+
+
+def build_precheck_max_message(
+    primary: dict[str, Any],
+    *,
+    check_id: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Текст + inline buttons по ветке (не все сразу).
+
+    В payload вшивается check_id, чтобы stale callback сравнивался с актуальной проверкой.
+    """
     branch = select_max_branch(primary)
     summary = str(primary.get("client_summary") or "").strip()
     rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
     text = summary or "Первичная проверка документов завершена."
+    cid = (check_id or str(primary.get("check_id") or "")).strip() or None
+    pl = lambda sub: _payload(sub, cid)  # noqa: E731
     buttons: list[dict[str, str]] = []
 
     if branch == "recover":
         text = "Проверка не завершена из‑за технического сбоя. Выводов пока нет."
-        buttons = [{"text": "Посмотреть статус", "payload": "precheck:status"}]
+        buttons = [{"text": "Посмотреть статус", "payload": pl("status")}]
     elif branch == "need_docs":
         buttons = [
-            {"text": "Загрузить документы", "payload": "precheck:upload"},
-            {"text": "Какие документы нужны?", "payload": "precheck:need_docs"},
-            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+            {"text": "Загрузить документы", "payload": pl("upload")},
+            {"text": "Какие документы нужны?", "payload": pl("need_docs")},
+            {"text": "Задать вопрос сотруднику", "payload": pl("ask_staff")},
         ]
     elif branch == "need_answer":
         buttons = [
-            {"text": "Ответить", "payload": "precheck:answer"},
-            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+            {"text": "Ответить", "payload": pl("answer")},
+            {"text": "Задать вопрос сотруднику", "payload": pl("ask_staff")},
         ]
     elif branch == "discrepancy":
         buttons = [
-            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
-            {"text": "Что это означает?", "payload": "precheck:explain"},
+            {"text": "Посмотреть резюме", "payload": pl("summary")},
+            {"text": "Что это означает?", "payload": pl("explain")},
         ]
         if rec.get("offer_paid_analysis"):
             buttons.append(
                 {
                     "text": "Что входит в подробный анализ?",
-                    "payload": "precheck:offer_info",
+                    "payload": pl("offer_info"),
                 }
             )
             buttons.append(
-                {"text": "Заказать подробный анализ", "payload": "precheck:order"}
+                {"text": "Заказать подробный анализ", "payload": pl("order")}
             )
-            buttons.append({"text": "Пока не нужно", "payload": "precheck:decline"})
+            buttons.append({"text": "Пока не нужно", "payload": pl("decline")})
     elif branch == "clear":
         buttons = [
-            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
-            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+            {"text": "Посмотреть резюме", "payload": pl("summary")},
+            {"text": "Задать вопрос сотруднику", "payload": pl("ask_staff")},
         ]
     else:  # staff
         if str(primary.get("data_status") or "") == "identity_conflict":
@@ -75,8 +89,8 @@ def build_precheck_max_message(primary: dict[str, Any]) -> tuple[str, list[dict[
                 "одному человеку. Передаём сотруднику."
             )
         buttons = [
-            {"text": "Обсудить с сотрудником", "payload": "precheck:ask_staff"},
-            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
+            {"text": "Обсудить с сотрудником", "payload": pl("ask_staff")},
+            {"text": "Посмотреть резюме", "payload": pl("summary")},
         ]
 
     text, _blocked = sanitize_client_text(text)
@@ -99,7 +113,7 @@ def enqueue_precheck_client_notify(
             "reason": "no_max_user",
             "message": "Результат сохранён в кабинете; MAX не привязан.",
         }
-    text, attachments = build_precheck_max_message(primary)
+    text, attachments = build_precheck_max_message(primary, check_id=check_id)
     message_id = f"precheck:{check_id}"
     try:
         from sfrfr.services.case_chat_delivery import enqueue_max_delivery

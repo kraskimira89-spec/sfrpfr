@@ -40,10 +40,25 @@ class PrecheckCallbackResult:
 
 
 def parse_precheck_callback(payload: str) -> str | None:
+    """Вернуть subcode (`summary`, `order`, …) или None."""
+    parsed = parse_precheck_payload(payload)
+    return parsed[0] if parsed else None
+
+
+def parse_precheck_payload(payload: str) -> tuple[str, str | None] | None:
+    """Разобрать `precheck:<sub>` или `precheck:<sub>:<check_id>`."""
     raw = (payload or "").strip()
     if not raw.startswith(PRECHECK_PREFIX):
         return None
-    return raw[len(PRECHECK_PREFIX) :].strip() or None
+    rest = raw[len(PRECHECK_PREFIX) :].strip()
+    if not rest:
+        return None
+    if ":" in rest:
+        sub, _, check = rest.partition(":")
+        sub = sub.strip()
+        check_id = check.strip() or None
+        return (sub, check_id) if sub else None
+    return rest, None
 
 
 def _load_latest_check(case_id: str) -> dict[str, Any] | None:
@@ -114,9 +129,12 @@ def handle_precheck_callback(
     requested_check_id: str | None = None,
 ) -> PrecheckCallbackResult | None:
     """Обработать precheck:*. None — не наш callback."""
-    sub = parse_precheck_callback(payload)
-    if sub is None:
+    parsed = parse_precheck_payload(payload)
+    if parsed is None:
         return None
+    sub, payload_check_id = parsed
+    if requested_check_id is None and payload_check_id:
+        requested_check_id = payload_check_id
 
     check = _load_latest_check(case_id)
     current_id = str((check or {}).get("job_id") or "")
@@ -128,7 +146,7 @@ def handle_precheck_callback(
             current_primary=primary,
         )
         if stale.get("stale"):
-            text, atts = build_precheck_max_message(primary)
+            text, atts = build_precheck_max_message(primary, check_id=current_id or None)
             text, _ = sanitize_client_text(
                 str(stale.get("message") or "") + "\n\n" + text
             )
@@ -150,7 +168,7 @@ def handle_precheck_callback(
         )
 
     if sub in {"summary", "status"}:
-        text, atts = build_precheck_max_message(primary)
+        text, atts = build_precheck_max_message(primary, check_id=current_id or None)
         text, _ = sanitize_client_text(text)
         return PrecheckCallbackResult(
             ok=True, action=f"precheck_{sub}", text=text, attachments=atts

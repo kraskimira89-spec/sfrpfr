@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from sfrfr.services.precheck_period_sources import (
@@ -64,16 +65,141 @@ def test_period_source_states() -> None:
         )
         == "extract_failed"
     )
+    assert (
+        classify_period_source_state(
+            has_documents=True,
+            ils=[{"period_id": "i1"}],
+            labor=[],
+            extract_attempted=True,
+            extract_error=None,
+        )
+        == "extract_partial"
+    )
     ils, labor, state, err = periods_for_precheck(
         pipeline_row={
             "ils_periods": [
                 {"period_id": "p1", "employer": "A", "date_from": "1987-01-01"}
-            ]
+            ],
+            "labor_periods": [
+                {"period_id": "l1", "employer": "A", "date_from": "1987-01-01"}
+            ],
         },
         analyzed_documents=[],
     )
     assert state == "periods_ready"
-    assert ils and not err
+    assert ils and labor and not err
+    assert ils[0].get("value_source") == "pipeline"
+
+
+def test_empty_pipeline_unreadable_ocr_marker() -> None:
+    ils, labor, state, err = periods_for_precheck(
+        pipeline_row={},
+        analyzed_documents=[
+            {
+                "id": "d1",
+                "guessed_type": "ils",
+                "text_sample": "[ocr_pending]",
+            }
+        ],
+    )
+    assert state == "extract_not_run"
+    assert not ils and not labor and not err
+
+
+def test_empty_pipeline_uses_ocr_artifact_without_pipeline_write(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+
+    class _FakeExtracted:
+        periods: list[Any] = []
+
+        def __init__(self) -> None:
+            from types import SimpleNamespace
+
+            self.periods = [
+                SimpleNamespace(
+                    model_dump=lambda: {
+                        "employer": "ООО Тест",
+                        "date_from": "1990-01-01",
+                        "date_to": "1991-01-01",
+                    }
+                )
+            ]
+
+    def _fake_extract(text: str) -> _FakeExtracted:
+        calls.append(text)
+        return _FakeExtracted()
+
+    monkeypatch.setattr(
+        "sfrfr.services.precheck_period_sources.extract_periods",
+        _fake_extract,
+    )
+    # upsert в pipeline не должен вызываться из этого модуля
+    ils, labor, state, err = periods_for_precheck(
+        pipeline_row={},
+        analyzed_documents=[
+            {
+                "id": "d-ils",
+                "guessed_type": "ils",
+                "ocr_text": "ИЛС период 01.01.1990-01.01.1991 ООО Тест",
+            },
+            {
+                "id": "d-lab",
+                "guessed_type": "workbook",
+                "ocr_text": "Трудовая 01.01.1990-01.01.1991 ООО Тест",
+            },
+        ],
+    )
+    assert state == "periods_ready"
+    assert ils and labor
+    assert ils[0].get("extract_provenance") == "ocr_artifact"
+    assert ils[0].get("value_source") == "ephemeral_extract"
+    assert len(calls) == 2
+
+
+def test_catalog_unavailable_blocks_offer() -> None:
+    from sfrfr.services.primary_doc_precheck import (
+        ComparisonStatus,
+        FindingCode,
+        NextAction,
+        PrecheckFinding,
+        build_recommendation_card,
+    )
+
+    finding = PrecheckFinding(
+        code=FindingCode.DATE_DIFFERENCE,
+        what="даты",
+        source_a="ils:1",
+        source_b="labor:1",
+        extraction_confidence="high",
+    )
+    card = build_recommendation_card(
+        comparison_status=ComparisonStatus.DISCREPANCIES_FOUND,
+        next_action=NextAction.DETAILED_ANALYSIS,
+        findings=[finding],
+        already_ordered_or_paid=False,
+        client_declined_offer=False,
+        catalog_amount_rub=None,
+        catalog_label=None,
+        package_code="diagnostic",
+    )
+    assert card.offer_status == "blocked"
+    assert "catalog_unavailable" in card.reason_codes
+    assert not card.offer_paid_analysis
+
+
+def test_pending_order_blocks_offer_gate() -> None:
+    from sfrfr.services.staff_document_check import _orders_offer_gate
+
+    repo = MagicMock()
+    repo.list_orders.return_value = [{"status": "pending", "payments": []}]
+    block, unknown = _orders_offer_gate(repo, "case-1")
+    assert block is True and unknown is False
+
+    repo.list_orders.side_effect = RuntimeError("db down")
+    block2, unknown2 = _orders_offer_gate(repo, "case-1")
+    assert block2 is True and unknown2 is True
 
 
 def test_result_finalized_and_notify_flags() -> None:

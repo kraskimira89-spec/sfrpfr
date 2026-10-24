@@ -293,10 +293,13 @@ def _attach_primary_precheck(
         "extract_failed",
         "extract_empty_unreadable",
         "documents_missing",
+        "extract_partial",
     }:
-        # Пустые периоды ≠ «расхождений нет».
+        # Пустые/частичные периоды ≠ «расхождений нет» / полный комплект.
         if "periods" not in kit_missing:
             kit_missing.append("извлечённые периоды стажа/ИЛС")
+        if period_state == "extract_partial":
+            kit_missing.append("полный комплект ИЛС+трудовая для сопоставления")
     settings = get_settings()
     amount = int(getattr(settings, "default_diagnostic_price_rub", 0) or 0) or None
     block_offer, order_unknown = _orders_offer_gate(repo, case_id)
