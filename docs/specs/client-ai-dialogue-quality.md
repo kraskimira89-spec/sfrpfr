@@ -963,3 +963,18 @@ dependents → `needs_recheck`; не stale сумма / draft / offer; лока�
 Регистрация без полной доказанности; непроверенное≠проверено; provisional≠признание; причина≠последствия; оригинал доступен проверяющему; late entry; no duplicates; fail≠fixed; sent≠read≠accept; finance≠text fix; export без чужих/секретов; ответ = действия; новое доказательство → пересмотр без уничтожения истории.
 
 Покрытие: `test_deception_client_reply_policy`, `test_deception_transition_refine` + JSON `S20.26L–N`.
+
+## 73. Канон текстов ошибок (docs-пакет, PR #262)
+
+Полные клиентские шаблоны ошибок, контракты переходов и evidence **не копировать** сюда повторно. После merge #262:
+
+| Тема | Файл |
+|---|---|
+| Индекс SoT | [`client-ai-error-docs-index.md`](client-ai-error-docs-index.md) |
+| Тексты E01–E21 | [`client-ai-error-response-catalog.md`](client-ai-error-response-catalog.md) |
+| Переходы | [`client-ai-transition-contracts.md`](client-ai-transition-contracts.md) |
+| Доказательства | [`client-ai-evidence-requirements.md`](client-ai-evidence-requirements.md) |
+| QA F01–F04 + чек-лист | [`../qa/client-ai-error-scenarios.md`](../qa/client-ai-error-scenarios.md) |
+
+Этот файл (`client-ai-dialogue-quality.md`) остаётся корпусом сценариев 20.x / § политики волны SFRFR-110.  
+При merge-конфликте с тонким индексом из ранних ревизий #262 — **сохранять этот корпус** и держать ссылки §73.
