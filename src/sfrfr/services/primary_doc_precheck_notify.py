@@ -9,24 +9,49 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sfrfr.services.primary_doc_precheck_max import (
+    sanitize_client_text,
+    select_max_branch,
+)
+
 logger = logging.getLogger(__name__)
 
 ACTION_HINT = "primary_doc_precheck_notify"
 
 
+def _callback_rows(buttons: list[dict[str, str]]) -> list[list[dict[str, str]]]:
+    return [
+        [{"type": "callback", "text": b["text"], "payload": b["payload"]}] for b in buttons
+    ]
+
+
 def build_precheck_max_message(primary: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
-    """Текст + inline buttons по outcome (не все сразу)."""
-    outcome = str(primary.get("outcome") or "")
+    """Текст + inline buttons по ветке (не все сразу)."""
+    branch = select_max_branch(primary)
     summary = str(primary.get("client_summary") or "").strip()
     rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
     text = summary or "Первичная проверка документов завершена."
-    buttons: list[dict[str, str]] = [
-        {"text": "Посмотреть резюме", "payload": "precheck:summary"},
-    ]
-    if outcome == "discrepancies_found":
-        buttons.append(
-            {"text": "Что означает расхождение?", "payload": "precheck:explain"}
-        )
+    buttons: list[dict[str, str]] = []
+
+    if branch == "recover":
+        text = "Проверка не завершена из‑за технического сбоя. Выводов пока нет."
+        buttons = [{"text": "Посмотреть статус", "payload": "precheck:status"}]
+    elif branch == "need_docs":
+        buttons = [
+            {"text": "Загрузить документы", "payload": "precheck:upload"},
+            {"text": "Какие документы нужны?", "payload": "precheck:need_docs"},
+            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+        ]
+    elif branch == "need_answer":
+        buttons = [
+            {"text": "Ответить", "payload": "precheck:answer"},
+            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+        ]
+    elif branch == "discrepancy":
+        buttons = [
+            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
+            {"text": "Что это означает?", "payload": "precheck:explain"},
+        ]
         if rec.get("offer_paid_analysis"):
             buttons.append(
                 {
@@ -37,22 +62,25 @@ def build_precheck_max_message(primary: dict[str, Any]) -> tuple[str, list[dict[
             buttons.append(
                 {"text": "Заказать подробный анализ", "payload": "precheck:order"}
             )
-        buttons.append({"text": "Пока не нужно", "payload": "precheck:decline"})
-    elif outcome in {"insufficient_documents", "needs_clarification"}:
-        buttons.append(
-            {"text": "Какие документы нужны?", "payload": "precheck:need_docs"}
-        )
-        buttons.append(
-            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"}
-        )
-    else:
-        buttons.append(
-            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"}
-        )
-    rows = [
-        [{"type": "callback", "text": b["text"], "payload": b["payload"]}] for b in buttons
-    ]
-    attachments = [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
+            buttons.append({"text": "Пока не нужно", "payload": "precheck:decline"})
+    elif branch == "clear":
+        buttons = [
+            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
+            {"text": "Задать вопрос сотруднику", "payload": "precheck:ask_staff"},
+        ]
+    else:  # staff
+        if str(primary.get("data_status") or "") == "identity_conflict":
+            text = (
+                "Не удалось надёжно подтвердить, что все документы принадлежат "
+                "одному человеку. Передаём сотруднику."
+            )
+        buttons = [
+            {"text": "Обсудить с сотрудником", "payload": "precheck:ask_staff"},
+            {"text": "Посмотреть резюме", "payload": "precheck:summary"},
+        ]
+
+    text, _blocked = sanitize_client_text(text)
+    attachments = [{"type": "inline_keyboard", "payload": {"buttons": _callback_rows(buttons)}}]
     return text, attachments
 
 
@@ -88,6 +116,7 @@ def enqueue_precheck_client_notify(
             "skipped": False,
             "message_id": message_id,
             "hint": ACTION_HINT,
+            "branch": select_max_branch(primary),
         }
     except Exception as exc:  # noqa: BLE001
         logger.warning("precheck notify enqueue failed: %s", type(exc).__name__)

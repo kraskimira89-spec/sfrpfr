@@ -1,19 +1,61 @@
-"""Первичная проверка документов: сопоставление → outcome → резюме → рекомендация.
+"""Слой 1–2: доказательные находки и выбор next_action.
 
-Не обещает пенсию/прибавку. Не правит канонические даты.
-Платный анализ — только при конкретной задаче из находок.
+Коммерция не влияет на comparison_status. Рекомендация услуги — отдельно
+(`build_recommendation_card`), после фиксации находок.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-RULES_VERSION = "primary-doc-precheck-v1"
+RULES_VERSION = "primary-doc-precheck-v2"
 
 
+class FindingCode(StrEnum):
+    MATCHED = "MATCHED"
+    DATE_DIFFERENCE = "DATE_DIFFERENCE"
+    PARTIAL_COVERAGE = "PARTIAL_COVERAGE"
+    NOT_LOCATED_IN_ILS = "NOT_LOCATED_IN_ILS"
+    SOURCE_CONFLICT = "SOURCE_CONFLICT"
+    UNREADABLE_OR_INCOMPLETE = "UNREADABLE_OR_INCOMPLETE"
+    SPECIAL_CONDITIONS_REVIEW = "SPECIAL_CONDITIONS_REVIEW"
+    NOT_COMPARABLE = "NOT_COMPARABLE"
+    IDENTITY_CONFLICT = "IDENTITY_CONFLICT"
+    EMPLOYER_CANDIDATE = "EMPLOYER_CANDIDATE"
+
+
+class ExecutionStatus(StrEnum):
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class DataStatus(StrEnum):
+    SUFFICIENT = "sufficient"
+    PARTIAL = "partial"
+    INSUFFICIENT = "insufficient"
+    IDENTITY_CONFLICT = "identity_conflict"
+
+
+class ComparisonStatus(StrEnum):
+    DISCREPANCIES_FOUND = "discrepancies_found"
+    NO_DISCREPANCIES_FOUND = "no_discrepancies_found"
+    INCONCLUSIVE = "inconclusive"
+
+
+class NextAction(StrEnum):
+    UPLOAD_DOCUMENTS = "upload_documents"
+    ANSWER_QUESTION = "answer_question"
+    STAFF_REVIEW = "staff_review"
+    DETAILED_ANALYSIS = "detailed_analysis"
+    NO_IMMEDIATE_ACTION = "no_immediate_action"
+    RECOVER_PROCESSING = "recover_processing"
+
+
+# Совместимость со старым API / UI.
 class PrecheckOutcome(StrEnum):
     DISCREPANCIES_FOUND = "discrepancies_found"
     NEEDS_CLARIFICATION = "needs_clarification"
@@ -23,47 +65,123 @@ class PrecheckOutcome(StrEnum):
     FAILED = "failed"
 
 
+_LEGAL_FORMS = re.compile(
+    r"\b(ооо|оао|зао|пао|ао|ип|фгуп|муп|гбу|фгау)\b",
+    re.IGNORECASE,
+)
+
+
+def normalize_employer(value: Any) -> str:
+    raw = str(value or "").casefold()
+    raw = _LEGAL_FORMS.sub(" ", raw)
+    raw = re.sub(r"[\"'«».,\-_/\\]+", " ", raw)
+    return re.sub(r"\s+", " ", raw).strip()
+
+
+def date_precision(value: Any) -> str:
+    raw = str(value or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        return "day"
+    if re.fullmatch(r"\d{4}-\d{2}", raw) or re.fullmatch(r"\d{2}\.\d{4}", raw):
+        return "month"
+    if re.fullmatch(r"\d{4}", raw):
+        return "year"
+    if not raw:
+        return "none"
+    return "uncertain"
+
+
+def _norm_day(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        return raw
+    return None
+
+
 @dataclass
 class PrecheckFinding:
+    code: FindingCode
     what: str
-    period_ref: str | None
-    source_a: str
-    source_b: str
-    discrepancy_type: str
-    extraction_confidence: str
-    confirmed: bool
-    needs_review: bool
-    next_action: str
+    period_ref: str | None = None
+    source_a: str = "ils"
+    source_b: str = "labor_book"
+    discrepancy_type: str = ""
+    extraction_confidence: str = "medium"
+    confirmed: bool = False
+    needs_review: bool = True
+    next_action: str = "detailed_review"
+    finding_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.discrepancy_type:
+            self.discrepancy_type = self.code.value
+        if not self.finding_id:
+            self.finding_id = f"{self.code.value}:{self.period_ref or self.what[:40]}"
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 @dataclass
-class PrecheckRecommendation:
-    offer_paid_analysis: bool
-    reason: str
-    package_code: str | None = None
+class RecommendationCard:
+    recommendation_type: str
+    reason_codes: list[str]
+    finding_ids: list[str]
+    questions_to_resolve: list[str]
+    service_code: str | None
+    service_scope: str | None
+    catalog_price_reference: int | None
+    limitations: list[str]
+    alternative_next_step: str
+    offer_status: str  # allowed | blocked | not_applicable | declined
     package_label: str | None = None
-    amount_rub: int | None = None
-    primary_cta: str = "view_summary"
+
+    @property
+    def offer_paid_analysis(self) -> bool:
+        return self.offer_status == "allowed"
+
+    @property
+    def reason(self) -> str:
+        return "; ".join(self.questions_to_resolve) or self.recommendation_type
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data["offer_paid_analysis"] = self.offer_paid_analysis
+        data["amount_rub"] = self.catalog_price_reference
+        data["reason"] = self.reason
+        data["primary_cta"] = (
+            "order_detailed_analysis"
+            if self.offer_paid_analysis
+            else self.alternative_next_step
+        )
+        return data
+
+
+# Alias для старых импортов/тестов.
+PrecheckRecommendation = RecommendationCard
 
 
 @dataclass
 class PrimaryPrecheckResult:
-    outcome: PrecheckOutcome
+    execution_status: ExecutionStatus
+    data_status: DataStatus
+    comparison_status: ComparisonStatus
+    next_action: NextAction
     findings: list[PrecheckFinding] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
     areas_checked: list[str] = field(default_factory=list)
     client_summary: str = ""
-    recommendation: PrecheckRecommendation | None = None
+    recommendation: RecommendationCard | None = None
     rules_version: str = RULES_VERSION
+    # legacy mirror
+    outcome: PrecheckOutcome = PrecheckOutcome.NO_DISCREPANCIES_FOUND
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "execution_status": self.execution_status.value,
+            "data_status": self.data_status.value,
+            "comparison_status": self.comparison_status.value,
+            "next_action": self.next_action.value,
             "outcome": self.outcome.value,
             "findings": [f.as_dict() for f in self.findings],
             "limitations": list(self.limitations),
@@ -77,242 +195,496 @@ class PrimaryPrecheckResult:
         }
 
 
-def _norm_date(value: Any) -> str | None:
-    raw = str(value or "").strip()
-    if len(raw) >= 10 and raw[4] == "-" and raw[7] == "-":
-        return raw[:10]
-    return raw or None
-
-
-def _period_key(period: dict[str, Any]) -> str:
-    emp = str(period.get("employer") or "").strip().casefold()
-    df = _norm_date(period.get("date_from")) or ""
-    dt = _norm_date(period.get("date_to")) or ""
-    return f"{emp}|{df}|{dt}"
-
-
 def compare_period_sources(
     *,
     ils_periods: list[dict[str, Any]] | None,
     labor_periods: list[dict[str, Any]] | None,
+    identity_conflict: bool = False,
 ) -> list[PrecheckFinding]:
-    """Сопоставить ИЛС и трудовую: даты, пропуски, пересечения-кандидаты."""
-    from sfrfr.core.audit_ils import compare_ils_vs_labor_book
+    """Доказательные находки. Без коммерческих флагов."""
+    if identity_conflict:
+        return [
+            PrecheckFinding(
+                code=FindingCode.IDENTITY_CONFLICT,
+                what="Документы предположительно принадлежат разным людям",
+                source_a="identity",
+                source_b="identity",
+                extraction_confidence="high",
+                next_action="staff_review",
+            )
+        ]
 
     ils = [dict(p) for p in (ils_periods or []) if isinstance(p, dict)]
     labor = [dict(p) for p in (labor_periods or []) if isinstance(p, dict)]
     findings: list[PrecheckFinding] = []
 
-    for raw in compare_ils_vs_labor_book(ils, labor):
-        if not isinstance(raw, dict):
-            continue
+    if not ils and not labor:
+        return [
+            PrecheckFinding(
+                code=FindingCode.UNREADABLE_OR_INCOMPLETE,
+                what="Нет извлечённых периодов для сопоставления",
+                extraction_confidence="high",
+                next_action="upload_documents",
+            )
+        ]
+    if not ils and labor:
         findings.append(
             PrecheckFinding(
-                what=str(raw.get("detail") or raw.get("type") or "расхождение"),
-                period_ref=str(raw.get("period_ref") or "") or None,
-                source_a=str(raw.get("source_a") or "ils"),
-                source_b=str(raw.get("source_b") or "labor_book"),
-                discrepancy_type=str(raw.get("type") or "mismatch"),
-                extraction_confidence=str(raw.get("confidence") or "medium"),
-                confirmed=False,
-                needs_review=True,
-                next_action=str(raw.get("next_action") or "detailed_review"),
+                code=FindingCode.NOT_COMPARABLE,
+                what="Есть трудовая, нет извлечённых периодов ИЛС",
+                source_a="labor_book",
+                source_b="ils",
+                next_action="upload_documents",
             )
         )
+        return findings
+    if ils and not labor:
+        findings.append(
+            PrecheckFinding(
+                code=FindingCode.NOT_COMPARABLE,
+                what="Есть ИЛС, нет трудовой для сверки",
+                source_a="ils",
+                source_b="labor_book",
+                next_action="upload_documents",
+            )
+        )
+        return findings
 
-    # Попарное сравнение дат при совпадающем работодателе.
+    # Группы ИЛС по работодателю — один период трудовой может покрывать несколько строк.
+    ils_by_emp: dict[str, list[dict[str, Any]]] = {}
+    for p in ils:
+        ils_by_emp.setdefault(normalize_employer(p.get("employer")), []).append(p)
     labor_by_emp: dict[str, list[dict[str, Any]]] = {}
     for p in labor:
-        emp = str(p.get("employer") or "").strip().casefold() or "_"
-        labor_by_emp.setdefault(emp, []).append(p)
-    for ip in ils:
-        emp = str(ip.get("employer") or "").strip().casefold() or "_"
-        candidates = labor_by_emp.get(emp) or []
-        if not candidates:
+        labor_by_emp.setdefault(normalize_employer(p.get("employer")), []).append(p)
+
+    matched_emps: set[str] = set()
+    for emp, labor_rows in labor_by_emp.items():
+        if not emp:
             continue
-        idf, idt = _norm_date(ip.get("date_from")), _norm_date(ip.get("date_to"))
-        for lp in candidates:
-            ldf, ldt = _norm_date(lp.get("date_from")), _norm_date(lp.get("date_to"))
-            if idf and ldf and idf != ldf:
+        ils_rows = ils_by_emp.get(emp)
+        if not ils_rows:
+            # Нечёткое совпадение названия → кандидат, не авто-ошибка.
+            fuzzy = _fuzzy_employer_hit(emp, list(ils_by_emp.keys()))
+            if fuzzy:
                 findings.append(
                     PrecheckFinding(
-                        what=f"Разные даты начала у «{ip.get('employer') or 'работодатель'}»",
-                        period_ref=_period_key(ip),
-                        source_a=f"ils:{idf}",
-                        source_b=f"labor:{ldf}",
-                        discrepancy_type="date_from_mismatch",
-                        extraction_confidence="medium",
-                        confirmed=False,
-                        needs_review=True,
-                        next_action="detailed_review",
+                        code=FindingCode.EMPLOYER_CANDIDATE,
+                        what=(
+                            "Похожие названия работодателя; нужно подтверждение "
+                            f"соответствия («{emp}» ≈ «{fuzzy}»)"
+                        ),
+                        period_ref=emp,
+                        extraction_confidence="low",
+                        next_action="answer_question",
                     )
                 )
-            if idt and ldt and idt != ldt:
+                continue
+            findings.append(
+                PrecheckFinding(
+                    code=FindingCode.NOT_LOCATED_IN_ILS,
+                    what=(
+                        "Документальная запись есть; соответствие в представленной "
+                        f"ИЛС не найдено («{emp or 'работодатель'}»)"
+                    ),
+                    period_ref=emp,
+                    source_a="labor_book",
+                    source_b="ils",
+                    extraction_confidence="medium",
+                    next_action="detailed_review",
+                )
+            )
+            continue
+
+        matched_emps.add(emp)
+        # Несколько строк ИЛС под одним работодателем ≠ пропуск.
+        if len(ils_rows) > 1:
+            findings.append(
+                PrecheckFinding(
+                    code=FindingCode.MATCHED,
+                    what=(
+                        f"Период «{emp}» представлен несколькими строками ИЛС "
+                        "— ложного пропуска нет"
+                    ),
+                    period_ref=emp,
+                    extraction_confidence="medium",
+                    confirmed=False,
+                    needs_review=False,
+                    next_action="no_immediate_action",
+                )
+            )
+
+        for lr in labor_rows:
+            ldf, ldt = _norm_day(lr.get("date_from")), _norm_day(lr.get("date_to"))
+            if date_precision(lr.get("date_from")) in {"year", "uncertain"} or (
+                lr.get("date_to")
+                and date_precision(lr.get("date_to")) in {"year", "uncertain"}
+            ):
                 findings.append(
                     PrecheckFinding(
-                        what=f"Разные даты окончания у «{ip.get('employer') or 'работодатель'}»",
-                        period_ref=_period_key(ip),
-                        source_a=f"ils:{idt}",
-                        source_b=f"labor:{ldt}",
-                        discrepancy_type="date_to_mismatch",
-                        extraction_confidence="medium",
-                        confirmed=False,
-                        needs_review=True,
-                        next_action="detailed_review",
+                        code=FindingCode.UNREADABLE_OR_INCOMPLETE,
+                        what="Дата распознана неуверенно — нужно уточнение, не автовывод",
+                        period_ref=emp,
+                        extraction_confidence="low",
+                        next_action="answer_question",
                     )
                 )
+                continue
+            for ir in ils_rows:
+                idf, idt = _norm_day(ir.get("date_from")), _norm_day(ir.get("date_to"))
+                if idf and ldf and idf != ldf:
+                    findings.append(
+                        PrecheckFinding(
+                            code=FindingCode.DATE_DIFFERENCE,
+                            what=f"Различаются даты начала («{emp}»)",
+                            period_ref=emp,
+                            source_a=f"ils:{idf}",
+                            source_b=f"labor:{ldf}",
+                            next_action="detailed_review",
+                        )
+                    )
+                if idt and ldt and idt != ldt:
+                    findings.append(
+                        PrecheckFinding(
+                            code=FindingCode.DATE_DIFFERENCE,
+                            what=f"Различаются даты окончания («{emp}»)",
+                            period_ref=emp,
+                            source_a=f"ils:{idt}",
+                            source_b=f"labor:{ldt}",
+                            next_action="detailed_review",
+                        )
+                    )
+
+    for emp in ils_by_emp:
+        if emp and emp not in matched_emps and emp not in labor_by_emp:
+            if _fuzzy_employer_hit(emp, list(labor_by_emp.keys())):
+                continue
+            findings.append(
+                PrecheckFinding(
+                    code=FindingCode.PARTIAL_COVERAGE,
+                    what=f"Запись ИЛС без пары в трудовой («{emp}») — проверить покрытие",
+                    period_ref=emp,
+                    source_a="ils",
+                    source_b="labor_book",
+                    extraction_confidence="low",
+                    next_action="answer_question",
+                )
+            )
+
+    if not findings:
+        findings.append(
+            PrecheckFinding(
+                code=FindingCode.MATCHED,
+                what="В сопоставимых фрагментах расхождений не обнаружено",
+                needs_review=False,
+                next_action="no_immediate_action",
+            )
+        )
     return findings
 
 
-def choose_outcome(
+def _fuzzy_employer_hit(needle: str, haystack: list[str]) -> str | None:
+    if not needle:
+        return None
+    for cand in haystack:
+        if not cand:
+            continue
+        if needle in cand or cand in needle:
+            return cand
+        # общие токены длиной ≥4
+        nt = {t for t in needle.split() if len(t) >= 4}
+        ct = {t for t in cand.split() if len(t) >= 4}
+        if nt and ct and nt & ct:
+            return cand
+    return None
+
+
+def derive_statuses(
+    findings: list[PrecheckFinding],
     *,
     kit_missing: list[str],
     needs_ocr: int,
     originals_missing: int,
-    findings: list[PrecheckFinding],
-    ils_count: int,
-    labor_count: int,
-    low_confidence_count: int = 0,
-) -> tuple[PrecheckOutcome, list[str]]:
-    limitations: list[str] = []
-    if originals_missing > 0 or needs_ocr > 0 or kit_missing:
-        limitations.append("Неполный или нечитаемый комплект ограничивает сопоставление.")
-        return PrecheckOutcome.INSUFFICIENT_DOCUMENTS, limitations
-    if ils_count == 0 and labor_count == 0:
-        limitations.append("Нет извлечённых периодов для сопоставления.")
-        return PrecheckOutcome.INSUFFICIENT_DOCUMENTS, limitations
-    if ils_count == 0 or labor_count == 0:
-        limitations.append("Есть только один тип источника периодов.")
-        if findings:
-            return PrecheckOutcome.NEEDS_CLARIFICATION, limitations
-        return PrecheckOutcome.INSUFFICIENT_DOCUMENTS, limitations
-    if low_confidence_count > 0 and not findings:
-        limitations.append("Низкая уверенность извлечения — нужен ручной просмотр.")
-        return PrecheckOutcome.MANUAL_REVIEW_REQUIRED, limitations
-    hard = [
-        f
-        for f in findings
-        if f.discrepancy_type
-        in {
-            "date_from_mismatch",
-            "date_to_mismatch",
-            "missing_in_ils",
-            "missing_in_labor",
-            "overlap_suspect",
-        }
-    ]
-    if hard:
-        limitations.append(
-            "Расхождения зафиксированы как вопросы к проверке, "
-            "не как доказанная ошибка пенсии."
+    failed: bool = False,
+) -> tuple[ExecutionStatus, DataStatus, ComparisonStatus, NextAction, PrecheckOutcome]:
+    if failed:
+        return (
+            ExecutionStatus.FAILED,
+            DataStatus.INSUFFICIENT,
+            ComparisonStatus.INCONCLUSIVE,
+            NextAction.RECOVER_PROCESSING,
+            PrecheckOutcome.FAILED,
         )
-        return PrecheckOutcome.DISCREPANCIES_FOUND, limitations
-    if findings:
-        return PrecheckOutcome.NEEDS_CLARIFICATION, limitations
-    limitations.append(
-        "Это результат первичной проверки представленных сведений, "
-        "а не подтверждение правильности всех пенсионных расчётов."
+    if any(f.code == FindingCode.IDENTITY_CONFLICT for f in findings):
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.IDENTITY_CONFLICT,
+            ComparisonStatus.INCONCLUSIVE,
+            NextAction.STAFF_REVIEW,
+            PrecheckOutcome.MANUAL_REVIEW_REQUIRED,
+        )
+    incomplete = originals_missing > 0 or needs_ocr > 0 or bool(kit_missing)
+    hard = {
+        FindingCode.DATE_DIFFERENCE,
+        FindingCode.NOT_LOCATED_IN_ILS,
+        FindingCode.SOURCE_CONFLICT,
+    }
+    soft = {
+        FindingCode.UNREADABLE_OR_INCOMPLETE,
+        FindingCode.EMPLOYER_CANDIDATE,
+        FindingCode.PARTIAL_COVERAGE,
+        FindingCode.SPECIAL_CONDITIONS_REVIEW,
+        FindingCode.NOT_COMPARABLE,
+    }
+    has_hard = any(f.code in hard for f in findings)
+    has_soft = any(f.code in soft for f in findings)
+    only_matched = findings and all(f.code == FindingCode.MATCHED for f in findings)
+
+    if incomplete and not has_hard:
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.INSUFFICIENT if (kit_missing or originals_missing) else DataStatus.PARTIAL,
+            ComparisonStatus.INCONCLUSIVE,
+            NextAction.UPLOAD_DOCUMENTS,
+            PrecheckOutcome.INSUFFICIENT_DOCUMENTS,
+        )
+    if has_hard and incomplete:
+        # Находка + неполнота одновременно.
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.PARTIAL,
+            ComparisonStatus.DISCREPANCIES_FOUND,
+            NextAction.DETAILED_ANALYSIS,
+            PrecheckOutcome.DISCREPANCIES_FOUND,
+        )
+    if has_hard:
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.SUFFICIENT,
+            ComparisonStatus.DISCREPANCIES_FOUND,
+            NextAction.DETAILED_ANALYSIS,
+            PrecheckOutcome.DISCREPANCIES_FOUND,
+        )
+    if has_soft:
+        needs_answer = any(
+            f.code
+            in {
+                FindingCode.EMPLOYER_CANDIDATE,
+                FindingCode.UNREADABLE_OR_INCOMPLETE,
+                FindingCode.PARTIAL_COVERAGE,
+            }
+            for f in findings
+        )
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.PARTIAL,
+            ComparisonStatus.INCONCLUSIVE,
+            NextAction.ANSWER_QUESTION if needs_answer else NextAction.STAFF_REVIEW,
+            PrecheckOutcome.NEEDS_CLARIFICATION
+            if needs_answer
+            else PrecheckOutcome.MANUAL_REVIEW_REQUIRED,
+        )
+    if only_matched:
+        return (
+            ExecutionStatus.COMPLETED,
+            DataStatus.SUFFICIENT,
+            ComparisonStatus.NO_DISCREPANCIES_FOUND,
+            NextAction.NO_IMMEDIATE_ACTION,
+            PrecheckOutcome.NO_DISCREPANCIES_FOUND,
+        )
+    return (
+        ExecutionStatus.COMPLETED,
+        DataStatus.PARTIAL,
+        ComparisonStatus.INCONCLUSIVE,
+        NextAction.STAFF_REVIEW,
+        PrecheckOutcome.MANUAL_REVIEW_REQUIRED,
     )
-    return PrecheckOutcome.NO_DISCREPANCIES_FOUND, limitations
 
 
 def build_client_summary(
-    outcome: PrecheckOutcome,
+    *,
+    comparison_status: ComparisonStatus,
+    data_status: DataStatus,
     findings: list[PrecheckFinding],
+    next_action: NextAction,
 ) -> str:
-    if outcome == PrecheckOutcome.DISCREPANCIES_FOUND:
-        sample = findings[0].what if findings else "периоду"
-        return (
-            "Мы сопоставили доступные сведения ИЛС и документы о работе. "
-            f"Нашли расхождение: {sample}. "
-            "Пока это не подтверждает ошибку в размере пенсии. "
-            "Рекомендуем подробный анализ, чтобы проверить основания учёта "
-            "периода и определить дальнейшие действия."
+    hard = [f for f in findings if f.code == FindingCode.DATE_DIFFERENCE]
+    if comparison_status == ComparisonStatus.DISCREPANCIES_FOUND:
+        sample = hard[0].what if hard else (
+            findings[0].what if findings else "периоду"
         )
-    if outcome == PrecheckOutcome.INSUFFICIENT_DOCUMENTS:
+        extra = ""
+        if data_status == DataStatus.PARTIAL:
+            extra = " Часть документов ещё не проверена из‑за неполноты комплекта."
+        return (
+            "В документах нашли различие по записям о работе "
+            f"({sample}). Это пока не доказывает ошибку в размере пенсии. "
+            "В резюме показали, какие записи отличаются и что нужно проверить дальше."
+            + extra
+        )
+    if next_action == NextAction.UPLOAD_DOCUMENTS:
         return (
             "По полученным файлам пока нельзя надёжно сравнить сведения. "
-            "Нужны недостающие или более читаемые страницы с записями. "
+            "Нужны конкретные недостающие или более читаемые страницы. "
             "После загрузки продолжим проверку."
         )
-    if outcome == PrecheckOutcome.NEEDS_CLARIFICATION:
+    if next_action == NextAction.STAFF_REVIEW:
         return (
-            "По документам есть неоднозначность, которую нужно уточнить "
-            "до выводов о учёте периодов. Мы подскажем, какой документ "
-            "или пояснение поможет."
+            "Автоматический вывод недостаточен (качество, принадлежность или "
+            "структура сведений). Сотрудник посмотрит материалы."
         )
-    if outcome == PrecheckOutcome.MANUAL_REVIEW_REQUIRED:
+    if next_action == NextAction.RECOVER_PROCESSING:
+        return "Проверка не завершена из‑за технического сбоя. Выводов пока нет."
+    if comparison_status == ComparisonStatus.NO_DISCREPANCIES_FOUND:
         return (
-            "Автоматическая первичная проверка не даёт достаточно надёжного "
-            "вывода. Сотрудник посмотрит материалы и сообщит следующий шаг."
-        )
-    if outcome == PrecheckOutcome.FAILED:
-        return (
-            "Технический сбой первичной проверки. Результат не сформирован — "
-            "можно повторить позже или обратиться к сотруднику."
+            "В сопоставленных фрагментах явных расхождений не обнаружили. "
+            "Это результат первичной проверки представленных сведений, "
+            "а не подтверждение правильности всех пенсионных расчётов."
         )
     return (
-        "В сопоставленных документах явных расхождений не обнаружили. "
-        "Это результат первичной проверки представленных сведений, "
-        "а не подтверждение правильности всех пенсионных расчётов."
+        "Есть неоднозначность в сопоставлении. Нужно уточнение до выводов "
+        "о учёте периодов."
     )
 
 
-def build_recommendation(
-    outcome: PrecheckOutcome,
+def build_recommendation_card(
     *,
+    comparison_status: ComparisonStatus,
+    next_action: NextAction,
+    findings: list[PrecheckFinding],
     already_ordered_or_paid: bool,
+    client_declined_offer: bool,
     catalog_amount_rub: int | None,
     catalog_label: str | None,
     package_code: str | None,
-) -> PrecheckRecommendation:
-    """Платный анализ только при конкретной задаче; не при incomplete/no_discrepancy/fail."""
+) -> RecommendationCard:
+    """Слой 2: коммерция только здесь; не меняет findings/comparison_status."""
+    hard_ids = [
+        f.finding_id or f.code.value
+        for f in findings
+        if f.code
+        in {
+            FindingCode.DATE_DIFFERENCE,
+            FindingCode.NOT_LOCATED_IN_ILS,
+            FindingCode.SOURCE_CONFLICT,
+        }
+    ]
     if already_ordered_or_paid:
-        return PrecheckRecommendation(
-            offer_paid_analysis=False,
-            reason="Услуга подробного анализа уже заказана или оплачена.",
-            primary_cta="ask_staff",
+        return RecommendationCard(
+            recommendation_type="none",
+            reason_codes=["already_ordered"],
+            finding_ids=hard_ids,
+            questions_to_resolve=[],
+            service_code=None,
+            service_scope=None,
+            catalog_price_reference=None,
+            limitations=["Услуга уже заказана или оплачена."],
+            alternative_next_step="ask_staff",
+            offer_status="blocked",
         )
-    if outcome == PrecheckOutcome.DISCREPANCIES_FOUND:
+    if client_declined_offer:
+        return RecommendationCard(
+            recommendation_type="none",
+            reason_codes=["client_declined"],
+            finding_ids=hard_ids,
+            questions_to_resolve=[],
+            service_code=None,
+            service_scope=None,
+            catalog_price_reference=None,
+            limitations=["Клиент отказался от предложения."],
+            alternative_next_step="view_summary",
+            offer_status="declined",
+        )
+    if next_action == NextAction.RECOVER_PROCESSING:
+        return RecommendationCard(
+            recommendation_type="none",
+            reason_codes=["technical_failure"],
+            finding_ids=[],
+            questions_to_resolve=[],
+            service_code=None,
+            service_scope=None,
+            catalog_price_reference=None,
+            limitations=["Техсбой не основание для продажи."],
+            alternative_next_step="recover",
+            offer_status="not_applicable",
+        )
+    if next_action == NextAction.UPLOAD_DOCUMENTS:
+        return RecommendationCard(
+            recommendation_type="upload_documents",
+            reason_codes=["insufficient_data"],
+            finding_ids=[],
+            questions_to_resolve=["Нужны недостающие/читаемые документы."],
+            service_code=None,
+            service_scope=None,
+            catalog_price_reference=None,
+            limitations=[],
+            alternative_next_step="request_docs",
+            offer_status="not_applicable",
+        )
+    if (
+        comparison_status == ComparisonStatus.DISCREPANCIES_FOUND
+        and next_action == NextAction.DETAILED_ANALYSIS
+        and hard_ids
+    ):
         if catalog_amount_rub is None:
-            return PrecheckRecommendation(
-                offer_paid_analysis=False,
-                reason="Каталог услуг недоступен — свяжитесь с сотрудником.",
-                primary_cta="ask_staff",
+            return RecommendationCard(
+                recommendation_type="staff_contact",
+                reason_codes=["catalog_unavailable"],
+                finding_ids=hard_ids,
+                questions_to_resolve=[
+                    "Проверить основания учёта периода с расхождением дат/отражения."
+                ],
+                service_code=None,
+                service_scope=None,
+                catalog_price_reference=None,
+                limitations=["Каталог недоступен — без произвольной цены."],
+                alternative_next_step="ask_staff",
+                offer_status="blocked",
             )
-        return PrecheckRecommendation(
-            offer_paid_analysis=True,
-            reason=(
-                "Нужна углублённая проверка оснований учёта периода "
-                "и подготовка понятного плана действий."
+        return RecommendationCard(
+            recommendation_type="detailed_analysis",
+            reason_codes=["date_or_location_discrepancy"],
+            finding_ids=hard_ids,
+            questions_to_resolve=[
+                "Как период отражён в пенсионных документах и какие действия обоснованы."
+            ],
+            service_code=package_code,
+            service_scope=(
+                "Проверка оснований учёта периода и подготовка понятного плана. "
+                "Не обещает увеличение пенсии."
             ),
-            package_code=package_code,
+            catalog_price_reference=catalog_amount_rub,
+            limitations=[
+                "Рекомендация исследования, не обещание положительного результата."
+            ],
+            alternative_next_step="view_summary",
+            offer_status="allowed",
             package_label=catalog_label or "Подробный анализ",
-            amount_rub=catalog_amount_rub,
-            primary_cta="order_detailed_analysis",
         )
-    if outcome == PrecheckOutcome.NEEDS_CLARIFICATION:
-        return PrecheckRecommendation(
-            offer_paid_analysis=False,
-            reason="Сначала уточнение документов или фактов.",
-            primary_cta="request_docs",
+    if comparison_status == ComparisonStatus.NO_DISCREPANCIES_FOUND:
+        return RecommendationCard(
+            recommendation_type="none",
+            reason_codes=["no_discrepancies"],
+            finding_ids=[],
+            questions_to_resolve=[],
+            service_code=None,
+            service_scope=None,
+            catalog_price_reference=None,
+            limitations=["Нет обязательной продажи после «нет расхождений»."],
+            alternative_next_step="view_summary",
+            offer_status="not_applicable",
         )
-    if outcome == PrecheckOutcome.INSUFFICIENT_DOCUMENTS:
-        return PrecheckRecommendation(
-            offer_paid_analysis=False,
-            reason="Недостаточно документов для сопоставления.",
-            primary_cta="request_docs",
-        )
-    if outcome == PrecheckOutcome.NO_DISCREPANCIES_FOUND:
-        return PrecheckRecommendation(
-            offer_paid_analysis=False,
-            reason="Нет оснований предлагать платный анализ после первичной проверки.",
-            primary_cta="view_summary",
-        )
-    return PrecheckRecommendation(
-        offer_paid_analysis=False,
-        reason="Нужен сотрудник или повтор проверки.",
-        primary_cta="ask_staff",
+    return RecommendationCard(
+        recommendation_type="clarify",
+        reason_codes=["inconclusive"],
+        finding_ids=[f.finding_id or f.code.value for f in findings[:5]],
+        questions_to_resolve=["Уточнить неоднозначность источников."],
+        service_code=None,
+        service_scope=None,
+        catalog_price_reference=None,
+        limitations=[],
+        alternative_next_step="ask_staff",
+        offer_status="not_applicable",
     )
 
 
@@ -323,34 +695,86 @@ def run_primary_precheck(
     kit_missing: list[str] | None = None,
     needs_ocr: int = 0,
     originals_missing: int = 0,
+    identity_conflict: bool = False,
+    failed: bool = False,
     already_ordered_or_paid: bool = False,
+    client_declined_offer: bool = False,
     catalog_amount_rub: int | None = None,
     catalog_label: str | None = None,
     package_code: str | None = None,
 ) -> PrimaryPrecheckResult:
-    ils = [p for p in (ils_periods or []) if isinstance(p, dict)]
-    labor = [p for p in (labor_periods or []) if isinstance(p, dict)]
-    findings = compare_period_sources(ils_periods=ils, labor_periods=labor)
-    outcome, limitations = choose_outcome(
+    findings = compare_period_sources(
+        ils_periods=ils_periods,
+        labor_periods=labor_periods,
+        identity_conflict=identity_conflict,
+    )
+    execution, data, comparison, next_action, outcome = derive_statuses(
+        findings,
         kit_missing=list(kit_missing or []),
         needs_ocr=needs_ocr,
         originals_missing=originals_missing,
-        findings=findings,
-        ils_count=len(ils),
-        labor_count=len(labor),
+        failed=failed,
     )
-    rec = build_recommendation(
-        outcome,
+    # Рекомендация строится ПОСЛЕ статусов и не меняет comparison_status.
+    rec = build_recommendation_card(
+        comparison_status=comparison,
+        next_action=next_action,
+        findings=findings,
         already_ordered_or_paid=already_ordered_or_paid,
+        client_declined_offer=client_declined_offer,
         catalog_amount_rub=catalog_amount_rub,
         catalog_label=catalog_label,
         package_code=package_code,
     )
-    return PrimaryPrecheckResult(
-        outcome=outcome,
+    summary = build_client_summary(
+        comparison_status=comparison,
+        data_status=data,
         findings=findings,
-        limitations=limitations,
+        next_action=next_action,
+    )
+    return PrimaryPrecheckResult(
+        execution_status=execution,
+        data_status=data,
+        comparison_status=comparison,
+        next_action=next_action,
+        findings=findings,
+        limitations=list(rec.limitations),
         areas_checked=["ils_vs_labor_periods", "kit_completeness", "readability"],
-        client_summary=build_client_summary(outcome, findings),
+        client_summary=summary,
         recommendation=rec,
+        outcome=outcome,
+    )
+
+
+# Совместимость со старым именем.
+def build_recommendation(
+    outcome: PrecheckOutcome,
+    *,
+    already_ordered_or_paid: bool,
+    catalog_amount_rub: int | None,
+    catalog_label: str | None,
+    package_code: str | None,
+) -> RecommendationCard:
+    comparison = {
+        PrecheckOutcome.DISCREPANCIES_FOUND: ComparisonStatus.DISCREPANCIES_FOUND,
+        PrecheckOutcome.NO_DISCREPANCIES_FOUND: ComparisonStatus.NO_DISCREPANCIES_FOUND,
+    }.get(outcome, ComparisonStatus.INCONCLUSIVE)
+    next_action = {
+        PrecheckOutcome.DISCREPANCIES_FOUND: NextAction.DETAILED_ANALYSIS,
+        PrecheckOutcome.INSUFFICIENT_DOCUMENTS: NextAction.UPLOAD_DOCUMENTS,
+        PrecheckOutcome.NO_DISCREPANCIES_FOUND: NextAction.NO_IMMEDIATE_ACTION,
+        PrecheckOutcome.FAILED: NextAction.RECOVER_PROCESSING,
+    }.get(outcome, NextAction.STAFF_REVIEW)
+    dummy = [
+        PrecheckFinding(code=FindingCode.DATE_DIFFERENCE, what="x", finding_id="legacy")
+    ] if outcome == PrecheckOutcome.DISCREPANCIES_FOUND else []
+    return build_recommendation_card(
+        comparison_status=comparison,
+        next_action=next_action,
+        findings=dummy,
+        already_ordered_or_paid=already_ordered_or_paid,
+        client_declined_offer=False,
+        catalog_amount_rub=catalog_amount_rub,
+        catalog_label=catalog_label,
+        package_code=package_code,
     )
