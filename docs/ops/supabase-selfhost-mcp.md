@@ -1,8 +1,9 @@
 # MCP: self-host Supabase (YC) через DBHub + OpenSSH -L
 
-**Дата:** 2026-09-25 (обновлено после cutover на `sfrfr-supabase-db-01`)
-**Прод БД:** `supabase.proverkastaza.ru` / ВМ `51.250.69.237` (прямой Postgres **`:5433`**, снаружи закрыт UFW/SG)
-**Не путать с:** официальным `https://mcp.supabase.com/mcp?project_ref=…` — это только **Supabase Cloud** (legacy `frualvycousvvyjivybu`).
+**Дата:** 2026-09-25 (обновлено 2026-10-24: SoT = **supabase2** / reg.ru)
+**Прод БД (канон SFRFR-73):** `supabase2.proverkastaza.ru` / `194.67.116.168` (прямой Postgres **`:5433`**, снаружи закрыт UFW)
+**Секреты туннеля:** `secrets/supabase-selfhost-mcp.env` → `SSH_HOST=194.67.116.168`, `SSH_USER=root`
+**Не путать с:** YC `sfrfr-supabase-db-01` (`51.250.69.237`) — запасной/старый контур; официальным `https://mcp.supabase.com/mcp?project_ref=…` — только **Supabase Cloud**.
 
 ## Почему не `@supabase/mcp-server-supabase`
 
