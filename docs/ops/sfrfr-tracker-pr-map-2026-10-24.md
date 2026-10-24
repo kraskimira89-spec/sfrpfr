@@ -1,25 +1,39 @@
-# Трекер ↔ PR (live MCP, цикл 5)
+# Трекер ↔ PR (live MCP, после isolation_guard)
 
-Источник: MCP `user-yandex-tracker` `issues_find` ~2026-10-24T16:40Z UTC.  
-Не путать с более ранним документальным срезом.
+Источник: MCP Tracker + `gh pr` ~2026-10-24T17:00Z UTC.
 
-## Live-статусы
+## SFRFR-111
 
-| Тикет | Live | Фокус / остаток цикла 5 |
+| Тикет | Live | Фокус |
 |---|---|---|
-| SFRFR-111 | Открыт | Родитель; не закрывать |
-| SFRFR-112 | Открыт | Контракт vs реализация |
-| SFRFR-113 | Открыт | Browser UI login — блокер GoTrue; enqueue PostgREST есть |
-| SFRFR-114 | Открыт | PostgREST claim/finalize доказан; полный extract E2E UI — нет |
-| SFRFR-115 | Открыт | Gates/каталог в order path |
-| SFRFR-116 | Открыт | `precheck:order` → DIAG; sandbox; не закрывать без browser+live |
-| SFRFR-117 | Открыт | Сквозная приёмка; browser таблица пуста |
+| SFRFR-111 | Открыт | PR **#269** @ `65b6881a`; Auto-merge **OFF** |
+| SFRFR-112–117 | Открыт | код готов; browser/live — остаток; **не закрывать** |
 
-SFRFR-100 / SFRFR-110 — открыты (отдельный паспорт / DoD), не смешивать.
+Evidence: `sfrfr-111-stage-progress.md`, `sfrfr-111-isolation-gate-report.md`, suite 83 passed.
 
-## Артефакты
+PR **#270** (срез 1) — закрыт как superseded by #269.
 
-- Checkpoint: `docs/ops/sfrfr-111-precheck-cycle5-checkpoint.md`
-- Order evidence: `docs/ops/sfrfr-111-precheck-cycle5-order-e2e-evidence.md`
-- PostgREST tests: `tests/integration/test_precheck_job_postgrest.py`
-- PR #269 Auto-merge OFF
+## SFRFR-110 стек (цепочка base)
+
+| PR | Base | Назначение | Auto-merge |
+|---|---|---|---|
+| #261 | main | dialogue quality | включён по очереди |
+| #263 | #261 | E05/F04 wire | после #261 |
+| #266 | #263 | LLM claim filter | после #263 |
+| #267 | #266 | DoD matrix docs | после #266 |
+| #265 | ? | period-date audit docs | отдельно |
+| #268 | main | date correction | **BLOCKED** (fail check) — не трогать |
+
+## Прочее
+
+| PR | Тема | Примечание |
+|---|---|---|
+| #256 | SFRFR-100 passport | docs; rebase если behind |
+| #260 | SFRFR-93 exclude receipt_ocr | фикс |
+| #259 | SFRFR-84 evidence path | tests |
+
+## Owner-blocked (не исполнять агентом)
+
+SFRFR-105/107 решения; 101–104/106 E2E/prod/auth; 90–95/98–99 live ЮKassa; 65 удаление ВМ; 3/5 доски Wiki UI.
+
+Карта triage: `docs/ops/open-backlog-agent-triage-2026-10-24.md`.
