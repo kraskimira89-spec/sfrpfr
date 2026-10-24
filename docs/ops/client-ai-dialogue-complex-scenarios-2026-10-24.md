@@ -299,7 +299,7 @@
 | S20.25N | Вернулся позже | auto_order_return |
 | S20.25E2E | Сквозной отказ→выдача→стоп | price_refuse_completion |
 
-## S20.26 Обвинение в обмане (А–И) — подтип 20.21
+## S20.26 Обвинение в обмане (А–К) — подтип 20.21
 
 Код: `deception_accusation_policy.py` → процесс жалоб.
 
@@ -314,3 +314,5 @@
 | S20.26G | Обещали подать | never_happened |
 | S20.26H | Дефект подтверждён | apology_closes_claim |
 | S20.26I | Признать мошенничество | legal_label_fight |
+| S20.26J | Составное: обман+отказ+возврат+расчёт | single_handoff_reply |
+| S20.26K | Подтверждённая ошибка даты | apology_closes_finance |

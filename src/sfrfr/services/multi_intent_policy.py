@@ -21,6 +21,11 @@ from sfrfr.services.complaint_aggression_policy import (
     extract_message_layers,
 )
 from sfrfr.services.contradiction_policy import classify_contradiction_signal
+from sfrfr.services.deception_accusation_policy import (
+    classify_deception_signal,
+    map_deception_to_complaint,
+    split_deception_compound,
+)
 from sfrfr.services.expectation_alignment_policy import classify_expectation_signal
 from sfrfr.services.lost_document_policy import classify_lost_document_signal
 from sfrfr.services.price_refuse_policy import classify_price_refuse_signal
@@ -132,8 +137,18 @@ def parse_multi_intent(text: str) -> dict[str, Any]:
     if _STOP_COMMS_RE.search(raw):
         domains["communications"] = "stop_or_no_offers"
 
+    deception = classify_deception_signal(raw)
     complaint = classify_complaint_signal(raw)
-    if complaint is not None:
+    if deception is not None:
+        parent = map_deception_to_complaint(deception)
+        domains["claim"] = {
+            "kind": "deception_subtype_20_26",
+            "variant": deception.value,
+            "parent": parent.value,
+            "parent_process": "20.21",
+            "elements": split_deception_compound(raw).get("elements"),
+        }
+    elif complaint is not None:
         domains["claim"] = complaint.value
     else:
         reqs = (domains.get("layers") or {}).get("requirements") or []

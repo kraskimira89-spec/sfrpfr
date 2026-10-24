@@ -55,7 +55,9 @@ _PROMISED_RECALC_RE: Final = re.compile(
     r"добь[её]тесь\s+перерасч|"
     r"обещали.{0,30}перерасч|"
     r"говорили.{0,30}перерасч.{0,40}обман|"
-    r"ничего\s+не\s+гарантируете.{0,20}обман",
+    r"ничего\s+не\s+гарантируете.{0,20}обман|"
+    r"обманули.{0,40}(прибавк|перерасч)|"
+    r"обман.{0,40}(прибавк|перерасч)",
     re.I | re.DOTALL,
 )
 _INVENTED_RE: Final = re.compile(
@@ -215,6 +217,91 @@ def deception_protocol_steps() -> tuple[str, ...]:
         "execute",
         "verifiable_outcome_to_client",
     )
+
+
+def integration_transition_order() -> tuple[str, ...]:
+    """§63.3 — сквозной порядок; аварийный стоп ложных утверждений — отдельно."""
+    return (
+        "client_message",
+        "access_and_context",
+        "extract_demands",
+        "preserve_source_evidence",
+        "register_needed_processes",
+        "check_each_disputed_point",
+        "finding_per_point",
+        "authorized_decision",
+        "execute_allowed",
+        "verify_result",
+        "reply_to_client",
+    )
+
+
+def may_keep_spreading_false_claims_while_investigating() -> bool:
+    return False
+
+
+def claim_registration_must_not_auto() -> tuple[str, ...]:
+    """§63.4 — регистрация претензии ≠ авто-эффекты на весь заказ."""
+    return (
+        "stop_entire_order",
+        "cancel_payment",
+        "delete_documents",
+        "admit_calc_wrong",
+        "close_pension_question",
+    )
+
+
+def split_deception_compound(text: str) -> dict[str, Any]:
+    """§63.2 — независимые элементы; не один ответ «передали жалобу»."""
+    raw = (text or "").strip()
+    deception = classify_deception_signal(raw)
+    low = raw.casefold()
+    elements: list[dict[str, str]] = []
+    if deception is not None:
+        elements.append(
+            {
+                "kind": "deception_accusation",
+                "variant": deception.value,
+                "action": "check_source_message_and_basis",
+            }
+        )
+    if re.search(
+        r"больше\s+платить\s+не\s+буду|не\s+буду\s+платить|"
+        r"отказываюсь\s+от\s+(оплат|покупк|этап)",
+        raw,
+        re.I,
+    ):
+        elements.append(
+            {
+                "kind": "refuse_new_purchase",
+                "action": "preserve_offer_refuse",
+            }
+        )
+    if re.search(r"верните\s+(деньги|оплату)|возврат", raw, re.I):
+        elements.append(
+            {
+                "kind": "refund",
+                "action": "register_finance_demand",
+            }
+        )
+    if re.search(
+        r"исправьте\s+расч|исправить\s+расч|ошибк[аи].{0,20}расч",
+        raw,
+        re.I | re.DOTALL,
+    ) or ("исправьте" in low and "расчёт" in low):
+        elements.append(
+            {
+                "kind": "fix_calc",
+                "action": "check_data_method_dependents",
+            }
+        )
+    return {
+        "elements": elements,
+        "single_handoff_reply_forbidden": True,
+        "accusation_proves_neither_side": True,
+        "parent_process": "20.21",
+        "competing_claim_branch": False,
+    }
 
 
 def parallel_demands_routes() -> dict[str, str]:

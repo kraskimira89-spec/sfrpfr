@@ -42,7 +42,7 @@
 | 20.23 | Отказ next-оплаты | **основной** | refuse_next_stage | — | S20.23* |
 | 20.24 | Сомнения в пользе | процесс (план) | → 20.22 + 20.23 | stub | — |
 | 20.25 | Отказ из-за цены | **подтип 20.23** | price_refuse (+ completion) | §43–48 | S20.25* |
-| 20.26 | Обвинение в обмане | **подтип 20.21** | deception_accusation | §60–62 | S20.26* |
+| 20.26 | Обвинение в обмане | **подтип 20.21** | deception_accusation + evidence_contract | §60–68 | S20.26* |
 
 \* = расширенные JSON A–… в `client_ai_complex_dialogues.json`.
 
