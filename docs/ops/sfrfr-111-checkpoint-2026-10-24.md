@@ -1,7 +1,8 @@
 # SFRFR-111 единая контрольная точка (2026-10-24)
 
-**Тестируемый head #269:** после push этого коммита (см. `git rev-parse` / PR).  
-История: hardening `05be1741` (61 passed) → цикл 4 PG `8cdb479e`/`834e992c` (68 passed, CI green) → этот срез (маршруты upload/answer/order + read-back флагов).
+**Тестируемый head #269:** `8e241e5d`  
+**PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
+История: hardening `05be1741` (61 passed) → цикл 4 PG `834e992c` (68 passed, CI green) → этот срез (маршруты upload/answer/order + read-back флагов).
 
 Auto-merge **OFF**. Merge / deploy / prod-миграции / live MAX — **нет**.  
 SFRFR-110 / SFRFR-111 — открыты.
