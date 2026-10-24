@@ -74,7 +74,7 @@ CorrectPeriodDateCommand
 ## Тесты
 
 ```text
-SHA: (заполнить после commit)
+SHA: b7951375d5ceaff97e802c4d01b8167034445080
 Unit:
   .\.venv\Scripts\python.exe -m pytest tests/unit/test_period_date_correction.py -q --basetemp=.tmp_pytest_date_op
   → 13 passed (локально на реализации)
