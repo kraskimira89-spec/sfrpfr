@@ -3389,13 +3389,55 @@ def _handle_client_free_text(
         exclude_message_id=exclude_message_id,
     )
     if reply:
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=reply,
-            attachments=attachments,
+        from sfrfr.services.max_e05_f04_path import (
+            ACTION_E05_F04,
+            PolicyReply,
+            deliver_policy_reply_via_outbox,
+            handle_result_detail_from_delivery,
+        )
+
+        delivery_detail = ""
+        if action == ACTION_E05_F04 and case_id and user_id:
+            outcome = deliver_policy_reply_via_outbox(
+                case_id=str(case_id),
+                max_user_id=str(user_id),
+                reply=PolicyReply(
+                    text=reply,
+                    attachments=list(attachments or []),
+                    action=action,
+                ),
+                process_now=True,
+            )
+            delivery_detail = handle_result_detail_from_delivery(outcome)
+            # Исходы различимы: prepared≠enqueued≠sent≠read.
+            # Сбой enqueue: один раз тот же policy-текст напрямую — без
+            # противоречащего «фактов недостаточно», если ошибка уже подтверждена.
+            # enqueued=True: второго _reply нет (даже если sent=False) — не дублируем
+            # с outbox worker; исход фиксируем в detail.
+            if not outcome.get("enqueued"):
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=reply,
+                    attachments=[],
+                    case_id=case_id,
+                )
+        else:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=attachments,
+                case_id=case_id,
+            )
+        return MaxHandleResult(
+            ok=True,
+            action=action,
             case_id=case_id,
+            reply=reply or None,
+            detail=delivery_detail,
         )
     return MaxHandleResult(
         ok=True,
