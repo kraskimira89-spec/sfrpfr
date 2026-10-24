@@ -485,11 +485,14 @@ def reply_to_free_text(
     # Null-адаптер в prod не подтверждает ошибку и не подставляет успех.
     if cid:
         try:
-            from sfrfr.services.max_e05_f04_path import try_policy_reply_for_case
+            from sfrfr.services.max_e05_f04_path import (
+                coerce_policy_reply,
+                try_policy_reply_for_case,
+            )
 
-            policy = try_policy_reply_for_case(case_id=cid)
+            policy = coerce_policy_reply(try_policy_reply_for_case(case_id=cid))
             if policy is not None:
-                return policy.text, policy.attachments, policy.action
+                return policy.text, list(policy.attachments), policy.action
         except Exception as exc:  # noqa: BLE001
             logger.debug("max e05_f04 policy intercept skipped: %s", exc)
 

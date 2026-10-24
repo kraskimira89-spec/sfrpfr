@@ -43,6 +43,38 @@ class PolicyReply:
     outcome: str = OUTCOME_POLICY_PREPARED
 
 
+def coerce_policy_reply(reply: PolicyReply | None) -> PolicyReply | None:
+    """Отбросить пустой text; нормализовать attachments/action. None = не перехватывать."""
+    if reply is None:
+        return None
+    text = str(reply.text or "").strip()
+    if not text:
+        return None
+    raw = reply.attachments
+    if isinstance(raw, list):
+        atts = [item for item in raw if isinstance(item, dict)]
+    else:
+        atts = []
+    action = str(reply.action or "").strip() or ACTION_E05_F04
+    outcome = str(reply.outcome or "").strip() or OUTCOME_POLICY_PREPARED
+    return PolicyReply(
+        text=text,
+        attachments=atts,
+        action=action,
+        package=reply.package,
+        used_fallback=bool(reply.used_fallback),
+        outcome=outcome,
+    )
+
+
+def handle_result_detail_from_delivery(outcome: dict[str, Any] | None) -> str:
+    """Исход доставки для MaxHandleResult.detail (не смешивать с action)."""
+    if not isinstance(outcome, dict):
+        return ""
+    detail = str(outcome.get("caller_outcome") or outcome.get("reason") or "").strip()
+    return detail
+
+
 def _strip_incompatible_attachments(
     attachments: list[dict[str, Any]] | None,
     *,
@@ -86,11 +118,15 @@ def try_policy_reply_for_case(
 
     if not ctx.error_confirmed:
         text = ERROR_NOT_CONFIRMED_TEMPLATE
-        return PolicyReply(
-            text=text,
-            attachments=_strip_incompatible_attachments(prior_attachments, fallback=True),
-            used_fallback=True,
-            outcome=OUTCOME_INSUFFICIENT_FACTS,
+        return coerce_policy_reply(
+            PolicyReply(
+                text=text,
+                attachments=_strip_incompatible_attachments(
+                    prior_attachments, fallback=True
+                ),
+                used_fallback=True,
+                outcome=OUTCOME_INSUFFICIENT_FACTS,
+            )
         )
 
     desc = (ctx.error_description or "").strip() or "указанном фрагменте"
@@ -134,13 +170,15 @@ def try_policy_reply_for_case(
         prior_attachments if not pkg.fallback else None,
         fallback=bool(pkg.fallback or not limit_ok),
     )
-    return PolicyReply(
-        text=text,
-        attachments=atts,
-        action=ACTION_E05_F04,
-        package=pkg,
-        used_fallback=bool(pkg.fallback or not limit_ok),
-        outcome=OUTCOME_POLICY_PREPARED,
+    return coerce_policy_reply(
+        PolicyReply(
+            text=text,
+            attachments=atts,
+            action=ACTION_E05_F04,
+            package=pkg,
+            used_fallback=bool(pkg.fallback or not limit_ok),
+            outcome=OUTCOME_POLICY_PREPARED,
+        )
     )
 
 
