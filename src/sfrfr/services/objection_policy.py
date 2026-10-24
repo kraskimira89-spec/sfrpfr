@@ -39,8 +39,8 @@ class ClientSignalKind(StrEnum):
 # Претензии / сервис — не продажный цикл.
 _CLAIM_RE: Final = re.compile(
     r"("
-    r"оплатил.{0,40}результат\w*\s+нет|"
-    r"оплатил.{0,40}нет\s+результат|"
+    r"(о|за)платил.{0,40}результат\w*\s+нет|"
+    r"(о|за)платил.{0,40}нет\s+результат|"
     r"списал(и|о).{0,20}дважды|"
     r"верните\s+деньг|"
     r"потерял(и|а)\s+документ|"
@@ -56,7 +56,8 @@ _CLAIM_RE: Final = re.compile(
 _PATTERNS: Final[tuple[tuple[ClientSignalKind, re.Pattern[str]], ...]] = (
     (ClientSignalKind.STOP_MESSAGES, re.compile(
         r"^(стоп|stop|отписаться|unsubscribe|/stop)$|"
-        r"не\s+пишите\s+(мне|больше)|отключите\s+уведомлен",
+        r"не\s+пишите\s+(мне|больше)|отключите\s+уведомлен|"
+        r"хватит\s+(мне\s+)?писать|больше\s+ничего\s+не\s+нужно",
         re.I,
     )),
     (ClientSignalKind.CLAIM, _CLAIM_RE),
@@ -71,7 +72,7 @@ _PATTERNS: Final[tuple[tuple[ClientSignalKind, re.Pattern[str]], ...]] = (
         re.I,
     )),
     (ClientSignalKind.NO_MONEY, re.compile(
-        r"нет\s+денег|не\s+на\s+что|сейчас\s+не\s+потянуть|"
+        r"нет\s+денег|денег\s+нет|не\s+на\s+что|сейчас\s+не\s+потянуть|"
         r"не\s+могу\s+оплатить",
         re.I,
     )),
