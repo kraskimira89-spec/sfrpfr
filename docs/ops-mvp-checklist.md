@@ -9,7 +9,7 @@
 | 3. Кабинет клиента + каналы | ✅ | OTP, дела, upload, чек-лист; MAX `/docs` `/draft`; выбор канала на витрине |
 | 4. Оплаты | ✅ | Admin orders (manual); ЮKassa pay+webhook; кнопка «Оплатить» с fallback |
 | 5. Результат + post-payment | ✅ | Upload решения СФР; confirm result; `calc_success_fee`; SF_* после окна 60+ дней |
-| 6. CRM и аналитика | ✅ | amoCRM sync; Sheets whitelist без ПДн |
+| 6. CRM и аналитика | ✅ | **Staff cabinet CRM** (канон с 2026-08-29, `AMOCRM_ENABLED=0`); код amo — резерв; Sheets whitelist без ПДн |
 
 ## Операционный запуск этапа 1
 
