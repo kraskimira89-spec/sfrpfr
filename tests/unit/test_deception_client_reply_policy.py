@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 
 from sfrfr.services.deception_client_reply_policy import (
+    SAFE_INCOMPLETE_FACTS_FALLBACK,
     ConfirmedErrorReplyKind,
     build_confirmed_error_reply,
+    client_facing_error_reply,
     may_promise_refund_in_error_reply,
     may_require_client_accept_resolved,
     may_say_fixed_before_persist,
@@ -65,6 +67,13 @@ def test_incomplete_facts_block_send() -> None:
     )
     assert bad["send"] is False
     assert "confirmed_correction" in bad["missing_facts"]
+    facing = client_facing_error_reply(
+        ConfirmedErrorReplyKind.GENERAL,
+        facts={"wrong_fact": "x"},
+    )
+    assert facing["send"] is True
+    assert facing["text"] == SAFE_INCOMPLETE_FACTS_FALLBACK
+    assert facing["handoff_announced"] is False
 
 
 def test_unsupported_amount_no_no_raise() -> None:

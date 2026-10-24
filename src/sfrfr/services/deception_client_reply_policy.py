@@ -34,6 +34,24 @@ BANNED_IN_CLIENT_REPLY: Final[tuple[str, ...]] = (
     "считайте вопрос закрытым",
 )
 
+# Клиент не получает молчание / исключение / выдуманный успех при блоке.
+SAFE_INCOMPLETE_FACTS_FALLBACK: Final = (
+    "Ошибка требует проверки, но данных для точного ответа пока недостаточно. "
+    "Я не буду сообщать, что исправление завершено."
+)
+
+# Persist и регистрация — только из системных событий, не из «веры» модели.
+PERSIST_FACT_ALLOWED_SOURCES: Final[tuple[str, ...]] = (
+    "db_write_ack",
+    "repository_update_ok",
+    "job_event_persisted",
+)
+PERSIST_FACT_FORBIDDEN_SOURCES: Final[tuple[str, ...]] = (
+    "llm_self_report",
+    "prompt_filled_flag",
+    "assistant_assumption",
+)
+
 
 def may_use_you_were_right_without_confirmation() -> bool:
     return False
@@ -69,13 +87,22 @@ def reply_has_banned_internal_labels(text: str) -> bool:
     return any(b in low for b in BANNED_IN_CLIENT_REPLY)
 
 
+def persist_flag_is_trusted(*, source: str, value: bool) -> bool:
+    """True только если флаг persist пришёл из системного ack, не из LLM."""
+    if source in PERSIST_FACT_FORBIDDEN_SOURCES:
+        return False
+    if source not in PERSIST_FACT_ALLOWED_SOURCES:
+        return False
+    return bool(value)
+
+
 def build_confirmed_error_reply(
     kind: ConfirmedErrorReplyKind,
     *,
     facts: dict[str, Any],
     client_reported: bool = True,
 ) -> dict[str, Any]:
-    """Собрать ответ только из подтверждённых фактов; иначе отказ от отправки."""
+    """Собрать ответ только из подтверждённых фактов; иначе — неполный черновик."""
     missing = _required_missing(kind, facts)
     if missing:
         return {
@@ -84,6 +111,8 @@ def build_confirmed_error_reply(
             "missing_facts": missing,
             "text": "",
             "reason": "unconfirmed_or_incomplete_facts",
+            "handoff_announced": False,
+            "claim_registered_announced": False,
         }
 
     text = _render(kind, facts, client_reported=client_reported)
@@ -94,6 +123,8 @@ def build_confirmed_error_reply(
             "missing_facts": ["placeholder_or_internal_label"],
             "text": "",
             "reason": "unsafe_outgoing_text",
+            "handoff_announced": False,
+            "claim_registered_announced": False,
         }
     return {
         "ok": True,
@@ -102,6 +133,50 @@ def build_confirmed_error_reply(
         "text": text,
         "kind": kind.value,
         "based_on_intention_only": False,
+        "handoff_announced": False,
+        "claim_registered_announced": bool(
+            kind == ConfirmedErrorReplyKind.PAYMENT_IMPACT
+            and facts.get("demand_registered") is True
+        ),
+    }
+
+
+def client_facing_error_reply(
+    kind: ConfirmedErrorReplyKind,
+    *,
+    facts: dict[str, Any],
+    client_reported: bool = True,
+    persist_source: str | None = None,
+) -> dict[str, Any]:
+    """Исходящий ответ клиенту: либо точный текст, либо безопасный fallback.
+
+    Не молчание и не выдуманный успех. Handoff/регистрацию не объявлять
+    без успешного действия в facts.
+    """
+    facts_use = dict(facts)
+    if "date_persist_succeeded" in facts_use and persist_source is not None:
+        facts_use["date_persist_succeeded"] = persist_flag_is_trusted(
+            source=persist_source,
+            value=bool(facts_use.get("date_persist_succeeded")),
+        )
+
+    built = build_confirmed_error_reply(
+        kind, facts=facts_use, client_reported=client_reported
+    )
+    if built.get("ok") and built.get("send"):
+        return built
+
+    return {
+        "ok": False,
+        "send": True,
+        "text": SAFE_INCOMPLETE_FACTS_FALLBACK,
+        "reason": built.get("reason") or "blocked",
+        "missing_facts": built.get("missing_facts") or [],
+        "kind": kind.value,
+        "based_on_intention_only": False,
+        "handoff_announced": False,
+        "claim_registered_announced": False,
+        "fallback": True,
     }
 
 
