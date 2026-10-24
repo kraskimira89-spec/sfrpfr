@@ -796,6 +796,134 @@ def test_honest_brief_ui_no_discrepancy_honest() -> None:
     assert "не выявила" in blob or "расхожд" in blob
 
 
+def test_weak_stazh_problem_is_client_only_not_justified() -> None:
+    """Слабое «стаж»/даты → со слов клиента; soft-ask/оффер не открываются."""
+    result = ba.compute_brief_analysis(
+        documents=_KIT,
+        intake=_rec(problem="Нужно проверить стаж и даты"),
+        pipeline_findings=[],
+    )
+    assert result.ok
+    assert not result.has_justified_discrepancy
+    assert ba.EVIDENCE_CLIENT in result.evidence_kinds
+    assert ba.EVIDENCE_DOCS not in result.evidence_kinds
+    assert ba.EVIDENCE_NEEDS_CHECK not in result.evidence_kinds
+    low = result.summary.lower()
+    assert "со слов клиента" in low
+    assert "требует проверки" not in low
+    assert "подтверждено документами" not in low
+    assert "следующий шаг" in low
+    assert len(result.bullets) <= 3
+
+
+def test_run_brief_delivers_evidence_labels_in_client_body(monkeypatch) -> None:
+    """Фактический путь offer: summary с EVIDENCE_* уходит в enqueue_max_delivery."""
+    delivered: list[dict] = []
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return [
+                {
+                    "type": "missing_in_ils",
+                    "detail": "Период есть в трудовой, нет в ИЛС",
+                    "doc_type": "workbook",
+                }
+            ]
+
+    store = MagicMock()
+    rec = MaxIntakeRecord(
+        id="r-ev",
+        max_user_id="u-ev",
+        case_id="c-ev",
+        q_answers={"problem": "Не учли северный стаж"},
+    )
+    store.get_active.return_value = rec
+    store.save.side_effect = lambda r: None
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **kw: delivered.append(kw) or True,
+    )
+
+    out = ba.run_brief_after_kit(case_id="c-ev", max_user_id="u-ev")
+    assert out is not None and out.has_justified_discrepancy
+    assert delivered
+    body = str(delivered[0].get("body") or "").lower()
+    assert "подтверждено документами" in body
+    assert "требует проверки" in body or "север" in body
+    assert "следующий шаг" in body
+    assert "3 000" in body or "подробн" in body
+    assert delivered[0].get("attachments")
+    assert len(out.bullets) <= 3
+
+
+def test_run_brief_client_only_no_soft_ask_attachments(monkeypatch) -> None:
+    """Client-only тема: тело с «со слов клиента», без кнопок soft-ask."""
+    delivered: list[dict] = []
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    store = MagicMock()
+    rec = MaxIntakeRecord(
+        id="r-co",
+        max_user_id="u-co",
+        case_id="c-co",
+        q_answers={"problem": "Нужно сверить даты стажа"},
+    )
+    store.get_active.return_value = rec
+    store.save.side_effect = lambda r: None
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **kw: delivered.append(kw) or True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.soft_offers.pick_soft_offer",
+        lambda *_a, **_k: None,
+    )
+
+    out = ba.run_brief_after_kit(case_id="c-co", max_user_id="u-co")
+    assert out is not None
+    assert not out.has_justified_discrepancy
+    assert delivered
+    body = str(delivered[0].get("body") or "").lower()
+    assert "со слов клиента" in body
+    assert not delivered[0].get("attachments")
+    assert (rec.q_answers or {}).get(ba.SOFT_ASK_SENT_KEY) != "1"
+
+
 def test_honest_brief_ui_stale_when_fingerprint_changes() -> None:
     first = ba.compute_brief_analysis(documents=_KIT, intake=_rec(), pipeline_findings=[])
     changed = [
