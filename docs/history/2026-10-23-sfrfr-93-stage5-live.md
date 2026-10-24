@@ -1,94 +1,76 @@
-# Этап 5: фоновый режим DRY_RUN=0 (старт)
+# Этап 5: фоновый режим DRY_RUN=0 — финал 24ч
 
-## Включение
+Live-окно: **2026-10-23T21:01:27Z** → **2026-10-24T21:01:27Z**.  
+Проверка финала: **2026-10-24T21:02:19Z** (после отметки 24ч).
 
-- `FISCAL_RECONCILE_DRY_RUN=0` (ENABLED=1, ALERT_SINCE без изменений)
-- timer **enabled/active**
-- Первый tick: `candidates=0`, `stale_alerts=0` (окно пустое после этапа 4)
-
-## Наблюдение 24ч
-
-Каждые 2 ч: время проверки UTC, timer/service, `ticks_last_2h` (≥1 = планировщик жив),
-candidates/stale/ERROR/алерты. Стоп: второй чек / claimed_but_not_delivered / no_chat_id /
-streak≥12 у неизвестного.
-
-Live включён: **2026-10-23T21:01:27Z** → полные 24ч до **2026-10-24T21:01:27Z**
-(= 25 окт 02:01:27 +05). Loop 12 ≈ в ту же отметку; если раньше — добить наблюдение до неё.
-SFRFR-93/97 **не** закрывать только по candidates=0 — сверить критерии реализации и тесты.
-Итог после финала: (1) стабильность 24ч (2) этап 4 (3) новые кандидаты/исходы.
-
-## Снимок старта 2026-10-23T21:01Z
-
-- dry_run=false, candidates=0 — OK
-
-## Снимок 2026-10-23T23:01Z (loop #1 / 12, ~2 ч live)
-
-- Timer каждые 10 мин: `dry_run=false`, **candidates=0**, stale=0
-- ERROR / claimed_but_not_delivered / no_chat_id: нет
-- `.env`: ENABLED=1 DRY_RUN=0; timer active
-
-## Снимок 2026-10-24T01:01Z (loop #2 / 12, ~4 ч live)
-
-- Тики 03:21–04:01 MSK: candidates=0, stale=0
-- ERROR / алертов: нет
-
-## Снимок 2026-10-24T03:01Z (loop #3 / 12, ~6 ч live)
-
-- Тики до 06:01 MSK: candidates=0, stale=0
-- ERROR / алертов: нет
-
-## Interim 2026-10-24T03:47–03:53Z (между loop 3 и 4)
+## Env / timer (VPS)
 
 | Поле | Значение |
 |------|----------|
-| check_at_utc | 2026-10-24T03:52:57Z |
-| timer | enabled / active |
-| LAST tick | 06:51:27 MSK |
-| ticks_last_2h | **12** |
-| candidates / stale | 0 / 0 |
-| error_lines_last_2h | 0 |
-| новых кандидатов | нет |
+| `FISCAL_RECONCILE_ENABLED` | `1` |
+| `FISCAL_RECONCILE_DRY_RUN` | `0` |
+| `FISCAL_RECONCILE_ALERT_SINCE` | `2026-10-23T17:47:35Z` |
+| timer | `enabled` / `active` (каждые 10 мин) |
 
-## Снимок 2026-10-24T05:01:45Z (loop #4 / 12, ~8 ч live)
+## 1. Стабильность (за 24ч с 21:01Z)
 
-| Поле | Значение |
-|------|----------|
-| timer | enabled / active |
-| LAST tick | 08:01:27 MSK |
-| ticks_last_2h | **12** |
-| candidates / stale | 0 / 0 |
-| error_lines_last_2h | 0 |
-| новых кандидатов | нет |
+| Метрика | Значение |
+|---------|----------|
+| JSON-тики (`"enabled": true`) | 162 |
+| `claimed_but_not_delivered` | 0 |
+| `no_chat_id` | 0 |
+| Traceback | 0 |
+| `error_before_post` | 7 (только кандидат `89be641d` до исключения) |
+| `gate_succeeded` в journal live | 0 |
+| Тики с `candidates` ≥ 1 | 24 (раннее окно; после исключения — 0) |
 
-## Снимок 2026-10-24T07:01:42Z (loop #5 / 12, ~10 ч live)
+Stop-conditions за окно **не срабатывали**. Timer продолжает работать в фоне.
 
-| Поле | Значение |
-|------|----------|
-| timer | enabled / active |
-| LAST tick | 10:01:28 MSK |
-| ticks_last_2h | **12** |
-| candidates / stale | 0 / 0 |
-| error_lines_last_2h | 0 |
-| новых кандидатов | нет |
+## 2. Доказательство этапа 4 (create vs gate)
 
-## Снимок 2026-10-24T09:02:04Z (loop #6 / 12, ~12 ч live)
+| Событие | Итог |
+|---------|------|
+| CLI `yookassa-retry-receipt` `d41bd2ce` (этап 4) | `gate_succeeded` — существующий `type=payment` чек; **новый POST create не создавался** |
+| Повтор CLI на том же id | снова `gate_succeeded` |
+| Live 24ч | **нет** живого create-пути (новый чек через reconcile) |
 
-| Поле | Значение |
-|------|----------|
-| timer | enabled / active |
-| LAST tick | 12:01:29 MSK |
-| ticks_last_2h | **12** |
-| candidates / stale | 0 / 0 |
-| error_lines_last_2h | 0 |
-| новых кандидатов | нет |
+Вывод: идемпотентный gate / skip доказан; **путь «создать новый чек при canceled» в live не подтверждён** (кандидатов с create не было).
 
-## Снимок 2026-10-24T11:02:06Z (loop #7 / 12, ~14 ч live)
+## 3. Новые кандидаты
 
-| Поле | Значение |
-|------|----------|
-| timer | enabled / active |
-| LAST tick | 14:01:30 MSK |
-| ticks_last_2h | **12** |
-| candidates / stale | 0 / 0 |
-| error_lines_last_2h | 0 |
-| новых кандидатов | нет |
+| Период | Кандидаты |
+|--------|-----------|
+| Раннее окно | `89be641d` (`provider_payment_id` = `receipt:…`) → `error_before_post`, streak до исключения; затем `fiscal_status=not_required` |
+| После исключения → финал | `candidates=0`, `stale_alerts=0` на каждом тике |
+| На финале (21:02Z) | manual tick: `{"candidates": 0, "stale_alerts": 0, "results": []}` |
+
+Пустое окно **не** доказывает create-путь.
+
+## Критерии Tracker (без авто-закрытия)
+
+### SFRFR-93
+
+| Критерий | Статус |
+|----------|--------|
+| Job опрашивает paid без succeeded/pending | ✅ код + live |
+| Повтор только через `ensure_payment_receipt` / gate | ✅ |
+| Тесты webhook/двойной тик/succeeded no-op | ✅ через этап 1 / SFRFR-97 |
+| Документ `docs/yookassa-setup.md` | ✅ |
+| Live create при `reg=canceled` | ⏳ не было кандидата |
+
+**Не закрывать** только из‑за `candidates=0`.
+
+### SFRFR-97
+
+| Критерий | Статус |
+|----------|--------|
+| Тесты канона 1–28 | ✅ этап 1 (#251) |
+| Закрытие пробелов / устаревшие пункты | ✅ в дизайне + тестах |
+
+Авто-закрытие **не** делаем: владелец/стратег решают по create-доказательству и формулировке «добить».
+
+## Loop-лог (кратко)
+
+- #8: `89be641d` → streak → `not_required`
+- #11 (19:02Z): green, candidates=0
+- #12 (21:02Z): green, 24ч закрыты → этот отчёт
