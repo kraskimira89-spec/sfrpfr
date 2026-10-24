@@ -548,6 +548,29 @@ def reply_to_free_text(
     reply = apply_position_policy(reply, case_id=cid or None)
     text = f"{reply}\n\nМожно ответить кнопками ниже."
     attachments = _merge_attachments(soft_labels, nudge_kb, step=step)
+    # SFRFR-110: постфильтр completed-action claims (Null→LLM и пустой policy).
+    # Проверяем итоговую отправляемую версию после merge кнопок.
+    try:
+        from sfrfr.services.max_llm_action_claim_filter import filter_llm_action_claims
+
+        filtered = filter_llm_action_claims(
+            text=text,
+            attachments=attachments,
+            case_id=cid or None,
+        )
+        text = filtered.text
+        attachments = list(filtered.attachments)
+        if filtered.blocked:
+            # Не оставляем хвост «кнопки ниже» без клавиатуры.
+            text = filtered.text
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("max_llm action claim filter skipped hard: %s", exc)
+        from sfrfr.services.deception_client_reply_policy import (
+            SAFE_INCOMPLETE_FACTS_FALLBACK,
+        )
+
+        text = SAFE_INCOMPLETE_FACTS_FALLBACK
+        attachments = []
     if intake is not None:
         try:
             intake.llm_turn_count = turns + 1
