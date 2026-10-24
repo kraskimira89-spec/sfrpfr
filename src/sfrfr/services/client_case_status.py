@@ -140,6 +140,7 @@ def resolve(
             have_buckets=have,
             missing_buckets=missing,
             check_status=check_status,
+            last_error=last_error,
             quiet_receiving=bool(case_quiet),
             ef_open=ef,
         )
@@ -151,6 +152,7 @@ def resolve(
             have_buckets=have,
             missing_buckets=missing,
             check_status=check_status,
+            last_error=last_error,
             ef_open=ef,
         )
 
@@ -297,21 +299,62 @@ def reply_text(
         )
         # Quiet/receiving при полном комплекте — не шаблон «обрабатываем»
         # (после brief soft-ask / «Вы ещё работаете?»).
+        # SFRFR-83: текст строго по check_status (queued ≠ running ≠ «не запущена»).
         if status.kind == "receiving" and kit_complete:
-            return (
-                "Документы в деле. Краткая проверка ещё идёт или уже была — "
-                "результат смотрите в этом чате. "
-                "Повторно присылать те же файлы не нужно."
+            return _kit_check_status_reply(
+                check_status=status.check_status,
+                last_error=status.last_error,
             )
         if status.kind in {"receiving", "checking", "error"}:
             return base
         if status.kind == "kit_ready_no_analysis":
-            return (
-                "Документы в деле. Краткая проверка ещё не запущена — "
-                "когда она будет выполнена, результат придёт в этот чат. "
-                "Повторно присылать те же файлы не нужно."
+            return _kit_check_status_reply(
+                check_status=status.check_status or None,
+                last_error=status.last_error,
             )
     return base
+
+
+def _kit_check_status_reply(
+    *,
+    check_status: str | None,
+    last_error: str | None = None,
+) -> str:
+    """Честный текст по staff docs-check при полном комплекте.
+
+    Без безусловного «результат придёт в этот чат» — автодоставка не
+    гарантирована (нужен staff / brief / доставка).
+    Сырой last_error в клиентский текст не подставляем (диагностика отдельно).
+    """
+    _ = last_error  # остаётся на ClientCaseStatus для внутреннего контура
+    check = str(check_status or "").strip().lower()
+    tail = "Повторно присылать те же файлы не нужно."
+    if not check:
+        return f"Документы в деле. Проверка ещё не запущена. {tail}"
+    if check == "queued":
+        return f"Документы в деле. Проверка ожидает запуска. {tail}"
+    if check == "running":
+        return f"Документы в деле. Проверка выполняется. {tail}"
+    if check == "failed":
+        return (
+            "Документы в деле. Проверку не удалось завершить. "
+            "Повторно присылать те же файлы сейчас не нужно. "
+            "Для уточнения напишите в этот чат."
+        )
+    if check == "completed":
+        return (
+            f"Документы в деле. Проверка комплекта уже выполнена. "
+            f"Если итог не виден — напишите сюда, разберёмся. {tail}"
+        )
+    if check == "needs_action":
+        return (
+            f"Документы в деле. По проверке требуется действие специалиста. "
+            f"Пишите сюда, если нужны уточнения. {tail}"
+        )
+    return (
+        f"Документы в деле. Статус проверки уточняем. {tail} "
+        f"Пишите сюда, если нужны пояснения."
+    )
 
 
 def _base_reply(status: ClientCaseStatus) -> str:
@@ -328,9 +371,15 @@ def _base_reply(status: ClientCaseStatus) -> str:
             "те же файлы не нужно. Напишем сюда, когда сверим комплект."
         )
     if status.kind == "checking":
+        check = str(status.check_status or "").strip().lower()
+        if check == "queued":
+            return (
+                "Проверка ожидает запуска. Подождите, пожалуйста. "
+                "Повторно комплект присылать не нужно."
+            )
         return (
-            "Проверка ещё идёт. Подождите, пожалуйста — результат придёт "
-            "в этот чат. Повторно комплект присылать не нужно."
+            "Проверка выполняется. Подождите, пожалуйста. "
+            "Повторно комплект присылать не нужно."
         )
     if status.kind == "missing":
         need = " и ".join(
@@ -360,8 +409,7 @@ def _base_reply(status: ClientCaseStatus) -> str:
     # kit_ready_no_analysis: реестр типов есть, краткий анализ ещё не факт.
     return (
         "Базовый комплект получен. Краткая предварительная проверка "
-        "ещё не запущена — когда она будет выполнена, результат придёт "
-        "в этот чат. Повторно присылать те же файлы не нужно. "
+        "ещё не запущена. Повторно присылать те же файлы не нужно. "
         "Мы готовим документы и план — обращение через СФР или Госуслуги "
         "подаёте вы сами. Решение принимает СФР."
     )
