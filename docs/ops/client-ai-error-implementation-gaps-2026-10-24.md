@@ -1,10 +1,12 @@
 # Пробелы кода vs спецификация ошибок ИИ (2026-10-24)
 
 Документационный аудит. **Не** объявляет реализацию завершённой.  
-Спеки: `docs/specs/client-ai-error-response-catalog.md`,  
-`client-ai-transition-contracts.md`, `client-ai-evidence-requirements.md`.
+Спеки: `docs/specs/client-ai-error-docs-index.md`,  
+`client-ai-error-response-catalog.md`, `client-ai-transition-contracts.md`,  
+`client-ai-evidence-requirements.md`.
 
-Координация: **SFRFR-100**. Диалоговая волна: **SFRFR-110** (PR политики/юнит-тестов — отдельно от этого docs-PR).
+Координация: **SFRFR-100**. Диалоговая волна: **SFRFR-110** / PR #261  
+(полный `client-ai-dialogue-quality.md` — там; этот docs-PR **не** создаёт конкурирующий quality.md).
 
 ## 1. Сопоставление с репозиторием
 
