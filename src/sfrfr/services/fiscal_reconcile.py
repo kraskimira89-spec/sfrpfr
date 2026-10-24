@@ -111,11 +111,17 @@ def fiscal_status_needs_reconcile(row: dict[str, Any]) -> bool:
 
 
 def provider_payment_is_yookassa_reconcile_target(row: dict[str, Any]) -> bool:
-    """Только ЮKassa payment id. Не OCR-подтверждения `receipt:{doc|order}`.
+    """Исключаем известные OCR-платежи; остальные provider не whitelist'им.
 
-    Путь `payment_receipt.confirm_order_from_receipt` пишет
-    provider=receipt_ocr и provider_payment_id=receipt:… — это не ID платежа
-    магазина; fetch_payment неизбежно даёт error_before_post.
+    Контракт (срочный патч SFRFR-93):
+    - False, если provider ∈ {receipt_ocr, receipt} (даже без префикса receipt:);
+    - False, если provider_payment_id пуст или начинается с ``receipt:``
+      (независимо от provider);
+    - True иначе — **не** доказательство, что provider = yookassa.
+      Допустимость прочих значений provider — отдельная проверка (не этот PR).
+
+    Источник OCR-строк: ``payment_receipt.confirm_order_from_receipt`` пишет
+    синтетический ключ ``receipt:{doc|order}``, не ID платежа магазина ЮKassa.
     """
     provider = str(row.get("provider") or "").strip().lower()
     if provider in {"receipt_ocr", "receipt"}:
