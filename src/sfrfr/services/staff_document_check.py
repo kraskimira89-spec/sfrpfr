@@ -225,63 +225,126 @@ def _honest_brief_for_case(
     return ba.honest_brief_ui_payload(result)
 
 
-def _orders_block_paid_offer(repo: Any, case_id: str) -> bool:
+def _orders_offer_gate(repo: Any, case_id: str) -> tuple[bool, bool]:
+    """(block_offer, status_unknown).
+
+    pending оплаты / активный заказ → block.
+    Ошибка чтения заказов → status_unknown (не трактовать как «не оплачено»).
+    """
     try:
         orders = list(repo.list_orders(case_id) or [])
     except Exception:  # noqa: BLE001
-        return False
+        return True, True
     for order in orders:
         if not isinstance(order, dict):
             continue
         status = str(order.get("status") or "").lower()
-        if status in {"paid", "succeeded", "active", "in_progress", "completed"}:
-            return True
+        if status in {
+            "paid",
+            "succeeded",
+            "active",
+            "in_progress",
+            "completed",
+            "pending",
+            "waiting_for_capture",
+            "waiting_payment",
+        }:
+            return True, False
         payments = order.get("payments") or []
         for pay in payments if isinstance(payments, list) else []:
-            if isinstance(pay, dict) and str(pay.get("status") or "").lower() in {
-                "succeeded",
-                "paid",
-            }:
-                return True
-    return False
+            if not isinstance(pay, dict):
+                continue
+            pst = str(pay.get("status") or "").lower()
+            if pst in {"succeeded", "paid", "pending", "waiting_for_capture"}:
+                return True, False
+    return False, False
 
 
-def _attach_primary_precheck(base: dict[str, Any], *, case_id: str, repo: Any) -> dict[str, Any]:
+def _client_declined_precheck_offer(repo: Any, case_id: str) -> bool:
+    try:
+        row = repo.get_case_row(case_id) or {}
+        flags = row.get("flags") if isinstance(row.get("flags"), dict) else {}
+        return bool(flags.get("precheck_offer_declined"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _attach_primary_precheck(
+    base: dict[str, Any],
+    *,
+    case_id: str,
+    repo: Any,
+    analyzed: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Добавить outcome/резюме/рекомендацию без второго pipeline."""
     from sfrfr.core.config import get_settings
+    from sfrfr.services.precheck_period_sources import periods_for_precheck
     from sfrfr.services.primary_doc_precheck import run_primary_precheck
 
     row = repo.get_pipeline_row(case_id) or {}
-    ils = row.get("ils_periods") if isinstance(row.get("ils_periods"), list) else []
-    labor = row.get("labor_periods") if isinstance(row.get("labor_periods"), list) else []
+    ils, labor, period_state, extract_error = periods_for_precheck(
+        pipeline_row=row if isinstance(row, dict) else {},
+        analyzed_documents=analyzed,
+    )
+    kit_missing = list(base.get("missing_for_task") or [])
+    if period_state in {
+        "extract_not_run",
+        "extract_failed",
+        "extract_empty_unreadable",
+        "documents_missing",
+    }:
+        # Пустые периоды ≠ «расхождений нет».
+        if "periods" not in kit_missing:
+            kit_missing.append("извлечённые периоды стажа/ИЛС")
     settings = get_settings()
     amount = int(getattr(settings, "default_diagnostic_price_rub", 0) or 0) or None
+    block_offer, order_unknown = _orders_offer_gate(repo, case_id)
+    if order_unknown:
+        amount = None  # не продавать при неизвестном статусе оплаты
     pre = run_primary_precheck(
         ils_periods=ils,
         labor_periods=labor,
-        kit_missing=list(base.get("missing_for_task") or []),
+        kit_missing=kit_missing,
         needs_ocr=int(base.get("needs_recognition") or 0),
         originals_missing=max(
             0,
             int(base.get("documents_checked") or 0)
             - int(base.get("originals_available") or 0),
         ),
-        already_ordered_or_paid=_orders_block_paid_offer(repo, case_id),
+        already_ordered_or_paid=block_offer,
+        client_declined_offer=_client_declined_precheck_offer(repo, case_id),
         catalog_amount_rub=amount,
         catalog_label="Подробный анализ документов",
         package_code="diagnostic",
     )
     out = dict(base)
-    out["primary_precheck"] = pre.as_dict()
+    primary = pre.as_dict()
+    primary["period_source_state"] = period_state
+    if extract_error:
+        primary["period_extract_error"] = extract_error
+    out["primary_precheck"] = primary
     out["precheck_outcome"] = pre.outcome.value
     out["client_summary"] = pre.client_summary
-    # Не подменять kit-status «completed» ложным «пенсия ок».
+    out["checked_scope"] = list(pre.areas_checked)
+    out["processor_version"] = str(primary.get("rules_version") or "")
+    out["period_source_state"] = period_state
     if pre.outcome.value == "discrepancies_found" and out.get("status") == "completed":
         out["status"] = "needs_action"
         out["next_action"] = (
             "Есть расхождения источников — покажите клиенту резюме "
             "и при необходимости предложите подробный анализ."
         )
+    elif period_state != "periods_ready" and pre.outcome.value == "no_discrepancies_found":
+        # Защита: не оставлять ложный clear при пустых периодах.
+        out["status"] = "needs_action"
+        out["precheck_outcome"] = "insufficient_documents"
+        out["client_summary"] = (
+            "Периоды для сопоставления ещё не получены "
+            f"(состояние: {period_state}). Это не вывод «расхождений нет»."
+        )
+        if isinstance(out.get("primary_precheck"), dict):
+            out["primary_precheck"]["comparison_status"] = "inconclusive"
+            out["primary_precheck"]["outcome"] = "insufficient_documents"
     return out
 
 
@@ -305,7 +368,9 @@ def _analyze_case_documents(case_id: str) -> dict[str, Any]:
     brief = _honest_brief_for_case(case_id=case_id, docs=docs, repo=repo)
     merged = attach_honest_brief(base, brief=brief)
     try:
-        return _attach_primary_precheck(merged, case_id=case_id, repo=repo)
+        return _attach_primary_precheck(
+            merged, case_id=case_id, repo=repo, analyzed=analyzed
+        )
     except Exception:  # noqa: BLE001 — kit-check важнее падения сверки
         logger.warning("primary_precheck attach failed case=%s", case_id[:8], exc_info=True)
         return merged
@@ -331,6 +396,20 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
         or []
     )
     fp = documents_fingerprint(list(docs))
+    if not docs:
+        return {
+            "ok": False,
+            "job_id": "",
+            "status": "rejected",
+            "status_label": "нет документов",
+            "documents_fingerprint": fp,
+            "document_set_revision": fp,
+            "deduped": False,
+            "message": (
+                "В деле нет документов для проверки. "
+                "Загрузите файлы и повторите — фиктивный результат не создаём."
+            ),
+        }
     existing = (
         client.table("staff_document_check_jobs")
         .select("id, status, documents_fingerprint")
@@ -350,6 +429,7 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
             "status": str(row.get("status") or "queued"),
             "status_label": STATUS_LABELS_RU.get(str(row.get("status") or ""), "ожидает"),
             "documents_fingerprint": fp,
+            "document_set_revision": fp,
             "deduped": True,
             "message": "Проверка уже запущена для текущего набора документов.",
         }
@@ -382,6 +462,7 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
         "status": "queued",
         "status_label": STATUS_LABELS_RU["queued"],
         "documents_fingerprint": fp,
+        "document_set_revision": fp,
         "deduped": False,
         "message": "Проверка запущена.",
     }
@@ -401,6 +482,10 @@ def process_staff_document_check_job_safe(job_id: str) -> None:
 
 def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
     from sfrfr.db.session import get_supabase_client
+    from sfrfr.services.staff_document_check_lifecycle import (
+        notify_already_recorded,
+        result_already_finalized,
+    )
 
     client = get_supabase_client()
     rows = (
@@ -415,27 +500,46 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
     if not rows:
         raise LookupError(f"staff docs check job not found: {job_id}")
     job = rows[0]
-    if str(job.get("status")) in {"completed", "needs_action"}:
+    if result_already_finalized(job):
+        # Повтор worker/BackgroundTasks: не второй результат и не второй notify.
         return job
     attempts = int(job.get("attempts") or 0) + 1
-    client.table("staff_document_check_jobs").update(
-        {
-            "status": "running",
-            "attempts": attempts,
-            "current_stage": "extract_classify_kit",
-            "locked_by": _worker_id(),
-            "locked_at": _now(),
-            "updated_at": _now(),
-        }
-    ).eq("id", job_id).execute()
+    claimed = (
+        client.table("staff_document_check_jobs")
+        .update(
+            {
+                "status": "running",
+                "attempts": attempts,
+                "current_stage": "extract_classify_kit",
+                "locked_by": _worker_id(),
+                "locked_at": _now(),
+                "updated_at": _now(),
+            }
+        )
+        .eq("id", job_id)
+        .in_("status", ["queued", "running"])
+        .execute()
+        .data
+        or []
+    )
+    if not claimed and str(job.get("status")) not in {"queued", "running"}:
+        return job
     try:
         case_id = str(job.get("case_id") or "")
         result = _analyze_case_documents(case_id)
+        result["document_set_revision"] = str(job.get("documents_fingerprint") or "")
+        result["check_id"] = job_id
+        result["case_id"] = case_id
+        result["started_at"] = job.get("created_at") or job.get("locked_at")
+        result["completed_at"] = _now()
         final_status = str(result.get("status") or "completed")
-        # Уведомление клиенту — только после успешной фиксации результата (best-effort).
         notify_meta: dict[str, Any] | None = None
         primary = result.get("primary_precheck")
-        if isinstance(primary, dict) and final_status in {"completed", "needs_action"}:
+        if (
+            isinstance(primary, dict)
+            and final_status in {"completed", "needs_action"}
+            and not notify_already_recorded(job)
+        ):
             try:
                 from sfrfr.db.case_repository import CaseRepository
                 from sfrfr.services.primary_doc_precheck_notify import (
@@ -468,6 +572,8 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
                 "finished_at": _now(),
                 "updated_at": _now(),
                 "last_error": None,
+                "locked_by": None,
+                "locked_at": None,
             }
         ).eq("id", job_id).execute()
         return {"id": job_id, "status": final_status, "result": result}
@@ -479,6 +585,8 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
                 "current_stage": "failed",
                 "finished_at": _now(),
                 "updated_at": _now(),
+                "locked_by": None,
+                "locked_at": None,
             }
         ).eq("id", job_id).execute()
         logger.warning("staff_docs_check failed job=%s err=%s", job_id[:8], type(exc).__name__)
@@ -487,7 +595,9 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
 
 def process_next_staff_document_check_job() -> dict[str, Any] | None:
     from sfrfr.db.session import get_supabase_client
+    from sfrfr.services.staff_document_check_lifecycle import reclaim_stale_running_jobs
 
+    reclaim_stale_running_jobs()
     client = get_supabase_client()
     jobs = (
         client.table("staff_document_check_jobs")

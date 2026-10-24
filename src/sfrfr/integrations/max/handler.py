@@ -3952,6 +3952,30 @@ def handle_max_update(
             )
             return MaxHandleResult(ok=True, action="review_flow", reply=text)
 
+    if callback.startswith("precheck:"):
+        from sfrfr.services.primary_doc_precheck_callbacks import handle_precheck_callback
+
+        record_pc = store.find_by_max_user(user_id)
+        case_pc = str((record_pc or {}).get("case_id") or "").strip()
+        if not case_pc:
+            msg = "Не удалось связать проверку с делом. Напишите сотруднику."
+            _reply(bot, user_id=user_id, chat_id=chat_id, text=msg)
+            return MaxHandleResult(ok=True, action="precheck_no_case", reply=msg)
+        pc = handle_precheck_callback(
+            payload=callback,
+            case_id=case_pc,
+            max_user_id=user_id,
+        )
+        if pc is not None:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=pc.text,
+                attachments=pc.attachments,
+            )
+            return MaxHandleResult(ok=pc.ok, action=pc.action, reply=pc.text)
+
     if lower in {
         CALL_OPERATOR_LABEL.lower(),
         CALLBACK_REQUEST_LABEL.lower(),

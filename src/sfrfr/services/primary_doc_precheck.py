@@ -559,8 +559,9 @@ def build_recommendation_card(
     package_code: str | None,
 ) -> RecommendationCard:
     """Слой 2: коммерция только здесь; не меняет findings/comparison_status."""
-    hard_ids = [
-        f.finding_id or f.code.value
+    # Только содержательные находки с источниками; не OCR-шум.
+    hard_findings = [
+        f
         for f in findings
         if f.code
         in {
@@ -568,7 +569,10 @@ def build_recommendation_card(
             FindingCode.NOT_LOCATED_IN_ILS,
             FindingCode.SOURCE_CONFLICT,
         }
+        and f.extraction_confidence != "low"
+        and bool(f.source_a and f.source_b)
     ]
+    hard_ids = [f.finding_id or f.code.value for f in hard_findings]
     if already_ordered_or_paid:
         return RecommendationCard(
             recommendation_type="none",

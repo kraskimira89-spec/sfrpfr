@@ -1251,6 +1251,11 @@ def request_review(
     queued = enqueue_staff_document_check(
         case_id=case_id, actor_id=principal.user_id
     )
+    if not queued.get("ok", True):
+        raise HTTPException(
+            status_code=400,
+            detail=str(queued.get("message") or "Проверка не запущена"),
+        )
     job_id = str(queued.get("job_id") or "").strip()
     if job_id and not queued.get("deduped"):
         background_tasks.add_task(process_staff_document_check_job_safe, job_id)
