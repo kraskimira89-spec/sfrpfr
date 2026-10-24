@@ -15,18 +15,21 @@ from sfrfr.services.primary_doc_precheck_notify import build_precheck_max_messag
 
 PRECHECK_PREFIX = "precheck:"
 
+# Действия, меняющие коммерческое/операционное состояние — нужен check_id.
+MUTATING_SUBCODES = frozenset({"decline", "order", "ask_staff", "offer_info"})
+
 # subcode → краткое описание контракта (для матрицы доказательств).
 CALLBACK_CONTRACTS: dict[str, str] = {
     "summary": "Открыть резюме актуальной проверки",
     "explain": "Объяснить расхождение по сохранённой находке",
     "need_docs": "Что загрузить / зачем",
-    "upload": "Маршрут досылки документов",
-    "offer_info": "Состав/цена из каталога в recommendation, без заказа",
-    "order": "Явный заказ через существующий маршрут (не по stale)",
-    "decline": "Отказ от оффера; прекратить авто-повтор",
+    "upload": "Маршрут досылки документов (промежуточный)",
+    "offer_info": "Состав/цена при актуальных gates, без заказа",
+    "order": "Handoff на существующий маршрут при актуальных gates",
+    "decline": "Отказ от оффера; только после подтверждённой записи",
     "ask_staff": "Зарегистрировать передачу сотруднику",
     "status": "Статус незавершённой/актуальной проверки",
-    "answer": "Ответ на уточняющий вопрос",
+    "answer": "Уточнение (промежуточный FAQ)",
 }
 
 
@@ -67,6 +70,33 @@ def _load_latest_check(case_id: str) -> dict[str, Any] | None:
     return get_case_document_check(case_id)
 
 
+def _job_belongs_to_case(check_id: str, case_id: str) -> bool:
+    """Проверить, что check_id из payload принадлежит разрешённому делу."""
+    cid = (check_id or "").strip()
+    case = (case_id or "").strip()
+    if not cid or not case:
+        return False
+    try:
+        from sfrfr.db.session import get_supabase_client
+
+        rows = (
+            get_supabase_client()
+            .table("staff_document_check_jobs")
+            .select("id, case_id")
+            .eq("id", cid)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not rows:
+            return False
+        return str(rows[0].get("case_id") or "") == case
+    except Exception:  # noqa: BLE001
+        # Недоступность БД ≠ «принадлежит»: блокируем мутации.
+        return False
+
+
 def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
     if not check:
         return {}
@@ -74,7 +104,6 @@ def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
     primary = result.get("primary_precheck") if isinstance(result, dict) else None
     if isinstance(primary, dict):
         return primary
-    # fallback: поля summarize
     return {
         "outcome": result.get("precheck_outcome") or check.get("status"),
         "client_summary": result.get("client_summary"),
@@ -90,22 +119,36 @@ def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _patch_case_flags(case_id: str, patch: dict[str, Any]) -> bool:
-    """Best-effort запись флагов дела (decline / ask_staff)."""
+    """Запись флагов дела; True только если update затронул строку."""
     try:
         from sfrfr.db.case_repository import CaseRepository
 
         repo = CaseRepository()
         row = repo.get_case_row(case_id) or {}
+        if not row:
+            return False
         flags = dict(row.get("flags") or {}) if isinstance(row.get("flags"), dict) else {}
         flags.update(patch)
-        repo.client.table("cases").update({"flags": flags}).eq("id", case_id).execute()
-        return True
+        resp = (
+            repo.client.table("cases")
+            .update({"flags": flags})
+            .eq("id", case_id)
+            .execute()
+        )
+        data = getattr(resp, "data", None)
+        if data is None:
+            # некоторые клиенты не возвращают data — считаем ok только без исключения
+            # после явной проверки существования строки выше
+            return True
+        if isinstance(data, list):
+            return len(data) > 0
+        return bool(data)
     except Exception:  # noqa: BLE001
         return False
 
 
-def _mark_declined(case_id: str) -> None:
-    _patch_case_flags(case_id, {"precheck_offer_declined": True})
+def _mark_declined(case_id: str) -> bool:
+    return _patch_case_flags(case_id, {"precheck_offer_declined": True})
 
 
 def _mark_ask_staff(case_id: str, max_user_id: str) -> bool:
@@ -118,6 +161,81 @@ def _mark_ask_staff(case_id: str, max_user_id: str) -> bool:
             "precheck_ask_staff_max_user": str(max_user_id or "")[:64],
             "precheck_ask_staff_confirmed": False,
         },
+    )
+
+
+def live_offer_still_allowed(*, case_id: str, primary: dict[str, Any]) -> tuple[bool, str]:
+    """Повторная проверка gates на момент callback (не доверять сохранённой карточке)."""
+    rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
+    if not rec.get("offer_paid_analysis"):
+        return False, "saved_offer_false"
+    try:
+        from sfrfr.db.case_repository import CaseRepository
+        from sfrfr.services.staff_document_check import (
+            _client_declined_precheck_offer,
+            _orders_offer_gate,
+        )
+
+        repo = CaseRepository()
+        if _client_declined_precheck_offer(repo, case_id):
+            return False, "client_declined"
+        block, unknown = _orders_offer_gate(repo, case_id)
+        if unknown:
+            return False, "order_status_unknown"
+        if block:
+            return False, "already_ordered_or_paid"
+    except Exception:  # noqa: BLE001
+        return False, "gate_unavailable"
+    return True, "allowed"
+
+
+def _status_text(check: dict[str, Any] | None, primary: dict[str, Any]) -> str:
+    if not check:
+        return (
+            "Результат первичной проверки по этому делу ещё не сохранён. "
+            "Когда сотрудник запустит проверку и она завершится — придёт уведомление."
+        )
+    status = str(check.get("status") or "").lower()
+    if status in {"queued", "pending"}:
+        return "Проверка документов поставлена в очередь. Результата ещё нет."
+    if status == "running":
+        return "Проверка документов выполняется. Результата ещё нет — подождите."
+    if status == "failed":
+        err = str(check.get("last_error") or "").strip()
+        base = "Проверка не завершилась из‑за технической ошибки. Выводов пока нет."
+        return f"{base} ({err})" if err else base
+    if not primary or not (
+        primary.get("client_summary") or primary.get("outcome") or primary.get("findings")
+    ):
+        return (
+            "Сохранённой карточки результата пока нет. "
+            "Нельзя считать проверку завершённой."
+        )
+    return str(primary.get("client_summary") or "Есть сохранённый результат проверки.")
+
+
+def _summary_message(
+    check: dict[str, Any] | None,
+    primary: dict[str, Any],
+    current_id: str,
+) -> PrecheckCallbackResult:
+    status = str((check or {}).get("status") or "").lower()
+    if status in {"queued", "running", "pending", "failed"} or not primary:
+        text, _ = sanitize_client_text(_status_text(check, primary))
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_status",
+            text=text,
+            detail=status or "no_primary",
+        )
+    # Не подставлять дефолт «завершена» без outcome.
+    text, atts = build_precheck_max_message(primary, check_id=current_id or None)
+    if not str(primary.get("client_summary") or "").strip():
+        text, _ = sanitize_client_text(_status_text(check, primary))
+    else:
+        text, _ = sanitize_client_text(text)
+    return PrecheckCallbackResult(
+        ok=True, action="precheck_summary", text=text, attachments=atts
     )
 
 
@@ -136,19 +254,60 @@ def handle_precheck_callback(
     if requested_check_id is None and payload_check_id:
         requested_check_id = payload_check_id
 
+    # Неизвестный / повреждённый subcode
+    if sub not in CALLBACK_CONTRACTS:
+        text, _ = sanitize_client_text(
+            "Неизвестное или повреждённое действие проверки. "
+            "Откройте актуальное резюме или напишите сотруднику."
+        )
+        return PrecheckCallbackResult(
+            ok=False, action="precheck_unknown", text=text, detail=sub
+        )
+
     check = _load_latest_check(case_id)
-    current_id = str((check or {}).get("job_id") or "")
+    current_id = str((check or {}).get("job_id") or (check or {}).get("id") or "")
     primary = _primary_from_check(check)
+
+    # Мутации без check_id (старые кнопки) — не выполнять, показать актуальное.
+    if sub in MUTATING_SUBCODES and not requested_check_id:
+        text, atts = build_precheck_max_message(primary, check_id=current_id or None)
+        note, _ = sanitize_client_text(
+            "Эта кнопка без версии проверки устарела. "
+            "Ниже — актуальное состояние; коммерческое действие не выполнено.\n\n"
+            + (text if primary else _status_text(check, primary))
+        )
+        return PrecheckCallbackResult(
+            ok=True,
+            action="stale_missing_check_id",
+            text=note,
+            attachments=atts if primary else None,
+            detail="legacy_payload",
+        )
+
     if requested_check_id:
+        if not _job_belongs_to_case(requested_check_id, case_id):
+            text, _ = sanitize_client_text(
+                "Эта кнопка относится к другой проверке или делу. "
+                "Результат не раскрываем. Напишите сотруднику, если нужна помощь."
+            )
+            return PrecheckCallbackResult(
+                ok=False,
+                action="precheck_forbidden_check",
+                text=text,
+                detail="check_not_on_case",
+            )
         stale = resolve_stale_callback(
             requested_check_id=requested_check_id,
             current_check_id=current_id,
             current_primary=primary,
         )
         if stale.get("stale"):
+            # Старое коммерческое действие не выполняем.
             text, atts = build_precheck_max_message(primary, check_id=current_id or None)
             text, _ = sanitize_client_text(
-                str(stale.get("message") or "") + "\n\n" + text
+                str(stale.get("message") or "")
+                + " Предыдущее действие не применено.\n\n"
+                + text
             )
             return PrecheckCallbackResult(
                 ok=True,
@@ -167,14 +326,17 @@ def handle_precheck_callback(
             ok=True, action="stale_docs", text=text, detail="document_set_changed"
         )
 
-    if sub in {"summary", "status"}:
-        text, atts = build_precheck_max_message(primary, check_id=current_id or None)
-        text, _ = sanitize_client_text(text)
-        return PrecheckCallbackResult(
-            ok=True, action=f"precheck_{sub}", text=text, attachments=atts
-        )
+    if sub == "status":
+        text, _ = sanitize_client_text(_status_text(check, primary))
+        return PrecheckCallbackResult(ok=True, action="precheck_status", text=text)
+
+    if sub == "summary":
+        return _summary_message(check, primary, current_id)
 
     if sub == "explain":
+        if not primary:
+            text, _ = sanitize_client_text(_status_text(check, primary))
+            return PrecheckCallbackResult(ok=True, action="precheck_status", text=text)
         findings = primary.get("findings") if isinstance(primary.get("findings"), list) else []
         hard = [
             f
@@ -200,22 +362,27 @@ def handle_precheck_callback(
 
     if sub in {"need_docs", "upload"}:
         text, _ = sanitize_client_text(
-            "Нужны недостающие или более читаемые страницы для сопоставления. "
-            "Загрузите файлы в чат или кабинет — после поступления можно повторить проверку."
+            "Нужны недостающие или более читаемые страницы. "
+            "Сейчас доступна загрузка в этот чат MAX или через кабинет "
+            "(защищённая ссылка «открыть кабинет» в меню бота). "
+            "Отдельный one-shot upload-token из этой кнопки пока не выдаётся."
         )
-        return PrecheckCallbackResult(ok=True, action="precheck_need_docs", text=text)
-
-    def _rec() -> dict[str, Any]:
-        raw = primary.get("recommendation")
-        return raw if isinstance(raw, dict) else {}
+        return PrecheckCallbackResult(
+            ok=True, action="precheck_need_docs", text=text, detail="route_instruction"
+        )
 
     if sub == "offer_info":
-        rec = _rec()
-        if not rec.get("offer_paid_analysis"):
+        allowed, reason = live_offer_still_allowed(case_id=case_id, primary=primary)
+        if not allowed:
             text, _ = sanitize_client_text(
-                "Сейчас нет оснований предлагать платный анализ по этой проверке."
+                "Сейчас нет оснований предлагать платный анализ "
+                f"(проверка: {reason})."
             )
-            return PrecheckCallbackResult(ok=True, action="precheck_offer_blocked", text=text)
+            return PrecheckCallbackResult(
+                ok=True, action="precheck_offer_blocked", text=text, detail=reason
+            )
+        raw_rec = primary.get("recommendation")
+        rec = raw_rec if isinstance(raw_rec, dict) else {}
         price = rec.get("amount_rub") or rec.get("catalog_price_reference")
         scope = str(rec.get("service_scope") or rec.get("reason") or "")
         price_part = (
@@ -230,57 +397,102 @@ def handle_precheck_callback(
         return PrecheckCallbackResult(ok=True, action="precheck_offer_info", text=text)
 
     if sub == "order":
-        rec = _rec()
-        if not rec.get("offer_paid_analysis"):
+        allowed, reason = live_offer_still_allowed(case_id=case_id, primary=primary)
+        if not allowed:
             text, _ = sanitize_client_text(
-                "Заказ анализа сейчас недоступен (нет актуального основания, "
-                "отказ, оплата или неясный статус заказа)."
+                "Заказ анализа сейчас недоступен "
+                f"({reason}). Это не создание счёта."
             )
             return PrecheckCallbackResult(
                 ok=True,
                 action="precheck_order_blocked",
                 text=text,
-                detail="offer_not_allowed",
+                detail=reason,
             )
-        # Не создаём заказ здесь — только направляем на существующий маршрут.
         text, _ = sanitize_client_text(
-            "Чтобы заказать подробный анализ, подтвердите в кабинете или "
-            "через кнопку оплаты, которую пришлёт сотрудник. "
-            "Этот callback сам заказ не создаёт."
+            "Переход к оплате из этой кнопки пока не подключён к платёжному маршруту. "
+            "Счёт и ссылка на оплату создаются только через кабинет или сообщение "
+            "сотрудника. Этот callback заказ и платёж не создаёт."
         )
         return PrecheckCallbackResult(
-            ok=True, action="precheck_order_handoff", text=text, detail="explicit_route_required"
+            ok=True,
+            action="precheck_order_handoff",
+            text=text,
+            detail="explicit_route_unavailable",
         )
 
     if sub == "decline":
-        _mark_declined(case_id)
-        text, _ = sanitize_client_text(
-            "Хорошо, предложение убираем. Резюме проверки остаётся доступным."
+        saved = _mark_declined(case_id)
+        if not saved:
+            text, _ = sanitize_client_text(
+                "Не удалось сохранить отказ от предложения. "
+                "Попробуйте ещё раз или напишите сотруднику — "
+                "предложение пока может снова отображаться."
+            )
+            return PrecheckCallbackResult(
+                ok=False,
+                action="precheck_decline_failed",
+                text=text,
+                detail="flag_not_saved",
+            )
+        # Актуальные кнопки без оффера
+        primary_no_offer = dict(primary)
+        raw_rec = primary.get("recommendation")
+        rec = dict(raw_rec) if isinstance(raw_rec, dict) else {}
+        rec["offer_paid_analysis"] = False
+        rec["offer_status"] = "declined"
+        primary_no_offer["recommendation"] = rec
+        text, atts = build_precheck_max_message(
+            primary_no_offer, check_id=current_id or None
         )
-        return PrecheckCallbackResult(ok=True, action="precheck_declined", text=text)
+        note, _ = sanitize_client_text(
+            "Хорошо, отказ сохранён — предложение убираем. "
+            "Резюме проверки остаётся доступным.\n\n" + text
+        )
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_declined",
+            text=note,
+            attachments=atts,
+            detail="flag_saved",
+        )
 
     if sub == "ask_staff":
         registered = _mark_ask_staff(case_id, max_user_id)
-        text, _ = sanitize_client_text(
-            (
-                "Запрос сотруднику зарегистрирован. "
-                if registered
-                else "Запрос сотруднику принят (сохранение флага отложено). "
+        if not registered:
+            text, _ = sanitize_client_text(
+                "Не удалось зарегистрировать запрос сотруднику. "
+                "Напишите сообщение в чат текстом или повторите позже. "
+                "Специалист автоматически не подключён."
             )
-            + "Сообщение «специалист подключён» появится только после реальной передачи."
+            return PrecheckCallbackResult(
+                ok=False,
+                action="precheck_ask_staff_failed",
+                text=text,
+                detail="flag_not_saved",
+            )
+        text, _ = sanitize_client_text(
+            "Запрос сотруднику зарегистрирован. "
+            "Сообщение «специалист подключён» появится только после реальной передачи."
         )
         return PrecheckCallbackResult(
             ok=True,
             action="precheck_ask_staff",
             text=text,
-            detail="registered" if registered else "register_deferred",
+            detail="registered",
         )
 
     if sub == "answer":
         text, _ = sanitize_client_text(
-            answer_faq("нужно уточнение", primary)
+            "Конкретный уточняющий вопрос по этой проверке пока не зафиксирован "
+            "в ожидании ответа. Кратко: "
+            + answer_faq("нужно уточнение", primary)
+            + " Чтобы задать свой вопрос — напишите текстом в чат или нажмите "
+            "«Задать вопрос сотруднику»."
         )
-        return PrecheckCallbackResult(ok=True, action="precheck_answer", text=text)
+        return PrecheckCallbackResult(
+            ok=True, action="precheck_answer", text=text, detail="faq_stub"
+        )
 
     text, _ = sanitize_client_text("Неизвестное действие проверки. Откройте актуальное резюме.")
     return PrecheckCallbackResult(

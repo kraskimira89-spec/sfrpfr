@@ -42,7 +42,7 @@ def build_precheck_max_message(
     branch = select_max_branch(primary)
     summary = str(primary.get("client_summary") or "").strip()
     rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
-    text = summary or "Первичная проверка документов завершена."
+    text = summary or "Есть сохранённый результат первичной проверки документов."
     cid = (check_id or str(primary.get("check_id") or "")).strip() or None
     pl = lambda sub: _payload(sub, cid)  # noqa: E731
     buttons: list[dict[str, str]] = []
@@ -66,7 +66,8 @@ def build_precheck_max_message(
             {"text": "Посмотреть резюме", "payload": pl("summary")},
             {"text": "Что это означает?", "payload": pl("explain")},
         ]
-        if rec.get("offer_paid_analysis"):
+        # Коммерческие кнопки только с версией проверки (check_id).
+        if rec.get("offer_paid_analysis") and cid:
             buttons.append(
                 {
                     "text": "Что входит в подробный анализ?",

@@ -237,8 +237,15 @@ def test_reclaim_stale_running_requeues(mock_sb: MagicMock) -> None:
     assert out["failed"] == 0
 
 
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
-def test_callback_order_does_not_create_invoice(mock_load: MagicMock) -> None:
+def test_callback_order_does_not_create_invoice(
+    mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock
+) -> None:
     mock_load.return_value = {
         "job_id": "chk1",
         "stale": False,
@@ -264,7 +271,7 @@ def test_callback_order_does_not_create_invoice(mock_load: MagicMock) -> None:
         },
     }
     res = handle_precheck_callback(
-        payload="precheck:order",
+        payload="precheck:order:chk1",
         case_id="case-1",
         max_user_id="u1",
     )
@@ -273,26 +280,38 @@ def test_callback_order_does_not_create_invoice(mock_load: MagicMock) -> None:
     assert "не создаёт" in res.text.casefold() or "не создает" in res.text.casefold()
 
 
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
 @patch("sfrfr.services.primary_doc_precheck_callbacks._mark_declined")
-def test_callback_decline(mock_decline: MagicMock, mock_load: MagicMock) -> None:
+def test_callback_decline(
+    mock_decline: MagicMock, mock_load: MagicMock, _belongs: MagicMock
+) -> None:
+    mock_decline.return_value = True
     mock_load.return_value = {
         "job_id": "chk1",
         "stale": False,
-        "result": {"primary_precheck": {"outcome": "discrepancies_found"}},
+        "result": {
+            "primary_precheck": {
+                "outcome": "discrepancies_found",
+                "client_summary": "резюме",
+                "recommendation": {"offer_paid_analysis": True},
+            }
+        },
     }
     res = handle_precheck_callback(
-        payload="precheck:decline", case_id="case-1", max_user_id="u1"
+        payload="precheck:decline:chk1", case_id="case-1", max_user_id="u1"
     )
     assert res is not None
     assert res.action == "precheck_declined"
+    assert res.ok is True
     mock_decline.assert_called_once()
 
 
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
 @patch("sfrfr.services.primary_doc_precheck_callbacks._mark_ask_staff")
 def test_callback_ask_staff_registers(
-    mock_ask: MagicMock, mock_load: MagicMock
+    mock_ask: MagicMock, mock_load: MagicMock, _belongs: MagicMock
 ) -> None:
     mock_ask.return_value = True
     mock_load.return_value = {
@@ -301,13 +320,13 @@ def test_callback_ask_staff_registers(
         "result": {"primary_precheck": {"outcome": "discrepancies_found"}},
     }
     res = handle_precheck_callback(
-        payload="precheck:ask_staff", case_id="case-1", max_user_id="u1"
+        payload="precheck:ask_staff:chk1", case_id="case-1", max_user_id="u1"
     )
     assert res is not None
     assert res.action == "precheck_ask_staff"
     assert res.detail == "registered"
     mock_ask.assert_called_once_with("case-1", "u1")
-    assert "подключён" not in res.text.casefold() or "только после" in res.text.casefold()
+    assert "только после" in res.text.casefold()
 
 
 def test_outcome_examples_discrepancy_none_insufficient() -> None:
@@ -424,8 +443,14 @@ def test_reclaim_exhausted_marks_failed(mock_sb: MagicMock) -> None:
     assert out["requeued"] == 0
 
 
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case",
+    return_value=True,
+)
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
-def test_stale_callback_shows_current(mock_load: MagicMock) -> None:
+def test_stale_callback_shows_current(
+    mock_load: MagicMock, _belongs: MagicMock
+) -> None:
     mock_load.return_value = {
         "job_id": "chk-new",
         "stale": False,
@@ -438,11 +463,10 @@ def test_stale_callback_shows_current(mock_load: MagicMock) -> None:
         },
     }
     res = handle_precheck_callback(
-        payload="precheck:summary",
+        payload="precheck:summary:chk-old",
         case_id="case-1",
         max_user_id="u1",
-        requested_check_id="chk-old",
     )
     assert res is not None
     assert res.action == "stale_show_current"
-    assert "обновил" in res.text.casefold() or "актуальн" in res.text.casefold()
+    assert "не применен" in res.text.casefold() or "актуальн" in res.text.casefold()

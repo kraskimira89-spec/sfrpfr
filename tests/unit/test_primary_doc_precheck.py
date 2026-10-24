@@ -116,9 +116,20 @@ def test_max_buttons_depend_on_outcome() -> None:
             "next_action": "detailed_analysis",
             "client_summary": "Есть вопрос по периоду.",
             "recommendation": {"offer_paid_analysis": True},
+        },
+        check_id="chk-offer-1",
+    )
+    assert "precheck:order:chk-offer-1" in str(atts2)
+    # Без check_id коммерческие кнопки не ставим (legacy-safe).
+    _, atts3 = build_precheck_max_message(
+        {
+            "outcome": "discrepancies_found",
+            "comparison_status": "discrepancies_found",
+            "client_summary": "Есть вопрос по периоду.",
+            "recommendation": {"offer_paid_analysis": True},
         }
     )
-    assert "precheck:order" in str(atts2)
+    assert "precheck:order" not in str(atts3)
 
 
 def test_summarize_overrides_diag_offer_from_primary() -> None:
