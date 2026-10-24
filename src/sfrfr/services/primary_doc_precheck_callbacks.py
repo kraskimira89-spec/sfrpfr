@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from sfrfr.services.primary_doc_precheck_max import (
@@ -73,18 +74,36 @@ def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _mark_declined(case_id: str) -> None:
+def _patch_case_flags(case_id: str, patch: dict[str, Any]) -> bool:
+    """Best-effort запись флагов дела (decline / ask_staff)."""
     try:
         from sfrfr.db.case_repository import CaseRepository
 
         repo = CaseRepository()
         row = repo.get_case_row(case_id) or {}
         flags = dict(row.get("flags") or {}) if isinstance(row.get("flags"), dict) else {}
-        flags["precheck_offer_declined"] = True
-        # best-effort: update cases.flags если колонка есть
+        flags.update(patch)
         repo.client.table("cases").update({"flags": flags}).eq("id", case_id).execute()
+        return True
     except Exception:  # noqa: BLE001
-        pass
+        return False
+
+
+def _mark_declined(case_id: str) -> None:
+    _patch_case_flags(case_id, {"precheck_offer_declined": True})
+
+
+def _mark_ask_staff(case_id: str, max_user_id: str) -> bool:
+    """Зарегистрировать запрос сотрудника без ложного «подключён»."""
+    return _patch_case_flags(
+        case_id,
+        {
+            "precheck_ask_staff_requested": True,
+            "precheck_ask_staff_at": datetime.now(UTC).isoformat(),
+            "precheck_ask_staff_max_user": str(max_user_id or "")[:64],
+            "precheck_ask_staff_confirmed": False,
+        },
+    )
 
 
 def handle_precheck_callback(
@@ -223,11 +242,21 @@ def handle_precheck_callback(
         return PrecheckCallbackResult(ok=True, action="precheck_declined", text=text)
 
     if sub == "ask_staff":
+        registered = _mark_ask_staff(case_id, max_user_id)
         text, _ = sanitize_client_text(
-            "Запрос сотруднику зарегистрируем. "
-            "Сообщение «специалист подключён» появится только после реальной передачи."
+            (
+                "Запрос сотруднику зарегистрирован. "
+                if registered
+                else "Запрос сотруднику принят (сохранение флага отложено). "
+            )
+            + "Сообщение «специалист подключён» появится только после реальной передачи."
         )
-        return PrecheckCallbackResult(ok=True, action="precheck_ask_staff", text=text)
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_ask_staff",
+            text=text,
+            detail="registered" if registered else "register_deferred",
+        )
 
     if sub == "answer":
         text, _ = sanitize_client_text(

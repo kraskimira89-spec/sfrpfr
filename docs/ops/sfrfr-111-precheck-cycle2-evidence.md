@@ -1,15 +1,15 @@
 # SFRFR-111 цикл 2: job recovery + precheck:* + периоды
 
-**Head #269:** `2d15764f`  
-**Unit:** 40 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
+**Head #269:** `8ff7e571` (+ следующий commit с ask_staff register / outcome examples).  
+**Unit:** 43 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
 **Не** merge / deploy / live MAX / закрытие SFRFR-110/111.
 
 ## Формулировка статуса
 
-> Реализован расширенный срез предпроверки по отчёту исполнителя: recovery job,  
+> Реализован расширенный срез предпроверки: recovery job (unit),  
 > эфемерное извлечение периодов без записи в pipeline, callback `precheck:*`,  
-> ужесточённый офер. Полный browser smoke и PG/worker integration ещё **не**  
-> закрывают DoD.
+> ужесточённый офер, регистрация ask_staff. Полный browser smoke и PG/worker  
+> integration ещё **не** закрывают DoD.
 
 ## Команды
 
@@ -20,16 +20,20 @@
   tests/unit/test_staff_document_check.py -q --basetemp=tmp/pytest-precheck-c2
 ```
 
+Результат: **43 passed**.
+
 ## Job lifecycle (доказано unit)
 
-| Требование | Механизм |
-|---|---|
-| Запись до обработки | `enqueue` → insert `queued` до BackgroundTasks |
-| Подхват незавершённых | `reclaim_stale_running_jobs` + `process_next` в ingest-worker |
-| Нет второго результата/notify | early return `result_already_finalized` / `notify_already_recorded` |
-| Зависшие | stale running → requeue или failed |
-| Ошибка | status=failed + last_error |
-| Не HTTP sync | обработка только BackgroundTasks / worker poll |
+| Требование | Механизм | Доказательство |
+|---|---|---|
+| Запись до обработки | `enqueue` → insert `queued` до BackgroundTasks | staff_document_check unit |
+| Подхват незавершённых | `reclaim_stale_running_jobs` + `process_next` в ingest-worker | `test_reclaim_stale_running_requeues` |
+| Нет второго результата/notify | early return `result_already_finalized` / `notify_already_recorded` | unit flags |
+| Зависшие | stale running → requeue или failed | reclaim + exhausted |
+| Ошибка | status=failed + last_error | lifecycle |
+| Не HTTP sync | обработка только BackgroundTasks / worker poll | код маршрута |
+
+**Ограничение:** reclaim доказан mock-ом Supabase, не живым PG restart процесса.
 
 ## Пустой pipeline
 
@@ -39,25 +43,45 @@
 
 ## Callback `precheck:*`
 
-| Subcode | Поведение |
-|---|---|
-| summary / status | актуальное резюме |
-| explain | по сохранённой находке + ограничения |
-| need_docs / upload | маршрут досылки |
-| offer_info | состав/цена из recommendation, без заказа |
-| order | handoff; **не** создаёт заказ |
-| decline | флаг отказа |
-| ask_staff | текст без ложного «подключён» |
+| Subcode | Вход | Права | Действие | Повтор | Ответ |
+|---|---|---|---|---|---|
+| `summary` / `status` | payload + case | привязка max→case | актуальное резюме | идемпотентно | текст + кнопки версии |
+| `explain` | + check_id? | то же | по сохранённой находке + limitations | идемпотентно | без «недоплаты» |
+| `need_docs` / `upload` | | | маршрут досылки | идемпотентно | инструкция загрузки |
+| `offer_info` | | | состав/цена из recommendation | без заказа | блок если офер закрыт |
+| `order` | | | handoff на существующий маршрут | **не** создаёт заказ | `precheck_order_handoff` |
+| `decline` | | | `precheck_offer_declined` | повтор безопасен | офер снят |
+| `ask_staff` | + max_user | | флаг запроса, `confirmed=false` | не объявляет «подключён» | registered |
+| stale check_id | | | show current | | `stale_show_current` |
 
-Stale check_id → show current. Чужой case — нет привязки max_user→case.
+## Примеры outcome (unit)
 
-## Офер
+| Сценарий | outcome | offer |
+|---|---|---|
+| Различие дат ИЛС↔труд | `discrepancies_found` + findings | по правилам офера |
+| Совпадение периодов | `no_discrepancies_found` | false |
+| Нет документов | `insufficient_documents` | false |
 
-Блоки: paid/pending заказ, decline, catalog None / order status unknown, low-confidence OCR-only, insufficient/tech.
+## Офер (доп. фильтры)
+
+Блоки: paid/pending заказ, decline, catalog None / order status unknown, low-confidence OCR-only, insufficient/tech.  
+Unknown статус оплаты ≠ «не оплачено».
+
+## Этапы SFRFR-112…117
+
+| Ключ | Статус Tracker | Прогресс цикла 2 |
+|---|---|---|
+| SFRFR-112 | Открыт | контракт/evidence docs |
+| SFRFR-113 | Открыт | reclaim + enqueue; PG restart не доказан |
+| SFRFR-114 | Открыт | сопоставление + ephemeral periods |
+| SFRFR-115 | Открыт | резюме/recommendation/offer gates |
+| SFRFR-116 | Открыт | `precheck:*` wired; live MAX нет |
+| SFRFR-117 | Открыт | unit 43; browser/PG/E2E нет |
 
 ## Не доказано этим циклом
 
 - Browser smoke карточки дела
-- Реальный PG concurrent job
+- Реальный PG concurrent job / process restart
 - Полный E2E MAX live
-- Wiring заказа на существующий pay-link из `precheck:order`
+- Wiring `precheck:order` → pay-link API
+- Чужой user access (нужен integration с привязкой max_user)

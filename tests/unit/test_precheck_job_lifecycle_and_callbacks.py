@@ -164,6 +164,102 @@ def test_callback_decline(mock_decline: MagicMock, mock_load: MagicMock) -> None
 
 
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+@patch("sfrfr.services.primary_doc_precheck_callbacks._mark_ask_staff")
+def test_callback_ask_staff_registers(
+    mock_ask: MagicMock, mock_load: MagicMock
+) -> None:
+    mock_ask.return_value = True
+    mock_load.return_value = {
+        "job_id": "chk1",
+        "stale": False,
+        "result": {"primary_precheck": {"outcome": "discrepancies_found"}},
+    }
+    res = handle_precheck_callback(
+        payload="precheck:ask_staff", case_id="case-1", max_user_id="u1"
+    )
+    assert res is not None
+    assert res.action == "precheck_ask_staff"
+    assert res.detail == "registered"
+    mock_ask.assert_called_once_with("case-1", "u1")
+    assert "подключён" not in res.text.casefold() or "только после" in res.text.casefold()
+
+
+def test_outcome_examples_discrepancy_none_insufficient() -> None:
+    with_diff = run_primary_precheck(
+        ils_periods=[
+            {
+                "period_id": "i1",
+                "employer": "ООО А",
+                "date_from": "1990-01-01",
+                "date_to": "1995-01-01",
+            }
+        ],
+        labor_periods=[
+            {
+                "period_id": "l1",
+                "employer": "ООО А",
+                "date_from": "1990-01-01",
+                "date_to": "1994-06-01",
+            }
+        ],
+    )
+    assert with_diff.outcome.value == "discrepancies_found"
+    assert with_diff.findings
+
+    no_diff = run_primary_precheck(
+        ils_periods=[
+            {
+                "period_id": "i1",
+                "employer": "ООО А",
+                "date_from": "1990-01-01",
+                "date_to": "1995-01-01",
+            }
+        ],
+        labor_periods=[
+            {
+                "period_id": "l1",
+                "employer": "ООО А",
+                "date_from": "1990-01-01",
+                "date_to": "1995-01-01",
+            }
+        ],
+    )
+    assert no_diff.outcome.value == "no_discrepancies_found"
+    assert not no_diff.recommendation.offer_paid_analysis
+
+    missing = run_primary_precheck(
+        ils_periods=[], labor_periods=[], kit_missing=["ils", "labor"]
+    )
+    assert missing.outcome.value == "insufficient_documents"
+    assert not missing.recommendation.offer_paid_analysis
+
+
+@patch("sfrfr.db.session.get_supabase_client")
+def test_reclaim_exhausted_marks_failed(mock_sb: MagicMock) -> None:
+    """После «перезапуска» процесса: stale running с исчерпанными attempts → failed."""
+    client = MagicMock()
+    mock_sb.return_value = client
+    jobs = MagicMock()
+    client.table.return_value = jobs
+    old = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+    jobs.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {
+            "id": "j-ex",
+            "attempts": 3,
+            "max_attempts": 3,
+            "locked_at": old,
+            "status": "running",
+        }
+    ]
+    jobs.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        {"id": "j-ex"}
+    ]
+    out = reclaim_stale_running_jobs(older_than_sec=60)
+    assert out["failed"] == 1
+    assert out["requeued"] == 0
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
 def test_stale_callback_shows_current(mock_load: MagicMock) -> None:
     mock_load.return_value = {
         "job_id": "chk-new",
