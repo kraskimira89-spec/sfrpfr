@@ -21,8 +21,7 @@
 
 ## Артефакты cycle 5
 
-- Сырой unit лог: `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-211811-fe118821.txt` (70 passed, SHA `fe118821…`)
-- PG лог: `docs/ops/logs/sfrfr-111-pg-isolation-pytest-20261024-211833-fe118821.txt` (7 passed)
+- Канон сырой лог: `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-212031-afbe33de.txt` (**77 passed**, SHA `afbe33de…`)
 - Evidence: `docs/ops/sfrfr-111-precheck-isolation-cycle5-evidence.md`
 
 ## Открытые PR

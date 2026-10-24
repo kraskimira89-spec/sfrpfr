@@ -4,26 +4,28 @@
 **PR:** #269 `feat/sfrfr-primary-doc-precheck`  
 **Merge / deploy / live MAX / prod-миграции:** нет
 
-## 1. Сырой pytest (новый прогон)
+## 1. Сырой pytest (канон — на закоммиченном HEAD)
 
 | Поле | Значение |
 |---|---|
-| Полный SHA | `fe1188210279a7f22b1c253338f6e0cf74e35e5c` |
+| Полный SHA | `afbe33de9f0b2055f824bf92643bf205b9de5f65` |
 | Ветка | `feat/sfrfr-primary-doc-precheck` |
-| Время (UTC) | `2026-10-24T16:18:11Z` |
+| Время (UTC) | `2026-10-24T16:20:31Z` |
 | Python | `3.14.5` (`.venv`) |
 | Окружение | Windows; `PRECHECK_PG_DSN` set; `DATABASE_URL` unset |
-| Команда | см. сырой лог |
-| Итог | **70 passed**, 0 failed, exit **0** |
-| Сырой лог | `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-211811-fe118821.txt` |
-| JUnit | `docs/ops/logs/sfrfr-111-isolation-junit-20261024-211811-fe118821.xml` |
+| Команда | unit+isolation+`tests/integration/test_precheck_job_pg.py` — см. лог |
+| Итог | **77 passed**, 0 failed, exit **0** |
+| Сырой лог | `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-212031-afbe33de.txt` |
+| JUnit | `docs/ops/logs/sfrfr-111-isolation-junit-20261024-212031-afbe33de.xml` |
 
-Набор: handler routing + lifecycle + primary + staff_document_check + **isolation negatives**.
+Набор: handler routing + lifecycle + primary + staff_document_check + isolation negatives + PG suite.
 
-Предыдущий документ hardening (`091fe846` / «61 passed») **не** переписывался задним числом. Этот прогон — отдельный артефакт на SHA `fe118821…`.
+Предыдущий документ hardening (`091fe846` / «61 passed») **не** переписывался задним числом.
 
-Первый неудачный прогон без `--basetemp` (PermissionError Temp) сохранён отдельно:  
-`docs/ops/logs/sfrfr-111-hardening-pytest-20261024-211753-fe118821.txt` — exit 1; не использовать как зелёный.
+Вспомогательные прогоны (не канон):  
+- `…211753-fe118821` — PermissionError Temp, exit 1  
+- `…211811-fe118821` — 70 passed на dirty tree до коммита изоляции  
+- `…211833-fe118821` — только PG 7 passed до канона
 
 ## 2. Изоляция БД (исправления)
 
