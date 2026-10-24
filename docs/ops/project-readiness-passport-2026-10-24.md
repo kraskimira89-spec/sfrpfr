@@ -6,7 +6,8 @@
 **Матрица покрытия:** [`sfrfr-100-coverage-matrix-2026-10-24.md`](./sfrfr-100-coverage-matrix-2026-10-24.md)
 **E2E-протокол:** [`e2e-client-path-acceptance-protocol.md`](./e2e-client-path-acceptance-protocol.md)
 **Пакет владельца:** [`owner-decisions-pack-2026-10-24.md`](./owner-decisions-pack-2026-10-24.md)
-**Синхронизация со спринтом:** [`sfrfr-100-sprint-sync-package-2026-10-24.md`](./sfrfr-100-sprint-sync-package-2026-10-24.md) — **не завершена** (в орг. нет Sprint; доска SFRFR kanban)
+**Волна приёмки (kanban):** [`sfrfr-100-wave-acceptance-2026-10-24.md`](./sfrfr-100-wave-acceptance-2026-10-24.md) — тег `wave-sfrfr-100` на доске SFRFR №4
+**История выбора модели:** [`sfrfr-100-sprint-sync-package-2026-10-24.md`](./sfrfr-100-sprint-sync-package-2026-10-24.md) (superseded решением: kanban + тег, без scrum)
 **Назначение:** рабочая точка отсчёта. **Не** подтверждает готовность к потоку клиентов и **не** заменяет сквозную приёмку.
 
 **Правило статусов (везде ниже):**

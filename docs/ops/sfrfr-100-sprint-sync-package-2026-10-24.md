@@ -1,7 +1,11 @@
-# Пакет синхронизации аудита ↔ спринт (SFRFR-100)
+# Пакет синхронизации аудита ↔ спринт (SFRFR-100) — ARCHIVED
+
+> **Решение владельца 2026-10-24:** kanban board SFRFR №4 + тег `wave-sfrfr-100`.
+> Актуальный документ: [`sfrfr-100-wave-acceptance-2026-10-24.md`](./sfrfr-100-wave-acceptance-2026-10-24.md).
+> Этот файл сохранён как история выбора (scrum не создавали).
 
 **Срез:** `2026-10-24T05:10:08Z` UTC
-**Статус пакета:** подготовлен; **в Трекер как sprint assignment не применён** (блокер §1).
+**Статус пакета:** superseded; sprint assignment **не** применялся.
 **PR доков:** https://github.com/kraskimira89-spec/sfrpfr/pull/256 (без auto-merge)
 
 ---
