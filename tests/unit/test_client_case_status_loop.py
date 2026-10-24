@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from test_max_intake import _cb, _msg, _setup
 
 from sfrfr.core.config import get_settings
@@ -97,37 +98,127 @@ def test_kit_ready_base_reply_honest_not_running() -> None:
         assert "повторно" in low
 
 
-def test_quiet_kit_working_question_not_claiming_check_running() -> None:
-    """SFRFR-83: quiet+полный комплект ≠ «проверка ещё идёт», если check не running."""
+@pytest.mark.parametrize(
+    ("document_check", "kind", "must_include", "must_exclude"),
+    [
+        (
+            None,
+            "receiving",
+            ("ещё не запущена", "повторно"),
+            ("выполняется", "ожидает запуска", "ещё идёт", "придёт в этот чат"),
+        ),
+        (
+            {"status": "queued"},
+            "receiving",
+            ("ожидает запуска", "повторно"),
+            ("выполняется", "ещё не запущена", "ещё идёт", "придёт в этот чат"),
+        ),
+        (
+            {"status": "running"},
+            "receiving",
+            ("выполняется", "повторно"),
+            ("ещё не запущена", "ожидает запуска", "ещё идёт", "придёт в этот чат"),
+        ),
+        (
+            {"status": "failed", "last_error": "таймаут OCR"},
+            "receiving",
+            ("задержка", "таймаут ocr", "повторно"),
+            ("ещё не запущена", "выполняется", "ожидает запуска"),
+        ),
+        (
+            {"status": "completed"},
+            "receiving",
+            ("уже выполнена", "повторно"),
+            ("ещё не запущена", "выполняется", "ожидает запуска"),
+        ),
+        (
+            {"status": "needs_action"},
+            "receiving",
+            ("требуется действие", "повторно"),
+            ("ещё не запущена", "выполняется", "ожидает запуска"),
+        ),
+        (
+            {"status": "weird_future_status"},
+            "receiving",
+            ("уточняем", "повторно"),
+            ("ещё не запущена", "выполняется", "ожидает запуска", "ещё идёт"),
+        ),
+    ],
+)
+def test_quiet_kit_resolve_reply_by_check_status(
+    document_check: dict | None,
+    kind: str,
+    must_include: tuple[str, ...],
+    must_exclude: tuple[str, ...],
+) -> None:
+    """SFRFR-83: quiet + полный комплект — полный путь resolve → reply_text."""
     st = ccs.resolve(
         documents=_KIT_DOCS,
         case_quiet=True,
         ef_open=False,
         ingest_pending=False,
-        document_check=None,
+        document_check=document_check,
     )
-    assert st.kind == "receiving"
+    assert st.kind == kind
     assert "ils" in st.have_buckets and "labor" in st.have_buckets
+    if document_check and document_check.get("status"):
+        assert st.check_status == str(document_check["status"]).lower()
     low = ccs.reply_text(st, intent="working_question").lower()
-    assert "не запущ" in low or "ещё не" in low
-    assert "ещё идёт" not in low
-    assert "уже была" not in low
+    for needle in must_include:
+        assert needle in low, f"missing {needle!r} in {low!r}"
+    for needle in must_exclude:
+        assert needle not in low, f"unexpected {needle!r} in {low!r}"
+
+
+def test_failed_without_quiet_becomes_error_not_receiving() -> None:
+    """Без quiet failed перехватывается до kit_ready / receiving."""
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=False,
+        ef_open=False,
+        ingest_pending=False,
+        document_check={"status": "failed", "last_error": "x"},
+    )
+    assert st.kind == "error"
+    low = ccs.reply_text(st, intent="working_question").lower()
+    assert "ещё не запущена" not in low
+
+
+def test_queued_without_quiet_becomes_checking() -> None:
+    """Без quiet queued/running → kind=checking (не quiet-ветка receiving)."""
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=False,
+        ef_open=False,
+        ingest_pending=False,
+        document_check={"status": "queued"},
+    )
+    assert st.kind == "checking"
+    assert st.check_status == "queued"
+    low = ccs.reply_text(st, intent="working_question").lower()
+    assert "ожидает запуска" in low
     assert "выполняется" not in low
-    assert "повторно" in low
+    assert "придёт в этот чат" not in low
 
 
-def test_quiet_kit_working_question_when_check_running_may_say_in_progress() -> None:
+def test_completed_with_result_beats_quiet() -> None:
+    """result_ready перехватывается до quiet receiving."""
     st = ccs.resolve(
         documents=_KIT_DOCS,
         case_quiet=True,
         ef_open=False,
         ingest_pending=False,
-        document_check={"status": "running"},
+        document_check={
+            "status": "completed",
+            "stale": False,
+            "result": {"ok": True},
+        },
+        result_summary="Предварительная проверка комплекта завершена.",
+        result_current=True,
     )
-    assert st.kind == "receiving"
+    assert st.kind == "result_ready"
     low = ccs.reply_text(st, intent="working_question").lower()
-    assert "ещё идёт" in low
-    assert "повторно" in low
+    assert "ещё не запущена" not in low
 
 
 def test_resolve_receiving_during_quiet() -> None:
@@ -211,7 +302,10 @@ def test_resolve_checking_only_when_job_runs() -> None:
         ingest_pending=False,
     )
     assert st.kind == "checking"
-    assert "идёт" in ccs.reply_text(st).lower()
+    low = ccs.reply_text(st).lower()
+    assert "выполняется" in low
+    assert "ожидает запуска" not in low
+    assert "придёт в этот чат" not in low
 
 
 def test_intent_classifiers() -> None:
