@@ -12,7 +12,7 @@
 | Date-op (psycopg `FOR UPDATE` + CAS `updated_at` + embedded `period_date_corrected`) | Реализован в коде |
 | Snapshot (psycopg `FOR UPDATE` + merge corrections + CAS; отсутствие ключа ≠ `[]`) | Реализован в коде (#268 follow-up) |
 | Общий lock date-op ↔ snapshot в InMemory | Покрыт тестами A–E |
-| PG integration (два соединения, барьеры) | Код тестов + `tools/date_op_pg` + CI `date-op-pg.yml`; **локально на агенте Docker отсутствует** — evidence ждём от CI |
+| PG integration (два соединения, барьеры) | **CI success** (`date-op-pg` run 40107542269); локально у агента Docker отсутствует |
 | Writers вне store / прямой PostgREST | findings-upsert в admin переведён на snapshot CAS; **остальной service_role PostgREST** — блокер до RPC/revoke |
 | Ledger `operation_id` | `staff_date_corrections[]` + latest marker; колонка/RPC — только по отдельному OK |
 | `require_case` remap | Для write: `require_case_exact` (без подмены id) |

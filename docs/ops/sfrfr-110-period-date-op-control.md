@@ -43,14 +43,23 @@ $env:DATABASE_URL='postgresql://sfrfr:sfrfr_test@127.0.0.1:15433/sfrfr_date_op_t
 
 Workflow: `.github/workflows/date-op-pg.yml` — service `postgres:16`, bootstrap + unit + integration.
 
+## SHA / CI evidence
+
+| Поле | Значение |
+|---|---|
+| HEAD | `4581ac17` (docs whitespace; harness в `49dcf06c`) |
+| CI `date-op-pg` | **success** — https://github.com/kraskimira89-spec/sfrpfr/actions/runs/40107542269 |
+| Unit + Integration на CI | Bootstrap schema + InMemory + psycopg — зелёные |
+
 ## Локальный статус среды (агент, 2026-10-24)
 
 | Проверка | Результат |
 |---|---|
-| Docker Desktop / docker engine | **Нет:** `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`; `Docker Desktop.exe` не найден в Program Files |
+| Docker Desktop / docker engine | **Нет:** `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`; `Docker Desktop.exe` не найден |
 | Локальный `psql` / служба Postgres | **Нет** |
-| Unit InMemory | запускается без Docker |
-| Integration PG на этой машине | **не прогнан** — блокер среды; воспроизведение через CI / после установки Docker |
+| Unit InMemory (агент) | **20 passed** |
+| Integration PG (агент) | **12 skipped** (нет Docker) |
+| Integration PG (CI) | **пройден** (run выше) |
 
 ## Тесты
 
@@ -60,7 +69,7 @@ Unit (InMemory, A–E + history):
 
 Integration PG (обязательные сценарии ТЗ):
   tests/integration/test_period_date_correction_pg.py
-  → на агенте: SKIP без DATABASE_URL; на CI: job date-op-pg
+  → локально: SKIP без Docker; CI: date-op-pg success
 ```
 
 ## Перечень writers затрагиваемых полей
@@ -94,13 +103,13 @@ Integration PG (обязательные сценарии ТЗ):
 
 | ID | Статус |
 |---|---|
-| E01 write-op | Код + CI workflow; локальный PG evidence **не** получен (нет Docker) |
+| E01 write-op | Код + **CI PG success**; локальный Docker у агента отсутствует; E01-wire нет |
 | Close SFRFR-110 | нет |
 | Зависимость precheck #269 | **нет** — precheck только читает периоды / пишет findings precheck, не канонические даты |
 
 ## Рекомендация
 
-1. Дождаться зелёного `date-op-pg` на PR #268 **или** прогнать `run_integration.ps1` после установки Docker.
+1. PG evidence через CI получен (`date-op-pg` success). Остаётся блокер PostgREST service_role вне store.
 2. RPC-миграцию **не** применять без отдельного OK.
-3. Не merge #268 как «атомарность закрыта», пока нет зелёного PG run (локально или CI).
+3. Merge #268 — только отдельным разрешением (не закрывает SFRFR-110 / E01-wire).
 4. Precheck (#269) продолжать независимо.
