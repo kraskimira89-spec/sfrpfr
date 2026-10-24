@@ -36,7 +36,7 @@ def _failed_limit(*, case_id: str) -> TrustedOpResult:
         operation_id="lim-1",
         op_kind="provisional_limit",
         ok=False,
-        source="system-ack",
+        source="db_write_ack",
         version="v1",
         detail="apply_failed",
     )
@@ -296,3 +296,114 @@ def test_reply_to_free_text_intercepts_when_adapter_set(
     assert action == ACTION_E05_F04
     assert attachments == []
     assert "не буду сообщать, что исправление завершено" in text.casefold()
+
+
+def test_model_persist_ok_flag_not_trusted_as_system_proof() -> None:
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(
+        TrustedErrorContext(
+            case_id="case-a",
+            operation_id="op-1",
+            error_confirmed=True,
+            error_description="дате",
+            unknown_impact_area="итог",
+            limit_op=TrustedOpResult(
+                case_id="case-a",
+                operation_id="lim-llm",
+                op_kind="provisional_limit",
+                ok=True,
+                source="llm_self_report",
+            ),
+            result_version="v1",
+            authorized_for_case_id="case-a",
+        )
+    )
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    assert reply.package is not None
+    assert "limit_outcome:unknown" in " ".join(reply.package.evidence_refs)
+    low = reply.text.casefold()
+    assert "использование ограничено" not in low
+    assert "отмечен как требующий проверки" not in low
+
+
+def test_unknown_limit_outcome_no_success_or_confirmed_failure_claim() -> None:
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(
+        TrustedErrorContext(
+            case_id="case-a",
+            operation_id="op-1",
+            error_confirmed=True,
+            error_description="дате",
+            unknown_impact_area="итог проверки",
+            limit_op=TrustedOpResult(
+                case_id="case-a",
+                operation_id="lim-u",
+                op_kind="provisional_limit",
+                ok=None,
+                source="db_write_ack",
+                detail="timeout_before_ack",
+            ),
+            result_version="v1",
+            authorized_for_case_id="case-a",
+        )
+    )
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    assert reply.package is not None
+    refs = " ".join(reply.package.evidence_refs)
+    assert "limit_outcome:unknown" in refs
+    # unknown ≠ confirmed_failure: в тексте нет утверждения об отказе меры
+    low = reply.text.casefold()
+    assert "ограничение применено" not in low
+    assert "использование ограничено" not in low
+    assert "подтверждённый отказ ограничения" not in low
+    assert "не буду сообщать, что исправление завершено" in low
+
+
+def test_confirmed_failure_limit_distinct_from_unknown() -> None:
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(_ctx_f04())
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    assert reply.package is not None
+    assert "limit_outcome:confirmed_failure" in " ".join(reply.package.evidence_refs)
+
+
+def test_transport_accepted_does_not_claim_outbox_persist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MAX принял сообщение; mock-path не сохраняет status=sent — риск отдельно."""
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(_ctx_f04())
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **_k: True,
+    )
+    bot = MagicMock()
+    bot.send_message.return_value = {"ok": True, "message_id": "m-2"}
+    outcome = deliver_policy_reply_via_outbox(
+        case_id="case-a",
+        max_user_id="42",
+        reply=reply,
+        process_now=True,
+        bot=bot,
+    )
+    stages = outcome["stages"]
+    assert stages["enqueued"] is True
+    assert stages["transport_accepted"] is True
+    assert stages["outbox_marked_sent"] is False
+    assert stages["read"] is False
+    # Не маскируем: sent по транспорту ≠ полный persist-исход.
+    assert outcome["sent"] is True
+
+
+def test_wire_boundary_not_full_webhook_e2e() -> None:
+    """Документированная граница: тест reply_to_free_text ≠ полный webhook E2E."""
+    note = (
+        "Проверка начинается после входной аутентификации и первичной "
+        "маршрутизации; эти участки этим тестом не покрыты."
+    )
+    assert "аутентификации" in note

@@ -47,6 +47,12 @@ class TrustedErrorContext:
             return True
         return str(self.result_version) == str(current_version)
 
+    def limit_outcome(self) -> str:
+        """not_attempted | success | confirmed_failure | unknown | foreign."""
+        if self.limit_op is None:
+            return "not_attempted"
+        return self.limit_op.outcome_kind(case_id=self.case_id)
+
 
 class TrustedErrorContextPort(Protocol):
     def load_for_case(

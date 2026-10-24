@@ -3,12 +3,12 @@
 ```text
 PR / head:
   https://github.com/kraskimira89-spec/sfrpfr/pull/263
-  feat/sfrfr-110-max-e05-f04-wire @ 4339b778
+  feat/sfrfr-110-max-e05-f04-wire (обновлять после push)
 Зависимость от #261:
   Вариант 1 — stacked PR поверх точного head #261
-  (docs/client-ai-dialogue-quality @ 71f44d81).
-  Политики #261 не копируются; в diff только интеграционный слой.
-  После согласованного merge #261 — перебазировать этот PR на main.
+  SHA: 71f44d81f113ae4760fe32eaf39ce4a3d5d5ab01
+  (docs/client-ai-dialogue-quality). Политики не копируются.
+  После согласованного merge #261 — перебазировать на main + CI.
 Фактический входной handler:
   sfrfr.integrations.max.handler → reply_to_free_text (свободный текст MAX)
 Место вызова политики:
@@ -34,13 +34,17 @@ PR / head:
 Что подтвердил mock MAX:
   transport dict {ok: True, message_id: ...}; enqueue ≠ sent ≠ read
 Команды тестов и результаты:
-  .\.venv\Scripts\python.exe -m pytest tests/unit/test_max_e05_f04_wire_path.py -q
-  → 12 passed
+  .\.venv\Scripts\python.exe -m pytest tests/unit/test_max_e05_f04_wire_path.py tests/unit/test_max_sfrfr110_e05_f04_slice.py -q
+  → 25 passed
 Оставшиеся обходы:
-  docs/ops/max-e05-f04-remaining-bypass-map.md
+  docs/ops/sfrfr-110-max-outbound-coverage.md (канон)
+  docs/ops/max-e05-f04-remaining-bypass-map.md (указатель)
 Риски доставки, вынесенные отдельно:
   docs/ops/max-e05-f04-delivery-risks.md
+E01 readiness:
+  docs/ops/sfrfr-110-e01-readiness.md — хранение/контракт, не фиктивное «исправлено»
 ```
+
 
 Итог: **доказан один MAX-путь E05/F04 в изолированной интеграции**.
 

@@ -97,15 +97,16 @@ def try_policy_reply_for_case(
         limit_op=ctx.limit_op,
         invented_model_text=invented_model_text,
     )
-    # Каноническая формулировка F04 при неуспехе ограничения (ТЗ среза).
-    limit_ok = bool(
-        ctx.limit_op is not None and ctx.limit_op.trusted_ok_for(case_id=cid)
-    )
+    # Мера применена только при trusted success; unknown ≠ confirmed_failure.
+    limit_outcome = ctx.limit_outcome()
+    limit_ok = limit_outcome == "success"
     if not limit_ok:
         text = F04_UNCERTAINTY_TEMPLATE.format(
             error_description=desc,
             impact_area=impact,
         )
+        evidence = list(pkg.evidence_refs)
+        evidence.append(f"limit_outcome:{limit_outcome}")
         pkg = OutboundPackage(
             ok=True,
             text=text,
@@ -113,7 +114,7 @@ def try_policy_reply_for_case(
             operation_id=op_id,
             policy_version=pkg.policy_version,
             kind=pkg.kind,
-            evidence_refs=list(pkg.evidence_refs),
+            evidence_refs=evidence,
             blocked_reason=pkg.blocked_reason,
             attachments=[],
             fallback=bool(pkg.fallback or pkg.blocked_reason),
@@ -174,6 +175,14 @@ def deliver_policy_reply_via_outbox(
         "sent": False,
         "action": reply.action,
         "transport": None,
+        "stages": {
+            "prepared": True,
+            "enqueued": bool(ok),
+            "transport_accepted": False,
+            "outbox_marked_sent": False,
+            "delivered_to_user": False,
+            "read": False,
+        },
     }
     if not ok:
         result["reason"] = "enqueue_failed"
@@ -186,11 +195,15 @@ def deliver_policy_reply_via_outbox(
     if bot is not None:
         try:
             transport = bot.send_message(text=text, user_id=mid)
-            result["sent"] = not (
+            accepted = not (
                 isinstance(transport, dict)
                 and (transport.get("skipped") or transport.get("ok") is False)
             )
+            result["sent"] = accepted
             result["transport"] = transport
+            result["stages"]["transport_accepted"] = accepted
+            # Mock/direct path не пишет status=sent в БД — не утверждать persist.
+            result["stages"]["outbox_marked_sent"] = False
             result["reason"] = "mock_or_direct_after_enqueue"
         except Exception as exc:  # noqa: BLE001
             logger.warning("e05_f04 transport after enqueue failed: %s", exc)
@@ -200,6 +213,8 @@ def deliver_policy_reply_via_outbox(
 
     sent_n = process_pending_outbox(limit=1, message_id=message_id)
     result["sent"] = sent_n > 0
+    result["stages"]["transport_accepted"] = sent_n > 0
+    result["stages"]["outbox_marked_sent"] = sent_n > 0
     result["reason"] = "processed_outbox" if sent_n else "enqueued_not_sent"
     return result
 

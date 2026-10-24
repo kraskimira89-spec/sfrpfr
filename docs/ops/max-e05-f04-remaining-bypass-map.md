@@ -1,7 +1,11 @@
 # Карта оставшихся обходных путей MAX (после среза E05/F04)
 
+Каноническая детальная карта с `Файл::функция` и grep-поиском:
+
+→ [`docs/ops/sfrfr-110-max-outbound-coverage.md`](./sfrfr-110-max-outbound-coverage.md)
+
 Срез подключил политику только к `reply_to_free_text` при ненулевом
-`TrustedErrorContextPort`. Ниже — пути, которые **ещё не** проходят E05/F04.
+`TrustedErrorContextPort`. Ниже — краткий указатель путей вне E05/F04.
 
 | Путь | Где | Риск |
 |---|---|---|
