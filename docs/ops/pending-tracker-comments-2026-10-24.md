@@ -1,4 +1,4 @@
-# Ожидающие комментарии Трекера
+# Ожидающие комментарии Трекера (API был недоступен)
 
 Писать **только** после: перечитать issue → убедиться, что аналогичного комментария ещё нет → `issue_add_comment` → повторное чтение.
 
@@ -7,12 +7,12 @@
 ```md
 ## Матрица 16 критериев (арифметика)
 
-Файл: `docs/ops/sfrfr-84-criteria-evidence-matrix-2026-10-24.md` (PR #259)
+Файл: `docs/ops/sfrfr-84-criteria-evidence-matrix-2026-10-24.md`
 
-- 13 unit + 1 N/A + 1 live MAX + 1 зависимость от SFRFR-85 = **16**
+- 13 unit / 1 N/A (#9) / 1 live (#15) / 1 передано в SFRFR-85 (#16) = **16**
 - Staff UI (SFRFR-91) **вне** счётчика 16
-- Закрытие 84 блокируют live MAX и SFRFR-85
-- PR #259 без auto-merge; head `7f682dfd`, CI зелёный
+- Передача в 85 ≠ выполнение; закрытие 84 блокируют #15 live и решение по #16
+- PR #259 без merge-разрешения
 ```
 
 ## SFRFR-85
@@ -30,15 +30,14 @@
 ## SFRFR-93
 
 ```md
-## Кандидат receipt:… (диагностика + follow-up)
+## Кандидат receipt:… (диагностика)
 
-History: `docs/history/2026-10-24-sfrfr-93-receipt-ocr-candidate.md` (обезличено)
+History: `docs/history/2026-10-24-sfrfr-93-receipt-ocr-candidate.md`
 
-- provider=receipt_ocr, id=`receipt:{order}` (полные UUID не в комментарии)
+- payment `89be641d…` provider=receipt_ocr, id=receipt:{order}
 - Ошибка на **fetch_payment**; create **не** вызывался; attempts=0, streak=2
 - Источник: `confirm_order_from_receipt`
-- PR #260 follow-up: exclude OCR из reconcile+stale; контракт exclude≠whitelist; CI зелёный head `32167e3c`; без auto-merge
-- После deploy: отдельно фиксировать тики без OCR-кандидата; в 24ч-отчёте разделить до/после
+- Фильтр выборки: PR #260 (без auto-merge); строку БД не меняли; окно не перезапускали
 ```
 
 ## Статус синхронизации

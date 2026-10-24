@@ -1,8 +1,8 @@
 # SFRFR-85 — клик soft-ask ≠ доказательство анализа (матрица 2026-10-24)
 
 **Задача:** [SFRFR-85](https://tracker.yandex.ru/SFRFR-85) · parent [SFRFR-82](https://tracker.yandex.ru/SFRFR-82)  
-**Исходный main (на момент среза):** `7e18c2dd…`  
-**Код:** `brief_analysis.preserve_gaps_after_soft_ask_yes`, `ensure_brief_flags_for_offer`, `diag_choice`
+**Исходный main (на момент среза):** `7e18c2dd…` (+ #259 не обязателен)  
+**Код:** `brief_analysis.preserve_gaps_after_soft_ask_yes`, `ensure_brief_flags_for_offer`, `diag_choice`  
 
 Живые сообщения / клиентские данные / платежи **не** трогали.
 
@@ -29,7 +29,7 @@
 | G3 | Live MAX: клик → офер без фальш-анализа | live | Отдельный запрос разрешения |
 
 **Дефекта, требующего правки working code в этом срезе, не зафиксировано.**  
-Следующий шаг: при необходимости тест G2 отдельным PR без auto-merge; иначе — ревью критериев владельца.
+Следующий шаг: при необходимости тест G2 отдельным PR без auto-merge; иначе — ждать ревью/85 критериев владельца.
 
 ## Связь с SFRFR-84
 
