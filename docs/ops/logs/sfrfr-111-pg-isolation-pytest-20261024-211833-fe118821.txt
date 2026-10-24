@@ -1,0 +1,20 @@
+=== SFRFR-111 PG isolation pytest (new) ===
+UTC: 2026-10-24T16:18:33.5965368Z
+SHA: fe1188210279a7f22b1c253338f6e0cf74e35e5c
+PRECHECK_PG_DSN: set (redacted postgresql://***@127.0.0.1:55432/sfrfr_precheck)
+DATABASE_URL: False
+probe_exit_prior: 4
+Command:
+.\.venv\Scripts\python.exe -m pytest tests/integration/test_precheck_job_pg.py -q --tb=short --basetemp=C:\Users\user\AppData\Local\Temp\pytest-pg-72b229adefb14ee182254b07b125d9df --junitxml=docs\ops\logs\sfrfr-111-pg-isolation-junit-20261024-211833-fe118821.xml
+=== stdout/stderr begin ===
+.......                                                                  [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+7 passed, 1 warning in 13.01s
+
+=== end ===
+Exit code: 0

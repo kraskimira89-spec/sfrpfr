@@ -1,0 +1,20 @@
+=== precheck isolation gate ===
+SHA: 469caed7b2bb2c895e52ae3b5aea501ca8977a6a
+PRECHECK_TEST_RUN_ID: cycle5-iso-gate-469caed7
+DATABASE_URL present (ignored): False
+[PASS] neg_database_url_only: refused:missing_precheck_probe_database_url
+[PASS] neg_prod_host: refused:host_not_local_allowlisted
+[PASS] neg_wrong_dbname: refused:dbname_not_allowlisted
+[PASS] resolve_test_dsn: PRECHECK_* ok (redacted)
+[PASS] connected_identity: db=sfrfr_precheck user=sfrfr marker=ok
+[PASS] read_only_session: write_blocked:ReadOnlySqlTransaction
+[PASS] run_id_owned: run=cycle5-iso-gate-469caed7
+[PASS] neg_foreign_run_cleanup: refused:test_run_id_not_owned
+[PASS] postgrest_stand: http://127.0.0.1:55433
+[PASS] probe_cli: exit=0
+---
+SHA: 469caed7b2bb2c895e52ae3b5aea501ca8977a6a
+Идентификатор тестового запуска: cycle5-iso-gate-469caed7
+Компоненты: probe+psycopg → PRECHECK_PG_DSN (redacted); PostgREST=up
+Изменяющие запросы до подтверждения изоляции: отсутствуют
+RESULT: PASS

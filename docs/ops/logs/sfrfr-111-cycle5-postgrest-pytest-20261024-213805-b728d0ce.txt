@@ -1,0 +1,20 @@
+=== SFRFR-111 cycle5 PostgREST raw pytest (committed HEAD) ===
+UTC: 2026-10-24T16:38:05.9830328Z
+SHA: b728d0ce01b9e38ac537563f734b9cb6a1e7f320
+PRECHECK_POSTGREST_URL: http://127.0.0.1:55433
+PRECHECK_PG_DSN: set (redacted)
+DATABASE_URL: False
+Command:
+pytest tests/unit/test_precheck_handler_routing.py tests/unit/test_precheck_job_lifecycle_and_callbacks.py tests/unit/test_primary_doc_precheck.py tests/unit/test_staff_document_check.py tests/unit/test_precheck_db_isolation.py tests/integration/test_precheck_job_pg.py tests/integration/test_precheck_job_postgrest.py -q --tb=short --basetemp=... --junitxml=docs\ops\logs\sfrfr-111-cycle5-postgrest-junit-20261024-213805-b728d0ce.xml
+=== begin ===
+........................................................................ [ 85%]
+............                                                             [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+84 passed, 1 warning in 25.21s
+=== end ===
+Exit code: 0

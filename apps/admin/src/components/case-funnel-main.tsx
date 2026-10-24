@@ -144,6 +144,16 @@ type Detail = {
         label?: string;
         note?: string;
       } | null;
+      precheck_outcome?: string | null;
+      client_summary?: string | null;
+      findings?: { code?: string; what?: string }[] | null;
+      limitations?: string[] | null;
+      client_notify?: {
+        ok?: boolean;
+        skipped?: boolean;
+        message_id?: string;
+        reason?: string;
+      } | null;
     } | null;
   } | null;
   channels: {
@@ -248,6 +258,64 @@ function DocumentCheckPanel({
       {check.last_error ? <p className="hint">Ошибка: {check.last_error}</p> : null}
       {r ? (
         <>
+          {r.precheck_outcome || r.client_summary ? (
+            <div className="precheck-summary-block">
+              {r.precheck_outcome ? (
+                <p>
+                  Исход первичной сверки: <strong>{r.precheck_outcome}</strong>
+                </p>
+              ) : null}
+              {r.client_summary ? <p>{r.client_summary}</p> : null}
+              {(r.findings ?? []).length > 0 ? (
+                <>
+                  <h4 className="case-subhead">Находки</h4>
+                  <ul className="plain-list">
+                    {(r.findings ?? []).slice(0, 8).map((f, idx) => (
+                      <li key={`${f.code || "f"}-${idx}`}>
+                        {f.code || "finding"}
+                        {f.what ? `: ${f.what}` : null}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {(r.limitations ?? []).length > 0 ? (
+                <>
+                  <h4 className="case-subhead">Ограничения</h4>
+                  <ul className="plain-list">
+                    {(r.limitations ?? []).slice(0, 5).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {r.client_notify ? (
+                <p className="hint">
+                  Результат сохранён.
+                  {r.client_notify.skipped
+                    ? ` Уведомление клиенту не ставилось (${r.client_notify.reason || "skip"}).`
+                    : r.client_notify.ok && r.client_notify.message_id
+                      ? ` Уведомление поставлено в очередь (${r.client_notify.message_id}). Отправка подтверждается delivery-worker отдельно.`
+                      : r.client_notify.ok
+                        ? " Уведомление поставлено в очередь."
+                        : ` Уведомление не подтверждено (${r.client_notify.reason || "ошибка enqueue"}).`}
+                </p>
+              ) : check.status === "completed" || check.status === "needs_action" ? (
+                <p className="hint">
+                  Результат сохранён. Статус уведомления клиенту в этой карточке не
+                  записан.
+                </p>
+              ) : null}
+              {r.diag_offer?.allowed ? (
+                <p className="hint">
+                  Рекомендация услуги: {r.diag_offer.label || "подробный анализ"}
+                  {r.diag_offer.note ? " — " + r.diag_offer.note : null}
+                </p>
+              ) : r.diag_offer?.note ? (
+                <p className="hint">Услуга не предлагается: {r.diag_offer.note}</p>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="plain-list">
             <li>Оригиналы доступны: {r.originals_available ?? 0}</li>
             <li>Текст извлечён: {r.text_extracted ?? 0}</li>

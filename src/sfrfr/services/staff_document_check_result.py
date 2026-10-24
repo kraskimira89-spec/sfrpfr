@@ -171,6 +171,27 @@ def attach_honest_brief(
 
 def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
     """Карточка для UI: без findings/analysis_notes/draft пайплайна."""
+    primary = result.get("primary_precheck")
+    rec = None
+    if isinstance(primary, dict):
+        rec = primary.get("recommendation")
+    # Платный оффер только из primary recommendation, не из любого brief.
+    diag_offer = result.get("diag_offer")
+    if isinstance(rec, dict):
+        if rec.get("offer_paid_analysis"):
+            diag_offer = {
+                "allowed": True,
+                "amount_rub": int(rec.get("amount_rub") or 0),
+                "label": str(rec.get("package_label") or "Подробный анализ"),
+                "note": str(rec.get("reason") or ""),
+            }
+        else:
+            diag_offer = {
+                "allowed": False,
+                "amount_rub": 0,
+                "label": "",
+                "note": str(rec.get("reason") or ""),
+            }
     return {
         "documents_checked": int(result.get("documents_checked") or 0),
         "originals_available": int(result.get("originals_available") or 0),
@@ -186,5 +207,11 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         "legal_analysis_ran": False,
         "status": str(result.get("status") or ""),
         "honest_brief": result.get("honest_brief"),
-        "diag_offer": result.get("diag_offer"),
+        "diag_offer": diag_offer,
+        "precheck_outcome": result.get("precheck_outcome")
+        or (primary.get("outcome") if isinstance(primary, dict) else None),
+        "client_summary": result.get("client_summary")
+        or (primary.get("client_summary") if isinstance(primary, dict) else None),
+        "primary_precheck": primary if isinstance(primary, dict) else None,
+        "client_notify": result.get("client_notify"),
     }

@@ -3486,6 +3486,60 @@ def _reply_from_case_status(
     )
 
 
+def _handle_precheck_callback_event(
+    bot: MaxBotClient,
+    *,
+    user_id: str,
+    chat_id: int | str | None,
+    store: Any,
+    payload: str,
+) -> MaxHandleResult:
+    """Маршрут precheck:* из MAX-handler до контролируемого _reply (без live)."""
+    from sfrfr.services.primary_doc_precheck_callbacks import (
+        handle_precheck_callback,
+        parse_precheck_payload,
+    )
+
+    parsed = parse_precheck_payload(payload)
+    if parsed is None:
+        return MaxHandleResult(ok=False, action="precheck_not_ours", reply=None)
+
+    record_pc = store.find_by_max_user(user_id)
+    case_pc = str((record_pc or {}).get("case_id") or "").strip()
+    if not case_pc:
+        # fallback: привязка через cases по max_user
+        case_pc = str(_case_id_for_max_user(user_id) or "").strip()
+    if not case_pc:
+        msg = "Не удалось связать проверку с делом. Напишите сотруднику."
+        _reply(bot, user_id=user_id, chat_id=chat_id, text=msg)
+        return MaxHandleResult(ok=True, action="precheck_no_case", reply=msg)
+
+    sub, check_from_payload = parsed
+    pc = handle_precheck_callback(
+        payload=payload,
+        case_id=case_pc,
+        max_user_id=user_id,
+        requested_check_id=check_from_payload,
+    )
+    if pc is None:
+        return MaxHandleResult(ok=False, action="precheck_unhandled", reply=None)
+    _reply(
+        bot,
+        user_id=user_id,
+        chat_id=chat_id,
+        text=pc.text,
+        attachments=pc.attachments,
+        case_id=case_pc,
+    )
+    return MaxHandleResult(
+        ok=pc.ok,
+        action=pc.action,
+        case_id=case_pc,
+        reply=pc.text,
+        detail=f"sub={sub}",
+    )
+
+
 def handle_max_update(
     update: dict[str, Any],
     *,
@@ -3951,6 +4005,15 @@ def handle_max_update(
                 attachments=review.get("attachments"),
             )
             return MaxHandleResult(ok=True, action="review_flow", reply=text)
+
+    if callback.startswith("precheck:"):
+        return _handle_precheck_callback_event(
+            bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            store=store,
+            payload=callback,
+        )
 
     if lower in {
         CALL_OPERATOR_LABEL.lower(),
