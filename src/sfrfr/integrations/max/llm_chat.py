@@ -481,6 +481,18 @@ def reply_to_free_text(
         # Не перехватываем диалог: ни текста, ни клавиатуры — специалист ведёт чат.
         return "", [], "max_llm_staff_silent"
 
+    # SFRFR-110 E05/F04: один reply-path — только при доверенном контексте адаптера.
+    # Null-адаптер в prod не подтверждает ошибку и не подставляет успех.
+    if cid:
+        try:
+            from sfrfr.services.max_e05_f04_path import try_policy_reply_for_case
+
+            policy = try_policy_reply_for_case(case_id=cid)
+            if policy is not None:
+                return policy.text, policy.attachments, policy.action
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("max e05_f04 policy intercept skipped: %s", exc)
+
     llm = LLMClient.for_analyze(allow_fallback=False)
     if not llm.available:
         logger.warning("max_llm_chat: DeepSeek unavailable model=%s", llm.model)

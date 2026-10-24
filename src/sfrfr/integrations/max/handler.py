@@ -3389,14 +3389,46 @@ def _handle_client_free_text(
         exclude_message_id=exclude_message_id,
     )
     if reply:
-        _reply(
-            bot,
-            user_id=user_id,
-            chat_id=chat_id,
-            text=reply,
-            attachments=attachments,
-            case_id=case_id,
+        from sfrfr.services.max_e05_f04_path import (
+            ACTION_E05_F04,
+            PolicyReply,
+            deliver_policy_reply_via_outbox,
         )
+
+        if action == ACTION_E05_F04 and case_id and user_id:
+            outcome = deliver_policy_reply_via_outbox(
+                case_id=str(case_id),
+                max_user_id=str(user_id),
+                reply=PolicyReply(
+                    text=reply,
+                    attachments=list(attachments or []),
+                    action=action,
+                ),
+                process_now=True,
+            )
+            if not outcome.get("enqueued"):
+                # Сбой сохранения/очереди — не утверждаем успех; безопасный текст.
+                _reply(
+                    bot,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    text=(
+                        "Данных для точного подтверждения пока недостаточно. "
+                        "Я не буду сообщать, что исправление завершено."
+                    ),
+                    attachments=[],
+                    case_id=case_id,
+                )
+            # enqueued: доставка через outbox/worker (или process_now); без дубля _reply
+        else:
+            _reply(
+                bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                text=reply,
+                attachments=attachments,
+                case_id=case_id,
+            )
     return MaxHandleResult(
         ok=True,
         action=action,
