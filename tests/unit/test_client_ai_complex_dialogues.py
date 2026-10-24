@@ -27,7 +27,8 @@ def test_complex_catalog_has_base_and_calc_scenarios() -> None:
     assert {f"S20.{i}" for i in range(1, 17)} <= ids
     assert {"S20.17A", "S20.17B", "S20.17C", "S20.17D"} <= ids
     assert {f"S20.18{x}" for x in "ABCDEFGH"} <= ids
-    assert len(rows) == 28
+    assert {f"S20.19{x}" for x in "ABCDEFGHI"} <= ids
+    assert len(rows) == 37
 
 
 @pytest.mark.parametrize("scenario", _scenarios(), ids=lambda s: s["id"])

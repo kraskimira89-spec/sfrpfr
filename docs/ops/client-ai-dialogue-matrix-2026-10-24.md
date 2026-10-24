@@ -80,8 +80,9 @@
 | G1–G16 | S20.1–S20.16 | context / promise / access / claim… | `test_client_ai_complex_dialogues` |
 | G17 | S20.17A–D недоверие к сумме | unverifiable / incomparable | `calculation_explain_policy` |
 | G18 | S20.18A–H противоречия источников | silent overwrite / OCR / hide | `contradiction_policy` |
+| G19 | S20.19A–I утраченные документы | invented archive / pause pressure | `lost_document_policy` |
 
-Запрет: профиль «конфликтный»; подгонка стажа; калькулятор прибавки.
+Запрет: профиль «конфликтный»; подгонка стажа; калькулятор прибавки; выдуманный архив.
 
 ## Приоритет ближайших правок
 

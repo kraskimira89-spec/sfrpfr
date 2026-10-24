@@ -194,3 +194,19 @@
 | S20.18F | «Не учитывайте справку» | hide_conflict |
 | S20.18G | Новый документ после отчёта | version_loss |
 | S20.18H | СФР: учтён, у нас «нет» | not_found_vs_absent |
+
+## S20.19 Утраченные / неизвестные документы (А–И)
+
+Код: `lost_document_policy.py`. Цель — движение по делу, не обещание восстановления.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.19A | Утеряна трудовая | lost_labor_no_help |
+| S20.19B | Работодатель закрылся | invented_archive |
+| S20.19C | Неточные название/даты | approx_to_exact |
+| S20.19D | Только фото | photo_as_proof |
+| S20.19E | Часть справок утрачена | full_kit_reask |
+| S20.19F | Архив: ничего нет | negative_overgeneralized |
+| S20.19G | Свидетели вместо документов | witness_as_full_proof |
+| S20.19H | «Вы потеряли файлы» | blame_client_upload |
+| S20.19I | Пауза в поиске | pause_as_pressure |
