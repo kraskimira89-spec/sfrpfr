@@ -122,8 +122,27 @@ def test_kit_ready_base_reply_honest_not_running() -> None:
         (
             {"status": "failed", "last_error": "таймаут OCR"},
             "receiving",
-            ("задержка", "таймаут ocr", "повторно"),
-            ("ещё не запущена", "выполняется", "ожидает запуска"),
+            ("не удалось завершить", "повторно", "напишите в этот чат"),
+            (
+                "ещё не запущена",
+                "выполняется",
+                "ожидает запуска",
+                "таймаут",
+                "ocr",
+                "специалист разберётся",
+            ),
+        ),
+        (
+            {"status": "failed", "last_error": ""},
+            "receiving",
+            ("не удалось завершить", "повторно"),
+            ("ещё не запущена", "выполняется", "специалист разберётся"),
+        ),
+        (
+            {"status": "failed"},
+            "receiving",
+            ("не удалось завершить", "повторно"),
+            ("ещё не запущена", "выполняется", "специалист разберётся"),
         ),
         (
             {"status": "completed"},
@@ -182,6 +201,38 @@ def test_failed_without_quiet_becomes_error_not_receiving() -> None:
     assert st.kind == "error"
     low = ccs.reply_text(st, intent="working_question").lower()
     assert "ещё не запущена" not in low
+
+
+def test_quiet_kit_failed_hides_internal_last_error() -> None:
+    """Клиенту — безопасный текст; сырой last_error и маркеры секрета не светятся."""
+    poison = (
+        "SECRET_TOKEN=abc123; phone=+79001234567; "
+        "https://internal.example/ops/job?id=9"
+    )
+    st = ccs.resolve(
+        documents=_KIT_DOCS,
+        case_quiet=True,
+        ef_open=False,
+        ingest_pending=False,
+        document_check={"status": "failed", "last_error": poison},
+    )
+    assert st.kind == "receiving"
+    assert st.last_error == poison  # в статусе для диагностики остаётся
+    text = ccs.reply_text(st, intent="working_question")
+    low = text.lower()
+    assert "не удалось завершить" in low
+    assert "повторно присылать те же файлы сейчас не нужно" in low
+    assert "напишите в этот чат" in low
+    assert "специалист разберётся" not in low
+    assert "напишет сюда" not in low
+    for marker in (
+        "secret_token",
+        "abc123",
+        "+79001234567",
+        "internal.example",
+        "ops/job",
+    ):
+        assert marker not in low
 
 
 def test_queued_without_quiet_becomes_checking() -> None:
