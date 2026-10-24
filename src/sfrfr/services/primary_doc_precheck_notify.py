@@ -53,13 +53,16 @@ def build_precheck_max_message(
         buttons = [{"text": "Посмотреть статус", "payload": pl("status")}]
     elif branch == "need_docs":
         buttons = [
-            {"text": "Загрузить документы", "payload": pl("upload")},
+            {
+                "text": "Как загрузить (чат или кабинет)",
+                "payload": pl("upload"),
+            },
             {"text": "Какие документы нужны?", "payload": pl("need_docs")},
             {"text": "Задать вопрос сотруднику", "payload": pl("ask_staff")},
         ]
     elif branch == "need_answer":
         buttons = [
-            {"text": "Ответить", "payload": pl("answer")},
+            {"text": "Показать вопрос для ответа", "payload": pl("answer")},
             {"text": "Задать вопрос сотруднику", "payload": pl("ask_staff")},
         ]
     elif branch == "discrepancy":
@@ -75,8 +78,12 @@ def build_precheck_max_message(
                     "payload": pl("offer_info"),
                 }
             )
+            # Не «Заказать» = автопокупка: только переход в существующий кабинет.
             buttons.append(
-                {"text": "Заказать подробный анализ", "payload": pl("order")}
+                {
+                    "text": "Условия заказа в кабинете",
+                    "payload": pl("order"),
+                }
             )
             buttons.append({"text": "Пока не нужно", "payload": pl("decline")})
     elif branch == "clear":

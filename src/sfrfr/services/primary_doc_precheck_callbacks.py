@@ -120,7 +120,10 @@ def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _patch_case_flags(case_id: str, patch: dict[str, Any]) -> bool:
-    """Запись флагов дела; True только если update затронул строку."""
+    """Запись флагов; True только после read-back совпадения ключей patch.
+
+    Отсутствие исключения / пустой data от клиента БД ≠ успех.
+    """
     try:
         from sfrfr.db.case_repository import CaseRepository
 
@@ -128,7 +131,8 @@ def _patch_case_flags(case_id: str, patch: dict[str, Any]) -> bool:
         row = repo.get_case_row(case_id) or {}
         if not row:
             return False
-        flags = dict(row.get("flags") or {}) if isinstance(row.get("flags"), dict) else {}
+        flags_raw = row.get("flags")
+        flags = dict(flags_raw) if isinstance(flags_raw, dict) else {}
         flags.update(patch)
         resp = (
             repo.client.table("cases")
@@ -137,15 +141,45 @@ def _patch_case_flags(case_id: str, patch: dict[str, Any]) -> bool:
             .execute()
         )
         data = getattr(resp, "data", None)
-        if data is None:
-            # некоторые клиенты не возвращают data — считаем ok только без исключения
-            # после явной проверки существования строки выше
-            return True
-        if isinstance(data, list):
-            return len(data) > 0
-        return bool(data)
+        if isinstance(data, list) and len(data) == 0:
+            return False
+        # Подтверждение: перечитать строку и сверить patch.
+        again = repo.get_case_row(case_id) or {}
+        saved_raw = again.get("flags")
+        saved = saved_raw if isinstance(saved_raw, dict) else {}
+        for key, expected in patch.items():
+            if saved.get(key) != expected:
+                return False
+        return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def _link_attachments(*, text: str, url: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "inline_keyboard",
+            "payload": {
+                "buttons": [[{"type": "link", "text": text, "url": url}]]
+            },
+        }
+    ]
+
+
+def _pending_question(primary: dict[str, Any]) -> str | None:
+    rec = primary.get("recommendation")
+    if isinstance(rec, dict):
+        qs = rec.get("questions_to_resolve")
+        if isinstance(qs, list) and qs:
+            q0 = str(qs[0] or "").strip()
+            if q0:
+                return q0
+    findings = primary.get("findings")
+    if isinstance(findings, list):
+        for f in findings:
+            if isinstance(f, dict) and f.get("what"):
+                return f"Уточните по находке «{f.get('code')}»: {f.get('what')}"
+    return None
 
 
 def _mark_declined(case_id: str) -> bool:
@@ -365,14 +399,23 @@ def handle_precheck_callback(
         return PrecheckCallbackResult(ok=True, action="precheck_explain", text=text)
 
     if sub in {"need_docs", "upload"}:
+        from sfrfr.services.case_chat_delivery import documents_cabinet_url
+
+        cab = documents_cabinet_url(case_id)
         text, _ = sanitize_client_text(
             "Нужны недостающие или более читаемые страницы. "
-            "Сейчас доступна загрузка в этот чат MAX или через кабинет "
-            "(защищённая ссылка «открыть кабинет» в меню бота). "
-            "Отдельный one-shot upload-token из этой кнопки пока не выдаётся."
+            "Действующий путь: 1) пришлите файл прямо в этот чат — он попадёт в дело; "
+            "2) либо откройте раздел документов в кабинете по ссылке ниже. "
+            "Отдельный одноразовый upload-token здесь не выдаём."
         )
         return PrecheckCallbackResult(
-            ok=True, action="precheck_need_docs", text=text, detail="route_instruction"
+            ok=True,
+            action="precheck_upload_route",
+            text=text,
+            attachments=_link_attachments(
+                text="Открыть документы в кабинете", url=cab
+            ),
+            detail="chat_or_cabinet",
         )
 
     if sub == "offer_info":
@@ -413,16 +456,22 @@ def handle_precheck_callback(
                 text=text,
                 detail=reason,
             )
+        from sfrfr.integrations.max.intake import cabinet_url_for_case
+
+        cab = cabinet_url_for_case(case_id)
         text, _ = sanitize_client_text(
-            "Переход к оплате из этой кнопки пока не подключён к платёжному маршруту. "
-            "Счёт и ссылка на оплату создаются только через кабинет или сообщение "
-            "сотрудника. Этот callback заказ и платёж не создаёт."
+            "Актуальные условия заказа подробного анализа — в кабинете. "
+            "Этот callback не создаёт счёт и не проводит оплату: откройте кабинет "
+            "и оформите заказ явно, если условия вам подходят."
         )
         return PrecheckCallbackResult(
             ok=True,
-            action="precheck_order_handoff",
+            action="precheck_order_cabinet",
             text=text,
-            detail="explicit_route_unavailable",
+            attachments=_link_attachments(
+                text="Открыть кабинет (условия заказа)", url=cab
+            ),
+            detail="cabinet_existing_route",
         )
 
     if sub == "decline":
@@ -487,15 +536,45 @@ def handle_precheck_callback(
         )
 
     if sub == "answer":
+        question = _pending_question(primary)
+        if not question:
+            text, _ = sanitize_client_text(
+                "По этой проверке нет сохранённого уточняющего вопроса. "
+                "Напишите текстом в чат или нажмите «Задать вопрос сотруднику»."
+            )
+            return PrecheckCallbackResult(
+                ok=True, action="precheck_answer_none", text=text, detail="no_question"
+            )
+        saved = _patch_case_flags(
+            case_id,
+            {
+                "precheck_awaiting_answer": {
+                    "check_id": current_id or requested_check_id,
+                    "question": question[:500],
+                    "asked_at": datetime.now(UTC).isoformat(),
+                    "max_user_id": str(max_user_id or "")[:64],
+                }
+            },
+        )
+        if not saved:
+            text, _ = sanitize_client_text(
+                f"Вопрос: {question}\n\n"
+                "Не удалось зафиксировать ожидание ответа в деле. "
+                "Можете всё равно ответить текстом в чат — сотрудник увидит сообщение."
+            )
+            return PrecheckCallbackResult(
+                ok=False,
+                action="precheck_answer_flag_failed",
+                text=text,
+                detail="flag_not_saved",
+            )
         text, _ = sanitize_client_text(
-            "Конкретный уточняющий вопрос по этой проверке пока не зафиксирован "
-            "в ожидании ответа. Кратко: "
-            + answer_faq("нужно уточнение", primary)
-            + " Чтобы задать свой вопрос — напишите текстом в чат или нажмите "
-            "«Задать вопрос сотруднику»."
+            f"Вопрос по проверке:\n{question}\n\n"
+            "Напишите ответ следующим сообщением в этот чат — "
+            "он будет связан с ожиданием ответа по этой проверке."
         )
         return PrecheckCallbackResult(
-            ok=True, action="precheck_answer", text=text, detail="faq_stub"
+            ok=True, action="precheck_answer_awaiting", text=text, detail="awaiting_text"
         )
 
     text, _ = sanitize_client_text("Неизвестное действие проверки. Откройте актуальное резюме.")

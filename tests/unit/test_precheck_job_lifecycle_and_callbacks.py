@@ -202,6 +202,35 @@ def test_pending_order_blocks_offer_gate() -> None:
     assert block2 is True and unknown2 is True
 
 
+def test_patch_flags_requires_readback_match() -> None:
+    from sfrfr.services.primary_doc_precheck_callbacks import _patch_case_flags
+
+    repo = MagicMock()
+    repo.get_case_row.side_effect = [
+        {"id": "c1", "flags": {}},
+        {"id": "c1", "flags": {}},  # read-back без ключа → fail
+    ]
+    repo.client.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
+        {"id": "c1"}
+    ]
+    with patch(
+        "sfrfr.db.case_repository.CaseRepository", return_value=repo
+    ):
+        assert _patch_case_flags("c1", {"precheck_offer_declined": True}) is False
+
+    repo2 = MagicMock()
+    repo2.get_case_row.side_effect = [
+        {"id": "c1", "flags": {}},
+        {"id": "c1", "flags": {"precheck_offer_declined": True}},
+    ]
+    upd = repo2.client.table.return_value.update.return_value.eq.return_value
+    upd.execute.return_value.data = [{"id": "c1"}]
+    with patch(
+        "sfrfr.db.case_repository.CaseRepository", return_value=repo2
+    ):
+        assert _patch_case_flags("c1", {"precheck_offer_declined": True}) is True
+
+
 def test_result_finalized_and_notify_flags() -> None:
     assert result_already_finalized({"status": "completed", "result": {}})
     assert result_already_finalized(
@@ -237,6 +266,10 @@ def test_reclaim_stale_running_requeues(mock_sb: MagicMock) -> None:
     assert out["failed"] == 0
 
 
+@patch(
+    "sfrfr.integrations.max.intake.cabinet_url_for_case",
+    return_value="https://example.test/cabinet/?case=case-1",
+)
 @patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
 @patch(
     "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
@@ -244,7 +277,7 @@ def test_reclaim_stale_running_requeues(mock_sb: MagicMock) -> None:
 )
 @patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
 def test_callback_order_does_not_create_invoice(
-    mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock
+    mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock, _cab: MagicMock
 ) -> None:
     mock_load.return_value = {
         "job_id": "chk1",
@@ -276,8 +309,9 @@ def test_callback_order_does_not_create_invoice(
         max_user_id="u1",
     )
     assert res is not None
-    assert res.action == "precheck_order_handoff"
+    assert res.action == "precheck_order_cabinet"
     assert "не создаёт" in res.text.casefold() or "не создает" in res.text.casefold()
+    assert res.attachments  # ссылка в кабинет
 
 
 @patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)

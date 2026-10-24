@@ -103,6 +103,8 @@ def test_buttons_embed_check_id() -> None:
     payload_blob = str(atts)
     assert f"precheck:summary:{CHECK_ID}" in payload_blob
     assert f"precheck:order:{CHECK_ID}" in payload_blob
+    assert "Заказать подробный анализ" not in payload_blob
+    assert "Условия заказа в кабинете" in payload_blob
     assert "завершен" not in text.casefold()
 
 
