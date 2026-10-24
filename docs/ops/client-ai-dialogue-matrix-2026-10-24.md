@@ -1,0 +1,103 @@
+# Матрица: ситуация → текущее → риск → требуемое → тест
+
+**Дата:** 2026-10-24 · спека: `docs/specs/client-ai-dialogue-quality.md`
+
+Легенда класса правки: `copy` | `state` | `logic` | `prompt` | `covered` | `gap`.
+
+## A. Статус дела / quiet+kit (шаблоны)
+
+| # | Ситуация | Текущее поведение | Риск | Требуемое | Класс | Тест / задача |
+|---|---|---|---|---|---|---|
+| A1 | Комплект есть, check пуст | «Проверка ещё не запущена» (kit path) | низкий | оставить | covered | SFRFR-83 / `test_kit_*` |
+| A2 | check=queued | «ожидает запуска» | низкий | оставить | covered | SFRFR-83 |
+| A3 | check=running | «выполняется» | низкий | оставить; не путать с queued | covered | SFRFR-83 |
+| A4 | check=failed, quiet | безопасный текст, без last_error / «специалист напишет» | был P0 | оставить | covered | `test_quiet_kit_failed_hides_*` |
+| A5 | kind=error (не quiet) | **светит `last_error`** + «Специалист … напишет» | **крит** | без raw error; без обещания ответа без задачи | `copy` | чинить + тест |
+| A6 | receiving (ingest) | «обрабатываем… Напишем сюда» | средний | не путать с check; не обещать специалиста | `copy` | уточнить формулировку |
+| A7 | missing doc | конкретный дозапрос | низкий | один дозапрос | covered | unit missing |
+| A8 | staff_active | пустой auto-reply | низкий | не дублировать специалиста | covered | — |
+
+## B. Brief / EVIDENCE / офер
+
+| # | Ситуация | Текущее | Риск | Требуемое | Класс | Тест / задача |
+|---|---|---|---|---|---|---|
+| B1 | docs / needs_check / client в bullets | метки в summary + delivery | средний | не трактовать docs как гарантию СФР | covered→guard | SFRFR-84 |
+| B2 | client-only | без soft-ask | низкий | оставить | covered | SFRFR-84 |
+| B3 | soft-ask клик | revive flags | средний | клик ≠ proof | thin | SFRFR-85 |
+| B4 | повтор brief тот же fp | skip delivery | низкий | оставить | covered | SFRFR-84 |
+| B5 | offer после отказа | зависит от gate | коммерция | не возвращать offer в той же ситуации | gap | follow-up 82/86 |
+
+## C. LLM свободный текст
+
+| # | Ситуация | Текущее | Риск | Требуемое | Класс | Тест / задача |
+|---|---|---|---|---|---|---|
+| C1 | Вопрос по делу | 3 части: понял / зачем / шаг | низкий | + явный «чего нельзя утверждать» при рисках | prompt | регрессия llm_chat |
+| C2 | Off-topic | возврат к стажу | низкий | не развивать стороннее | covered | prompt + unit nudge |
+| C3 | «Посчитайте пенсию» | отказ от суммы, план документов | низкий | оставить | covered | prompt |
+| C4 | Повтор приветствия | зависит от модели | средний | запрет в промпте + ContextPack | prompt | сценарий |
+| C5 | Документы уже в деле | может снова просить ИЛС | высокий | опираться на ContextPack / status | state+prompt | gap→тест |
+| C6 | Инструкции в PDF | модель не видит текст файла | низкий | не «читать» скан; не менять правила | covered | prompt |
+| C7 | ПДн в тексте | блок LLM | низкий | оставить | covered | llm_chat PDN |
+| C8 | После отказа от оплаты | может снова soft-offer | коммерция | уважать отказ | gap | B5 |
+
+## D. Сопровождение спорного периода
+
+| # | Ситуация | Текущее | Риск | Требуемое | Класс | Тест / задача |
+|---|---|---|---|---|---|---|
+| D1 | Клиент назвал годы | LLM может принять за факт | высокий | помечать «со слов»; спросить ИЛС если нет | prompt+state | сценарий |
+| D2 | Preliminary discrepancy | brief labels | средний | «предварительно», не прибавка | covered | SFRFR-84 |
+| D3 | Несколько периодов | ≤3 bullets | средний | не смешивать периоды в одном утверждении | thin | brief |
+| D4 | Отказ СФР | мало шаблонов | gap | разбор по пункту; без авто-жалобы | copy+logic | ТЗ-35 этап 7 |
+| D5 | Проверка результата в учёте | слабое покрытие в чате | gap | запрос подтверждающих выписок | logic | SFRFR-103 |
+
+## E. Передача человеку / коммерция / безопасность
+
+| # | Ситуация | Текущее | Риск | Требуемое | Класс | Тест / задача |
+|---|---|---|---|---|---|---|
+| E1 | «Позвать специалиста» | кнопка / эскалация | средний | только при созданной работе — «передали» | logic | handler |
+| E2 | Жалоба на деньги/ПДн | смешанно | крит | эскалация + без давления | gap | playbook |
+| E3 | Гарантия / «вы СФР» | submission_nudge / position | низкий | оставить throttle | covered | position_throttle |
+| E4 | Чужое дело / чужие данные | auth case | крит | отказ | covered/gap | security tests |
+| E5 | Сбой генерации | fallback nudge | средний | без выдуманного прогресса | covered | llm fallback |
+
+## F. Возражения / отказы / претензии (SFRFR-110 §17)
+
+| # | Ситуация | Текущее | Риск | Требуемое | Класс | Тест |
+|---|---|---|---|---|---|---|
+| F1 | «Дорого» / «нет денег» | LLM: без торга + чек-лист | давление | признать; состав; самостоятельный шаг | prompt+policy | `objection_policy` |
+| F2 | Запрос гарантии | submission_nudge / prompt | уклончивость | прямое «нет» | covered | nudge + classify |
+| F3 | Soft-ask «нет» | `DETAIL_DECLINED_TEXT` | низкий | не re-offer | covered | diag_choice |
+| F4 | «Сам по плану» / «подумаю» | `offer:docs_skip` | низкий | уважение | covered | `resolve_offer_cta` |
+| F5 | Повторный hard refuse | зависит от LLM | повтор offer | `may_reoffer=False` | policy | unit |
+| F6 | Претензия / возврат | слабо разведено | крит | claim≠sales | policy | unit CLAIM |
+| F7 | СТОП | `is_stop_command` | средний | только после факта | covered | marketing_consent |
+| F8 | Уже отправил документы | может снова просить комплект | высокий | ContextPack | state | C5+F |
+
+## G. Сложные ситуации (§20) — без ярлыка клиента
+
+| # | Ситуация | Root | Тест |
+|---|---|---|---|
+| G1–G16 | S20.1–S20.16 | context / promise / access / claim… | `test_client_ai_complex_dialogues` |
+| G17 | S20.17A–D недоверие к сумме | unverifiable / incomparable | `calculation_explain_policy` |
+| G18 | S20.18A–H противоречия источников | silent overwrite / OCR / hide | `contradiction_policy` |
+| G19 | S20.19A–I утраченные документы | invented archive / pause pressure | `lost_document_policy` |
+| G20 | S20.20A–I сильная тревога | false guarantee / safety | `anxiety_dialogue_policy` |
+| G21 | S20.21A–I,K агрессия/жалоба | tone vs content / fake refund | `complaint_aggression_policy` |
+| G22 | S20.22A–I,K,L ожидания vs объём | pay≠SFR / upload≠submit | `expectation_alignment_policy` |
+| G23 | S20.23A–I отказ от next-оплаты | reoffer / block deliverables | `refuse_next_stage_policy` |
+| G25 | S20.25A–N + E2E отказ из-за цены → выдача | subtype G23 / silence≠accept | `price_refuse_policy` |
+| G-CX | SX01–03,06,12 пересечения | multi-intent / no single label | `multi_intent_policy` |
+| G-TR | §49–59 переходы | said≠done≠confirmed / queued≠running | `transition_contract_policy` |
+| G26 | S20.26A–N + §63–72 | subtype 20.21 / replies from events | deception_* policies |
+
+Консолидация: каталог + конфликты. Переходы: `client-ai-dialogue-transition-model-2026-10-24.md`.  
+Запрет: объявление без доказательства; авто-защита сервиса; юрквалификация «мошенничество» от бота.
+
+## Приоритет ближайших правок
+
+1. ✅ **A5/A6** — error/receiving.  
+2. ✅ **F1–F6** — возражения.  
+3. ✅ **G1–G16** — каталог сложных ситуаций + JSON-тесты.  
+4. **C5/F8** — wiring ContextPack в handler (не просить снова labor).  
+5. ASR/опечатки / сбой эскалации — следующий PR.  
+6. D4/D5 — ответ СФР.
