@@ -1,4 +1,5 @@
-# Одноразовая тестовая БД для SFRFR-111 job reclaim (не production).
+# Одноразовая тестовая БД + PostgREST для SFRFR-111 (не production).
+# PG :55432 · PostgREST :55433
 services:
   precheck-pg:
     image: postgres:16-alpine
@@ -13,3 +14,17 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  precheck-rest:
+    image: postgrest/postgrest:v12.2.8
+    depends_on:
+      precheck-pg:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://sfrfr:sfrfr@precheck-pg:5432/sfrfr_precheck
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: sfrfr
+      PGRST_JWT_SECRET: "precheck-e2e-jwt-secret-local-only-not-prod"
+      PGRST_DB_EXTRA_SEARCH_PATH: public
+    ports:
+      - "55433:3000"

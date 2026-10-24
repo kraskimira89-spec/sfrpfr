@@ -54,5 +54,6 @@ $env:PRECHECK_E2E_CASE_ID = "<synthetic-case-uuid>"
 
 - Markup панели + API endpoint готовы.
 - API-smoke скрипт добавлен.
-- Полный browser против живого admin+API в этой сессии: **не закрыт** (нет поднятого изолированного стенда с токеном в env).
-- Не закрывать SFRFR-113/117 без заполненной таблицы выше.
+- PostgREST стенд `:55433` + enqueue/dedupe/claim на реальном PostgREST — **да** (`test_precheck_job_postgrest.py`).
+- Полный browser (вход сотрудника → UI): **блокер** — на стенде нет GoTrue/Supabase Auth; admin требует Bearer JWT. Критерий не снижаем.
+- Не закрывать SFRFR-113/117 без заполненной таблицы browser-вариантов выше.

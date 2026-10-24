@@ -1,38 +1,25 @@
-# Трекер ↔ PR (live MCP + docs, 2026-10-24 вечер)
+# Трекер ↔ PR (live MCP, цикл 5)
 
-Источник статусов: MCP `user-yandex-tracker` `issues_find` / `issue_get`  
-(не только сохранённая карта). Время среза: ~2026-10-24T16:18Z UTC.
+Источник: MCP `user-yandex-tracker` `issues_find` ~2026-10-24T16:40Z UTC.  
+Не путать с более ранним документальным срезом.
 
-## Live-статусы предпроверки
+## Live-статусы
 
-| Тикет | Статус (live) | Assignee | PR / остаток |
-|---|---|---|---|
-| SFRFR-100 | Открыт | не назначен* | Паспорт; не смешивать с precheck |
-| SFRFR-110 | Открыт | не назначен* | DoD / E01-wire / границы записи |
-| SFRFR-111 | Открыт | пуст (`issue_get`) | #269; изоляция+лог cycle5; PostgREST/browser открыты |
-| SFRFR-112 | Открыт | не назначен* | Ревью контракта/артефактов |
-| SFRFR-113 | Открыт | не назначен* | reclaim есть; browser/restart остаток |
-| SFRFR-114 | Открыт | не назначен* | PG suite; PostgREST-путь остаток |
-| SFRFR-115 | Открыт | не назначен* | каталог/отказ |
-| SFRFR-116 | Открыт | не назначен* | callback wire; полный order/pay |
-| SFRFR-117 | Открыт | не назначен* | сквозная приёмка |
-
-\*В выдаче `issues_find` поле assignee отсутствовало → трактуем как незаполненное; для SFRFR-111 подтверждено `issue_get` без assignee.
-
-## Артефакты cycle 5
-
-- Канон сырой лог: `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-212031-afbe33de.txt` (**77 passed**, SHA `afbe33de…`)
-- Evidence: `docs/ops/sfrfr-111-precheck-isolation-cycle5-evidence.md`
-
-## Открытые PR
-
-| PR | Связь | Действие |
+| Тикет | Live | Фокус / остаток цикла 5 |
 |---|---|---|
-| #269 | precheck | Auto-merge OFF; без merge/deploy |
-| #268 | date-op | параллельно |
-| #41 / #42 | OCR/HITL docs | не deps |
+| SFRFR-111 | Открыт | Родитель; не закрывать |
+| SFRFR-112 | Открыт | Контракт vs реализация |
+| SFRFR-113 | Открыт | Browser UI login — блокер GoTrue; enqueue PostgREST есть |
+| SFRFR-114 | Открыт | PostgREST claim/finalize доказан; полный extract E2E UI — нет |
+| SFRFR-115 | Открыт | Gates/каталог в order path |
+| SFRFR-116 | Открыт | `precheck:order` → DIAG; sandbox; не закрывать без browser+live |
+| SFRFR-117 | Открыт | Сквозная приёмка; browser таблица пуста |
 
-## Правила
+SFRFR-100 / SFRFR-110 — открыты (отдельный паспорт / DoD), не смешивать.
 
-- Hardening ≠ закрытие тикетов.
-- Карта обновляется после live MCP; не подменять live срезом из старого md без повторного запроса.
+## Артефакты
+
+- Checkpoint: `docs/ops/sfrfr-111-precheck-cycle5-checkpoint.md`
+- Order evidence: `docs/ops/sfrfr-111-precheck-cycle5-order-e2e-evidence.md`
+- PostgREST tests: `tests/integration/test_precheck_job_postgrest.py`
+- PR #269 Auto-merge OFF
