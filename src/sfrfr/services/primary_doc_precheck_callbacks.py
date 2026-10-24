@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sfrfr.services.primary_doc_precheck_max import (
@@ -25,7 +25,7 @@ CALLBACK_CONTRACTS: dict[str, str] = {
     "need_docs": "Что загрузить / зачем",
     "upload": "Маршрут досылки документов (промежуточный)",
     "offer_info": "Состав/цена при актуальных gates, без заказа",
-    "order": "Handoff на существующий маршрут при актуальных gates",
+    "order": "Существующий DIAG-маршрут (каталог→draft→оферта→pay link) при gates",
     "decline": "Отказ от оффера; только после подтверждённой записи",
     "ask_staff": "Зарегистрировать передачу сотруднику",
     "status": "Статус незавершённой/актуальной проверки",
@@ -196,6 +196,254 @@ def _mark_ask_staff(case_id: str, max_user_id: str) -> bool:
             "precheck_ask_staff_max_user": str(max_user_id or "")[:64],
             "precheck_ask_staff_confirmed": False,
         },
+    )
+
+
+def _diag_catalog_snapshot() -> tuple[dict[str, Any] | None, str]:
+    """Актуальные условия DIAG из публичного каталога (не из старого сообщения)."""
+    try:
+        from sfrfr.services.public_tariffs import public_tariff
+
+        tariff = public_tariff("DIAG")
+    except Exception:  # noqa: BLE001
+        return None, "catalog_unavailable"
+    if not isinstance(tariff, dict) or tariff.get("amount_rub") is None:
+        return None, "catalog_unavailable"
+    return tariff, "ok"
+
+
+def _saved_offer_amount(rec: dict[str, Any]) -> int | None:
+    raw = rec.get("amount_rub")
+    if raw is None:
+        raw = rec.get("catalog_price_reference")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sandbox_diag_order(
+    *,
+    case_id: str,
+    max_user_id: str,
+    tariff: dict[str, Any],
+) -> dict[str, Any]:
+    """Синтетический DIAG-заказ без ЮKassa / реальных счетов клиентам."""
+    from uuid import uuid4
+
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.max_bot_invoice import (
+        _find_open_order,
+        _has_open_or_paid_diag,
+    )
+
+    repo = CaseRepository()
+    try:
+        orders = repo.list_orders(case_id)
+    except Exception:  # noqa: BLE001
+        return {"ok": False, "reason": "orders_load"}
+    if _has_open_or_paid_diag(orders):
+        open_diag = _find_open_order(orders, tariff="DIAG")
+        if open_diag is None:
+            return {"ok": True, "already_paid": True}
+        pay_url = str(open_diag.get("pay_url") or "").strip()
+        if not pay_url:
+            pay_url = f"https://pay.sandbox.local/diag/{open_diag.get('id') or uuid4()}"
+        return {
+            "ok": True,
+            "sandbox": True,
+            "order": {**open_diag, "pay_url": pay_url},
+            "pay": {"pay_url": pay_url, "sandbox": True},
+            "reused": True,
+        }
+    amount = float(tariff.get("amount_rub") or 3000)
+    label = str(tariff.get("name") or "Диагностика")
+    try:
+        order = repo.create_order(
+            case_id,
+            package_code="DIAG",
+            amount_rub=amount,
+            status_value="draft",
+            actor_id=f"bot:precheck_sandbox:{max_user_id}"[:64],
+            due_at=(datetime.now(UTC) + timedelta(days=3)).isoformat(),
+            service_label=label,
+            invoice_status="draft",
+        )
+    except Exception:  # noqa: BLE001
+        return {"ok": False, "reason": "create_order"}
+    if not order or not order.get("id"):
+        return {"ok": False, "reason": "create_order"}
+    pay_url = f"https://pay.sandbox.local/diag/{order['id']}"
+    return {
+        "ok": True,
+        "sandbox": True,
+        "order": {**order, "pay_url": pay_url},
+        "pay": {"pay_url": pay_url, "sandbox": True},
+        "reused": False,
+    }
+
+
+def _execute_precheck_order(
+    *,
+    case_id: str,
+    max_user_id: str,
+    primary: dict[str, Any],
+) -> PrecheckCallbackResult:
+    """Явный precheck:order → существующий DIAG-маршрут (не вторая платёжка)."""
+    import os
+
+    from sfrfr.core.config import get_settings
+    from sfrfr.integrations.max.diag_choice import fail_text_for_reason
+
+    allowed, reason = live_offer_still_allowed(case_id=case_id, primary=primary)
+    if not allowed:
+        text, _ = sanitize_client_text(
+            "Заказ анализа сейчас недоступен "
+            f"({reason}). Счёт не создаём."
+        )
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_order_blocked",
+            text=text,
+            detail=reason,
+        )
+
+    tariff, cat_reason = _diag_catalog_snapshot()
+    if tariff is None:
+        text, _ = sanitize_client_text(
+            "Каталог услуг сейчас недоступен — состав и цену не подтверждаем. "
+            "Счёт не создаём. Попробуйте позже или напишите сотруднику."
+        )
+        return PrecheckCallbackResult(
+            ok=False,
+            action="precheck_order_catalog_unavailable",
+            text=text,
+            detail=cat_reason,
+        )
+
+    raw_rec = primary.get("recommendation")
+    rec: dict[str, Any] = raw_rec if isinstance(raw_rec, dict) else {}
+    catalog_amount = int(tariff["amount_rub"])
+    saved_amount = _saved_offer_amount(rec)
+    if saved_amount is not None and saved_amount != catalog_amount:
+        text, _ = sanitize_client_text(
+            f"С момента сообщения цена в каталоге изменилась: было {saved_amount} ₽, "
+            f"сейчас {catalog_amount} ₽ ({tariff.get('name')}). "
+            f"Состав: {tariff.get('includes') or 'см. каталог'}. "
+            "Новый счёт не создаём по старой кнопке — откройте актуальное резюме "
+            "и при согласии нажмите заказ снова."
+        )
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_order_price_changed",
+            text=text,
+            detail=f"{saved_amount}->{catalog_amount}",
+        )
+
+    scope = str(rec.get("service_scope") or rec.get("reason") or "").strip()
+    composition = (
+        f"{tariff.get('name')}: {tariff.get('includes') or 'диагностика документов'}. "
+        f"Стоимость: {catalog_amount} ₽."
+        + (f" Основание: {scope}." if scope else "")
+    )
+
+    settings = get_settings()
+    sandbox = bool(settings.precheck_order_sandbox) or (
+        os.environ.get("PRECHECK_ORDER_SANDBOX", "").strip() == "1"
+    )
+
+    if sandbox:
+        result = _sandbox_diag_order(
+            case_id=case_id, max_user_id=max_user_id, tariff=tariff
+        )
+    else:
+        from sfrfr.services.max_bot_invoice import start_diag_payment_after_yes
+
+        try:
+            result = start_diag_payment_after_yes(
+                case_id=case_id,
+                max_user_id=max_user_id,
+            )
+        except Exception:  # noqa: BLE001
+            text, _ = sanitize_client_text(
+                "Не удалось завершить оформление: неизвестный исход создания заказа. "
+                "Повторно счёт не выставляем автоматически. Напишите сотруднику."
+            )
+            return PrecheckCallbackResult(
+                ok=False,
+                action="precheck_order_unknown",
+                text=text,
+                detail="exception",
+            )
+
+    if not result:
+        text, _ = sanitize_client_text(
+            "Не удалось получить результат оформления. "
+            "Повторно счёт не создаём. Напишите «Нужна проверка» или сотруднику."
+        )
+        return PrecheckCallbackResult(
+            ok=False, action="precheck_order_unknown", text=text, detail="empty_result"
+        )
+
+    if result.get("already_paid"):
+        text, _ = sanitize_client_text(
+            "Диагностика по этому делу уже оплачена. Повторный счёт не создаём. "
+            + composition
+        )
+        return PrecheckCallbackResult(
+            ok=True,
+            action="precheck_order_already_paid",
+            text=text,
+            detail="already_paid",
+        )
+
+    if not result.get("ok"):
+        fail_reason = str(result.get("reason") or "unknown")
+        # Честный текст из существующего diag_choice; без слепого повтора.
+        body = fail_text_for_reason(fail_reason)
+        text, _ = sanitize_client_text(body + " " + composition)
+        return PrecheckCallbackResult(
+            ok=False,
+            action="precheck_order_failed",
+            text=text,
+            detail=fail_reason,
+        )
+
+    pay = result.get("pay") if isinstance(result.get("pay"), dict) else {}
+    order = result.get("order") if isinstance(result.get("order"), dict) else {}
+    pay_url = str(
+        (pay or {}).get("pay_url") or (order or {}).get("pay_url") or ""
+    ).strip()
+    reused = bool(result.get("reused"))
+    if not pay_url:
+        text, _ = sanitize_client_text(
+            "Заказ есть или создан, но ссылка на оплату ещё не подтверждена. "
+            "Не обещаем оплату по отсутствующей ссылке. "
+            + composition
+            + " Напишите «Нужна проверка» — пришлём ссылку вручную."
+        )
+        return PrecheckCallbackResult(
+            ok=False,
+            action="precheck_order_no_pay_url",
+            text=text,
+            detail="pay_url_missing",
+        )
+
+    prefix = (
+        "Повтор: возвращаем действующую ссылку на уже оформленный заказ. "
+        if reused
+        else "Заказ диагностики оформлен по вашему явному действию. "
+    )
+    sand = " (тестовый sandbox, не реальная оплата)." if result.get("sandbox") else ""
+    text, _ = sanitize_client_text(prefix + composition + sand)
+    return PrecheckCallbackResult(
+        ok=True,
+        action="precheck_order_pay_link",
+        text=text,
+        attachments=_link_attachments(text="Оплатить диагностику", url=pay_url),
+        detail="sandbox" if result.get("sandbox") else "diag_route",
     )
 
 
@@ -444,34 +692,8 @@ def handle_precheck_callback(
         return PrecheckCallbackResult(ok=True, action="precheck_offer_info", text=text)
 
     if sub == "order":
-        allowed, reason = live_offer_still_allowed(case_id=case_id, primary=primary)
-        if not allowed:
-            text, _ = sanitize_client_text(
-                "Заказ анализа сейчас недоступен "
-                f"({reason}). Это не создание счёта."
-            )
-            return PrecheckCallbackResult(
-                ok=True,
-                action="precheck_order_blocked",
-                text=text,
-                detail=reason,
-            )
-        from sfrfr.integrations.max.intake import cabinet_url_for_case
-
-        cab = cabinet_url_for_case(case_id)
-        text, _ = sanitize_client_text(
-            "Актуальные условия заказа подробного анализа — в кабинете. "
-            "Этот callback не создаёт счёт и не проводит оплату: откройте кабинет "
-            "и оформите заказ явно, если условия вам подходят."
-        )
-        return PrecheckCallbackResult(
-            ok=True,
-            action="precheck_order_cabinet",
-            text=text,
-            attachments=_link_attachments(
-                text="Открыть кабинет (условия заказа)", url=cab
-            ),
-            detail="cabinet_existing_route",
+        return _execute_precheck_order(
+            case_id=case_id, max_user_id=max_user_id, primary=primary
         )
 
     if sub == "decline":

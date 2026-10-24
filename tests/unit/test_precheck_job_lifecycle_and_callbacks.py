@@ -266,20 +266,8 @@ def test_reclaim_stale_running_requeues(mock_sb: MagicMock) -> None:
     assert out["failed"] == 0
 
 
-@patch(
-    "sfrfr.integrations.max.intake.cabinet_url_for_case",
-    return_value="https://example.test/cabinet/?case=case-1",
-)
-@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
-@patch(
-    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
-    return_value=(True, "allowed"),
-)
-@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
-def test_callback_order_does_not_create_invoice(
-    mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock, _cab: MagicMock
-) -> None:
-    mock_load.return_value = {
+def _order_check_payload(*, amount: int = 3000) -> dict:
+    return {
         "job_id": "chk1",
         "stale": False,
         "result": {
@@ -289,7 +277,7 @@ def test_callback_order_does_not_create_invoice(
                 "client_summary": "Есть различие дат.",
                 "recommendation": {
                     "offer_paid_analysis": True,
-                    "amount_rub": 3000,
+                    "amount_rub": amount,
                     "service_scope": "проверка оснований",
                 },
                 "findings": [
@@ -303,15 +291,150 @@ def test_callback_order_does_not_create_invoice(
             }
         },
     }
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+@patch(
+    "sfrfr.services.max_bot_invoice.start_diag_payment_after_yes",
+    return_value={
+        "ok": True,
+        "order": {"id": "ord-1", "pay_url": "https://yookassa.test/pay/ord-1"},
+        "pay": {"pay_url": "https://yookassa.test/pay/ord-1"},
+    },
+)
+def test_callback_order_uses_existing_diag_route(
+    mock_diag: MagicMock,
+    mock_load: MagicMock,
+    _live: MagicMock,
+    _belongs: MagicMock,
+) -> None:
+    mock_load.return_value = _order_check_payload()
     res = handle_precheck_callback(
         payload="precheck:order:chk1",
         case_id="case-1",
         max_user_id="u1",
     )
     assert res is not None
-    assert res.action == "precheck_order_cabinet"
-    assert "не создаёт" in res.text.casefold() or "не создает" in res.text.casefold()
-    assert res.attachments  # ссылка в кабинет
+    assert res.action == "precheck_order_pay_link"
+    assert res.attachments
+    assert "3000" in res.text
+    mock_diag.assert_called_once()
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+@patch(
+    "sfrfr.services.max_bot_invoice.start_diag_payment_after_yes",
+    return_value={"ok": True, "already_paid": True},
+)
+def test_callback_order_already_paid(
+    _diag: MagicMock, mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock
+) -> None:
+    mock_load.return_value = _order_check_payload()
+    res = handle_precheck_callback(
+        payload="precheck:order:chk1", case_id="case-1", max_user_id="u1"
+    )
+    assert res is not None
+    assert res.action == "precheck_order_already_paid"
+    assert "оплачен" in res.text.casefold()
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+@patch(
+    "sfrfr.services.max_bot_invoice.start_diag_payment_after_yes",
+    return_value={"ok": False, "reason": "orders_load"},
+)
+def test_callback_order_orders_load_honest_no_blind_retry(
+    _diag: MagicMock, mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock
+) -> None:
+    mock_load.return_value = _order_check_payload()
+    res = handle_precheck_callback(
+        payload="precheck:order:chk1", case_id="case-1", max_user_id="u1"
+    )
+    assert res is not None
+    assert res.action == "precheck_order_failed"
+    assert res.detail == "orders_load"
+    assert not res.ok
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks._diag_catalog_snapshot",
+    return_value=(
+        {
+            "code": "DIAG",
+            "name": "Шаг 1. Диагностика",
+            "amount_rub": 3500,
+            "includes": "проверка",
+        },
+        "ok",
+    ),
+)
+def test_callback_order_price_changed_no_create(
+    _cat: MagicMock, mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock
+) -> None:
+    mock_load.return_value = _order_check_payload(amount=3000)
+    res = handle_precheck_callback(
+        payload="precheck:order:chk1", case_id="case-1", max_user_id="u1"
+    )
+    assert res is not None
+    assert res.action == "precheck_order_price_changed"
+    assert "3500" in res.text
+    assert res.attachments is None
+
+
+@patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)
+@patch(
+    "sfrfr.services.primary_doc_precheck_callbacks.live_offer_still_allowed",
+    return_value=(True, "allowed"),
+)
+@patch("sfrfr.services.primary_doc_precheck_callbacks._load_latest_check")
+def test_callback_order_sandbox_reuses_without_yookassa(
+    mock_load: MagicMock, _live: MagicMock, _belongs: MagicMock, monkeypatch
+) -> None:
+    mock_load.return_value = _order_check_payload()
+    monkeypatch.setenv("PRECHECK_ORDER_SANDBOX", "1")
+
+    def _sandbox(**kwargs):  # noqa: ANN003
+        return {
+            "ok": True,
+            "sandbox": True,
+            "reused": True,
+            "order": {"id": "o1", "pay_url": "https://pay.sandbox.local/diag/o1"},
+            "pay": {"pay_url": "https://pay.sandbox.local/diag/o1", "sandbox": True},
+        }
+
+    monkeypatch.setattr(
+        "sfrfr.services.primary_doc_precheck_callbacks._sandbox_diag_order",
+        _sandbox,
+    )
+    res = handle_precheck_callback(
+        payload="precheck:order:chk1", case_id="case-1", max_user_id="u1"
+    )
+    assert res is not None
+    assert res.action == "precheck_order_pay_link"
+    assert res.detail == "sandbox"
+    assert "sandbox" in res.text.casefold()
+    assert res.attachments
 
 
 @patch("sfrfr.services.primary_doc_precheck_callbacks._job_belongs_to_case", return_value=True)

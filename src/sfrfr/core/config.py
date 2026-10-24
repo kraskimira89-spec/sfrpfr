@@ -123,6 +123,8 @@ class Settings(BaseSettings):
     max_bot_owned_enabled: bool = True
     # После оферты в bot_owned — точечная отправка pay link в MAX (не MAX_PAY_LINK_AUTO_SEND)
     max_bot_owned_pay_link: bool = True
+    # precheck:order — sandbox без ЮKassa (синтетический pay_url). Prod/live: False.
+    precheck_order_sandbox: bool = False
     # Пауза между частями приветствия в MAX (секунды); 0 = сразу все части
     max_welcome_part_delay_seconds: int = 60
     # ТЗ-35 B1: анкета нового клиента после «Начать»; 0 = прежнее приветствие с кнопками
