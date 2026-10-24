@@ -1,49 +1,46 @@
-# Отчёт изоляции precheck (цикл 5)
+# Отчёт изоляции + harness (цикл 5)
 
-> Статическая рецензия Стратега со ссылкой на `DATABASE_URL` fallback относилась к **устаревшему** снимку probe. На ветке #269 fallback уже снят (`refuse_if_not_isolated`, без чтения `DATABASE_URL`).
-
-## Результат ворот
+## Контракт
 
 ```text
-SHA: 469caed7b2bb2c895e52ae3b5aea501ca8977a6a
-Идентификатор тестового запуска: cycle5-iso-gate-469caed7
-Компоненты и фактические цели подключения:
-  - probe/psycopg → PRECHECK_PG_DSN → 127.0.0.1:55432 / sfrfr_precheck / user sfrfr
-  - PostgREST → http://127.0.0.1:55433 (up)
-  - DATABASE_URL: игнорируется (neg: only DATABASE_URL → refuse)
-Проверки защитных отказов:
-  - neg_database_url_only PASS
-  - neg_prod_host PASS
-  - neg_wrong_dbname PASS
-  - connected_identity + marker PASS
-  - read_only_session PASS (ReadOnlySqlTransaction)
-  - run_id_owned PASS
-  - neg_foreign_run_cleanup PASS
-  - probe_cli PASS
+PRECHECK_PG_DSN       — единственный DSN (без DATABASE_URL / PRECHECK_PROBE_*)
+PRECHECK_TEST_RUN_ID  — владелец стенда (precheck_test_guard.environment)
+Цель: 127.0.0.1:55432 / sfrfr_precheck / user sfrfr
+```
+
+PG-harness ≠ полная схема Supabase приложения. PostgREST `:55433` — отдельный набор тестов.
+
+## Результат ворот (после фикса контракта)
+
+```text
+SHA: (см. git HEAD после push; прогон на d056b73b + uncommitted contract fix)
+Идентификатор: cycle5-iso-gate-469caed7 (или новый из up.ps1)
+Компоненты:
+  - probe → PRECHECK_PG_DSN (JSON PASS)
+  - pytest isolation + job_pg + job_postgrest → 21 passed
+  - PostgREST up
+  - guard до TRUNCATE в фикстурах
+Проверки отказов: DATABASE_URL-only, prod host, foreign run_id, read-only
 Результат: PASS
-Причина: —
-Изменяющие запросы до подтверждения изоляции: отсутствуют
-Код завершения gate: 0
-Сырой лог: docs/ops/logs/sfrfr-111-isolation-gate-469caed7.txt
+Изменяющие запросы до подтверждения: отсутствуют
+Код probe: 0 · gate: 0 · pytest: 0
+Логи: tmp/cycle5/db-probe.log, tmp/cycle5/precheck-pg.log
 ```
 
-Команда:
+Статическая рецензия со старым `DATABASE_URL` fallback — устаревший снимок; на ветке #269 снят.
 
-```powershell
-$env:PRECHECK_PG_DSN='postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck'
-$env:PRECHECK_TEST_RUN_ID='cycle5-iso-gate-469caed7'
-.\.venv\Scripts\python.exe tools\precheck_job_pg\run_isolation_gate.py
-```
-
-Единый DSN: `PRECHECK_PG_DSN` ↔ `PRECHECK_PROBE_DATABASE_URL` (синонимы в `resolve_test_dsn`).
-
-## Browser E2E
+## Browser
 
 | Пункт | Статус |
 |---|---|
-| Изоляция стенда PG/PostgREST | PASS |
-| Admin UI login (GoTrue JWT) | **BLOCKED** — Auth не в стенде |
-| API enqueue через PostgREST | PASS (отдельные тесты) |
-| Полный browser сценарий B | BLOCKED (зависит от login) |
+| Playwright skeleton | `apps/admin/e2e/precheck.spec.ts` + config (исключены из tsc) |
+| Зависимость Playwright | не закреплена в package.json — добавить перед CI E2E |
+| GoTrue / staff JWT | **BLOCKED** |
+| Критерий | не снижаем |
 
-Критерий browser не снижаем. Merge/deploy/live/платежи — нет.
+## Оговорки имён тестов
+
+- `test_two_handlers_only_one_claims` — два последовательных claim, не параллельные процессы.
+- Notify-retry в PG suite может ставить флаг вручную — не путать с live MAX enqueue.
+
+Merge / deploy / live MAX / платежи — нет.

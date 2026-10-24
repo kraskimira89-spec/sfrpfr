@@ -27,32 +27,40 @@ def test_refuse_database_url_only(monkeypatch: pytest.MonkeyPatch) -> None:
         "DATABASE_URL",
         "postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck",
     )
-    with pytest.raises(IsolationError, match="missing_"):
-        refuse_if_not_isolated(for_probe=True)
+    with pytest.raises(IsolationError, match="missing_test_dsn"):
+        refuse_if_not_isolated()
+
+
+def test_refuse_probe_url_alone_no_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PRECHECK_PG_DSN", raising=False)
+    monkeypatch.setenv(
+        "PRECHECK_PROBE_DATABASE_URL",
+        "postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck",
+    )
+    with pytest.raises(IsolationError, match="missing_test_dsn"):
+        refuse_if_not_isolated()
 
 
 def test_refuse_wrong_dbname() -> None:
-    with pytest.raises(IsolationError, match="dbname_not_allowlisted"):
-        validate_dsn_identity("postgresql://sfrfr:x@127.0.0.1:5432/postgres")
+    with pytest.raises(IsolationError, match="target_not_allowed"):
+        validate_dsn_identity("postgresql://sfrfr:x@127.0.0.1:55432/postgres")
 
 
 def test_refuse_prod_looking_host() -> None:
-    with pytest.raises(IsolationError, match="host_"):
+    with pytest.raises(IsolationError, match="target_not_allowed"):
         validate_dsn_identity(
             "postgresql://sfrfr:x@db.xxx.supabase.co:5432/sfrfr_precheck"
         )
 
 
-def test_refuse_non_local_unknown_host() -> None:
-    with pytest.raises(IsolationError, match="host_not_local_allowlisted"):
-        validate_dsn_identity(
-            "postgresql://sfrfr:x@staging.example.com:5432/sfrfr_precheck"
-        )
+def test_refuse_wrong_port() -> None:
+    with pytest.raises(IsolationError, match="target_not_allowed"):
+        validate_dsn_identity("postgresql://sfrfr:x@127.0.0.1:5432/sfrfr_precheck")
 
 
 def test_refuse_wrong_user() -> None:
-    with pytest.raises(IsolationError, match="user_not_allowlisted"):
-        validate_dsn_identity("postgresql://postgres:x@127.0.0.1:5432/sfrfr_precheck")
+    with pytest.raises(IsolationError, match="target_not_allowed"):
+        validate_dsn_identity("postgresql://postgres:x@127.0.0.1:55432/sfrfr_precheck")
 
 
 def test_accept_local_allowlisted() -> None:
@@ -62,6 +70,7 @@ def test_accept_local_allowlisted() -> None:
     assert info.dbname == "sfrfr_precheck"
     assert info.user == "sfrfr"
     assert info.host == "127.0.0.1"
+    assert info.port == 55432
 
 
 def test_sanitize_strips_password_in_url() -> None:
@@ -78,16 +87,20 @@ def test_refuse_missing_test_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
         require_test_run_id()
 
 
-def test_probe_cli_refuses_without_test_dsn(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Отдельный процесс: DATABASE_URL alone → exit 2, без fallback."""
+def test_refuse_invalid_test_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PRECHECK_TEST_RUN_ID", "bad id")
+    with pytest.raises(IsolationError, match="invalid_test_run_id"):
+        require_test_run_id()
+
+
+def test_probe_cli_refuses_without_test_dsn(monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
 
     env = os.environ.copy()
     env.pop("PRECHECK_PG_DSN", None)
     env.pop("PRECHECK_PROBE_DATABASE_URL", None)
     env["DATABASE_URL"] = "postgresql://u:p@127.0.0.1/db"
+    env["PRECHECK_TEST_RUN_ID"] = "precheck_negativetest01"
     proc = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "precheck_db_probe.py")],
         cwd=str(ROOT),
@@ -98,5 +111,5 @@ def test_probe_cli_refuses_without_test_dsn(
         timeout=30,
     )
     assert proc.returncode == 2
-    assert "isolation_refused" in proc.stdout
-    assert "missing_precheck" in proc.stdout
+    assert '"result": "FAIL"' in proc.stdout or '"result":"FAIL"' in proc.stdout
+    assert "missing_test_dsn" in proc.stdout

@@ -1,25 +1,16 @@
-"""Безопасная диагностика схемы одноразовой тестовой БД precheck.
+"""Read-only probe одноразовой локальной precheck-БД.
 
-Только PRECHECK_PROBE_DATABASE_URL или PRECHECK_PG_DSN.
-DATABASE_URL / SUPABASE_* не используются (нет fallback).
-До query — allowlist db/user/host + маркер sfrfr_test_isolation.
-Read-only SELECT information_schema; без клиентских строк.
-Исключения печатаются санитизированно (без DSN/паролей).
-
-Пример:
-  $env:PRECHECK_PG_DSN='postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck'
-  .\\.venv\\Scripts\\python.exe tools\\precheck_db_probe.py
+Только PRECHECK_PG_DSN + PRECHECK_TEST_RUN_ID.
+DATABASE_URL / PRECHECK_PROBE_DATABASE_URL не используются.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
-import time
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "precheck_job_pg"))
@@ -28,114 +19,96 @@ from isolation import (  # noqa: E402
     IsolationError,
     _sanitize_exc_message,
     assert_connected_isolation,
-    refuse_if_not_isolated,
+    checked_target,
+    verify_guard_run,
 )
 
 
-@dataclass
-class StepLog:
-    steps: list[dict[str, Any]] = field(default_factory=list)
-
-    def mark(self, name: str, **extra: Any) -> None:
-        row = {"step": name, "t_ms": int(time.perf_counter() * 1000), **extra}
-        self.steps.append(row)
-        print(f"[probe] {name}" + (f" {extra}" if extra else ""), flush=True)
+def emit(result: str, **fields: object) -> None:
+    print(json.dumps({"result": result, **fields}, ensure_ascii=False), flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Precheck DB schema probe (isolated)")
-    parser.add_argument("--timeout-connect", type=float, default=5.0)
-    parser.add_argument("--timeout-query", type=float, default=8.0)
-    parser.add_argument(
-        "--table",
-        default="staff_document_check_jobs",
-        help="Только имя таблицы для information_schema",
-    )
+    parser = argparse.ArgumentParser(description="Precheck DB probe (isolated)")
+    parser.add_argument("--timeout-connect", type=int, default=5)
+    parser.add_argument("--timeout-query", type=int, default=8)
     args = parser.parse_args(argv)
-    log = StepLog()
-    log.mark(
-        "start",
-        python=sys.version.split()[0],
-        cwd=os.getcwd(),
-        connect_s=args.timeout_connect,
-        query_s=args.timeout_query,
+
+    if not (1 <= args.timeout_connect <= 30):
+        emit("FAIL", reason="invalid_connect_timeout")
+        return 2
+    if not (1 <= args.timeout_query <= 60):
+        emit("FAIL", reason="invalid_query_timeout")
+        return 2
+
+    emit(
+        "INFO",
         database_url_present=bool(os.environ.get("DATABASE_URL")),
-        note="DATABASE_URL ignored",
+        probe_url_present=bool(os.environ.get("PRECHECK_PROBE_DATABASE_URL")),
+        note="DATABASE_URL and PRECHECK_PROBE_DATABASE_URL ignored",
     )
 
     try:
-        dsn = refuse_if_not_isolated(for_probe=True)
+        dsn, run_id = checked_target()
     except IsolationError as exc:
-        code = str(exc)
-        log.mark("abort", reason=code)
-        print(f"RESULT: isolation_refused {code}", flush=True)
+        emit("FAIL", reason=str(exc))
         return 2
-
-    log.mark("env_dsn", present=True, hint="redacted_ok")
 
     try:
         import psycopg  # type: ignore
-    except Exception as exc:  # noqa: BLE001
-        log.mark("import_psycopg_failed", exc_type=type(exc).__name__)
-        print(f"RESULT: import_failed {type(exc).__name__}", flush=True)
+    except ImportError:
+        emit("BLOCKED", reason="psycopg_unavailable")
         return 3
 
-    conn = None
     try:
-        log.mark("connect_begin")
-        conn = psycopg.connect(
+        with psycopg.connect(
             dsn,
-            connect_timeout=max(1, int(args.timeout_connect)),
+            connect_timeout=args.timeout_connect,
+            options=(
+                "-c default_transaction_read_only=on "
+                f"-c statement_timeout={int(args.timeout_query) * 1000}"
+            ),
+        ) as conn:
+            conn.autocommit = True
+            identity = assert_connected_isolation(conn)
+            verify_guard_run(conn, run_id)
+            with conn.cursor() as cur:
+                cur.execute("SHOW transaction_read_only")
+                if str(cur.fetchone()[0]).lower() not in {"on", "true"}:
+                    raise IsolationError("read_only_not_enabled")
+                cur.execute(
+                    """
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'staff_document_check_jobs'
+                    ORDER BY ordinal_position
+                    LIMIT 40
+                    """
+                )
+                columns = cur.fetchall()
+                if not columns:
+                    raise IsolationError("required_table_missing_or_invisible")
+        emit(
+            "PASS",
+            target="local_precheck",
+            run_id=run_id,
+            read_only=True,
+            identity=identity,
+            columns=[{"name": n, "type": t} for n, t in columns],
         )
-        conn.autocommit = True
-        # read-only + timeout (литерал int — SET не принимает bind-параметры)
-        timeout_ms = int(max(1.0, args.timeout_query) * 1000)
-        with conn.cursor() as cur:
-            cur.execute("SET default_transaction_read_only = on")
-            cur.execute(f"SET statement_timeout = {timeout_ms}")
-        identity = assert_connected_isolation(conn)
-        log.mark("connect_ok", **identity)
-    except IsolationError as exc:
-        log.mark("isolation_failed", reason=str(exc))
-        print(f"RESULT: isolation_refused {exc}", flush=True)
-        return 6
-    except Exception as exc:  # noqa: BLE001
-        log.mark("connect_failed", exc_type=type(exc).__name__)
-        print(f"RESULT: connect_failed {type(exc).__name__}", flush=True)
-        return 4
-
-    try:
-        log.mark("query_begin", table=args.table)
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT column_name, data_type
-                FROM information_schema.columns
-                WHERE table_schema = 'public' AND table_name = %s
-                ORDER BY ordinal_position
-                LIMIT 40
-                """,
-                (args.table,),
-            )
-            cols = cur.fetchall()
-        log.mark("query_ok", columns=len(cols))
-        for name, dtype in cols[:40]:
-            print(f"  col {name}: {dtype}", flush=True)
-        print("RESULT: ok", flush=True)
-        log.mark("done", exit=0)
         return 0
+    except IsolationError as exc:
+        emit("FAIL", reason=str(exc))
+        return 4
     except Exception as exc:  # noqa: BLE001
-        log.mark("query_failed", exc_type=type(exc).__name__)
-        print(f"RESULT: query_failed {type(exc).__name__}", flush=True)
-        print(_sanitize_exc_message(str(exc)), flush=True)
+        emit(
+            "BLOCKED",
+            reason="database_error",
+            exc_type=type(exc).__name__,
+            detail=_sanitize_exc_message(str(exc)),
+        )
         return 5
-    finally:
-        if conn is not None:
-            try:
-                conn.close()
-                log.mark("conn_closed")
-            except Exception:  # noqa: BLE001
-                pass
 
 
 if __name__ == "__main__":

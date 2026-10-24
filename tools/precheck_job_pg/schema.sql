@@ -59,3 +59,11 @@ create table if not exists public.sfrfr_test_run (
   run_id text primary key,
   created_at timestamptz not null default now()
 );
+
+-- Канон маркера владельца (Strategist cycle 5): только bootstrap стенда.
+create schema if not exists precheck_test_guard;
+
+create table if not exists precheck_test_guard.environment (
+  singleton boolean primary key check (singleton),
+  run_id text not null
+);
