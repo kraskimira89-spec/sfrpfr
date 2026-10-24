@@ -23,6 +23,11 @@ ROOT = Path(__file__).resolve().parents[2]
 SHIM = ROOT / "tools" / "precheck_job_pg"
 sys.path.insert(0, str(SHIM))
 
+from isolation import (  # noqa: E402
+    IsolationError,
+    assert_connected_isolation,
+    refuse_if_not_isolated,
+)
 from pg_rest_shim import PgRestShim  # noqa: E402
 
 from sfrfr.services.staff_document_check_lifecycle import (  # noqa: E402
@@ -34,9 +39,21 @@ from sfrfr.services.staff_document_check_lifecycle import (  # noqa: E402
     result_already_finalized,
 )
 
-DSN = (os.environ.get("PRECHECK_PG_DSN") or "").strip()
+try:
+    DSN = refuse_if_not_isolated(for_probe=False)
+    _ISOLATION_OK = True
+    _ISOLATION_REASON = ""
+except IsolationError as _exc:
+    DSN = ""
+    _ISOLATION_OK = False
+    _ISOLATION_REASON = str(_exc)
+
 pytestmark = pytest.mark.skipif(
-    not DSN, reason="PRECHECK_PG_DSN not set (run tools/precheck_job_pg/up.ps1)"
+    not _ISOLATION_OK,
+    reason=(
+        f"isolated PRECHECK_PG_DSN required ({_ISOLATION_REASON or 'missing'}); "
+        "run tools/precheck_job_pg/up.ps1 — DATABASE_URL fallback запрещён"
+    ),
 )
 
 
@@ -46,8 +63,9 @@ def pg():
 
     conn = psycopg.connect(DSN)
     conn.autocommit = False
+    assert_connected_isolation(conn)
     client = PgRestShim(conn)
-    # чистая песочница на тест
+    # чистая песочница; маркер isolation не трогаем
     with conn.cursor() as cur:
         cur.execute("TRUNCATE staff_document_check_jobs, documents, cases CASCADE")
     conn.commit()

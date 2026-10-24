@@ -1,0 +1,26 @@
+=== SFRFR-111 raw pytest run (new, not reconstructed) ===
+UTC: 2026-10-24T16:18:11.8027455Z
+Local: 2026-10-24T21:18:11.8049043+05:00
+SHA: fe1188210279a7f22b1c253338f6e0cf74e35e5c
+Branch: feat/sfrfr-primary-doc-precheck
+Python: 3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]
+CWD: C:\Users\user\Documents\Cursor\SFRFR
+basetemp: C:\Users\user\AppData\Local\Temp\pytest-sfrfr-2eff321e76e64c7f8c5b27da02e8d103
+PRECHECK_PG_DSN set: True
+DATABASE_URL set: False
+Command:
+.\.venv\Scripts\python.exe -m pytest tests/unit/test_precheck_handler_routing.py tests/unit/test_precheck_job_lifecycle_and_callbacks.py tests/unit/test_primary_doc_precheck.py tests/unit/test_staff_document_check.py tests/unit/test_precheck_db_isolation.py -q --tb=short --basetemp=C:\Users\user\AppData\Local\Temp\pytest-sfrfr-2eff321e76e64c7f8c5b27da02e8d103 --junitxml=docs\ops\logs\sfrfr-111-isolation-junit-20261024-211811-fe118821.xml
+=== stdout/stderr begin ===
+......................................................................   [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+70 passed, 1 warning in 6.48s
+
+=== stdout/stderr end ===
+Exit code: 0
+JUnit: docs\ops\logs\sfrfr-111-isolation-junit-20261024-211811-fe118821.xml
+Log: docs\ops\logs\sfrfr-111-isolation-pytest-20261024-211811-fe118821.txt

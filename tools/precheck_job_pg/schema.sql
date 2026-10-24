@@ -44,3 +44,12 @@ create index if not exists staff_document_check_jobs_queue_idx
 create unique index if not exists staff_document_check_jobs_active_fp_uidx
   on public.staff_document_check_jobs (case_id, documents_fingerprint)
   where status in ('queued', 'running');
+
+-- Маркер изоляции: probe/тесты отказывают без этой строки.
+create table if not exists public.sfrfr_test_isolation (
+  marker text primary key
+);
+
+insert into public.sfrfr_test_isolation (marker)
+values ('sfrfr_precheck_isolation_ok')
+on conflict (marker) do nothing;

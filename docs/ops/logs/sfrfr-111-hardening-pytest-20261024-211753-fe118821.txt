@@ -1,0 +1,126 @@
+=== SFRFR-111 raw pytest run (new, not reconstructed) ===
+UTC: 2026-10-24T16:17:53.3640900Z
+Local: 2026-10-24T21:17:53.3673090+05:00
+SHA: fe1188210279a7f22b1c253338f6e0cf74e35e5c
+Branch: feat/sfrfr-primary-doc-precheck
+Python: 3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]
+CWD: C:\Users\user\Documents\Cursor\SFRFR
+PRECHECK_PG_DSN set: True
+DATABASE_URL set: False
+Command:
+.\.venv\Scripts\python.exe -m pytest tests/unit/test_precheck_handler_routing.py tests/unit/test_precheck_job_lifecycle_and_callbacks.py tests/unit/test_primary_doc_precheck.py tests/unit/test_staff_document_check.py tests/unit/test_precheck_db_isolation.py -q --tb=short --junitxml=docs\ops\logs\sfrfr-111-hardening-junit-20261024-211753-fe118821.xml
+=== stdout/stderr begin ===
+.EEEEEEEEEEEE........................................................F   [100%]
+=================================== ERRORS ====================================
+__________ ERROR at setup of test_generator_payload_through_handler ___________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+__ ERROR at setup of test_handler_stale_check_id_from_generator_blocks_order __
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+______ ERROR at setup of test_legacy_order_without_check_id_not_applied _______
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+______________ ERROR at setup of test_decline_then_order_blocked ______________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+____________ ERROR at setup of test_paid_after_result_blocks_order ____________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+___________ ERROR at setup of test_decline_save_failure_no_false_ok ___________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+____________ ERROR at setup of test_ask_staff_save_failure_honest _____________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+______________ ERROR at setup of test_foreign_check_id_forbidden ______________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+____________________ ERROR at setup of test_no_case_access ____________________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+_________________ ERROR at setup of test_unknown_payload_safe _________________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+__________ ERROR at setup of test_status_running_not_completed_text ___________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+______________ ERROR at setup of test_repeat_summary_idempotent _______________
+.venv\Lib\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   PermissionError: [WinError 5] Отказано в доступе: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user'
+================================== FAILURES ===================================
+__________________ test_probe_main_refuses_without_test_dsn ___________________
+tests\unit\test_precheck_db_isolation.py:86: in test_probe_main_refuses_without_test_dsn
+    spec.loader.exec_module(probe)
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+tools\precheck_db_probe.py:35: in <module>
+    @dataclass
+     ^^^^^^^^^
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\dataclasses.py:1450: in dataclass
+    return wrap(cls)
+           ^^^^^^^^^
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\dataclasses.py:1440: in wrap
+    return _process_class(cls, init, repr, eq, order, unsafe_hash,
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\dataclasses.py:1055: in _process_class
+    and _is_type(type, cls, dataclasses, dataclasses.KW_ONLY,
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\dataclasses.py:814: in _is_type
+    ns = sys.modules.get(cls.__module__).__dict__
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute '__dict__'. Did you mean: '__dir__'?
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\lastfailed: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_precheck_db_isolation.py::test_probe_main_refuses_without_test_dsn
+ERROR tests/unit/test_precheck_handler_routing.py::test_generator_payload_through_handler
+ERROR tests/unit/test_precheck_handler_routing.py::test_handler_stale_check_id_from_generator_blocks_order
+ERROR tests/unit/test_precheck_handler_routing.py::test_legacy_order_without_check_id_not_applied
+ERROR tests/unit/test_precheck_handler_routing.py::test_decline_then_order_blocked
+ERROR tests/unit/test_precheck_handler_routing.py::test_paid_after_result_blocks_order
+ERROR tests/unit/test_precheck_handler_routing.py::test_decline_save_failure_no_false_ok
+ERROR tests/unit/test_precheck_handler_routing.py::test_ask_staff_save_failure_honest
+ERROR tests/unit/test_precheck_handler_routing.py::test_foreign_check_id_forbidden
+ERROR tests/unit/test_precheck_handler_routing.py::test_no_case_access - Perm...
+ERROR tests/unit/test_precheck_handler_routing.py::test_unknown_payload_safe
+ERROR tests/unit/test_precheck_handler_routing.py::test_status_running_not_completed_text
+ERROR tests/unit/test_precheck_handler_routing.py::test_repeat_summary_idempotent
+1 failed, 57 passed, 2 warnings, 12 errors in 6.36s
+
+=== stdout/stderr end ===
+Exit code: 1
+JUnit: docs\ops\logs\sfrfr-111-hardening-junit-20261024-211753-fe118821.xml
+Log: docs\ops\logs\sfrfr-111-hardening-pytest-20261024-211753-fe118821.txt

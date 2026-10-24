@@ -1,47 +1,39 @@
-# Трекер ↔ PR (read-only, 2026-10-24)
+# Трекер ↔ PR (live MCP + docs, 2026-10-24 вечер)
 
-Интеграция Трекера: MCP `user-yandex-tracker` — **работает** (прочитаны SFRFR-110 и комментарии).
+Источник статусов: MCP `user-yandex-tracker` `issues_find` / `issue_get`  
+(не только сохранённая карта). Время среза: ~2026-10-24T16:18Z UTC.
 
-## Комментарии SFRFR-110
+## Live-статусы предпроверки
 
-| ID | Смысл | Дубль? |
-|---|---|---|
-| #443 | DoD полного контура | нет |
-| #444 | Этапы 1–2 docs | нет |
-| #447 | **Контрольная точка** этапов 1–2; не новое ТЗ / не GitHub #447 | нет |
-| #448 | Уточнение атомарности #268 | нет |
-| #452–#453 | PG harness + CI success #268 | нет |
+| Тикет | Статус (live) | Assignee | PR / остаток |
+|---|---|---|---|
+| SFRFR-100 | Открыт | не назначен* | Паспорт; не смешивать с precheck |
+| SFRFR-110 | Открыт | не назначен* | DoD / E01-wire / границы записи |
+| SFRFR-111 | Открыт | пуст (`issue_get`) | #269; изоляция+лог cycle5; PostgREST/browser открыты |
+| SFRFR-112 | Открыт | не назначен* | Ревью контракта/артефактов |
+| SFRFR-113 | Открыт | не назначен* | reclaim есть; browser/restart остаток |
+| SFRFR-114 | Открыт | не назначен* | PG suite; PostgREST-путь остаток |
+| SFRFR-115 | Открыт | не назначен* | каталог/отказ |
+| SFRFR-116 | Открыт | не назначен* | callback wire; полный order/pay |
+| SFRFR-117 | Открыт | не назначен* | сквозная приёмка |
 
-STAZH unresolved: **0** задач.
+\*В выдаче `issues_find` поле assignee отсутствовало → трактуем как незаполненное; для SFRFR-111 подтверждено `issue_get` без assignee.
 
-## Срез задач предпроверки
+## Артефакты cycle 5
 
-| Тикет | Статус | PR | Блокер | Следующее действие |
-|---|---|---|---|---|
-| SFRFR-111 | Открыт | **#269** цикл 2 (job+callback); #270 staff UI | browser/PG | Не закрывать |
-| SFRFR-112 | Открыт | контракт в docs cycle2 | — | Ревью артефактов |
-| SFRFR-113 | Открыт | enqueue/reject/exact + reclaim | browser | E2E карточки |
-| SFRFR-114 | Открыт | periods ephemeral + primary result | PG | Fixtures + worker |
-| SFRFR-115 | Открыт | recommendation card + offer gates | — | Каталог/отказ |
-| SFRFR-116 | Открыт | `precheck:*` в handler | live OFF | Wire pay-link |
-| SFRFR-117 | Открыт | нет | — | Сквозная приёмка |
-| SFRFR-110 | Открыт | #261–#268 стек | DoD / PostgREST / E01-wire | Не закрывать |
-| SFRFR-100 | Открыт | #256 паспорт | владелец | Не смешивать с precheck |
+- Сырой unit лог: `docs/ops/logs/sfrfr-111-isolation-pytest-20261024-211811-fe118821.txt` (70 passed, SHA `fe118821…`)
+- PG лог: `docs/ops/logs/sfrfr-111-pg-isolation-pytest-20261024-211833-fe118821.txt` (7 passed)
+- Evidence: `docs/ops/sfrfr-111-precheck-isolation-cycle5-evidence.md`
 
-## Открытые PR (сопоставление)
+## Открытые PR
 
 | PR | Связь | Действие |
 |---|---|---|
-| #41 | Docs ИИ-воронка OCR→HITL→резюме | Не переносить код слепо; контекст |
-| #42 | HITL трудовой | То же |
-| #259 | offer evidence tests | Не в срез 1 |
-| #268 | date-op CAS; CI PG green | Параллельно; не блокер чтения |
-| #269 | precheck + MAX | После среза 1 — rebase / сузить до среза 2–3 |
-| #261–#267 | SFRFR-110 стек | Auto-merge OFF |
+| #269 | precheck | Auto-merge OFF; без merge/deploy |
+| #268 | date-op | параллельно |
+| #41 / #42 | OCR/HITL docs | не deps |
 
-## Отдельно
+## Правила
 
-- Задачи без assignee: большинство SFRFR open (кроме части кассы).
-- PR без задачи: проверить #260 (fiscal) — не precheck.
-- Закрытые с незавершёнными блокерами: не сканировались в этом прогоне.
-- «Готово по локальным тестам» ≠ закрытие: #268/#269/#270 требуют явного OK на merge.
+- Hardening ≠ закрытие тикетов.
+- Карта обновляется после live MCP; не подменять live срезом из старого md без повторного запроса.
