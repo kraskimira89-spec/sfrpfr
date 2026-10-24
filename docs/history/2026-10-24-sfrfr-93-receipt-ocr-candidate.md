@@ -26,11 +26,11 @@
 
 ## Ответы на контрольные вопросы
 
-1. **Шаг ошибки:** `fetch_payment` — до list/gate/create.  
-2. **Create:** **не вызывался** (`post_at` NULL, attempts=0).  
-3. **Attempts / streak:** attempts=0; streak рос на тик (2). Стоп≥12 не достигнут.  
-4. **Откуда `receipt:`:** `payment_receipt.confirm_order_from_receipt` —  
-   `provider=receipt_ocr`, `provider_payment_id=receipt:{doc|order}`; не ID ЮKassa.  
+1. **Шаг ошибки:** `fetch_payment` — до list/gate/create.
+2. **Create:** **не вызывался** (`post_at` NULL, attempts=0).
+3. **Attempts / streak:** attempts=0; streak рос на тик (2). Стоп≥12 не достигнут.
+4. **Откуда `receipt:`:** `payment_receipt.confirm_order_from_receipt` —
+   `provider=receipt_ocr`, `provider_payment_id=receipt:{doc|order}`; не ID ЮKassa.
 5. **Исключения:** фильтра не было → дефект выборки. Риск create низкий (fail на fetch).
 
 ## Контракт фильтра (срочный патч)
