@@ -1,9 +1,12 @@
-# DBHub → self-host Supabase Postgres (YC db-01) via local OpenSSH forward.
+# DBHub → self-host Supabase Postgres (supabase2 / reg.ru SoT) via local OpenSSH forward.
 # Tunnel поднимает scripts/mcp-supabase-selfhost.cmd (ssh.exe → 127.0.0.1:15433).
+# Host в secrets/supabase-selfhost-mcp.env: SSH_HOST=194.67.116.168 (не YC db-01).
 # Read-only: [[tools]] readonly = true.
 # Не использовать встроенный ssh_* DBHub: Node/Go SSH идёт через AdGuard VPN и ловит SG timeout.
 
 [[sources]]
+# id оставлен sfrfr_yc для совместимости с уже поднятым MCP-процессом Cursor;
+# фактический SoT — supabase2 (SSH_HOST в secrets/supabase-selfhost-mcp.env).
 id = "sfrfr_yc"
 # Прямой Postgres :5433 на ВМ, с ноутбука — только через OpenSSH -L (см. .cmd).
 dsn = "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"

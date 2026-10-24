@@ -1,7 +1,11 @@
 # SFRFR-111 browser / API E2E — цикл 5
 
-Синтетические данные. Без production. Live MAX не включать.  
+Синтетические данные. Live MAX не включать.  
 Merge/deploy/реальные платежи — запрещены.
+
+**Auth SoT:** GoTrue на **supabase2** (`https://supabase2.proverkastaza.ru`, health OK).  
+Локальный precheck-harness `:55432` **без** Auth — для TRUNCATE/isolation; browser login — только через supabase2 + staff JWT/OTP тестового сотрудника.  
+Доступ агента: `docs/ops/supabase2-agent-access-2026-10-24.md`.
 
 ## Компоненты
 
@@ -10,7 +14,8 @@ Merge/deploy/реальные платежи — запрещены.
 | Admin UI | `apps/admin` кнопка «Проверить документы» → `POST …/request-review` | нет в целевом прогоне |
 | API | FastAPI `admin_portal.request_review` → enqueue + BackgroundTasks | нет |
 | Job | `process_staff_document_check_job_safe` | нет |
-| БД приложения | PostgREST/Supabase клиента приложения | **разрыв:** PG suite = PgRestShim; полный PostgREST — открытый блокер |
+| Auth | GoTrue supabase2 | staff JWT (не anon) |
+| БД приложения | supabase2 PostgREST | PG suite `:55432` = harness; prod SoT ≠ harness |
 | MAX notify | enqueue | в E2E можно выключить доставку |
 
 ## Автоматизированный API-smoke (тот же HTTP, что UI)
