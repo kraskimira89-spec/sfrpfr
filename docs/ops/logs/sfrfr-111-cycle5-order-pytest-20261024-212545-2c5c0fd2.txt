@@ -1,0 +1,20 @@
+=== SFRFR-111 cycle5 order raw pytest ===
+UTC: 2026-10-24T16:25:45.7576945Z
+SHA: 2c5c0fd2eca09bf57cbeb5a7587735b865010900
+PRECHECK_ORDER_SANDBOX: unset
+PRECHECK_PG_DSN: set (redacted)
+DATABASE_URL: False
+Command:
+.\.venv\Scripts\python.exe -m pytest tests/unit/test_precheck_handler_routing.py tests/unit/test_precheck_job_lifecycle_and_callbacks.py tests/unit/test_primary_doc_precheck.py tests/unit/test_staff_document_check.py tests/unit/test_precheck_db_isolation.py tests/integration/test_precheck_job_pg.py -q --tb=short --basetemp=C:\Users\user\AppData\Local\Temp\pytest-c5-cf8039dd3c094e49af91cb6808da99f0 --junitxml=docs\ops\logs\sfrfr-111-cycle5-order-junit-20261024-212545-2c5c0fd2.xml
+=== begin ===
+........................................................................ [ 88%]
+.........                                                                [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+81 passed, 1 warning in 19.17s
+=== end ===
+Exit code: 0

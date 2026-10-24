@@ -43,9 +43,17 @@ Probe без `DATABASE_URL` fallback — подтверждено ранее.
 
 Сценарий подготовлен: `docs/ops/sfrfr-111-precheck-live-max-scenario.md` — **не запускать**.
 
-## 5. Тестовый реестр
+## 5. Тестовый реестр (сырой прогон, не реконструкция)
 
-Заполняется сырым логом после коммита на точном SHA (см. `docs/ops/logs/…`).
+| Поле | Значение |
+|---|---|
+| Полный SHA | `2c5c0fd2eca09bf57cbeb5a7587735b865010900` |
+| Команда | unit precheck* + isolation + `tests/integration/test_precheck_job_pg.py` |
+| Итог | **81 passed**, exit **0** |
+| Сырой лог | `docs/ops/logs/sfrfr-111-cycle5-order-pytest-20261024-212545-2c5c0fd2.txt` |
+| JUnit | `docs/ops/logs/sfrfr-111-cycle5-order-junit-20261024-212545-2c5c0fd2.xml` |
+
+CI GitHub Actions — **отдельный** прогон на том же head; не смешивать с цифрой 81.
 
 ## 6. Трекер (остатки)
 
