@@ -77,9 +77,10 @@
 
 | # | Ситуация | Root | Тест |
 |---|---|---|---|
-| G1–G16 | S20.1–S20.16 | context / promise / access / claim… | `test_client_ai_complex_dialogues` + каталог ops |
+| G1–G16 | S20.1–S20.16 | context / promise / access / claim… | `test_client_ai_complex_dialogues` |
+| G17 | S20.17A–D недоверие к сумме | unverifiable / incomparable | `calculation_explain_policy` + JSON |
 
-Запрет: профиль «конфликтный»; урезание помощи из‑за тона.
+Запрет: профиль «конфликтный»; урезание помощи из‑за тона; калькулятор прибавки.
 
 ## Приоритет ближайших правок
 

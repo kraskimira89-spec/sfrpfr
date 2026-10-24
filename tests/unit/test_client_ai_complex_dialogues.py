@@ -21,11 +21,12 @@ def _scenarios() -> list[dict]:
     return json.loads(_ASSETS.read_text(encoding="utf-8"))
 
 
-def test_complex_catalog_has_sixteen_scenarios() -> None:
+def test_complex_catalog_has_base_and_calc_scenarios() -> None:
     rows = _scenarios()
-    assert len(rows) == 16
     ids = {r["id"] for r in rows}
-    assert ids == {f"S20.{i}" for i in range(1, 17)}
+    assert {f"S20.{i}" for i in range(1, 17)} <= ids
+    assert {"S20.17A", "S20.17B", "S20.17C", "S20.17D"} <= ids
+    assert len(rows) == 20
 
 
 @pytest.mark.parametrize("scenario", _scenarios(), ids=lambda s: s["id"])
