@@ -277,3 +277,17 @@
 | S20.23G | Страх удаления docs | docs_as_pressure |
 | S20.23H | Срок без покупки | deadline_as_upsell |
 | S20.23I | Вернулся к предложению | auto_order_on_return |
+
+## S20.25 Отказ из-за цены (А–Ж) — подтип 20.23
+
+Код: `price_refuse_policy.py` → тот же offer gate. Не отдельная ветка продажи.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.25A | Слишком дорого | price_reoffer |
+| S20.25B | Цена неоправданна | argue_expensive |
+| S20.25C | Неожиданная доплата | surprise_upsell |
+| S20.25D | Просьба скидки | invented_discount |
+| S20.25E | Есть дешевле? | hidden_alt_limits |
+| S20.25F | Дорого → сам | hold_for_pay |
+| S20.25G | Не предлагайте | cross_channel_offer |

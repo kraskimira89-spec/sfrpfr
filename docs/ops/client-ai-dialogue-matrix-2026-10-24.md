@@ -85,8 +85,9 @@
 | G21 | S20.21A–I,K агрессия/жалоба | tone vs content / fake refund | `complaint_aggression_policy` |
 | G22 | S20.22A–I,K,L ожидания vs объём | pay≠SFR / upload≠submit | `expectation_alignment_policy` |
 | G23 | S20.23A–I отказ от next-оплаты | reoffer / block deliverables | `refuse_next_stage_policy` |
+| G25 | S20.25A–G отказ из-за цены | subtype of G23 / no invented discount | `price_refuse_policy` |
 
-Запрет: «завышенные ожидания»; подгонка стажа/суммы; гарантия СФР; давление после отказа от оплаты.
+Запрет: давление после отказа; окупаемость прибавкой; выдуманные скидки; профиль «неплатёжеспособный».
 
 ## Приоритет ближайших правок
 
