@@ -368,3 +368,164 @@ def test_process_posts_after_mark(monkeypatch: Any) -> None:
     repo.mark_fiscal_reconcile_post_started.assert_called_once()
     assert client.create_receipt.call_args.kwargs["idempotence_key"].endswith(":1")
     assert client.create_receipt.call_args.kwargs["body_snapshot"] is not None
+
+
+def test_tick_ocr_row_never_reaches_lease_fetch_create_or_alert() -> None:
+    """Реальный list_* (CaseRepository) → OCR отфильтрован до process/lease/fetch."""
+    from datetime import UTC, datetime, timedelta
+
+    from sfrfr.db.case_repository import CaseRepository
+
+    now = datetime.now(UTC)
+    yk_id = "326d8f33-000f-5001-9000-14edf85c8cb0"
+    paid_ok = (now - timedelta(hours=3)).isoformat()
+    paid_stale = (now - timedelta(hours=60)).isoformat()
+
+    class _Chain:
+        def __init__(self, rows: list[dict[str, Any]]) -> None:
+            self._rows = rows
+            self._not = self
+
+        def table(self, _n: str) -> _Chain:
+            return self
+
+        def select(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        def eq(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        @property
+        def not_(self) -> _Chain:
+            return self
+
+        def is_(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        def or_(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        def order(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        def limit(self, *_a: object, **_k: object) -> _Chain:
+            return self
+
+        def execute(self) -> Any:
+            from types import SimpleNamespace
+
+            return SimpleNamespace(data=list(self._rows))
+
+    reconcile_rows = [
+        {
+            "id": "yk-pay",
+            "status": "succeeded",
+            "provider": "yookassa",
+            "provider_payment_id": yk_id,
+            "fiscal_status": None,
+            "paid_at": paid_ok,
+            "created_at": paid_ok,
+            "reconcile_alerted_at": None,
+            "reconcile_attempts": 0,
+            "reconcile_pre_error_streak": 0,
+            "reconcile_last_outcome": None,
+        },
+        {
+            "id": "ocr-pay",
+            "status": "succeeded",
+            "provider": "receipt_ocr",
+            "provider_payment_id": "receipt:synthetic-doc",
+            "fiscal_status": None,
+            "paid_at": paid_ok,
+            "created_at": paid_ok,
+            "reconcile_alerted_at": None,
+            "reconcile_attempts": 0,
+            "reconcile_pre_error_streak": 2,
+            "reconcile_last_outcome": "error_before_post",
+        },
+    ]
+    stale_rows = [
+        {**reconcile_rows[0], "id": "yk-stale", "paid_at": paid_stale},
+        {**reconcile_rows[1], "id": "ocr-stale", "paid_at": paid_stale},
+    ]
+
+    class _HybridRepo:
+        def __init__(self) -> None:
+            self._case = CaseRepository.__new__(CaseRepository)
+            self.leases: list[str] = []
+            self.field_updates: list[tuple[str, dict[str, Any]]] = []
+            self.claims: list[str] = []
+            self._phase = "reconcile"
+
+        def list_succeeded_payments_for_reconcile(self, **kw: Any) -> list[dict[str, Any]]:
+            self._case.client = _Chain(reconcile_rows)
+            return self._case.list_succeeded_payments_for_reconcile(**kw)
+
+        def list_payments_for_stale_fiscal_alert(self, **kw: Any) -> list[dict[str, Any]]:
+            self._case.client = _Chain(stale_rows)
+            return self._case.list_payments_for_stale_fiscal_alert(**kw)
+
+        def try_fiscal_reconcile_lease(
+            self, payment_id: str, **_kw: Any
+        ) -> dict[str, Any] | None:
+            self.leases.append(payment_id)
+            return {
+                "id": payment_id,
+                "provider_payment_id": yk_id,
+                "reconcile_attempts": 0,
+                "reconcile_pre_error_streak": 0,
+                "reconcile_last_outcome": None,
+            }
+
+        def update_payment_reconcile_fields(
+            self, payment_id: str, fields: dict[str, Any]
+        ) -> None:
+            self.field_updates.append((payment_id, dict(fields)))
+
+        def claim_fiscal_reconcile_alert(self, payment_id: str, **_k: Any) -> Any:
+            self.claims.append(payment_id)
+            return None
+
+        def fiscal_reconcile_ttl_alive(self, *_a: Any, **_k: Any) -> bool:
+            return False
+
+        def mark_fiscal_reconcile_post_started(self, *_a: Any, **_k: Any) -> Any:
+            raise AssertionError("OCR/tick must not mark post started in this fixture")
+
+    repo = _HybridRepo()
+    client = MagicMock()
+    client.fetch_payment.return_value = {
+        "ok": True,
+        "payment": {
+            "id": yk_id,
+            "status": "succeeded",
+            "receipt_registration": "pending",
+            "amount": {"value": "3.00"},
+        },
+    }
+    alerts: list[Any] = []
+
+    def _alert(*_a: Any, **_k: Any) -> bool:
+        alerts.append(True)
+        return False
+
+    stats = run_fiscal_reconcile_tick(
+        repo,  # type: ignore[arg-type]
+        enabled=True,
+        dry_run=False,
+        alert_since_raw="2026-10-01T00:00:00Z",
+        client=client,
+        alert_send=_alert,
+    )
+    assert stats["candidates"] == 1
+    assert [r["payment_id"] for r in stats["results"]] == ["yk-pay"]
+    assert repo.leases == ["yk-pay"]
+    assert "ocr-pay" not in repo.leases
+    client.fetch_payment.assert_called_once_with(yk_id)
+    client.list_receipts.assert_not_called()
+    client.create_receipt.assert_not_called()
+    assert all(pid != "ocr-pay" for pid, _ in repo.field_updates)
+    assert "ocr-stale" not in repo.claims
+    assert "ocr-pay" not in repo.claims
+    # stale: только yookassa (OCR отфильтрован); claim может не сработать — главное нет OCR
+    assert stats.get("stale_alerts", 0) == 1

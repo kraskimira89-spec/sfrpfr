@@ -10,6 +10,7 @@ from sfrfr.services.fiscal_reconcile import (
     fiscal_status_needs_reconcile,
     payment_in_reconcile_window,
     payment_needs_stale_alert,
+    provider_payment_passes_ocr_exclusions,
 )
 
 NOW = datetime(2026, 10, 23, 16, 0, 0, tzinfo=UTC)
@@ -77,6 +78,122 @@ def test_filter_candidates_drops_registered_and_pending_status() -> None:
     ]
     got = filter_reconcile_candidates(rows, now=NOW)
     assert [r["id"] for r in got] == ["ok"]
+
+
+def test_exclude_receipt_ocr_provider_even_without_receipt_prefix() -> None:
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {
+                "provider": "receipt_ocr",
+                "provider_payment_id": "326d8f33-000f-5001-9000-aaaaaaaaaaaa",
+            }
+        )
+        is False
+    )
+
+
+def test_exclude_provider_receipt_alias() -> None:
+    """Защитный алиас: в коде пишет только receipt_ocr, но receipt тоже режем."""
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {
+                "provider": "receipt",
+                "provider_payment_id": "326d8f33-000f-5001-9000-cccccccccccc",
+            }
+        )
+        is False
+    )
+
+
+def test_exclude_receipt_prefix_regardless_of_provider() -> None:
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {
+                "provider": "yookassa",
+                "provider_payment_id": "receipt:synthetic-doc-or-order",
+            }
+        )
+        is False
+    )
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "", "provider_payment_id": "Receipt:ABC"}
+        )
+        is False
+    )
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "other", "provider_payment_id": "receipt:x"}
+        )
+        is False
+    )
+
+
+def test_exclude_empty_provider_payment_id() -> None:
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "yookassa", "provider_payment_id": ""}
+        )
+        is False
+    )
+    assert (
+        provider_payment_passes_ocr_exclusions(
+            {"provider": "yookassa", "provider_payment_id": "   "}
+        )
+        is False
+    )
+
+
+def test_yookassa_payment_remains_reconcile_and_stale_candidate() -> None:
+    yk = _row(
+        id="yk-ok",
+        provider="yookassa",
+        provider_payment_id="326d8f33-000f-5001-9000-14edf85c8cb0",
+    )
+    assert provider_payment_passes_ocr_exclusions(yk) is True
+    assert [r["id"] for r in filter_reconcile_candidates([yk], now=NOW)] == ["yk-ok"]
+    stale = dict(yk)
+    stale["id"] = "yk-stale"
+    stale["paid_at"] = (NOW - timedelta(hours=60)).isoformat()
+    got_stale = filter_stale_alert_candidates(
+        [stale], now=NOW, alert_since=ALERT_SINCE
+    )
+    assert [r["id"] for r in got_stale] == ["yk-stale"]
+
+
+def test_filter_reconcile_and_stale_drop_ocr_rows() -> None:
+    yk = _row(id="yk", provider="yookassa")
+    ocr_pref = _row(
+        id="ocr-pref",
+        provider="yookassa",
+        provider_payment_id="receipt:doc-or-order-uuid",
+    )
+    ocr_prov = _row(
+        id="ocr-prov",
+        provider="receipt_ocr",
+        provider_payment_id="326d8f33-000f-5001-9000-bbbbbbbbbbbb",
+    )
+    assert [r["id"] for r in filter_reconcile_candidates(
+        [yk, ocr_pref, ocr_prov], now=NOW
+    )] == ["yk"]
+
+    def _stale(row: dict[str, object], sid: str) -> dict[str, object]:
+        out = dict(row)
+        out["id"] = sid
+        out["paid_at"] = (NOW - timedelta(hours=60)).isoformat()
+        return out
+
+    stale_rows = [
+        _stale(yk, "yk-s"),
+        _stale(ocr_pref, "ocr-pref-s"),
+        _stale(ocr_prov, "ocr-prov-s"),
+    ]
+    assert [
+        r["id"]
+        for r in filter_stale_alert_candidates(
+            stale_rows, now=NOW, alert_since=ALERT_SINCE
+        )
+    ] == ["yk-s"]
 
 
 def test_stale_alert_needs_older_than_48h_and_cutover() -> None:
@@ -212,6 +329,59 @@ def test_repo_list_succeeded_payments_for_reconcile_filters_null_fiscal() -> Non
     assert ("paid_at", False, True) in chain.orders
     assert ("created_at", False, None) in chain.orders
     assert "reconcile_post_payload" not in str(chain.selects[0])
+
+
+def test_repo_list_reconcile_selects_provider_and_drops_ocr_before_return() -> None:
+    """Реальная выборка: select несёт provider; фильтр OCR до lease/fetch."""
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.fiscal_reconcile import RECONCILE_PAYMENT_COLUMNS
+
+    assert "provider" in RECONCILE_PAYMENT_COLUMNS.split(", ")
+    assert "provider_payment_id" in RECONCILE_PAYMENT_COLUMNS.split(", ")
+
+    rows = [
+        _row(id="yk", provider="yookassa"),
+        _row(
+            id="ocr",
+            provider="receipt_ocr",
+            provider_payment_id="receipt:synthetic-from-confirm",
+        ),
+    ]
+    repo = CaseRepository.__new__(CaseRepository)
+    chain = _ChainClient(rows)
+    repo.client = chain
+    got = repo.list_succeeded_payments_for_reconcile(now=NOW)
+    assert chain.selects == [RECONCILE_PAYMENT_COLUMNS]
+    assert [r["id"] for r in got] == ["yk"]
+    assert all(r.get("provider") == "yookassa" for r in got)
+
+
+def test_repo_list_stale_drops_ocr_and_keeps_yookassa() -> None:
+    from sfrfr.db.case_repository import CaseRepository
+    from sfrfr.services.fiscal_reconcile import RECONCILE_PAYMENT_COLUMNS
+
+    paid_old = (NOW - timedelta(hours=60)).isoformat()
+    rows = [
+        _row(
+            id="yk-stale",
+            provider="yookassa",
+            paid_at=paid_old,
+        ),
+        _row(
+            id="ocr-stale",
+            provider="receipt_ocr",
+            provider_payment_id="receipt:stale-synth",
+            paid_at=paid_old,
+        ),
+    ]
+    repo = CaseRepository.__new__(CaseRepository)
+    chain = _ChainClient(rows)
+    repo.client = chain
+    got = repo.list_payments_for_stale_fiscal_alert(
+        alert_since=ALERT_SINCE, now=NOW
+    )
+    assert chain.selects == [RECONCILE_PAYMENT_COLUMNS]
+    assert [r["id"] for r in got] == ["yk-stale"]
 
 
 def test_repo_list_stale_alert_requires_alert_since() -> None:
