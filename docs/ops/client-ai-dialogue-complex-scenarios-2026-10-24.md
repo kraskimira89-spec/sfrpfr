@@ -243,3 +243,21 @@
 | S20.21H | Повтор каналов | duplicate_loss |
 | S20.21I | Ошибка бота + оплата | bot_promise_claim |
 | S20.21K | «Ничего не отправляли» | sent_vs_received |
+
+## S20.22 Ожидания выше объёма (А–И, К, Л)
+
+Код: `expectation_alignment_policy.py`. Цель клиента ≠ гарантия СФР.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.22A | Гарантированная прибавка | period_as_raise |
+| S20.22B | Расчёт под сумму | fit_to_amount |
+| S20.22C | Оплата = решение СФР | pay_buys_sfr |
+| S20.22D | «Почему не подали» | upload_as_submit |
+| S20.22E | Мгновенное решение | sla_mixed |
+| S20.22F | Scope creep | auto_scope |
+| S20.22G | Как соседке | neighbor_promise |
+| S20.22H | Прокуратура = авто | appeal_auto |
+| S20.22I | Все годы без документов | words_as_proof |
+| S20.22K | Ответ в любое время | fake_sla |
+| S20.22L | Обещание сайта | ambiguous_promise |
