@@ -35,12 +35,16 @@ CRITICAL_CLAIM_MARKERS: Final[tuple[str, ...]] = (
 
 @dataclass(frozen=True)
 class TrustedOpResult:
-    """Результат реальной операции — не флаг модели."""
+    """Результат реальной операции — не флаг модели.
+
+    ok=True/False — подтверждённый исход; ok=None — исход неизвестен
+    (не равен подтверждённому неуспеху; меру применять в тексте нельзя).
+    """
 
     case_id: str
     operation_id: str
     op_kind: str
-    ok: bool
+    ok: bool | None
     source: str
     version: str | None = None
     detail: str | None = None
@@ -48,7 +52,25 @@ class TrustedOpResult:
     def trusted_ok_for(self, *, case_id: str) -> bool:
         if str(self.case_id) != str(case_id):
             return False
-        return persist_flag_is_trusted(source=self.source, value=self.ok)
+        if self.ok is None:
+            return False
+        return persist_flag_is_trusted(source=self.source, value=bool(self.ok))
+
+    def outcome_kind(self, *, case_id: str) -> str:
+        """success | confirmed_failure | unknown | foreign | not_attempted."""
+        from sfrfr.services.deception_client_reply_policy import (
+            PERSIST_FACT_ALLOWED_SOURCES,
+        )
+
+        if str(self.case_id) != str(case_id):
+            return "foreign"
+        if self.ok is None:
+            return "unknown"
+        if self.source not in PERSIST_FACT_ALLOWED_SOURCES:
+            return "unknown"
+        if self.ok is True:
+            return "success"
+        return "confirmed_failure"
 
 
 @dataclass
