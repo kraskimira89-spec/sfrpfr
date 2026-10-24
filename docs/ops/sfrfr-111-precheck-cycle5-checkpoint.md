@@ -8,6 +8,7 @@
 
 | Поле | Значение |
 |---|---|
+| Канон HEAD (этот checkpoint) | `b728d0ce01b9e38ac537563f734b9cb6a1e7f320` |
 | Код order+sandbox | `2c5c0fd2` (+ mypy `e03ea58a`) |
 | Стенд | `tools/precheck_job_pg`: PG `:55432`, PostgREST `:55433` |
 | Credentials | `sfrfr` / БД `sfrfr_precheck` / JWT secret local-only |
@@ -53,8 +54,14 @@
 
 ## 5. Тестовый реестр (разнести с CI)
 
-Сырые прогоны — отдельные файлы в `docs/ops/logs/`.  
-CI GitHub — отдельный прогон на head (не смешивать с pytest-счётчиком).
+| Поле | Значение |
+|---|---|
+| SHA | `b728d0ce01b9e38ac537563f734b9cb6a1e7f320` |
+| Команда | unit precheck* + isolation + job_pg + **job_postgrest** |
+| Итог | **84 passed**, exit 0 |
+| Сырой лог | `docs/ops/logs/sfrfr-111-cycle5-postgrest-pytest-20261024-213805-b728d0ce.txt` |
+
+CI GitHub — **отдельный** прогон на том же head; не смешивать с «84 passed».
 
 ## 6. Трекер
 
