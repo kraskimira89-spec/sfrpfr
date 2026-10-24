@@ -474,9 +474,10 @@ def test_null_adapter_no_error_admission_falls_through_to_llm_path(
     )
     assert action == "max_llm_reply"
     assert action != ACTION_E05_F04
-    # Фактическое поведение: без TrustedErrorContext invented phrase может уйти
-    # (prompt-only защита в CLIENT_CHAT_SYSTEM — не handler-enforced на этом срезе).
-    assert "исправлено" in text.casefold()
+    # После постфильтра: invented «исправлено» не уходит (см. max_llm_action_claim_filter).
+    assert "всё исправлено" not in text.casefold()
+    assert "результат ограничен" not in text.casefold()
+    assert "не буду сообщать, что исправление завершено" in text.casefold()
     assert try_policy_reply_for_case(
         case_id="case-null",
         adapter=NullTrustedErrorContextAdapter(),
