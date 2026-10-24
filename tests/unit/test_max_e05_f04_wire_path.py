@@ -9,6 +9,9 @@ import pytest
 
 from sfrfr.services.max_e05_f04_path import (
     ACTION_E05_F04,
+    OUTCOME_DELIVERY_UNCONFIRMED,
+    OUTCOME_INSUFFICIENT_FACTS,
+    OUTCOME_POLICY_PREPARED,
     deliver_policy_reply_via_outbox,
     try_policy_reply_for_case,
 )
@@ -407,3 +410,114 @@ def test_wire_boundary_not_full_webhook_e2e() -> None:
         "маршрутизации; эти участки этим тестом не покрыты."
     )
     assert "аутентификации" in note
+
+
+def test_null_adapter_no_error_admission_falls_through_to_llm_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Null → нет перехвата; LLM-путь без handler-gate на «исправлено»."""
+    from sfrfr.integrations.max.llm_chat import reply_to_free_text
+
+    set_trusted_error_context_adapter_for_tests(NullTrustedErrorContextAdapter())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.llm_chat.llm_chat_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda _h: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+
+    class _FakeLLM:
+        available = True
+        model = "fake"
+
+        def chat(self, *_a: Any, **_k: Any) -> str:
+            return "Всё исправлено, результат ограничен."
+
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.llm_chat.LLMClient.for_analyze",
+        lambda **_k: _FakeLLM(),
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.build_client_context_pack",
+        lambda **_k: {},
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.build_client_llm_user_prompt",
+        lambda **_k: "u",
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.position_throttle.apply_position_policy",
+        lambda text, **_k: text,
+    )
+
+    class _Intake:
+        def step(self) -> str:
+            return "whom"
+
+        llm_turn_count = 0
+        max_user_id = "42"
+
+    text, _atts, action = reply_to_free_text(
+        user_text="что с ошибкой?",
+        intake=_Intake(),
+        case_id="case-null",
+        work={},
+    )
+    assert action == "max_llm_reply"
+    assert action != ACTION_E05_F04
+    # Фактическое поведение: без TrustedErrorContext invented phrase может уйти
+    # (prompt-only защита в CLIENT_CHAT_SYSTEM — не handler-enforced на этом срезе).
+    assert "исправлено" in text.casefold()
+    assert try_policy_reply_for_case(
+        case_id="case-null",
+        adapter=NullTrustedErrorContextAdapter(),
+    ) is None
+
+
+def test_insufficient_facts_outcome_distinct_from_no_context() -> None:
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(
+        TrustedErrorContext(
+            case_id="case-a",
+            operation_id="op-1",
+            error_confirmed=False,
+            authorized_for_case_id="case-a",
+        )
+    )
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    assert reply.outcome == OUTCOME_INSUFFICIENT_FACTS
+    assert try_policy_reply_for_case(
+        case_id="case-a",
+        adapter=NullTrustedErrorContextAdapter(),
+    ) is None
+
+
+def test_enqueue_fail_keeps_same_policy_text_no_contradiction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(_ctx_f04())
+    reply = try_policy_reply_for_case(case_id="case-a", adapter=adapter)
+    assert reply is not None
+    assert reply.outcome == OUTCOME_POLICY_PREPARED
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **_k: False,
+    )
+    outcome = deliver_policy_reply_via_outbox(
+        case_id="case-a",
+        max_user_id="42",
+        reply=reply,
+        process_now=True,
+    )
+    assert outcome["caller_outcome"] == OUTCOME_DELIVERY_UNCONFIRMED
+    # Вызывающий (handler) обязан слать тот же reply.text, не «фактов недостаточно».
+    assert "подтверждена ошибка" in reply.text.casefold()
+    assert "данных пока недостаточно, чтобы подтвердить ошибку" not in reply.text.casefold()

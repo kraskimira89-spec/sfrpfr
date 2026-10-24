@@ -26,6 +26,12 @@ logger = logging.getLogger(__name__)
 
 ACTION_E05_F04 = "max_e05_f04_policy"
 
+# Исходы для вызывающего кода — не смешивать.
+OUTCOME_NO_TRUSTED_CONTEXT = "no_trusted_context"  # не мой сценарий / Null
+OUTCOME_INSUFFICIENT_FACTS = "insufficient_facts"  # контекст есть, ошибка не подтверждена
+OUTCOME_POLICY_PREPARED = "policy_prepared"  # ответ сформирован политикой
+OUTCOME_DELIVERY_UNCONFIRMED = "delivery_unconfirmed"  # prepared, транспорт/persist не подтверждён
+
 
 @dataclass
 class PolicyReply:
@@ -34,6 +40,7 @@ class PolicyReply:
     action: str = ACTION_E05_F04
     package: OutboundPackage | None = None
     used_fallback: bool = False
+    outcome: str = OUTCOME_POLICY_PREPARED
 
 
 def _strip_incompatible_attachments(
@@ -83,6 +90,7 @@ def try_policy_reply_for_case(
             text=text,
             attachments=_strip_incompatible_attachments(prior_attachments, fallback=True),
             used_fallback=True,
+            outcome=OUTCOME_INSUFFICIENT_FACTS,
         )
 
     desc = (ctx.error_description or "").strip() or "указанном фрагменте"
@@ -132,6 +140,7 @@ def try_policy_reply_for_case(
         action=ACTION_E05_F04,
         package=pkg,
         used_fallback=bool(pkg.fallback or not limit_ok),
+        outcome=OUTCOME_POLICY_PREPARED,
     )
 
 
@@ -186,9 +195,11 @@ def deliver_policy_reply_via_outbox(
     }
     if not ok:
         result["reason"] = "enqueue_failed"
+        result["caller_outcome"] = OUTCOME_DELIVERY_UNCONFIRMED
         return result
     if not process_now:
         result["reason"] = "enqueued_pending"
+        result["caller_outcome"] = OUTCOME_DELIVERY_UNCONFIRMED
         return result
 
     # Изолированные тесты подменяют process_pending_outbox / bot.
@@ -205,10 +216,14 @@ def deliver_policy_reply_via_outbox(
             # Mock/direct path не пишет status=sent в БД — не утверждать persist.
             result["stages"]["outbox_marked_sent"] = False
             result["reason"] = "mock_or_direct_after_enqueue"
+            result["caller_outcome"] = (
+                OUTCOME_POLICY_PREPARED if accepted else OUTCOME_DELIVERY_UNCONFIRMED
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("e05_f04 transport after enqueue failed: %s", exc)
             result["reason"] = "transport_failed"
             result["sent"] = False
+            result["caller_outcome"] = OUTCOME_DELIVERY_UNCONFIRMED
         return result
 
     sent_n = process_pending_outbox(limit=1, message_id=message_id)
@@ -216,6 +231,9 @@ def deliver_policy_reply_via_outbox(
     result["stages"]["transport_accepted"] = sent_n > 0
     result["stages"]["outbox_marked_sent"] = sent_n > 0
     result["reason"] = "processed_outbox" if sent_n else "enqueued_not_sent"
+    result["caller_outcome"] = (
+        OUTCOME_POLICY_PREPARED if sent_n > 0 else OUTCOME_DELIVERY_UNCONFIRMED
+    )
     return result
 
 

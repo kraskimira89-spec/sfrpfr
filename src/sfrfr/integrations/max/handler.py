@@ -3406,20 +3406,19 @@ def _handle_client_free_text(
                 ),
                 process_now=True,
             )
+            # Исходы различимы: prepared≠enqueued≠sent≠read.
+            # Сбой enqueue: один раз тот же policy-текст напрямую — без
+            # противоречащего «фактов недостаточно», если ошибка уже подтверждена.
             if not outcome.get("enqueued"):
-                # Сбой сохранения/очереди — не утверждаем успех; безопасный текст.
                 _reply(
                     bot,
                     user_id=user_id,
                     chat_id=chat_id,
-                    text=(
-                        "Данных для точного подтверждения пока недостаточно. "
-                        "Я не буду сообщать, что исправление завершено."
-                    ),
+                    text=reply,
                     attachments=[],
                     case_id=case_id,
                 )
-            # enqueued: доставка через outbox/worker (или process_now); без дубля _reply
+            # enqueued (sent или pending): без второго _reply — не дублируем
         else:
             _reply(
                 bot,
