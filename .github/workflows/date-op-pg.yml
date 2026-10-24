@@ -1,0 +1,58 @@
+# Изолированный PostgreSQL для CAS date-op / snapshot (#268).
+# Не деплоит и не трогает prod. Merge #268 по-прежнему отдельным разрешением.
+
+name: date-op-pg
+
+on:
+  pull_request:
+    paths:
+      - "src/sfrfr/db/period_date_store.py"
+      - "src/sfrfr/services/period_date_correction.py"
+      - "src/sfrfr/db/case_repository.py"
+      - "tests/integration/test_period_date_correction_pg.py"
+      - "tests/unit/test_period_date_correction.py"
+      - "tools/date_op_pg/**"
+      - ".github/workflows/date-op-pg.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/sfrfr/db/period_date_store.py"
+      - "src/sfrfr/services/period_date_correction.py"
+      - "tools/date_op_pg/**"
+      - ".github/workflows/date-op-pg.yml"
+  workflow_dispatch:
+
+jobs:
+  pg-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sfrfr_date_op_test
+          POSTGRES_USER: sfrfr
+          POSTGRES_PASSWORD: sfrfr_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sfrfr -d sfrfr_date_op_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://sfrfr:sfrfr_test@127.0.0.1:5432/sfrfr_date_op_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+      - name: Bootstrap minimal schema
+        run: python tools/date_op_pg/bootstrap_schema.py
+      - name: Unit date-op (InMemory)
+        run: pytest tests/unit/test_period_date_correction.py -q
+      - name: Integration date-op (psycopg)
+        run: pytest tests/integration/test_period_date_correction_pg.py -q

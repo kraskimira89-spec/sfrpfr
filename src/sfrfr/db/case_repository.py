@@ -161,6 +161,15 @@ class CaseRepository:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
         return case
 
+    def require_case_exact(self, principal: Principal, case_id: str) -> dict[str, Any]:
+        """Точное совпадение case_id без staff-remap (для write-операций даты)."""
+        case = self._case(case_id)
+        if case is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        if not self.can_access(principal, case):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        return case
+
     def list_cases(self, principal: Principal) -> list[dict[str, Any]]:
         query = self.client.table("cases").select(
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "
@@ -741,36 +750,33 @@ class CaseRepository:
         notes = row.get("analysis_notes")
         return str(notes) if notes else None
 
-    def save_pipeline_snapshot(self, case_id: str, snapshot: dict[str, Any]) -> dict[str, Any]:
-        """Upsert результатов пайплайна (в т.ч. analysis_notes) в case_pipeline_data."""
-        payload: dict[str, Any] = {
-            "case_id": case_id,
-            "ocr_texts": snapshot.get("ocr_texts") if snapshot.get("ocr_texts") is not None else [],
-            "classifications": snapshot.get("classifications")
-            if snapshot.get("classifications") is not None
-            else [],
-            "ils_periods": snapshot.get("ils_periods")
-            if snapshot.get("ils_periods") is not None
-            else [],
-            "labor_periods": snapshot.get("labor_periods")
-            if snapshot.get("labor_periods") is not None
-            else [],
-            "findings": snapshot.get("findings") if snapshot.get("findings") is not None else [],
-            "analysis_notes": snapshot.get("analysis_notes"),
-            "draft": snapshot.get("draft"),
-            "error": snapshot.get("error"),
-        }
-        response = (
-            self.client.table("case_pipeline_data")
-            .upsert(payload, on_conflict="case_id")
-            .execute()
+    def save_pipeline_snapshot(
+        self,
+        case_id: str,
+        snapshot: dict[str, Any],
+        *,
+        expected_version: str | None = None,
+    ) -> dict[str, Any]:
+        """Сохранить snapshot пайплайна атомарно (psycopg FOR UPDATE + CAS).
+
+        Не использовать связку PostgREST get+upsert: она не защищает от гонки с
+        date-op. Staff-исправления дат сохраняются merge'ем по period_id.
+        Отсутствие ключа periods ≠ запись [].
+        """
+        from sfrfr.db.period_date_store import PostgresPeriodDateStore
+
+        result = PostgresPeriodDateStore().save_pipeline_snapshot(
+            case_id, snapshot, expected_version=expected_version
         )
-        data = getattr(response, "data", None)
-        if isinstance(data, list) and data:
-            return data[0]
-        if isinstance(data, dict):
-            return data
-        return payload
+        if not result.ok:
+            raise RuntimeError(
+                f"pipeline snapshot rejected: {result.outcome}:{result.detail or ''}"
+            )
+        row = self.get_pipeline_row(case_id) or {}
+        row["case_id"] = case_id
+        if result.version_after:
+            row["pipeline_version"] = result.version_after
+        return row
 
     @staticmethod
     def snapshot_from_case_context(ctx: Any) -> dict[str, Any]:
