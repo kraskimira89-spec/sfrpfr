@@ -3393,8 +3393,10 @@ def _handle_client_free_text(
             ACTION_E05_F04,
             PolicyReply,
             deliver_policy_reply_via_outbox,
+            handle_result_detail_from_delivery,
         )
 
+        delivery_detail = ""
         if action == ACTION_E05_F04 and case_id and user_id:
             outcome = deliver_policy_reply_via_outbox(
                 case_id=str(case_id),
@@ -3406,9 +3408,12 @@ def _handle_client_free_text(
                 ),
                 process_now=True,
             )
+            delivery_detail = handle_result_detail_from_delivery(outcome)
             # Исходы различимы: prepared≠enqueued≠sent≠read.
             # Сбой enqueue: один раз тот же policy-текст напрямую — без
             # противоречащего «фактов недостаточно», если ошибка уже подтверждена.
+            # enqueued=True: второго _reply нет (даже если sent=False) — не дублируем
+            # с outbox worker; исход фиксируем в detail.
             if not outcome.get("enqueued"):
                 _reply(
                     bot,
@@ -3418,7 +3423,6 @@ def _handle_client_free_text(
                     attachments=[],
                     case_id=case_id,
                 )
-            # enqueued (sent или pending): без второго _reply — не дублируем
         else:
             _reply(
                 bot,
@@ -3428,6 +3432,13 @@ def _handle_client_free_text(
                 attachments=attachments,
                 case_id=case_id,
             )
+        return MaxHandleResult(
+            ok=True,
+            action=action,
+            case_id=case_id,
+            reply=reply or None,
+            detail=delivery_detail,
+        )
     return MaxHandleResult(
         ok=True,
         action=action,

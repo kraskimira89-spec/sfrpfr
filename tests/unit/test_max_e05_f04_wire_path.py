@@ -12,7 +12,10 @@ from sfrfr.services.max_e05_f04_path import (
     OUTCOME_DELIVERY_UNCONFIRMED,
     OUTCOME_INSUFFICIENT_FACTS,
     OUTCOME_POLICY_PREPARED,
+    PolicyReply,
+    coerce_policy_reply,
     deliver_policy_reply_via_outbox,
+    handle_result_detail_from_delivery,
     try_policy_reply_for_case,
 )
 from sfrfr.services.max_sfrfr110_bridge import TrustedOpResult
@@ -499,6 +502,32 @@ def test_insufficient_facts_outcome_distinct_from_no_context() -> None:
     ) is None
 
 
+def test_enqueue_guaranteed_fail_distinct_from_unknown_after_accept() -> None:
+    """Отказ до записи ≠ UNKNOWN_AFTER_ACCEPT после возможного accept."""
+    from sfrfr.services.max_outbox_guards import (
+        SendPersistOutcome,
+        classify_send_persist_outcome,
+        may_blind_retry_after_unknown_accept,
+    )
+
+    # Гарантированный отказ до/на send (не «запись могла состояться»).
+    pre_write_fail = classify_send_persist_outcome(
+        transport_accepted=False,
+        outbox_status_saved=False,
+        case_messages_updated=False,
+    )
+    assert pre_write_fail == SendPersistOutcome.FAILED_BEFORE_OR_AT_SEND
+    assert pre_write_fail != SendPersistOutcome.UNKNOWN_AFTER_ACCEPT
+
+    unknown = classify_send_persist_outcome(
+        transport_accepted=True,
+        outbox_status_saved=False,
+        case_messages_updated=False,
+    )
+    assert unknown == SendPersistOutcome.UNKNOWN_AFTER_ACCEPT
+    assert may_blind_retry_after_unknown_accept() is False
+
+
 def test_enqueue_fail_keeps_same_policy_text_no_contradiction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -521,3 +550,110 @@ def test_enqueue_fail_keeps_same_policy_text_no_contradiction(
     # Вызывающий (handler) обязан слать тот же reply.text, не «фактов недостаточно».
     assert "подтверждена ошибка" in reply.text.casefold()
     assert "данных пока недостаточно, чтобы подтвердить ошибку" not in reply.text.casefold()
+    # MaxHandleResult.detail должен различать исход доставки.
+    assert (
+        handle_result_detail_from_delivery(outcome) == OUTCOME_DELIVERY_UNCONFIRMED
+    )
+
+
+def test_coerce_policy_reply_rejects_empty_text() -> None:
+    assert coerce_policy_reply(PolicyReply(text="")) is None
+    assert coerce_policy_reply(PolicyReply(text="   ")) is None
+    assert coerce_policy_reply(None) is None
+
+
+def test_coerce_policy_reply_normalizes_attachments_and_action() -> None:
+    broken = PolicyReply(text="  ok  ", action="")
+    broken.attachments = None  # type: ignore[assignment]
+    fixed = coerce_policy_reply(broken)
+    assert fixed is not None
+    assert fixed.text == "ok"
+    assert fixed.attachments == []
+    assert fixed.action == ACTION_E05_F04
+
+    mixed = PolicyReply(
+        text="ok",
+        attachments=[{"type": "image"}, "bad", 1],  # type: ignore[list-item]
+        action="",
+    )
+    fixed2 = coerce_policy_reply(mixed)
+    assert fixed2 is not None
+    assert fixed2.attachments == [{"type": "image"}]
+
+
+def test_handle_result_detail_prefers_caller_outcome() -> None:
+    assert (
+        handle_result_detail_from_delivery(
+            {"caller_outcome": OUTCOME_POLICY_PREPARED, "reason": "processed_outbox"}
+        )
+        == OUTCOME_POLICY_PREPARED
+    )
+    assert (
+        handle_result_detail_from_delivery({"reason": "enqueue_failed"})
+        == "enqueue_failed"
+    )
+    assert handle_result_detail_from_delivery({}) == ""
+
+
+def test_reply_to_free_text_skips_empty_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Пустой policy.text не перехватывает LLM-путь."""
+    from sfrfr.integrations.max.llm_chat import reply_to_free_text
+
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.llm_chat.llm_chat_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda _h: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.max_e05_f04_path.try_policy_reply_for_case",
+        lambda **_k: PolicyReply(text=""),
+    )
+
+    class _FakeLLM:
+        available = True
+        model = "fake"
+
+        def chat(self, *_a: Any, **_k: Any) -> str:
+            return "обычный ответ"
+
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.llm_chat.LLMClient.for_analyze",
+        lambda **_k: _FakeLLM(),
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.build_client_context_pack",
+        lambda **_k: {},
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.build_client_llm_user_prompt",
+        lambda **_k: "u",
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.position_throttle.apply_position_policy",
+        lambda text, **_k: text,
+    )
+
+    class _Intake:
+        def step(self) -> str:
+            return "whom"
+
+        llm_turn_count = 0
+        max_user_id = "42"
+
+    text, _atts, action = reply_to_free_text(
+        user_text="вопрос",
+        intake=_Intake(),
+        case_id="case-empty-policy",
+        work={},
+    )
+    assert action != ACTION_E05_F04
+    assert "обычный" in text.casefold()
