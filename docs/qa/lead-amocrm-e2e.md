@@ -1,6 +1,9 @@
-# QA: лид WP → API → amoCRM (ТЗ-10 P0 / ТЗ-12)
+# QA: лид WP → API → amoCRM (ТЗ-10 P0 / ТЗ-12) — **РЕЗЕРВ**
 
-Цель: заявка с витрины создаёт дело в SFRFR и **обязательно** уходит в **amoCRM** (минимум контактов, без файлов).
+> **Канон с 2026-08-29:** amo выключена. Рабочий E2E лида — [`lead-staff-e2e.md`](./lead-staff-e2e.md) (SFRFR-101).
+> Этот файл — только если снова включат `AMOCRM_ENABLED=1`.
+
+Цель (при включённой amo): заявка с витрины создаёт дело в SFRFR и уходит в **amoCRM** (минимум контактов, без файлов).
 
 ## Цепочка
 
@@ -13,7 +16,7 @@ WP форма (#zayavka / WPForms) + канал (MAX|кабинет) + reCAPTCHA
     → thank-you + ссылки MAX / кабинет
 ```
 
-Код: `src/sfrfr/api/routes/public_leads.py`, `scripts/wp-mu-plugins/sfrfr-recaptcha-lead.php`.  
+Код: `src/sfrfr/api/routes/public_leads.py`, `scripts/wp-mu-plugins/sfrfr-recaptcha-lead.php`.
 Настройка: [docs/ops/amocrm-setup.md](../ops/amocrm-setup.md).
 
 ## Чеклист
