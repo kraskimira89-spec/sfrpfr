@@ -29,7 +29,8 @@
 |---|---|---|
 | Запись до обработки | `enqueue` → insert `queued` до BackgroundTasks | staff_document_check unit |
 | Подхват незавершённых | `reclaim_stale_running_jobs` + `process_next` в ingest-worker | `test_reclaim_stale_running_requeues` |
-| Нет второго результата/notify | early return `result_already_finalized` / `notify_already_recorded` | unit flags |
+| Нет второго результата/notify | early return finalized; `_maybe_retry_client_notify` один догон | unit + retry test |
+| Результат есть, enqueue нет | догон notify без пересчёта | `test_finalized_job_retries_missing_notify_once` |
 | Зависшие | stale running → requeue или failed | reclaim + exhausted |
 | Ошибка | status=failed + last_error | lifecycle |
 | Не HTTP sync | обработка только BackgroundTasks / worker poll | код маршрута |
@@ -77,7 +78,7 @@ Unknown статус оплаты ≠ «не оплачено».
 | SFRFR-114 | Открыт | сопоставление + ephemeral periods |
 | SFRFR-115 | Открыт | резюме/recommendation/offer gates |
 | SFRFR-116 | Открыт | `precheck:*` wired; live MAX нет |
-| SFRFR-117 | Открыт | unit 43; browser/PG/E2E нет |
+| SFRFR-117 | Открыт | unit 44; browser/PG/E2E нет |
 
 ## Не доказано этим циклом
 
