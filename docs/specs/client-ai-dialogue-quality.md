@@ -964,6 +964,12 @@ dependents → `needs_recheck`; не stale сумма / draft / offer; лока�
 
 Покрытие: `test_deception_client_reply_policy`, `test_deception_transition_refine` + JSON `S20.26L–N`.
 
+## 73a. Gap-матрица интеграции (SFRFR-110)
+
+Актуальный статус А–К (что library vs live):  
+[`../ops/sfrfr-110-gap-matrix-2026-10-24.md`](../ops/sfrfr-110-gap-matrix-2026-10-24.md).  
+F04 / provisional split в политике — сделан; подключение handler и интеграционная приёмка — нет.
+
 ## 73. Канон текстов ошибок (docs-пакет, PR #262)
 
 Полные клиентские шаблоны ошибок, контракты переходов и evidence **не копировать** сюда повторно. После merge #262:
