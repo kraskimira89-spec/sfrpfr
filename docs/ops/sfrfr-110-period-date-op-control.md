@@ -1,6 +1,6 @@
 # SFRFR-110: контрольная точка — точечная операция исправления даты
 
-**Ветка:** `feat/sfrfr-110-period-date-correction` (PR #268).  
+**Ветка:** `feat/sfrfr-110-period-date-correction` (PR #268).
 **Auto-merge OFF.** Merge / deploy / RPC-миграция / live / E01-wire / close SFRFR-110 — **не** этим отчётом.
 
 Атомарная граница: `docs/ops/sfrfr-110-period-date-atomic-boundary.md`.
@@ -17,8 +17,8 @@ COMMIT
 → ack только после commit
 ```
 
-Snapshot writers того же контура: тот же FOR UPDATE + merge corrections + CAS  
-(`PostgresPeriodDateStore.save_pipeline_snapshot`).  
+Snapshot writers того же контура: тот же FOR UPDATE + merge corrections + CAS
+(`PostgresPeriodDateStore.save_pipeline_snapshot`).
 Отсутствие ключа periods ≠ запись `[]`.
 
 ## Воспроизведение PG (local)
@@ -100,7 +100,7 @@ Integration PG (обязательные сценарии ТЗ):
 
 ## Рекомендация
 
-1. Дождаться зелёного `date-op-pg` на PR #268 **или** прогнать `run_integration.ps1` после установки Docker.  
-2. RPC-миграцию **не** применять без отдельного OK.  
-3. Не merge #268 как «атомарность закрыта», пока нет зелёного PG run (локально или CI).  
+1. Дождаться зелёного `date-op-pg` на PR #268 **или** прогнать `run_integration.ps1` после установки Docker.
+2. RPC-миграцию **не** применять без отдельного OK.
+3. Не merge #268 как «атомарность закрыта», пока нет зелёного PG run (локально или CI).
 4. Precheck (#269) продолжать независимо.
