@@ -1361,10 +1361,17 @@ def review_discrepancy(
         row["reviewed_by"] = disc.reviewed_by
         row["reviewed_at"] = disc.reviewed_at
         new_findings.append(row)
-    client.table("case_pipeline_data").upsert(
-        {"case_id": case_id, "findings": new_findings},
-        on_conflict="case_id",
-    ).execute()
+    # Не PostgREST upsert: гонка с date-op/snapshot без FOR UPDATE.
+    from sfrfr.db.period_date_store import PostgresPeriodDateStore
+
+    snap = PostgresPeriodDateStore().save_pipeline_snapshot(
+        case_id, {"findings": new_findings}
+    )
+    if not snap.ok:
+        raise HTTPException(
+            status_code=409,
+            detail=f"pipeline snapshot rejected: {snap.outcome}",
+        )
     repo.audit(case_id, principal.user_id, "discrepancy_reviewed")
     return {
         "ok": True,

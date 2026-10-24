@@ -1,0 +1,29 @@
+# Изолированная PG для интеграционных тестов date-op (#268).
+# Не связана с prod / supabase-db01. Порт 15433 — вне Supavisor :5432.
+#
+# Запуск:
+#   docker compose -f tools/date_op_pg/docker-compose.yml up -d
+#   .\.venv\Scripts\python.exe tools/date_op_pg/bootstrap_schema.py
+#   $env:DATABASE_URL='postgresql://sfrfr:sfrfr_test@127.0.0.1:15433/sfrfr_date_op_test'
+#   .\.venv\Scripts\python.exe -m pytest tests/integration/test_period_date_correction_pg.py -q
+
+services:
+  date-op-pg:
+    image: postgres:16-alpine
+    container_name: sfrfr-date-op-pg
+    environment:
+      POSTGRES_DB: sfrfr_date_op_test
+      POSTGRES_USER: sfrfr
+      POSTGRES_PASSWORD: sfrfr_test
+    ports:
+      - "15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sfrfr -d sfrfr_date_op_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - date_op_pg_data:/var/lib/postgresql/data
+
+volumes:
+  date_op_pg_data:
