@@ -291,3 +291,10 @@
 | S20.25E | Есть дешевле? | hidden_alt_limits |
 | S20.25F | Дорого → сам | hold_for_pay |
 | S20.25G | Не предлагайте | cross_channel_offer |
+| S20.25H | Оплаченное не доделано | refuse_cancels_paid |
+| S20.25I | Отдайте результат | hold_result_for_pay |
+| S20.25K | А дальше что? | draft_as_ready |
+| S20.25L | Больше не занимаюсь | scare_after_pause |
+| S20.25M | Молчание после выдачи | silence_as_accept |
+| S20.25N | Вернулся позже | auto_order_return |
+| S20.25E2E | Сквозной отказ→выдача→стоп | price_refuse_completion |
