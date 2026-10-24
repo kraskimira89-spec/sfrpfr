@@ -1,6 +1,7 @@
 # SFRFR-111 цикл 2: job recovery + precheck:* + периоды
 
-**Head #269:** `8ff7e571` (+ следующий commit с ask_staff register / outcome examples).  
+**Head #269:** `2a2b334d`  
+**PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
 **Unit:** 43 passed (`test_primary_doc_precheck` + lifecycle/callbacks + staff_document_check).  
 **Не** merge / deploy / live MAX / закрытие SFRFR-110/111.
 
