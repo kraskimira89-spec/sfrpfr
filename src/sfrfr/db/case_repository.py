@@ -161,6 +161,15 @@ class CaseRepository:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
         return case
 
+    def require_case_exact(self, principal: Principal, case_id: str) -> dict[str, Any]:
+        """Точный case_id без staff-remap (запуск проверки документов и write-ops)."""
+        case = self._case(case_id)
+        if case is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        if not self.can_access(principal, case):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
+        return case
+
     def list_cases(self, principal: Principal) -> list[dict[str, Any]]:
         query = self.client.table("cases").select(
             "*, clients(full_name, phone, email, max_user_id, preferred_channel, user_id), "

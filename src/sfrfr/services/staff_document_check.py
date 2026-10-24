@@ -225,6 +225,66 @@ def _honest_brief_for_case(
     return ba.honest_brief_ui_payload(result)
 
 
+def _orders_block_paid_offer(repo: Any, case_id: str) -> bool:
+    try:
+        orders = list(repo.list_orders(case_id) or [])
+    except Exception:  # noqa: BLE001
+        return False
+    for order in orders:
+        if not isinstance(order, dict):
+            continue
+        status = str(order.get("status") or "").lower()
+        if status in {"paid", "succeeded", "active", "in_progress", "completed"}:
+            return True
+        payments = order.get("payments") or []
+        for pay in payments if isinstance(payments, list) else []:
+            if isinstance(pay, dict) and str(pay.get("status") or "").lower() in {
+                "succeeded",
+                "paid",
+            }:
+                return True
+    return False
+
+
+def _attach_primary_precheck(base: dict[str, Any], *, case_id: str, repo: Any) -> dict[str, Any]:
+    """Добавить outcome/резюме/рекомендацию без второго pipeline."""
+    from sfrfr.core.config import get_settings
+    from sfrfr.services.primary_doc_precheck import run_primary_precheck
+
+    row = repo.get_pipeline_row(case_id) or {}
+    ils = row.get("ils_periods") if isinstance(row.get("ils_periods"), list) else []
+    labor = row.get("labor_periods") if isinstance(row.get("labor_periods"), list) else []
+    settings = get_settings()
+    amount = int(getattr(settings, "default_diagnostic_price_rub", 0) or 0) or None
+    pre = run_primary_precheck(
+        ils_periods=ils,
+        labor_periods=labor,
+        kit_missing=list(base.get("missing_for_task") or []),
+        needs_ocr=int(base.get("needs_recognition") or 0),
+        originals_missing=max(
+            0,
+            int(base.get("documents_checked") or 0)
+            - int(base.get("originals_available") or 0),
+        ),
+        already_ordered_or_paid=_orders_block_paid_offer(repo, case_id),
+        catalog_amount_rub=amount,
+        catalog_label="Подробный анализ документов",
+        package_code="diagnostic",
+    )
+    out = dict(base)
+    out["primary_precheck"] = pre.as_dict()
+    out["precheck_outcome"] = pre.outcome.value
+    out["client_summary"] = pre.client_summary
+    # Не подменять kit-status «completed» ложным «пенсия ок».
+    if pre.outcome.value == "discrepancies_found" and out.get("status") == "completed":
+        out["status"] = "needs_action"
+        out["next_action"] = (
+            "Есть расхождения источников — покажите клиенту резюме "
+            "и при необходимости предложите подробный анализ."
+        )
+    return out
+
+
 def _analyze_case_documents(case_id: str) -> dict[str, Any]:
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.services.message_dedupe import required_docs_missing
@@ -243,7 +303,12 @@ def _analyze_case_documents(case_id: str) -> dict[str, Any]:
         ocr_allowed=ocr_allowed,
     )
     brief = _honest_brief_for_case(case_id=case_id, docs=docs, repo=repo)
-    return attach_honest_brief(base, brief=brief)
+    merged = attach_honest_brief(base, brief=brief)
+    try:
+        return _attach_primary_precheck(merged, case_id=case_id, repo=repo)
+    except Exception:  # noqa: BLE001 — kit-check важнее падения сверки
+        logger.warning("primary_precheck attach failed case=%s", case_id[:8], exc_info=True)
+        return merged
 
 
 def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, Any]:
@@ -364,8 +429,37 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
         }
     ).eq("id", job_id).execute()
     try:
-        result = _analyze_case_documents(str(job.get("case_id") or ""))
+        case_id = str(job.get("case_id") or "")
+        result = _analyze_case_documents(case_id)
         final_status = str(result.get("status") or "completed")
+        # Уведомление клиенту — только после успешной фиксации результата (best-effort).
+        notify_meta: dict[str, Any] | None = None
+        primary = result.get("primary_precheck")
+        if isinstance(primary, dict) and final_status in {"completed", "needs_action"}:
+            try:
+                from sfrfr.db.case_repository import CaseRepository
+                from sfrfr.services.primary_doc_precheck_notify import (
+                    enqueue_precheck_client_notify,
+                )
+
+                case_row = CaseRepository().get_case_row(case_id) or {}
+                clients = case_row.get("clients") or {}
+                if isinstance(clients, list):
+                    clients = clients[0] if clients else {}
+                mid = None
+                if isinstance(clients, dict):
+                    mid = clients.get("max_user_id")
+                notify_meta = enqueue_precheck_client_notify(
+                    case_id=case_id,
+                    check_id=job_id,
+                    primary=primary,
+                    max_user_id=str(mid) if mid else None,
+                )
+                result = {**result, "client_notify": notify_meta}
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "precheck notify skipped job=%s", job_id[:8], exc_info=True
+                )
         client.table("staff_document_check_jobs").update(
             {
                 "status": final_status,

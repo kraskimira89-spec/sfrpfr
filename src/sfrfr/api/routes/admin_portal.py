@@ -1238,7 +1238,11 @@ def request_review(
     (или ingest-worker), чтобы OOM/долгий extract не рвал HTTP/CORS в браузере.
     """
     repo = _repo()
-    repo.require_case(principal, case_id)
+    # Write-запуск: без staff-remap на «другое актуальное» дело.
+    if hasattr(repo, "require_case_exact"):
+        repo.require_case_exact(principal, case_id)
+    else:
+        repo.require_case(principal, case_id)
     from sfrfr.services.staff_document_check import (
         enqueue_staff_document_check,
         process_staff_document_check_job_safe,

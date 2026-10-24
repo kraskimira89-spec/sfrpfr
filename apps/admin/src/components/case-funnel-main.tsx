@@ -144,6 +144,8 @@ type Detail = {
         label?: string;
         note?: string;
       } | null;
+      precheck_outcome?: string | null;
+      client_summary?: string | null;
     } | null;
   } | null;
   channels: {
@@ -248,6 +250,24 @@ function DocumentCheckPanel({
       {check.last_error ? <p className="hint">Ошибка: {check.last_error}</p> : null}
       {r ? (
         <>
+          {r.precheck_outcome || r.client_summary ? (
+            <div className="precheck-summary-block">
+              {r.precheck_outcome ? (
+                <p>
+                  Исход первичной сверки: <strong>{r.precheck_outcome}</strong>
+                </p>
+              ) : null}
+              {r.client_summary ? <p>{r.client_summary}</p> : null}
+              {r.diag_offer?.allowed ? (
+                <p className="hint">
+                  Рекомендация услуги: {r.diag_offer.label || "подробный анализ"}
+                  {r.diag_offer.note ? " — " + r.diag_offer.note : null}
+                </p>
+              ) : r.diag_offer?.note ? (
+                <p className="hint">Услуга не предлагается: {r.diag_offer.note}</p>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="plain-list">
             <li>Оригиналы доступны: {r.originals_available ?? 0}</li>
             <li>Текст извлечён: {r.text_extracted ?? 0}</li>
