@@ -81,8 +81,9 @@
 | G17 | S20.17A–D недоверие к сумме | unverifiable / incomparable | `calculation_explain_policy` |
 | G18 | S20.18A–H противоречия источников | silent overwrite / OCR / hide | `contradiction_policy` |
 | G19 | S20.19A–I утраченные документы | invented archive / pause pressure | `lost_document_policy` |
+| G20 | S20.20A–I сильная тревога | false guarantee / safety | `anxiety_dialogue_policy` |
 
-Запрет: профиль «конфликтный»; подгонка стажа; калькулятор прибавки; выдуманный архив.
+Запрет: профиль «конфликтный»; подгонка стажа; калькулятор прибавки; выдуманный архив; продажа на тревоге.
 
 ## Приоритет ближайших правок
 
