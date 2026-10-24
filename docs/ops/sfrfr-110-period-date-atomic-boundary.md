@@ -12,13 +12,14 @@
 | Date-op (psycopg `FOR UPDATE` + CAS `updated_at` + embedded `period_date_corrected`) | Реализован в коде |
 | Snapshot (psycopg `FOR UPDATE` + merge corrections + CAS; отсутствие ключа ≠ `[]`) | Реализован в коде (#268 follow-up) |
 | Общий lock date-op ↔ snapshot в InMemory | Покрыт тестами A–E |
-| PG integration (два соединения, барьеры) | **НЕ прогнан** — БД недоступна |
-| Writers вне `CaseRepository` / прямой PostgREST | **Остаточный риск** |
-| Долговременный ledger `operation_id` вне JSON периода | Только embedded; для жёсткой гарантии — миграция ниже |
+| PG integration (два соединения, барьеры) | Код тестов + `tools/date_op_pg` + CI `date-op-pg.yml`; **локально на агенте Docker отсутствует** — evidence ждём от CI |
+| Writers вне store / прямой PostgREST | findings-upsert в admin переведён на snapshot CAS; **остальной service_role PostgREST** — блокер до RPC/revoke |
+| Ledger `operation_id` | `staff_date_corrections[]` + latest marker; колонка/RPC — только по отдельному OK |
 | `require_case` remap | Для write: `require_case_exact` (без подмены id) |
 
-**Приёмка «исправление атомарно и snapshot не может молча уничтожить» на реальной БД —
-не доказана.** Mock/InMemory не заменяют.
+**Приёмка на реальной БД:** InMemory ≠ доказательство. Локальный PG на машине агента
+не поднят (нет Docker Desktop). Воспроизведение: `tools/date_op_pg/run_integration.ps1`
+или workflow `date-op-pg`.
 
 ## Существующие транзакционные механизмы (проверка)
 

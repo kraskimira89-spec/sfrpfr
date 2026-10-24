@@ -227,7 +227,7 @@ class InMemoryPeriodDateStore:
             persisted_at=persisted_at,
             persist_ack_source="repository_update_ok",
         )
-        period["staff_date_correction"] = event.as_dict()
+        _embed_correction_on_period(period, event)
         period["value_source"] = command.value_source
 
         if self.fail_next_write:
@@ -260,6 +260,8 @@ class PostgresPeriodDateStore:
     def __init__(self, dsn: str | None = None) -> None:
         settings = get_settings()
         self._dsn = _psycopg_dsn(dsn or settings.database_url)
+        # Только для integration: исключение до UPDATE → rollback всей TX.
+        self.raise_before_update: BaseException | None = None
 
     def _connect(self) -> psycopg.Connection:
         return psycopg.connect(self._dsn, row_factory=dict_row)
@@ -393,7 +395,7 @@ class PostgresPeriodDateStore:
             persisted_at=persisted_at,
             persist_ack_source="db_write_ack",
         )
-        period["staff_date_correction"] = event.as_dict()
+        _embed_correction_on_period(period, event)
         period["value_source"] = command.value_source
         collection[idx] = period
         new_findings = mark_dependents_needs_recheck(findings)
@@ -405,6 +407,11 @@ class PostgresPeriodDateStore:
 
         ils_out = collection if command.collection.value == "ils_periods" else ils
         labor_out = collection if command.collection.value == "labor_periods" else labor
+
+        if self.raise_before_update is not None:
+            exc = self.raise_before_update
+            self.raise_before_update = None
+            raise exc
 
         cur.execute(
             """
@@ -602,18 +609,48 @@ def _version_token(updated_at: Any) -> str:
     return str(updated_at)
 
 
+def _embed_correction_on_period(
+    period: dict[str, Any], event: PeriodDateCorrectedEvent
+) -> None:
+    """Последняя правка + append-only история (старый op_id остаётся находимым)."""
+    payload = event.as_dict()
+    history = period.get("staff_date_corrections")
+    if not isinstance(history, list):
+        history = []
+        legacy = period.get("staff_date_correction")
+        if isinstance(legacy, dict) and legacy.get("operation_id"):
+            history.append(legacy)
+    history = [x for x in history if isinstance(x, dict)]
+    # не дублировать тот же operation_id
+    if not any(str(x.get("operation_id") or "") == event.operation_id for x in history):
+        history.append(payload)
+    period["staff_date_corrections"] = history
+    period["staff_date_correction"] = payload
+
+
+def _iter_correction_dicts(period: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    hist = period.get("staff_date_corrections")
+    if isinstance(hist, list):
+        out.extend(x for x in hist if isinstance(x, dict))
+    latest = period.get("staff_date_correction")
+    if isinstance(latest, dict):
+        oid = str(latest.get("operation_id") or "")
+        if oid and not any(str(x.get("operation_id") or "") == oid for x in out):
+            out.append(latest)
+    return out
+
+
 def _find_event_in_periods(
     periods: list[Any], operation_id: str
 ) -> PeriodDateCorrectedEvent | None:
     for item in periods:
         if not isinstance(item, dict):
             continue
-        raw = item.get("staff_date_correction")
-        if not isinstance(raw, dict):
-            continue
-        if str(raw.get("operation_id") or "") != operation_id:
-            continue
-        return _event_from_dict(raw)
+        for raw in _iter_correction_dicts(item):
+            if str(raw.get("operation_id") or "") != operation_id:
+                continue
+            return _event_from_dict(raw)
     return None
 
 

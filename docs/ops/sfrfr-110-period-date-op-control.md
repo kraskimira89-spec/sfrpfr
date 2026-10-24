@@ -1,75 +1,106 @@
 # SFRFR-110: контрольная точка — точечная операция исправления даты
 
-**База PR:** `origin/main` (`eea343e3…`, канон #262).
-**Не** база #267 / стек #261–#266.
-**Auto-merge OFF.** Merge / deploy / миграции / live / E01-wire / close — не этим отчётом.
+**Ветка:** `feat/sfrfr-110-period-date-correction` (PR #268).  
+**Auto-merge OFF.** Merge / deploy / RPC-миграция / live / E01-wire / close SFRFR-110 — **не** этим отчётом.
 
-Атомарная граница и стоп: `docs/ops/sfrfr-110-period-date-atomic-boundary.md`.
+Атомарная граница: `docs/ops/sfrfr-110-period-date-atomic-boundary.md`.
 
 ## Контракт
 
 ```text
 BEGIN (psycopg)
   FOR UPDATE case_pipeline_data
-  check operation_id / expected_version / period_id
-  mutate field + embed period_date_corrected + dependents needs_recheck
+  check operation_id (latest + staff_date_corrections[]) / expected_version / period_id
+  mutate field + embed period_date_corrected + append history + dependents needs_recheck
   CAS updated_at
 COMMIT
 → ack только после commit
 ```
 
-Snapshot writers того же контура: тот же FOR UPDATE + merge + CAS
-(`PostgresPeriodDateStore.save_pipeline_snapshot`).
-`CaseRepository.require_case_exact` — без staff-remap для write.
+Snapshot writers того же контура: тот же FOR UPDATE + merge corrections + CAS  
+(`PostgresPeriodDateStore.save_pipeline_snapshot`).  
+Отсутствие ключа periods ≠ запись `[]`.
 
-| Исход | Enum |
+## Воспроизведение PG (local)
+
+```powershell
+# Требует Docker engine. Порт 15433, БД sfrfr_date_op_test — не prod.
+.\tools\date_op_pg\run_integration.ps1
+```
+
+Вручную:
+
+```powershell
+docker compose -f tools/date_op_pg/docker-compose.yml up -d --wait
+$env:DATABASE_URL='postgresql://sfrfr:sfrfr_test@127.0.0.1:15433/sfrfr_date_op_test'
+.\.venv\Scripts\python.exe tools\date_op_pg\bootstrap_schema.py
+.\.venv\Scripts\python.exe -m pytest tests/integration/test_period_date_correction_pg.py -q --basetemp=tmp/pytest-date-op-pg
+```
+
+Схема: `tools/date_op_pg/schema_minimal.sql` (колонки из версионированных миграций, без auth/RLS/prod-данных).
+
+## CI
+
+Workflow: `.github/workflows/date-op-pg.yml` — service `postgres:16`, bootstrap + unit + integration.
+
+## Локальный статус среды (агент, 2026-10-24)
+
+| Проверка | Результат |
 |---|---|
-| Исправление сохранено | `saved` |
-| Повтор той же операции | `idempotent_replay` |
-| Конфликт версии | `version_conflict` |
-| Недопустимые данные | `invalid_data` |
-| Нет доступа / нет записи | `not_found_or_forbidden` |
-| Отказ записи | `write_rejected` |
-| Тот же op_id, другое тело | `op_id_payload_conflict` |
-| Неизвестный исход | `unknown` → `reconcile_unknown` |
-
-Нет публичного HTTP / MAX / E01-wire.
-
-## Write-пути
-
-| Путь | Изменение |
-|---|---|
-| `PostgresPeriodDateStore.apply_correction` | Date-op CAS |
-| `PostgresPeriodDateStore.save_pipeline_snapshot` | Snapshot CAS |
-| `CaseRepository.save_pipeline_snapshot` | Делегирует в psycopg CAS (не PostgREST upsert) |
-| `CaseRepository.require_case_exact` | Точный case_id |
+| Docker Desktop / docker engine | **Нет:** `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`; `Docker Desktop.exe` не найден в Program Files |
+| Локальный `psql` / служба Postgres | **Нет** |
+| Unit InMemory | запускается без Docker |
+| Integration PG на этой машине | **не прогнан** — блокер среды; воспроизведение через CI / после установки Docker |
 
 ## Тесты
 
 ```text
-Unit (InMemory, в т.ч. A–E snapshot):
+Unit (InMemory, A–E + history):
   .\.venv\Scripts\python.exe -m pytest tests/unit/test_period_date_correction.py -q --basetemp=.tmp_pytest_date_op
-  → 19 passed
 
-Integration PG:
-  → SKIP / не доказано (database_reachable=False)
+Integration PG (обязательные сценарии ТЗ):
+  tests/integration/test_period_date_correction_pg.py
+  → на агенте: SKIP без DATABASE_URL; на CI: job date-op-pg
 ```
 
-## E/F
+## Перечень writers затрагиваемых полей
+
+| Путь | Поля | Конкурентность | Статус |
+|---|---|---|---|
+| `PostgresPeriodDateStore.apply_correction` | ils/labor periods, findings, draft, updated_at | FOR UPDATE + CAS | OK |
+| `PostgresPeriodDateStore.save_pipeline_snapshot` | snapshot merge + CAS | FOR UPDATE + CAS | OK |
+| `CaseRepository.save_pipeline_snapshot` | делегирует в store | через store | OK |
+| `admin_portal.review_discrepancy` | findings | **был** PostgREST upsert → **переведён** на `save_pipeline_snapshot` | OK (узкий фикс) |
+| `admin_portal` / `portal` `get` pipeline | read-only | — | OK |
+| Прямой PostgREST/SQL клиент вне store | любые колонки строки | **нет CAS** | **Блокер выпуска**, пока нет RPC/revoke table write |
+| `case_store.py` (локальный файловый) | не PG | — | вне контура |
+
+**Вывод по PostgREST:** успешные PG-тесты store **не** закрывают обход другим writer с service_role. Узкий фикс findings-upsert сделан. Полное закрытие обхода — RPC + revoke (отдельное разрешение на миграцию).
+
+## Embedded-аудит
+
+| Требование | Реализация |
+|---|---|
+| История не затирается | `staff_date_corrections[]` append + `staff_date_correction` = latest |
+| Snapshot merge | `merge_periods_preserve_corrections` по `period_id` |
+| before/after, actor, basis, versions, op_id | в `PeriodDateCorrectedEvent.as_dict()` |
+| Старый op_id находимый | `lookup_by_operation_id` ищет history |
+| Подтверждение из сохранённого | `IDEMPOTENT_REPLAY` / `reconcile_unknown` |
+| Лимит JSON | явного hard-cap нет; риск роста массива на периоде — остаток; ledger-колонка = отдельная миграция |
+
+Один маркер `staff_date_correction` **не** считается полным ledger; history-массив — промежуточное доказательство без DDL.
+
+## E/F / приоритет
 
 | ID | Статус |
 |---|---|
-| E01 write-op | Код есть; **приёмка на PG не доказана**; E01-wire нет |
+| E01 write-op | Код + CI workflow; локальный PG evidence **не** получен (нет Docker) |
 | Close SFRFR-110 | нет |
-
-## Остаточные риски
-
-1. Нет зелёного PG concurrent evidence.
-2. Прямой PostgREST/другие clients в обход store.
-3. Ledger op_id только в JSON периода (RPC/колонка — на согласование).
-4. Нет job/HTTP wiring.
+| Зависимость precheck #269 | **нет** — precheck только читает периоды / пишет findings precheck, не канонические даты |
 
 ## Рекомендация
 
-**Не принимать #268 как закрытие атомарности** до PG-доказательств и решения
-по RPC-миграции. Merge только отдельным разрешением.
+1. Дождаться зелёного `date-op-pg` на PR #268 **или** прогнать `run_integration.ps1` после установки Docker.  
+2. RPC-миграцию **не** применять без отдельного OK.  
+3. Не merge #268 как «атомарность закрыта», пока нет зелёного PG run (локально или CI).  
+4. Precheck (#269) продолжать независимо.

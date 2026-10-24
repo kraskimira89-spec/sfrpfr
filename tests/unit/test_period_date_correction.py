@@ -482,6 +482,46 @@ def test_snapshot_E_missing_period_id_not_found() -> None:
     assert missing.outcome == CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN
 
 
+def test_audit_history_keeps_prior_operation_id() -> None:
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    assert (
+        correct_period_date(
+            _cmd(operation_id="op-1", new_value="1985-01-15"),
+            principal=_staff(),
+            store=store,
+            case_accessible=True,
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    st1 = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st1 is not None
+    assert (
+        correct_period_date(
+            _cmd(
+                operation_id="op-2",
+                new_value="1984-01-01",
+                expected_version=st1.version,
+                reason="вторая",
+            ),
+            principal=_staff(),
+            store=store,
+            case_accessible=True,
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    st = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st is not None
+    hist = st.ils_periods[0]["staff_date_corrections"]
+    assert len(hist) == 2
+    assert store.lookup_by_operation_id(
+        case_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", operation_id="op-1"
+    ) is not None
+    assert store.lookup_by_operation_id(
+        case_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", operation_id="op-2"
+    ) is not None
+
+
 def test_snapshot_omitted_periods_key_does_not_clear() -> None:
     store = InMemoryPeriodDateStore()
     _seed(store)
