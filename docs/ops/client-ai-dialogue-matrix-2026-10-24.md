@@ -87,9 +87,10 @@
 | G23 | S20.23A–I отказ от next-оплаты | reoffer / block deliverables | `refuse_next_stage_policy` |
 | G25 | S20.25A–N + E2E отказ из-за цены → выдача | subtype G23 / silence≠accept | `price_refuse_policy` |
 | G-CX | SX01–03,06,12 пересечения | multi-intent / no single label | `multi_intent_policy` |
+| G-TR | §49–59 переходы | said≠done≠confirmed / queued≠running | `transition_contract_policy` |
 
-Консолидация: `client-ai-dialogue-scenario-catalog-consolidated-2026-10-24.md`, конфликты — `…-conflicts-…`.  
-Запрет: один ярлык на всю реплику; «претензия принята» без регистрации; авто-offer после отказа.
+Консолидация: каталог + конфликты. Переходы: `client-ai-dialogue-transition-model-2026-10-24.md`.  
+Запрет: объявление без доказательства; один `success` на всё; авто-суд после отказа СФР.
 
 ## Приоритет ближайших правок
 
