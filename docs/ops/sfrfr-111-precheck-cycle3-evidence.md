@@ -1,6 +1,7 @@
 # SFRFR-111 цикл 3: замыкание handler + пустой pipeline
 
-**Head #269:** см. push на `feat/sfrfr-primary-doc-precheck`.  
+**Head #269:** `f3cfc270`  
+**PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
 **Не** merge / deploy / live MAX / prod-миграции / закрытие SFRFR-110/111. Auto-merge OFF.
 
 ## Формулировка
