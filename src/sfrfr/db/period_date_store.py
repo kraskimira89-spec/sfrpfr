@@ -86,26 +86,44 @@ class InMemoryPeriodDateStore:
     def apply_pipeline_snapshot(
         self,
         case_id: str,
+        snapshot: dict[str, Any] | None = None,
         *,
+        expected_version: str | None = None,
         ils_periods: list[dict[str, Any]] | None = None,
         labor_periods: list[dict[str, Any]] | None = None,
         findings: list[dict[str, Any]] | None = None,
-    ) -> None:
-        from sfrfr.services.period_date_correction import merge_periods_preserve_corrections
-
+    ) -> SnapshotSaveResult:
+        """CAS snapshot под тем же lock, что и date-op (сценарии A–E)."""
+        payload = dict(snapshot or {})
+        if ils_periods is not None:
+            payload["ils_periods"] = ils_periods
+        if labor_periods is not None:
+            payload["labor_periods"] = labor_periods
+        if findings is not None:
+            payload["findings"] = findings
         with self._lock:
             st = self._cases.setdefault(case_id, _CasePipelineState())
-            if ils_periods is not None:
-                st.ils_periods = merge_periods_preserve_corrections(
-                    existing=st.ils_periods, incoming=ils_periods
+            if expected_version is not None and st.version != expected_version:
+                return SnapshotSaveResult(
+                    ok=False,
+                    outcome="version_conflict",
+                    detail="snapshot version mismatch",
                 )
-            if labor_periods is not None:
-                st.labor_periods = merge_periods_preserve_corrections(
-                    existing=st.labor_periods, incoming=labor_periods
-                )
-            if findings is not None:
-                st.findings = deepcopy(findings)
+            ils_out, labor_out, findings_out, draft_out = _merge_snapshot_payload(
+                existing_ils=st.ils_periods,
+                existing_labor=st.labor_periods,
+                existing_findings=st.findings,
+                snapshot=payload,
+            )
+            st.ils_periods = ils_out
+            st.labor_periods = labor_out
+            st.findings = findings_out
+            if draft_out is not _MISSING:
+                st.draft = deepcopy(draft_out) if isinstance(draft_out, dict) else draft_out
             st.version = str(int(st.version) + 1)
+            return SnapshotSaveResult(
+                ok=True, outcome="saved", version_after=st.version
+            )
 
     def lookup_by_operation_id(
         self, *, case_id: str, operation_id: str
@@ -418,6 +436,163 @@ class PostgresPeriodDateStore:
             )
         return StoreApplySuccess(event=event, version_after=version_after)
 
+    def save_pipeline_snapshot(
+        self,
+        case_id: str,
+        snapshot: dict[str, Any],
+        *,
+        expected_version: str | None = None,
+    ) -> SnapshotSaveResult:
+        """Одна TX: FOR UPDATE → merge corrections → CAS по updated_at."""
+        try:
+            with self._connect() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        return self._save_snapshot_in_tx(
+                            cur,
+                            case_id=case_id,
+                            snapshot=snapshot,
+                            expected_version=expected_version,
+                        )
+        except Exception as exc:  # noqa: BLE001
+            return SnapshotSaveResult(
+                ok=False,
+                outcome="unknown",
+                detail=f"tx_error:{type(exc).__name__}:{exc}",
+            )
+
+    def _save_snapshot_in_tx(
+        self,
+        cur: Any,
+        *,
+        case_id: str,
+        snapshot: dict[str, Any],
+        expected_version: str | None,
+    ) -> SnapshotSaveResult:
+        cur.execute(
+            """
+            select ils_periods, labor_periods, findings, draft, updated_at,
+                   ocr_texts, classifications, analysis_notes, error
+            from public.case_pipeline_data
+            where case_id = %s::uuid
+            for update
+            """,
+            (case_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            # insert new row only when no pipeline yet — без затирания чужих данных
+            ils_out, labor_out, findings_out, draft_out = _merge_snapshot_payload(
+                existing_ils=[],
+                existing_labor=[],
+                existing_findings=[],
+                snapshot=snapshot,
+            )
+            new_updated_at = datetime.now(UTC).replace(microsecond=0)
+            cur.execute(
+                """
+                insert into public.case_pipeline_data
+                  (case_id, ils_periods, labor_periods, findings, draft,
+                   ocr_texts, classifications, analysis_notes, error, updated_at)
+                values
+                  (%s::uuid, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb,
+                   %s::jsonb, %s::jsonb, %s, %s, %s)
+                """,
+                (
+                    case_id,
+                    Json(ils_out),
+                    Json(labor_out),
+                    Json(findings_out),
+                    Json(draft_out) if draft_out is not _MISSING else None,
+                    Json(snapshot.get("ocr_texts") or []),
+                    Json(snapshot.get("classifications") or []),
+                    snapshot.get("analysis_notes"),
+                    snapshot.get("error"),
+                    new_updated_at,
+                ),
+            )
+            return SnapshotSaveResult(
+                ok=True,
+                outcome="saved",
+                version_after=_version_token(new_updated_at),
+            )
+
+        version_token = _version_token(row["updated_at"])
+        if expected_version is not None and version_token != expected_version:
+            return SnapshotSaveResult(
+                ok=False,
+                outcome="version_conflict",
+                detail="snapshot version mismatch",
+            )
+
+        ils_out, labor_out, findings_out, draft_out = _merge_snapshot_payload(
+            existing_ils=list(row.get("ils_periods") or []),
+            existing_labor=list(row.get("labor_periods") or []),
+            existing_findings=list(row.get("findings") or []),
+            snapshot=snapshot,
+        )
+        new_updated_at = datetime.now(UTC).replace(microsecond=0)
+        draft_sql = row.get("draft") if draft_out is _MISSING else draft_out
+        ocr = (
+            snapshot["ocr_texts"]
+            if "ocr_texts" in snapshot
+            else (row.get("ocr_texts") or [])
+        )
+        classifications = (
+            snapshot["classifications"]
+            if "classifications" in snapshot
+            else (row.get("classifications") or [])
+        )
+        analysis_notes = (
+            snapshot["analysis_notes"]
+            if "analysis_notes" in snapshot
+            else row.get("analysis_notes")
+        )
+        error = snapshot["error"] if "error" in snapshot else row.get("error")
+
+        cur.execute(
+            """
+            update public.case_pipeline_data
+            set ils_periods = %s::jsonb,
+                labor_periods = %s::jsonb,
+                findings = %s::jsonb,
+                draft = %s::jsonb,
+                ocr_texts = %s::jsonb,
+                classifications = %s::jsonb,
+                analysis_notes = %s,
+                error = %s,
+                updated_at = %s
+            where case_id = %s::uuid
+              and updated_at = %s
+            returning updated_at
+            """,
+            (
+                Json(ils_out),
+                Json(labor_out),
+                Json(findings_out),
+                Json(draft_sql) if draft_sql is not None else None,
+                Json(ocr if isinstance(ocr, list) else []),
+                Json(classifications if isinstance(classifications, list) else []),
+                analysis_notes,
+                error,
+                new_updated_at,
+                case_id,
+                row["updated_at"],
+            ),
+        )
+        updated = cur.fetchone()
+        if not updated:
+            return SnapshotSaveResult(
+                ok=False,
+                outcome="version_conflict",
+                detail="concurrent snapshot",
+            )
+        return SnapshotSaveResult(
+            ok=True,
+            outcome="saved",
+            version_after=_version_token(new_updated_at),
+        )
+
 
 def _version_token(updated_at: Any) -> str:
     if isinstance(updated_at, datetime):
@@ -462,6 +637,80 @@ def _event_from_dict(raw: dict[str, Any]) -> PeriodDateCorrectedEvent:
         persist_ack_source=str(raw.get("persist_ack_source") or ""),
         dependents_status=str(raw.get("dependents_status") or "needs_recheck"),
     )
+
+
+@dataclass(frozen=True)
+class SnapshotSaveResult:
+    """Результат CAS-сохранения pipeline snapshot."""
+
+    ok: bool
+    outcome: str
+    version_after: str | None = None
+    detail: str | None = None
+
+
+_MISSING = object()
+
+
+def _merge_snapshot_payload(
+    *,
+    existing_ils: list[Any],
+    existing_labor: list[Any],
+    existing_findings: list[Any],
+    snapshot: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Any]:
+    """Ключ отсутствует → не трогать; ключ есть (в т.ч. []/None) → явное значение + merge."""
+    from sfrfr.services.period_date_correction import (
+        mark_dependents_needs_recheck,
+        merge_periods_preserve_corrections,
+    )
+
+    ils_in = snapshot["ils_periods"] if "ils_periods" in snapshot else _MISSING
+    labor_in = snapshot["labor_periods"] if "labor_periods" in snapshot else _MISSING
+    findings_in = snapshot["findings"] if "findings" in snapshot else _MISSING
+    draft_in = snapshot["draft"] if "draft" in snapshot else _MISSING
+
+    if ils_in is _MISSING:
+        ils_out = [dict(x) for x in existing_ils if isinstance(x, dict)]
+    else:
+        ils_out = merge_periods_preserve_corrections(
+            existing=existing_ils,
+            incoming=ils_in if isinstance(ils_in, list) else [],
+        )
+
+    if labor_in is _MISSING:
+        labor_out = [dict(x) for x in existing_labor if isinstance(x, dict)]
+    else:
+        labor_out = merge_periods_preserve_corrections(
+            existing=existing_labor,
+            incoming=labor_in if isinstance(labor_in, list) else [],
+        )
+
+    has_correction = any(
+        isinstance(p, dict) and p.get("staff_date_correction") for p in ils_out + labor_out
+    )
+    if findings_in is _MISSING:
+        findings_out = [dict(x) for x in existing_findings if isinstance(x, dict)]
+    else:
+        findings_out = (
+            [dict(x) for x in findings_in if isinstance(x, dict)]
+            if isinstance(findings_in, list)
+            else []
+        )
+        if has_correction:
+            findings_out = mark_dependents_needs_recheck(findings_out)
+
+    draft_out: Any
+    if draft_in is _MISSING:
+        draft_out = _MISSING
+    else:
+        draft_out = draft_in
+        if has_correction and isinstance(draft_out, dict):
+            draft_out = dict(draft_out)
+            draft_out.pop("recalculated", None)
+            draft_out["dependents_status"] = "needs_recheck"
+
+    return ils_out, labor_out, findings_out, draft_out
 
 
 def database_reachable(dsn: str | None = None, timeout_sec: float = 2.0) -> bool:

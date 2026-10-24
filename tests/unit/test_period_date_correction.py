@@ -329,3 +329,172 @@ def test_merge_helper_keeps_orphan_correction() -> None:
     merged = merge_periods_preserve_corrections(existing=existing, incoming=incoming)
     ids = {str(p.get("period_id")) for p in merged}
     assert ids == {"p1", "p2"}
+
+
+def test_snapshot_A_stale_after_date_op_conflicts() -> None:
+    """A: snapshot прочитал → date-op commit → snapshot со старой версией."""
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    v0 = "1"
+    assert (
+        correct_period_date(
+            _cmd(expected_version=v0),
+            principal=_staff(),
+            store=store,
+            case_accessible=True,
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    rejected = store.apply_pipeline_snapshot(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        {
+            "ils_periods": [
+                {
+                    "period_id": "period-1",
+                    "date_from": "1987-01-01",
+                    "date_to": "1990-12-31",
+                }
+            ]
+        },
+        expected_version=v0,
+    )
+    assert rejected.ok is False
+    assert rejected.outcome == "version_conflict"
+    st = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st is not None
+    assert st.ils_periods[0]["date_from"] == "1985-01-15"
+
+
+def test_snapshot_B_date_op_loses_to_newer_snapshot() -> None:
+    """B: date-op на устаревшей версии после snapshot → conflict."""
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    assert store.apply_pipeline_snapshot(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        {
+            "ils_periods": [
+                {
+                    "period_id": "period-1",
+                    "date_from": "1987-01-01",
+                    "date_to": "1990-12-31",
+                }
+            ]
+        },
+        expected_version="1",
+    ).ok
+    lost = correct_period_date(
+        _cmd(expected_version="1"),
+        principal=_staff(),
+        store=store,
+        case_accessible=True,
+    )
+    assert lost.outcome == CorrectionOutcome.VERSION_CONFLICT
+
+
+def test_snapshot_C_extract_preserves_correction() -> None:
+    """C: date-op → новый extract snapshot без expected → merge preserve."""
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    assert (
+        correct_period_date(
+            _cmd(), principal=_staff(), store=store, case_accessible=True
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    ok = store.apply_pipeline_snapshot(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        {
+            "ils_periods": [
+                {
+                    "period_id": "period-1",
+                    "employer": "OCR",
+                    "date_from": "1987-01-01",
+                    "date_to": "1990-12-31",
+                }
+            ],
+            "findings": [{"type": "gap", "status": "open"}],
+        },
+    )
+    assert ok.ok
+    st = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st is not None
+    assert st.ils_periods[0]["date_from"] == "1985-01-15"
+    assert st.findings[0]["dependents_status"] == "needs_recheck"
+
+
+def test_snapshot_D_two_periods_independent() -> None:
+    store = InMemoryPeriodDateStore()
+    store.seed(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        ils_periods=[
+            {
+                "period_id": "period-1",
+                "date_from": "1987-01-01",
+                "date_to": "1990-12-31",
+            },
+            {
+                "period_id": "period-2",
+                "date_from": "1991-01-01",
+                "date_to": "1995-12-31",
+            },
+        ],
+        version="1",
+    )
+    assert (
+        correct_period_date(
+            _cmd(period_id="period-1", new_value="1985-01-15"),
+            principal=_staff(),
+            store=store,
+            case_accessible=True,
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    st = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st is not None
+    by_id = {p["period_id"]: p for p in st.ils_periods}
+    assert by_id["period-1"]["date_from"] == "1985-01-15"
+    assert by_id["period-2"]["date_from"] == "1991-01-01"
+
+
+def test_snapshot_E_missing_period_id_not_found() -> None:
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    store.apply_pipeline_snapshot(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        {
+            "ils_periods": [
+                {
+                    "period_id": "other",
+                    "date_from": "2000-01-01",
+                    "date_to": "2001-01-01",
+                }
+            ]
+        },
+        expected_version="1",
+    )
+    # period-1 удалён из массива; правка по старой ссылке
+    missing = correct_period_date(
+        _cmd(expected_version="2"),
+        principal=_staff(),
+        store=store,
+        case_accessible=True,
+    )
+    assert missing.outcome == CorrectionOutcome.NOT_FOUND_OR_FORBIDDEN
+
+
+def test_snapshot_omitted_periods_key_does_not_clear() -> None:
+    store = InMemoryPeriodDateStore()
+    _seed(store)
+    assert (
+        correct_period_date(
+            _cmd(), principal=_staff(), store=store, case_accessible=True
+        ).outcome
+        == CorrectionOutcome.SAVED
+    )
+    store.apply_pipeline_snapshot(
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        {"findings": [{"type": "x"}]},  # без ils_periods
+    )
+    st = store.get_state("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    assert st is not None
+    assert st.ils_periods[0]["date_from"] == "1985-01-15"
