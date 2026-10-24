@@ -87,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             dsn,
             connect_timeout=max(1, int(args.timeout_connect)),
         )
+        conn.autocommit = True
         # read-only + timeout (литерал int — SET не принимает bind-параметры)
         timeout_ms = int(max(1.0, args.timeout_query) * 1000)
         with conn.cursor() as cur:

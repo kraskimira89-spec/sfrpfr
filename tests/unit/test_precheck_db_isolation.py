@@ -15,6 +15,7 @@ from isolation import (  # noqa: E402
     IsolationError,
     _sanitize_exc_message,
     refuse_if_not_isolated,
+    require_test_run_id,
     validate_dsn_identity,
 )
 
@@ -69,6 +70,12 @@ def test_sanitize_strips_password_in_url() -> None:
     )
     assert "secretpass" not in msg
     assert "***" in msg
+
+
+def test_refuse_missing_test_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PRECHECK_TEST_RUN_ID", raising=False)
+    with pytest.raises(IsolationError, match="missing_precheck_test_run_id"):
+        require_test_run_id()
 
 
 def test_probe_cli_refuses_without_test_dsn(

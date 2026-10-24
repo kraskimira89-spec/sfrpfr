@@ -53,3 +53,9 @@ create table if not exists public.sfrfr_test_isolation (
 insert into public.sfrfr_test_isolation (marker)
 values ('sfrfr_precheck_isolation_ok')
 on conflict (marker) do nothing;
+
+-- Принадлежность стенда текущему тестовому запуску (очистка чужого run — отказ).
+create table if not exists public.sfrfr_test_run (
+  run_id text primary key,
+  created_at timestamptz not null default now()
+);

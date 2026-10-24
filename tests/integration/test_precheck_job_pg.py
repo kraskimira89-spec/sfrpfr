@@ -58,14 +58,20 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture()
-def pg():
+def pg(monkeypatch: pytest.MonkeyPatch):
     import psycopg
+    from isolation import assert_safe_to_mutate, register_test_run, require_test_run_id
 
+    run_id = os.environ.get("PRECHECK_TEST_RUN_ID") or "pytest-precheck-job-pg"
+    monkeypatch.setenv("PRECHECK_TEST_RUN_ID", run_id)
     conn = psycopg.connect(DSN)
     conn.autocommit = False
     assert_connected_isolation(conn)
+    register_test_run(conn, run_id=run_id)
+    conn.commit()
+    assert_safe_to_mutate(conn, run_id=require_test_run_id())
     client = PgRestShim(conn)
-    # чистая песочница; маркер isolation не трогаем
+    # чистая песочница; маркер isolation / run не трогаем
     with conn.cursor() as cur:
         cur.execute("TRUNCATE staff_document_check_jobs, documents, cases CASCADE")
     conn.commit()

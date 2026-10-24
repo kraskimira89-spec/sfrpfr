@@ -131,3 +131,46 @@ def refuse_if_not_isolated(dsn: str | None = None, *, for_probe: bool = False) -
         raise
     except Exception as exc:  # noqa: BLE001
         raise IsolationError(_sanitize_exc_message(type(exc).__name__)) from None
+
+
+def require_test_run_id() -> str:
+    rid = (os.environ.get("PRECHECK_TEST_RUN_ID") or "").strip()
+    if not rid:
+        raise IsolationError("missing_precheck_test_run_id")
+    if len(rid) > 128 or any(c in rid for c in " \t\n/;"):
+        raise IsolationError("invalid_precheck_test_run_id")
+    return rid
+
+
+def assert_safe_to_mutate(conn: Any, *, run_id: str | None = None) -> str:
+    """До TRUNCATE/INSERT фикстур: изоляция + run_id принадлежит этому стенду.
+
+    Чужой PRECHECK_TEST_RUN_ID → отказ до изменяющих запросов.
+    """
+    assert_connected_isolation(conn)
+    rid = (run_id or "").strip() or require_test_run_id()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT run_id FROM public.sfrfr_test_run WHERE run_id = %s LIMIT 1",
+            (rid,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise IsolationError("test_run_id_not_owned")
+    return rid
+
+
+def register_test_run(conn: Any, *, run_id: str | None = None) -> str:
+    """Зарегистрировать run_id на подтверждённой тестовой БД (идемпотентно)."""
+    assert_connected_isolation(conn)
+    rid = (run_id or "").strip() or require_test_run_id()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO public.sfrfr_test_run (run_id)
+            VALUES (%s)
+            ON CONFLICT (run_id) DO NOTHING
+            """,
+            (rid,),
+        )
+    return rid

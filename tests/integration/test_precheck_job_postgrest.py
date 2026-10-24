@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -49,11 +50,15 @@ def rest_client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(db_session, "get_supabase_client", lambda: client)
     # чистая песочница через прямой PG (не трогаем маркер isolation)
     import psycopg
-    from isolation import refuse_if_not_isolated
+    from isolation import assert_safe_to_mutate, refuse_if_not_isolated, register_test_run
 
     dsn = refuse_if_not_isolated(for_probe=False)
+    run_id = os.environ.get("PRECHECK_TEST_RUN_ID") or "pytest-precheck-postgrest"
+    monkeypatch.setenv("PRECHECK_TEST_RUN_ID", run_id)
     with psycopg.connect(dsn) as conn:
         conn.autocommit = True
+        register_test_run(conn, run_id=run_id)
+        assert_safe_to_mutate(conn, run_id=run_id)
         with conn.cursor() as cur:
             cur.execute(
                 "TRUNCATE staff_document_check_jobs, documents, cases CASCADE"
