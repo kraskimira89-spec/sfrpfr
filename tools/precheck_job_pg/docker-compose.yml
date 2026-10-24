@@ -1,0 +1,15 @@
+# Одноразовая тестовая БД для SFRFR-111 job reclaim (не production).
+services:
+  precheck-pg:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sfrfr_precheck
+      POSTGRES_USER: sfrfr
+      POSTGRES_PASSWORD: sfrfr
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sfrfr -d sfrfr_precheck"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

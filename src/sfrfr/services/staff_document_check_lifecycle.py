@@ -1,6 +1,7 @@
 """Восстановление staff_document_check_jobs без возврата обработки в HTTP.
 
 Строка в таблице ≠ доказательство выполнения: нужен reclaim + worker poll.
+Claim только из queued; finalize только владельцем lease; heartbeat продлевает locked_at.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Зависший running без обновления — вернуть в очередь или failed.
+# Зависший running без heartbeat — вернуть в очередь или failed.
 STALE_RUNNING_SECONDS = 15 * 60
 
 
@@ -27,6 +28,86 @@ def _parse_ts(raw: Any) -> datetime | None:
         return None
 
 
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def claim_queued_job(
+    client: Any,
+    *,
+    job_id: str,
+    worker_id: str,
+    attempts: int,
+) -> dict[str, Any] | None:
+    """Атомарный claim: только status=queued → running + locked_by.
+
+    Два обработчика одного id: побеждает один (CAS по status).
+    """
+    rows = (
+        client.table("staff_document_check_jobs")
+        .update(
+            {
+                "status": "running",
+                "attempts": attempts,
+                "current_stage": "extract_classify_kit",
+                "locked_by": worker_id,
+                "locked_at": _now_iso(),
+                "updated_at": _now_iso(),
+            }
+        )
+        .eq("id", job_id)
+        .eq("status", "queued")
+        .execute()
+        .data
+        or []
+    )
+    return rows[0] if rows else None
+
+
+def heartbeat_job_lease(
+    client: Any,
+    *,
+    job_id: str,
+    worker_id: str,
+) -> bool:
+    """Продлить lease; True если мы всё ещё владелец running."""
+    rows = (
+        client.table("staff_document_check_jobs")
+        .update({"locked_at": _now_iso(), "updated_at": _now_iso()})
+        .eq("id", job_id)
+        .eq("status", "running")
+        .eq("locked_by", worker_id)
+        .execute()
+        .data
+        or []
+    )
+    return bool(rows)
+
+
+def finalize_job_as_owner(
+    client: Any,
+    *,
+    job_id: str,
+    worker_id: str,
+    payload: dict[str, Any],
+) -> bool:
+    """Записать результат только если lease всё ещё наш.
+
+    Старый исполнитель после reclaim не перезапишет нового владельца.
+    """
+    rows = (
+        client.table("staff_document_check_jobs")
+        .update(payload)
+        .eq("id", job_id)
+        .eq("status", "running")
+        .eq("locked_by", worker_id)
+        .execute()
+        .data
+        or []
+    )
+    return bool(rows)
+
+
 def reclaim_stale_running_jobs(
     *,
     older_than_sec: int = STALE_RUNNING_SECONDS,
@@ -34,6 +115,7 @@ def reclaim_stale_running_jobs(
 ) -> dict[str, Any]:
     """Подхватить «висящие» running после падения процесса.
 
+    Активный heartbeat (свежий locked_at) → reclaim не трогает.
     attempts < max_attempts → снова queued.
     иначе → failed (не вечный running).
     """
@@ -43,7 +125,7 @@ def reclaim_stale_running_jobs(
     cutoff = (now or datetime.now(UTC)) - timedelta(seconds=max(60, older_than_sec))
     rows = (
         client.table("staff_document_check_jobs")
-        .select("id, attempts, max_attempts, locked_at, updated_at, status")
+        .select("id, attempts, max_attempts, locked_at, locked_by, updated_at, status")
         .eq("status", "running")
         .limit(50)
         .execute()
@@ -61,32 +143,43 @@ def reclaim_stale_running_jobs(
         job_id = str(row.get("id") or "")
         if not job_id:
             continue
+        prev_owner = str(row.get("locked_by") or "")
         attempts = int(row.get("attempts") or 0)
         max_attempts = int(row.get("max_attempts") or 3)
         if attempts < max_attempts:
-            client.table("staff_document_check_jobs").update(
-                {
-                    "status": "queued",
-                    "current_stage": "requeued_stale",
-                    "locked_by": None,
-                    "locked_at": None,
-                    "updated_at": datetime.now(UTC).isoformat(),
-                    "last_error": "stale_running_requeued",
-                }
-            ).eq("id", job_id).eq("status", "running").execute()
+            payload = {
+                "status": "queued",
+                "current_stage": "requeued_stale",
+                "locked_by": None,
+                "locked_at": None,
+                "updated_at": _now_iso(),
+                "last_error": "stale_running_requeued",
+            }
+        else:
+            payload = {
+                "status": "failed",
+                "current_stage": "failed",
+                "finished_at": _now_iso(),
+                "updated_at": _now_iso(),
+                "last_error": "stale_running_exhausted",
+                "locked_by": None,
+                "locked_at": None,
+            }
+        # CAS: running + тот же owner (если был), чтобы не сбить свежий claim.
+        upd = (
+            client.table("staff_document_check_jobs")
+            .update(payload)
+            .eq("id", job_id)
+            .eq("status", "running")
+        )
+        if prev_owner:
+            upd = upd.eq("locked_by", prev_owner)
+        changed = upd.execute().data or []
+        if not changed:
+            continue
+        if attempts < max_attempts:
             requeued += 1
         else:
-            client.table("staff_document_check_jobs").update(
-                {
-                    "status": "failed",
-                    "current_stage": "failed",
-                    "finished_at": datetime.now(UTC).isoformat(),
-                    "updated_at": datetime.now(UTC).isoformat(),
-                    "last_error": "stale_running_exhausted",
-                    "locked_by": None,
-                    "locked_at": None,
-                }
-            ).eq("id", job_id).eq("status", "running").execute()
             failed += 1
     if requeued or failed:
         logger.info(

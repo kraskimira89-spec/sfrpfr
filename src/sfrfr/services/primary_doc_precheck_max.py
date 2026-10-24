@@ -99,7 +99,8 @@ def resolve_stale_callback(
 
 def answer_faq(question: str, primary: dict[str, Any]) -> str:
     q = (question or "").casefold()
-    rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
+    raw_rec = primary.get("recommendation")
+    rec: dict[str, Any] = raw_rec if isinstance(raw_rec, dict) else {}
     if "недоплач" in q or ("точно" in q and "пенс" in q):
         return (
             "Различие документов само по себе не подтверждает недоплату. "

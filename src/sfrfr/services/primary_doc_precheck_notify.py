@@ -41,7 +41,8 @@ def build_precheck_max_message(
     """
     branch = select_max_branch(primary)
     summary = str(primary.get("client_summary") or "").strip()
-    rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
+    raw_rec = primary.get("recommendation")
+    rec: dict[str, Any] = raw_rec if isinstance(raw_rec, dict) else {}
     text = summary or "Есть сохранённый результат первичной проверки документов."
     cid = (check_id or str(primary.get("check_id") or "")).strip() or None
     pl = lambda sub: _payload(sub, cid)  # noqa: E731

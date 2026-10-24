@@ -264,7 +264,8 @@ def _orders_offer_gate(repo: Any, case_id: str) -> tuple[bool, bool]:
 def _client_declined_precheck_offer(repo: Any, case_id: str) -> bool:
     try:
         row = repo.get_case_row(case_id) or {}
-        flags = row.get("flags") if isinstance(row.get("flags"), dict) else {}
+        flags_raw = row.get("flags")
+        flags: dict[str, Any] = flags_raw if isinstance(flags_raw, dict) else {}
         return bool(flags.get("precheck_offer_declined"))
     except Exception:  # noqa: BLE001
         return False
@@ -535,7 +536,9 @@ def _maybe_retry_client_notify(job: dict[str, Any]) -> dict[str, Any]:
         return job
     if not notify_meta:
         return job
-    merged = {**result, "client_notify": notify_meta}
+    if not isinstance(result, dict):
+        return job
+    merged: dict[str, Any] = {**result, "client_notify": notify_meta}
     get_supabase_client().table("staff_document_check_jobs").update(
         {"result": merged, "updated_at": _now()}
     ).eq("id", job_id).execute()
@@ -565,34 +568,52 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
     if result_already_finalized(job):
         # Результат уже есть: не пересчитывать. Если notify не записан — один догон.
         return _maybe_retry_client_notify(job)
-    attempts = int(job.get("attempts") or 0) + 1
-    claimed = (
-        client.table("staff_document_check_jobs")
-        .update(
-            {
-                "status": "running",
-                "attempts": attempts,
-                "current_stage": "extract_classify_kit",
-                "locked_by": _worker_id(),
-                "locked_at": _now(),
-                "updated_at": _now(),
-            }
-        )
-        .eq("id", job_id)
-        .in_("status", ["queued", "running"])
-        .execute()
-        .data
-        or []
+
+    from sfrfr.services.staff_document_check_lifecycle import (
+        claim_queued_job,
+        finalize_job_as_owner,
+        heartbeat_job_lease,
     )
-    if not claimed and str(job.get("status")) not in {"queued", "running"}:
-        return job
+
+    worker = _worker_id()
+    # Уже наш running (повторный вход того же процесса) — продолжаем.
+    if (
+        str(job.get("status")) == "running"
+        and str(job.get("locked_by") or "") == worker
+    ):
+        claimed_row = job
+    else:
+        attempts = int(job.get("attempts") or 0) + 1
+        claimed_row = claim_queued_job(
+            client, job_id=job_id, worker_id=worker, attempts=attempts
+        )
+        if not claimed_row:
+            # Проигрыш гонки или чужой running — не трогаем.
+            fresh = (
+                client.table("staff_document_check_jobs")
+                .select("*")
+                .eq("id", job_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            return fresh[0] if fresh else job
     try:
-        case_id = str(job.get("case_id") or "")
+        if not heartbeat_job_lease(client, job_id=job_id, worker_id=worker):
+            return claimed_row
+        case_id = str(claimed_row.get("case_id") or job.get("case_id") or "")
         result = _analyze_case_documents(case_id)
-        result["document_set_revision"] = str(job.get("documents_fingerprint") or "")
+        result["document_set_revision"] = str(
+            claimed_row.get("documents_fingerprint") or job.get("documents_fingerprint") or ""
+        )
         result["check_id"] = job_id
         result["case_id"] = case_id
-        result["started_at"] = job.get("created_at") or job.get("locked_at")
+        result["started_at"] = (
+            claimed_row.get("created_at")
+            or claimed_row.get("locked_at")
+            or job.get("created_at")
+        )
         result["completed_at"] = _now()
         final_status = str(result.get("status") or "completed")
         notify_meta: dict[str, Any] | None = None
@@ -601,6 +622,7 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
             isinstance(primary, dict)
             and final_status in {"completed", "needs_action"}
             and not notify_already_recorded(job)
+            and not notify_already_recorded({"result": result})
         ):
             try:
                 notify_meta = _enqueue_notify_once(
@@ -612,8 +634,14 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
                 logger.warning(
                     "precheck notify skipped job=%s", job_id[:8], exc_info=True
                 )
-        client.table("staff_document_check_jobs").update(
-            {
+        if not heartbeat_job_lease(client, job_id=job_id, worker_id=worker):
+            logger.warning("staff_docs_check lost lease before finalize job=%s", job_id[:8])
+            return claimed_row
+        ok = finalize_job_as_owner(
+            client,
+            job_id=job_id,
+            worker_id=worker,
+            payload={
                 "status": final_status,
                 "result": result,
                 "current_stage": "done",
@@ -622,12 +650,29 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
                 "last_error": None,
                 "locked_by": None,
                 "locked_at": None,
-            }
-        ).eq("id", job_id).execute()
+            },
+        )
+        if not ok:
+            logger.warning(
+                "staff_docs_check finalize rejected (not owner) job=%s", job_id[:8]
+            )
+            fresh = (
+                client.table("staff_document_check_jobs")
+                .select("*")
+                .eq("id", job_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            return fresh[0] if fresh else claimed_row
         return {"id": job_id, "status": final_status, "result": result}
     except Exception as exc:  # noqa: BLE001
-        client.table("staff_document_check_jobs").update(
-            {
+        finalize_job_as_owner(
+            client,
+            job_id=job_id,
+            worker_id=worker,
+            payload={
                 "status": "failed",
                 "last_error": type(exc).__name__,
                 "current_stage": "failed",
@@ -635,8 +680,8 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
                 "updated_at": _now(),
                 "locked_by": None,
                 "locked_at": None,
-            }
-        ).eq("id", job_id).execute()
+            },
+        )
         logger.warning("staff_docs_check failed job=%s err=%s", job_id[:8], type(exc).__name__)
         raise
 

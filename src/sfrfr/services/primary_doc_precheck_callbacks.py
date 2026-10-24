@@ -100,19 +100,20 @@ def _job_belongs_to_case(check_id: str, case_id: str) -> bool:
 def _primary_from_check(check: dict[str, Any] | None) -> dict[str, Any]:
     if not check:
         return {}
-    result = check.get("result") if isinstance(check.get("result"), dict) else {}
-    primary = result.get("primary_precheck") if isinstance(result, dict) else None
+    result_raw = check.get("result")
+    result: dict[str, Any] = result_raw if isinstance(result_raw, dict) else {}
+    primary = result.get("primary_precheck")
     if isinstance(primary, dict):
         return primary
+    diag = result.get("diag_offer")
+    diag_d = diag if isinstance(diag, dict) else {}
     return {
         "outcome": result.get("precheck_outcome") or check.get("status"),
         "client_summary": result.get("client_summary"),
         "comparison_status": result.get("comparison_status"),
-        "recommendation": (
-            {"offer_paid_analysis": bool((result.get("diag_offer") or {}).get("allowed"))}
-            if isinstance(result, dict)
-            else {}
-        ),
+        "recommendation": {
+            "offer_paid_analysis": bool(diag_d.get("allowed")),
+        },
         "findings": result.get("findings") or [],
         "limitations": result.get("limitations") or [],
     }
@@ -166,7 +167,8 @@ def _mark_ask_staff(case_id: str, max_user_id: str) -> bool:
 
 def live_offer_still_allowed(*, case_id: str, primary: dict[str, Any]) -> tuple[bool, str]:
     """Повторная проверка gates на момент callback (не доверять сохранённой карточке)."""
-    rec = primary.get("recommendation") if isinstance(primary.get("recommendation"), dict) else {}
+    raw_rec = primary.get("recommendation")
+    rec: dict[str, Any] = raw_rec if isinstance(raw_rec, dict) else {}
     if not rec.get("offer_paid_analysis"):
         return False, "saved_offer_false"
     try:
@@ -337,7 +339,8 @@ def handle_precheck_callback(
         if not primary:
             text, _ = sanitize_client_text(_status_text(check, primary))
             return PrecheckCallbackResult(ok=True, action="precheck_status", text=text)
-        findings = primary.get("findings") if isinstance(primary.get("findings"), list) else []
+        findings_raw = primary.get("findings")
+        findings: list[Any] = findings_raw if isinstance(findings_raw, list) else []
         hard = [
             f
             for f in findings
@@ -352,7 +355,8 @@ def handle_precheck_callback(
                 "Это различие между представленными документами, "
                 "а не доказанная недоплата пенсии."
             )
-            lim = primary.get("limitations") if isinstance(primary.get("limitations"), list) else []
+            lim_raw = primary.get("limitations")
+            lim: list[Any] = lim_raw if isinstance(lim_raw, list) else []
             if lim:
                 body += " Ограничения: " + "; ".join(str(x) for x in lim[:3])
         else:

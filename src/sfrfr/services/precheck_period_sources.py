@@ -101,9 +101,12 @@ def periods_for_precheck(
             extract_error = type(exc).__name__
             continue
         periods: list[dict[str, Any]] = []
-        for p in extracted.periods or []:
-            raw = p.model_dump() if hasattr(p, "model_dump") else dict(p)  # type: ignore[arg-type]
-            if not isinstance(raw, dict):
+        for item in extracted.periods or []:
+            raw_obj: Any = (
+                item.model_dump() if hasattr(item, "model_dump") else item
+            )
+            raw = dict(raw_obj) if isinstance(raw_obj, dict) else {}
+            if not raw:
                 continue
             raw.setdefault("period_id", f"ephem:{doc.get('id')}:{len(periods)}")
             raw.setdefault("employer", raw.get("employer") or "не указан")
