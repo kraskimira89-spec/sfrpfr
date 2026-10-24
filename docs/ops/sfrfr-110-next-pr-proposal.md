@@ -1,42 +1,29 @@
 # Минимальный следующий PR (после #263)
 
-## Рекомендация: **без миграции**
+## Статус
+
+Оформлен audit PR:
 
 ```text
-feat(SFRFR-110): audit period-date write paths + E01 operation event draft
+docs(SFRFR-110): audit period-date write paths and draft correction event
 ```
 
-### Цель
+Ветка: `docs/sfrfr-110-e01-period-date-audit` (base = #263).
 
-Закрыть контракт E01 на уровне **инвентаризации write-путей и черновика события**,
-без объявления «дата исправлена» в клиентском MAX.
+Канон аудита: `docs/ops/sfrfr-110-period-date-write-audit.md`.
 
-### Включить
+### Итог аудита о миграции
 
-1. Read-only отчёт: где код пишет/может писать даты периодов (`ils_periods` / findings / staff).
-2. Черновик payload события `period_date_corrected` (before/after/reason/actor/source/version).
-3. Тесты контракта: `persist_flag_is_trusted` отвергает LLM; `ok=None` → запрет E01-фразы.
-4. Ссылка на `docs/ops/sfrfr-110-e01-operation-contract.md`.
+Данных для E01-wire пока недостаточно (нет точечной операции).  
+Целевой минимум после появления операции — **код без миграции** (JSON version +
+audit payload). Отдельная миграция — только если JSON version окажется небезопасен.
 
-### Не включать
+### Не включать (и не включено)
 
-- Миграции БД.
-- Production TrustedErrorContext adapter с долговременным хранилищем.
-- Wire E01 в MAX reply-path.
-- Исправления всех callback из карты.
+- Миграции БД; production adapter; wire E01; правки всех callback.
 - Merge #261/#263, deploy, live.
 
-### Когда нужна отдельная миграция
+### Следующий узкий PR после audit (не этот)
 
-Только если audit покажет невозможность version/before-after в существующих
-audit/JSON полях без потери конкурентной безопасности — тогда **второй** PR
-с обоснованием схемы, отдельным согласованием.
-
-## Альтернатива (уже почти закрыта доками)
-
-Если audit писать нельзя до merge #261 — ограничиться docs-only PR поверх #263:
-дожать callback subcodes `intake:*`/`q:*` и пост-фильтр LLM критических фраз
-как **отдельную** узкую задачу после Null-проверки.
-
-Приоритет владельца: **E01 storage contract audit (без миграции)** → затем
-минимальный wire E01 при наличии реального ack.
+Пост-фильтр критических утверждений на `max_llm_reply` при Null
+(`docs/ops/sfrfr-110-null-llm-gap.md`) — отдельно от записи даты.
