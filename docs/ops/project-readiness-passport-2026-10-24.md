@@ -3,6 +3,9 @@
 **Дата документа:** 2026-10-24
 **Аудитория:** Стратег, Владелец
 **Tracker:** [SFRFR-100](https://tracker.yandex.ru/SFRFR-100)
+**Матрица покрытия:** [`sfrfr-100-coverage-matrix-2026-10-24.md`](./sfrfr-100-coverage-matrix-2026-10-24.md)
+**E2E-протокол:** [`e2e-client-path-acceptance-protocol.md`](./e2e-client-path-acceptance-protocol.md)
+**Пакет владельца:** [`owner-decisions-pack-2026-10-24.md`](./owner-decisions-pack-2026-10-24.md)
 **Назначение:** рабочая точка отсчёта. **Не** подтверждает готовность к потоку клиентов и **не** заменяет сквозную приёмку.
 
 **Правило статусов (везде ниже):**
