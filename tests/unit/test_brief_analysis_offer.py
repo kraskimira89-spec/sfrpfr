@@ -796,6 +796,62 @@ def test_honest_brief_ui_no_discrepancy_honest() -> None:
     assert "не выявила" in blob or "расхожд" in blob
 
 
+def test_run_brief_skips_repeat_delivery_when_fingerprint_unchanged(
+    monkeypatch,
+) -> None:
+    """Повтор на тех же документах после показа summary — без второго delivery."""
+    delivered: list[dict] = []
+
+    class _Repo:
+        def list_documents(self, _cid: str):
+            return list(_KIT)
+
+        def get_pipeline_findings(self, _cid: str):
+            return []
+
+    store = MagicMock()
+    fp = ba.documents_fingerprint(_KIT)
+    rec = MaxIntakeRecord(
+        id="r-idem",
+        max_user_id="u-idem",
+        case_id="c-idem",
+        q_answers={
+            "problem": "Не учли северный стаж",
+            ba.FP_KEY: fp,
+            ba.SUMMARY_SHOWN_KEY: "1",
+            ba.STATUS_KEY: ba.STATUS_COMPLETED,
+            ba.OK_KEY: "1",
+            ba.CURRENT_KEY: "1",
+            ba.DISCREPANCY_KEY: "1",
+        },
+    )
+    store.get_active.return_value = rec
+    store.save.side_effect = lambda r: None
+
+    monkeypatch.setattr("sfrfr.db.case_repository.CaseRepository", lambda: _Repo())
+    monkeypatch.setattr(
+        "sfrfr.integrations.max.intake.get_intake_store", lambda: store
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.fetch_recent_case_messages",
+        lambda *_a, **_k: [],
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_context.staff_dialog_active",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(
+        "sfrfr.services.case_chat_delivery.enqueue_max_delivery",
+        lambda **kw: delivered.append(kw) or True,
+    )
+
+    out = ba.run_brief_after_kit(case_id="c-idem", max_user_id="u-idem")
+    assert out is not None
+    assert out.has_justified_discrepancy
+    assert out.fingerprint == fp
+    assert delivered == []
+
+
 def test_weak_stazh_problem_is_client_only_not_justified() -> None:
     """Слабое «стаж»/даты → со слов клиента; soft-ask/оффер не открываются."""
     result = ba.compute_brief_analysis(
