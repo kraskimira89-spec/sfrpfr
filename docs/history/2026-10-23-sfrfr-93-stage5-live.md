@@ -1,15 +1,18 @@
-# Этап 5: фоновый режим DRY_RUN=0 (старт)
+# Этап 5: фоновый режим DRY_RUN=0
 
-## Включение
+Live: **2026-10-23T21:01:27Z** → 24ч до **2026-10-24T21:01:27Z**.
 
-- `FISCAL_RECONCILE_DRY_RUN=0` (ENABLED=1, ALERT_SINCE без изменений)
-- timer **enabled/active**
-- Первый tick: `candidates=0`, `stale_alerts=0` (окно пустое после этапа 4)
+## Loop #8 (13:02Z) — кандидат `89be641d`
 
-## Наблюдение 24ч
+- `provider_payment_id` = `receipt:…` → `error_before_post`, streak=7, attempts=0
+- Помечен `not_required`; create не было
 
-Каждые 2 ч: journal + candidates; стоп при втором чеке / claimed_but_not_delivered / streak≥12 у неизвестного.
+## Loop #9 (15:01:43Z, ~18 ч)
 
-## Снимок старта 2026-10-23T21:01Z
-
-- dry_run=false, candidates=0 — OK
+| Поле | Значение |
+|------|----------|
+| timer | enabled / active |
+| ticks_last_2h | 12 |
+| candidates / stale | 0 / 0 |
+| error_lines | 0 |
+| новых кандидатов | нет |
