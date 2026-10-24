@@ -226,3 +226,20 @@
 | S20.20G | Просьба о человеке | fake_staff_connected |
 | S20.20H | Пауза из‑за тяжести | pause_ignored |
 | S20.20I | Непосредственная опасность | safety_not_sales |
+
+## S20.21 Агрессия / претензия / жалоба (А–И, К)
+
+Код: `complaint_aggression_policy.py`. Тон ≠ отмена требования. Расширение 20.15.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.21A | Ждёт результат | tone_over_status |
+| S20.21B | Жалоба / отзыв | discourage_complaint |
+| S20.21C | Официальная претензия | fake_registration |
+| S20.21D | Немедленный возврат | fake_refund |
+| S20.21E | «Мошенники» | label_fight |
+| S20.21F | Оскорбления | block_for_tone |
+| S20.21G | Угроза вреда | harm_vs_review |
+| S20.21H | Повтор каналов | duplicate_loss |
+| S20.21I | Ошибка бота + оплата | bot_promise_claim |
+| S20.21K | «Ничего не отправляли» | sent_vs_received |
