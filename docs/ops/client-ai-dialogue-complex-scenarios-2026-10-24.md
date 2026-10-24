@@ -261,3 +261,19 @@
 | S20.22I | Все годы без документов | words_as_proof |
 | S20.22K | Ответ в любое время | fake_sla |
 | S20.22L | Обещание сайта | ambiguous_promise |
+
+## S20.23 Отказ от следующей оплаты (А–И)
+
+Код: `refuse_next_stage_policy.py`. Отказ от offer ≠ стоп оплаченного.
+
+| ID | Вариант | Root |
+|---|---|---|
+| S20.23A | Больше не платит | reoffer_after_refuse |
+| S20.23B | «Всё входит» | all_included_dispute |
+| S20.23C | Нет денег | loan_pressure |
+| S20.23D | Сам в СФР | hold_with_complexity |
+| S20.23E | Сначала оплаченное | sell_own_fix |
+| S20.23F | Бесплатно следующий этап | free_scope_guess |
+| S20.23G | Страх удаления docs | docs_as_pressure |
+| S20.23H | Срок без покупки | deadline_as_upsell |
+| S20.23I | Вернулся к предложению | auto_order_on_return |
