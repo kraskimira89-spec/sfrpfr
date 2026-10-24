@@ -262,3 +262,79 @@ def test_negation_and_uncertainty_not_blocked() -> None:
     out = filter_llm_action_claims(text=text, case_id="case-a")
     assert out.blocked is False
     assert out.text == text
+
+
+def test_mixed_quote_plus_bare_claim_blocked() -> None:
+    text = "Вы написали: «дата исправлена». Подтверждаю: всё исправлено."
+    out = filter_llm_action_claims(text=text, case_id="case-a")
+    assert out.blocked is True
+    assert out.text == ACTION_CLAIM_SAFE_FALLBACK
+
+
+def test_mixed_negation_plus_bare_claim_blocked() -> None:
+    text = "Возврат не выполнен, но дата исправлена."
+    out = filter_llm_action_claims(text=text, case_id="case-a")
+    assert out.blocked is True
+    assert "дата исправлена" not in out.text.casefold()
+
+
+def test_mixed_uncertainty_plus_limit_claim_blocked() -> None:
+    text = "Возможно, потребуется проверка. Результат уже ограничен."
+    out = filter_llm_action_claims(text=text, case_id="case-a")
+    assert out.blocked is True
+    assert out.text == ACTION_CLAIM_SAFE_FALLBACK
+
+
+def test_limit_ack_does_not_allow_date_or_refund_claims() -> None:
+    """Trusted limit success ≠ разрешение «дата исправлена» / «возврат выполнен»."""
+    adapter = InMemoryTrustedErrorContextAdapter()
+    adapter.put(
+        TrustedErrorContext(
+            case_id="case-a",
+            operation_id="op-1",
+            error_confirmed=True,
+            error_description="дате",
+            unknown_impact_area="итог",
+            limit_op=TrustedOpResult(
+                case_id="case-a",
+                operation_id="lim",
+                op_kind="provisional_limit",
+                ok=True,
+                source="db_write_ack",
+            ),
+            result_version="v1",
+            authorized_for_case_id="case-a",
+        )
+    )
+    limit_ok = filter_llm_action_claims(
+        text="Использование ограничено.",
+        case_id="case-a",
+        adapter=adapter,
+        current_result_version="v1",
+    )
+    assert limit_ok.blocked is False
+
+    date_blocked = filter_llm_action_claims(
+        text="Дата исправлена.",
+        case_id="case-a",
+        adapter=adapter,
+        current_result_version="v1",
+    )
+    assert date_blocked.blocked is True
+
+    refund_blocked = filter_llm_action_claims(
+        text="Возврат выполнен.",
+        case_id="case-a",
+        adapter=adapter,
+        current_result_version="v1",
+    )
+    assert refund_blocked.blocked is True
+
+
+def test_fallback_does_not_invent_task_or_claim_registration() -> None:
+    out = filter_llm_action_claims(text="Дата исправлена.", case_id="case-a")
+    low = out.text.casefold()
+    assert "претензия зарегистрирована" not in low
+    assert "задача создана" not in low
+    assert "использование ограничено" not in low
+    assert "не буду сообщать, что исправление завершено" in low
