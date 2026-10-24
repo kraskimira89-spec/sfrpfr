@@ -2,7 +2,7 @@
 
 ```text
 PR / точный head: https://github.com/kraskimira89-spec/sfrpfr/pull/260
-  (обновить SHA после push этого follow-up; auto-merge OFF)
+  (c40bd61eea94c0e21040d8956e3906ecdf76fcb5; auto-merge OFF)
 
 Причина:
   confirm_order_from_receipt пишет provider=receipt_ocr и
@@ -50,12 +50,12 @@ CI:
 
 ## После согласованной выкладки (этап Д — чеклист)
 
-1. Merge-коммит, deployed SHA, время UTC  
-2. Timer/service без смены настроек  
-3. ≥3 штатных тика подряд  
-4. OCR не в candidates; streak OCR не растёт; attempts/POST без изменений; нет stale-alert на OCR; YK-кандидаты не потеряны (или явно: «новый боевой create не проверен»)  
+1. Merge-коммит, deployed SHA, время UTC
+2. Timer/service без смены настроек
+3. ≥3 штатных тика подряд
+4. OCR не в candidates; streak OCR не растёт; attempts/POST без изменений; нет stale-alert на OCR; YK-кандидаты не потеряны (или явно: «новый боевой create не проверен»)
 
 ## Итог окна `2026-10-24T21:01:27Z`
 
-Разделить: до дефекта | дефект (error_before_post, create=0) | после патча (версия + число тиков).  
+Разделить: до дефекта | дефект (error_before_post, create=0) | после патча (версия + число тиков).
 Не заявлять «24ч стабильности исправленной версии», если патч работал меньше.
