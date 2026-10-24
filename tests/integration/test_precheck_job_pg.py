@@ -23,10 +23,10 @@ ROOT = Path(__file__).resolve().parents[2]
 SHIM = ROOT / "tools" / "precheck_job_pg"
 sys.path.insert(0, str(SHIM))
 
-from isolation import (  # noqa: E402
+from isolation_guard import (  # noqa: E402
     IsolationError,
-    assert_connected_isolation,
-    refuse_if_not_isolated,
+    require_test_target,
+    verify_test_connection,
 )
 from pg_rest_shim import PgRestShim  # noqa: E402
 
@@ -40,10 +40,12 @@ from sfrfr.services.staff_document_check_lifecycle import (  # noqa: E402
 )
 
 try:
-    DSN = refuse_if_not_isolated(for_probe=False)
+    _TARGET = require_test_target()
+    DSN = _TARGET.dsn
     _ISOLATION_OK = True
     _ISOLATION_REASON = ""
 except IsolationError as _exc:
+    _TARGET = None
     DSN = ""
     _ISOLATION_OK = False
     _ISOLATION_REASON = str(_exc)
@@ -51,32 +53,70 @@ except IsolationError as _exc:
 pytestmark = pytest.mark.skipif(
     not _ISOLATION_OK,
     reason=(
-        f"isolated PRECHECK_PG_DSN required ({_ISOLATION_REASON or 'missing'}); "
-        "run tools/precheck_job_pg/up.ps1 — DATABASE_URL fallback запрещён"
+        f"PRECHECK_PG_DSN+PRECHECK_TEST_RUN_ID required ({_ISOLATION_REASON or 'missing'}); "
+        "run tools/precheck_job_pg/up.ps1"
     ),
 )
 
 
 @pytest.fixture()
-def pg(monkeypatch: pytest.MonkeyPatch):
+def pg():
     import psycopg
-    from isolation import assert_safe_to_mutate, register_test_run, require_test_run_id
 
-    run_id = os.environ.get("PRECHECK_TEST_RUN_ID") or "pytest-precheck-job-pg"
-    monkeypatch.setenv("PRECHECK_TEST_RUN_ID", run_id)
-    conn = psycopg.connect(DSN)
-    conn.autocommit = False
-    assert_connected_isolation(conn)
-    register_test_run(conn, run_id=run_id)
-    conn.commit()
-    assert_safe_to_mutate(conn, run_id=require_test_run_id())
-    client = PgRestShim(conn)
-    # чистая песочница; маркер isolation / run не трогаем
-    with conn.cursor() as cur:
-        cur.execute("TRUNCATE staff_document_check_jobs, documents, cases CASCADE")
-    conn.commit()
-    yield client, conn
-    conn.close()
+    # Валидация до подключения; маркер создаёт только up.ps1.
+    target = require_test_target()
+
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        pytest.fail(
+            "Shared precheck harness cannot run with pytest-xdist",
+            pytrace=False,
+        )
+
+    conn = psycopg.connect(
+        target.dsn,
+        connect_timeout=5,
+        options="-c statement_timeout=10000",
+    )
+
+    try:
+        conn.autocommit = False
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT pg_try_advisory_lock(
+                    hashtext('sfrfr_precheck_fixture')::bigint
+                )
+                """
+            )
+            if not cur.fetchone()[0]:
+                pytest.fail(
+                    "Another precheck PG test session owns the harness",
+                    pytrace=False,
+                )
+
+        verify_test_connection(conn, target)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                TRUNCATE
+                    staff_document_check_jobs,
+                    documents,
+                    cases
+                CASCADE
+                """
+            )
+        conn.commit()
+
+        client = PgRestShim(conn)
+        yield client, conn
+
+    finally:
+        try:
+            conn.rollback()
+        finally:
+            conn.close()
 
 
 def _seed_case_job(client: PgRestShim, *, fingerprint: str = "fp1") -> tuple[str, str]:

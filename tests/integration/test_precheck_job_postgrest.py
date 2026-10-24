@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -16,7 +15,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "precheck_job_pg"))
 
-from isolation import IsolationError, refuse_if_not_isolated  # noqa: E402
+from isolation_guard import (  # noqa: E402
+    IsolationError,
+    require_test_target,
+    verify_test_connection,
+)
 from postgrest_client import (  # noqa: E402
     build_precheck_supabase_client,
     postgrest_reachable,
@@ -31,34 +34,29 @@ from sfrfr.services.staff_document_check_lifecycle import (  # noqa: E402
 )
 
 try:
-    refuse_if_not_isolated(for_probe=False)
+    require_test_target()
     _DSN_OK = True
 except IsolationError:
     _DSN_OK = False
 
 pytestmark = pytest.mark.skipif(
     not (_DSN_OK and postgrest_reachable()),
-    reason="PRECHECK_PG_DSN + PostgREST :55433 required (up.ps1)",
+    reason="PRECHECK_PG_DSN+PRECHECK_TEST_RUN_ID + PostgREST :55433 (up.ps1)",
 )
 
 
 @pytest.fixture()
 def rest_client(monkeypatch: pytest.MonkeyPatch):
+    import psycopg
+
     from sfrfr.db import session as db_session
 
+    target = require_test_target()
     client = build_precheck_supabase_client()
     monkeypatch.setattr(db_session, "get_supabase_client", lambda: client)
-    # чистая песочница через прямой PG (не трогаем маркер isolation)
-    import psycopg
-    from isolation import assert_safe_to_mutate, refuse_if_not_isolated, register_test_run
-
-    dsn = refuse_if_not_isolated(for_probe=False)
-    run_id = os.environ.get("PRECHECK_TEST_RUN_ID") or "pytest-precheck-postgrest"
-    monkeypatch.setenv("PRECHECK_TEST_RUN_ID", run_id)
-    with psycopg.connect(dsn) as conn:
+    with psycopg.connect(target.dsn, connect_timeout=5) as conn:
         conn.autocommit = True
-        register_test_run(conn, run_id=run_id)
-        assert_safe_to_mutate(conn, run_id=run_id)
+        verify_test_connection(conn, target)
         with conn.cursor() as cur:
             cur.execute(
                 "TRUNCATE staff_document_check_jobs, documents, cases CASCADE"

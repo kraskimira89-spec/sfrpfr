@@ -1,40 +1,25 @@
-"""Принудительная изоляция локального PG-harness precheck (без production).
+"""Совместимость: тонкая обёртка над isolation_guard (канон Strategist).
 
-Контракт:
-  PRECHECK_PG_DSN      — единственный DSN (без DATABASE_URL / PROBE fallback)
-  PRECHECK_TEST_RUN_ID — владелец стенда (precheck_test_guard.environment)
-
-Допустимая цель: postgresql://sfrfr:*@127.0.0.1:55432/sfrfr_precheck
+Новый код должен импортировать isolation_guard напрямую.
+Маркер создаёт только bootstrap (up.ps1), не фикстуры.
 """
 
 from __future__ import annotations
 
-import os
 import re
-from dataclasses import dataclass
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
+from isolation_guard import (  # noqa: F401
+    IsolationError,
+    TestTarget,
+    require_test_target,
+    verify_test_connection,
+)
+
+ISOLATION_MARKER = "sfrfr_precheck_isolation_ok"
 ALLOWED_DB = "sfrfr_precheck"
 ALLOWED_USER = "sfrfr"
-ALLOWED_HOST = "127.0.0.1"
-ALLOWED_PORT = 55432
-ISOLATION_MARKER = "sfrfr_precheck_isolation_ok"
-RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
-
-
-@dataclass(frozen=True)
-class ParsedDsn:
-    scheme: str
-    user: str
-    host: str
-    port: int | None
-    dbname: str
-    has_password: bool
-
-
-class IsolationError(RuntimeError):
-    """Отказ до любой записи/чтения клиентских данных."""
 
 
 def _sanitize_exc_message(text: str) -> str:
@@ -45,157 +30,80 @@ def _sanitize_exc_message(text: str) -> str:
     return out[:240]
 
 
-def parse_dsn(dsn: str) -> ParsedDsn:
-    raw = (dsn or "").strip()
-    if not raw:
-        raise IsolationError("empty_dsn")
-    try:
-        url = urlsplit(raw)
-    except ValueError as exc:
-        raise IsolationError("invalid_test_dsn") from exc
-    user = unquote(url.username or "")
-    host = (url.hostname or "").lower()
-    dbname = unquote(url.path or "").lstrip("/").split("?")[0]
-    if not user or not host or not dbname:
-        raise IsolationError("dsn_incomplete")
-    if url.query or url.fragment:
-        raise IsolationError("dsn_has_query_or_fragment")
-    return ParsedDsn(
-        scheme=(url.scheme or "").lower(),
-        user=user,
-        host=host,
-        port=url.port,
-        dbname=dbname,
-        has_password=bool(url.password),
-    )
-
-
-def validate_dsn_identity(dsn: str) -> ParsedDsn:
-    """Строгий локальный harness: только 127.0.0.1:55432/sfrfr_precheck/sfrfr."""
-    info = parse_dsn(dsn)
-    if info.scheme not in {"postgres", "postgresql"}:
-        raise IsolationError("scheme_not_postgres")
-    allowed = (
-        info.host == ALLOWED_HOST
-        and info.port == ALLOWED_PORT
-        and info.dbname == ALLOWED_DB
-        and info.user == ALLOWED_USER
-        and info.has_password
-    )
-    if not allowed:
-        raise IsolationError("target_not_allowed")
-    return info
-
-
-def resolve_test_dsn(*, for_probe: bool = False) -> str:
-    """Только PRECHECK_PG_DSN. DATABASE_URL и PRECHECK_PROBE_* не читаются."""
-    del for_probe  # единый контракт для probe и tests
-    dsn = (os.environ.get("PRECHECK_PG_DSN") or "").strip()
-    if not dsn:
-        raise IsolationError("missing_test_dsn")
-    # Явно запретить «молчаливый» fallback: если кто-то задал только старые имена.
-    if os.environ.get("PRECHECK_PROBE_DATABASE_URL") and not dsn:
-        raise IsolationError("probe_url_deprecated_use_precheck_pg_dsn")
-    validate_dsn_identity(dsn)
-    return dsn
-
-
-def require_test_run_id() -> str:
-    rid = (os.environ.get("PRECHECK_TEST_RUN_ID") or "").strip()
-    if not rid:
-        raise IsolationError("missing_precheck_test_run_id")
-    if not RUN_ID_RE.fullmatch(rid):
-        raise IsolationError("invalid_test_run_id")
-    return rid
+def refuse_if_not_isolated(dsn: str | None = None, *, for_probe: bool = False) -> str:
+    del for_probe
+    if dsn:
+        # Проверка явного DSN через urlsplit (тот же контракт).
+        try:
+            url = urlsplit(dsn.strip())
+            ok = (
+                url.scheme in {"postgres", "postgresql"}
+                and url.hostname == "127.0.0.1"
+                and url.port == 55432
+                and unquote(url.path) == "/sfrfr_precheck"
+                and unquote(url.username or "") == "sfrfr"
+                and bool(url.password)
+                and not url.query
+                and not url.fragment
+            )
+        except ValueError as exc:
+            raise IsolationError("invalid_precheck_pg_dsn") from exc
+        if not ok:
+            raise IsolationError("precheck_target_not_allowed")
+        return dsn.strip()
+    return require_test_target().dsn
 
 
 def checked_target() -> tuple[str, str]:
-    """DSN + run_id до connect. Общий вход для probe и фикстур."""
-    dsn = resolve_test_dsn()
-    run_id = require_test_run_id()
-    return dsn, run_id
+    t = require_test_target()
+    return t.dsn, t.run_id
 
 
 def assert_connected_isolation(conn: Any) -> dict[str, str]:
-    """После connect: current_database/user + legacy marker."""
     with conn.cursor() as cur:
         cur.execute("SELECT current_database(), current_user")
         db, user = cur.fetchone()
-        db_s, user_s = str(db), str(user)
-        if db_s != ALLOWED_DB:
-            raise IsolationError("server_identity_mismatch")
-        if user_s != ALLOWED_USER:
-            raise IsolationError("server_identity_mismatch")
+        if (db, user) != (ALLOWED_DB, ALLOWED_USER):
+            raise IsolationError("precheck_server_identity_mismatch")
         cur.execute(
             "SELECT marker FROM public.sfrfr_test_isolation WHERE marker = %s LIMIT 1",
             (ISOLATION_MARKER,),
         )
         if not cur.fetchone():
             raise IsolationError("isolation_marker_missing")
-    return {"database": db_s, "user": user_s, "marker": ISOLATION_MARKER}
-
-
-def verify_guard_run(conn: Any, run_id: str) -> None:
-    """Маркер precheck_test_guard.environment принадлежит текущему run_id."""
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM precheck_test_guard.environment
-                WHERE singleton IS TRUE AND run_id = %s
-            )
-            """,
-            (run_id,),
-        )
-        row = cur.fetchone()
-        if not row or not row[0]:
-            raise IsolationError("test_marker_mismatch")
-
-
-def refuse_if_not_isolated(dsn: str | None = None, *, for_probe: bool = False) -> str:
-    try:
-        if dsn:
-            validate_dsn_identity(dsn.strip())
-            return dsn.strip()
-        return resolve_test_dsn(for_probe=for_probe)
-    except IsolationError:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise IsolationError(_sanitize_exc_message(type(exc).__name__)) from None
+    return {"database": str(db), "user": str(user), "marker": ISOLATION_MARKER}
 
 
 def assert_safe_to_mutate(conn: Any, *, run_id: str | None = None) -> str:
-    """До TRUNCATE/INSERT: изоляция + guard run_id. Чужой run → отказ."""
+    target = require_test_target()
+    if run_id and run_id != target.run_id:
+        # Явный чужой run — до verify.
+        raise IsolationError("precheck_test_marker_mismatch")
+    verify_test_connection(conn, target)
     assert_connected_isolation(conn)
-    rid = (run_id or "").strip() or require_test_run_id()
-    if not RUN_ID_RE.fullmatch(rid):
-        raise IsolationError("invalid_test_run_id")
-    verify_guard_run(conn, rid)
-    return rid
+    return target.run_id
 
 
-def register_test_run(conn: Any, *, run_id: str | None = None) -> str:
-    """Записать владельца стенда (только bootstrap / up.ps1 / явный setup)."""
-    assert_connected_isolation(conn)
-    rid = (run_id or "").strip() or require_test_run_id()
-    if not RUN_ID_RE.fullmatch(rid):
-        raise IsolationError("invalid_test_run_id")
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO precheck_test_guard.environment (singleton, run_id)
-            VALUES (TRUE, %s)
-            ON CONFLICT (singleton) DO UPDATE SET run_id = EXCLUDED.run_id
-            """,
-            (rid,),
-        )
-        cur.execute(
-            """
-            INSERT INTO public.sfrfr_test_run (run_id)
-            VALUES (%s)
-            ON CONFLICT (run_id) DO NOTHING
-            """,
-            (rid,),
-        )
-    return rid
+def validate_dsn_identity(dsn: str) -> Any:
+    refuse_if_not_isolated(dsn)
+    url = urlsplit(dsn.strip())
+    return type(
+        "ParsedDsn",
+        (),
+        {
+            "scheme": url.scheme,
+            "user": unquote(url.username or ""),
+            "host": url.hostname,
+            "port": url.port,
+            "dbname": unquote(url.path or "").lstrip("/"),
+            "has_password": bool(url.password),
+        },
+    )()
+
+
+def require_test_run_id() -> str:
+    return require_test_target().run_id
+
+
+def verify_guard_run(conn: Any, run_id: str) -> None:
+    verify_test_connection(conn, TestTarget(dsn="", run_id=run_id))

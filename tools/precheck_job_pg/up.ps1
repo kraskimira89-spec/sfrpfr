@@ -1,54 +1,92 @@
-# Поднять одноразовый Postgres + PostgREST (55432 / 55433) и маркер run_id.
+param(
+    [string]$RunId = ""
+)
+
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($RunId)) {
+    $RunId = "precheck_" + [guid]::NewGuid().ToString("N")
+}
+
+if ($RunId -notmatch '^[A-Za-z0-9_-]{8,80}$') {
+    throw "Invalid PRECHECK_TEST_RUN_ID"
+}
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-# up.ps1 → tools/precheck_job_pg → repo root
-$repo = (Resolve-Path (Join-Path $here "..\..")).Path
-Push-Location $here
+$previousLocation = Get-Location
+
+# Не оставлять прежнюю конфигурацию после неуспешного bootstrap.
+Remove-Item Env:PRECHECK_PG_DSN -ErrorAction SilentlyContinue
+Remove-Item Env:PRECHECK_TEST_RUN_ID -ErrorAction SilentlyContinue
+Remove-Item Env:PRECHECK_PROBE_DATABASE_URL -ErrorAction SilentlyContinue
+
 try {
-  docker compose -f docker-compose.yml up -d
-  $deadline = (Get-Date).AddSeconds(90)
-  do {
-    Start-Sleep -Seconds 2
-    $ok = docker compose -f docker-compose.yml exec -T precheck-pg pg_isready -U sfrfr -d sfrfr_precheck 2>$null
-    if ($LASTEXITCODE -eq 0) { break }
-  } while ((Get-Date) -lt $deadline)
-  if ($LASTEXITCODE -ne 0) { throw "precheck-pg not ready" }
-  Get-Content -Raw "$here\schema.sql" | docker compose -f docker-compose.yml exec -T precheck-pg psql -U sfrfr -d sfrfr_precheck -v ON_ERROR_STOP=1
+    Set-Location $here
 
-  if (-not $env:PRECHECK_TEST_RUN_ID) {
-    $env:PRECHECK_TEST_RUN_ID = "precheck_" + [guid]::NewGuid().ToString("N").Substring(0, 16)
-  }
-  $runId = $env:PRECHECK_TEST_RUN_ID
-  if ($runId -notmatch '^[A-Za-z0-9_-]{8,80}$') {
-    throw "invalid PRECHECK_TEST_RUN_ID"
-  }
-  $sql = @"
+    docker compose -f docker-compose.yml up -d
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker compose startup failed"
+    }
+
+    $ready = $false
+    $deadline = (Get-Date).AddSeconds(60)
+
+    do {
+        Start-Sleep -Seconds 2
+
+        docker compose -f docker-compose.yml exec -T precheck-pg `
+            pg_isready -U sfrfr -d sfrfr_precheck *> $null
+
+        if ($LASTEXITCODE -eq 0) {
+            $ready = $true
+            break
+        }
+    } while ((Get-Date) -lt $deadline)
+
+    if (-not $ready) {
+        throw "precheck-pg not ready"
+    }
+
+    Get-Content -Raw "$here\schema.sql" |
+        docker compose -f docker-compose.yml exec -T precheck-pg `
+            psql -U sfrfr -d sfrfr_precheck -v ON_ERROR_STOP=1
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Precheck schema bootstrap failed"
+    }
+
+    $guardSql = @"
+CREATE SCHEMA IF NOT EXISTS precheck_test_guard;
+
+CREATE TABLE IF NOT EXISTS precheck_test_guard.environment (
+    singleton boolean PRIMARY KEY CHECK (singleton),
+    run_id text NOT NULL
+);
+
 INSERT INTO precheck_test_guard.environment(singleton, run_id)
-VALUES (TRUE, '$runId')
-ON CONFLICT (singleton) DO UPDATE SET run_id = EXCLUDED.run_id;
-INSERT INTO public.sfrfr_test_run(run_id) VALUES ('$runId')
-ON CONFLICT (run_id) DO NOTHING;
+VALUES (TRUE, '$RunId')
+ON CONFLICT (singleton)
+DO UPDATE SET run_id = EXCLUDED.run_id;
 "@
-  $sql | docker compose -f docker-compose.yml exec -T precheck-pg psql -U sfrfr -d sfrfr_precheck -v ON_ERROR_STOP=1
 
-  $restDeadline = (Get-Date).AddSeconds(60)
-  do {
-    Start-Sleep -Seconds 2
-    try {
-      $r = Invoke-WebRequest -Uri "http://127.0.0.1:55433/" -UseBasicParsing -TimeoutSec 3
-      if ($r.StatusCode -ge 200) { break }
-    } catch { }
-  } while ((Get-Date) -lt $restDeadline)
+    $guardSql |
+        docker compose -f docker-compose.yml exec -T precheck-pg `
+            psql -U sfrfr -d sfrfr_precheck -v ON_ERROR_STOP=1
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Precheck guard bootstrap failed"
+    }
+
+    # Публичные credentials исключительно локального harness.
+    $env:PRECHECK_PG_DSN = `
+        "postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck"
+
+    $env:PRECHECK_TEST_RUN_ID = $RunId
+
+    Write-Host "Precheck local harness ready"
+    Write-Host "PRECHECK_PG_DSN set (credentials hidden)"
+    Write-Host "PRECHECK_TEST_RUN_ID=$RunId"
 }
 finally {
-  Set-Location $repo
+    Set-Location $previousLocation
 }
-
-$env:PRECHECK_PG_DSN = "postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck"
-Remove-Item Env:PRECHECK_PROBE_DATABASE_URL -ErrorAction SilentlyContinue
-Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
-
-Write-Host "PRECHECK_PG_DSN=$env:PRECHECK_PG_DSN"
-Write-Host "PRECHECK_TEST_RUN_ID=$env:PRECHECK_TEST_RUN_ID"
-Write-Host "PRECHECK_POSTGREST_URL=http://127.0.0.1:55433"
-Write-Host "cwd_restored=$repo"
