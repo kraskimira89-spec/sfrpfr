@@ -122,6 +122,24 @@ type Detail = {
       ocr_allowed?: boolean;
       legal_analysis_ran?: boolean;
       status?: string;
+      precheck_outcome?: string | null;
+      client_summary?: string | null;
+      execution_status?: string | null;
+      data_status?: string | null;
+      comparison_status?: string | null;
+      checked_scope?: string[];
+      document_set_revision?: string;
+      processor_version?: string;
+      limitations?: string[];
+      findings?: {
+        code?: string;
+        what?: string;
+        period_ref?: string | null;
+        source_a?: string;
+        source_b?: string;
+        discrepancy_type?: string;
+      }[];
+      primary_precheck?: Record<string, unknown> | null;
       honest_brief?: {
         current?: boolean;
         stale_reason?: string;
@@ -248,6 +266,56 @@ function DocumentCheckPanel({
       {check.last_error ? <p className="hint">Ошибка: {check.last_error}</p> : null}
       {r ? (
         <>
+          {r.client_summary || r.comparison_status || r.precheck_outcome ? (
+            <div className="precheck-summary-block">
+              <h4 className="case-subhead">Сопоставление ИЛС ↔ документы</h4>
+              {r.client_summary ? <p>{r.client_summary}</p> : null}
+              <ul className="plain-list">
+                {r.execution_status ? (
+                  <li>Выполнение: {r.execution_status}</li>
+                ) : null}
+                {r.data_status ? <li>Данные: {r.data_status}</li> : null}
+                {r.comparison_status ? (
+                  <li>Сравнение: {r.comparison_status}</li>
+                ) : null}
+                {r.precheck_outcome ? (
+                  <li>Исход: {r.precheck_outcome}</li>
+                ) : null}
+                {r.document_set_revision ? (
+                  <li className="hint">Ревизия комплекта: {r.document_set_revision.slice(0, 12)}…</li>
+                ) : null}
+                {r.processor_version ? (
+                  <li className="hint">Версия правил: {r.processor_version}</li>
+                ) : null}
+              </ul>
+              {(r.findings ?? []).length > 0 ? (
+                <>
+                  <h4 className="case-subhead">Находки</h4>
+                  <ul className="plain-list">
+                    {(r.findings ?? []).slice(0, 12).map((f, i) => (
+                      <li key={`${f.code || "f"}-${i}`}>
+                        <strong>{f.code || "FINDING"}</strong>
+                        {f.what ? ` — ${f.what}` : ""}
+                        {f.source_a || f.source_b
+                          ? ` (${[f.source_a, f.source_b].filter(Boolean).join(" ↔ ")})`
+                          : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {(r.limitations ?? []).length > 0 ? (
+                <>
+                  <h4 className="case-subhead">Ограничения вывода</h4>
+                  <ul className="plain-list">
+                    {(r.limitations ?? []).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="plain-list">
             <li>Оригиналы доступны: {r.originals_available ?? 0}</li>
             <li>Текст извлечён: {r.text_extracted ?? 0}</li>

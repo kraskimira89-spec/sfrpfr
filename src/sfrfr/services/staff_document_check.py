@@ -225,6 +225,47 @@ def _honest_brief_for_case(
     return ba.honest_brief_ui_payload(result)
 
 
+def _attach_primary_precheck(base: dict[str, Any], *, case_id: str, repo: Any) -> dict[str, Any]:
+    """Срез 1: структурированное сопоставление в result job. Без MAX / без оплаты."""
+    from sfrfr.services.primary_doc_precheck import run_primary_precheck
+
+    row = repo.get_pipeline_row(case_id) or {}
+    ils = row.get("ils_periods") if isinstance(row.get("ils_periods"), list) else []
+    labor = row.get("labor_periods") if isinstance(row.get("labor_periods"), list) else []
+    # Срез 1: next_action готовим; каталог/цену не подставляем (оффер — следующий срез).
+    pre = run_primary_precheck(
+        ils_periods=ils,
+        labor_periods=labor,
+        kit_missing=list(base.get("missing_for_task") or []),
+        needs_ocr=int(base.get("needs_recognition") or 0),
+        originals_missing=max(
+            0,
+            int(base.get("documents_checked") or 0)
+            - int(base.get("originals_available") or 0),
+        ),
+        catalog_amount_rub=None,
+        catalog_label=None,
+        package_code=None,
+    )
+    out = dict(base)
+    primary = pre.as_dict()
+    out["primary_precheck"] = primary
+    out["precheck_outcome"] = pre.outcome.value
+    out["client_summary"] = pre.client_summary
+    out["checked_scope"] = list(pre.areas_checked)
+    out["document_set_revision"] = str(base.get("documents_fingerprint") or "")
+    out["processor_version"] = str(primary.get("rules_version") or "")
+    if pre.outcome.value == "discrepancies_found" and out.get("status") == "completed":
+        out["status"] = "needs_action"
+        out["next_action"] = (
+            "Есть расхождения источников — покажите сотруднику резюме; "
+            "клиентский MAX/офер — следующим срезом."
+        )
+    elif pre.next_action.value == "upload_documents":
+        out["next_action"] = pre.client_summary
+    return out
+
+
 def _analyze_case_documents(case_id: str) -> dict[str, Any]:
     from sfrfr.db.case_repository import CaseRepository
     from sfrfr.services.message_dedupe import required_docs_missing
@@ -243,7 +284,20 @@ def _analyze_case_documents(case_id: str) -> dict[str, Any]:
         ocr_allowed=ocr_allowed,
     )
     brief = _honest_brief_for_case(case_id=case_id, docs=docs, repo=repo)
-    return attach_honest_brief(base, brief=brief)
+    merged = attach_honest_brief(base, brief=brief)
+    # Срез 1: не предлагать платный diag из brief — коммерция отдельным срезом.
+    if isinstance(merged.get("diag_offer"), dict):
+        merged["diag_offer"] = {
+            "allowed": False,
+            "amount_rub": 0,
+            "label": "",
+            "note": "Офер клиенту — следующий срез после сохранённого результата.",
+        }
+    try:
+        return _attach_primary_precheck(merged, case_id=case_id, repo=repo)
+    except Exception:  # noqa: BLE001 — kit-check важнее падения сверки
+        logger.warning("primary_precheck attach failed case=%s", case_id[:8], exc_info=True)
+        return merged
 
 
 def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, Any]:
@@ -266,6 +320,20 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
         or []
     )
     fp = documents_fingerprint(list(docs))
+    if not docs:
+        return {
+            "ok": False,
+            "job_id": "",
+            "status": "rejected",
+            "status_label": "нет документов",
+            "documents_fingerprint": fp,
+            "deduped": False,
+            "message": (
+                "В деле нет документов для проверки. "
+                "Загрузите файлы и повторите — фиктивный результат не создаём."
+            ),
+        }
+    # Любой активный запуск по делу (тот же fingerprint) — один активный job.
     existing = (
         client.table("staff_document_check_jobs")
         .select("id, status, documents_fingerprint")
@@ -285,6 +353,7 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
             "status": str(row.get("status") or "queued"),
             "status_label": STATUS_LABELS_RU.get(str(row.get("status") or ""), "ожидает"),
             "documents_fingerprint": fp,
+            "document_set_revision": fp,
             "deduped": True,
             "message": "Проверка уже запущена для текущего набора документов.",
         }
@@ -317,6 +386,7 @@ def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, An
         "status": "queued",
         "status_label": STATUS_LABELS_RU["queued"],
         "documents_fingerprint": fp,
+        "document_set_revision": fp,
         "deduped": False,
         "message": "Проверка запущена.",
     }
@@ -365,6 +435,12 @@ def process_staff_document_check_job(job_id: str) -> dict[str, Any]:
     ).eq("id", job_id).execute()
     try:
         result = _analyze_case_documents(str(job.get("case_id") or ""))
+        # Привязка результата к revision комплекта на момент запуска.
+        result["document_set_revision"] = str(job.get("documents_fingerprint") or "")
+        result["check_id"] = job_id
+        result["case_id"] = str(job.get("case_id") or "")
+        result["started_at"] = job.get("created_at") or job.get("locked_at")
+        result["completed_at"] = _now()
         final_status = str(result.get("status") or "completed")
         client.table("staff_document_check_jobs").update(
             {

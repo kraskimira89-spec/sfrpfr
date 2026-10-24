@@ -171,6 +171,24 @@ def attach_honest_brief(
 
 def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
     """Карточка для UI: без findings/analysis_notes/draft пайплайна."""
+    primary = result.get("primary_precheck")
+    primary_dict = primary if isinstance(primary, dict) else None
+    rec = (
+        primary_dict.get("recommendation")
+        if isinstance(primary_dict, dict)
+        else None
+    )
+    # Срез 1: не поднимать платный офер в staff UI из brief/rec.
+    diag_offer = {
+        "allowed": False,
+        "amount_rub": 0,
+        "label": "",
+        "note": (
+            str(rec.get("reason") or "")
+            if isinstance(rec, dict)
+            else "Офер клиенту — следующий срез."
+        ),
+    }
     return {
         "documents_checked": int(result.get("documents_checked") or 0),
         "originals_available": int(result.get("originals_available") or 0),
@@ -186,5 +204,34 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         "legal_analysis_ran": False,
         "status": str(result.get("status") or ""),
         "honest_brief": result.get("honest_brief"),
-        "diag_offer": result.get("diag_offer"),
+        "diag_offer": diag_offer,
+        "precheck_outcome": result.get("precheck_outcome")
+        or (primary_dict.get("outcome") if primary_dict else None),
+        "client_summary": result.get("client_summary")
+        or (primary_dict.get("client_summary") if primary_dict else None),
+        "primary_precheck": primary_dict,
+        "checked_scope": list(result.get("checked_scope") or [])
+        or (
+            list(primary_dict.get("areas_checked") or []) if primary_dict else []
+        ),
+        "document_set_revision": str(result.get("document_set_revision") or ""),
+        "processor_version": str(result.get("processor_version") or "")
+        or (
+            str(primary_dict.get("rules_version") or "") if primary_dict else ""
+        ),
+        "execution_status": (
+            primary_dict.get("execution_status") if primary_dict else None
+        ),
+        "data_status": primary_dict.get("data_status") if primary_dict else None,
+        "comparison_status": (
+            primary_dict.get("comparison_status") if primary_dict else None
+        ),
+        "limitations": list(
+            (primary_dict.get("limitations") if primary_dict else None)
+            or result.get("limitations")
+            or []
+        ),
+        "findings": list(
+            (primary_dict.get("findings") if primary_dict else None) or []
+        ),
     }

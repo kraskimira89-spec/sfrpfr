@@ -174,10 +174,27 @@ def test_summarize_does_not_expose_old_pipeline_findings() -> None:
             "exact_duplicate_groups": 0,
         }
     )
-    assert "findings" not in summary
+    # Pipeline findings/draft не прокидываем; primary findings — только из precheck.
+    assert summary.get("findings") == []
     assert "analysis_notes" not in summary
     assert "draft" not in summary
     assert summary["documents_checked"] == 2
+
+
+@patch("sfrfr.db.session.get_supabase_client")
+def test_enqueue_rejects_empty_documents(mock_sb: MagicMock) -> None:
+    client = MagicMock()
+    mock_sb.return_value = client
+    docs_t = MagicMock()
+    client.table.side_effect = lambda name: docs_t if name == "documents" else MagicMock()
+    docs_t.select.return_value.eq.return_value.order.return_value.execute.return_value.data = []
+    out = enqueue_staff_document_check(
+        case_id="00000000-0000-4000-8000-000000000001",
+        actor_id="staff-1",
+    )
+    assert out["ok"] is False
+    assert out["job_id"] == ""
+    assert "нет документов" in out["message"].casefold()
 
 
 @patch("sfrfr.services.staff_document_check.process_staff_document_check_job")
