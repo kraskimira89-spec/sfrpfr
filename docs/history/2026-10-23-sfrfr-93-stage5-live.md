@@ -81,3 +81,14 @@ SFRFR-93/97 **не** закрывать только по candidates=0 — св�
 | candidates / stale | 0 / 0 |
 | error_lines_last_2h | 0 |
 | новых кандидатов | нет |
+
+## Снимок 2026-10-24T11:02:06Z (loop #7 / 12, ~14 ч live)
+
+| Поле | Значение |
+|------|----------|
+| timer | enabled / active |
+| LAST tick | 14:01:30 MSK |
+| ticks_last_2h | **12** |
+| candidates / stale | 0 / 0 |
+| error_lines_last_2h | 0 |
+| новых кандидатов | нет |
