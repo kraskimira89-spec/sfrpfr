@@ -1,6 +1,7 @@
 # SFRFR-111: hardening callback-контура (после ревью)
 
-**Head:** после push на #269.  
+**Head #269:** `091fe846`  
+**PR:** https://github.com/kraskimira89-spec/sfrpfr/pull/269  
 **Unit:** 61 passed (handler routing + lifecycle + primary + staff_document_check).  
 Приёмку **не** закрывать. Merge/deploy/live — нет.
 
