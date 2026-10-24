@@ -110,6 +110,24 @@ def fiscal_status_needs_reconcile(row: dict[str, Any]) -> bool:
     return str(status).strip().lower() not in FISCAL_TERMINAL_STATUSES
 
 
+def provider_payment_is_yookassa_reconcile_target(row: dict[str, Any]) -> bool:
+    """Только ЮKassa payment id. Не OCR-подтверждения `receipt:{doc|order}`.
+
+    Путь `payment_receipt.confirm_order_from_receipt` пишет
+    provider=receipt_ocr и provider_payment_id=receipt:… — это не ID платежа
+    магазина; fetch_payment неизбежно даёт error_before_post.
+    """
+    provider = str(row.get("provider") or "").strip().lower()
+    if provider in {"receipt_ocr", "receipt"}:
+        return False
+    yk = str(row.get("provider_payment_id") or "").strip()
+    if not yk:
+        return False
+    if yk.lower().startswith("receipt:"):
+        return False
+    return True
+
+
 def payment_in_reconcile_window(
     row: dict[str, Any],
     *,
@@ -166,6 +184,8 @@ def filter_reconcile_candidates(
             continue
         if not str(row.get("provider_payment_id") or "").strip():
             continue
+        if not provider_payment_is_yookassa_reconcile_target(row):
+            continue
         if not fiscal_status_needs_reconcile(row):
             continue
         if not payment_in_reconcile_window(
@@ -186,7 +206,8 @@ def filter_stale_alert_candidates(
     return [
         row
         for row in rows
-        if payment_needs_stale_alert(
+        if provider_payment_is_yookassa_reconcile_target(row)
+        and payment_needs_stale_alert(
             row, now=now, alert_since=alert_since, window_hours=window_hours
         )
     ]

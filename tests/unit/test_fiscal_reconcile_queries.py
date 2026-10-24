@@ -10,6 +10,7 @@ from sfrfr.services.fiscal_reconcile import (
     fiscal_status_needs_reconcile,
     payment_in_reconcile_window,
     payment_needs_stale_alert,
+    provider_payment_is_yookassa_reconcile_target,
 )
 
 NOW = datetime(2026, 10, 23, 16, 0, 0, tzinfo=UTC)
@@ -77,6 +78,47 @@ def test_filter_candidates_drops_registered_and_pending_status() -> None:
     ]
     got = filter_reconcile_candidates(rows, now=NOW)
     assert [r["id"] for r in got] == ["ok"]
+
+
+def test_filter_excludes_receipt_ocr_synthetic_provider_payment_id() -> None:
+    """OCR-подтверждение чека (receipt:…) — не ЮKassa payment id."""
+    assert (
+        provider_payment_is_yookassa_reconcile_target(
+            {
+                "provider": "receipt_ocr",
+                "provider_payment_id": "receipt:b18c6771-bbb8-4ce9-9045-62f094f4590a",
+            }
+        )
+        is False
+    )
+    assert (
+        provider_payment_is_yookassa_reconcile_target(
+            {
+                "provider": "yookassa",
+                "provider_payment_id": "receipt:should-still-skip",
+            }
+        )
+        is False
+    )
+    assert (
+        provider_payment_is_yookassa_reconcile_target(
+            {
+                "provider": "yookassa",
+                "provider_payment_id": "326d8f33-000f-5001-9000-14edf85c8cb0",
+            }
+        )
+        is True
+    )
+    rows = [
+        _row(id="yk"),
+        _row(
+            id="ocr",
+            provider="receipt_ocr",
+            provider_payment_id="receipt:b18c6771-bbb8-4ce9-9045-62f094f4590a",
+        ),
+    ]
+    got = filter_reconcile_candidates(rows, now=NOW)
+    assert [r["id"] for r in got] == ["yk"]
 
 
 def test_stale_alert_needs_older_than_48h_and_cutover() -> None:
