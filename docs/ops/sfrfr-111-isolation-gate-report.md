@@ -5,8 +5,8 @@
 ## Результат ворот
 
 ```text
-SHA: 84cbe2bc46e36224336d03dabbce7d1d9cdd6d84  (дерево gate; финальный commit — см. git)
-Идентификатор тестового запуска: cycle5-iso-gate-002
+SHA: 469caed7b2bb2c895e52ae3b5aea501ca8977a6a
+Идентификатор тестового запуска: cycle5-iso-gate-469caed7
 Компоненты и фактические цели подключения:
   - probe/psycopg → PRECHECK_PG_DSN → 127.0.0.1:55432 / sfrfr_precheck / user sfrfr
   - PostgREST → http://127.0.0.1:55433 (up)
@@ -24,13 +24,14 @@ SHA: 84cbe2bc46e36224336d03dabbce7d1d9cdd6d84  (дерево gate; финаль�
 Причина: —
 Изменяющие запросы до подтверждения изоляции: отсутствуют
 Код завершения gate: 0
+Сырой лог: docs/ops/logs/sfrfr-111-isolation-gate-469caed7.txt
 ```
 
 Команда:
 
 ```powershell
 $env:PRECHECK_PG_DSN='postgresql://sfrfr:sfrfr@127.0.0.1:55432/sfrfr_precheck'
-$env:PRECHECK_TEST_RUN_ID='cycle5-iso-gate-002'
+$env:PRECHECK_TEST_RUN_ID='cycle5-iso-gate-469caed7'
 .\.venv\Scripts\python.exe tools\precheck_job_pg\run_isolation_gate.py
 ```
 
