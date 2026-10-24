@@ -2,11 +2,13 @@
 
 ```text
 PR / head:
-  (заполняется после push; ветка feat/sfrfr-110-max-e05-f04-wire)
+  https://github.com/kraskimira89-spec/sfrpfr/pull/263
+  feat/sfrfr-110-max-e05-f04-wire @ 4339b778
 Зависимость от #261:
-  Вариант 1 — stacked PR поверх точного head ветки docs/client-ai-dialogue-quality.
-  Политики #261 не копируются в этот PR; base = docs/client-ai-dialogue-quality.
-  После merge #261 — перебазировать этот PR на main.
+  Вариант 1 — stacked PR поверх точного head #261
+  (docs/client-ai-dialogue-quality @ 71f44d81).
+  Политики #261 не копируются; в diff только интеграционный слой.
+  После согласованного merge #261 — перебазировать этот PR на main.
 Фактический входной handler:
   sfrfr.integrations.max.handler → reply_to_free_text (свободный текст MAX)
 Место вызова политики:
@@ -33,6 +35,7 @@ PR / head:
   transport dict {ok: True, message_id: ...}; enqueue ≠ sent ≠ read
 Команды тестов и результаты:
   .\.venv\Scripts\python.exe -m pytest tests/unit/test_max_e05_f04_wire_path.py -q
+  → 12 passed
 Оставшиеся обходы:
   docs/ops/max-e05-f04-remaining-bypass-map.md
 Риски доставки, вынесенные отдельно:
