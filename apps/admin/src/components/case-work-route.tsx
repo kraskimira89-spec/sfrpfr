@@ -1,5 +1,7 @@
 "use client";
 
+import { StepNo, StepScope } from "@/components/step-number";
+
 /** Блок «Работа с делом»: один маршрут 1→2→3, одна primary-кнопка. */
 
 export type WorkRouteStep = {
@@ -100,7 +102,9 @@ export function CaseWorkRoute({
           return (
             <li key={step.id} className={`case-work-step ${statusClass(step.status)}`}>
               <div className="case-work-step-head">
-                <span className="case-work-step-num">{index + 1}.</span>
+                <span className="case-work-step-num">
+                  <StepNo n={index + 1} />
+                </span>
                 <strong>{step.title}</strong>
                 <span className="hint"> · {step.status_label || step.status}</span>
               </div>
@@ -138,7 +142,9 @@ export function CaseWorkRoute({
                 </div>
               ) : null}
               {showDocsPanel ? (
-                <div style={{ marginTop: "0.75rem" }}>{docsCheckPanel}</div>
+                <div style={{ marginTop: "0.75rem" }}>
+                  <StepScope n={index + 1}>{docsCheckPanel}</StepScope>
+                </div>
               ) : null}
               {!isCurrent && step.status === "upcoming" ? (
                 <p className="hint" style={{ margin: "0.25rem 0 0" }}>

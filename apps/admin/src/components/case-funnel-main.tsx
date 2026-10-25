@@ -37,6 +37,7 @@ import {
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { DocumentCheckPanel } from "@/components/document-check-panel";
+import { StepNo } from "@/components/step-number";
 import { groupCabinetDocumentsByChecksum } from "@/lib/dedupe-cabinet-documents";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -921,7 +922,9 @@ export function CaseFunnelMain({
         >
           <ol className="doc-check-blocks">
             <li className="doc-check-block">
-              <h4>1. Что нужно для проверки</h4>
+              <h4>
+                <StepNo n={1} /> Что нужно для проверки
+              </h4>
               <p className="hint">
                 Чтобы сверить стаж, нужны два документа: выписка ИЛС из СФР (её можно скачать на
                 Госуслугах) и трудовая книжка или справки о стаже. Если чего-то нет — подставьте
@@ -966,7 +969,9 @@ export function CaseFunnelMain({
             </li>
 
             <li className="doc-check-block">
-              <h4>2. Файлы клиента</h4>
+              <h4>
+                <StepNo n={2} /> Файлы клиента
+              </h4>
               <p className="hint">
                 Всё, что прислал клиент. Повторные загрузки одного файла свёрнуты в строку «Точный
                 дубль». Где стоит «Проверить текст» — откройте и убедитесь, что текст читается: от
@@ -976,7 +981,9 @@ export function CaseFunnelMain({
             </li>
 
             <li className="doc-check-block">
-              <h4>3. Чек-лист по документам</h4>
+              <h4>
+                <StepNo n={3} /> Чек-лист по документам
+              </h4>
               <p className="hint">
                 Отмечайте, что запросили и что получили, — так любой сотрудник продолжит дело без
                 лишних вопросов к клиенту.
