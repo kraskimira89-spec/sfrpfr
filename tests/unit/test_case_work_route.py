@@ -5,11 +5,14 @@ from __future__ import annotations
 from sfrfr.services.case_work_route import build_case_work_route
 
 
-def test_no_docs_blocks_check() -> None:
+def test_no_docs_offers_request_from_client() -> None:
     route = build_case_work_route(documents=[], document_check=None)
     assert route["current_step_id"] == "docs_check"
     assert route["steps"][0]["status"] == "blocked"
-    assert route["primary_action"] is None
+    action = route["primary_action"]
+    assert action is not None
+    assert action["id"] == "request_docs_from_client"
+    assert action["label"] == "Запросить документы"
     assert route["auto_send_appeal"] is False
 
 
@@ -68,3 +71,7 @@ def test_needs_action_keeps_specialist_on_docs() -> None:
     assert "двух" in (route["blocker_reason"] or "") or "2" in (
         route["steps"][0]["result_summary"] or ""
     )
+    action = route["primary_action"]
+    assert action is not None
+    assert action["id"] == "request_docs_check"
+    assert action["label"] == "Проверить документы"
