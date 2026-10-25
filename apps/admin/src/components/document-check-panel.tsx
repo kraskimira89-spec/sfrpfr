@@ -1,5 +1,6 @@
 "use client";
 
+import { StepNo } from "@/components/step-number";
 import {
   buildCheckView,
   type CheckBriefItem,
@@ -138,7 +139,9 @@ export function DocumentCheckPanel({
       {r && view ? (
         <ol className="doc-check-blocks">
           <li className="doc-check-block">
-            <h4>1. Что получили</h4>
+            <h4>
+              <StepNo n={1} /> Что получили
+            </h4>
             <p>
               Файлов: <strong>{view.kit.unique}</strong>
               {view.kit.duplicates > 0
@@ -161,7 +164,9 @@ export function DocumentCheckPanel({
           </li>
 
           <li className="doc-check-block">
-            <h4>2. Что удалось прочитать</h4>
+            <h4>
+              <StepNo n={2} /> Что удалось прочитать
+            </h4>
             <p>
               Текст извлечён у <strong>{view.read.textOk}</strong> из {view.read.total} файлов.
             </p>
@@ -179,7 +184,9 @@ export function DocumentCheckPanel({
           </li>
 
           <li className="doc-check-block">
-            <h4>3. Что видно по сути</h4>
+            <h4>
+              <StepNo n={3} /> Что видно по сути
+            </h4>
             {brief && brief.current === false && brief.stale_reason ? (
               <p className="hint warning-inline">{brief.stale_reason}</p>
             ) : null}
@@ -215,7 +222,9 @@ export function DocumentCheckPanel({
           </li>
 
           <li className={`doc-check-block doc-check-next doc-check-next--${view.next.kind}`}>
-            <h4>4. Что делаем дальше</h4>
+            <h4>
+              <StepNo n={4} /> Что делаем дальше
+            </h4>
             <p>
               <strong>{view.next.title}</strong>
             </p>

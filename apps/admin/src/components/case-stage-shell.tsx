@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { FunnelStageId, FunnelStageState } from "@/lib/case-funnel";
 import { nextStageId, stageStepNumber } from "@/lib/case-funnel-accordion";
+import { StepPrefixContext } from "@/components/step-number";
 
 export type StageNav = {
   labelOf: (id: FunnelStageId) => string;
@@ -82,7 +83,9 @@ export function StageShell({
         className="funnel-stage-body"
         hidden={!expanded}
       >
-        {children}
+        <StepPrefixContext.Provider value={step > 0 ? String(step) : ""}>
+          {children}
+        </StepPrefixContext.Provider>
         {nav && next ? (
           <div className="funnel-stage-next">
             <button type="button" className="ghost" onClick={() => nav.open(next)}>
