@@ -2,8 +2,8 @@
 
 **Дата:** 2026-10-25  
 **Задача:** [SFRFR-118](https://tracker.yandex.ru/SFRFR-118)  
-**Статус:** схема в репо · очередь **CASE** создана (2026-10-25) · inbox worker + webhook в коде за флагом · apply DDL на YC и `TRACKER_CASE_SYNC_ENABLED=1` — отдельно  
-**Срез 1–2 (код):** [spec-tracker-sync-outbox.md](spec-tracker-sync-outbox.md) · PR #281  
+**Статус:** схема в репо · очередь **CASE** создана · код в `main`/`prod` (`eb17ecb6`, PR #282) · DDL на **supabase2** · sync **выкл.** · wiring/worker/UI — см. [release-package-case-sync-pilot.md](release-package-case-sync-pilot.md)  
+**Срез 1–2 (код):** [spec-tracker-sync-outbox.md](spec-tracker-sync-outbox.md) · PR #282 (заменил закрытый #281)  
 **Диспетчерская карточка:** [spec-case-dispatch-card.md](spec-case-dispatch-card.md)
 
 ## 0. Принцип
