@@ -845,7 +845,7 @@ class CaseRepository:
             )
         docs = case.get("documents") or []
         status_now = case.get("pipeline_status") or "intake"
-        message = "Проверка запрошена. Специалист и пайплайн уведомлены."
+        message = "Проверка запрошена — дело уже у специалиста."
         if docs and status_now == "intake":
             self.update_case_status(case_id, "documents_received", actor_id)
             message = "Документы приняты, проверка запрошена."
