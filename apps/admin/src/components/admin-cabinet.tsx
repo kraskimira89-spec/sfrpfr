@@ -1147,6 +1147,27 @@ export function AdminCabinet() {
     );
   }
 
+  async function recordFactsReview(outcome: "discrepancies" | "no_discrepancies") {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/facts-review`, token, {
+        method: "POST",
+        body: JSON.stringify({ outcome }),
+      });
+      setNotice(
+        outcome === "discrepancies"
+          ? "Сверка отмечена: расхождения есть. Дальше — проект обращения."
+          : "Сверка отмечена: расхождений нет.",
+      );
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось отметить сверку.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function recordServiceConsent() {
     if (!token || !detail) return;
     setBusy(true);
@@ -2250,6 +2271,7 @@ export function AdminCabinet() {
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
             onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
+            onRecordFactsReview={(outcome) => void recordFactsReview(outcome)}
             onDismissHint={() => {
               setStepHint(null);
               setStepMessages([]);

@@ -177,6 +177,9 @@ def attach_honest_brief(
     return merged
 
 
+_CORE_DOC_TYPES = frozenset({"ils", "workbook", "labor"})
+
+
 def _file_names(documents: list[Any], flag: str, limit: int = 5) -> list[str]:
     names: list[str] = []
     for doc in documents:
@@ -197,10 +200,18 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         if str(d.get("checksum_sha256") or "").strip()
     }
     checked = int(result.get("documents_checked") or 0)
+    # Нечитаемые ИЛС / трудовая блокируют сверку; посторонний скан — нет.
+    unreadable_core = sum(
+        1
+        for d in documents
+        if d.get("needs_ocr")
+        and str(d.get("guessed_type") or d.get("doc_type") or "").lower() in _CORE_DOC_TYPES
+    )
     return {
         "documents_checked": checked,
         "unique_documents": len(checksums) if checksums else checked,
         "unreadable_files": _file_names(documents, "needs_ocr"),
+        "unreadable_core": unreadable_core,
         "manual_files": _file_names(documents, "needs_manual"),
         "originals_available": int(result.get("originals_available") or 0),
         "text_extracted": int(result.get("text_extracted") or 0),

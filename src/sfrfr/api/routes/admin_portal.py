@@ -101,6 +101,33 @@ def _repo() -> CaseRepository:
     return CaseRepository()
 
 
+_FACTS_REVIEW_OUTCOMES = ("discrepancies", "no_discrepancies")
+
+
+def _latest_facts_review(case_id: str) -> str | None:
+    """Последний результат ручной сверки (audit facts_review_<outcome>)."""
+    try:
+        rows = (
+            get_supabase_client()
+            .table("access_audit")
+            .select("action, at")
+            .eq("case_id", case_id)
+            .like("action", "facts_review_%")
+            .order("at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    action = str((rows[0] if rows else {}).get("action") or "")
+    for outcome in sorted(_FACTS_REVIEW_OUTCOMES, key=len, reverse=True):
+        if action.startswith(f"facts_review_{outcome}"):
+            return outcome
+    return None
+
+
 def _require_expert(principal: Principal) -> Principal:
     if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
         raise HTTPException(status_code=403, detail="expert or admin role required")
@@ -365,6 +392,8 @@ def _filter_staff_case(
             document_check=base.get("document_check"),
             findings=list(base.get("findings") or []),
             draft=base.get("draft") if isinstance(base.get("draft"), dict) else None,
+            pipeline_ran=bool(base.get("ils_periods") or base.get("labor_periods")),
+            facts_review=_latest_facts_review(str(case["id"])),
         )
     except Exception:  # noqa: BLE001
         base["work_route"] = None
@@ -2318,6 +2347,26 @@ def record_appeals_consent(
     repo.require_case(principal, case_id)
     repo.audit(case_id, principal.audit_actor_id(), action)
     return {"ok": True, "action": action, "decision": decision}
+
+
+@router.post("/admin/cases/{case_id}/facts-review")
+def record_facts_review(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Результат ручной сверки периодов ИЛС ↔ трудовая (пока нет автоматической)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    outcome = str((payload or {}).get("outcome") or "").strip().lower()
+    if outcome not in _FACTS_REVIEW_OUTCOMES:
+        raise HTTPException(
+            status_code=400, detail="outcome must be discrepancies|no_discrepancies"
+        )
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    repo.audit(case_id, principal.audit_actor_id(), f"facts_review_{outcome}")
+    return {"ok": True, "outcome": outcome}
 
 
 @router.post("/admin/cases/{case_id}/tracker-case-sync/enqueue")

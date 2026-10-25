@@ -266,6 +266,7 @@ export function CaseFunnelMain({
   onSuggestStep,
   onApplyChatMessage,
   onPolishBriefDraft,
+  onRecordFactsReview,
   onDismissHint,
   onTake,
   onFocusMax,
@@ -350,6 +351,8 @@ export function CaseFunnelMain({
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   /** Черновик резюме → доработка ИИ по переписке → поле чата. */
   onPolishBriefDraft?: (draft: string) => void;
+  /** Результат ручной сверки периодов (шаг «Сверка сведений»). */
+  onRecordFactsReview?: (outcome: "discrepancies" | "no_discrepancies") => void;
   onDismissHint: () => void;
   onTake: () => void;
   onFocusMax: () => void;
@@ -1053,6 +1056,8 @@ export function CaseFunnelMain({
             busy={busy}
             onRequestReview={onRequestReview}
             onRequestPipeline={onRequestPipeline}
+            onRecordFactsReview={onRecordFactsReview}
+            onOpenStage={(id) => openStage(id as FunnelStageId)}
             onRequestDocsFromClient={() => {
               applyTemplate(
                 !funnel.hasIls
