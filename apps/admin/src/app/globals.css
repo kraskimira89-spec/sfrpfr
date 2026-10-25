@@ -1238,6 +1238,10 @@ button.badge--clickable:hover {
   font-size: 0.95rem;
   color: var(--ink);
 }
+.linkish.danger-link,
+.linkish.danger-link:hover {
+  color: #a32b2b;
+}
 /* Многоуровневый номер шага внутри этапа: 3.1, 3.1.2 */
 .step-no {
   font-variant-numeric: tabular-nums;

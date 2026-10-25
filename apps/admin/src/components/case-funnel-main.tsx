@@ -267,6 +267,7 @@ export function CaseFunnelMain({
   onApplyChatMessage,
   onPolishBriefDraft,
   onRecordFactsReview,
+  onDeleteDocuments,
   onDismissHint,
   onTake,
   onFocusMax,
@@ -351,6 +352,8 @@ export function CaseFunnelMain({
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   /** Черновик резюме → доработка ИИ по переписке → поле чата. */
   onPolishBriefDraft?: (draft: string) => void;
+  /** Удалить файлы дела (эксперт/админ) — с подтверждением в кабинете. */
+  onDeleteDocuments?: (documentIds: string[], label: string) => void;
   /** Результат ручной сверки периодов (шаг «Сверка сведений»). */
   onRecordFactsReview?: (outcome: "discrepancies" | "no_discrepancies") => void;
   onDismissHint: () => void;
@@ -980,7 +983,12 @@ export function CaseFunnelMain({
                 дубль». Где стоит «Проверить текст» — откройте и убедитесь, что текст читается: от
                 этого зависит точность резюме.
               </p>
-              <DocumentsTable documents={detail.documents} onOpen={onOpenSigned} busy={busy} />
+              <DocumentsTable
+                documents={detail.documents}
+                onOpen={onOpenSigned}
+                busy={busy}
+                onDelete={caps.can_view_ocr ? onDeleteDocuments : undefined}
+              />
             </li>
 
             <li className="doc-check-block">
