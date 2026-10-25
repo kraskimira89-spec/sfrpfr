@@ -32,4 +32,5 @@
 - webhook-автодействие в Трекере
 - секреты webhook в `.env`
 
-Код: PR #281 · задача [SFRFR-118](https://tracker.yandex.ru/SFRFR-118).
+Код: PR [#282](https://github.com/kraskimira89-spec/sfrpfr/pull/282) (merged; #281 закрыт без merge) · задача [SFRFR-118](https://tracker.yandex.ru/SFRFR-118).  
+Пакет выпуска / блокеры пилота: `docs/TRACKER/release-package-case-sync-pilot.md`.
