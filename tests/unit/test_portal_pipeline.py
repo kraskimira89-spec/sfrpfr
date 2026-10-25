@@ -131,3 +131,15 @@ def test_require_consent_gates_client_run() -> None:
         _require_consent_for_upload(repo, "case-1")  # type: ignore[arg-type]
     assert exc.value.status_code == 403
     assert "consent" in str(exc.value.detail)
+
+
+def test_pipeline_run_message_promises_nothing_extra() -> None:
+    """Повторный запрос в human_review: без «пайплайн уведомлён» — он не запускается."""
+    from sfrfr.db.case_repository import CaseRepository
+
+    repo = _RunRepo(
+        {"pipeline_status": "human_review", "documents": [_doc("ils"), _doc("labor")]}
+    )
+    result = CaseRepository.request_pipeline_run(repo, "case-1", "user-1")  # type: ignore[arg-type]
+    assert "пайплайн" not in result["message"].lower()
+    assert "специалист" in result["message"].lower()

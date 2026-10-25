@@ -69,6 +69,24 @@ def next_staff_action(
     return "Комплект для диагностики собран — проверьте текст и перейдите к диагностике."
 
 
+def _doc_kind(doc: dict[str, Any]) -> str:
+    return str(doc.get("guessed_type") or doc.get("doc_type") or "").lower()
+
+
+def _extra_unreadable(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Нечитаемые не-ИЛС/не-трудовая файлы, если ИЛС и трудовая уже прочитаны — не блокируют."""
+    readable = {_doc_kind(d) for d in documents if d.get("text_extracted")}
+    if "ils" not in readable or not readable & {"workbook", "labor"}:
+        return []
+    return [
+        d
+        for d in documents
+        if (d.get("needs_ocr") or d.get("needs_manual"))
+        and d.get("original_available")
+        and _doc_kind(d) not in _CORE_DOC_TYPES
+    ]
+
+
 def build_check_result(
     *,
     documents: list[dict[str, Any]],
@@ -98,13 +116,22 @@ def build_check_result(
         for item in missing_for_task
     ]
     originals_missing = checked - originals
+    extras = _extra_unreadable(documents) if not missing_for_task else []
+    block_ocr = needs_ocr - sum(1 for d in extras if d.get("needs_ocr"))
+    block_manual = needs_manual - sum(1 for d in extras if d.get("needs_manual"))
     next_action = next_staff_action(
         originals_missing=originals_missing,
-        needs_ocr=needs_ocr,
+        needs_ocr=block_ocr,
         missing_kit=list(missing_for_task),
-        needs_manual=needs_manual,
+        needs_manual=block_manual,
     )
-    if originals_missing or needs_ocr or missing_for_task or needs_manual:
+    if extras and not (originals_missing or block_ocr or block_manual):
+        names = ", ".join(_file_names(extras, "filename"))
+        next_action += (
+            f" Не прочитан дополнительный файл: {names} — сверке не мешает: "
+            "распознайте его или удалите."
+        )
+    if originals_missing or block_ocr or missing_for_task or block_manual:
         status = "needs_action"
     else:
         status = "completed"
