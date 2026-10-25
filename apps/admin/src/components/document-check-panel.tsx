@@ -33,13 +33,13 @@ export type DocumentCheck = {
 
 type CheckOrder = { id: string; package_code: string; status: string };
 
-function ItemList({ items }: { items: CheckBriefItem[] }) {
+function ItemList({ items, showBasis = false }: { items: CheckBriefItem[]; showBasis?: boolean }) {
   return (
     <ul className="plain-list">
       {items.slice(0, 3).map((item, idx) => (
         <li key={`${item.evidence || "x"}-${idx}`}>
           {item.text || "—"}
-          {item.basis ? <span className="hint"> — {item.basis}</span> : null}
+          {showBasis && item.basis ? <span className="hint"> — {item.basis}</span> : null}
         </li>
       ))}
     </ul>
@@ -181,7 +181,7 @@ export function DocumentCheckPanel({
             {view.findings.docs.length > 0 ? (
               <>
                 <p className="doc-check-group">Подтверждено документами</p>
-                <ItemList items={view.findings.docs} />
+                <ItemList items={view.findings.docs} showBasis />
               </>
             ) : (
               <p className="hint">

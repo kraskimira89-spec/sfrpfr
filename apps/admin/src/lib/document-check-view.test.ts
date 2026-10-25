@@ -30,6 +30,9 @@ test("реальное дело: 4 уникальных файла, нечита
   assert.deepEqual(v.kit.types, ["выписка ИЛС", "трудовая книжка", "прочее"]);
   assert.equal(v.kit.hasCore, true);
   assert.deepEqual(v.read.unreadable, ["22-10-26_12-27(1).png"]);
+  // Счёт по уникальным файлам, как в блоке 1 (не 11 из 12 с повторами).
+  assert.equal(v.read.total, 4);
+  assert.equal(v.read.textOk, 3);
   assert.equal(v.findings.docs.length, 0);
   assert.equal(v.findings.questionnaire.length, 1);
   assert.equal(v.findings.client.length, 1);

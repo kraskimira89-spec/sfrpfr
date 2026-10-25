@@ -140,12 +140,17 @@ export function buildCheckView(
     types.includes("выписка ИЛС") &&
     types.includes("трудовая книжка");
   const items = r.honest_brief?.items ?? [];
+  const unreadable = r.unreadable_files ?? [];
+  // Без повторов: имена нечитаемых уже уникальны; старые результаты без списка — как есть.
+  const dedupedRead = unique < files && r.unreadable_files !== undefined;
   const base: Omit<CheckView, "next"> = {
     kit: { files, unique, duplicates: Math.max(0, files - unique), types, missing, hasCore },
     read: {
-      total: files,
-      textOk: Number(r.text_extracted ?? 0),
-      unreadable: r.unreadable_files ?? [],
+      total: dedupedRead ? unique : files,
+      textOk: dedupedRead
+        ? Math.max(0, unique - unreadable.length)
+        : Number(r.text_extracted ?? 0),
+      unreadable,
       manual: r.manual_files ?? [],
     },
     findings: {
