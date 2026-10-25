@@ -754,10 +754,6 @@ export function CaseFunnelMain({
     });
   }
 
-  function scrollStage(id: FunnelStageId) {
-    toggleStage(id);
-  }
-
   function canAct(id: FunnelStageId): boolean {
     return Boolean(stageById[id]?.canAct);
   }
@@ -1351,156 +1347,354 @@ export function CaseFunnelMain({
           </p>
         </StageShell>
 
-        {caps.can_view_ocr ? (
-          <StageShell
-            id="funnel-precheck_summary"
-            title={stageById.precheck_summary.label}
-            state={stageById.precheck_summary.state}
-            reason={stageById.precheck_summary.reason}
-            summary={stageById.precheck_summary.shortSummary}
-            expanded={isExpanded("precheck_summary")}
-            onToggle={() => toggleStage("precheck_summary")}
-          >
-            <p className="hint">
-              Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
-              {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
-            </p>
-            <p className="hint">
-              Кнопка проверки — в ступени «Документы». Здесь — внутренний результат, вопросы и
-              материалы для клиентского резюме (без автоотправки).
-            </p>
-            <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
-            <p className="hint">
-              Не результат новой проверки документов — только старые findings, если были.
-            </p>
-            <ul className="plain-list">
-              {(detail.findings ?? []).length === 0 && (
-                <li className="hint">Нет сохранённых замечаний пайплайна</li>
-              )}
-              {(detail.findings ?? []).map((f, idx) => (
-                <li key={`${f.type}-${idx}`}>
-                  <strong>{f.type}</strong> {f.detail}
+        <StageShell
+          id="funnel-precheck_summary"
+          title={stageById.precheck_summary.label}
+          state={stageById.precheck_summary.state}
+          reason={stageById.precheck_summary.reason}
+          summary={stageById.precheck_summary.shortSummary}
+          expanded={isExpanded("precheck_summary")}
+          onToggle={() => toggleStage("precheck_summary")}
+        >
+          <p className="hint">
+            Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
+            {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
+          </p>
+          <p className="hint">
+            Проверка и краткое резюме — в ступени «Документы» (блок «Работа с делом»). Здесь —
+            внутренние findings и notes. Автоотправки клиенту нет.
+          </p>
+          <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
+          <ul className="plain-list">
+            {(detail.findings ?? []).length === 0 && (
+              <li className="hint">Нет сохранённых замечаний пайплайна</li>
+            )}
+            {(detail.findings ?? []).map((f, idx) => (
+              <li key={`${f.type}-${idx}`}>
+                <strong>{f.type}</strong> {f.detail}
+              </li>
+            ))}
+          </ul>
+          <h3 className="case-subhead">Помощь в анализе (пайплайн)</h3>
+          {detail.analysis_notes ? (
+            <pre className="draft">{detail.analysis_notes}</pre>
+          ) : (
+            <p className="hint">Нет сохранённых notes пайплайна.</p>
+          )}
+        </StageShell>
+
+        <StageShell
+          id="funnel-analysis_payment"
+          title={stageById.analysis_payment.label}
+          state={stageById.analysis_payment.state}
+          reason={stageById.analysis_payment.reason}
+          summary={stageById.analysis_payment.shortSummary}
+          expanded={isExpanded("analysis_payment")}
+          onToggle={() => toggleStage("analysis_payment")}
+        >
+          {!caps.can_manage_orders ? (
+            <p className="hint">Нет права управлять заказами — только просмотр статуса.</p>
+          ) : null}
+          <p className="hint">
+            Учитываем DIAG + сумму + серверный статус. Не любой «оплачено» и не текст чата.
+          </p>
+          <ul className="plain-list case-orders-list">
+            {(detail.orders ?? [])
+              .filter((o) => o.package_code === "DIAG")
+              .map((o) => (
+                <li key={o.id} className="case-order-card">
+                  <p>
+                    <strong>
+                      {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽
+                    </strong>
+                    {" · "}
+                    {o.finance_status || o.status}
+                  </p>
+                  {o.pay_url ? (
+                    <p className="hint">
+                      <a href={o.pay_url} target="_blank" rel="noreferrer">
+                        Ссылка на оплату
+                      </a>
+                    </p>
+                  ) : null}
+                  <div className="row-actions">
+                    {onCopyPayLink ? (
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={busy}
+                        onClick={() => onCopyPayLink(o.id)}
+                      >
+                        Ссылка
+                      </button>
+                    ) : null}
+                    {onSendPayLink && detail.client.max_linked ? (
+                      <button type="button" disabled={busy} onClick={() => onSendPayLink(o.id)}>
+                        Отправить в MAX
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
-            </ul>
-            <h3 className="case-subhead">Помощь в анализе (пайплайн)</h3>
-            <p className="hint">Сформировано ИИ ранее, не подменяется новой проверкой комплекта</p>
-            {detail.analysis_notes ? (
-              <pre className="draft">{detail.analysis_notes}</pre>
-            ) : (
-              <p className="hint">Нет сохранённых notes пайплайна.</p>
-            )}
-            <h3 className="case-subhead">PDF результата клиенту</h3>
-            <p className="hint">
-              Канон: «Диагностика сведений о стаже…». Шаблон → PDF → загрузка сюда (
-              <code>diagnosis_report</code>). Без PDF в кабинете не считать выданным.
-            </p>
-            {detail.documents.filter((d) =>
-              `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
-            ).length > 0 ? (
-              <ul className="plain-list">
-                {detail.documents
-                  .filter((d) =>
-                    `${d.doc_type || ""} ${d.storage_path || ""}`
-                      .toLowerCase()
-                      .includes("diagnosis"),
-                  )
-                  .map((doc) => (
-                    <li key={doc.id}>
-                      <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
-                        {doc.storage_path.split("/").pop()}
-                      </button>
-                      <span className="hint"> · Результат диагностики</span>
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="hint">PDF ещё не загружен.</p>
-            )}
-            <div className="row-actions">
-              <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
-                Загрузить PDF результата
+          </ul>
+          {(detail.orders ?? []).every((o) => o.package_code !== "DIAG") ? (
+            <p className="hint">Счёта DIAG ещё нет. Создать можно из резюме (офер) или формы ниже.</p>
+          ) : null}
+          {caps.can_manage_orders ? (
+            <>
+              <div className="row-actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy}
+                  onClick={onRecordServiceConsent}
+                >
+                  Зафиксировать согласие на услугу
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => applyTemplate(SERVICE_DESCRIPTION_CHAT)}
+                >
+                  Описание услуги в чат
+                </button>
+                {onCreateQuickOrder ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onCreateQuickOrder("DIAG", 3000)}
+                  >
+                    Счёт DIAG 3 000 ₽
+                  </button>
+                ) : null}
+              </div>
+              <form className="inline-form" onSubmit={onCreateOrder}>
+                <select
+                  value={orderCode}
+                  onChange={(e) => onOrderCode(e.target.value as typeof orderCode)}
+                >
+                  <option value="DIAG">{labelPackage("DIAG")}</option>
+                  <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
+                  <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
+                  <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
+                </select>
                 <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  hidden
-                  disabled={busy || !caps.can_view_ocr}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) onUploadDiagnosisReport(file);
-                  }}
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  placeholder="Сумма ₽"
+                  value={orderAmount}
+                  onChange={(e) => onOrderAmount(e.target.value)}
+                  required
                 />
-              </label>
+                <button type="submit" disabled={busy}>
+                  Создать счёт
+                </button>
+              </form>
+            </>
+          ) : null}
+          {onOpenFinance ? (
+            <p className="hint">
+              <button type="button" className="linkish" onClick={onOpenFinance}>
+                Открыть Финансы по делу
+              </button>
+            </p>
+          ) : null}
+        </StageShell>
+
+        <StageShell
+          id="funnel-full_analysis"
+          title={stageById.full_analysis.label}
+          state={stageById.full_analysis.state}
+          reason={stageById.full_analysis.reason}
+          summary={stageById.full_analysis.shortSummary}
+          expanded={isExpanded("full_analysis")}
+          onToggle={() => toggleStage("full_analysis")}
+        >
+          <p className="hint">
+            Раздельно: PDF подготовлен ≠ опубликован в кабинете ≠ уведомление доставлено. Черновик
+            сообщения не завершает ступень.
+          </p>
+          <h3 className="case-subhead">PDF результата клиенту</h3>
+          {detail.documents.filter((d) =>
+            `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+          ).length > 0 ? (
+            <ul className="plain-list">
               {detail.documents
                 .filter((d) =>
                   `${d.doc_type || ""} ${d.storage_path || ""}`
                     .toLowerCase()
                     .includes("diagnosis"),
                 )
-                .slice(0, 1)
                 .map((doc) => (
-                  <button
-                    key={`pub-${doc.id}`}
-                    type="button"
-                    disabled={busy || !caps.can_view_ocr}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "Опубликовать PDF и создать черновики уведомлений (e-mail/MAX)? Отправка — только после подтверждения.",
-                        )
-                      )
-                        return;
-                      onPublishDiagnosis(doc.id);
-                    }}
-                  >
-                    Опубликовать → черновики уведомлений
-                  </button>
+                  <li key={doc.id}>
+                    <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
+                      {doc.storage_path.split("/").pop()}
+                    </button>
+                    <span className="hint"> · PDF подготовлен</span>
+                  </li>
                 ))}
-              <button
-                type="button"
-                className="linkish"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      "Подставить шаблон «Диагностика готова» в чат? Отправка в MAX — отдельно.",
-                    )
-                  )
-                    return;
-                  applyTemplate(PLAN_READY_CHAT);
+            </ul>
+          ) : (
+            <p className="hint">PDF ещё не загружен — статус «не подтверждено» для выдачи.</p>
+          )}
+          <div className="row-actions">
+            <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
+              Загрузить PDF результата
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                hidden
+                disabled={busy || !caps.can_view_ocr}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) onUploadDiagnosisReport(file);
                 }}
-              >
-                Шаблон MAX: результат готов
-              </button>
-            </div>
-            <p className="hint">
-              ТЗ-28: PDF не вложением. Система готовит draft → сотрудник подтверждает отправку.
-            </p>
-            {staffToken && apiBase ? (
-              <DiagnosisDeliveryPanel
-                caseId={detail.id}
-                token={staffToken}
-                apiBase={apiBase}
-                clientEmail={detail.client.email ?? null}
-                busy={busy}
-                onNotice={onDeliveryNotice ?? (() => {})}
-                onRefresh={onDeliveryRefresh ?? (() => {})}
               />
-            ) : null}
-          </StageShell>
-        ) : null}
+            </label>
+            {detail.documents
+              .filter((d) =>
+                `${d.doc_type || ""} ${d.storage_path || ""}`
+                  .toLowerCase()
+                  .includes("diagnosis"),
+              )
+              .slice(0, 1)
+              .map((doc) => (
+                <button
+                  key={`pub-${doc.id}`}
+                  type="button"
+                  disabled={busy || !caps.can_view_ocr}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Опубликовать PDF и создать черновики уведомлений? Отправка — только после подтверждения.",
+                      )
+                    )
+                      return;
+                    onPublishDiagnosis(doc.id);
+                  }}
+                >
+                  Опубликовать → черновики уведомлений
+                </button>
+              ))}
+            <button
+              type="button"
+              className="linkish"
+              disabled={busy}
+              onClick={() => applyTemplate(PLAN_READY_CHAT)}
+            >
+              Шаблон MAX: результат готов
+            </button>
+          </div>
+          {staffToken && apiBase ? (
+            <DiagnosisDeliveryPanel
+              caseId={detail.id}
+              token={staffToken}
+              apiBase={apiBase}
+              clientEmail={detail.client.email ?? null}
+              busy={busy}
+              onNotice={onDeliveryNotice ?? (() => {})}
+              onRefresh={onDeliveryRefresh ?? (() => {})}
+            />
+          ) : (
+            <p className="hint">Доставка уведомлений: нет staff-токена / apiBase.</p>
+          )}
+        </StageShell>
+
+        <StageShell
+          id="funnel-appeals_consent"
+          title={stageById.appeals_consent.label}
+          state={stageById.appeals_consent.state}
+          reason={stageById.appeals_consent.reason}
+          summary={stageById.appeals_consent.shortSummary}
+          expanded={isExpanded("appeals_consent")}
+          onToggle={() => toggleStage("appeals_consent")}
+        >
+          <p className="hint">
+            Согласие на объём и стоимость подготовки обращений в API пока не сохраняется — статус
+            «не подтверждено». Кнопки только подставляют шаблон в чат, не фиксируют решение.
+          </p>
+          <NotWiredNote label="Запись решения согласен/отказался/думает" />
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                applyTemplate(
+                  "Здравствуйте! Предлагаем подготовку обращения к СФР за 5 000 ₽ (отдельный пакет). Напишите, пожалуйста: согласны / пока думаете / не нужно. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                )
+              }
+            >
+              Спросить согласие (5 000) в чат
+            </button>
+          </div>
+        </StageShell>
+
+        <StageShell
+          id="funnel-appeals_payment"
+          title={stageById.appeals_payment.label}
+          state={stageById.appeals_payment.state}
+          reason={stageById.appeals_payment.reason}
+          summary={stageById.appeals_payment.shortSummary}
+          expanded={isExpanded("appeals_payment")}
+          onToggle={() => toggleStage("appeals_payment")}
+        >
+          <p className="hint">
+            Только ACCOMP ровно 5 000 ₽. Не путать с DIAG и с ACCOMP 8 000. Создать счёт ≠ отправить
+            ссылку.
+          </p>
+          <ul className="plain-list">
+            {(detail.orders ?? [])
+              .filter((o) => o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000)
+              .map((o) => (
+                <li key={o.id}>
+                  {o.invoice_number || "ACCOMP"} · {o.amount_rub} ₽ · {o.status}
+                  {onSendPayLink && o.status !== "paid" ? (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="linkish"
+                        disabled={busy}
+                        onClick={() => onSendPayLink(o.id)}
+                      >
+                        Отправить ссылку
+                      </button>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+          {(detail.orders ?? []).every(
+            (o) => !(o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000),
+          ) ? (
+            <p className="hint">Счёта ACCOMP 5 000 ещё нет.</p>
+          ) : null}
+          {caps.can_manage_orders && onCreateQuickOrder ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
+            >
+              Счёт ACCOMP 5 000 ₽
+            </button>
+          ) : null}
+        </StageShell>
 
         <StageShell
           id="funnel-appeals_documents"
           title={stageById.appeals_documents.label}
           state={stageById.appeals_documents.state}
           reason={stageById.appeals_documents.reason}
+          summary={stageById.appeals_documents.shortSummary}
           expanded={isExpanded("appeals_documents")}
           onToggle={() => toggleStage("appeals_documents")}
         >
           <p className="hint">
-            Черновик требует проверки специалистом. Не является решением СФР. Клиент подаёт сам.
+            Состояния: черновик / готов / передан. Передача «не подтверждена», пока нет серверного
+            статуса. DOCX-генератор — отдельный PR.
           </p>
           {detail.draft ? (
             <pre className="draft">
@@ -1509,14 +1703,13 @@ export function CaseFunnelMain({
               {detail.draft.body}
             </pre>
           ) : (
-            <p className="hint">Проекта пока нет — сначала диагностика.</p>
+            <p className="hint">Черновика проекта пока нет.</p>
           )}
           <div className="row-actions">
             <button
               type="button"
-              disabled={busy || !caps.can_view_ocr || !canAct("appeals_documents")}
+              disabled={busy || !caps.can_view_ocr}
               onClick={() => (onRequestPipeline ? onRequestPipeline() : onRequestReview())}
-              title={stageById.appeals_documents.reason}
             >
               Сформировать / обновить проект
             </button>
@@ -1524,7 +1717,6 @@ export function CaseFunnelMain({
               <button
                 type="button"
                 className="ghost"
-                disabled={!canAct("appeals_documents") && !showAll}
                 onClick={() => applyTemplate(PLAN_READY_CHAT)}
               >
                 Подставить сообщение клиенту
@@ -1533,264 +1725,186 @@ export function CaseFunnelMain({
           </div>
         </StageShell>
 
-        {caps.can_manage_orders ? (
-          <StageShell
-            id="funnel-analysis_payment"
-            title={stageById.analysis_payment.label}
-            state={stageById.analysis_payment.state}
-            reason={stageById.analysis_payment.reason}
-            summary={stageById.analysis_payment.shortSummary}
-            expanded={isExpanded("analysis_payment")}
-            onToggle={() => toggleStage("analysis_payment")}
-          >
-            <p className="hint">
-              Статус оплаты (адаптер по заказам):{" "}
-              {funnel.paymentKnown === "paid"
-                ? "подтверждена"
-                : funnel.paymentKnown === "pending"
-                  ? "ожидается"
-                  : funnel.paymentKnown === "unknown"
-                    ? "не удалось однозначно определить"
-                    : "заказ не создан"}
-              . Суммы из каталога/заказа — не из заголовка карточки.
-            </p>
-            {(detail.orders ?? []).length > 0 ? (
-              <ul className="plain-list case-orders-list">
-                {(detail.orders ?? []).map((o) => (
-                  <li key={o.id} className="case-order-card">
-                    <p>
-                      <strong>
-                        {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽
-                      </strong>
-                      {" · "}
-                      {o.finance_status || o.status}
-                      {o.sent_channel ? ` · отправлено: ${o.sent_channel}` : ""}
-                    </p>
-                    {o.pay_url ? (
-                      <p className="hint">
-                        <a href={o.pay_url} target="_blank" rel="noreferrer">
-                          Ссылка на оплату
-                        </a>
-                      </p>
-                    ) : (
-                      <p className="hint">Ссылка ещё не выставлена — нажмите «Ссылка» или «В MAX».</p>
-                    )}
-                    {o.qr_url && o.status !== "paid" ? (
-                      <img
-                        className="pay-qr"
-                        src={o.qr_url}
-                        alt="QR на оплату"
-                        width={140}
-                        height={140}
-                      />
-                    ) : null}
-                    <div className="row-actions">
-                      {onCopyPayLink ? (
-                        <button
-                          type="button"
-                          className="ghost"
-                          disabled={busy}
-                          onClick={() => onCopyPayLink(o.id)}
-                        >
-                          Ссылка
-                        </button>
-                      ) : null}
-                      {onSendPayLink && detail.client.max_linked ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => onSendPayLink(o.id)}
-                          title="Отправить счёт, ссылку и QR клиенту в MAX"
-                        >
-                          Отправить в MAX
-                        </button>
-                      ) : null}
-                      {!detail.client.max_linked ? (
-                        <span className="hint">MAX не привязан — только ссылка/QR здесь</span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="hint">Услуга ещё не согласована / счёт не создан.</p>
-            )}
-            <div className="row-actions">
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={onRecordServiceConsent}
-                title="Зафиксировать согласие клиента на услугу (audit)"
-              >
-                Зафиксировать согласие клиента
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => applyTemplate(SERVICE_DESCRIPTION_CHAT)}
-              >
-                Отправить описание услуги в чат
-              </button>
-            </div>
-            {!funnel.serviceConsentOk ? (
-              <p className="hint">Создать счёт можно после фиксации согласия (или если статус не lead).</p>
-            ) : null}
-            <form className="inline-form" onSubmit={onCreateOrder}>
-              <select
-                value={orderCode}
-                onChange={(e) => onOrderCode(e.target.value as typeof orderCode)}
-                disabled={!funnel.serviceConsentOk}
-              >
-                <option value="DIAG">{labelPackage("DIAG")}</option>
-                <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
-                <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
-                <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
-              </select>
-              <input
-                type="number"
-                min={1}
-                step="0.01"
-                placeholder="Сумма ₽"
-                value={orderAmount}
-                onChange={(e) => onOrderAmount(e.target.value)}
-                required
-                disabled={!funnel.serviceConsentOk}
-              />
-              <button
-                type="submit"
-                disabled={!funnel.serviceConsentOk || !canAct("analysis_payment")}
-                title={
-                  funnel.serviceConsentOk
-                    ? "Создать счёт"
-                    : "Сначала зафиксируйте согласие клиента на услугу"
-                }
-              >
-                Создать счёт
-              </button>
-            </form>
-            <p className="hint">Сумма по услуге / договору. Не путать с решением СФР.</p>
-            <p className="hint">
-              Просрочки, «оплачено сегодня», возвраты — на вкладке Финансы, не как этап сделки в реестре.
-              {onOpenFinance ? (
-                <>
-                  {" "}
-                  <button type="button" className="linkish" onClick={onOpenFinance}>
-                    Открыть Финансы по делу
-                  </button>
-                </>
-              ) : null}
-            </p>
-          </StageShell>
-        ) : null}
-
-        {caps.can_confirm_result ? (
-          <StageShell
-            id="funnel-response_review"
-            title="Ответ СФР и итог по делу"
-            state={stageById.response_review.state}
-            reason={stageById.response_review.reason}
-            expanded={isExpanded("response_review")}
-            onToggle={() => toggleStage("response_review")}
-          >
-            <label className="funnel-show-all">
-              <input
-                type="checkbox"
-                checked={sfrReceived}
-                onChange={(e) => onSfrReceived(e.target.checked)}
-              />
-              Ответ СФР получен
-            </label>
-            {sfrReceived ? (
-              <form className="stack-form" onSubmit={onConfirmResult}>
-                <label>
-                  Прежний размер, ₽ (из решения СФР)
-                  <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
-                </label>
-                <label>
-                  Новый размер, ₽ (из решения СФР)
-                  <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
-                </label>
-                <label>
-                  Единовременная выплата, ₽
-                  <input
-                    value={lumpRub}
-                    onChange={(e) => onLumpRub(e.target.value)}
-                    placeholder="Не указано — только по документу СФР"
-                  />
-                </label>
-                <button type="submit" disabled={!canAct("response_review") && !showAll}>
-                  Зафиксировать ответ СФР
-                </button>
-              </form>
-            ) : (
-              <p className="hint">Включите переключатель, когда решение СФР получено.</p>
-            )}
-            <p className="hint">Только факты из решения СФР, не цена услуги сервиса.</p>
-          </StageShell>
-        ) : null}
-
-        {(
-          [
-            "full_analysis",
-            "appeals_consent",
-            "appeals_payment",
-            "submission",
-            "follow_up",
-            "escalation_package",
-          ] as FunnelStageId[]
-        ).map((id) => (
-          <StageShell
-            key={id}
-            id={`funnel-${id}`}
-            title={stageById[id].label}
-            state={stageById[id].state}
-            reason={stageById[id].reason}
-            summary={stageById[id].shortSummary}
-            expanded={isExpanded(id)}
-            onToggle={() => toggleStage(id)}
-          >
-            <p className="hint">{stageById[id].shortSummary}</p>
-            {stageById[id].blockers.length > 0 ? (
-              <ul className="plain-list">
-                {stageById[id].blockers.map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-            ) : null}
-            {stageById[id].status === "unknown" ? (
-              <NotWiredNote label={stageById[id].label} />
-            ) : (
-              <p className="hint">
-                Панель этапа в фазе 1 показывает статус адаптера. Полный UI и backend-факты —
-                отдельными задачами; раскрытие не запускает оплаты и отправки.
-              </p>
-            )}
-            {id === "full_analysis" ? (
-              <p className="hint">
-                PDF диагностики:{" "}
-                {detail.documents.some((d) =>
-                  `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+        <StageShell
+          id="funnel-submission"
+          title={stageById.submission.label}
+          state={stageById.submission.state}
+          reason={stageById.submission.reason}
+          summary={stageById.submission.shortSummary}
+          expanded={isExpanded("submission")}
+          onToggle={() => toggleStage("submission")}
+        >
+          <p className="hint">
+            Выбор способа ≠ подача. Подтверждение подачи в API отсутствует — «не подтверждено».
+            Сотрудник не отмечает подачу автоматически по передаче пакета.
+          </p>
+          <NotWiredNote label="submission_confirmed_at / адресат" />
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                applyTemplate(
+                  "Здравствуйте! Пакет готов. Сможете подать через Госуслуги/СФР сами или нужен звонок специалиста для сопровождения до отправки? Напишите удобный вариант. Решение принимает СФР.",
                 )
-                  ? "есть в деле"
-                  : "нет"}
-                {" · "}
-                Оплата (адаптер): {funnel.paymentKnown}
-              </p>
-            ) : null}
-          </StageShell>
-        ))}
+              }
+            >
+              Спросить: сам / нужен звонок
+            </button>
+          </div>
+        </StageShell>
 
-        {caps.can_knowledge_feedback ? (
-          <StageShell
-            id="funnel-closure"
-            title={stageById.closure.label}
-            state={stageById.closure.state}
-            reason={stageById.closure.reason}
-            summary={stageById.closure.shortSummary}
-            expanded={isExpanded("closure")}
-            onToggle={() => toggleStage("closure")}
+        <StageShell
+          id="funnel-follow_up"
+          title={stageById.follow_up.label}
+          state={stageById.follow_up.state}
+          reason={stageById.follow_up.reason}
+          summary={stageById.follow_up.shortSummary}
+          expanded={isExpanded("follow_up")}
+          onToggle={() => toggleStage("follow_up")}
+        >
+          <p className="hint">
+            Вход — подтверждённая подача (пока «не подтверждено»). Ниже — ручные пресеты срока, не
+            авторассылка каждые 3 дня.
+          </p>
+          <p>
+            Сейчас: {nextActionText || "—"} · до {nextActionAt || "—"} · ждём: {waitingOn}
+          </p>
+          <div className="row-actions">
+            {[3, 5, 10, 15, 30].map((days) => (
+              <button
+                key={days}
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => {
+                  const due = new Date();
+                  due.setDate(due.getDate() + days);
+                  const local = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}T${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}`;
+                  onNextActionText(
+                    days === 3
+                      ? "Спросить клиента про уведомления Госуслуг"
+                      : `Звонок специалиста (день +${days} от ручного пресета)`,
+                  );
+                  onNextActionAt(local);
+                  onWaitingOn(days === 3 ? "client" : "staff");
+                }}
+              >
+                +{days} дн.
+              </button>
+            ))}
+            <button type="button" disabled={busy} onClick={onSaveNextAction}>
+              Сохранить next action
+            </button>
+          </div>
+        </StageShell>
+
+        <StageShell
+          id="funnel-response_review"
+          title={stageById.response_review.label}
+          state={stageById.response_review.state}
+          reason={stageById.response_review.reason}
+          summary={stageById.response_review.shortSummary}
+          expanded={isExpanded("response_review")}
+          onToggle={() => toggleStage("response_review")}
+        >
+          <p className="hint">
+            Ответ СФР требует разбора; эскалация не включается автоматически.
+          </p>
+          {caps.can_confirm_result ? (
+            <>
+              <label className="funnel-show-all">
+                <input
+                  type="checkbox"
+                  checked={sfrReceived}
+                  onChange={(e) => onSfrReceived(e.target.checked)}
+                />
+                Ответ СФР получен
+              </label>
+              {sfrReceived ? (
+                <form className="stack-form" onSubmit={onConfirmResult}>
+                  <label>
+                    Прежний размер, ₽
+                    <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
+                  </label>
+                  <label>
+                    Новый размер, ₽
+                    <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
+                  </label>
+                  <label>
+                    Единовременная выплата, ₽
+                    <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
+                  </label>
+                  <button type="submit">Зафиксировать ответ СФР</button>
+                </form>
+              ) : (
+                <p className="hint">Включите переключатель, когда решение СФР получено.</p>
+              )}
+            </>
+          ) : (
+            <p className="hint">Нет права фиксировать результат.</p>
+          )}
+        </StageShell>
+
+        <StageShell
+          id="funnel-escalation_package"
+          title={stageById.escalation_package.label}
+          state={stageById.escalation_package.state}
+          reason={stageById.escalation_package.reason}
+          summary={stageById.escalation_package.shortSummary}
+          expanded={isExpanded("escalation_package")}
+          onToggle={() => toggleStage("escalation_package")}
+        >
+          <p className="hint">
+            Вход — основание и согласованный новый объём. ACCOMP 8 000 отдельно от 5 000. Отказ /
+            «не требуется» — отдельные исходы (запись согласия пока «не подтверждено»).
+          </p>
+          <ul className="plain-list">
+            {(detail.orders ?? [])
+              .filter((o) => o.package_code === "ACCOMP" && Number(o.amount_rub) === 8000)
+              .map((o) => (
+                <li key={o.id}>
+                  {o.invoice_number || "ACCOMP"} · {o.amount_rub} ₽ · {o.status}
+                </li>
+              ))}
+          </ul>
+          {caps.can_manage_orders && onCreateQuickOrder ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onCreateQuickOrder("ACCOMP", 8000)}
+            >
+              Счёт ACCOMP 8 000 ₽
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              applyTemplate(
+                "Здравствуйте! По ответу СФР можем оценить доп. пакет (прокуратура/суд) за 8 000 ₽, включая хронологию при необходимости. Напишите: согласны / не требуется / думаете. Решение принимает СФР.",
+              )
+            }
           >
+            Спросить про эскалацию в чат
+          </button>
+        </StageShell>
+
+        <StageShell
+          id="funnel-closure"
+          title={stageById.closure.label}
+          state={stageById.closure.state}
+          reason={stageById.closure.reason}
+          summary={stageById.closure.shortSummary}
+          expanded={isExpanded("closure")}
+          onToggle={() => toggleStage("closure")}
+        >
+          <p className="hint">
+            Закрытие — явное действие сотрудника. Архивный блок ниже не подменяет closed_at.
+          </p>
+          {caps.can_knowledge_feedback ? (
             <form className="stack-form" onSubmit={onSendFeedback}>
               <textarea
                 rows={2}
@@ -1806,11 +1920,11 @@ export function CaseFunnelMain({
                   <option value="template">{labelFeedbackQuality("template")}</option>
                   <option value="rejected">{labelFeedbackQuality("rejected")}</option>
                 </select>
-                <button type="submit">Сохранить</button>
+                <button type="submit">Сохранить заметку</button>
               </div>
             </form>
-          </StageShell>
-        ) : null}
+          ) : null}
+        </StageShell>
 
         <details className="panel service-details case-card--wide">
           <summary>Служебное · журнал</summary>
