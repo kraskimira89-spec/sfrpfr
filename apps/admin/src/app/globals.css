@@ -1244,8 +1244,9 @@ button.badge--clickable:hover {
 }
 button.secondary.danger-button {
   color: #a32b2b;
-  border-color: #d8a0a0;
+  border: 1px solid #c97b7b;
   background: #fff;
+  font-weight: 600;
 }
 button.secondary.danger-button:hover:not(:disabled) {
   background: #f8eeee;
