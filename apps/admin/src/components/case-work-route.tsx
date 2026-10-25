@@ -38,6 +38,10 @@ type Props = {
   onRequestDocsFromClient?: () => void;
   /** Результат проверки документов — у шага 1 (current или done). */
   docsCheckPanel?: React.ReactNode;
+  /** Ручная сверка периодов ИЛС ↔ трудовая (пока нет автоматической). */
+  onRecordFactsReview?: (outcome: "discrepancies" | "no_discrepancies") => void;
+  /** Открыть другой этап дела (файлы — documents, проект — appeals_documents). */
+  onOpenStage?: (stageId: string) => void;
 };
 
 function statusClass(status: string): string {
@@ -54,6 +58,8 @@ export function CaseWorkRoute({
   onRequestPipeline,
   onRequestDocsFromClient,
   docsCheckPanel,
+  onRecordFactsReview,
+  onOpenStage,
 }: Props) {
   if (!route || !route.steps?.length) {
     return (
@@ -83,10 +89,17 @@ export function CaseWorkRoute({
       onRequestDocsFromClient?.();
       return;
     }
+    if (primary.id === "open_appeals_stage") {
+      onOpenStage?.("appeals_documents");
+      return;
+    }
     if (primary.id === "request_pipeline" && onRequestPipeline) {
       onRequestPipeline();
     }
   }
+
+  const isFactsReview =
+    primary?.id === "record_facts_review" || primary?.id === "open_facts_review";
 
   return (
     <section className="panel case-work-route" aria-labelledby="case-work-title">
@@ -127,7 +140,35 @@ export function CaseWorkRoute({
                   ))}
                 </ul>
               ) : null}
-              {showPrimary ? (
+              {showPrimary && isFactsReview ? (
+                <div className="row-actions" style={{ marginTop: "0.5rem", flexWrap: "wrap" }}>
+                  {onOpenStage ? (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => onOpenStage("documents")}
+                      title="Открыть файлы клиента: у каждого есть кнопка «Текст»"
+                    >
+                      Открыть тексты ИЛС и трудовой
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={busy || !onRecordFactsReview}
+                    onClick={() => onRecordFactsReview?.("discrepancies")}
+                  >
+                    Расхождения есть
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !onRecordFactsReview}
+                    onClick={() => onRecordFactsReview?.("no_discrepancies")}
+                  >
+                    Расхождений нет
+                  </button>
+                </div>
+              ) : showPrimary ? (
                 <div className="row-actions" style={{ marginTop: "0.5rem" }}>
                   <button type="button" disabled={busy} onClick={() => runPrimary()}>
                     {primary!.label}

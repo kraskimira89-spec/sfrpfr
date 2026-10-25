@@ -28,6 +28,17 @@ def test_summary_counts_unique_files_and_names_unreadable() -> None:
     assert out["manual_files"] == []
 
 
+def test_unreadable_core_counts_only_ils_and_workbook() -> None:
+    result = {
+        "documents_checked": 2,
+        "documents": [
+            {**_doc("scan.png", "c", ocr=True), "guessed_type": "other"},
+            {**_doc("ils_photo.jpg", "d", ocr=True), "guessed_type": "ils"},
+        ],
+    }
+    assert summarize_for_staff(result)["unreadable_core"] == 1
+
+
 def test_summary_without_documents_list_falls_back() -> None:
     out = summarize_for_staff({"documents_checked": 2})
     assert out["unique_documents"] == 2

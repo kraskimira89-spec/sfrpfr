@@ -19,8 +19,14 @@ def build_case_work_route(
     findings: list[dict[str, Any]] | None = None,
     draft: dict[str, Any] | None = None,
     appeal_generator_enabled: bool = True,
+    pipeline_ran: bool = False,
+    facts_review: str | None = None,
 ) -> dict[str, Any]:
-    """Серверный расчёт этапа, блокеров и primary action."""
+    """Серверный расчёт этапа, блокеров и primary action.
+
+    pipeline_ran — периоды ИЛС/трудовой извлечены пайплайном (иначе сверка ручная);
+    facts_review — результат ручной сверки сотрудника: discrepancies | no_discrepancies.
+    """
     doc_count = len(documents or [])
     check = document_check or {}
     check_status = str(check.get("status") or "").strip().lower()
@@ -56,6 +62,8 @@ def build_case_work_route(
         check_result=check_result,
         findings=findings or [],
         specialist_questions=specialist_questions,
+        pipeline_ran=pipeline_ran,
+        facts_review=facts_review,
     )
 
     appeal_step = _appeal_draft_step(
@@ -141,9 +149,24 @@ def _docs_check_step(
             f"Требуют распознавания: {r.get('needs_recognition', 0)}. "
             f"Требуют ручной проверки: {r.get('needs_manual_review', 0)}."
         )
-        needs_action = check_status == "needs_action" or int(
-            r.get("needs_manual_review") or 0
-        ) > 0 or int(r.get("needs_recognition") or 0) > 0
+        recognition = int(r.get("needs_recognition") or 0)
+        unreadable_core = r.get("unreadable_core")
+        # Не прочитан только посторонний файл (не ИЛС / трудовая) — сверке не мешает.
+        unreadable_blocks = recognition > 0 and (
+            unreadable_core is None or int(unreadable_core or 0) > 0
+        )
+        needs_action = (
+            bool(r.get("missing_for_task"))
+            or int(r.get("needs_manual_review") or 0) > 0
+            or unreadable_blocks
+        )
+        if recognition > 0 and not unreadable_blocks:
+            names = [str(x) for x in (r.get("unreadable_files") or []) if str(x).strip()]
+            summary += (
+                f" Не прочитан: {', '.join(names)} — сверке не мешает."
+                if names
+                else f" Не прочитано файлов: {recognition} — сверке не мешает."
+            )
         if needs_action:
             return {
                 "id": "docs_check",
@@ -199,7 +222,15 @@ def _facts_review_step(
     check_result: dict[str, Any] | None,
     findings: list[dict[str, Any]],
     specialist_questions: list[str] | None = None,
+    pipeline_ran: bool = False,
+    facts_review: str | None = None,
 ) -> dict[str, Any]:
+    record_action = {
+        "id": "record_facts_review",
+        "label": "Отметить результат сверки",
+        "method": "UI",
+        "path_suffix": "facts-review",
+    }
     if docs_step["status"] != "done":
         return {
             "id": "facts_review",
@@ -210,6 +241,21 @@ def _facts_review_step(
             "primary_action": None,
             "blocker_reason": docs_step.get("blocker_reason")
             or "Сначала завершите проверку документов.",
+            "needs_specialist": False,
+        }
+    if facts_review in {"discrepancies", "no_discrepancies"}:
+        return {
+            "id": "facts_review",
+            "title": "Сверка сведений",
+            "status": "done",
+            "status_label": "сверено",
+            "result_summary": (
+                "Сверено сотрудником: расхождения есть."
+                if facts_review == "discrepancies"
+                else "Сверено сотрудником: расхождений нет."
+            ),
+            "primary_action": None,
+            "blocker_reason": None,
             "needs_specialist": False,
         }
     missing = list((check_result or {}).get("missing_for_task") or [])
@@ -233,25 +279,35 @@ def _facts_review_step(
             "status": "current",
             "status_label": "требуется сверка",
             "result_summary": ". ".join(parts),
-            "primary_action": {
-                "id": "open_facts_review",
-                "label": "Проверить сведения",
-                "method": "UI",
-                "path_suffix": None,
-            },
+            "primary_action": record_action,
             "blocker_reason": blocker,
             "needs_specialist": True,
             "specialist_questions": questions[:8],
         }
+    if pipeline_ran:
+        return {
+            "id": "facts_review",
+            "title": "Сверка сведений",
+            "status": "done",
+            "status_label": "готово",
+            "result_summary": "Автоматическая сверка периодов без расхождений (черновик).",
+            "primary_action": None,
+            "blocker_reason": None,
+            "needs_specialist": False,
+        }
+    # Периоды автоматически не сверялись — не выдаём это за «без расхождений».
     return {
         "id": "facts_review",
         "title": "Сверка сведений",
-        "status": "done",
-        "status_label": "готово",
-        "result_summary": "Автоматическая сверка без явных блокеров (черновик).",
-        "primary_action": None,
-        "blocker_reason": None,
-        "needs_specialist": False,
+        "status": "current",
+        "status_label": "нужна сверка",
+        "result_summary": (
+            "Автоматической сверки периодов по этому делу нет. Сверьте периоды выписки ИЛС "
+            "с трудовой книжкой (тексты файлов — в этапе 2) и отметьте результат."
+        ),
+        "primary_action": record_action,
+        "blocker_reason": "Сверьте периоды ИЛС и трудовой и отметьте результат.",
+        "needs_specialist": True,
     }
 
 
@@ -262,6 +318,12 @@ def _appeal_draft_step(
     draft: dict[str, Any] | None,
     appeal_generator_enabled: bool,
 ) -> dict[str, Any]:
+    open_appeals = {
+        "id": "open_appeals_stage",
+        "label": "Перейти к проекту обращения",
+        "method": "UI",
+        "path_suffix": None,
+    }
     if docs_step["status"] != "done" or facts_step["status"] not in {"done", "current"}:
         return {
             "id": "appeal_draft",
@@ -295,12 +357,7 @@ def _appeal_draft_step(
                 "Локальный проект готов к утверждению специалистом. "
                 "Автоотправка выключена."
             ),
-            "primary_action": {
-                "id": "request_pipeline",
-                "label": "Обновить проект",
-                "method": "POST",
-                "path_suffix": "request-pipeline",
-            },
+            "primary_action": open_appeals,
             "blocker_reason": None,
             "needs_specialist": True,
         }
@@ -326,13 +383,11 @@ def _appeal_draft_step(
         "title": "Проект обращения",
         "status": "current",
         "status_label": "ожидает",
-        "result_summary": "Можно сформировать локальный проект с приложениями.",
-        "primary_action": {
-            "id": "request_pipeline",
-            "label": "Сформировать проект",
-            "method": "POST",
-            "path_suffix": "request-pipeline",
-        },
+        "result_summary": (
+            "Подготовьте проект в этапе «Обращения и передача клиенту»: там черновик "
+            "и скачивание DOCX."
+        ),
+        "primary_action": open_appeals,
         "blocker_reason": None,
         "needs_specialist": True,
     }
