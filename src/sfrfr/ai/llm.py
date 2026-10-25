@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import date
 from typing import Any, Literal
 
 from sfrfr.core.config import get_settings
@@ -23,12 +24,15 @@ class LLMClient:
         model: str | None = None,
         purpose: LlmPurpose = "default",
         allow_fallback: bool = True,
+        foreign_ok: bool = False,
     ) -> None:
         settings = get_settings()
         self.provider = (provider or settings.ai_provider or "yandex").lower()
         self._settings = settings
         self.purpose: LlmPurpose = purpose
         self.allow_fallback = allow_fallback
+        # Вызывающий код гарантирует обезличенный промпт (без ФИО, контактов, СНИЛС).
+        self.foreign_ok = foreign_ok
 
         if self.provider == "yandex":
             self.api_key = api_key if api_key is not None else (
@@ -93,9 +97,29 @@ class LLMClient:
         )
 
     @classmethod
-    def for_deepseek_fallback(cls, *, purpose: LlmPurpose = "analyze") -> LLMClient:
+    def for_deepseek_fallback(
+        cls, *, purpose: LlmPurpose = "analyze", foreign_ok: bool = False
+    ) -> LLMClient:
         """Прямой клиент platform.deepseek.com без вложенного fallback."""
-        return cls(provider="deepseek", purpose=purpose, allow_fallback=False)
+        return cls(
+            provider="deepseek", purpose=purpose, allow_fallback=False, foreign_ok=foreign_ok
+        )
+
+    def _is_production(self) -> bool:
+        return self._settings.app_env.strip().lower() in {"prod", "production"}
+
+    def _prod_foreign_allowed(self) -> bool:
+        """Production: иностранный LLM — только обезличенный вызов и до даты окончания резерва."""
+        if not self.foreign_ok:
+            return False
+        raw = (self._settings.deepseek_fallback_prod_until or "").strip()
+        if not raw:
+            return False
+        try:
+            until = date.fromisoformat(raw)
+        except ValueError:
+            return False
+        return date.today() <= until
 
     @staticmethod
     def _folder_from_model(model: str) -> str:
@@ -153,10 +177,7 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
-        if (
-            self._settings.app_env.strip().lower() in {"prod", "production"}
-            and self.provider != "yandex"
-        ):
+        if self._is_production() and self.provider != "yandex" and not self._prod_foreign_allowed():
             return False
         if self.provider == "yandex":
             # folder можно взять из gpt://… в model
@@ -169,13 +190,13 @@ class LLMClient:
         if self.provider == "deepseek":
             return None
         settings = self._settings
-        if settings.app_env.strip().lower() in {"prod", "production"}:
+        if self._is_production() and not self._prod_foreign_allowed():
             return None
         if not settings.deepseek_fallback_enabled:
             return None
         if not settings.deepseek_api_key.strip():
             return None
-        return LLMClient.for_deepseek_fallback(purpose=self.purpose)
+        return LLMClient.for_deepseek_fallback(purpose=self.purpose, foreign_ok=self.foreign_ok)
 
     def _get_client(self) -> Any:
         if self._client is None:

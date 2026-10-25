@@ -54,16 +54,34 @@ def test_dedupe_sentences_and_double_label() -> None:
 
 def test_ai_reply_used_when_valid_and_answers_client() -> None:
     llm = FakeLLM(
-        "Здравствуйте, Наталия Фёдоровна! Платная диагностика пока не нужна: сначала сверим "
+        "Здравствуйте, {ИМЯ}! Платная диагностика пока не нужна: сначала сверим "
         "периоды в выписке ИЛС и трудовой книжке. Подскажите, какие годы и место работы, "
         "по-вашему, учтены неверно?"
     )
+    messages = [
+        {"author_kind": "staff", "body": "Здравствуйте, Наталия Фёдоровна! Пришлите ИЛС."},
+        *CLIENT_ASKED,
+    ]
     out = polish_brief_reply(
-        draft=DRAFT, messages=CLIENT_ASKED, client_name="Лопакова Наталия Фёдоровна", llm=llm
+        draft=DRAFT, messages=messages, client_name="Лопакова Наталия Фёдоровна", llm=llm
     )
     assert out["source"] == "ai"
     assert "диагностика пока не нужна" in out["text"]
     assert "нужна платная диагностика" in llm.calls[0]
+    # ФИО не уходит в промпт (возможен резерв вне РФ), имя возвращаем у себя.
+    assert "Наталия" not in llm.calls[0]
+    assert "Лопакова" not in llm.calls[0]
+    assert out["text"].startswith("Здравствуйте, Наталия Фёдоровна!")
+
+
+def test_placeholder_without_known_name_becomes_plain_greeting() -> None:
+    llm = FakeLLM(
+        "Здравствуйте, {ИМЯ}! Сверим периоды в выписке ИЛС и трудовой книжке. "
+        "Подскажите, какие годы учтены неверно?"
+    )
+    out = polish_brief_reply(draft=DRAFT, messages=CLIENT_ASKED, client_name=None, llm=llm)
+    assert out["source"] == "ai"
+    assert out["text"].startswith("Здравствуйте! Сверим")
 
 
 def test_position_stripped_when_said_recently() -> None:

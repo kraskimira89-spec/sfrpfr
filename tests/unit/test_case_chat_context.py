@@ -33,6 +33,20 @@ def test_format_thread_for_llm() -> None:
     assert "ИЛС" in text
 
 
+def test_format_thread_for_llm_masks_client_name_and_salutation() -> None:
+    text = format_thread_for_llm(
+        [
+            {"author_kind": "staff", "body": "Здравствуйте, Наталия Фёдоровна! Пришлите ИЛС."},
+            {"author_kind": "client", "body": "Лопакова Наталия Фёдоровна, тел. +7 900 123-45-67"},
+        ],
+        client_name="Лопакова Наталия Фёдоровна",
+    )
+    assert "Наталия" not in text
+    assert "Лопакова" not in text
+    assert "123-45-67" not in text
+    assert "ИЛС" in text
+
+
 def test_format_deal_context_pay() -> None:
     ctx = format_deal_context(
         {

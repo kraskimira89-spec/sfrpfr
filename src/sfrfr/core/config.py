@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
     deepseek_fallback_enabled: bool = False
+    # Production: резерв DeepSeek (вне РФ) только для обезличенных запросов сотрудника
+    # и только по эту дату включительно (YYYY-MM-DD). Пусто — в production запрещён.
+    deepseek_fallback_prod_until: str = ""
     # Яндекс Workspace OAuth (ТЗ-14) — отдельно от Cloud AI
     yandex_oauth_client_id: str = ""
     yandex_oauth_client_secret: str = ""
