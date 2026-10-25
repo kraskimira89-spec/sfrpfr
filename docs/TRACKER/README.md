@@ -30,6 +30,7 @@ MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/ya
 | [playbook-agent-task-lifecycle.md](playbook-agent-task-lifecycle.md) | Lifecycle MCP |
 | [playbook-publish-queue.md](playbook-publish-queue.md) | Очередь **PUB** |
 | [playbook-funnel-ops.md](playbook-funnel-ops.md) | Очередь **FUNNEL** |
+| [spec-case-dispatch-card.md](spec-case-dispatch-card.md) | Карточка дела в Трекере (диспетчерская, 13 ступеней) — аудит + план |
 | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) | Доски + Wiki (UI / API) |
 | [../ops/playbook-wiki-docs-sync.md](../ops/playbook-wiki-docs-sync.md) | Синк ТЗ/ops/history/marketing → Wiki |
 | [../ops/tech-debt-2026-09-22.md](../ops/tech-debt-2026-09-22.md) | Срез техдолга: ТЗ + открытые задачи Tracker |
