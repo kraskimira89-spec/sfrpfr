@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { groupCabinetDocumentsByChecksum } from "../lib/dedupe-cabinet-documents";
+import { docRowView } from "../lib/documents-table-view";
 
 export type CabinetDocument = {
   id: string;
@@ -33,6 +34,8 @@ type Props = {
   onOpen: (documentId: string, mode?: "open" | "download") => void;
   busy?: boolean;
   emptyHint?: string;
+  /** Удалить файлы (эксперт/админ); label — для подтверждения. */
+  onDelete?: (documentIds: string[], label: string) => void;
 };
 
 const AV_UNVERIFIED = new Set(["error", "pending"]);
@@ -59,28 +62,6 @@ function shortName(doc: CabinetDocument): string {
   return `${raw.slice(0, 40)}…${ext}`;
 }
 
-function needsTextReview(doc: CabinetDocument): boolean {
-  const status = (doc.ingest_status || "").toLowerCase();
-  return status === "manual_review" || Boolean(doc.ingest_review_required);
-}
-
-function stateLabel(doc: CabinetDocument): string {
-  const av = (doc.antivirus_status || "").toLowerCase();
-  const status = (doc.ingest_status || "").toLowerCase();
-  if (AV_BLOCKED.has(av)) return "заблокирован AV";
-  if (AV_UNVERIFIED.has(av)) return "AV не завершена (не безопасен)";
-  if (status === "needs_reupload" && doc.has_local_file) {
-    return "на сервере, облако позже";
-  }
-  if (status === "needs_reupload") return "нужна пересъёмка";
-  if (status === "security_check" || status === "quarantine") return "проверка безопасности";
-  if (needsTextReview(doc)) return "нужна проверка текста";
-  if ((doc.content_preview || "").trim()) return "получен · текст есть";
-  if (doc.has_extracted_text) return "получен · текст в артефакте";
-  if (doc.downloadable === false) return "ещё недоступен";
-  return "получен";
-}
-
 function canOpenOriginal(doc: CabinetDocument): boolean {
   return doc.downloadable !== false && !AV_BLOCKED.has((doc.antivirus_status || "").toLowerCase());
 }
@@ -90,6 +71,7 @@ export function DocumentsTable({
   onOpen,
   busy,
   emptyHint = "Пока файлов нет — клиент ещё не загрузил документы.",
+  onDelete,
 }: Props) {
   const [textOpenId, setTextOpenId] = useState<string | null>(null);
   const [dupOpenId, setDupOpenId] = useState<string | null>(null);
@@ -150,14 +132,11 @@ export function DocumentsTable({
               const fullText = (doc.content_preview || "").trim();
               const summary = (doc.content_summary || "").trim();
               const hasFullText = Boolean(fullText);
-              const textMissingHonest = !hasFullText
-                ? doc.has_extracted_text
-                  ? "полный текст сохранён отдельно — краткое превью пусто"
-                  : "текст ещё не извлечён"
-                : null;
+              const row = docRowView(doc);
               const reviewReason = (doc.progress_message || "").trim();
               const av = (doc.antivirus_status || "").toLowerCase();
               const unverified = AV_UNVERIFIED.has(av);
+              const allIds = [doc.id, ...group.duplicates.map((d) => d.id)];
               const openOk = canOpenOriginal(doc);
               const pdf = isPdfDoc(doc);
               const word = isDocx(doc);
@@ -222,6 +201,22 @@ export function DocumentsTable({
                             ))}
                           </ul>
                         ) : null}
+                        {dupOpen && onDelete ? (
+                          <button
+                            type="button"
+                            className="linkish danger-link"
+                            disabled={busy}
+                            onClick={() =>
+                              onDelete(
+                                group.duplicates.map((d) => d.id),
+                                `повторы файла «${shortName(doc)}» (${group.duplicates.length})`,
+                              )
+                            }
+                            title="Оставить один экземпляр, повторные загрузки удалить"
+                          >
+                            Удалить повторы ({group.duplicates.length})
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                     {summary ? (
@@ -229,35 +224,26 @@ export function DocumentsTable({
                         <strong>Краткое описание.</strong> {summary}
                       </p>
                     ) : null}
-                    {unverified ? (
+                    {row.warning ? (
                       <p className="hint warning-inline" style={{ margin: "0.25rem 0 0" }}>
-                        ⚠ Проверка антивирусом не завершена — файл не считается безопасным
-                      </p>
-                    ) : null}
-                    {doc.progress_message && av === "error" ? (
-                      <p className="hint" style={{ margin: "0.25rem 0 0" }}>
-                        {doc.progress_message}
+                        {row.warning}
                       </p>
                     ) : null}
                   </td>
                   <td>
-                    {needsTextReview(doc) ? (
+                    {row.canReviewText ? (
                       <button
                         type="button"
                         className="linkish"
                         disabled={busy}
-                        title={
-                          hasFullText
-                            ? "Показать полный текст для проверки (без скачивания)"
-                            : "Текст ещё не извлечён"
-                        }
+                        title="Показать текст для проверки (без скачивания)"
                         aria-label={`Проверить текст: ${shortName(doc)}`}
                         onClick={() => openTextReview()}
                       >
                         Проверить текст
                       </button>
                     ) : (
-                      stateLabel(doc)
+                      row.state
                     )}
                   </td>
                   <td>
@@ -270,8 +256,8 @@ export function DocumentsTable({
                             disabled={busy}
                             title={
                               unverified
-                                ? "AV не завершена: открыть PDF осторожно (только preview)"
-                                : "Открыть PDF в новой вкладке (inline, без скачивания)"
+                                ? "Антивирус не завершил проверку: открывайте осторожно"
+                                : "Открыть PDF в новой вкладке без скачивания"
                             }
                             aria-label={`Открыть: ${shortName(doc)}`}
                             onClick={() => onOpen(doc.id, "open")}
@@ -296,35 +282,59 @@ export function DocumentsTable({
                         >
                           Скачать
                         </button>
-                        {hasFullText ? (
-                          // При review CTA только в «Состояние» — не дублировать «Текст» рядом.
-                          needsTextReview(doc) && !textOpen ? null : (
-                            <button
-                              type="button"
-                              className="linkish"
-                              disabled={busy}
-                              aria-label={`Текст: ${shortName(doc)}`}
-                              onClick={() => toggleText(doc.id)}
-                            >
-                              {textOpen ? "Скрыть" : "Текст"}
-                            </button>
-                          )
-                        ) : (
-                          <span className="hint" title={textMissingHonest || "Нет извлечённого текста"}>
-                            {textMissingHonest || "Текст недоступен"}
-                          </span>
-                        )}
+                        {hasFullText && (!row.canReviewText || textOpen) ? (
+                          // При проверке кнопка в «Состоянии» — рядом «Текст» не дублируем.
+                          <button
+                            type="button"
+                            className="linkish"
+                            disabled={busy}
+                            aria-label={`Текст: ${shortName(doc)}`}
+                            onClick={() => toggleText(doc.id)}
+                          >
+                            {textOpen ? "Скрыть" : "Текст"}
+                          </button>
+                        ) : null}
+                        {onDelete ? (
+                          <button
+                            type="button"
+                            className="linkish danger-link"
+                            disabled={busy}
+                            aria-label={`Удалить: ${shortName(doc)}`}
+                            onClick={() =>
+                              onDelete(
+                                allIds,
+                                allIds.length > 1
+                                  ? `файл «${shortName(doc)}» и его повторы (${allIds.length - 1})`
+                                  : `файл «${shortName(doc)}»`,
+                              )
+                            }
+                          >
+                            Удалить
+                          </button>
+                        ) : null}
                       </span>
                     ) : (
-                      <span className="hint">
-                        {AV_BLOCKED.has(av) ? "Заблокирован антивирусом" : "Файл ещё недоступен"}
+                      <span className="docs-actions">
+                        <span className="hint">
+                          {AV_BLOCKED.has(av) ? "Заблокирован антивирусом" : "Файл ещё недоступен"}
+                        </span>
+                        {onDelete ? (
+                          <button
+                            type="button"
+                            className="linkish danger-link"
+                            disabled={busy}
+                            onClick={() => onDelete(allIds, `файл «${shortName(doc)}»`)}
+                          >
+                            Удалить
+                          </button>
+                        ) : null}
                       </span>
                     )}
                     {textOpen ? (
                       <div className="docs-text-panel" style={{ marginTop: "0.5rem" }}>
-                        {reviewReason ? (
+                        {row.canReviewText && reviewReason ? (
                           <p className="hint" style={{ margin: "0 0 0.35rem" }}>
-                            Причина проверки: {reviewReason}
+                            Почему нужна проверка: {reviewReason}
                           </p>
                         ) : null}
                         {hasFullText ? (
@@ -341,7 +351,7 @@ export function DocumentsTable({
                           </pre>
                         ) : (
                           <p className="hint" style={{ margin: 0 }}>
-                            {textMissingHonest || "Полный текст отсутствует — краткое описание вместо текста не показываем."}
+                            Полный текст сохранён отдельно — откройте его в «Проверке текста файлов».
                           </p>
                         )}
                       </div>

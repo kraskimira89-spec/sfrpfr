@@ -1147,6 +1147,34 @@ export function AdminCabinet() {
     );
   }
 
+  async function deleteDocuments(ids: string[], label: string) {
+    if (!token || !detail || ids.length === 0) return;
+    if (!window.confirm(`Удалить ${label}? Восстановить файл будет нельзя.`)) return;
+    setBusy(true);
+    let ok = 0;
+    let lastError = "";
+    try {
+      for (const id of ids) {
+        try {
+          await apiFetch(`/api/portal/admin/cases/${detail.id}/documents/${id}`, token, {
+            method: "DELETE",
+          });
+          ok += 1;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : "ошибка удаления";
+        }
+      }
+      setNotice(
+        ok === ids.length
+          ? `Удалено файлов: ${ok}.`
+          : `Удалено ${ok} из ${ids.length}. ${lastError}`.trim(),
+      );
+      await openCase(detail.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function recordFactsReview(outcome: "discrepancies" | "no_discrepancies") {
     if (!token || !detail) return;
     setBusy(true);
@@ -2272,6 +2300,7 @@ export function AdminCabinet() {
             onApplyChatMessage={applyStepMessageToChat}
             onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
             onRecordFactsReview={(outcome) => void recordFactsReview(outcome)}
+            onDeleteDocuments={(ids, label) => void deleteDocuments(ids, label)}
             onDismissHint={() => {
               setStepHint(null);
               setStepMessages([]);

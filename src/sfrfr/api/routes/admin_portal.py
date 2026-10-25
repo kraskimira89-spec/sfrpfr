@@ -674,6 +674,31 @@ def approve_document_security(
     return {"ok": True, "document_id": document_id, "job_id": job_id}
 
 
+@router.delete("/admin/cases/{case_id}/documents/{document_id}")
+def delete_document_by_staff(
+    case_id: str,
+    document_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Удалить файл дела (мусор, повтор, ошибочная загрузка). Аудит сохраняется."""
+    from sfrfr.services.staff_document_delete import (
+        DocumentDeleteError,
+        delete_case_document,
+    )
+
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    try:
+        result = delete_case_document(
+            get_supabase_client(), case_id=case_id, document_id=document_id
+        )
+    except DocumentDeleteError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "document_deleted_by_staff")
+    return {"ok": True, **result}
+
+
 @router.post("/admin/cases/{case_id}/documents/{document_id}/ingest-rerun")
 def rerun_ingest_document(
     case_id: str,
