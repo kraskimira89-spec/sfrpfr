@@ -1282,6 +1282,32 @@ def request_pipeline(
     return repo.request_pipeline_run(case_id, principal.user_id)
 
 
+@router.get("/admin/cases/{case_id}/appeal-docx")
+def download_appeal_docx(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> Response:
+    """Скачать DOCX из текущего draft дела (предпросмотр для сотрудника)."""
+    from sfrfr.services.appeal_docx import build_appeal_docx_bytes, draft_payload_from_case
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    draft = repo.get_pipeline_draft(case_id) or {}
+    title, body = draft_payload_from_case({"draft": draft, **case})
+    payload = build_appeal_docx_bytes(
+        title=title,
+        body=body,
+        case_ref=str(case.get("case_number") or case_id)[:64],
+    )
+    repo.audit(case_id, principal.audit_actor_id(), "appeal_docx_downloaded")
+    filename = "appeal-draft.docx"
+    return Response(
+        content=payload,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/admin/cases/{case_id}/discrepancies/{discrepancy_id}/review")
 def review_discrepancy(
     case_id: str,

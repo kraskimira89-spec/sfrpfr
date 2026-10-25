@@ -325,7 +325,7 @@ export function toFunnelFacts(
   let escalationOrder: OrderFacts = !ordersLoaded ? emptyOrderUnknown() : emptyOrderNone();
   if (ordersLoaded) {
     const by5 = accomp.filter((o) => Number(o.amount_rub) === 5000);
-    const by8 = accomp.filter((o) => Number(o.amount_rub) === 8000);
+    const by8Legacy = accomp.filter((o) => Number(o.amount_rub) === 8000);
     const ambiguous = accomp.filter(
       (o) => Number(o.amount_rub) !== 5000 && Number(o.amount_rub) !== 8000,
     );
@@ -334,10 +334,14 @@ export function toFunnelFacts(
       : ambiguous.length
         ? emptyOrderUnknown()
         : emptyOrderNone();
-    escalationOrder = by8.length
-      ? pickOrder(by8, () => true)
-      : ambiguous.length && !by5.length
-        ? emptyOrderUnknown()
+    // SUPPORT — канон 8k; старые ACCOMP×8000 не переклассифицируем, только читаем.
+    const supportRows = orders.filter(
+      (o) => String(o.package_code || "").toUpperCase() === "SUPPORT",
+    );
+    escalationOrder = supportRows.length
+      ? pickOrder(supportRows, () => true)
+      : by8Legacy.length
+        ? pickOrder(by8Legacy, () => true)
         : emptyOrderNone();
   }
 
