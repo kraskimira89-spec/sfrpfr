@@ -1,7 +1,8 @@
 # Приёмка admin PR #285 — стенд и чек-лист
 
 **SHA merge:** `14aa9e99` (squash #285, head фичи был `fe5e0f76`).  
-**Стенд после deploy-vps:** https://admin.proverkastaza.ru/  
+**Deploy-vps:** success (run `40195600518`), production SHA = merge commit.
+**Стенд:** https://admin.proverkastaza.ru/
 **API:** https://api.proverkastaza.ru/
 
 ## Прямые ссылки на тестовые дела

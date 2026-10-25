@@ -223,10 +223,44 @@ function StageMark({ state }: { state: FunnelStageState }) {
   return <span className="funnel-mark">○</span>;
 }
 
+function formatBriefChatTemplate(
+  brief: NonNullable<NonNullable<NonNullable<Detail["document_check"]>["result"]>["honest_brief"]>,
+): string {
+  const lines: string[] = [];
+  lines.push(brief.headline || "Кратко по проверке документов.");
+  for (const item of (brief.items ?? []).slice(0, 3)) {
+    if (item.text) lines.push(`• ${item.text}`);
+  }
+  if (brief.next_step) lines.push(brief.next_step);
+  lines.push(
+    "Напишите, пожалуйста, удобный следующий шаг: уточнить документы, диагностика 3 000 ₽ или пока без оплаты.",
+  );
+  lines.push(
+    "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+  );
+  return lines.join("\n");
+}
+
 function DocumentCheckPanel({
   check,
+  busy,
+  canManageOrders,
+  canViewOcr,
+  orders,
+  onApplyChatTemplate,
+  onCreateDiagInvoice,
+  onSendPayLink,
+  onUploadDiagnosisReport,
 }: {
   check: NonNullable<Detail["document_check"]> | null | undefined;
+  busy?: boolean;
+  canManageOrders?: boolean;
+  canViewOcr?: boolean;
+  orders?: Detail["orders"];
+  onApplyChatTemplate: (text: string) => void;
+  onCreateDiagInvoice?: () => void;
+  onSendPayLink?: (orderId: string) => void;
+  onUploadDiagnosisReport?: (file: File) => void;
 }) {
   if (!check) {
     return (
@@ -234,6 +268,9 @@ function DocumentCheckPanel({
     );
   }
   const r = check.result;
+  const diagOrders = (orders ?? []).filter((o) => o.package_code === "DIAG");
+  const diagOpen = diagOrders.find((o) => o.status !== "paid" && o.status !== "cancelled");
+  const diagPaid = diagOrders.some((o) => o.status === "paid");
   return (
     <div className="document-check-result">
       <p>
@@ -318,6 +355,76 @@ function DocumentCheckPanel({
               {r.honest_brief.disclaimer ? (
                 <p className="hint">{r.honest_brief.disclaimer}</p>
               ) : null}
+              <div className="row-actions" style={{ marginTop: "0.65rem", flexWrap: "wrap", gap: "0.4rem" }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  title="Подставить в поле чата. В MAX само не отправляем"
+                  onClick={() =>
+                    onApplyChatTemplate(
+                      "Здравствуйте! Кратко сверили документы. Напишите, пожалуйста, какой следующий шаг вам удобен — уточнить комплект, диагностика или пока без оплаты. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                    )
+                  }
+                >
+                  Спросить клиента о следующих шагах
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  title="Подставить резюме в поле чата. Отправка в MAX — отдельно"
+                  onClick={() => onApplyChatTemplate(formatBriefChatTemplate(r.honest_brief!))}
+                >
+                  Подставить резюме в чат
+                </button>
+                {r.diag_offer?.allowed && canManageOrders && onCreateDiagInvoice ? (
+                  <button
+                    type="button"
+                    disabled={busy || Boolean(diagOpen) || diagPaid}
+                    onClick={() => onCreateDiagInvoice()}
+                    title={
+                      diagPaid
+                        ? "Диагностика уже оплачена"
+                        : diagOpen
+                          ? "Счёт DIAG уже есть — отправьте ссылку"
+                          : "Создать счёт DIAG 3 000 ₽"
+                    }
+                  >
+                    Счёт на диагностику 3 000 ₽
+                  </button>
+                ) : null}
+                {diagOpen && onSendPayLink ? (
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => onSendPayLink(diagOpen.id)}
+                  >
+                    Отправить ссылку DIAG в MAX
+                  </button>
+                ) : null}
+                {diagPaid && onUploadDiagnosisReport ? (
+                  <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
+                    Отправить файл анализа (PDF)
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      hidden
+                      disabled={busy || !canViewOcr}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) onUploadDiagnosisReport(file);
+                      }}
+                    />
+                  </label>
+                ) : null}
+              </div>
+              <p className="hint" style={{ marginTop: "0.5rem" }}>
+                Обращение к СФР — отдельный этап 5 000 ₽ (шаг 3 / ACCOMP). Счёт на обращение
+                создаётся вручную после плана, без автосоздания.
+              </p>
             </div>
           ) : null}
           {!r.ocr_allowed && (r.needs_recognition ?? 0) > 0 ? (
@@ -448,6 +555,7 @@ export function CaseFunnelMain({
   onOpenSigned,
   onUploadDiagnosisReport,
   onPublishDiagnosis,
+  onCreateQuickOrder,
   documentsWorkplace = null,
   staffToken,
   apiBase,
@@ -530,6 +638,7 @@ export function CaseFunnelMain({
   onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
+  onCreateQuickOrder?: (code: "DIAG" | "ACCOMP", amountRub: number) => void;
   /** Проверка ingest / доп. блок сразу под единым списком документов. */
   documentsWorkplace?: ReactNode;
   staffToken?: string | null;
@@ -987,6 +1096,11 @@ export function CaseFunnelMain({
               Показать все этапы
             </label>
           </div>
+          <p className="hint">
+            13 ступеней для ориентира. Где нет серверного подтверждения — статус «не
+            подтверждено»; ручные сроки не равны авто follow-up. Это не полный сквозной
+            процесс до закрытия gap API.
+          </p>
           <ul className="funnel-grid funnel-stepper">
             {funnel.stages.map((s) => (
               <li key={s.id}>
@@ -1097,13 +1211,51 @@ export function CaseFunnelMain({
             onOpen={onOpenSigned}
             busy={busy}
           />
+          {documentsWorkplace ? (
+            <details className="case-tech-journal">
+              <summary className="linkish">Показать техжурнал ingest</summary>
+              <p className="hint">Служебный журнал. Раскрытие не запускает проверки и отправки.</p>
+              {documentsWorkplace}
+            </details>
+          ) : null}
           <CaseWorkRoute
             route={detail.work_route}
             busy={busy}
             onRequestReview={onRequestReview}
             onRequestPipeline={onRequestPipeline}
-            docsCheckPanel={<DocumentCheckPanel check={detail.document_check} />}
+            onRequestDocsFromClient={() => {
+              applyTemplate(
+                !funnel.hasIls
+                  ? DOC_REQUEST_ILS
+                  : !funnel.hasLabor
+                    ? DOC_REQUEST_LABOR
+                    : "Здравствуйте! Для продолжения нужны документы по стажу (ИЛС и/или трудовая). Можно прислать PDF/JPG/PNG в этот чат — специалист увидит. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+              );
+              onFocusMax();
+            }}
+            docsCheckPanel={
+              <DocumentCheckPanel
+                check={detail.document_check}
+                busy={busy}
+                canManageOrders={caps.can_manage_orders}
+                canViewOcr={caps.can_view_ocr}
+                orders={detail.orders}
+                onApplyChatTemplate={applyTemplate}
+                onCreateDiagInvoice={
+                  onCreateQuickOrder
+                    ? () =>
+                        onCreateQuickOrder(
+                          "DIAG",
+                          detail.document_check?.result?.diag_offer?.amount_rub || 3000,
+                        )
+                    : undefined
+                }
+                onSendPayLink={onSendPayLink}
+                onUploadDiagnosisReport={onUploadDiagnosisReport}
+              />
+            }
           />
+
           <table className="case-docs-table">
             <thead>
               <tr>
@@ -1754,17 +1906,6 @@ export function CaseFunnelMain({
           <CloseCaseBlock detail={detail} busy={busy} onClose={onCloseCase} />
         ) : null}
 
-        {documentsWorkplace ? (
-          <details className="case-tech-journal panel case-card--wide">
-            <summary className="linkish">Технический журнал OCR/ingest</summary>
-            <p className="hint">Служебный журнал. Раскрытие не запускает проверки и отправки.</p>
-            {documentsWorkplace}
-          </details>
-        ) : caps.can_view_ocr ? null : (
-          <p className="hint panel case-card--wide">
-            Технический журнал OCR/ingest недоступен для вашей роли.
-          </p>
-        )}
       </div>
     </div>
   );

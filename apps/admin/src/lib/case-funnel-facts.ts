@@ -358,11 +358,9 @@ export function toFunnelFacts(
     analysisWork = unknownWork();
   }
 
-  // Согласие на ПДн ≠ согласие на обращения. service_consent_recorded — явный сигнал.
-  const serviceConsent = (detail.audit || []).some((a) => a.action === "service_consent_recorded");
-  let appealsConsent: FunnelFacts["appeals"]["consent"] = "unknown";
-  if (serviceConsent) appealsConsent = "accepted";
-  else if (detail.b2c_status === "lead") appealsConsent = "not_requested";
+  // Согласие на объём/стоимость обращений в API отсутствует → unknown («не подтверждено»).
+  // Не выводить из service_consent / ПДн / текста чата.
+  const appealsConsent: FunnelFacts["appeals"]["consent"] = "unknown";
 
   const hasDraft = Boolean(detail.draft?.body);
   let appealsWork: WorkFacts = notStartedWork();
@@ -500,7 +498,7 @@ export function deriveFunnel(detail: CaseFunnelDetailInput): {
     consentOk: facts.contact === "complete",
     channelOk: Boolean(detail.client.max_linked || detail.client.web_linked),
     diagnosticsDone: facts.precheck.state === "completed" && !facts.precheck.stale,
-    serviceConsentOk: facts.appeals.consent === "accepted",
+    serviceConsentOk: (detail.audit || []).some((a) => a.action === "service_consent_recorded"),
     missingDocs,
     paymentKnown,
     views: funnel.stages,

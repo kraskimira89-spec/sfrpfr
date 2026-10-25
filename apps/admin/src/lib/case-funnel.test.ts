@@ -316,6 +316,20 @@ test("несохранённые формы не меняют статусы: or
   assert.equal(a.analysis.order.state, "not_ordered");
 });
 
+test("toFunnelFacts: service_consent не даёт appeals.consent accepted", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
+    orders: [],
+    ordersLoaded: true,
+    audit: [{ action: "service_consent_recorded" }],
+  });
+  assert.equal(facts.appeals.consent, "unknown");
+});
+
 test("deriveFunnel kit + 13 stages", () => {
   const funnel = deriveFunnel({
     pipeline_status: "documents_received",
