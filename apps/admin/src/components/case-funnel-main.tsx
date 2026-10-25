@@ -5,11 +5,11 @@ import {
   DOC_REQUEST_LABOR,
   PLAN_READY_CHAT,
   SERVICE_DESCRIPTION_CHAT,
-  deriveFunnel,
   primaryCtaLabel,
   type FunnelStageId,
   type FunnelStageState,
 } from "@/lib/case-funnel";
+import { deriveFunnel } from "@/lib/case-funnel-facts";
 import {
   chatAwaitsStaff,
   situationBadges,
@@ -1608,7 +1608,7 @@ export function CaseFunnelMain({
                   {" · "}
                   Оплата (адаптер): {funnel.paymentKnown}
                 </p>
-                {stageById[id].capability === "not_wired" || stageById[id].capability === "partial" ? (
+                {stageById[id].status === "unknown" || stageById[id].status === "blocked" ? (
                   <NotWiredNote label="Новые действия выдачи" />
                 ) : null}
               </>

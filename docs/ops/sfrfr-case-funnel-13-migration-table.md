@@ -20,7 +20,12 @@
 | Служебное · журнал | внизу стека | audit, pipeline | без изменений |
 | Archive / Close | внизу после служебного | как раньше | — |
 
-## Адаптер
+## Адаптер (контракт)
 
-`FunnelStageId` — UI-only. Состояние из b2c/orders/docs/checklist/document_check.  
-Не писать 13 ступеней обратно в pipeline/b2c.
+| Файл | Роль |
+|------|------|
+| `apps/admin/src/lib/case-funnel.ts` | `FunnelFacts` → `buildFunnelStages` / `selectCurrentStage` |
+| `apps/admin/src/lib/case-funnel-facts.ts` | `toFunnelFacts(detail)` — единственный маппинг DTO |
+
+Правила: `unknown` при ошибке/неполноте чтения; не `b2c → paid`; `delivered` только по подтверждённой передаче; ACCOMP 5k/8k различаются по `amount_rub`, иначе unknown.  
+`FunnelStageId` — UI-only; в pipeline/b2c не пишем.
