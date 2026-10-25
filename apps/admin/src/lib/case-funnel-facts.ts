@@ -362,9 +362,16 @@ export function toFunnelFacts(
     analysisWork = unknownWork();
   }
 
-  // Согласие на объём/стоимость обращений в API отсутствует → unknown («не подтверждено»).
-  // Не выводить из service_consent / ПДн / текста чата.
-  const appealsConsent: FunnelFacts["appeals"]["consent"] = "unknown";
+  // Согласие на объём обращений — только audit appeals_consent_*; не из service_consent / чата.
+  let appealsConsent: FunnelFacts["appeals"]["consent"] = "unknown";
+  const appealsConsentActions = (detail.audit || []).map((a) => a.action);
+  if (appealsConsentActions.includes("appeals_consent_accepted")) {
+    appealsConsent = "accepted";
+  } else if (appealsConsentActions.includes("appeals_consent_declined")) {
+    appealsConsent = "declined";
+  } else if (appealsConsentActions.includes("appeals_consent_thinking")) {
+    appealsConsent = "pending";
+  }
 
   const hasDraft = Boolean(detail.draft?.body);
   let appealsWork: WorkFacts = notStartedWork();

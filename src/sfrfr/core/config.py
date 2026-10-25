@@ -244,6 +244,8 @@ class Settings(BaseSettings):
     # Проекция карточки дела (outbox/inbox). По умолчанию выкл.
     tracker_case_sync_enabled: bool = False
     tracker_case_queue: str = "CASE"  # TRACKER_CASE_QUEUE — диспетчерская очередь
+    # CSV uuid дел для пилота (enqueue/tick только для них; глобальный sync отдельно).
+    tracker_case_sync_allowlist: str = ""  # TRACKER_CASE_SYNC_ALLOWLIST
     # JSON: {"current_stage":"<localFieldId>", "case_revision":"...", ...}
     tracker_case_field_ids_json: str = "{}"
     # Bearer-секрет webhook Трекера (отдельный от OAuth API).

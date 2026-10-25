@@ -19,9 +19,11 @@
 
 ## Чек-лист пилота (когда разрешат)
 
-- [ ] Выбрать одно тестовое дело
-- [ ] Dry-run / флаг sync только для case_id
-- [ ] Смена ступени в admin → событие outbox
+- [x] Код: `TRACKER_CASE_SYNC_ALLOWLIST` + `PostgresTrackerOutboxStore` + enqueue/tick API (волна C)
+- [ ] Выбрать одно тестовое дело и прописать uuid в allowlist на VPS
+- [ ] Локальные поля CASE + `TRACKER_CASE_FIELD_IDS_JSON`
+- [ ] Карточка CASE + `issue_key` (или `case_tracker_issues.issue_type=case_dispatch`)
+- [ ] Dry-run: enqueue → tick на allowlist-деле
 - [ ] Повтор того же event_id не дублирует задачу
-- [ ] Ошибка API Трекера → sync_status=error, дело в БД цело
-- [ ] Восстановление reconcile
+- [ ] Ошибка API Трекера → status=error в outbox, дело в БД цело
+- [ ] Глобальный `TRACKER_CASE_SYNC_ENABLED` — только после зелёного пилота (отдельное решение)

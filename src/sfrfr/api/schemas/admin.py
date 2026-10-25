@@ -138,7 +138,7 @@ class ResultConfirmRequest(BaseModel):
 
 
 class OrderCreateRequest(BaseModel):
-    package_code: Literal["DIAG", "ACCOMP", "SF_LUMP", "SF_MONTH"]
+    package_code: Literal["DIAG", "ACCOMP", "SUPPORT", "SF_LUMP", "SF_MONTH"]
     amount_rub: float = Field(gt=0)
     status: Literal["draft", "pending", "paid", "cancelled"] = "pending"
     due_at: str | None = None
@@ -172,6 +172,12 @@ class YandexMailRequest(BaseModel):
     to: str | None = Field(default=None, max_length=200)
     subject: str | None = Field(default=None, max_length=200)
     body: str | None = Field(default=None, max_length=4000)
+
+
+class AppealsConsentRequest(BaseModel):
+    """Согласие клиента на объём подготовки обращений (не путать с service_consent / ПДн)."""
+
+    decision: Literal["accepted", "declined", "thinking"]
 
 
 class DiagnosisPublishRequest(BaseModel):
