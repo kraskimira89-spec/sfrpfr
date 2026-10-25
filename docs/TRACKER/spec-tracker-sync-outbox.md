@@ -4,6 +4,7 @@
 **Задача:** [SFRFR-118](https://tracker.yandex.ru/SFRFR-118)
 **Статус:** код клиента + outbox-worker проекции; webhook / prod-автодействия / очередь CASE **не** включались
 **Канон разделения:** [spec-case-dispatch-card.md](spec-case-dispatch-card.md) (PR docs)
+**Целевая схема inbox/outbox:** [architecture-tracker-sync-inbox-outbox.md](architecture-tracker-sync-inbox-outbox.md) · DDL `20261025130000_tracker_sync_schema.sql`
 
 ## Принцип
 
