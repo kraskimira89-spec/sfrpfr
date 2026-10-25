@@ -578,6 +578,7 @@ export function CaseFunnelMain({
   onSendPayLink,
   onCopyPayLink,
   onRecordServiceConsent,
+  onRecordAppealsConsent,
   onFeedbackText,
   onFeedbackQuality,
   onSendFeedback,
@@ -662,6 +663,7 @@ export function CaseFunnelMain({
   onSendPayLink?: (orderId: string) => void;
   onCopyPayLink?: (orderId: string) => void;
   onRecordServiceConsent: () => void;
+  onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -735,10 +737,17 @@ export function CaseFunnelMain({
     }
   }
 
+  const hasFreshCheckResult = Boolean(
+    detail.document_check?.result && !detail.document_check?.stale,
+  );
+
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
     const overrides = accordion.caseId === detail.id ? accordion.overrides : {};
-    return overrides[id] ?? id === current;
+    if (overrides[id] !== undefined) return Boolean(overrides[id]);
+    // Свежий результат проверки → раскрыть ступень предпроверки (рабочее место резюме).
+    if (id === "precheck_summary" && hasFreshCheckResult) return true;
+    return id === current;
   }
 
   function toggleStage(id: FunnelStageId) {
@@ -1215,43 +1224,36 @@ export function CaseFunnelMain({
               {documentsWorkplace}
             </details>
           ) : null}
-          <CaseWorkRoute
-            route={detail.work_route}
-            busy={busy}
-            onRequestReview={onRequestReview}
-            onRequestPipeline={onRequestPipeline}
-            onRequestDocsFromClient={() => {
-              applyTemplate(
-                !funnel.hasIls
-                  ? DOC_REQUEST_ILS
-                  : !funnel.hasLabor
-                    ? DOC_REQUEST_LABOR
-                    : "Здравствуйте! Для продолжения нужны документы по стажу (ИЛС и/или трудовая). Можно прислать PDF/JPG/PNG в этот чат — специалист увидит. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-              );
-              onFocusMax();
-            }}
-            docsCheckPanel={
-              <DocumentCheckPanel
-                check={detail.document_check}
-                busy={busy}
-                canManageOrders={caps.can_manage_orders}
-                canViewOcr={caps.can_view_ocr}
-                orders={detail.orders}
-                onApplyChatTemplate={applyTemplate}
-                onCreateDiagInvoice={
-                  onCreateQuickOrder
-                    ? () =>
-                        onCreateQuickOrder(
-                          "DIAG",
-                          detail.document_check?.result?.diag_offer?.amount_rub || 3000,
-                        )
-                    : undefined
-                }
-                onSendPayLink={onSendPayLink}
-                onUploadDiagnosisReport={onUploadDiagnosisReport}
-              />
-            }
-          />
+          <p className="hint">
+            Проверка документов и краткое резюме — в ступени «Первичная проверка и резюме».
+            Здесь — комплект файлов и запросы клиенту.
+          </p>
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => {
+                applyTemplate(
+                  !funnel.hasIls
+                    ? DOC_REQUEST_ILS
+                    : !funnel.hasLabor
+                      ? DOC_REQUEST_LABOR
+                      : "Здравствуйте! Для продолжения нужны документы по стажу (ИЛС и/или трудовая). Можно прислать PDF/JPG/PNG в этот чат — специалист увидит. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                );
+                onFocusMax();
+              }}
+            >
+              Запросить документы
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => toggleStage("precheck_summary")}
+            >
+              Перейти к проверке и резюме →
+            </button>
+          </div>
 
           <table className="case-docs-table">
             <thead>
@@ -1343,8 +1345,8 @@ export function CaseFunnelMain({
             </form>
           ) : null}
           <p className="hint">
-            Единственная таблица файлов — выше. Маршрут проверки и кнопка «Проверить документы» — в
-            блоке «Работа с делом» внутри этой ступени.
+            Единственная таблица файлов — выше. Кнопка «Проверить документы» и резюме — в ступени
+            «Первичная проверка и резюме».
           </p>
         </StageShell>
 
@@ -1359,12 +1361,46 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
-            {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
+            {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}. Автоотправки
+            клиенту нет.
           </p>
-          <p className="hint">
-            Проверка и краткое резюме — в ступени «Документы» (блок «Работа с делом»). Здесь —
-            внутренние findings и notes. Автоотправки клиенту нет.
-          </p>
+          <CaseWorkRoute
+            route={detail.work_route}
+            busy={busy}
+            onRequestReview={onRequestReview}
+            onRequestPipeline={onRequestPipeline}
+            onRequestDocsFromClient={() => {
+              applyTemplate(
+                !funnel.hasIls
+                  ? DOC_REQUEST_ILS
+                  : !funnel.hasLabor
+                    ? DOC_REQUEST_LABOR
+                    : "Здравствуйте! Для продолжения нужны документы по стажу (ИЛС и/или трудовая). Можно прислать PDF/JPG/PNG в этот чат — специалист увидит. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+              );
+              onFocusMax();
+            }}
+            docsCheckPanel={
+              <DocumentCheckPanel
+                check={detail.document_check}
+                busy={busy}
+                canManageOrders={caps.can_manage_orders}
+                canViewOcr={caps.can_view_ocr}
+                orders={detail.orders}
+                onApplyChatTemplate={applyTemplate}
+                onCreateDiagInvoice={
+                  onCreateQuickOrder
+                    ? () =>
+                        onCreateQuickOrder(
+                          "DIAG",
+                          detail.document_check?.result?.diag_offer?.amount_rub || 3000,
+                        )
+                    : undefined
+                }
+                onSendPayLink={onSendPayLink}
+                onUploadDiagnosisReport={onUploadDiagnosisReport}
+              />
+            }
+          />
           <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
           <ul className="plain-list">
             {(detail.findings ?? []).length === 0 && (
@@ -1462,7 +1498,32 @@ export function CaseFunnelMain({
                 {onCreateQuickOrder ? (
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={
+                      busy ||
+                      (detail.orders ?? []).some(
+                        (o) => o.package_code === "DIAG" && o.status === "paid",
+                      ) ||
+                      (detail.orders ?? []).some(
+                        (o) =>
+                          o.package_code === "DIAG" &&
+                          o.status !== "paid" &&
+                          o.status !== "cancelled",
+                      )
+                    }
+                    title={
+                      (detail.orders ?? []).some(
+                        (o) => o.package_code === "DIAG" && o.status === "paid",
+                      )
+                        ? "DIAG уже оплачен"
+                        : (detail.orders ?? []).some(
+                              (o) =>
+                                o.package_code === "DIAG" &&
+                                o.status !== "paid" &&
+                                o.status !== "cancelled",
+                            )
+                          ? "Счёт DIAG уже есть"
+                          : "Создать счёт DIAG 3 000 ₽"
+                    }
                     onClick={() => onCreateQuickOrder("DIAG", 3000)}
                   >
                     Счёт DIAG 3 000 ₽
@@ -1614,22 +1675,50 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("appeals_consent")}
         >
           <p className="hint">
-            Согласие на объём и стоимость подготовки обращений в API пока не сохраняется — статус
-            «не подтверждено». Кнопки только подставляют шаблон в чат, не фиксируют решение.
+            Фиксируем решение по объёму подготовки обращений в audit дела. Не путать с согласием на
+            DIAG / ПДн. Текст чата сам по себе статус не меняет.
           </p>
-          <NotWiredNote label="Запись решения согласен/отказался/думает" />
           <div className="row-actions">
+            {onRecordAppealsConsent ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onRecordAppealsConsent("accepted")}
+                >
+                  Согласен
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => onRecordAppealsConsent("thinking")}
+                >
+                  Думает
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy}
+                  onClick={() => onRecordAppealsConsent("declined")}
+                >
+                  Отказался
+                </button>
+              </>
+            ) : (
+              <p className="hint">Нет обработчика записи согласия.</p>
+            )}
             <button
               type="button"
               className="secondary"
               disabled={busy}
               onClick={() =>
                 applyTemplate(
-                  "Здравствуйте! Предлагаем подготовку обращения к СФР за 5 000 ₽ (отдельный пакет). Напишите, пожалуйста: согласны / пока думаете / не нужно. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                  "Здравствуйте! Предлагаем подготовку обращения к СФР (пакет SUPPORT 8 000 ₽ до подачи или ACCOMP 5 000 ₽ на подготовку). Напишите, пожалуйста: согласны / пока думаете / не нужно. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
                 )
               }
             >
-              Спросить согласие (5 000) в чат
+              Спросить согласие в чат
             </button>
           </div>
         </StageShell>
@@ -1644,15 +1733,19 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("appeals_payment")}
         >
           <p className="hint">
-            Только ACCOMP ровно 5 000 ₽. Не путать с DIAG и с ACCOMP 8 000. Создать счёт ≠ отправить
-            ссылку.
+            Канон: SUPPORT 8 000 ₽ (сопровождение до подачи). ACCOMP 5 000 — подготовка. Не путать с
+            DIAG и legacy ACCOMP×8 000. Создать счёт ≠ отправить ссылку.
           </p>
           <ul className="plain-list">
             {(detail.orders ?? [])
-              .filter((o) => o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000)
+              .filter(
+                (o) =>
+                  o.package_code === "SUPPORT" ||
+                  (o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000),
+              )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || "ACCOMP"} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
                   {onSendPayLink && o.status !== "paid" ? (
                     <>
                       {" "}
@@ -1670,18 +1763,32 @@ export function CaseFunnelMain({
               ))}
           </ul>
           {(detail.orders ?? []).every(
-            (o) => !(o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000),
+            (o) =>
+              !(
+                o.package_code === "SUPPORT" ||
+                (o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000)
+              ),
           ) ? (
-            <p className="hint">Счёта ACCOMP 5 000 ещё нет.</p>
+            <p className="hint">Счёта SUPPORT / ACCOMP 5 000 ещё нет.</p>
           ) : null}
           {caps.can_manage_orders && onCreateQuickOrder ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
-            >
-              Счёт ACCOMP 5 000 ₽
-            </button>
+            <div className="row-actions">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
+              >
+                Счёт SUPPORT 8 000 ₽
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
+              >
+                Счёт ACCOMP 5 000 ₽
+              </button>
+            </div>
           ) : null}
         </StageShell>
 
@@ -1696,7 +1803,7 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Состояния: черновик / готов / передан. Передача «не подтверждена», пока нет серверного
-            статуса. DOCX-генератор — отдельный PR.
+            статуса. DOCX — экспорт текущего draft, не юридический генератор.
           </p>
           {detail.draft ? (
             <pre className="draft">

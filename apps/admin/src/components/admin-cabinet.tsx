@@ -1130,6 +1130,31 @@ export function AdminCabinet() {
     }
   }
 
+  async function recordAppealsConsent(decision: "accepted" | "declined" | "thinking") {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/appeals-consent`, token, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      });
+      const label =
+        decision === "accepted"
+          ? "согласен"
+          : decision === "declined"
+            ? "отказался"
+            : "думает";
+      setNotice(`Решение по обращениям зафиксировано: ${label}.`);
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось зафиксировать решение по обращениям.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestDocsFor(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -2257,6 +2282,7 @@ export function AdminCabinet() {
             onSendPayLink={(orderId) => void sendPayLinkForCaseOrder(orderId)}
             onCopyPayLink={(orderId) => void copyPayLinkForCaseOrder(orderId)}
             onRecordServiceConsent={() => void recordServiceConsent()}
+            onRecordAppealsConsent={(d) => void recordAppealsConsent(d)}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}
             onSendFeedback={(e) => void sendFeedback(e)}

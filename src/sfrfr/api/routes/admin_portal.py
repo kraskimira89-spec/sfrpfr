@@ -923,6 +923,22 @@ def update_pipeline_status(
     repo.update_case_status(case_id, payload.pipeline_status.value, principal.user_id)
     case["pipeline_status"] = payload.pipeline_status.value
     _push_case_crm(case, task=f"pipeline:{payload.pipeline_status.value}")
+    try:
+        from sfrfr.services.case_tracker_pilot import (
+            enqueue_stage_projection,
+            is_case_sync_allowlisted,
+        )
+
+        if is_case_sync_allowlisted(case_id):
+            enqueue_stage_projection(
+                case=case,
+                current_stage=str(payload.pipeline_status.value),
+                next_action=str(case.get("next_action_text") or ""),
+                waiting_on=str(case.get("waiting_on") or "staff"),
+            )
+    except Exception:  # noqa: BLE001
+        # Пилот: ошибка sync не откатывает смену этапа.
+        pass
     checklist = case.get("checklist_items") or []
     return CaseSummary(
         id=str(case["id"]),
@@ -2244,6 +2260,68 @@ def record_service_consent(
     repo.require_case(principal, case_id)
     repo.audit(case_id, principal.audit_actor_id(), "service_consent_recorded")
     return {"ok": True, "action": "service_consent_recorded"}
+
+
+@router.post("/admin/cases/{case_id}/appeals-consent")
+def record_appeals_consent(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Зафиксировать согласие на объём подготовки обращений (accepted/declined/thinking)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    decision = str(payload.get("decision") or "").strip().lower()
+    action_by = {
+        "accepted": "appeals_consent_accepted",
+        "declined": "appeals_consent_declined",
+        "thinking": "appeals_consent_thinking",
+    }
+    action = action_by.get(decision)
+    if not action:
+        raise HTTPException(status_code=400, detail="decision must be accepted|declined|thinking")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    repo.audit(case_id, principal.audit_actor_id(), action)
+    return {"ok": True, "action": action, "decision": decision}
+
+
+@router.post("/admin/cases/{case_id}/tracker-case-sync/enqueue")
+def enqueue_tracker_case_projection(
+    case_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Пилот: поставить проекцию ступени в outbox (только allowlist)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.services.case_tracker_pilot import enqueue_stage_projection
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    body = payload if isinstance(payload, dict) else {}
+    result = enqueue_stage_projection(
+        case=case,
+        current_stage=str(body.get("current_stage") or case.get("pipeline_status") or "unknown"),
+        next_action=str(body.get("next_action") or case.get("next_action_text") or ""),
+        waiting_on=str(body.get("waiting_on") or case.get("waiting_on") or "staff"),
+        issue_key=str(body.get("issue_key") or "") or None,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "enqueue_failed")
+    return result
+
+
+@router.post("/admin/tracker-case-sync/tick")
+async def tick_tracker_case_outbox(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Пилот: обработать pending outbox (нужны field ids + OAuth)."""
+    if principal.role is not StaffRole.ADMIN:
+        raise HTTPException(status_code=403, detail="admin_only")
+    from sfrfr.services.case_tracker_pilot import tick_outbox
+
+    return await tick_outbox(limit=20)
 
 
 @router.get("/admin/cases/{case_id}/marketing-consent")

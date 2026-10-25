@@ -316,6 +316,19 @@ test("несохранённые формы не меняют статусы: or
   assert.equal(a.analysis.order.state, "not_ordered");
 });
 
+test("toFunnelFacts: appeals_consent_accepted из audit", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    client: { max_linked: true },
+    documents: [],
+    orders: [],
+    ordersLoaded: true,
+    audit: [{ action: "appeals_consent_accepted" }],
+  });
+  assert.equal(facts.appeals.consent, "accepted");
+});
+
 test("toFunnelFacts: service_consent не даёт appeals.consent accepted", () => {
   const facts = toFunnelFacts({
     pipeline_status: "human_review",
