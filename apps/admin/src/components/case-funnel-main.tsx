@@ -7,7 +7,6 @@ import {
   SERVICE_DESCRIPTION_CHAT,
   primaryCtaLabel,
   type FunnelStageId,
-  type FunnelStageState,
 } from "@/lib/case-funnel";
 import { deriveFunnel } from "@/lib/case-funnel-facts";
 import {
@@ -28,6 +27,13 @@ import { caseCatalogLabel } from "@/components/cases-registry";
 import { displayClientFio } from "@/lib/client-display-name";
 import { DocumentsTable } from "@/components/documents-table";
 import { CaseWorkRoute, type WorkRoute } from "@/components/case-work-route";
+import { StageNavContext, StageShell, type StageNav } from "@/components/case-stage-shell";
+import {
+  initialAccordion,
+  openStageOf,
+  toggleAccordion,
+  type StageAccordion,
+} from "@/lib/case-funnel-accordion";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import {
@@ -217,15 +223,6 @@ const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
   short: "Короткое напоминание",
   cabinet_howto: "Как передать документы",
 };
-
-function StageMark({ state }: { state: FunnelStageState }) {
-  if (state === "done") return <span className="funnel-mark funnel-mark--done">✓</span>;
-  if (state === "current") return <span className="funnel-mark funnel-mark--current">→</span>;
-  if (state === "overdue") return <span className="funnel-mark funnel-mark--overdue">!</span>;
-  if (state === "waiting") return <span className="funnel-mark funnel-mark--waiting">…</span>;
-  if (state === "blocked") return <span className="funnel-mark funnel-mark--blocked">✕</span>;
-  return <span className="funnel-mark">○</span>;
-}
 
 function DocumentCheckPanel({
   check,
@@ -439,66 +436,6 @@ function DocumentCheckPanel({
         </>
       ) : null}
     </div>
-  );
-}
-
-function StageShell({
-  id,
-  title,
-  state,
-  reason,
-  summary,
-  expanded,
-  onToggle,
-  children,
-}: {
-  id: string;
-  title: string;
-  state: FunnelStageState;
-  reason: string;
-  summary?: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  const hint = summary || reason;
-  const buttonId = `${id}-button`;
-  const panelId = `${id}-panel`;
-  return (
-    <section
-      id={id}
-      className={`panel funnel-stage funnel-stage--${state}${
-        !expanded && state === "done" ? " funnel-stage--done-compact" : ""
-      }`}
-    >
-      <h2 className="funnel-stage-heading">
-        <button
-          id={buttonId}
-          type="button"
-          className="funnel-stage-toggle"
-          onClick={onToggle}
-          title={reason}
-          aria-expanded={expanded}
-          aria-controls={panelId}
-        >
-          <StageMark state={state} />
-          <strong>{title}</strong>
-          <span className="hint">
-            {!expanded && state === "done" ? "готово · " : ""}
-            {hint}
-          </span>
-        </button>
-      </h2>
-      <div
-        id={panelId}
-        role="region"
-        aria-labelledby={buttonId}
-        className="funnel-stage-body"
-        hidden={!expanded}
-      >
-        {children}
-      </div>
-    </section>
   );
 }
 
@@ -718,14 +655,7 @@ export function CaseFunnelMain({
       return false;
     }
   });
-  type AccordionState = {
-    caseId: string;
-    overrides: Partial<Record<FunnelStageId, boolean>>;
-  };
-  const [accordion, setAccordion] = useState<AccordionState>({
-    caseId: detail.id,
-    overrides: {},
-  });
+  const [accordion, setAccordion] = useState<StageAccordion>(() => initialAccordion(detail.id));
   const [repOpen, setRepOpen] = useState(false);
 
   function setShowAllPersist(v: boolean) {
@@ -741,28 +671,35 @@ export function CaseFunnelMain({
     detail.document_check?.result && !detail.document_check?.stale,
   );
 
+  // Свежий результат проверки при этапе «Документы» → по умолчанию открыта предпроверка.
+  const defaultOpen: FunnelStageId =
+    hasFreshCheckResult && current === "documents" ? "precheck_summary" : current;
+
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
-    const overrides = accordion.caseId === detail.id ? accordion.overrides : {};
-    if (overrides[id] !== undefined) return Boolean(overrides[id]);
-    // Свежий результат проверки → раскрыть ступень предпроверки (рабочее место резюме).
-    if (id === "precheck_summary" && hasFreshCheckResult) return true;
-    return id === current;
+    return openStageOf(accordion, detail.id, defaultOpen) === id;
   }
 
-  function toggleStage(id: FunnelStageId) {
-    setAccordion((previous) => {
-      const overrides = previous.caseId === detail.id ? previous.overrides : {};
-      const expanded = overrides[id] ?? id === current;
-      return {
-        caseId: detail.id,
-        overrides: { ...overrides, [id]: !expanded },
-      };
-    });
+  function scrollToStage(id: FunnelStageId) {
     requestAnimationFrame(() => {
       document.getElementById(`funnel-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
+
+  function toggleStage(id: FunnelStageId) {
+    setAccordion((previous) => toggleAccordion(previous, detail.id, id, defaultOpen));
+    scrollToStage(id);
+  }
+
+  function openStage(id: FunnelStageId) {
+    setAccordion({ caseId: detail.id, touched: true, open: id });
+    scrollToStage(id);
+  }
+
+  const stageNav: StageNav = {
+    labelOf: (id) => stageById[id]?.label ?? id,
+    open: openStage,
+  };
 
   function canAct(id: FunnelStageId): boolean {
     return Boolean(stageById[id]?.canAct);
@@ -1090,38 +1027,21 @@ export function CaseFunnelMain({
       </div>
 
       <div className="case-cards case-funnel-stack">
-        <div className="panel case-card--wide case-funnel-map">
-          <div className="funnel-map-head">
-            <h2>Этапы дела</h2>
-            <label className="funnel-show-all">
-              <input
-                type="checkbox"
-                checked={showAll}
-                onChange={(e) => setShowAllPersist(e.target.checked)}
-              />
-              Показать все этапы
-            </label>
-          </div>
+        <StageNavContext.Provider value={stageNav}>
+        <div className="funnel-map-head case-funnel-map">
+          <h2>Этапы дела</h2>
+          <label className="funnel-show-all">
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => setShowAllPersist(e.target.checked)}
+            />
+            Раскрыть все
+          </label>
           <p className="hint">
-            13 ступеней для ориентира. Где нет серверного подтверждения — статус «не
-            подтверждено»; ручные сроки не равны авто follow-up. Это не полный сквозной
-            процесс до закрытия gap API.
+            Ступени 1–13 по порядку. Нажмите на ступень — раскроются её действия; открыта одна
+            ступень. Где нет серверного подтверждения — «не подтверждено».
           </p>
-          <ul className="funnel-grid funnel-stepper">
-            {funnel.stages.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className={`funnel-item funnel-item--${s.state}`}
-                  title={`${s.shortSummary} · ${s.reason}`}
-                  onClick={() => toggleStage(s.id)}
-                >
-                  <StageMark state={s.state} />
-                  <span>{s.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <StageShell
@@ -1225,35 +1145,8 @@ export function CaseFunnelMain({
             </details>
           ) : null}
           <p className="hint">
-            Проверка документов и краткое резюме — в ступени «Первичная проверка и резюме».
-            Здесь — комплект файлов и запросы клиенту.
+            Комплект файлов и запросы клиенту. Проверка и резюме — следующая ступень.
           </p>
-          <div className="row-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() => {
-                applyTemplate(
-                  !funnel.hasIls
-                    ? DOC_REQUEST_ILS
-                    : !funnel.hasLabor
-                      ? DOC_REQUEST_LABOR
-                      : "Здравствуйте! Для продолжения нужны документы по стажу (ИЛС и/или трудовая). Можно прислать PDF/JPG/PNG в этот чат — специалист увидит. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-                );
-                onFocusMax();
-              }}
-            >
-              Запросить документы
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => toggleStage("precheck_summary")}
-            >
-              Перейти к проверке и резюме →
-            </button>
-          </div>
 
           <table className="case-docs-table">
             <thead>
@@ -1313,9 +1206,6 @@ export function CaseFunnelMain({
               </tr>
             </tbody>
           </table>
-          <p className="hint">
-            Полный список файлов — в блоке «Документы в деле» под шапкой карточки.
-          </p>
           {docItems.length > 0 ? (
             <ul className="plain-list case-doc-checklist">
               {docItems.map((item) => (
@@ -1344,10 +1234,6 @@ export function CaseFunnelMain({
               <button type="submit">Добавить в чек-лист</button>
             </form>
           ) : null}
-          <p className="hint">
-            Единственная таблица файлов — выше. Кнопка «Проверить документы» и резюме — в ступени
-            «Первичная проверка и резюме».
-          </p>
         </StageShell>
 
         <StageShell
@@ -2070,6 +1956,7 @@ export function CaseFunnelMain({
             </form>
           ) : null}
         </StageShell>
+        </StageNavContext.Provider>
 
         <details className="panel service-details case-card--wide">
           <summary>Служебное · журнал</summary>
