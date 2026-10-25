@@ -7,11 +7,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Literal, Protocol
 
 from sfrfr.services.case_chat_context import format_thread_for_llm
 from sfrfr.services.staff_reply_suggest import client_salutation
+
+logger = logging.getLogger(__name__)
 
 
 class _LLM(Protocol):
@@ -183,12 +186,15 @@ def polish_brief_reply(
             user=_user_prompt(draft=base, messages=messages, client_name=client_name),
             temperature=0.3,
         )
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        # Только тип: текст ошибки провайдера может содержать детали ключа.
+        logger.warning("brief_reply_polish llm_error %s", type(exc).__name__)
         return template("llm_error")
     text = dedupe_sentences(_clean_llm_text(raw))
     if said:
         text = strip_position(text)
     problem = _validate(text, draft=base, messages=messages)
     if problem:
+        logger.info("brief_reply_polish rejected ai text: %s", problem)
         return template(problem)
     return {"text": text, "source": "ai"}
