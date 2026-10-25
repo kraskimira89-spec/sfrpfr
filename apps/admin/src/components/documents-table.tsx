@@ -124,12 +124,9 @@ export function DocumentsTable({
   return (
     <div className="docs-table-wrap" id="docs-table">
       <div className="docs-table-head">
-        <h2>Документы в деле</h2>
         <p className="docs-count">
-          Всего: {groups.length}
-          {hiddenDupCount > 0 ? ` · точных дублей скрыто в истории: ${hiddenDupCount}` : ""}
-          {" · "}
-          PDF: Открыть (preview) · Скачать · Текст; Word: Скачать · Текст
+          Файлов: {groups.length}
+          {hiddenDupCount > 0 ? ` · повторных загрузок свёрнуто: ${hiddenDupCount}` : ""}
         </p>
       </div>
       <div className="docs-table-scroll">
