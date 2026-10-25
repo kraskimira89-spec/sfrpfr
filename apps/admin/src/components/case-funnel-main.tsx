@@ -339,8 +339,8 @@ function StageShell({
   title,
   state,
   reason,
+  summary,
   expanded,
-  forceShow,
   onToggle,
   children,
 }: {
@@ -348,43 +348,55 @@ function StageShell({
   title: string;
   state: FunnelStageState;
   reason: string;
+  summary?: string;
   expanded: boolean;
-  forceShow: boolean;
   onToggle: () => void;
   children: ReactNode;
 }) {
-  const showBody = expanded || forceShow;
-  if (state === "done" && !forceShow) {
+  const hint = summary || reason;
+  if (!expanded) {
     return (
-      <div id={id} className="panel funnel-stage funnel-stage--done-compact">
-        <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
-          <StageMark state="done" />
-          <strong>{title}</strong>
-          <span className="hint">готово</span>
-        </button>
-      </div>
-    );
-  }
-  if (!showBody) {
-    return (
-      <div id={id} className={`panel funnel-stage funnel-stage--${state}`}>
-        <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
+      <div
+        id={id}
+        className={`panel funnel-stage funnel-stage--${state}${state === "done" ? " funnel-stage--done-compact" : ""}`}
+      >
+        <button
+          type="button"
+          className="funnel-stage-toggle"
+          onClick={onToggle}
+          title={reason}
+          aria-expanded={false}
+        >
           <StageMark state={state} />
           <strong>{title}</strong>
-          <span className="hint">{reason}</span>
+          <span className="hint">{state === "done" ? "готово · " : ""}{hint}</span>
         </button>
       </div>
     );
   }
   return (
     <div id={id} className={`panel funnel-stage funnel-stage--${state}`}>
-      <button type="button" className="funnel-stage-toggle" onClick={onToggle} title={reason}>
+      <button
+        type="button"
+        className="funnel-stage-toggle"
+        onClick={onToggle}
+        title={reason}
+        aria-expanded={true}
+      >
         <StageMark state={state} />
         <strong>{title}</strong>
-        {!expanded && forceShow ? <span className="hint">просмотр</span> : null}
+        <span className="hint">{hint}</span>
       </button>
       <div className="funnel-stage-body">{children}</div>
     </div>
+  );
+}
+
+function NotWiredNote({ label }: { label: string }) {
+  return (
+    <p className="hint">
+      {label}: функция ещё не подключена. Карточка для навигации; действий и API-мутаций здесь нет.
+    </p>
   );
 }
 
@@ -592,14 +604,13 @@ export function CaseFunnelMain({
       return false;
     }
   });
-  const [manualOpen, setManualOpen] = useState<FunnelStageId | null>(null);
-  const [focusKey, setFocusKey] = useState(`${detail.id}:${current}`);
+  const [openIds, setOpenIds] = useState<FunnelStageId[]>(() => [current]);
+  const [caseKey, setCaseKey] = useState(detail.id);
   const [repOpen, setRepOpen] = useState(false);
 
-  const nextFocusKey = `${detail.id}:${current}`;
-  if (focusKey !== nextFocusKey) {
-    setFocusKey(nextFocusKey);
-    setManualOpen(null);
+  if (caseKey !== detail.id) {
+    setCaseKey(detail.id);
+    setOpenIds([current]);
   }
 
   function setShowAllPersist(v: boolean) {
@@ -613,15 +624,23 @@ export function CaseFunnelMain({
 
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
-    if (manualOpen === id) return true;
-    return id === current;
+    if (openIds.includes(id)) return true;
+    return openIds.length === 0 && id === current;
   }
 
-  function scrollStage(id: FunnelStageId) {
-    setManualOpen(id);
+  function toggleStage(id: FunnelStageId) {
+    setOpenIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
     requestAnimationFrame(() => {
       document.getElementById(`funnel-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  }
+
+  /** @deprecated alias — stepper клики тоже toggle */
+  function scrollStage(id: FunnelStageId) {
+    toggleStage(id);
   }
 
   function canAct(id: FunnelStageId): boolean {
@@ -638,21 +657,17 @@ export function CaseFunnelMain({
 
   function runPrimaryCta() {
     if (!canAct(current)) return;
-    if (current === "contact") {
+    if (current === "contact_consents") {
       if (detail.client.max_linked) onFocusMax();
       else onSendEmail();
       return;
     }
-    if (current === "documents") {
+    if (current === "documents" || current === "precheck_summary") {
       if (funnel.docsRequiredOk) onRequestReview();
       else onFocusMax();
       return;
     }
-    if (current === "diagnostics" || current === "plan") {
-      onRequestReview();
-      return;
-    }
-    scrollStage(current);
+    toggleStage(current);
   }
 
   const docItems = detail.checklist_items.filter(
@@ -953,41 +968,10 @@ export function CaseFunnelMain({
         </div>
       </div>
 
-      <div className="case-docs-workplace" id="case-docs-workplace">
-        <DocumentsTable
-          documents={detail.documents}
-          onOpen={onOpenSigned}
-          busy={busy}
-        />
-        <CaseWorkRoute
-          route={detail.work_route}
-          busy={busy}
-          onRequestReview={onRequestReview}
-          onRequestPipeline={onRequestPipeline}
-          docsCheckPanel={<DocumentCheckPanel check={detail.document_check} />}
-        />
-        {/* Техжурнал ingest — свёрнут, не второй список файлов. */}
-        {documentsWorkplace ? (
-          <details className="case-tech-journal">
-            <summary className="linkish">Техжурнал ingest (свёрнут)</summary>
-            {documentsWorkplace}
-          </details>
-        ) : null}
-      </div>
-
-      <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
-      {onCloseCase ? (
-        <CloseCaseBlock
-          detail={detail}
-          busy={busy}
-          onClose={onCloseCase}
-        />
-      ) : null}
-
       <div className="case-cards case-funnel-stack">
         <div className="panel case-card--wide case-funnel-map">
           <div className="funnel-map-head">
-            <h2>Воронка дела</h2>
+            <h2>Этапы дела</h2>
             <label className="funnel-show-all">
               <input
                 type="checkbox"
@@ -1003,8 +987,8 @@ export function CaseFunnelMain({
                 <button
                   type="button"
                   className={`funnel-item funnel-item--${s.state}`}
-                  title={s.reason}
-                  onClick={() => scrollStage(s.id)}
+                  title={`${s.shortSummary} · ${s.reason}`}
+                  onClick={() => toggleStage(s.id)}
                 >
                   <StageMark state={s.state} />
                   <span>{s.label}</span>
@@ -1015,13 +999,13 @@ export function CaseFunnelMain({
         </div>
 
         <StageShell
-          id="funnel-contact"
-          title="Контакт и доступ"
-          state={stageById.contact.state}
-          reason={stageById.contact.reason}
-          expanded={isExpanded("contact")}
-          forceShow={showAll}
-          onToggle={() => scrollStage("contact")}
+          id="funnel-contact_consents"
+          title={stageById.contact_consents.label}
+          state={stageById.contact_consents.state}
+          reason={stageById.contact_consents.reason}
+          summary={stageById.contact_consents.shortSummary}
+          expanded={isExpanded("contact_consents")}
+          onToggle={() => toggleStage("contact_consents")}
         >
           <p>
             MAX: {detail.client.max_linked ? "привязан" : "нет"}
@@ -1040,9 +1024,9 @@ export function CaseFunnelMain({
               <button
                 type="button"
                 className="max-action-btn max-action-btn--inline"
-                disabled={!canAct("contact") && !showAll}
+                disabled={!canAct("contact_consents") && !showAll}
                 onClick={onFocusMax}
-                title={stageById.contact.reason}
+                title={stageById.contact_consents.reason}
               >
                 Написать в MAX
               </button>
@@ -1095,13 +1079,25 @@ export function CaseFunnelMain({
 
         <StageShell
           id="funnel-documents"
-          title={`Документы · ${docCount}`}
+          title={`${stageById.documents.label} · ${docCount}`}
           state={stageById.documents.state}
           reason={stageById.documents.reason}
+          summary={stageById.documents.shortSummary}
           expanded={isExpanded("documents")}
-          forceShow={showAll}
-          onToggle={() => scrollStage("documents")}
+          onToggle={() => toggleStage("documents")}
         >
+          <DocumentsTable
+            documents={detail.documents}
+            onOpen={onOpenSigned}
+            busy={busy}
+          />
+          <CaseWorkRoute
+            route={detail.work_route}
+            busy={busy}
+            onRequestReview={onRequestReview}
+            onRequestPipeline={onRequestPipeline}
+            docsCheckPanel={<DocumentCheckPanel check={detail.document_check} />}
+          />
           <table className="case-docs-table">
             <thead>
               <tr>
@@ -1192,26 +1188,28 @@ export function CaseFunnelMain({
             </form>
           ) : null}
           <p className="hint">
-            Проверка документов и маршрут — в блоке «Работа с делом» под таблицей файлов.
+            Единственная таблица файлов — выше. Маршрут проверки и кнопка «Проверить документы» — в
+            блоке «Работа с делом» внутри этой ступени.
           </p>
         </StageShell>
 
         {caps.can_view_ocr ? (
           <StageShell
-            id="funnel-diagnostics"
-            title="Диагностика"
-            state={stageById.diagnostics.state}
-            reason={stageById.diagnostics.reason}
-            expanded={isExpanded("diagnostics")}
-            forceShow={showAll}
-            onToggle={() => scrollStage("diagnostics")}
+            id="funnel-precheck_summary"
+            title={stageById.precheck_summary.label}
+            state={stageById.precheck_summary.state}
+            reason={stageById.precheck_summary.reason}
+            summary={stageById.precheck_summary.shortSummary}
+            expanded={isExpanded("precheck_summary")}
+            onToggle={() => toggleStage("precheck_summary")}
           >
             <p className="hint">
               Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
               {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}
             </p>
             <p className="hint">
-              «Проверить документы» — одна кнопка в блоке «Работа с делом» над воронкой.
+              Кнопка проверки — в ступени «Документы». Здесь — внутренний результат, вопросы и
+              материалы для клиентского резюме (без автоотправки).
             </p>
             <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
             <p className="hint">
@@ -1336,13 +1334,12 @@ export function CaseFunnelMain({
         ) : null}
 
         <StageShell
-          id="funnel-plan"
-          title="План действий и проект обращения"
-          state={stageById.plan.state}
-          reason={stageById.plan.reason}
-          expanded={isExpanded("plan")}
-          forceShow={showAll}
-          onToggle={() => scrollStage("plan")}
+          id="funnel-appeals_documents"
+          title={stageById.appeals_documents.label}
+          state={stageById.appeals_documents.state}
+          reason={stageById.appeals_documents.reason}
+          expanded={isExpanded("appeals_documents")}
+          onToggle={() => toggleStage("appeals_documents")}
         >
           <p className="hint">
             Черновик требует проверки специалистом. Не является решением СФР. Клиент подаёт сам.
@@ -1359,9 +1356,9 @@ export function CaseFunnelMain({
           <div className="row-actions">
             <button
               type="button"
-              disabled={busy || !caps.can_view_ocr || !canAct("plan")}
+              disabled={busy || !caps.can_view_ocr || !canAct("appeals_documents")}
               onClick={() => (onRequestPipeline ? onRequestPipeline() : onRequestReview())}
-              title={stageById.plan.reason}
+              title={stageById.appeals_documents.reason}
             >
               Сформировать / обновить проект
             </button>
@@ -1369,7 +1366,7 @@ export function CaseFunnelMain({
               <button
                 type="button"
                 className="ghost"
-                disabled={!canAct("plan") && !showAll}
+                disabled={!canAct("appeals_documents") && !showAll}
                 onClick={() => applyTemplate(PLAN_READY_CHAT)}
               >
                 Подставить сообщение клиенту
@@ -1380,14 +1377,25 @@ export function CaseFunnelMain({
 
         {caps.can_manage_orders ? (
           <StageShell
-            id="funnel-payment"
-            title="Услуга и оплата"
-            state={stageById.payment.state}
-            reason={stageById.payment.reason}
-            expanded={isExpanded("payment")}
-            forceShow={showAll}
-            onToggle={() => scrollStage("payment")}
+            id="funnel-analysis_payment"
+            title={stageById.analysis_payment.label}
+            state={stageById.analysis_payment.state}
+            reason={stageById.analysis_payment.reason}
+            summary={stageById.analysis_payment.shortSummary}
+            expanded={isExpanded("analysis_payment")}
+            onToggle={() => toggleStage("analysis_payment")}
           >
+            <p className="hint">
+              Статус оплаты (адаптер по заказам):{" "}
+              {funnel.paymentKnown === "paid"
+                ? "подтверждена"
+                : funnel.paymentKnown === "pending"
+                  ? "ожидается"
+                  : funnel.paymentKnown === "unknown"
+                    ? "не удалось однозначно определить"
+                    : "заказ не создан"}
+              . Суммы из каталога/заказа — не из заголовка карточки.
+            </p>
             {(detail.orders ?? []).length > 0 ? (
               <ul className="plain-list case-orders-list">
                 {(detail.orders ?? []).map((o) => (
@@ -1493,7 +1501,7 @@ export function CaseFunnelMain({
               />
               <button
                 type="submit"
-                disabled={!funnel.serviceConsentOk || !canAct("payment")}
+                disabled={!funnel.serviceConsentOk || !canAct("analysis_payment")}
                 title={
                   funnel.serviceConsentOk
                     ? "Создать счёт"
@@ -1520,13 +1528,12 @@ export function CaseFunnelMain({
 
         {caps.can_confirm_result ? (
           <StageShell
-            id="funnel-result"
+            id="funnel-response_review"
             title="Ответ СФР и итог по делу"
-            state={stageById.result.state}
-            reason={stageById.result.reason}
-            expanded={isExpanded("result")}
-            forceShow={showAll}
-            onToggle={() => scrollStage("result")}
+            state={stageById.response_review.state}
+            reason={stageById.response_review.reason}
+            expanded={isExpanded("response_review")}
+            onToggle={() => toggleStage("response_review")}
           >
             <label className="funnel-show-all">
               <input
@@ -1554,7 +1561,7 @@ export function CaseFunnelMain({
                     placeholder="Не указано — только по документу СФР"
                   />
                 </label>
-                <button type="submit" disabled={!canAct("result") && !showAll}>
+                <button type="submit" disabled={!canAct("response_review") && !showAll}>
                   Зафиксировать ответ СФР
                 </button>
               </form>
@@ -1565,15 +1572,61 @@ export function CaseFunnelMain({
           </StageShell>
         ) : null}
 
+        {(
+          [
+            "full_analysis",
+            "appeals_consent",
+            "appeals_payment",
+            "submission",
+            "follow_up",
+            "escalation_package",
+          ] as FunnelStageId[]
+        ).map((id) => (
+          <StageShell
+            key={id}
+            id={`funnel-${id}`}
+            title={stageById[id].label}
+            state={stageById[id].state}
+            reason={stageById[id].reason}
+            summary={stageById[id].shortSummary}
+            expanded={isExpanded(id)}
+            onToggle={() => toggleStage(id)}
+          >
+            {id === "full_analysis" ? (
+              <>
+                <p className="hint">
+                  Выдача полного результата клиенту — только при подтверждённом праве на услугу
+                  (серверная связка — отдельная фаза). Сейчас: состояние по фактам.
+                </p>
+                <p>
+                  PDF диагностики:{" "}
+                  {detail.documents.some((d) =>
+                    `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+                  )
+                    ? "есть в деле"
+                    : "нет"}
+                  {" · "}
+                  Оплата (адаптер): {funnel.paymentKnown}
+                </p>
+                {stageById[id].capability === "not_wired" || stageById[id].capability === "partial" ? (
+                  <NotWiredNote label="Новые действия выдачи" />
+                ) : null}
+              </>
+            ) : (
+              <NotWiredNote label={stageById[id].label} />
+            )}
+          </StageShell>
+        ))}
+
         {caps.can_knowledge_feedback ? (
           <StageShell
-            id="funnel-feedback"
-            title="Обезличенный вывод в базу знаний"
-            state={stageById.feedback.state}
-            reason={stageById.feedback.reason}
-            expanded={isExpanded("feedback")}
-            forceShow={showAll}
-            onToggle={() => scrollStage("feedback")}
+            id="funnel-closure"
+            title={stageById.closure.label}
+            state={stageById.closure.state}
+            reason={stageById.closure.reason}
+            summary={stageById.closure.shortSummary}
+            expanded={isExpanded("closure")}
+            onToggle={() => toggleStage("closure")}
           >
             <form className="stack-form" onSubmit={onSendFeedback}>
               <textarea
@@ -1684,6 +1737,23 @@ export function CaseFunnelMain({
             </details>
           ) : null}
         </details>
+
+        <ArchivePrepBlock detail={detail} busy={busy} onSave={onSaveArchivePrep} />
+        {onCloseCase ? (
+          <CloseCaseBlock detail={detail} busy={busy} onClose={onCloseCase} />
+        ) : null}
+
+        {documentsWorkplace ? (
+          <details className="case-tech-journal panel case-card--wide">
+            <summary className="linkish">Технический журнал OCR/ingest</summary>
+            <p className="hint">Служебный журнал. Раскрытие не запускает проверки и отправки.</p>
+            {documentsWorkplace}
+          </details>
+        ) : caps.can_view_ocr ? null : (
+          <p className="hint panel case-card--wide">
+            Технический журнал OCR/ingest недоступен для вашей роли.
+          </p>
+        )}
       </div>
     </div>
   );
