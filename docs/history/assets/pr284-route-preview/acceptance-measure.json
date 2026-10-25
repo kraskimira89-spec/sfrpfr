@@ -1,0 +1,40 @@
+[
+  {
+    "shot": "acceptance-desktop-1440.png",
+    "vw": 1440,
+    "vh": 900,
+    "layout": "side-by-side",
+    "grid": "850px 10px 520px",
+    "sideBySide": true,
+    "stacked": false,
+    "hasChatTitle": true,
+    "hasComposer": true,
+    "helpHref": "#case-chat-input",
+    "chatLeft": 896,
+    "mainRight": 874
+  },
+  {
+    "helpFocus": "case-chat-input"
+  },
+  {
+    "shot": "acceptance-mobile-390.png",
+    "vw": 390,
+    "vh": 844,
+    "layout": "stacked",
+    "grid": "366px",
+    "sideBySide": false,
+    "stacked": true,
+    "hasChatTitle": true,
+    "hasComposer": true,
+    "helpHref": "#case-chat-input",
+    "chatLeft": 12,
+    "mainRight": 378
+  },
+  {
+    "mobileChatJump": {
+      "hash": "#case-chat",
+      "chatInView": true,
+      "inputId": "case-chat-input"
+    }
+  }
+]

@@ -136,7 +136,6 @@ export function CabinetCaseLayout({
         id={splitterId}
         className="cabinet-case-splitter"
         aria-label="Изменить ширину чата"
-        aria-orientation="vertical"
         title="Тяните, чтобы изменить ширину чата. Двойной щелчок — сброс."
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

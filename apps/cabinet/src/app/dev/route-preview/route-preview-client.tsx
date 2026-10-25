@@ -340,20 +340,14 @@ export function RoutePreviewClient() {
     [work],
   );
 
+  const resolveLine = `resolve(${scenario}) → ${JSON.stringify(resolved)}`;
+  const displayHandler = lastHandler === "—" ? resolveLine : lastHandler;
+
   function pushLog(line: string) {
     const stamped = `${new Date().toLocaleTimeString("ru-RU")} · ${line}`;
     setLastHandler(line);
     setLog((prev) => [stamped, ...prev].slice(0, 16));
   }
-
-  useEffect(() => {
-    setLastHandler(`resolve(${scenario}) → ${JSON.stringify(resolved)}`);
-    setLog((prev) => {
-      const line = `${new Date().toLocaleTimeString("ru-RU")} · resolve(${scenario}) → ${JSON.stringify(resolved)}`;
-      if (prev[0]?.includes(`resolve(${scenario})`)) return prev;
-      return [line, ...prev].slice(0, 16);
-    });
-  }, [scenario, resolved]);
 
   useEffect(() => {
     const paint = () => {
@@ -468,6 +462,42 @@ export function RoutePreviewClient() {
                 body: "Напишите сюда вопрос — поле ввода справа от маршрута.",
                 created_at: "2026-10-25T10:05:00+00:00",
               },
+              {
+                id: "m3",
+                author_kind: "client",
+                body: "Длинная история для проверки прокрутки внутри панели чата. Сообщение 3.",
+                created_at: "2026-10-25T10:06:00+00:00",
+              },
+              {
+                id: "m4",
+                author_kind: "staff",
+                body: "Сообщение 4 — лента длиннее окна, поле ввода остаётся снизу.",
+                created_at: "2026-10-25T10:07:00+00:00",
+              },
+              {
+                id: "m5",
+                author_kind: "client",
+                body: "Сообщение 5.",
+                created_at: "2026-10-25T10:08:00+00:00",
+              },
+              {
+                id: "m6",
+                author_kind: "staff",
+                body: "Сообщение 6.",
+                created_at: "2026-10-25T10:09:00+00:00",
+              },
+              {
+                id: "m7",
+                author_kind: "client",
+                body: "Сообщение 7.",
+                created_at: "2026-10-25T10:10:00+00:00",
+              },
+              {
+                id: "m8",
+                author_kind: "staff",
+                body: "Сообщение 8 — конец ленты preview.",
+                created_at: "2026-10-25T10:11:00+00:00",
+              },
             ]}
             body={messageBody}
             busy={false}
@@ -481,6 +511,9 @@ export function RoutePreviewClient() {
           />
         }
       />
+      <a className="case-chat-mobile-open" href="#case-chat">
+        Чат
+      </a>
 
       <aside className="panel" style={{ marginTop: "1rem" }} aria-live="polite" id="route-preview-handler-log">
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Журнал обработчиков</h2>
@@ -488,7 +521,7 @@ export function RoutePreviewClient() {
           Текущий resolve: <code>{JSON.stringify(resolved)}</code>
         </p>
         <p>
-          Последний handler: <strong data-testid="last-handler">{lastHandler}</strong>
+          Последний handler: <strong data-testid="last-handler">{displayHandler}</strong>
         </p>
         <div className="case-route-actions" style={{ marginBottom: "0.75rem" }}>
           <button type="button" onClick={invokeResolvedHandler}>

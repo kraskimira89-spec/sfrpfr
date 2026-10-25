@@ -68,16 +68,17 @@ npx next dev -p 3011
 | unknown | `unavailable` | skip без документных подсказок |
 | unavailable | `unavailable` | skip |
 
-### Скриншоты приёмки (размер области кабинета, не окна редактора)
+### Скриншоты приёмки (Playwright viewport, не панель редактора)
 
-`docs/history/assets/pr284-route-preview/`
+Съёмка: `npx -p playwright node tools/pr284-capture-route-preview.mjs http://localhost:3011`  
+Меры: `docs/history/assets/pr284-route-preview/acceptance-measure.json`
 
 | Файл | Содержание |
 |---|---|
-| `acceptance-desktop-1440.png` | **1440×900**, badge `layout=side-by-side`, маршрут+чат |
-| `acceptance-mobile-390.png` | **390×844**, badge `layout=stacked` |
-| `desktop-upload-route-chat.png` | Earlier desktop React preview |
-| `phone-upload-stacked.png` | Earlier phone |
+| `acceptance-desktop-1440.png` | **1440×900** Playwright: маршрут слева, чат+composer справа, `sideBySide=true` |
+| `acceptance-mobile-390.png` | **390×844** stacked |
+| `acceptance-mobile-390-chat-focus.png` | После кнопки «Чат» → `#case-chat` |
+| `acceptance-measure.json` | CDP-метрики + `helpFocus=case-chat-input` |
 
 ## Admin-чат: повторы (отдельно)
 
