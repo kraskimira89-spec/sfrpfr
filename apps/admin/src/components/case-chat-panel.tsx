@@ -1,6 +1,7 @@
 "use client";
 
 import { extractCaseChatDocumentId } from "@/lib/case-chat-doc-id";
+import { detectChatSignalHints } from "@/lib/chat-signal-hints";
 import { clientNameForChatHeader, clientNameNeedsConfirm } from "@/lib/client-display-name";
 import { labelAuthorKind } from "@/lib/ui-labels";
 import { chatAwaitsStaff, situationBadges } from "@/lib/case-indicators";
@@ -291,6 +292,7 @@ export function CaseChatPanel({
   const [expandedDup, setExpandedDup] = useState<Record<string, boolean>>({});
 
   const feed = useMemo(() => buildFeed(messages, filter), [messages, filter]);
+  const signalHints = useMemo(() => detectChatSignalHints(messages), [messages]);
 
   const awaitsStaff = useMemo(
     () => chatAwaitsStaff(messages) || waitingOn === "staff",
@@ -446,6 +448,22 @@ export function CaseChatPanel({
           ))}
         </div>
       </div>
+
+      {signalHints.length > 0 ? (
+        <div className="case-chat-signal-hints" role="status">
+          <p className="hint">
+            Подсказки по словам клиента (не подтверждение факта оплаты / передачи / подачи):
+          </p>
+          <ul className="plain-list">
+            {signalHints.map((h) => (
+              <li key={h.kind}>
+                <strong>{h.label}</strong>
+                <span className="hint"> — {h.staffAction}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="case-chat-feed" ref={feedRef}>
         {feed.length === 0 ? (
