@@ -78,6 +78,7 @@ export type CaseFunnelDetailInput = {
         has_justified_discrepancy?: boolean;
         offer_diag_allowed?: boolean;
         offer_amount_rub?: number;
+        items?: { evidence?: string }[];
       } | null;
       diag_offer?: { allowed?: boolean; amount_rub?: number } | null;
     } | null;
@@ -291,9 +292,16 @@ export function toFunnelFacts(
 
   let outcome: FunnelFacts["precheck"]["outcome"] = "unknown";
   const brief = check?.result?.honest_brief;
+  // Темы анкеты / слова клиента — повод уточнить, не «расхождение между источниками».
+  const briefItems = brief?.items ?? [];
+  const docEvidence = briefItems.some((i) => i.evidence === "docs");
   if (precheckState === "completed" && brief) {
-    if (brief.has_justified_discrepancy) outcome = "discrepancies";
-    else if (missing.length > 0 || (check?.result?.needs_manual_review ?? 0) > 0) {
+    if (brief.has_justified_discrepancy && docEvidence) outcome = "discrepancies";
+    else if (
+      briefItems.length > 0 ||
+      missing.length > 0 ||
+      (check?.result?.needs_manual_review ?? 0) > 0
+    ) {
       outcome = "clarify";
     } else {
       outcome = "clear";
@@ -301,7 +309,10 @@ export function toFunnelFacts(
   }
 
   let analysisNeed: FunnelFacts["analysis"]["need"] = "unknown";
-  if (brief?.offer_diag_allowed === true || check?.result?.diag_offer?.allowed === true) {
+  if (
+    docEvidence &&
+    (brief?.offer_diag_allowed === true || check?.result?.diag_offer?.allowed === true)
+  ) {
     analysisNeed = "recommended";
   } else if (outcome === "clear" && precheckState === "completed" && !check?.stale) {
     analysisNeed = "not_needed";
