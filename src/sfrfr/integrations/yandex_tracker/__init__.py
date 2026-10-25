@@ -1,4 +1,8 @@
-"""Яндекс Трекер: клиент API для внутренних задач качества (очередь STAZH)."""
+"""Яндекс Трекер: клиент API для внутренних задач качества (очередь STAZH).
+
+Транспортный async-клиент и outbox проекции дела — в подмодулях
+`client`, `projection`, `outbox` (не дублировать отдельной интеграцией).
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,12 @@ from typing import Any
 import httpx
 
 from sfrfr.core.config import get_settings
+from sfrfr.integrations.yandex_tracker.client import (
+    TrackerClient as TrackerClient,
+)
+from sfrfr.integrations.yandex_tracker.client import (
+    TrackerError as TrackerError,
+)
 
 logger = logging.getLogger(__name__)
 
