@@ -236,6 +236,35 @@ test("releaseReady=no при ready → needs_action с проверкой", () =
   assert.match(appeals?.summary || "", /проверк/i);
 });
 
+test("toFunnelFacts: файлы ждут ручной проверки — это needs_action, не «идёт обработка»", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [
+      { doc_type: "ils", storage_path: "c/ils.pdf", ingest_status: "manual_review", ingest_review_required: true },
+      { doc_type: "workbook", storage_path: "c/tk.docx", ingest_status: "needs_reupload", ingest_review_required: true },
+    ],
+    orders: [],
+    ordersLoaded: true,
+  });
+  assert.equal(facts.documents, "needs_action");
+});
+
+test("toFunnelFacts: файл в очереди загрузки — processing", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "documents_received",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf", ingest_status: "queued" }],
+    orders: [],
+    ordersLoaded: true,
+  });
+  assert.equal(facts.documents, "processing");
+});
+
 test("toFunnelFacts: темы анкеты ≠ расхождения документов (нет офера, outcome=clarify)", () => {
   const facts = toFunnelFacts({
     pipeline_status: "human_review",

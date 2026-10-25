@@ -36,11 +36,8 @@ import {
 } from "@/lib/case-funnel-accordion";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
-import {
-  formatAskClientNextStepsTemplate,
-  formatBriefChatTemplate,
-  sanitizeNextStep,
-} from "@/lib/format-brief-chat";
+import { DocumentCheckPanel } from "@/components/document-check-panel";
+import { groupCabinetDocumentsByChecksum } from "@/lib/dedupe-cabinet-documents";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
 type Caps = {
@@ -224,227 +221,6 @@ const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
   short: "Короткое напоминание",
   cabinet_howto: "Как передать документы",
 };
-
-function DocumentCheckPanel({
-  check,
-  busy,
-  canManageOrders,
-  canViewOcr,
-  orders,
-  onApplyChatTemplate,
-  onCreateDiagInvoice,
-  onSendPayLink,
-  onUploadDiagnosisReport,
-}: {
-  check: NonNullable<Detail["document_check"]> | null | undefined;
-  busy?: boolean;
-  canManageOrders?: boolean;
-  canViewOcr?: boolean;
-  orders?: Detail["orders"];
-  onApplyChatTemplate: (text: string) => void;
-  onCreateDiagInvoice?: () => void;
-  onSendPayLink?: (orderId: string) => void;
-  onUploadDiagnosisReport?: (file: File) => void;
-}) {
-  if (!check) {
-    return (
-      <p className="hint">Результат проверки появится после «Проверить документы».</p>
-    );
-  }
-  const r = check.result;
-  const diagOrders = (orders ?? []).filter((o) => o.package_code === "DIAG");
-  const diagOpen = diagOrders.find((o) => o.status !== "paid" && o.status !== "cancelled");
-  const diagPaid = diagOrders.some((o) => o.status === "paid");
-  // Старые результаты проверки разрешали офер по анкете — требуем расхождение из документов.
-  const offerAllowed =
-    Boolean(r?.diag_offer?.allowed) &&
-    (r?.honest_brief?.items ?? []).some((i) => i.evidence === "docs");
-  return (
-    <div className="document-check-result">
-      <p>
-        Статус проверки: <strong>{check.status_label || check.status}</strong>
-        {check.stale ? (
-          <span className="hint"> · устарел: набор документов изменился — запустите снова</span>
-        ) : null}
-      </p>
-      {check.status === "queued" || check.status === "running" ? (
-        <p className="hint">Этап: {check.current_stage || check.status}</p>
-      ) : null}
-      {check.last_error ? <p className="hint">Ошибка: {check.last_error}</p> : null}
-      {r ? (
-        <>
-          <ul className="plain-list">
-            <li>Оригиналы доступны: {r.originals_available ?? 0}</li>
-            <li>Текст извлечён: {r.text_extracted ?? 0}</li>
-            <li>Требуют распознавания: {r.needs_recognition ?? 0}</li>
-            <li>Требуют ручной проверки: {r.needs_manual_review ?? 0}</li>
-            <li>
-              Полученные типы:{" "}
-              {(r.types_found ?? []).length > 0 ? (r.types_found ?? []).join(", ") : "—"}
-            </li>
-            {(r.exact_duplicate_groups ?? 0) > 0 ? (
-              <li>Точных дублей (групп): {r.exact_duplicate_groups}</li>
-            ) : null}
-          </ul>
-          {(r.missing_explanations ?? []).length > 0 ? (
-            <>
-              <h4 className="case-subhead">Недостающие</h4>
-              <ul className="plain-list">
-                {(r.missing_explanations ?? []).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-          <p>
-            <strong>Следующее действие:</strong> {r.next_action || "—"}
-          </p>
-          {r.honest_brief ? (
-            <div className="honest-brief-block">
-              <h4 className="case-subhead">Краткое резюме по разделам</h4>
-              {!r.honest_brief.current && r.honest_brief.stale_reason ? (
-                <p className="hint">{r.honest_brief.stale_reason}</p>
-              ) : null}
-              <p>{r.honest_brief.headline || "—"}</p>
-              {(r.honest_brief.items ?? []).length > 0 ? (
-                <ul className="plain-list">
-                  {(r.honest_brief.items ?? []).slice(0, 3).map((item, idx) => (
-                    <li key={`${item.evidence || "x"}-${idx}`}>
-                      {item.text || "—"}
-                      {item.evidence_label ? (
-                        <>
-                          {" "}
-                          <em>({item.evidence_label})</em>
-                        </>
-                      ) : null}
-                      {item.basis ? (
-                        <span className="hint"> — основание: {item.basis}</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="hint">Пунктов с основаниями нет — давление на оплату не нужно.</p>
-              )}
-              {sanitizeNextStep(r.honest_brief.next_step) ? (
-                <p>Следующий шаг: {sanitizeNextStep(r.honest_brief.next_step)}</p>
-              ) : null}
-              {offerAllowed && r.diag_offer ? (
-                <p>
-                  <strong>{r.diag_offer.label || "Подробная диагностика — 3 000 ₽"}</strong>
-                  {r.diag_offer.note ? (
-                    <span className="hint"> — {r.diag_offer.note}</span>
-                  ) : null}
-                </p>
-              ) : (
-                <p className="hint">
-                  Офер 3 000 ₽ не показываем: нет подтверждённого основания
-                  (анкета/слова ≠ доказательство).
-                </p>
-              )}
-              {r.honest_brief.disclaimer ? (
-                <p className="hint">{r.honest_brief.disclaimer}</p>
-              ) : null}
-              <div className="row-actions" style={{ marginTop: "0.65rem", flexWrap: "wrap", gap: "0.4rem" }}>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  title="Подставить в поле чата. В MAX само не отправляем"
-                  onClick={() =>
-                    onApplyChatTemplate(
-                      formatAskClientNextStepsTemplate(r.honest_brief, {
-                        diagAllowed: offerAllowed,
-                        diagPaid,
-                        diagAmountRub: r.diag_offer?.amount_rub ?? 3000,
-                      }),
-                    )
-                  }
-                >
-                  Спросить клиента о следующих шагах
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  title="Подставить резюме в поле чата. Отправка в MAX — отдельно"
-                  onClick={() =>
-                    onApplyChatTemplate(
-                      formatBriefChatTemplate(r.honest_brief!, {
-                        diagAllowed: offerAllowed,
-                        diagPaid,
-                        diagAmountRub:
-                          r.diag_offer?.amount_rub ??
-                          r.honest_brief?.offer_amount_rub ??
-                          3000,
-                      }),
-                    )
-                  }
-                >
-                  Подставить резюме в чат
-                </button>
-                {offerAllowed && canManageOrders && onCreateDiagInvoice ? (
-                  <button
-                    type="button"
-                    disabled={busy || Boolean(diagOpen) || diagPaid}
-                    onClick={() => onCreateDiagInvoice()}
-                    title={
-                      diagPaid
-                        ? "Диагностика уже оплачена"
-                        : diagOpen
-                          ? "Счёт DIAG уже есть — отправьте ссылку"
-                          : "Создать счёт DIAG 3 000 ₽"
-                    }
-                  >
-                    Счёт на диагностику 3 000 ₽
-                  </button>
-                ) : null}
-                {diagOpen && onSendPayLink ? (
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => onSendPayLink(diagOpen.id)}
-                  >
-                    Отправить ссылку DIAG в MAX
-                  </button>
-                ) : null}
-                {diagPaid && onUploadDiagnosisReport ? (
-                  <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
-                    Отправить файл анализа (PDF)
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      hidden
-                      disabled={busy || !canViewOcr}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (file) onUploadDiagnosisReport(file);
-                      }}
-                    />
-                  </label>
-                ) : null}
-              </div>
-              <p className="hint" style={{ marginTop: "0.5rem" }}>
-                Обращение к СФР — отдельный этап 5 000 ₽ (шаг 3 / ACCOMP). Счёт на обращение
-                создаётся вручную после плана, без автосоздания.
-              </p>
-            </div>
-          ) : null}
-          {!r.ocr_allowed && (r.needs_recognition ?? 0) > 0 ? (
-            <p className="hint">
-              OCR по сканам не разрешён конфигом — это не «успешно завершено» для этих файлов.
-            </p>
-          ) : null}
-          {r.legal_analysis_ran ? null : (
-            <p className="hint">Юридический анализ ИИ в этой проверке не запускался.</p>
-          )}
-        </>
-      ) : null}
-    </div>
-  );
-}
 
 function NotWiredNote({ label }: { label: string }) {
   return (
@@ -630,7 +406,8 @@ export function CaseFunnelMain({
         ? "Назначен"
         : "Не назначен";
   const cta = primaryCtaLabel(current, funnel.docsReady);
-  const docCount = detail.documents.length;
+  // Повторные загрузки одного файла (тот же checksum) не считаем отдельными документами.
+  const docCount = groupCabinetDocumentsByChecksum(detail.documents).length;
   const auditPreview = detail.audit.slice(0, 5);
   const auditRest = detail.audit.slice(5);
 
@@ -1139,108 +916,112 @@ export function CaseFunnelMain({
           expanded={isExpanded("documents")}
           onToggle={() => toggleStage("documents")}
         >
-          <DocumentsTable
-            documents={detail.documents}
-            onOpen={onOpenSigned}
-            busy={busy}
-          />
+          <ol className="doc-check-blocks">
+            <li className="doc-check-block">
+              <h4>1. Что нужно для проверки</h4>
+              <p className="hint">
+                Чтобы сверить стаж, нужны два документа: выписка ИЛС из СФР (её можно скачать на
+                Госуслугах) и трудовая книжка или справки о стаже. Если чего-то нет — подставьте
+                клиенту готовый запрос: текст попадёт в поле чата, отправляете вы сами.
+              </p>
+              <ul className="plain-list doc-kit-list">
+                <li>
+                  <span className={funnel.hasIls ? "doc-check-ok" : "warning-inline"}>
+                    {funnel.hasIls ? "✓ Выписка ИЛС — есть" : "✕ Выписка ИЛС — нет"}
+                  </span>
+                  {!funnel.hasIls ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={busy}
+                      onClick={() => applyTemplate(DOC_REQUEST_ILS)}
+                      title="Подставить запрос ИЛС в поле чата, без автоотправки"
+                    >
+                      Запросить у клиента
+                    </button>
+                  ) : null}
+                </li>
+                <li>
+                  <span className={funnel.hasLabor ? "doc-check-ok" : "warning-inline"}>
+                    {funnel.hasLabor
+                      ? "✓ Трудовая книжка / сведения о стаже — есть"
+                      : "✕ Трудовая книжка / сведения о стаже — нет"}
+                  </span>
+                  {!funnel.hasLabor ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={busy}
+                      onClick={() => applyTemplate(DOC_REQUEST_LABOR)}
+                      title="Подставить запрос трудовой в поле чата, без автоотправки"
+                    >
+                      Запросить у клиента
+                    </button>
+                  ) : null}
+                </li>
+              </ul>
+            </li>
+
+            <li className="doc-check-block">
+              <h4>2. Файлы клиента</h4>
+              <p className="hint">
+                Всё, что прислал клиент. Повторные загрузки одного файла свёрнуты в строку «Точный
+                дубль». Где стоит «Проверить текст» — откройте и убедитесь, что текст читается: от
+                этого зависит точность резюме.
+              </p>
+              <DocumentsTable documents={detail.documents} onOpen={onOpenSigned} busy={busy} />
+            </li>
+
+            <li className="doc-check-block">
+              <h4>3. Чек-лист по документам</h4>
+              <p className="hint">
+                Отмечайте, что запросили и что получили, — так любой сотрудник продолжит дело без
+                лишних вопросов к клиенту.
+              </p>
+              {docItems.length > 0 ? (
+                <ul className="plain-list case-doc-checklist">
+                  {docItems.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="linkish"
+                        disabled={!caps.can_edit_checklist}
+                        onClick={() => onToggleChecklist(item.id, item.status)}
+                      >
+                        [{labelChecklistStatus(item.status)}] {item.title}
+                      </button>
+                      <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint">Пунктов пока нет.</p>
+              )}
+              {caps.can_edit_checklist ? (
+                <form className="inline-form" onSubmit={onAddChecklist}>
+                  <input
+                    value={checklistTitle}
+                    onChange={(e) => onChecklistTitle(e.target.value)}
+                    placeholder="Например: справка из архива за 1998–2001"
+                    required
+                  />
+                  <button type="submit">Добавить в чек-лист</button>
+                </form>
+              ) : null}
+            </li>
+          </ol>
+
           {documentsWorkplace ? (
             <details className="case-tech-journal">
-              <summary className="linkish">Показать техжурнал ingest</summary>
+              <summary className="linkish">Техжурнал загрузки файлов</summary>
               <p className="hint">Служебный журнал. Раскрытие не запускает проверки и отправки.</p>
               {documentsWorkplace}
             </details>
           ) : null}
           <p className="hint">
-            Комплект файлов и запросы клиенту. Проверка и резюме — следующая ступень.
+            Комплект на месте? Переходите к проверке — там система разберёт файлы и соберёт резюме
+            для клиента.
           </p>
-
-          <table className="case-docs-table">
-            <thead>
-              <tr>
-                <th>Документ</th>
-                <th>Состояние</th>
-                <th>Источник</th>
-                <th>Последнее действие</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Выписка ИЛС</td>
-                <td>{funnel.hasIls ? "есть" : "нет"}</td>
-                <td>кабинет / чек-лист</td>
-                <td>
-                  <button
-                    type="button"
-                    className="linkish"
-                    disabled={!canAct("documents") && current !== "documents" && !showAll}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "Подставить шаблон «Запросить ИЛС» в чат? Отправка в MAX — отдельно.",
-                        )
-                      )
-                        return;
-                      applyTemplate(DOC_REQUEST_ILS);
-                    }}
-                    title="Шаблон в composer, без автоотправки"
-                  >
-                    Отправить шаблон
-                  </button>
-                </td>
-              </tr>
-              <tr>
-                <td>Трудовая / сведения о стаже</td>
-                <td>{funnel.hasLabor ? "есть" : "нет"}</td>
-                <td>кабинет / чек-лист</td>
-                <td>
-                  <button
-                    type="button"
-                    className="linkish"
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "Подставить шаблон «Запросить трудовую» в чат? Отправка в MAX — отдельно.",
-                        )
-                      )
-                        return;
-                      applyTemplate(DOC_REQUEST_LABOR);
-                    }}
-                  >
-                    Отправить шаблон
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          {docItems.length > 0 ? (
-            <ul className="plain-list case-doc-checklist">
-              {docItems.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="linkish"
-                    disabled={!caps.can_edit_checklist}
-                    onClick={() => onToggleChecklist(item.id, item.status)}
-                  >
-                    [{labelChecklistStatus(item.status)}] {item.title}
-                  </button>
-                  <span className="hint"> · {labelChecklistOwner(item.owner)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {caps.can_edit_checklist ? (
-            <form className="inline-form" onSubmit={onAddChecklist}>
-              <input
-                value={checklistTitle}
-                onChange={(e) => onChecklistTitle(e.target.value)}
-                placeholder="Пункт по документу"
-                required
-              />
-              <button type="submit">Добавить в чек-лист</button>
-            </form>
-          ) : null}
         </StageShell>
 
         <StageShell

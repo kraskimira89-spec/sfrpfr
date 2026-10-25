@@ -236,16 +236,17 @@ export function toFunnelFacts(
   const hasLabor =
     hasDocType(docs, ["workbook", "labor", "труд", "employment"]) ||
     checklistDone(items, /труд|стаж/i);
-  const processing = docs.some(
-    (d) =>
-      d.ingest_review_required ||
-      ["pending", "processing", "queued", "running"].includes(
-        String(d.ingest_status || "").toLowerCase(),
-      ),
+  const processing = docs.some((d) =>
+    ["pending", "processing", "queued", "running"].includes(
+      String(d.ingest_status || "").toLowerCase(),
+    ),
   );
+  // Ручная проверка / пересъёмка ждут сотрудника — это не «идёт обработка».
+  const docsAwaitStaff = docs.some((d) => Boolean(d.ingest_review_required));
   const check = detail.document_check;
   const missing = check?.result?.missing_for_task ?? [];
   const needsAttention =
+    docsAwaitStaff ||
     Boolean(check?.stale) ||
     missing.length > 0 ||
     (check?.result?.needs_manual_review ?? 0) > 0 ||
