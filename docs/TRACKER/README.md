@@ -31,6 +31,7 @@ MVP кабинет → STAZH: [../ops/yandex-tracker-stazh-quality.md](../ops/ya
 | [playbook-agent-task-lifecycle.md](playbook-agent-task-lifecycle.md) | Lifecycle MCP |
 | [playbook-publish-queue.md](playbook-publish-queue.md) | Очередь **PUB** |
 | [playbook-funnel-ops.md](playbook-funnel-ops.md) | Очередь **FUNNEL** |
+| [spec-case-dispatch-card.md](spec-case-dispatch-card.md) | Карточка дела в Трекере (диспетчерская, 13 ступеней) — аудит + план |
 | [spec-tracker-sync-outbox.md](spec-tracker-sync-outbox.md) | Outbox проекции дела → Трекер (срез 1, sync выкл.) |
 | [architecture-tracker-sync-inbox-outbox.md](architecture-tracker-sync-inbox-outbox.md) | Целевая inbox/outbox/state/history + аудит case_tracker_issues |
 | [ops-board-wiki-checklist.md](ops-board-wiki-checklist.md) | Доски + Wiki (UI / API) |
