@@ -18,7 +18,6 @@ from sfrfr.integrations.yandex_tracker.inbox import (
     process_tracker_inbox,
 )
 
-
 ORG = "org-1"
 FIELD_STATUS = "status"
 
