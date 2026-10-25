@@ -1,8 +1,8 @@
 # Синхронизация Трекер ↔ БД через outbox (срез 1)
 
-**Дата:** 2026-10-25  
-**Задача:** [SFRFR-118](https://tracker.yandex.ru/SFRFR-118)  
-**Статус:** код клиента + outbox-worker проекции; webhook / prod-автодействия / очередь CASE **не** включались  
+**Дата:** 2026-10-25
+**Задача:** [SFRFR-118](https://tracker.yandex.ru/SFRFR-118)
+**Статус:** код клиента + outbox-worker проекции; webhook / prod-автодействия / очередь CASE **не** включались
 **Канон разделения:** [spec-case-dispatch-card.md](spec-case-dispatch-card.md) (PR docs)
 
 ## Принцип
@@ -42,7 +42,7 @@ TRACKER_CASE_FIELD_IDS_JSON={"case_ref":"...","current_stage":"...","case_revisi
 
 ```text
 event_id          — неизменяемый; повтор с тем же телом идемпотентен
-event_type        — payment_confirmed | … 
+event_type        — payment_confirmed | …
 case_ref / issue_key / case_revision
 payload           — проекция без ПДн (stage, next_action, waiting_on, оплаты по услугам)
 origin            — app
@@ -64,3 +64,4 @@ Worker при HTTP ≥500 на PATCH → `outcome_unknown`, событие ос�
 ```
 
 Проверено локально: 9 passed (2026-10-25).
+
