@@ -270,6 +270,46 @@ export function IngestReviewPanel({
     }
   }
 
+  async function deleteGroup(group: ReviewGroup) {
+    const name = group.primary.filename || "документ";
+    const copies = group.copies.length;
+    if (
+      !window.confirm(
+        copies > 1
+          ? `Удалить файл «${name}» и его повторы (${copies - 1})? Восстановить будет нельзя.`
+          : `Удалить файл «${name}»? Восстановить будет нельзя.`,
+      )
+    ) {
+      return;
+    }
+    setActionBusy(true);
+    let ok = 0;
+    let lastError = "";
+    try {
+      for (const doc of group.copies) {
+        try {
+          await requestJson(
+            apiBase,
+            `/api/portal/admin/cases/${caseId}/documents/${doc.id}`,
+            token,
+            { method: "DELETE" },
+          );
+          ok += 1;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : "ошибка удаления";
+        }
+      }
+      onNotice(
+        ok === copies ? `Удалено файлов: ${ok}.` : `Удалено ${ok} из ${copies}. ${lastError}`.trim(),
+      );
+      if (expandedKey === group.key) setExpandedKey(null);
+      await loadReviewQueue();
+      onRefresh();
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   async function bulkAccept() {
     const eligible = groups.filter(canBulkAccept);
     if (eligible.length === 0) return;
@@ -456,6 +496,17 @@ export function IngestReviewPanel({
                           Запросить пересъёмку
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        className="secondary danger-button"
+                        disabled={busy || actionBusy}
+                        onClick={() => void deleteGroup(group)}
+                        title="Удалить файл и все его повторы (мусор, ошибочная загрузка)"
+                      >
+                        {group.copies.length > 1
+                          ? `Удалить (все копии: ${group.copies.length})`
+                          : "Удалить"}
+                      </button>
                     </div>
                   </details>
                 ) : (
