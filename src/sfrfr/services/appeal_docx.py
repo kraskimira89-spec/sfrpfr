@@ -36,7 +36,11 @@ def build_appeal_docx_bytes(
 
 
 def draft_payload_from_case(case: dict[str, Any]) -> tuple[str, str]:
-    draft = case.get("draft") if isinstance(case.get("draft"), dict) else {}
-    title = str(draft.get("title") or case.get("draft_title") or "Проект обращения")
-    body = str(draft.get("body") or case.get("draft_body") or "")
+    raw = case.get("draft")
+    if isinstance(raw, dict):
+        title = str(raw.get("title") or case.get("draft_title") or "Проект обращения")
+        body = str(raw.get("body") or case.get("draft_body") or "")
+    else:
+        title = str(case.get("draft_title") or "Проект обращения")
+        body = str(case.get("draft_body") or "")
     return title, body
