@@ -18,6 +18,8 @@ export type HonestBriefForChat = {
   offer_amount_rub?: number;
   items?: BriefChatItem[];
   disclaimer?: string;
+  /** Автосверка трудовой с ИЛС (сервер): ran — проводилась, discrepancies — сколько найдено. */
+  compare?: { ran?: boolean; discrepancies?: number; summary?: string } | null;
 };
 
 export type FormatBriefChatOpts = {
@@ -157,6 +159,16 @@ function formatInsufficient(
   return lines.join("\n").trim();
 }
 
+function formatComparedClean(): string {
+  return [
+    "Сверили выписку ИЛС с трудовой книжкой: все периоды работы в выписке есть, северные отметки совпадают — расхождений не нашли.",
+    "",
+    "Если по какому-то периоду у вас есть другие документы (например, архивные справки), пришлите их — проверим и их.",
+    "",
+    POSITION_LINE,
+  ].join("\n");
+}
+
 function formatEmptyOrLimit(brief: HonestBriefForChat): string {
   const headline =
     cleanLine(brief.headline) ||
@@ -198,6 +210,10 @@ export function formatBriefChatTemplate(
     });
   }
 
+  if (brief.compare?.ran) {
+    return formatComparedClean();
+  }
+
   if (soft.length > 0) {
     return formatInsufficient(soft, brief);
   }
@@ -217,6 +233,9 @@ export function formatAskClientNextStepsTemplate(
     const docs = docsItems(items);
     if (docs.length > 0 && opts.diagAllowed && !opts.diagPaid) {
       return formatBriefChatTemplate(brief, opts);
+    }
+    if (docs.length === 0 && brief.compare?.ran) {
+      return formatComparedClean();
     }
     if (docs.length === 0 && softItems(items).length > 0) {
       return formatInsufficient(softItems(items), brief);

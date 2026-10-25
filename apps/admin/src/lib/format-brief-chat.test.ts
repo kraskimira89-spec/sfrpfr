@@ -161,3 +161,13 @@ test("ask client без docs — без продажи", () => {
   assert.doesNotMatch(text, /диагностик[аи].*3000|3[\s\u00a0]?000/i);
   assert.match(text, /данных недостаточно/i);
 });
+
+test("сверка без расхождений: итог без вопросов клиенту", () => {
+  const text = formatBriefChatTemplate({
+    compare: { ran: true, discrepancies: 0, summary: "расхождений не найдено." },
+    items: [{ text: "возможные вопросы по северному стажу", evidence: "needs_check" }],
+  });
+  assert.match(text, /Сверили выписку ИЛС с трудовой книжкой/);
+  assert.doesNotMatch(text, /Напишите, пожалуйста, какие периоды/);
+  assert.doesNotMatch(text, /Пока данных недостаточно/);
+});
