@@ -6,6 +6,7 @@ import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
+import { CabinetCaseLayout } from "@/components/cabinet-case-layout";
 import { ClientCaseChatPanel } from "@/components/client-case-chat-panel";
 import {
   CaseJourneyExtras,
@@ -2197,7 +2198,7 @@ export function ClientCabinet() {
   const maxChatHref = chatUrlOnly(me?.max_bot_url || maxBotUrl || DEFAULT_MAX_CHAT);
 
   return (
-    <main className="app-layout">
+    <main className="app-layout app-layout--case">
       <header>
         <div className="brand-block">
           <BrandHomeLink className="brand-home-link--header">
@@ -2349,135 +2350,138 @@ export function ClientCabinet() {
               )}
             </div>
           ) : null}
-          <div className="cabinet-case-layout">
-            <div className="cabinet-case-main">
-              {detail.work?.documents ? (
-                <CaseWorkMap
-                  caseNumber={caseNumberFromId(detail.id)}
-                  work={detail.work}
-                  busy={busy}
-                  warning={detail.warning}
-                  expertAssigned={detail.expert_assigned}
-                  onConsent={() => void acceptConsent()}
-                  onContract={() => void acceptContract()}
-                  onUpload={(file, docType) => void uploadDocument(file, docType)}
-                  onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
-                  onDelete={(documentId) => void deleteDocument(documentId)}
-                  onPay={(orderId) => void startPayment(orderId)}
-                  onDownloadResult={(documentId) => void openSignedUrl(documentId)}
-                  onRunCheck={() => void runCheck()}
-                  pipelineStatus={detail.pipeline_status}
-                  scenarioAnswers={scenarioAnswers}
-                  onScenarioChange={(key, value) => {
-                    setScenariosSaved(false);
-                    setScenarioAnswers((prev) => ({ ...prev, [key]: value }));
-                  }}
-                  onSaveScenarios={() => void saveScenarios()}
-                  scenariosSaved={scenariosSaved}
-                  uploadProgress={uploadProgress}
-                />
-              ) : (
-                <p className="hint">Загружаем карту дела…</p>
-              )}
+          <CabinetCaseLayout
+            main={
+              <>
+                {detail.work?.documents ? (
+                  <CaseWorkMap
+                    caseNumber={caseNumberFromId(detail.id)}
+                    work={detail.work}
+                    busy={busy}
+                    warning={detail.warning}
+                    expertAssigned={detail.expert_assigned}
+                    onConsent={() => void acceptConsent()}
+                    onContract={() => void acceptContract()}
+                    onUpload={(file, docType) => void uploadDocument(file, docType)}
+                    onUploadMultiple={(files, docType) => void uploadDocumentsMultiple(files, docType)}
+                    onDelete={(documentId) => void deleteDocument(documentId)}
+                    onPay={(orderId) => void startPayment(orderId)}
+                    onDownloadResult={(documentId) => void openSignedUrl(documentId)}
+                    onRunCheck={() => void runCheck()}
+                    pipelineStatus={detail.pipeline_status}
+                    scenarioAnswers={scenarioAnswers}
+                    onScenarioChange={(key, value) => {
+                      setScenariosSaved(false);
+                      setScenarioAnswers((prev) => ({ ...prev, [key]: value }));
+                    }}
+                    onSaveScenarios={() => void saveScenarios()}
+                    scenariosSaved={scenariosSaved}
+                    uploadProgress={uploadProgress}
+                  />
+                ) : (
+                  <p className="hint">Загружаем карту дела…</p>
+                )}
 
-              {detail.documents.length > 0 ? (
-                <DocumentsTable
-                  documents={detail.documents}
-                  busy={busy}
-                  onOpen={(documentId) => void openSignedUrl(documentId)}
-                  selectedIds={selectedDocIds}
-                  onToggleSelect={toggleDocSelection}
-                  onToggleAll={toggleAllDocs}
-                  onBulkDownload={() => void bulkDownloadSelected()}
-                />
-              ) : null}
+                {detail.documents.length > 0 ? (
+                  <DocumentsTable
+                    documents={detail.documents}
+                    busy={busy}
+                    onOpen={(documentId) => void openSignedUrl(documentId)}
+                    selectedIds={selectedDocIds}
+                    onToggleSelect={toggleDocSelection}
+                    onToggleAll={toggleAllDocs}
+                    onBulkDownload={() => void bulkDownloadSelected()}
+                  />
+                ) : null}
 
-              {selectedId && token ? (
-                <CaseJourneyExtras
-                  caseId={selectedId}
-                  token={token}
-                  apiBase={apiBase}
-                  documents={detail.documents}
-                  busy={busy}
-                  pendingGroupPages={pendingGroupPages}
-                  pendingGroupDocType={pendingGroupDocType}
-                  onClearPendingGroup={(documentIds) => {
-                    const removed = new Set(documentIds);
-                    setPendingGroupPages((previous) =>
-                      previous.filter((page) => !removed.has(page.id)),
-                    );
-                  }}
-                  onRefresh={async () => openCase(selectedId, "case", true)}
-                  onPay={(orderId) => void startPayment(orderId)}
-                  onNotice={setNotice}
-                />
-              ) : null}
+                {selectedId && token ? (
+                  <CaseJourneyExtras
+                    caseId={selectedId}
+                    token={token}
+                    apiBase={apiBase}
+                    documents={detail.documents}
+                    busy={busy}
+                    pendingGroupPages={pendingGroupPages}
+                    pendingGroupDocType={pendingGroupDocType}
+                    onClearPendingGroup={(documentIds) => {
+                      const removed = new Set(documentIds);
+                      setPendingGroupPages((previous) =>
+                        previous.filter((page) => !removed.has(page.id)),
+                      );
+                    }}
+                    onRefresh={async () => openCase(selectedId, "case", true)}
+                    onPay={(orderId) => void startPayment(orderId)}
+                    onNotice={setNotice}
+                  />
+                ) : null}
 
-              <details className="home-more">
-                <summary>Важно о безопасности и результате</summary>
-                <div className="home-more-links">
-                  <button
-                    type="button"
-                    className="linkish"
-                    onClick={() => void openCase(selectedId!, "docs")}
-                  >
-                    Согласие и договор
-                  </button>
-                  {!hasPasswordSet(session) ? (
-                    <button type="button" className="linkish" onClick={openPasswordSetup}>
-                      Задать пароль
-                    </button>
-                  ) : null}
-                </div>
-                <div className="channel-prefs">
-                  <p className="hint">Куда удобнее получать уведомления?</p>
-                  <div className="channel-prefs-buttons" role="group" aria-label="Предпочтительный канал">
+                <details className="home-more">
+                  <summary>Важно о безопасности и результате</summary>
+                  <div className="home-more-links">
                     <button
                       type="button"
-                      className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
-                      disabled={busy}
-                      onClick={() => void setPreferredChannel("web_cabinet")}
+                      className="linkish"
+                      onClick={() => void openCase(selectedId!, "docs")}
                     >
-                      Веб-кабинет
+                      Согласие и договор
                     </button>
-                    <button
-                      type="button"
-                      className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
-                      disabled={busy}
-                      onClick={() => void setPreferredChannel("max_miniapp")}
-                    >
-                      Чат MAX
-                    </button>
-                    <button
-                      type="button"
-                      className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
-                      disabled={busy}
-                      onClick={() => void setPreferredChannel("unset")}
-                    >
-                      Не задан
-                    </button>
+                    {!hasPasswordSet(session) ? (
+                      <button type="button" className="linkish" onClick={openPasswordSetup}>
+                        Задать пароль
+                      </button>
+                    ) : null}
                   </div>
-                  {representatives.length > 0 ? (
-                    <p className="hint">
-                      Представители:{" "}
-                      {representatives
-                        .map((r) => r.full_name || r.email || r.user_id.slice(0, 8))
-                        .join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-            </div>
-
-            <ClientCaseChatPanel
-              messages={messages}
-              body={messageBody}
-              busy={busy}
-              maxHref={maxChatHref}
-              onBodyChange={setMessageBody}
-              onSend={sendMessage}
-            />
-          </div>
+                  <div className="channel-prefs">
+                    <p className="hint">Куда удобнее получать уведомления?</p>
+                    <div className="channel-prefs-buttons" role="group" aria-label="Предпочтительный канал">
+                      <button
+                        type="button"
+                        className={me?.preferred_channel === "web_cabinet" ? "tab active" : "tab"}
+                        disabled={busy}
+                        onClick={() => void setPreferredChannel("web_cabinet")}
+                      >
+                        Веб-кабинет
+                      </button>
+                      <button
+                        type="button"
+                        className={me?.preferred_channel === "max_miniapp" ? "tab active" : "tab"}
+                        disabled={busy}
+                        onClick={() => void setPreferredChannel("max_miniapp")}
+                      >
+                        Чат MAX
+                      </button>
+                      <button
+                        type="button"
+                        className={me?.preferred_channel === "unset" || !me ? "tab active" : "tab"}
+                        disabled={busy}
+                        onClick={() => void setPreferredChannel("unset")}
+                      >
+                        Не задан
+                      </button>
+                    </div>
+                    {representatives.length > 0 ? (
+                      <p className="hint">
+                        Представители:{" "}
+                        {representatives
+                          .map((r) => r.full_name || r.email || r.user_id.slice(0, 8))
+                          .join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                </details>
+              </>
+            }
+            chat={
+              <ClientCaseChatPanel
+                messages={messages}
+                body={messageBody}
+                busy={busy}
+                maxHref={maxChatHref}
+                onBodyChange={setMessageBody}
+                onSend={sendMessage}
+              />
+            }
+          />
           <a className="case-chat-mobile-open" href="#case-chat">
             Чат
           </a>

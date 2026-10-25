@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CabinetCaseLayout } from "@/components/cabinet-case-layout";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { ClientCaseChatPanel } from "@/components/client-case-chat-panel";
 import { resolveRoutePrimaryAction } from "@/lib/case-route";
@@ -354,6 +355,25 @@ export function RoutePreviewClient() {
     });
   }, [scenario, resolved]);
 
+  useEffect(() => {
+    const paint = () => {
+      const el = document.getElementById("route-preview-viewport");
+      const layout = document.querySelector(".cabinet-case-layout");
+      const mode = layout?.getAttribute("data-layout") || "—";
+      const chatW = layout?.getAttribute("data-chat-width") || "auto";
+      if (el) {
+        el.textContent = `Viewport: ${window.innerWidth}×${window.innerHeight}px · layout=${mode} · chat-width=${chatW}`;
+      }
+    };
+    paint();
+    window.addEventListener("resize", paint);
+    const timer = window.setInterval(paint, 500);
+    return () => {
+      window.removeEventListener("resize", paint);
+      window.clearInterval(timer);
+    };
+  }, []);
+
   function selectScenario(id: ScenarioId) {
     router.replace(`/dev/route-preview?s=${id}`);
     pushLog(`сценарий → ${id}`);
@@ -384,14 +404,17 @@ export function RoutePreviewClient() {
   }
 
   return (
-    <div className="app-layout" style={{ paddingTop: "1rem" }}>
+    <div className="app-layout app-layout--case" style={{ paddingTop: "1rem" }}>
       <header className="panel" style={{ marginBottom: "1rem" }}>
         <h1 style={{ margin: 0, fontSize: "1.2rem" }}>
           React preview: CaseRoutePanel внутри CaseWorkMap
         </h1>
         <p className="hint" style={{ margin: "0.4rem 0 0" }}>
-          PR #284 · до merge · реальные компоненты кабинета · слева маршрут, справа чат · CTA пишет в
-          журнал справа внизу (не toast из HTML-макета)
+          PR #284 · до merge · слева маршрут, справа чат · ширина чата тянется разделителем · CTA в
+          журнал (не toast HTML-макета)
+        </p>
+        <p className="hint" id="route-preview-viewport" style={{ margin: "0.35rem 0 0" }}>
+          Viewport: —
         </p>
         <div className="case-route-actions" style={{ marginTop: "0.75rem" }}>
           {SCENARIOS.map((row) => (
@@ -410,8 +433,8 @@ export function RoutePreviewClient() {
         </div>
       </header>
 
-      <div className="cabinet-case-layout">
-        <div className="cabinet-case-main">
+      <CabinetCaseLayout
+        main={
           <CaseWorkMap
             caseNumber="1001"
             work={work}
@@ -429,34 +452,35 @@ export function RoutePreviewClient() {
             onPay={(orderId) => pushLog(`handler: pay ${orderId}`)}
             onDownloadResult={(documentId) => pushLog(`handler: result ${documentId}`)}
           />
-        </div>
-
-        <ClientCaseChatPanel
-          messages={[
-            {
-              id: "m1",
-              author_kind: "system",
-              body: "Это тестовая лента preview. Сообщения не уходят в MAX.",
-              created_at: "2026-10-25T10:00:00+00:00",
-            },
-            {
-              id: "m2",
-              author_kind: "staff",
-              body: "Напишите сюда вопрос — поле ввода справа от маршрута.",
-              created_at: "2026-10-25T10:05:00+00:00",
-            },
-          ]}
-          body={messageBody}
-          busy={false}
-          maxHref="https://max.ru/"
-          onBodyChange={setMessageBody}
-          onSend={(event, text) => {
-            event.preventDefault();
-            pushLog(`handler: chat send «${text.slice(0, 40)}»`);
-            setMessageBody("");
-          }}
-        />
-      </div>
+        }
+        chat={
+          <ClientCaseChatPanel
+            messages={[
+              {
+                id: "m1",
+                author_kind: "system",
+                body: "Это тестовая лента preview. Сообщения не уходят в MAX.",
+                created_at: "2026-10-25T10:00:00+00:00",
+              },
+              {
+                id: "m2",
+                author_kind: "staff",
+                body: "Напишите сюда вопрос — поле ввода справа от маршрута.",
+                created_at: "2026-10-25T10:05:00+00:00",
+              },
+            ]}
+            body={messageBody}
+            busy={false}
+            maxHref="https://max.ru/"
+            onBodyChange={setMessageBody}
+            onSend={(event, text) => {
+              event.preventDefault();
+              pushLog(`handler: chat send «${text.slice(0, 40)}»`);
+              setMessageBody("");
+            }}
+          />
+        }
+      />
 
       <aside className="panel" style={{ marginTop: "1rem" }} aria-live="polite" id="route-preview-handler-log">
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Журнал обработчиков</h2>

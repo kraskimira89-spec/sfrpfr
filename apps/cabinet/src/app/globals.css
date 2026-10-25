@@ -366,13 +366,45 @@ header span { color: var(--muted); font-size: 1rem; }
 }
 .stack { display: grid; gap: 14px; }
 .cabinet-case-layout {
+  --case-chat-width: clamp(320px, 38vw, 520px);
   display: grid;
   gap: 14px;
+  width: 100%;
+  min-width: 0;
 }
 .cabinet-case-main {
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+.cabinet-case-splitter {
+  display: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  width: 100%;
+  min-height: 12rem;
+  align-self: stretch;
+}
+.cabinet-case-splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  border-radius: 999px;
+  background: var(--line, #d7e0ea);
+  transition: background 0.15s ease;
+}
+.cabinet-case-splitter:hover::after,
+.cabinet-case-splitter:focus-visible::after {
+  background: var(--navy, #1b486c);
+}
+.cabinet-case-splitter:focus-visible {
+  outline: 2px solid var(--navy, #1b486c);
+  outline-offset: 2px;
 }
 .muted { color: var(--muted); margin: 0 0 12px; }
 .case-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
@@ -1505,10 +1537,15 @@ header span { color: var(--muted); font-size: 1rem; }
   .photo-group-reorder { grid-column: 4; }
 }
 
-/* Планшет: маршрут сверху, чат снизу — чат не выносится над этапами (order не трогаем). */
+/* Узкий экран: одна колонка — маршрут, затем чат; разделитель скрыт. */
 @media (max-width: 959px) {
-  .cabinet-case-layout {
+  .cabinet-case-layout,
+  .cabinet-case-layout--resizable {
     grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .cabinet-case-splitter {
+    display: none;
   }
 }
 
@@ -1581,21 +1618,34 @@ header span { color: var(--muted); font-size: 1rem; }
 /* Desktop: этапы/маршрут слева, чат с клиентом справа (не под маршрутом). */
 @media (min-width: 960px) {
   .cabinet-case-layout {
-    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    grid-template-columns: minmax(0, 1fr) var(--case-chat-width);
     align-items: start;
+  }
+  .cabinet-case-layout--resizable {
+    grid-template-columns: minmax(0, 1fr) 10px var(--case-chat-width);
+    gap: 0 6px;
+  }
+  .cabinet-case-splitter {
+    display: block;
   }
   .client-chat-panel {
     position: sticky;
     top: 72px;
+    width: 100%;
+    max-width: none;
     max-height: calc(100dvh - 88px);
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
   }
   .client-chat-panel .case-chat-feed {
     flex: 1 1 auto;
     min-height: 280px;
     max-height: none;
     overflow: auto;
+  }
+  .client-chat-panel .case-chat-composer {
+    flex: 0 0 auto;
   }
 }

@@ -40,12 +40,21 @@ npx next dev -p 3011
 ```
 
 Не путать с `tools/client-route-preview/index.html` (макет без React).
+Узкая панель редактора ≠ размер кабинета: для приёмки задавать viewport **1440** и **390**.
 
-### Layout (измерение CDP, 1440×900)
+### Layout + ширина чата
 
-- `grid-template-columns`: ~784px + ~579px
-- `sideBySide: true` (`chat.left >= main.right`)
-- На 390px — одна колонка, чат ниже маршрута (допустимо)
+- Контейнер `CabinetCaseLayout`: колонки `main | splitter | chat` (≥960px).
+- Автоширина: `--case-chat-width: clamp(320px, 38vw, 520px)`; сайт `width:100%`.
+- Ручная подгонка: разделитель «Изменить ширину чата» (drag), двойной щелчок — сброс; значение в `localStorage`.
+- Sticky-чат, лента скроллится внутри, composer снизу.
+
+### Измерение CDP
+
+| Viewport | layout | grid |
+|---|---|---|
+| 1440×900 | `side-by-side` | `~835px 10px 520px` |
+| 390×844 | `stacked` | `1fr` |
 
 ### Проверка обработчиков (журнал preview, не toast HTML)
 
@@ -59,16 +68,16 @@ npx next dev -p 3011
 | unknown | `unavailable` | skip без документных подсказок |
 | unavailable | `unavailable` | skip |
 
-### Скриншоты
+### Скриншоты приёмки (размер области кабинета, не окна редактора)
 
 `docs/history/assets/pr284-route-preview/`
 
 | Файл | Содержание |
 |---|---|
-| `desktop-upload-route-chat.png` | Desktop: маршрут слева + чат справа (React) |
-| `desktop-route-chat-sidebyside.png` | Clip layout 1376×820, sideBySide |
-| `phone-upload-stacked.png` | Phone 390×844, маршрут сверху |
-| `desktop-consent.png` … | Ранее: отдельные сценарии CTA |
+| `acceptance-desktop-1440.png` | **1440×900**, badge `layout=side-by-side`, маршрут+чат |
+| `acceptance-mobile-390.png` | **390×844**, badge `layout=stacked` |
+| `desktop-upload-route-chat.png` | Earlier desktop React preview |
+| `phone-upload-stacked.png` | Earlier phone |
 
 ## Admin-чат: повторы (отдельно)
 
