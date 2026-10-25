@@ -10,6 +10,7 @@
 | **SFRFR** | https://tracker.yandex.ru/SFRFR — продукт, infra, agents |
 | **PUB** | https://tracker.yandex.ru/PUB — публикации |
 | **FUNNEL** | https://tracker.yandex.ru/FUNNEL — ops воронки (без ПДн) |
+| **CASE** | https://tracker.yandex.ru/CASE — диспетчерская карточка пенсионного дела (без ПДн) |
 
 Очередь org. `TRACKER` — **не** для продукта.
 

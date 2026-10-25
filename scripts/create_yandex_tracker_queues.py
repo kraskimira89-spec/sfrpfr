@@ -33,6 +33,14 @@ QUEUES = [
         "name": "Воронка клиентов",
         "description": "Ops по этапам воронки без ПДн; CRM — amo. Канон: docs/TRACKER/playbook-funnel-ops.md",
     },
+    {
+        "key": "CASE",
+        "name": "Клиентские дела (диспетчерская)",
+        "description": (
+            "Одна карточка на пенсионное дело + work items. Без ПДн. "
+            "Канон: docs/TRACKER/architecture-tracker-sync-inbox-outbox.md"
+        ),
+    },
 ]
 
 ISSUE_TYPES_CONFIG = [

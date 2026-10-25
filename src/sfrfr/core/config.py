@@ -241,11 +241,15 @@ class Settings(BaseSettings):
     tracker_cloud_org_id: str = ""
     tracker_queue: str = "STAZH"
     tracker_case_ref_secret: str = ""  # TRACKER_CASE_REF_SECRET
-    # Проекция карточки дела (outbox). По умолчанию выкл — нет очереди CASE/DELO.
+    # Проекция карточки дела (outbox/inbox). По умолчанию выкл.
     tracker_case_sync_enabled: bool = False
-    tracker_case_queue: str = ""  # TRACKER_CASE_QUEUE — только после решения владельца
+    tracker_case_queue: str = "CASE"  # TRACKER_CASE_QUEUE — диспетчерская очередь
     # JSON: {"current_stage":"<localFieldId>", "case_revision":"...", ...}
     tracker_case_field_ids_json: str = "{}"
+    # Bearer-секрет webhook Трекера (отдельный от OAuth API).
+    tracker_webhook_secret: str = ""  # TRACKER_WEBHOOK_SECRET
+    # Org id, ожидаемый в envelope (не доверять одному JSON без сверки с credential).
+    tracker_webhook_organization_id: str = ""  # TRACKER_WEBHOOK_ORGANIZATION_ID
 
 
 @lru_cache

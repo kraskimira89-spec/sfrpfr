@@ -21,6 +21,7 @@ from sfrfr.api.routes import (
     secure_actions,
     supabase_auth_email,
     survey_actions,
+    tracker_webhooks,
 )
 from sfrfr.core.config import get_settings
 from sfrfr.ops.logging import configure_logging
@@ -119,6 +120,11 @@ def create_app() -> FastAPI:
         email_webhooks.router,
         prefix="/api/webhooks",
         tags=["email-webhooks"],
+    )
+    app.include_router(
+        tracker_webhooks.router,
+        prefix="/api",
+        tags=["tracker-webhooks"],
     )
     app.include_router(
         payments.router,

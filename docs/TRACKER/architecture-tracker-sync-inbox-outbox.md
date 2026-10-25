@@ -2,8 +2,8 @@
 
 **Дата:** 2026-10-25  
 **Задача:** [SFRFR-118](https://tracker.yandex.ru/SFRFR-118)  
-**Статус:** проект схемы + черновик миграции · webhook/prod **не** включались  
-**Срез 1 (код):** [spec-tracker-sync-outbox.md](spec-tracker-sync-outbox.md) · PR #281  
+**Статус:** схема в репо · очередь **CASE** создана (2026-10-25) · inbox worker + webhook в коде за флагом · apply DDL на YC и `TRACKER_CASE_SYNC_ENABLED=1` — отдельно  
+**Срез 1–2 (код):** [spec-tracker-sync-outbox.md](spec-tracker-sync-outbox.md) · PR #281  
 **Диспетчерская карточка:** [spec-case-dispatch-card.md](spec-case-dispatch-card.md)
 
 ## 0. Принцип
@@ -139,9 +139,18 @@ review_response:<document-version-id>
 - Нет цикла app↔Tracker.  
 - История без лишних ПДн.
 
-## 8. Что не делается этим коммитом
+## 8. Срез 2 (после «да» владельца, 2026-10-25)
 
-- Production webhook endpoint.  
-- Автодействия в UI Трекера.  
-- Apply миграции на YC без отдельного «да».  
-- Изменение порядка create в `quality_issues.py` (зафиксирован долг для work_item create).
+| Сделано | Не сделано |
+|---|---|
+| Очередь `CASE` в org | Локальные поля очереди в UI |
+| `inbox.py` + unit (dedupe, version, forbid payment) | Postgres repository вместо in-memory |
+| `POST /api/integrations/tracker/commands` (503 пока sync выкл.) | Автодействия Трекера на prod |
+| DDL `tracker_sync.*` в репо | Apply на YC (`vm_supabase_apply_migrations.sh` после merge) |
+
+Включение: `TRACKER_CASE_SYNC_ENABLED=1`, `TRACKER_WEBHOOK_SECRET`, `TRACKER_CASE_QUEUE=CASE`, apply миграций 20261025120000 + 20261025130000.
+
+## 9. Долг
+
+- Изменение порядка create в `quality_issues.py` / work_item: reserving binding до API create.  
+- Перенос `public.tracker_sync_outbox` → `tracker_sync.outbox`.
