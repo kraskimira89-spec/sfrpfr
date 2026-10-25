@@ -47,6 +47,24 @@ function isUsable(s: string): boolean {
   return true;
 }
 
+/** next_step бэкенда написан для MAX-бота («ответьте кнопкой», /help) — в чат сотрудника не годится. */
+const BOT_ONLY_RE = /\/help|кнопк/i;
+
+/** basis у пунктов анкеты — источник («анкета», «со слов клиента»), а не что сверять. */
+const SOURCE_LABEL_RE = /анкет|со слов|формулировк/i;
+
+const DEFAULT_COMPARE =
+  "периоды в выписке ИЛС и в трудовой книжке (или архивных справках)";
+
+const DEFAULT_ASK_NEXT =
+  "напишите, какие именно периоды (годы и место работы), по-вашему, учтены неверно — специалист сверит их с выпиской ИЛС и трудовой книжкой";
+
+export function sanitizeNextStep(raw: string | undefined | null): string {
+  const s = cleanLine(raw).replace(/^(следующий шаг:\s*)+/i, "").trim();
+  if (!s || BOT_ONLY_RE.test(s)) return "";
+  return s;
+}
+
 function docsItems(items: BriefChatItem[]): BriefChatItem[] {
   return items.filter((i) => (i.evidence || "").toLowerCase() === "docs" && isUsable(cleanLine(i.text)));
 }
@@ -114,12 +132,10 @@ function formatInsufficient(
   brief: HonestBriefForChat,
 ): string {
   const theme = cleanLine(soft[0]?.text) || "вашей теме обращения";
+  const basis = cleanLine(soft[0]?.basis);
   const compareHint =
-    cleanLine(soft[0]?.basis) ||
-    "указанные документы и периоды (например, выписку ИЛС и сведения о стаже)";
-  const next =
-    cleanLine(brief.next_step) ||
-    "пришлите недостающие документы или уточните период и источник сведений";
+    isUsable(basis) && !SOURCE_LABEL_RE.test(basis) ? basis : DEFAULT_COMPARE;
+  const next = sanitizeNextStep(brief.next_step) || DEFAULT_ASK_NEXT;
 
   const lines = [
     "Для проверки пока недостаточно данных.",
@@ -139,7 +155,7 @@ function formatEmptyOrLimit(brief: HonestBriefForChat): string {
   const headline =
     cleanLine(brief.headline) ||
     "По представленным документам автоматическая проверка не выявила очевидных расхождений.";
-  const next = cleanLine(brief.next_step);
+  const next = sanitizeNextStep(brief.next_step);
   const lines = [
     "Результат предварительной проверки",
     "",

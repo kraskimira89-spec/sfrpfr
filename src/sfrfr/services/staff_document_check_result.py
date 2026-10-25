@@ -149,7 +149,12 @@ def attach_honest_brief(
         return result
     merged = dict(result)
     merged["honest_brief"] = brief
-    if brief.get("offer_diag_allowed"):
+    # Офер сотруднику — только при расхождении из документов; анкета/слова клиента не основание.
+    has_doc_evidence = any(
+        isinstance(item, dict) and item.get("evidence") == "docs"
+        for item in (brief.get("items") or [])
+    )
+    if brief.get("offer_diag_allowed") and has_doc_evidence:
         merged["diag_offer"] = {
             "allowed": True,
             "amount_rub": int(brief.get("offer_amount_rub") or 3000),
@@ -164,7 +169,10 @@ def attach_honest_brief(
             "allowed": False,
             "amount_rub": 0,
             "label": "",
-            "note": str(brief.get("next_step") or ""),
+            "note": (
+                "Нет расхождения, подтверждённого документами: сначала уточнить "
+                "периоды у клиента и сверить ИЛС с трудовой."
+            ),
         }
     return merged
 

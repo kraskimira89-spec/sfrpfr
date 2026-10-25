@@ -39,6 +39,7 @@ import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import {
   formatAskClientNextStepsTemplate,
   formatBriefChatTemplate,
+  sanitizeNextStep,
 } from "@/lib/format-brief-chat";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -254,6 +255,10 @@ function DocumentCheckPanel({
   const diagOrders = (orders ?? []).filter((o) => o.package_code === "DIAG");
   const diagOpen = diagOrders.find((o) => o.status !== "paid" && o.status !== "cancelled");
   const diagPaid = diagOrders.some((o) => o.status === "paid");
+  // Старые результаты проверки разрешали офер по анкете — требуем расхождение из документов.
+  const offerAllowed =
+    Boolean(r?.diag_offer?.allowed) &&
+    (r?.honest_brief?.items ?? []).some((i) => i.evidence === "docs");
   return (
     <div className="document-check-result">
       <p>
@@ -321,8 +326,10 @@ function DocumentCheckPanel({
               ) : (
                 <p className="hint">Пунктов с основаниями нет — давление на оплату не нужно.</p>
               )}
-              {r.honest_brief.next_step ? <p>{r.honest_brief.next_step}</p> : null}
-              {r.diag_offer?.allowed ? (
+              {sanitizeNextStep(r.honest_brief.next_step) ? (
+                <p>Следующий шаг: {sanitizeNextStep(r.honest_brief.next_step)}</p>
+              ) : null}
+              {offerAllowed && r.diag_offer ? (
                 <p>
                   <strong>{r.diag_offer.label || "Подробная диагностика — 3 000 ₽"}</strong>
                   {r.diag_offer.note ? (
@@ -347,7 +354,7 @@ function DocumentCheckPanel({
                   onClick={() =>
                     onApplyChatTemplate(
                       formatAskClientNextStepsTemplate(r.honest_brief, {
-                        diagAllowed: Boolean(r.diag_offer?.allowed),
+                        diagAllowed: offerAllowed,
                         diagPaid,
                         diagAmountRub: r.diag_offer?.amount_rub ?? 3000,
                       }),
@@ -364,7 +371,7 @@ function DocumentCheckPanel({
                   onClick={() =>
                     onApplyChatTemplate(
                       formatBriefChatTemplate(r.honest_brief!, {
-                        diagAllowed: Boolean(r.diag_offer?.allowed),
+                        diagAllowed: offerAllowed,
                         diagPaid,
                         diagAmountRub:
                           r.diag_offer?.amount_rub ??
@@ -376,7 +383,7 @@ function DocumentCheckPanel({
                 >
                   Подставить резюме в чат
                 </button>
-                {r.diag_offer?.allowed && canManageOrders && onCreateDiagInvoice ? (
+                {offerAllowed && canManageOrders && onCreateDiagInvoice ? (
                   <button
                     type="button"
                     disabled={busy || Boolean(diagOpen) || diagPaid}
