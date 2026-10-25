@@ -69,6 +69,20 @@ test("upload: howto и «не могу получить» только для д
   assert.ok(step.showContinueLaterHint);
 });
 
+test("unknown CTA: нейтральная недоступность без документных подсказок", () => {
+  const work = baseWork({
+    cta_key: "mystery_future_cta",
+    cta_label: "Странная кнопка",
+    now_need: "Неизвестное действие",
+  });
+  const step = nextStepFromWork(work);
+  assert.equal(step.showCantGetDocument, false);
+  assert.equal(step.showContinueLaterHint, false);
+  assert.equal(step.howtoUrl, null);
+  assert.equal(step.primaryLabel, null);
+  assert.equal(resolveRoutePrimaryAction(work).kind, "unavailable");
+});
+
 test("consent: без документных подсказок и без fallback upload", () => {
   const work = baseWork({
     status_key: "consent",

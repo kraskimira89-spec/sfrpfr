@@ -312,28 +312,42 @@ export function nextStepFromWork(work: ClientWorkLike): RouteNextStep {
     };
   }
 
-  // upload (и только upload) — документные подсказки
-  const slot = firstUploadSlot(work);
-  const why =
-    (slot && DOC_PURPOSE[slot.key]) ||
-    work.status_hint ||
-    "Это поможет специалисту продолжить проверку.";
-  let howtoUrl: string | null = null;
-  let howtoLabel: string | null = null;
-  if (slot?.key === "ils" || /илс|выписк/i.test(`${work.now_need} ${slot?.title || ""}`)) {
-    howtoUrl = work.ils_howto_url;
-    howtoLabel = "Где получить документ?";
+  if (cta === "upload") {
+    const slot = firstUploadSlot(work);
+    const why =
+      (slot && DOC_PURPOSE[slot.key]) ||
+      work.status_hint ||
+      "Это поможет специалисту продолжить проверку.";
+    let howtoUrl: string | null = null;
+    let howtoLabel: string | null = null;
+    if (slot?.key === "ils" || /илс|выписк/i.test(`${work.now_need} ${slot?.title || ""}`)) {
+      howtoUrl = work.ils_howto_url;
+      howtoLabel = "Где получить документ?";
+    }
+    return {
+      mode: "action",
+      title: work.now_need,
+      why,
+      primaryLabel: work.cta_label,
+      howtoUrl,
+      howtoLabel,
+      showCantGetDocument: true,
+      showContinueLaterHint: true,
+      consequenceHint: null,
+      helpLabel: "Нужна помощь",
+    };
   }
 
+  // Неизвестный CTA — без документных подсказок и без обещания сохранения файлов.
   return {
     mode: "action",
-    title: work.now_need,
-    why,
-    primaryLabel: work.cta_label,
-    howtoUrl,
-    howtoLabel,
-    showCantGetDocument: true,
-    showContinueLaterHint: true,
+    title: work.now_need || "Действие временно недоступно",
+    why: "Обновите страницу или напишите в чат. Сейчас нельзя безопасно продолжить этот шаг.",
+    primaryLabel: null,
+    howtoUrl: null,
+    howtoLabel: null,
+    showCantGetDocument: false,
+    showContinueLaterHint: false,
     consequenceHint: null,
     helpLabel: "Нужна помощь",
   };
