@@ -1,0 +1,19 @@
+=== precheck isolation gate ===
+SHA: b90fb167af315811368140315cfc8e44e95a2d37
+[PASS] neg_database_url_only: refused:missing_precheck_pg_dsn
+[PASS] require_test_target: run=precheck_94b32e8c626544e08efc7ebe65f3c264
+[PASS] verify_test_connection: ok
+[PASS] read_only: write_blocked:ReadOnlySqlTransaction
+[PASS] neg_foreign_run: refused:precheck_test_marker_mismatch
+[PASS] postgrest: up
+[PASS] probe_cli: exit=0
+---
+SHA: b90fb167af315811368140315cfc8e44e95a2d37
+Идентификатор тестового запуска: precheck_94b32e8c626544e08efc7ebe65f3c264
+Изменяющие запросы до подтверждения изоляции: отсутствуют
+RESULT: PASS
+
+EXIT_CODE=0
+SHA=b90fb167af315811368140315cfc8e44e95a2d37
+SUITE=gate
+

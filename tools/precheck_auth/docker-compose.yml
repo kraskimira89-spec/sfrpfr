@@ -1,0 +1,57 @@
+# Изолированный Auth для precheck browser E2E. Не production.
+# JWT/anon — только local-test (см. up.ps1).
+
+services:
+  precheck-auth-db:
+    image: supabase/postgres:15.8.1.060
+    ports:
+      - "127.0.0.1:55434:5432"
+    environment:
+      POSTGRES_PASSWORD: precheck-auth-local
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  precheck-inbucket:
+    image: inbucket/inbucket:3.0.3
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:2500:2500"
+
+  precheck-gotrue:
+    image: supabase/gotrue:v2.151.0
+    depends_on:
+      precheck-auth-db:
+        condition: service_healthy
+      precheck-inbucket:
+        condition: service_started
+    ports:
+      - "127.0.0.1:9999:9999"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://127.0.0.1:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:precheck-auth-local@precheck-auth-db:5432/postgres
+      GOTRUE_SITE_URL: http://127.0.0.1:3100
+      GOTRUE_URI_ALLOW_LIST: http://127.0.0.1:3100/*,http://127.0.0.1:8000/*
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      # Совпадает с demo anon/service в up.ps1 (только local E2E).
+      GOTRUE_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_HOST: precheck-inbucket
+      GOTRUE_SMTP_PORT: 2500
+      GOTRUE_SMTP_ADMIN_EMAIL: auth@precheck.local
+      GOTRUE_SMTP_SENDER_NAME: Precheck Auth
+      GOTRUE_SMTP_MAX_FREQUENCY: 1s
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify

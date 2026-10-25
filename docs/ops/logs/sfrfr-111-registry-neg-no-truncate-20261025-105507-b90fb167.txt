@@ -1,0 +1,23 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\user\Documents\Cursor\SFRFR\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\user\Documents\Cursor\SFRFR
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/integration/test_precheck_guard_no_truncate.py::test_wrong_run_id_blocks_before_truncate PASSED [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 1 warning in 0.21s =========================
+
+EXIT_CODE=0
+SHA=b90fb167af315811368140315cfc8e44e95a2d37
+SUITE=neg-no-truncate
+

@@ -1,0 +1,37 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\user\Documents\Cursor\SFRFR\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\user\Documents\Cursor\SFRFR
+configfile: pyproject.toml
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 15 items
+
+tests/unit/test_precheck_isolation_guard.py::test_accepts_explicit_local_target PASSED [  6%]
+tests/unit/test_precheck_isolation_guard.py::test_general_database_url_is_not_a_fallback PASSED [ 13%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[postgresql://sfrfr:pw@example.invalid:55432/sfrfr_precheck] PASSED [ 20%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[postgresql://sfrfr:pw@127.0.0.1:5432/sfrfr_precheck] PASSED [ 26%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[postgresql://sfrfr:pw@127.0.0.1:55432/postgres] PASSED [ 33%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[postgresql://postgres:pw@127.0.0.1:55432/sfrfr_precheck] PASSED [ 40%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[postgresql://sfrfr:pw@127.0.0.1:55432/sfrfr_precheck?host=elsewhere] PASSED [ 46%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_targets[host=127.0.0.1 dbname=sfrfr_precheck] PASSED [ 53%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_invalid_run_id[] PASSED [ 60%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_invalid_run_id[short] PASSED [ 66%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_invalid_run_id[../unsafe] PASSED [ 73%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_invalid_run_id[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 80%]
+tests/unit/test_precheck_isolation_guard.py::test_checks_server_identity_before_marker PASSED [ 86%]
+tests/unit/test_precheck_isolation_guard.py::test_rejects_wrong_marker PASSED [ 93%]
+tests/unit/test_precheck_isolation_guard.py::test_accepts_matching_marker PASSED [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\user\Documents\Cursor\SFRFR\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\user\Documents\Cursor\SFRFR\.pytest_cache\v\cache\nodeids: [WinError 183] Невозможно создать файл, так как он уже существует: 'C:\\Users\\user\\Documents\\Cursor\\SFRFR\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 15 passed, 1 warning in 0.08s ========================
+
+EXIT_CODE=0
+SHA=b90fb167af315811368140315cfc8e44e95a2d37
+SUITE=unit-guard
+

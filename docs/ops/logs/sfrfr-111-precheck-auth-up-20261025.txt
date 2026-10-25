@@ -1,0 +1,15 @@
+ Container precheck_auth-precheck-auth-db-1 Running 
+ Container precheck_auth-precheck-inbucket-1 Creating 
+ Container precheck_auth-precheck-inbucket-1 Created 
+ Container precheck_auth-precheck-gotrue-1 Creating 
+ Container precheck_auth-precheck-gotrue-1 Created 
+ Container precheck_auth-precheck-inbucket-1 Starting 
+ Container precheck_auth-precheck-inbucket-1 Started 
+ Container precheck_auth-precheck-auth-db-1 Waiting 
+ Container precheck_auth-precheck-auth-db-1 Healthy 
+ Container precheck_auth-precheck-gotrue-1 Starting 
+ Container precheck_auth-precheck-gotrue-1 Started 
+BLOCKED: GoTrue http://127.0.0.1:9999/health not ready within 90s
+precheck-gotrue-1  | {"level":"info","msg":"Go runtime metrics collection started","time":"2026-10-25T06:06:04Z"}
+precheck-gotrue-1  | {"args":[0.009654225],"component":"pop","level":"info","msg":"%.4f seconds","time":"2026-10-25T06:06:04Z"}
+precheck-gotrue-1  | {"level":"fatal","msg":"running db migrations: Migrator: problem creating schema migrations: couldn't start a new transaction: could not create new transaction: failed to connect to `host=precheck-auth-db user=supabase_auth_admin database=postgres`: failed SASL auth (FATAL: password authentication failed for user \"supabase_auth_admin\" (SQLSTATE 28P01))","time":"2026-10-25T06:06:04Z"}

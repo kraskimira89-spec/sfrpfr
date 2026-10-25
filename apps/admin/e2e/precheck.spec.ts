@@ -8,13 +8,18 @@ import { test, expect } from "@playwright/test";
 const apiUrl = process.env.PRECHECK_E2E_API_URL || "";
 const staffToken = process.env.PRECHECK_E2E_STAFF_TOKEN || "";
 const caseId = process.env.PRECHECK_E2E_CASE_ID || "";
+const acceptance = (process.env.PRECHECK_E2E_ACCEPTANCE || "").trim() === "1";
 
 test.describe("precheck staff document check", () => {
   test.beforeEach(() => {
-    test.skip(
-      !apiUrl || !staffToken || !caseId,
-      "BLOCKED: нужны PRECHECK_E2E_API_URL, PRECHECK_E2E_STAFF_TOKEN, PRECHECK_E2E_CASE_ID (GoTrue JWT). Локальный PG-harness Auth не содержит.",
-    );
+    const missing = !apiUrl || !staffToken || !caseId;
+    if (!missing) return;
+    const reason =
+      "BLOCKED: нужны PRECHECK_E2E_API_URL, PRECHECK_E2E_STAFF_TOKEN, PRECHECK_E2E_CASE_ID (изолированный GoTrue / staff JWT).";
+    if (acceptance) {
+      throw new Error(reason);
+    }
+    test.skip(true, reason);
   });
 
   test("сценарий B: кнопка → job → результат без подмены API", async ({
