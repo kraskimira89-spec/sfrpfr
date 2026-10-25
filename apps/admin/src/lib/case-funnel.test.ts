@@ -236,6 +236,61 @@ test("releaseReady=no при ready → needs_action с проверкой", () =
   assert.match(appeals?.summary || "", /проверк/i);
 });
 
+test("toFunnelFacts: темы анкеты ≠ расхождения документов (нет офера, outcome=clarify)", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
+    orders: [],
+    ordersLoaded: true,
+    document_check: {
+      status: "needs_action",
+      stale: false,
+      result: {
+        honest_brief: {
+          has_justified_discrepancy: true,
+          offer_diag_allowed: true,
+          items: [
+            { text: "северный стаж", evidence: "needs_check" },
+            { text: "даты", evidence: "client" },
+          ],
+        },
+        diag_offer: { allowed: true, amount_rub: 3000 },
+      },
+    },
+  });
+  assert.equal(facts.precheck.outcome, "clarify");
+  assert.notEqual(facts.analysis.need, "recommended");
+});
+
+test("toFunnelFacts: расхождение из документов → discrepancies + recommended", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
+    orders: [],
+    ordersLoaded: true,
+    document_check: {
+      status: "completed",
+      stale: false,
+      result: {
+        honest_brief: {
+          has_justified_discrepancy: true,
+          offer_diag_allowed: true,
+          items: [{ text: "период не отражён в ИЛС", evidence: "docs" }],
+        },
+        diag_offer: { allowed: true, amount_rub: 3000 },
+      },
+    },
+  });
+  assert.equal(facts.precheck.outcome, "discrepancies");
+  assert.equal(facts.analysis.need, "recommended");
+});
+
 test("toFunnelFacts: b2c не превращает в paid", () => {
   const facts = toFunnelFacts({
     pipeline_status: "completed",
