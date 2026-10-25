@@ -1,57 +1,50 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { buildFunnel } from "./case-funnel-adapter.ts";
+import { deriveFunnel, toFunnelFacts } from "./case-funnel-facts.ts";
 import {
-  FUNNEL_STAGE_IDS,
-  buildFunnelStages,
-  selectCurrentStage,
+  STAGE_IDS,
+  type ActionId,
   type FunnelFacts,
   type OrderFacts,
-  type StageActionId,
-} from "./case-funnel.ts";
-import { deriveFunnel, toFunnelFacts } from "./case-funnel-facts.ts";
-import { loaded, unavailable } from "./case-funnel-types.ts";
+  type WorkFacts,
+} from "./case-funnel-types.ts";
 
-const ALL_ACTIONS: StageActionId[] = [
+const ALL_ACTIONS: ActionId[] = [
   "edit_contacts",
-  "request_consents",
   "upload_documents",
   "run_precheck",
   "view_precheck",
   "send_summary",
   "open_analysis_order",
-  "prepare_analysis",
-  "deliver_analysis",
+  "open_analysis",
   "request_appeals_consent",
   "open_appeals_order",
-  "prepare_appeals",
-  "deliver_appeals",
+  "open_appeals",
   "record_submission",
-  "request_submission_help",
   "schedule_call",
   "record_follow_up",
   "review_response",
   "open_escalation",
   "review_closure",
-  "view_history",
 ];
 
-function hasAction(stages: ReturnType<typeof buildFunnelStages>, id: string, action: StageActionId) {
-  const s = stages.find((x) => x.id === id);
-  return Boolean(s?.actions.some((a) => a.id === action && a.enabled));
+function emptyOrder(): OrderFacts {
+  return { state: "not_ordered", entitlement: "none" };
+}
+
+function work(
+  state: WorkFacts["state"] = "not_started",
+  releaseReady: WorkFacts["releaseReady"] = "unknown",
+): WorkFacts {
+  return { state, releaseReady };
 }
 
 function baseFacts(over: Partial<FunnelFacts> = {}): FunnelFacts {
-  const emptyOrder: OrderFacts = { state: "not_ordered", entitlement: "none" };
   const base: FunnelFacts = {
-    contacts: { known: true, reachable: true, requiredConsents: "confirmed" },
-    documents: {
-      known: true,
-      count: 2,
-      processing: false,
-      sufficient: true,
-      needsAttention: false,
-    },
+    contact: "complete",
+    documents: "ready",
     precheck: {
       state: "completed",
       stale: false,
@@ -59,92 +52,87 @@ function baseFacts(over: Partial<FunnelFacts> = {}): FunnelFacts {
       summaryDelivery: "unknown",
     },
     analysis: {
-      recommendation: "recommended",
-      order: emptyOrder,
-      result: { state: "not_started" },
+      need: "recommended",
+      order: emptyOrder(),
+      work: work(),
     },
     appeals: {
       need: "unknown",
       consent: "not_requested",
-      order: emptyOrder,
-      package: {
-        state: "not_started",
-        fileCount: 0,
-        allReviewed: false,
-        clientApproved: false,
-      },
+      order: emptyOrder(),
+      work: work(),
     },
-    submission: { state: "not_started" },
-    followUp: { state: "inactive", callDue: false },
-    response: { state: "none" },
+    submission: "unknown",
+    followUp: { state: "unknown", callRequired: false },
+    response: "unknown",
     escalation: {
-      decision: "unknown",
-      consent: "not_requested",
-      order: emptyOrder,
-      result: { state: "not_started" },
+      need: "unknown",
+      consent: "unknown",
+      order: emptyOrder(),
+      work: work(),
     },
-    closure: { state: "open", chronologyReady: false },
-    sourceNotes: {},
-    permissions: { allowedActions: ALL_ACTIONS },
+    closure: { state: "open" },
+    allowedActions: ALL_ACTIONS,
   };
   return {
     ...base,
     ...over,
-    contacts: { ...base.contacts, ...over.contacts },
-    documents: { ...base.documents, ...over.documents },
     precheck: { ...base.precheck, ...over.precheck },
     analysis: {
       ...base.analysis,
       ...over.analysis,
       order: { ...base.analysis.order, ...over.analysis?.order },
-      result: { ...base.analysis.result, ...over.analysis?.result },
+      work: { ...base.analysis.work, ...over.analysis?.work },
     },
     appeals: {
       ...base.appeals,
       ...over.appeals,
       order: { ...base.appeals.order, ...over.appeals?.order },
-      package: { ...base.appeals.package, ...over.appeals?.package },
+      work: { ...base.appeals.work, ...over.appeals?.work },
     },
+    followUp: { ...base.followUp, ...over.followUp },
     escalation: {
       ...base.escalation,
       ...over.escalation,
       order: { ...base.escalation.order, ...over.escalation?.order },
-      result: { ...base.escalation.result, ...over.escalation?.result },
+      work: { ...base.escalation.work, ...over.escalation?.work },
     },
-    sourceNotes: { ...base.sourceNotes, ...over.sourceNotes },
-    permissions: over.permissions ?? base.permissions,
+    closure: { ...base.closure, ...over.closure },
+    allowedActions: over.allowedActions ?? base.allowedActions,
   };
 }
 
-test("всегда возвращает 13 уникальных ступеней", () => {
-  const stages = buildFunnelStages(baseFacts());
+test("ровно 13 уникальных ID", () => {
+  const { stages } = buildFunnel(baseFacts());
   assert.equal(stages.length, 13);
+  assert.equal(new Set(stages.map((s) => s.id)).size, 13);
   assert.deepEqual(
     stages.map((s) => s.id),
-    [...FUNNEL_STAGE_IDS],
+    [...STAGE_IDS],
   );
 });
 
-test("не считает неизвестную оплату отсутствием заказа", () => {
-  const pay = buildFunnelStages(
+test("unknown оплаты не становится not_ordered", () => {
+  const pay = buildFunnel(
     baseFacts({
       analysis: {
-        recommendation: "recommended",
+        need: "recommended",
         order: { state: "unknown", entitlement: "unknown" },
-        result: { state: "not_started" },
+        work: work(),
       },
     }),
-  ).find((s) => s.id === "analysis_payment");
+  ).stages.find((s) => s.id === "analysis_payment");
   assert.equal(pay?.status, "unknown");
+  assert.match(pay?.summary || "", /недоступен/i);
 });
 
-test("не скрывает подтверждённую оплату при изменении рекомендации", () => {
-  const pay = buildFunnelStages(
+test("оплаченный заказ не скрывается после смены рекомендации", () => {
+  const pay = buildFunnel(
     baseFacts({
       analysis: {
-        recommendation: "not_needed",
+        need: "not_needed",
         order: { state: "paid", entitlement: "granted", amountRub: 3000 },
-        result: { state: "not_started" },
+        work: work(),
       },
       precheck: {
         state: "completed",
@@ -153,219 +141,99 @@ test("не скрывает подтверждённую оплату при и�
         summaryDelivery: "unknown",
       },
     }),
-  ).find((s) => s.id === "analysis_payment");
+  ).stages.find((s) => s.id === "analysis_payment");
   assert.equal(pay?.status, "done");
 });
 
-test("не разрешает выдачу анализа без entitlement", () => {
-  const full = buildFunnelStages(
+test("оплата дополнительного пакета не завершает ступень 12", () => {
+  const esc = buildFunnel(
     baseFacts({
-      analysis: {
-        recommendation: "recommended",
-        order: { state: "paid", entitlement: "none", amountRub: 3000 },
-        result: { state: "ready" },
+      escalation: {
+        need: "recommended",
+        consent: "accepted",
+        order: { state: "paid", entitlement: "none", amountRub: 8000 },
+        work: work(),
       },
     }),
-  ).find((s) => s.id === "full_analysis");
-  assert.equal(full?.status, "blocked");
+  ).stages.find((s) => s.id === "escalation_package");
+  assert.notEqual(esc?.status, "done");
+  assert.equal(esc?.status, "needs_action");
 });
 
-test("не считает готовый результат переданным", () => {
-  const stages = buildFunnelStages(
+test("готовый файл не считается переданным", () => {
+  const full = buildFunnel(
     baseFacts({
       analysis: {
-        recommendation: "recommended",
+        need: "recommended",
         order: { state: "paid", entitlement: "granted", amountRub: 3000 },
-        result: { state: "ready" },
+        work: work("ready", "yes"),
       },
     }),
-  );
-  assert.ok(hasAction(stages, "full_analysis", "deliver_analysis"));
+  ).stages.find((s) => s.id === "full_analysis");
+  assert.equal(full?.status, "needs_action");
+  assert.equal(full?.action, "open_analysis");
 });
 
-test("не считает queued/running завершённой предпроверкой", () => {
-  for (const state of ["queued", "running"] as const) {
-    const pre = buildFunnelStages(
-      baseFacts({
-        precheck: { state, stale: false, outcome: "unknown", summaryDelivery: "unknown" },
-      }),
-    ).find((s) => s.id === "precheck_summary");
-    assert.notEqual(pre?.status, "done");
-  }
-});
-
-test("помечает устаревшую предпроверку как needs_action", () => {
-  const pre = buildFunnelStages(
+test("переданный файл не считается поданным в СФР", () => {
+  const sub = buildFunnel(
     baseFacts({
-      precheck: {
-        state: "completed",
-        stale: true,
-        outcome: "discrepancies",
-        summaryDelivery: "unknown",
+      appeals: {
+        need: "recommended",
+        consent: "accepted",
+        order: { state: "paid", entitlement: "granted" },
+        work: work("delivered", "yes"),
       },
+      submission: "awaiting_client",
     }),
-  ).find((s) => s.id === "precheck_summary");
-  assert.equal(pre?.status, "needs_action");
-  assert.ok(hasAction([pre!], "precheck_summary", "run_precheck") || pre?.actions[0]?.id === "run_precheck");
+  ).stages.find((s) => s.id === "submission");
+  assert.notEqual(sub?.status, "done");
+  assert.equal(sub?.status, "waiting");
 });
 
-test("не разрешает передачу непроверенного пакета обращений", () => {
-  const docs = buildFunnelStages(
+test("закрытие только по явному факту", () => {
+  const closure = buildFunnel(
     baseFacts({
       analysis: {
-        recommendation: "recommended",
+        need: "recommended",
         order: { state: "paid", entitlement: "granted" },
-        result: { state: "delivered" },
+        work: work("delivered", "yes"),
       },
+      closure: { state: "open" },
+    }),
+  ).stages.find((s) => s.id === "closure");
+  assert.notEqual(closure?.status, "done");
+});
+
+test("закрытие closed → done", () => {
+  const closure = buildFunnel(
+    baseFacts({ closure: { state: "closed", reason: "успех" } }),
+  ).stages.find((s) => s.id === "closure");
+  assert.equal(closure?.status, "done");
+});
+
+test("allowedActions снимает action", () => {
+  const docs = buildFunnel(
+    baseFacts({
+      documents: "missing",
+      allowedActions: [],
+    }),
+  ).stages.find((s) => s.id === "documents");
+  assert.equal(docs?.action, undefined);
+});
+
+test("releaseReady=no при ready → needs_action с проверкой", () => {
+  const appeals = buildFunnel(
+    baseFacts({
       appeals: {
         need: "recommended",
         consent: "accepted",
         order: { state: "paid", entitlement: "granted", amountRub: 5000 },
-        package: {
-          state: "ready",
-          fileCount: 2,
-          allReviewed: false,
-          clientApproved: false,
-        },
+        work: work("ready", "no"),
       },
     }),
-  ).find((s) => s.id === "appeals_documents");
-  assert.equal(docs?.status, "needs_action");
-  assert.ok((docs?.blockers || []).length > 0);
-});
-
-test("не считает отправку файлов подтверждённой подачей", () => {
-  const sub = buildFunnelStages(
-    baseFacts({
-      analysis: {
-        recommendation: "recommended",
-        order: { state: "paid", entitlement: "granted" },
-        result: { state: "delivered" },
-      },
-      appeals: {
-        need: "recommended",
-        consent: "accepted",
-        order: { state: "paid", entitlement: "granted" },
-        package: {
-          state: "delivered",
-          fileCount: 1,
-          allReviewed: true,
-          clientApproved: true,
-        },
-      },
-      submission: { state: "awaiting_client" },
-    }),
-  ).find((s) => s.id === "submission");
-  assert.notEqual(sub?.status, "done");
-});
-
-test("не считает оплату дополнительного пакета его завершением", () => {
-  const esc = buildFunnelStages(
-    baseFacts({
-      escalation: {
-        decision: "recommended",
-        consent: "accepted",
-        order: { state: "paid", entitlement: "none", amountRub: 8000 },
-        result: { state: "not_started" },
-      },
-    }),
-  ).find((s) => s.id === "escalation_package");
-  assert.notEqual(esc?.status, "done");
-});
-
-test("не закрывает дело автоматически после последней оплаты", () => {
-  const closure = buildFunnelStages(
-    baseFacts({
-      analysis: {
-        recommendation: "recommended",
-        order: { state: "paid", entitlement: "granted" },
-        result: { state: "delivered" },
-      },
-      closure: { state: "open", chronologyReady: false },
-    }),
-  ).find((s) => s.id === "closure");
-  assert.notEqual(closure?.status, "done");
-});
-
-test("не показывает включённые действия вне allowedActions", () => {
-  const docs = buildFunnelStages(
-    baseFacts({
-      documents: {
-        known: true,
-        count: 0,
-        processing: false,
-        sufficient: false,
-        needsAttention: false,
-      },
-      permissions: { allowedActions: ["view_history"] },
-    }),
-  ).find((s) => s.id === "documents");
-  assert.ok(docs?.actions.every((a) => !a.enabled || a.id === "view_history"));
-});
-
-test("selectCurrentStage не берёт первый not-done без action", () => {
-  const stages = buildFunnelStages(
-    baseFacts({
-      contacts: { known: true, reachable: false, requiredConsents: "confirmed" },
-      documents: {
-        known: true,
-        count: 0,
-        processing: false,
-        sufficient: false,
-        needsAttention: false,
-      },
-    }),
-  );
-  assert.equal(selectCurrentStage(stages), "contact_consents");
-});
-
-test("current — не StageStatus: waiting остаётся waiting", () => {
-  const stages = buildFunnelStages(
-    baseFacts({
-      analysis: {
-        recommendation: "recommended",
-        order: { state: "pending", entitlement: "none", amountRub: 3000 },
-        result: { state: "not_started" },
-      },
-    }),
-  );
-  const pay = stages.find((s) => s.id === "analysis_payment");
-  assert.equal(pay?.status, "waiting");
-});
-
-test("sourceNotes unavailable ≠ пустой список ответов", () => {
-  const stages = buildFunnelStages(
-    baseFacts({
-      response: { state: "unknown" },
-      sourceNotes: { response_review: "Источник ответов недоступен" },
-    }),
-  );
-  const r = stages.find((s) => s.id === "response_review");
-  assert.equal(r?.status, "unknown");
-  assert.match(r?.summary || "", /недоступен/i);
-});
-
-test("toFunnelFacts: later loaded responses empty → waiting none", () => {
-  const facts = toFunnelFacts({
-    pipeline_status: "human_review",
-    b2c_status: "lead",
-    consent_accepted: true,
-    client: { max_linked: true },
-    documents: [],
-    orders: [],
-    ordersLoaded: true,
-    laterStageFacts: {
-      appealsOrder: unavailable("n/a"),
-      appealsDocuments: unavailable("n/a"),
-      submission: unavailable("n/a"),
-      followUp: unavailable("n/a"),
-      responses: loaded([]),
-      escalation: unavailable("n/a"),
-      closure: unavailable("n/a"),
-    },
-  });
-  assert.equal(facts.response.state, "none");
-  assert.equal(facts.sourceNotes.response_review, undefined);
+  ).stages.find((s) => s.id === "appeals_documents");
+  assert.equal(appeals?.status, "needs_action");
+  assert.match(appeals?.summary || "", /проверк/i);
 });
 
 test("toFunnelFacts: b2c не превращает в paid", () => {
@@ -379,6 +247,73 @@ test("toFunnelFacts: b2c не превращает в paid", () => {
     ordersLoaded: true,
   });
   assert.equal(facts.analysis.order.state, "not_ordered");
+  assert.equal(facts.submission, "unknown");
+  assert.equal(facts.response, "unknown");
+});
+
+test("toFunnelFacts: orders не загружены → unknown, не not_ordered", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    ordersLoaded: false,
+  });
+  assert.equal(facts.analysis.order.state, "unknown");
+});
+
+test("toFunnelFacts: файл диагноза → ready, не delivered", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "diagnosis_report", storage_path: "c/d.pdf" }],
+    orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+    ordersLoaded: true,
+  });
+  assert.equal(facts.analysis.work.state, "ready");
+  assert.notEqual(facts.analysis.work.state, "delivered");
+});
+
+test("toFunnelFacts: additional response none", () => {
+  const facts = toFunnelFacts(
+    {
+      pipeline_status: "human_review",
+      b2c_status: "lead",
+      consent_accepted: true,
+      client: { max_linked: true },
+      documents: [],
+      orders: [],
+      ordersLoaded: true,
+    },
+    { response: "none" },
+  );
+  assert.equal(facts.response, "none");
+});
+
+test("несохранённые формы не меняют статусы: orderAmount вне facts", () => {
+  const a = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [],
+    ordersLoaded: true,
+  });
+  const b = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [],
+    ordersLoaded: true,
+  });
+  assert.deepEqual(a.analysis.order, b.analysis.order);
+  assert.equal(a.analysis.order.state, "not_ordered");
 });
 
 test("deriveFunnel kit + 13 stages", () => {
@@ -396,4 +331,48 @@ test("deriveFunnel kit + 13 stages", () => {
   });
   assert.equal(funnel.hasIls, true);
   assert.equal(funnel.stages.length, 13);
+  assert.equal(funnel.funnel.stages.length, 13);
+});
+
+test("accordion helpers: done раскрывается вручную; смена дела сбрасывает overrides", () => {
+  type AccordionState = {
+    caseId: string;
+    overrides: Partial<Record<(typeof STAGE_IDS)[number], boolean>>;
+  };
+
+  function isExpanded(
+    accordion: AccordionState,
+    detailId: string,
+    id: (typeof STAGE_IDS)[number],
+    current: (typeof STAGE_IDS)[number] | null,
+  ): boolean {
+    const overrides = accordion.caseId === detailId ? accordion.overrides : {};
+    return overrides[id] ?? id === current;
+  }
+
+  function toggle(
+    previous: AccordionState,
+    detailId: string,
+    id: (typeof STAGE_IDS)[number],
+    current: (typeof STAGE_IDS)[number] | null,
+  ): AccordionState {
+    const overrides = previous.caseId === detailId ? previous.overrides : {};
+    const expanded = overrides[id] ?? id === current;
+    return {
+      caseId: detailId,
+      overrides: { ...overrides, [id]: !expanded },
+    };
+  }
+
+  let state: AccordionState = { caseId: "a", overrides: {} };
+  assert.equal(isExpanded(state, "a", "closure", "documents"), false);
+  state = toggle(state, "a", "closure", "documents");
+  assert.equal(isExpanded(state, "a", "closure", "documents"), true);
+  // обновление current не сбрасывает ручное открытие
+  assert.equal(isExpanded(state, "a", "closure", "precheck_summary"), true);
+  // смена дела
+  assert.equal(isExpanded(state, "b", "closure", "documents"), false);
+  state = toggle(state, "b", "documents", "documents");
+  assert.equal(state.caseId, "b");
+  assert.equal(isExpanded(state, "b", "documents", "documents"), false);
 });

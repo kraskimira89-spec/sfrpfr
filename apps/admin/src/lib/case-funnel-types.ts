@@ -1,6 +1,6 @@
-/** Типы воронки дела (13 UI-ступеней). Заменяет прежнюю типизацию. */
+/** Единые типы 13 ступеней воронки дела. */
 
-export const FUNNEL_STAGE_IDS = [
+export const STAGE_IDS = [
   "contact_consents",
   "documents",
   "precheck_summary",
@@ -16,22 +16,24 @@ export const FUNNEL_STAGE_IDS = [
   "closure",
 ] as const;
 
-export type FunnelStageId = (typeof FUNNEL_STAGE_IDS)[number];
+export type StageId = (typeof STAGE_IDS)[number];
 
 /** @deprecated alias */
-export const STAGE_IDS = FUNNEL_STAGE_IDS;
+export type FunnelStageId = StageId;
 /** @deprecated alias */
-export const FUNNEL_STAGE_ORDER = FUNNEL_STAGE_IDS;
+export const FUNNEL_STAGE_IDS = STAGE_IDS;
+/** @deprecated alias */
+export const FUNNEL_STAGE_ORDER = STAGE_IDS;
 
 export type StageStatus =
+  | "unknown"
   | "not_started"
-  | "in_progress"
+  | "blocked"
   | "waiting"
+  | "in_progress"
   | "needs_action"
   | "done"
-  | "blocked"
-  | "not_required"
-  | "unknown";
+  | "not_required";
 
 /** Визуальная оболочка StageShell (не путать с StageStatus). */
 export type FunnelStageState =
@@ -41,54 +43,6 @@ export type FunnelStageState =
   | "blocked"
   | "overdue"
   | "todo";
-
-export type StageActionId =
-  | "edit_contacts"
-  | "request_consents"
-  | "upload_documents"
-  | "run_precheck"
-  | "view_precheck"
-  | "send_summary"
-  | "open_analysis_order"
-  | "prepare_analysis"
-  | "deliver_analysis"
-  | "request_appeals_consent"
-  | "open_appeals_order"
-  | "prepare_appeals"
-  | "deliver_appeals"
-  | "record_submission"
-  | "request_submission_help"
-  | "schedule_call"
-  | "record_follow_up"
-  | "review_response"
-  | "open_escalation"
-  | "review_closure"
-  | "view_history";
-
-/** @deprecated имя — то же, что StageActionId */
-export type FunnelAction = StageActionId;
-
-export type StageAction = Readonly<{
-  id: StageActionId;
-  label: string;
-  enabled: boolean;
-  disabledReason?: string;
-}>;
-
-export type StageView = Readonly<{
-  id: FunnelStageId;
-  title: string;
-  status: StageStatus;
-  summary: string;
-  blockers: readonly string[];
-  actions: readonly StageAction[];
-  dueAt?: string;
-}>;
-
-export type FunnelView = Readonly<{
-  stages: readonly StageView[];
-  currentStageId: FunnelStageId | null;
-}>;
 
 export const STAGE_TITLES = {
   contact_consents: "Контакт и согласия",
@@ -104,75 +58,115 @@ export const STAGE_TITLES = {
   response_review: "Ответ СФР и дальнейшие действия",
   escalation_package: "Дополнительные обращения",
   closure: "Итог и завершение дела",
-} as const satisfies Record<FunnelStageId, string>;
+} as const satisfies Record<StageId, string>;
 
-export type Loaded<T> =
-  | Readonly<{ state: "loaded"; value: T }>
-  | Readonly<{ state: "unavailable"; reason: string }>;
+export type ActionId =
+  | "edit_contacts"
+  | "upload_documents"
+  | "run_precheck"
+  | "view_precheck"
+  | "send_summary"
+  | "open_analysis_order"
+  | "open_analysis"
+  | "request_appeals_consent"
+  | "open_appeals_order"
+  | "open_appeals"
+  | "record_submission"
+  | "schedule_call"
+  | "record_follow_up"
+  | "review_response"
+  | "open_escalation"
+  | "review_closure";
 
-export type ServiceOrderFacts = Readonly<{
-  orderId: string | null;
-  status: "not_ordered" | "pending" | "paid" | "canceled" | "refunded" | "unknown";
-  amountRub: number | null;
-  payUrl: string | null;
-  entitlement: "granted" | "none" | "unknown";
-}>;
-
-export type OutgoingDocumentFacts = Readonly<{
-  id: string;
-  versionId: string;
+export type StageView = Readonly<{
+  id: StageId;
   title: string;
-  recipient: string;
-  formats: readonly ("docx" | "pdf")[];
-  review: "draft" | "reviewed";
-  clientApproval: "not_requested" | "pending" | "approved";
-  delivery: "not_sent" | "queued" | "confirmed" | "unknown";
+  status: StageStatus;
+  summary: string;
+  blockers: readonly string[];
+  action?: ActionId;
+  dueAt?: string;
 }>;
 
-export type SubmissionFacts = Readonly<{
-  status: "not_started" | "awaiting_client" | "help_requested" | "confirmed";
-  recipient: string | null;
-  submittedAt: string | null;
-  referenceNumber: string | null;
+export type FunnelView = Readonly<{
+  stages: readonly StageView[];
+  currentStageId: StageId | null;
 }>;
 
-export type FollowUpFacts = Readonly<{
-  status: "inactive" | "active" | "paused" | "completed";
-  nextCheckAt: string | null;
-  callRequired: boolean;
-  openCallTaskId: string | null;
+export type Decision =
+  | "unknown"
+  | "not_requested"
+  | "pending"
+  | "accepted"
+  | "declined";
+
+export type Need = "unknown" | "not_needed" | "recommended";
+
+export type OrderFacts = Readonly<{
+  state: "unknown" | "not_ordered" | "pending" | "paid" | "canceled" | "refunded";
+  amountRub?: number;
+  entitlement: "unknown" | "none" | "granted";
 }>;
 
-export type ResponseFacts = Readonly<{
-  documentId: string;
-  status: "received" | "reviewing" | "reviewed";
-  kind: "request_documents" | "positive" | "partial" | "refusal" | "other" | "undetermined";
-  dueAt: string | null;
-  nextStep: string | null;
+export type WorkFacts = Readonly<{
+  state: "unknown" | "not_started" | "working" | "ready" | "delivered";
+  /** Весь согласованный пакет проверен и готов к выдаче — не один файл и не оплата. */
+  releaseReady: "unknown" | "no" | "yes";
 }>;
 
-export type EscalationFacts = Readonly<{
-  decision: "undetermined" | "not_needed" | "recommended";
-  consent: "not_requested" | "pending" | "accepted" | "declined";
-  order: ServiceOrderFacts;
-  documents: readonly OutgoingDocumentFacts[];
-}>;
+export type FunnelFacts = Readonly<{
+  contact: "unknown" | "incomplete" | "complete";
+  documents: "unknown" | "missing" | "processing" | "needs_action" | "ready";
 
-export type ClosureFacts = Readonly<{
-  status: "open" | "review_required" | "closed";
-  reason: string | null;
-  closedAt: string | null;
-  chronologyReady: boolean;
-}>;
+  precheck: {
+    state: "unknown" | "not_started" | "queued" | "running" | "failed" | "completed";
+    stale: boolean;
+    outcome: "unknown" | "clear" | "discrepancies" | "clarify";
+    summaryDelivery: "unknown" | "not_sent" | "confirmed";
+  };
 
-export type LaterStageFacts = Readonly<{
-  appealsOrder: Loaded<ServiceOrderFacts>;
-  appealsDocuments: Loaded<readonly OutgoingDocumentFacts[]>;
-  submission: Loaded<SubmissionFacts>;
-  followUp: Loaded<FollowUpFacts>;
-  responses: Loaded<readonly ResponseFacts[]>;
-  escalation: Loaded<EscalationFacts>;
-  closure: Loaded<ClosureFacts>;
+  analysis: {
+    need: Need;
+    order: OrderFacts;
+    work: WorkFacts;
+  };
+
+  appeals: {
+    need: Need;
+    consent: Decision;
+    order: OrderFacts;
+    work: WorkFacts;
+  };
+
+  submission:
+    | "unknown"
+    | "not_started"
+    | "awaiting_client"
+    | "help_requested"
+    | "confirmed";
+
+  followUp: {
+    state: "unknown" | "inactive" | "active" | "paused" | "completed";
+    callRequired: boolean;
+    dueAt?: string;
+  };
+
+  response: "unknown" | "none" | "received" | "reviewing" | "reviewed";
+
+  escalation: {
+    need: Need;
+    consent: Decision;
+    order: OrderFacts;
+    work: WorkFacts;
+  };
+
+  closure: {
+    state: "unknown" | "open" | "review_required" | "closed";
+    reason?: string;
+  };
+
+  preferredStageId?: StageId;
+  allowedActions: readonly ActionId[];
 }>;
 
 export type LegacyStageId =
@@ -184,7 +178,6 @@ export type LegacyStageId =
   | "result"
   | "knowledge";
 
-/** Навигационная совместимость; payment намеренно null (три коммерческих этапа). */
 export const LEGACY_TO_NEW = {
   contact: "contact_consents",
   documents: "documents",
@@ -193,26 +186,4 @@ export const LEGACY_TO_NEW = {
   payment: null,
   result: "response_review",
   knowledge: "closure",
-} as const satisfies Record<LegacyStageId, FunnelStageId | null>;
-
-export function loaded<T>(value: T): Loaded<T> {
-  return { state: "loaded", value };
-}
-
-export function unavailable<T>(reason: string): Loaded<T> {
-  return { state: "unavailable", reason };
-}
-
-export function defaultLaterStageFactsUnavailable(
-  reason = "Источник данных этапа ещё не подключён к API",
-): LaterStageFacts {
-  return {
-    appealsOrder: unavailable(reason),
-    appealsDocuments: unavailable(reason),
-    submission: unavailable(reason),
-    followUp: unavailable(reason),
-    responses: unavailable(reason),
-    escalation: unavailable(reason),
-    closure: unavailable(reason),
-  };
-}
+} as const satisfies Record<LegacyStageId, StageId | null>;

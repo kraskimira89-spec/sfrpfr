@@ -354,41 +354,43 @@ function StageShell({
   children: ReactNode;
 }) {
   const hint = summary || reason;
-  if (!expanded) {
-    return (
-      <div
-        id={id}
-        className={`panel funnel-stage funnel-stage--${state}${state === "done" ? " funnel-stage--done-compact" : ""}`}
-      >
+  const buttonId = `${id}-button`;
+  const panelId = `${id}-panel`;
+  return (
+    <section
+      id={id}
+      className={`panel funnel-stage funnel-stage--${state}${
+        !expanded && state === "done" ? " funnel-stage--done-compact" : ""
+      }`}
+    >
+      <h2 className="funnel-stage-heading">
         <button
+          id={buttonId}
           type="button"
           className="funnel-stage-toggle"
           onClick={onToggle}
           title={reason}
-          aria-expanded={false}
+          aria-expanded={expanded}
+          aria-controls={panelId}
         >
           <StageMark state={state} />
           <strong>{title}</strong>
-          <span className="hint">{state === "done" ? "готово · " : ""}{hint}</span>
+          <span className="hint">
+            {!expanded && state === "done" ? "готово · " : ""}
+            {hint}
+          </span>
         </button>
-      </div>
-    );
-  }
-  return (
-    <div id={id} className={`panel funnel-stage funnel-stage--${state}`}>
-      <button
-        type="button"
-        className="funnel-stage-toggle"
-        onClick={onToggle}
-        title={reason}
-        aria-expanded={true}
+      </h2>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        className="funnel-stage-body"
+        hidden={!expanded}
       >
-        <StageMark state={state} />
-        <strong>{title}</strong>
-        <span className="hint">{hint}</span>
-      </button>
-      <div className="funnel-stage-body">{children}</div>
-    </div>
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -604,10 +606,13 @@ export function CaseFunnelMain({
       return false;
     }
   });
-  type OpenState = { caseId: string; values: Partial<Record<FunnelStageId, boolean>> };
-  const [openState, setOpenState] = useState<OpenState>({
+  type AccordionState = {
+    caseId: string;
+    overrides: Partial<Record<FunnelStageId, boolean>>;
+  };
+  const [accordion, setAccordion] = useState<AccordionState>({
     caseId: detail.id,
-    values: {},
+    overrides: {},
   });
   const [repOpen, setRepOpen] = useState(false);
 
@@ -622,17 +627,17 @@ export function CaseFunnelMain({
 
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
-    const values = openState.caseId === detail.id ? openState.values : {};
-    return values[id] ?? id === current;
+    const overrides = accordion.caseId === detail.id ? accordion.overrides : {};
+    return overrides[id] ?? id === current;
   }
 
   function toggleStage(id: FunnelStageId) {
-    setOpenState((previous) => {
-      const values = previous.caseId === detail.id ? previous.values : {};
-      const currentlyOpen = values[id] ?? id === current;
+    setAccordion((previous) => {
+      const overrides = previous.caseId === detail.id ? previous.overrides : {};
+      const expanded = overrides[id] ?? id === current;
       return {
         caseId: detail.id,
-        values: { ...values, [id]: !currentlyOpen },
+        overrides: { ...overrides, [id]: !expanded },
       };
     });
     requestAnimationFrame(() => {

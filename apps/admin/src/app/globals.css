@@ -1170,6 +1170,11 @@ button.badge--clickable:hover {
   color: var(--muted);
   font-weight: 600;
 }
+.funnel-stage-heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
 /* Глобальный button = белый текст; у тоггла этапа сбрасываем */
 .funnel-stage-toggle {
   display: flex;
