@@ -24,8 +24,11 @@
 
 | Файл | Роль |
 |------|------|
-| `apps/admin/src/lib/case-funnel.ts` | `FunnelFacts` → `buildFunnelStages` / `selectCurrentStage` |
-| `apps/admin/src/lib/case-funnel-facts.ts` | `toFunnelFacts(detail)` — единственный маппинг DTO |
+| `apps/admin/src/lib/case-funnel-types.ts` | ID, `StageStatus`, `StageAction`, `Loaded`, `LaterStageFacts`, `LEGACY_TO_NEW` |
+| `apps/admin/src/lib/case-funnel.ts` | `buildFunnelStages` / `selectCurrentStage` / `FunnelView` |
+| `apps/admin/src/lib/case-funnel-facts.ts` | `toFunnelFacts({ detail, laterStageFacts })` |
 
-Правила: `unknown` при ошибке/неполноте чтения; не `b2c → paid`; `delivered` только по подтверждённой передаче; ACCOMP 5k/8k различаются по `amount_rub`, иначе unknown.  
-`FunnelStageId` — UI-only; в pipeline/b2c не пишем.
+Слои: backend-факты → статус этапа; React-state → только раскрытие и формы (`busy` ≠ `in_progress`).  
+`current` не является `StageStatus` — это `FunnelView.currentStageId`.  
+Ступени 7–13 без `LaterStageFacts` → `sourceNotes` / `unknown`, не выдумка из `audit`.  
+`payment` legacy → `null` (три коммерческих этапа).

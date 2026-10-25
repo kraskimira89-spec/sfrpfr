@@ -2,13 +2,15 @@
 
 import type {
   DeliverableFacts,
-  FunnelAction,
   FunnelFacts,
   FunnelStageId,
+  LaterStageFacts,
   OrderFacts,
+  StageActionId,
 } from "./case-funnel";
 import {
   buildFunnelStages,
+  defaultLaterStageFactsUnavailable,
   selectCurrentStage,
   viewsToFunnelStages,
   type FunnelStage,
@@ -72,6 +74,11 @@ export type CaseFunnelDetailInput = {
     can_view_ocr?: boolean;
     can_knowledge_feedback?: boolean;
   };
+  /**
+   * Подтверждённые источники ступеней 7–13.
+   * По умолчанию — unavailable (не выводить из audit/b2c).
+   */
+  laterStageFacts?: LaterStageFacts;
 };
 
 function hasDocType(
@@ -157,22 +164,23 @@ function emptyOrderNone(): OrderFacts {
 
 function allowedActionsFromCaps(
   caps: CaseFunnelDetailInput["role_capabilities"],
-): FunnelAction[] {
-  const all: FunnelAction[] = [
+): StageActionId[] {
+  const all: StageActionId[] = [
     "edit_contacts",
     "request_consents",
     "upload_documents",
     "run_precheck",
     "view_precheck",
     "send_summary",
-    "view_analysis_order",
+    "open_analysis_order",
     "prepare_analysis",
     "deliver_analysis",
     "request_appeals_consent",
-    "view_appeals_order",
+    "open_appeals_order",
     "prepare_appeals",
     "deliver_appeals",
     "record_submission",
+    "request_submission_help",
     "schedule_call",
     "record_follow_up",
     "review_response",
@@ -185,7 +193,7 @@ function allowedActionsFromCaps(
     if (a === "run_precheck" || a === "view_precheck" || a === "prepare_analysis") {
       return caps.can_view_ocr !== false;
     }
-    if (a === "view_analysis_order" || a === "view_appeals_order" || a === "open_escalation") {
+    if (a === "open_analysis_order" || a === "open_appeals_order" || a === "open_escalation") {
       return caps.can_manage_orders !== false;
     }
     if (a === "review_closure") return caps.can_knowledge_feedback !== false;
@@ -194,11 +202,27 @@ function allowedActionsFromCaps(
   });
 }
 
+function serviceOrderToOrderFacts(o: {
+  status: string;
+  amountRub: number | null;
+  entitlement: "granted" | "none" | "unknown";
+}): OrderFacts {
+  const st = o.status as OrderFacts["state"];
+  return {
+    state: ["not_ordered", "pending", "paid", "canceled", "refunded", "unknown"].includes(st)
+      ? st
+      : "unknown",
+    amountRub: o.amountRub ?? undefined,
+    entitlement: o.entitlement,
+  };
+}
+
 /**
  * Единственная точка сопоставления DTO → FunnelFacts.
  * Отсутствующие/неоднозначные факты → unknown / not_ordered только когда список заказов реально пуст.
  */
 export function toFunnelFacts(detail: CaseFunnelDetailInput): FunnelFacts {
+  const later = detail.laterStageFacts ?? defaultLaterStageFactsUnavailable();
   const docs = detail.documents || [];
   const items = detail.checklist_items || [];
   const ordersLoaded = detail.ordersLoaded !== false && Array.isArray(detail.orders);
@@ -321,38 +345,113 @@ export function toFunnelFacts(detail: CaseFunnelDetailInput): FunnelFacts {
   // иначе unknown — не путать согласие ПДн с согласием на обращения
 
   const hasDraft = Boolean(detail.draft?.body);
-  const appealsPackage: FunnelFacts["appeals"]["package"] = {
-    // Один draft ≠ реестр отдельных файлов обращений.
+  let appealsPackage: FunnelFacts["appeals"]["package"] = {
     state: hasDraft ? "working" : "not_started",
     fileCount: hasDraft ? 1 : 0,
     allReviewed: false,
     clientApproved: false,
+    registryMissing: true,
   };
 
-  let submissionState: FunnelFacts["submission"]["state"] = "unknown";
+  const sourceNotes: FunnelFacts["sourceNotes"] = {};
   const b2c = detail.b2c_status;
-  if (b2c === "awaiting_client_submission") submissionState = "awaiting_client";
-  else if (["result_pending", "result_confirmed", "success_fee_due", "success_fee_paid", "closed"].includes(b2c)) {
-    // result_* не доказывает подтверждённую подачу клиентом — только что процесс ушёл дальше.
-    submissionState = "unknown";
-  } else if (b2c === "package_delivered") {
-    submissionState = "not_started";
+
+  // 7: заказ обращений — LaterStageFacts или ACCOMP×5000 из detail.orders.
+  if (later.appealsOrder.state === "loaded") {
+    appealsOrder = serviceOrderToOrderFacts(later.appealsOrder.value);
+  } else if (appealsOrder.state === "not_ordered" || appealsOrder.state === "unknown") {
+    if (appealsOrder.state === "not_ordered" && ordersLoaded) {
+      /* ok — нет заказа */
+    } else if (!ordersLoaded) {
+      sourceNotes.appeals_payment = later.appealsOrder.reason;
+    }
+  }
+
+  // 8: реестр исходящих
+  if (later.appealsDocuments.state === "loaded") {
+    const docsOut = later.appealsDocuments.value;
+    const allDelivered =
+      docsOut.length > 0 && docsOut.every((d) => d.delivery === "confirmed");
+    appealsPackage = {
+      state: allDelivered ? "delivered" : docsOut.length > 0 ? "ready" : "not_started",
+      fileCount: docsOut.length,
+      allReviewed: docsOut.length > 0 && docsOut.every((d) => d.review === "reviewed"),
+      clientApproved:
+        docsOut.length > 0 && docsOut.every((d) => d.clientApproval === "approved"),
+      registryMissing: false,
+    };
+  } else if (hasDraft) {
+    sourceNotes.appeals_documents =
+      "Есть один draft; реестр отдельных исходящих документов в API не подключён";
   } else {
-    submissionState = "not_started";
+    sourceNotes.appeals_documents = later.appealsDocuments.reason;
   }
 
-  // confirmed подачи в DTO пока нет — не активируем follow-up по догадке.
-  let followState: FunnelFacts["followUp"]["state"] = "inactive";
-  if (submissionState === "unknown") followState = "unknown";
-  else if (submissionState === "awaiting_client") followState = "inactive";
-
-  let responseState: FunnelFacts["response"]["state"] = "none";
-  if (b2c === "result_pending") responseState = "received";
-  else if (["result_confirmed", "success_fee_due", "success_fee_paid", "closed"].includes(b2c)) {
-    responseState = "reviewed";
+  // 9–11, follow_up: без LaterStageFacts не выводим из b2c/audit.
+  let submissionState: FunnelFacts["submission"]["state"] = "unknown";
+  if (later.submission.state === "loaded") {
+    submissionState = later.submission.value.status;
+  } else {
+    sourceNotes.submission = later.submission.reason;
   }
 
-  const closed = b2c === "closed" || Boolean(detail.closed_at);
+  let followState: FunnelFacts["followUp"]["state"] = "unknown";
+  let callDue = false;
+  let nextCheckAt: string | undefined;
+  if (later.followUp.state === "loaded") {
+    followState = later.followUp.value.status;
+    callDue = later.followUp.value.callRequired;
+    nextCheckAt = later.followUp.value.nextCheckAt || undefined;
+  } else {
+    sourceNotes.follow_up = later.followUp.reason;
+  }
+
+  let responseState: FunnelFacts["response"]["state"] = "unknown";
+  if (later.responses.state === "loaded") {
+    const list = later.responses.value;
+    if (list.length === 0) responseState = "none";
+    else if (list.some((r) => r.status === "reviewing")) responseState = "reviewing";
+    else if (list.every((r) => r.status === "reviewed")) responseState = "reviewed";
+    else responseState = "received";
+  } else {
+    sourceNotes.response_review = later.responses.reason;
+  }
+
+  let escDecision: FunnelFacts["escalation"]["decision"] = "unknown";
+  let escConsent: FunnelFacts["escalation"]["consent"] = "unknown";
+  let escResult: DeliverableFacts = { state: "not_started" };
+  if (later.escalation.state === "loaded") {
+    const esc = later.escalation.value;
+    escDecision =
+      esc.decision === "undetermined"
+        ? "unknown"
+        : esc.decision === "not_needed"
+          ? "not_needed"
+          : "recommended";
+    escConsent = esc.consent;
+    escalationOrder = serviceOrderToOrderFacts(esc.order);
+    const allDel =
+      esc.documents.length > 0 && esc.documents.every((d) => d.delivery === "confirmed");
+    escResult = {
+      state: allDel ? "delivered" : esc.documents.length > 0 ? "ready" : "not_started",
+    };
+  } else if (escalationOrder.state === "not_ordered" && ordersLoaded) {
+    sourceNotes.escalation_package = later.escalation.reason;
+  } else if (!ordersLoaded) {
+    sourceNotes.escalation_package = later.escalation.reason;
+  }
+
+  let closureState: FunnelFacts["closure"]["state"] = "open";
+  let chronologyReady = false;
+  let closureReason: string | undefined = detail.loss_reason || undefined;
+  if (later.closure.state === "loaded") {
+    closureState = later.closure.value.status;
+    chronologyReady = later.closure.value.chronologyReady;
+    closureReason = later.closure.value.reason || closureReason;
+  } else {
+    const closed = b2c === "closed" || Boolean(detail.closed_at);
+    closureState = closed ? "closed" : "open";
+  }
 
   return {
     contacts: {
@@ -371,7 +470,6 @@ export function toFunnelFacts(detail: CaseFunnelDetailInput): FunnelFacts {
       state: precheckState,
       stale: Boolean(check?.stale) || brief?.current === false,
       outcome,
-      // Доставка резюме клиенту в DTO явно не подтверждена → unknown (не not_sent по умолчанию).
       summaryDelivery: "unknown",
     },
     analysis: {
@@ -380,7 +478,6 @@ export function toFunnelFacts(detail: CaseFunnelDetailInput): FunnelFacts {
       result: analysisResult,
     },
     appeals: {
-      // План обращений после полного анализа в DTO явно не размечен → unknown.
       need: "unknown",
       consent: appealsConsent,
       order: appealsOrder,
@@ -389,21 +486,22 @@ export function toFunnelFacts(detail: CaseFunnelDetailInput): FunnelFacts {
     submission: { state: submissionState },
     followUp: {
       state: followState,
-      callDue: false,
-      nextCheckAt: detail.next_action_at || undefined,
+      callDue,
+      nextCheckAt,
     },
     response: { state: responseState },
     escalation: {
-      decision: "unknown",
-      consent: "unknown",
+      decision: escDecision,
+      consent: escConsent,
       order: escalationOrder,
-      result: { state: "not_started" },
+      result: escResult,
     },
     closure: {
-      state: closed ? "closed" : "open",
-      reason: detail.loss_reason || undefined,
-      chronologyReady: false,
+      state: closureState,
+      reason: closureReason,
+      chronologyReady,
     },
+    sourceNotes,
     permissions: { allowedActions: allowedActionsFromCaps(detail.role_capabilities) },
   };
 }

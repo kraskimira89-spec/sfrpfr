@@ -604,14 +604,12 @@ export function CaseFunnelMain({
       return false;
     }
   });
-  const [openIds, setOpenIds] = useState<FunnelStageId[]>(() => [current]);
-  const [caseKey, setCaseKey] = useState(detail.id);
+  type OpenState = { caseId: string; values: Partial<Record<FunnelStageId, boolean>> };
+  const [openState, setOpenState] = useState<OpenState>({
+    caseId: detail.id,
+    values: {},
+  });
   const [repOpen, setRepOpen] = useState(false);
-
-  if (caseKey !== detail.id) {
-    setCaseKey(detail.id);
-    setOpenIds([current]);
-  }
 
   function setShowAllPersist(v: boolean) {
     setShowAll(v);
@@ -624,21 +622,24 @@ export function CaseFunnelMain({
 
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
-    if (openIds.includes(id)) return true;
-    return openIds.length === 0 && id === current;
+    const values = openState.caseId === detail.id ? openState.values : {};
+    return values[id] ?? id === current;
   }
 
   function toggleStage(id: FunnelStageId) {
-    setOpenIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      return [...prev, id];
+    setOpenState((previous) => {
+      const values = previous.caseId === detail.id ? previous.values : {};
+      const currentlyOpen = values[id] ?? id === current;
+      return {
+        caseId: detail.id,
+        values: { ...values, [id]: !currentlyOpen },
+      };
     });
     requestAnimationFrame(() => {
       document.getElementById(`funnel-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
-  /** @deprecated alias — stepper клики тоже toggle */
   function scrollStage(id: FunnelStageId) {
     toggleStage(id);
   }
@@ -1592,29 +1593,34 @@ export function CaseFunnelMain({
             expanded={isExpanded(id)}
             onToggle={() => toggleStage(id)}
           >
-            {id === "full_analysis" ? (
-              <>
-                <p className="hint">
-                  Выдача полного результата клиенту — только при подтверждённом праве на услугу
-                  (серверная связка — отдельная фаза). Сейчас: состояние по фактам.
-                </p>
-                <p>
-                  PDF диагностики:{" "}
-                  {detail.documents.some((d) =>
-                    `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
-                  )
-                    ? "есть в деле"
-                    : "нет"}
-                  {" · "}
-                  Оплата (адаптер): {funnel.paymentKnown}
-                </p>
-                {stageById[id].status === "unknown" || stageById[id].status === "blocked" ? (
-                  <NotWiredNote label="Новые действия выдачи" />
-                ) : null}
-              </>
-            ) : (
+            <p className="hint">{stageById[id].shortSummary}</p>
+            {stageById[id].blockers.length > 0 ? (
+              <ul className="plain-list">
+                {stageById[id].blockers.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            ) : null}
+            {stageById[id].status === "unknown" ? (
               <NotWiredNote label={stageById[id].label} />
+            ) : (
+              <p className="hint">
+                Панель этапа в фазе 1 показывает статус адаптера. Полный UI и backend-факты —
+                отдельными задачами; раскрытие не запускает оплаты и отправки.
+              </p>
             )}
+            {id === "full_analysis" ? (
+              <p className="hint">
+                PDF диагностики:{" "}
+                {detail.documents.some((d) =>
+                  `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+                )
+                  ? "есть в деле"
+                  : "нет"}
+                {" · "}
+                Оплата (адаптер): {funnel.paymentKnown}
+              </p>
+            ) : null}
           </StageShell>
         ))}
 
