@@ -5,8 +5,10 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Out = Join-Path $Root "secrets\supabase-selfhost-mcp.env"
 
-$SshHost = if ($env:SFRFR_SUPABASE_SSH_HOST) { $env:SFRFR_SUPABASE_SSH_HOST } else { "51.250.69.237" }
-$SshUser = if ($env:SFRFR_SUPABASE_SSH_USER) { $env:SFRFR_SUPABASE_SSH_USER } else { "sfrfr" }
+# Канон SoT после SFRFR-73: supabase2 (reg.ru). YC — только через SFRFR_SUPABASE_SSH_HOST.
+$SshHost = if ($env:SFRFR_SUPABASE_SSH_HOST) { $env:SFRFR_SUPABASE_SSH_HOST } else { "194.67.116.168" }
+$defaultUser = if ($SshHost -eq "194.67.116.168") { "root" } else { "sfrfr" }
+$SshUser = if ($env:SFRFR_SUPABASE_SSH_USER) { $env:SFRFR_SUPABASE_SSH_USER } else { $defaultUser }
 $SshTarget = "${SshUser}@${SshHost}"
 
 $sshKey = Join-Path $env:USERPROFILE ".ssh\id_ed25519"
