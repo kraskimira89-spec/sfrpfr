@@ -1,14 +1,16 @@
 "use client";
 
 import {
+  addedDocumentsFromWork,
   chapterTitle,
   chaptersFromWork,
   currentChapterId,
   kitMarksFromWork,
   nextStepFromWork,
-  recentEventsFromWork,
   requiredProgressLabel,
+  resolveRoutePrimaryAction,
   type ClientWorkLike,
+  type RoutePrimaryAction,
 } from "@/lib/case-route";
 
 type Props = {
@@ -17,7 +19,8 @@ type Props = {
   busy?: boolean;
   expertAssigned?: boolean;
   warning: string;
-  onPrimaryAction: () => void;
+  hasContractHandler?: boolean;
+  onPrimaryAction: (action: Exclude<RoutePrimaryAction, { kind: "unavailable" } | { kind: "none" }>) => void;
 };
 
 function chapterMark(state: string) {
@@ -40,6 +43,7 @@ export function CaseRoutePanel({
   busy,
   expertAssigned,
   warning,
+  hasContractHandler,
   onPrimaryAction,
 }: Props) {
   const chapters = chaptersFromWork(work);
@@ -47,8 +51,16 @@ export function CaseRoutePanel({
   const { heading, lead } = chapterTitle(chapterId);
   const step = nextStepFromWork(work);
   const kit = kitMarksFromWork(work);
-  const events = recentEventsFromWork(work);
+  const addedDocs = addedDocumentsFromWork(work);
   const progress = requiredProgressLabel(work);
+  const action = resolveRoutePrimaryAction(work, { hasContractHandler });
+  const unavailable = action.kind === "unavailable" ? action.reason : null;
+  const canRun =
+    action.kind === "consent" ||
+    action.kind === "contract" ||
+    action.kind === "pay" ||
+    action.kind === "upload" ||
+    action.kind === "result";
 
   return (
     <section className="case-route panel accent" aria-labelledby="case-route-title">
@@ -85,9 +97,29 @@ export function CaseRoutePanel({
           <strong>{step.title}</strong>
         </p>
         <p>{step.why}</p>
+        {step.consequenceHint ? <p className="hint case-route-consequence">{step.consequenceHint}</p> : null}
+        {unavailable ? (
+          <p className="hint doc-alert" role="status">
+            {unavailable}
+          </p>
+        ) : null}
         <div className="case-route-actions">
-          {step.mode === "action" && step.primaryLabel ? (
-            <button type="button" disabled={busy} onClick={onPrimaryAction}>
+          {step.mode === "action" && step.primaryLabel && canRun ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (
+                  action.kind === "consent" ||
+                  action.kind === "contract" ||
+                  action.kind === "pay" ||
+                  action.kind === "upload" ||
+                  action.kind === "result"
+                ) {
+                  onPrimaryAction(action);
+                }
+              }}
+            >
               {step.primaryLabel}
             </button>
           ) : null}
@@ -97,15 +129,17 @@ export function CaseRoutePanel({
             </a>
           ) : null}
           <a className="secondary" href="#case-chat-input">
-            {step.mode === "waiting" ? "Задать вопрос" : "Нужна помощь"}
+            {step.helpLabel}
           </a>
-          {step.mode === "action" ? (
+          {step.showCantGetDocument ? (
             <a className="secondary" href="#case-chat-input">
               Не могу получить документ
             </a>
           ) : null}
         </div>
-        <p className="hint">Можно продолжить позже — загруженные файлы сохраняются в деле.</p>
+        {step.showContinueLaterHint ? (
+          <p className="hint">Можно продолжить позже — загруженные файлы сохраняются в деле.</p>
+        ) : null}
       </div>
 
       {kit.length > 0 ? (
@@ -145,14 +179,14 @@ export function CaseRoutePanel({
       </div>
 
       <div className="case-route-events">
-        <h3>Последние события</h3>
-        {events.length === 0 ? (
-          <p className="hint">Значимые события появятся здесь по мере работы с документами.</p>
+        <h3>Добавленные документы</h3>
+        {addedDocs.length === 0 ? (
+          <p className="hint">Здесь появятся документы после загрузки. Это не хронологическая лента событий.</p>
         ) : (
           <ul className="case-route-events-list">
-            {events.map((event) => (
+            {addedDocs.map((event) => (
               <li key={`${event.when}-${event.text}`}>
-                <span className="case-route-event-when">{event.when}</span>
+                <span className="case-route-event-when">Загружено: {event.when}</span>
                 <span>{event.text}</span>
               </li>
             ))}

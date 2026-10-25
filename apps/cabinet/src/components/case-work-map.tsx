@@ -8,6 +8,7 @@ import {
   CASE_QUESTIONS_INTRO,
 } from "../../../../shared/case-chat-copy";
 import { CaseRoutePanel } from "@/components/case-route-panel";
+import type { RoutePrimaryAction } from "@/lib/case-route";
 
 export type WorkSlot = {
   key: string;
@@ -160,25 +161,28 @@ export function CaseWorkMap({
   const cta = work.cta_key;
   const uploadSlot = firstUploadSlot(work);
 
-  function onRoutePrimary() {
-    if (cta === "consent" && !work.consent_ok) {
+  function onRoutePrimary(
+    action: Exclude<RoutePrimaryAction, { kind: "unavailable" } | { kind: "none" }>,
+  ) {
+    if (action.kind === "consent") {
       onConsent();
       return;
     }
-    if (cta === "contract" && onContract) {
-      onContract();
+    if (action.kind === "contract") {
+      onContract?.();
       return;
     }
-    if (cta === "pay" && work.order.order_id) {
-      onPay(work.order.order_id);
+    if (action.kind === "pay") {
+      onPay(action.orderId);
       return;
     }
-    if ((cta === "result" || cta === "done") && work.result.document_id) {
-      onDownloadResult(work.result.document_id);
+    if (action.kind === "result") {
+      onDownloadResult(action.documentId);
       return;
     }
-    if (uploadSlot) {
-      pickFile(uploadSlot);
+    if (action.kind === "upload") {
+      const slot = work.documents.find((row) => row.key === action.slotKey) || uploadSlot;
+      if (slot) pickFile(slot);
     }
   }
 
@@ -200,6 +204,7 @@ export function CaseWorkMap({
         busy={busy}
         expertAssigned={expertAssigned}
         warning={warning}
+        hasContractHandler={Boolean(onContract)}
         onPrimaryAction={onRoutePrimary}
       />
 

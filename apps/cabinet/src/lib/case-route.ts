@@ -28,12 +28,28 @@ export type RouteNextStep = {
   primaryLabel: string | null;
   howtoUrl: string | null;
   howtoLabel: string | null;
+  /** Только для документного CTA (upload). */
+  showCantGetDocument: boolean;
+  /** Только там, где сохранение файлов действительно работает. */
+  showContinueLaterHint: boolean;
+  /** Пояснение последствий (договор / оплата). */
+  consequenceHint: string | null;
+  helpLabel: string;
 };
 
-export type RouteEvent = {
+export type RouteAddedDoc = {
   when: string;
   text: string;
 };
+
+export type RoutePrimaryAction =
+  | { kind: "consent" }
+  | { kind: "contract" }
+  | { kind: "pay"; orderId: string }
+  | { kind: "upload"; slotKey: string }
+  | { kind: "result"; documentId: string }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "none" };
 
 export type ClientWorkLike = {
   status_key: string;
@@ -42,6 +58,7 @@ export type ClientWorkLike = {
   now_need: string;
   cta_key: string;
   cta_label: string;
+  consent_ok?: boolean;
   required_uploaded: number;
   required_total: number;
   stages: { n: number; title: string; hint: string; state: string }[];
@@ -52,9 +69,19 @@ export type ClientWorkLike = {
     status: string;
     status_label: string;
     added_at?: string | null;
+    doc_type?: string | null;
   }[];
   next_actions: string[];
   ils_howto_url: string;
+  order?: {
+    amount_rub?: number;
+    order_id?: string | null;
+    title?: string;
+  };
+  result?: {
+    ready?: boolean;
+    document_id?: string | null;
+  };
 };
 
 const CHAPTER_META: { id: RouteChapterId; label: string; stageN: number }[] = [
@@ -126,7 +153,7 @@ export function chapterTitle(id: RouteChapterId): { heading: string; lead: strin
   }
 }
 
-function firstActionSlot(work: ClientWorkLike) {
+export function firstUploadSlot(work: ClientWorkLike) {
   return (
     work.documents.find(
       (row) => row.need === "required" && (row.status === "missing" || row.status === "reupload"),
@@ -136,10 +163,79 @@ function firstActionSlot(work: ClientWorkLike) {
   );
 }
 
+function formatRub(amount: number | undefined): string {
+  const n = Number(amount || 0);
+  return n.toLocaleString("ru-RU");
+}
+
+/** Явное сопоставление cta_key → действие. Без fallback на загрузку. */
+export function resolveRoutePrimaryAction(
+  work: ClientWorkLike,
+  opts?: { hasContractHandler?: boolean },
+): RoutePrimaryAction {
+  const cta = work.cta_key;
+  if (cta === "wait") return { kind: "none" };
+
+  if (cta === "consent") {
+    if (work.consent_ok) {
+      return { kind: "unavailable", reason: "Согласие уже сохранено. Обновите страницу, если шаг не сменился." };
+    }
+    return { kind: "consent" };
+  }
+
+  if (cta === "contract") {
+    if (!opts?.hasContractHandler) {
+      return {
+        kind: "unavailable",
+        reason: "Сейчас нельзя принять условия. Обновите страницу или напишите в чат.",
+      };
+    }
+    return { kind: "contract" };
+  }
+
+  if (cta === "pay") {
+    const orderId = work.order?.order_id;
+    if (!orderId) {
+      return {
+        kind: "unavailable",
+        reason: "Счёт ещё не готов или недоступен. Обновите страницу или напишите в чат.",
+      };
+    }
+    return { kind: "pay", orderId };
+  }
+
+  if (cta === "result" || cta === "done") {
+    const documentId = work.result?.document_id;
+    if (!documentId) {
+      return {
+        kind: "unavailable",
+        reason: "Файл результата пока недоступен. Обновите страницу чуть позже или напишите в чат.",
+      };
+    }
+    return { kind: "result", documentId };
+  }
+
+  if (cta === "upload") {
+    const slot = firstUploadSlot(work);
+    if (!slot) {
+      return {
+        kind: "unavailable",
+        reason: "Сейчас нет документа для загрузки. Обновите страницу или напишите в чат.",
+      };
+    }
+    return { kind: "upload", slotKey: slot.key };
+  }
+
+  return {
+    kind: "unavailable",
+    reason: "Действие временно недоступно. Обновите страницу или напишите в чат.",
+  };
+}
+
 export function nextStepFromWork(work: ClientWorkLike): RouteNextStep {
-  const waiting =
-    work.next_actions.length === 0 && (work.cta_key === "wait" || work.cta_key === "upload");
-  if (waiting || work.cta_key === "wait") {
+  const cta = work.cta_key;
+
+  if (cta === "wait") {
     return {
       mode: "waiting",
       title: "Сейчас работает специалист",
@@ -147,18 +243,84 @@ export function nextStepFromWork(work: ClientWorkLike): RouteNextStep {
       primaryLabel: null,
       howtoUrl: null,
       howtoLabel: null,
+      showCantGetDocument: false,
+      showContinueLaterHint: false,
+      consequenceHint: null,
+      helpLabel: "Задать вопрос",
     };
   }
 
-  const slot = firstActionSlot(work);
+  if (cta === "consent") {
+    return {
+      mode: "action",
+      title: work.now_need,
+      why: "Без согласия нельзя загружать файлы и продолжать работу с делом в кабинете.",
+      primaryLabel: work.cta_label,
+      howtoUrl: null,
+      howtoLabel: null,
+      showCantGetDocument: false,
+      showContinueLaterHint: false,
+      consequenceHint: null,
+      helpLabel: "Нужна помощь",
+    };
+  }
+
+  if (cta === "contract") {
+    const amount = formatRub(work.order?.amount_rub);
+    return {
+      mode: "action",
+      title: work.now_need,
+      why: "После принятия условий будет сформирован счёт на диагностику.",
+      primaryLabel: work.cta_label,
+      howtoUrl: null,
+      howtoLabel: null,
+      showCantGetDocument: false,
+      showContinueLaterHint: false,
+      consequenceHint: `После принятия условий будет сформирован счёт на диагностику — ${amount} ₽. Оплатить можно будет сразу здесь же.`,
+      helpLabel: "Нужна помощь",
+    };
+  }
+
+  if (cta === "pay") {
+    const amount = formatRub(work.order?.amount_rub);
+    return {
+      mode: "action",
+      title: work.now_need,
+      why: "Оплата проходит через защищённую ссылку. Это не подача заявления в СФР.",
+      primaryLabel: work.cta_label,
+      howtoUrl: null,
+      howtoLabel: null,
+      showCantGetDocument: false,
+      showContinueLaterHint: false,
+      consequenceHint: `К оплате: ${amount} ₽. Оплата счёта означает принятие условий публичной оферты.`,
+      helpLabel: "Задать вопрос об услуге",
+    };
+  }
+
+  if (cta === "result" || cta === "done") {
+    return {
+      mode: "action",
+      title: work.now_need,
+      why: "Откройте итог проверки документов. Решение о пенсии принимает только СФР.",
+      primaryLabel: work.cta_label,
+      howtoUrl: null,
+      howtoLabel: null,
+      showCantGetDocument: false,
+      showContinueLaterHint: false,
+      consequenceHint: null,
+      helpLabel: "Задать вопрос",
+    };
+  }
+
+  // upload (и только upload) — документные подсказки
+  const slot = firstUploadSlot(work);
   const why =
     (slot && DOC_PURPOSE[slot.key]) ||
     work.status_hint ||
     "Это поможет специалисту продолжить проверку.";
-
   let howtoUrl: string | null = null;
   let howtoLabel: string | null = null;
-  if (slot?.key === "ils" || /илс|выписк/i.test(work.now_need)) {
+  if (slot?.key === "ils" || /илс|выписк/i.test(`${work.now_need} ${slot?.title || ""}`)) {
     howtoUrl = work.ils_howto_url;
     howtoLabel = "Где получить документ?";
   }
@@ -170,6 +332,10 @@ export function nextStepFromWork(work: ClientWorkLike): RouteNextStep {
     primaryLabel: work.cta_label,
     howtoUrl,
     howtoLabel,
+    showCantGetDocument: true,
+    showContinueLaterHint: true,
+    consequenceHint: null,
+    helpLabel: "Нужна помощь",
   };
 }
 
@@ -196,8 +362,6 @@ export function kitMarksFromWork(work: ClientWorkLike): RouteDocMark[] {
       statusText = "Документ получен. Проверим его пригодность";
     } else if (row.status === "accepted") {
       statusText = "Принят для текущего этапа";
-    } else if (row.status === "reupload") {
-      statusText = row.status_label;
     }
 
     return {
@@ -210,19 +374,21 @@ export function kitMarksFromWork(work: ClientWorkLike): RouteDocMark[] {
   });
 }
 
-export function recentEventsFromWork(work: ClientWorkLike, limit = 5): RouteEvent[] {
-  const events: RouteEvent[] = [];
-  for (const row of work.documents) {
-    if (!row.added_at) continue;
-    if (row.status === "awaiting") {
-      events.push({ when: row.added_at, text: `Вы добавили: ${row.title}` });
-    } else if (row.status === "accepted") {
-      events.push({ when: row.added_at, text: `Принят документ: ${row.title}` });
-    } else if (row.status === "reupload") {
-      events.push({ when: row.added_at, text: `Нужна замена: ${row.title}` });
-    }
-  }
-  return events.slice(0, limit);
+/**
+ * Только подтверждённый факт загрузки. Не выдаёт added_at за дату проверки/замены.
+ * Без машинной даты сортировки — это не хронологическая лента событий.
+ */
+export function addedDocumentsFromWork(work: ClientWorkLike, limit = 5): RouteAddedDoc[] {
+  const rows = work.documents.filter((row) => Boolean(row.added_at));
+  return rows.slice(0, limit).map((row) => ({
+    when: String(row.added_at),
+    text: `Вы добавили документ: ${row.title}`,
+  }));
+}
+
+/** @deprecated используйте addedDocumentsFromWork */
+export function recentEventsFromWork(work: ClientWorkLike, limit = 5): RouteAddedDoc[] {
+  return addedDocumentsFromWork(work, limit);
 }
 
 export function requiredProgressLabel(work: ClientWorkLike): string | null {

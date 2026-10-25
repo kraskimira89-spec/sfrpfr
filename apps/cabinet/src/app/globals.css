@@ -1038,6 +1038,9 @@ header span { color: var(--muted); font-size: 1rem; }
 .case-route-warning {
   margin-top: 1rem;
 }
+.case-route-consequence {
+  margin: 0.5rem 0 0;
+}
 .case-hero-kicker {
   margin: 0 0 0.35rem;
   font-weight: 700;

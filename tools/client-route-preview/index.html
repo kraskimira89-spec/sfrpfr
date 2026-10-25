@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview: Мой маршрут (до merge PR 284)</title>
+  <style>
+    :root { --brand:#1f5f8b; --ok:#1b6b3a; --line:#d5dde7; --muted:#5b6775; --btn-h:44px; --radius:12px; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Manrope, Segoe UI, sans-serif; background:#f4f7fb; color:#142033; }
+    header.app { padding:1rem 1.25rem; background:#fff; border-bottom:1px solid var(--line); }
+    header.app h1 { margin:0; font-size:1.15rem; }
+    header.app p { margin:.35rem 0 0; color:var(--muted); font-size:.95rem; }
+    nav { display:flex; flex-wrap:wrap; gap:.5rem; padding:1rem 1.25rem; }
+    nav a { padding:.45rem .7rem; border:1px solid var(--line); border-radius:999px; background:#fff; color:inherit; text-decoration:none; font-size:.9rem; }
+    nav a.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+    main { padding:0 1.25rem 2rem; max-width:720px; }
+    .panel { background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:1rem 1.1rem; }
+    .accent { border-color: rgba(31,95,139,.45); box-shadow:0 0 0 1px rgba(31,95,139,.08); }
+    .case-route-title { margin:0 0 .75rem; font-size:1.45rem; }
+    .case-route-kicker { margin:0 0 .25rem; font-weight:700; color:var(--muted); }
+    .case-route-chapters { list-style:none; margin:0 0 1rem; padding:0; display:flex; flex-wrap:wrap; gap:.45rem .75rem; }
+    .case-route-chapter { display:inline-flex; align-items:center; gap:.35rem; color:var(--muted); }
+    .case-route-chapter--done { color:var(--ok); font-weight:600; }
+    .case-route-chapter--current { color:var(--brand); font-weight:700; }
+    .case-route-chapter-mark { width:1.35rem; height:1.35rem; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:#e8eef5; font-weight:700; font-size:.8rem; }
+    .case-route-chapter--done .case-route-chapter-mark { background:var(--ok); color:#fff; }
+    .case-route-chapter--current .case-route-chapter-mark { background:var(--brand); color:#fff; }
+    .case-route-next, .case-route-kit, .case-route-events { margin-top:1rem; padding-top:.85rem; border-top:1px solid var(--line); }
+    .case-route-actions { display:flex; flex-wrap:wrap; gap:.5rem; margin:.75rem 0 0; }
+    button, .secondary { min-height:var(--btn-h); display:inline-flex; align-items:center; padding:0 .9rem; border-radius:10px; border:1px solid var(--line); background:#fff; text-decoration:none; color:inherit; font:inherit; cursor:pointer; }
+    button { background:var(--brand); color:#fff; border-color:var(--brand); }
+    .hint { color:var(--muted); font-size:.95rem; }
+    .doc-alert { color:#8a1f1f; }
+    .case-route-kit-list { list-style:none; margin:0; padding:0; display:grid; gap:.55rem; }
+    .hidden { display:none; }
+    #toast { position:fixed; bottom:1rem; left:1rem; right:1rem; max-width:480px; margin:auto; background:#142033; color:#fff; padding:.75rem 1rem; border-radius:10px; display:none; }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <h1>Изолированный preview «Мой маршрут»</h1>
+    <p>PR #284 · до merge · без API и вымышленных ПДн · клик по CTA пишет действие в toast</p>
+  </header>
+  <nav id="nav"></nav>
+  <main id="root"></main>
+  <div id="toast" role="status"></div>
+  <script>
+    const scenarios = {
+      consent: {
+        title: "Новый клиент — согласие",
+        chapters: [["Знакомство","current"],["Документы","todo"],["Проверка","todo"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Знакомство",
+        lead: "Сохраним необходимые сведения и согласие.",
+        stepTitle: "Подтвердить согласие на обработку персональных данных",
+        why: "Без согласия нельзя загружать файлы и продолжать работу с делом в кабинете.",
+        cta: "Даю согласие на обработку персональных данных",
+        action: "consent",
+        help: "Нужна помощь",
+        cantGet: false,
+        kit: [],
+        added: [],
+      },
+      upload: {
+        title: "Недостающий документ — ИЛС",
+        chapters: [["Знакомство","done"],["Документы","current"],["Проверка","todo"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Собираем документы",
+        lead: "Подготовим сведения для проверки вашего стажа.",
+        progress: "Обязательных документов: 1 из 2",
+        stepTitle: "Загрузить Выписка ИЛС",
+        why: "Нужна, чтобы сопоставить периоды работы и сведения о пенсионных правах.",
+        cta: "Перейти к загрузке документов",
+        action: "upload:ils",
+        howto: "Где получить документ?",
+        help: "Нужна помощь",
+        cantGet: true,
+        continueLater: true,
+        kit: [
+          ["○","Выписка ИЛС","Нужно загрузить"],
+          ["✓","Трудовая книжка","Принят для текущего этапа"],
+        ],
+        added: [["23 октября, 18:40","Вы добавили документ: Трудовая книжка"]],
+      },
+      waiting: {
+        title: "Комплект передан — ждём специалиста",
+        chapters: [["Знакомство","done"],["Документы","done"],["Проверка","current"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Разбираемся в стаже",
+        lead: "Специалист проверяет комплект.",
+        waiting: true,
+        stepTitle: "Сейчас работает специалист",
+        why: "От вас ничего не требуется. Дополнительные документы пока не нужны.",
+        help: "Задать вопрос",
+        cantGet: false,
+        kit: [
+          ["◷","Выписка ИЛС","Документ получен. Проверим его пригодность"],
+          ["◷","Трудовая книжка","Документ получен. Проверим его пригодность"],
+        ],
+        added: [
+          ["25 октября, 12:00","Вы добавили документ: Выписка ИЛС"],
+          ["25 октября, 12:05","Вы добавили документ: Трудовая книжка"],
+        ],
+      },
+      reupload: {
+        title: "Нужна замена",
+        chapters: [["Знакомство","done"],["Документы","current"],["Проверка","todo"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Собираем документы",
+        lead: "Подготовим сведения для проверки вашего стажа.",
+        stepTitle: "Загрузить Выписка ИЛС",
+        why: "Нужна, чтобы сопоставить периоды работы и сведения о пенсионных правах.",
+        cta: "Перейти к загрузке документов",
+        action: "upload:ils",
+        howto: "Где получить документ?",
+        help: "Нужна помощь",
+        cantGet: true,
+        continueLater: true,
+        kit: [
+          ["!","Выписка ИЛС","Нужно загрузить повторно — не видна последняя страница"],
+          ["✓","Трудовая книжка","Принят для текущего этапа"],
+        ],
+        added: [["25 октября, 11:00","Вы добавили документ: Выписка ИЛС"]],
+      },
+      contract: {
+        title: "Договор — счёт",
+        chapters: [["Знакомство","done"],["Документы","done"],["Проверка","current"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Разбираемся в стаже",
+        lead: "Специалист проверяет комплект.",
+        stepTitle: "Принять условия и получить счёт на диагностику",
+        why: "После принятия условий будет сформирован счёт на диагностику.",
+        consequence: "После принятия условий будет сформирован счёт на диагностику — 3 000 ₽. Оплатить можно будет сразу здесь же.",
+        cta: "Принять условия и получить счёт на диагностику",
+        action: "contract",
+        help: "Нужна помощь",
+        cantGet: false,
+        kit: [
+          ["◷","Выписка ИЛС","Документ получен. Проверим его пригодность"],
+          ["◷","Трудовая книжка","Документ получен. Проверим его пригодность"],
+        ],
+        added: [],
+      },
+      pay: {
+        title: "Оплата",
+        chapters: [["Знакомство","done"],["Документы","done"],["Проверка","current"],["План действий","todo"],["Итоги","todo"]],
+        heading: "Разбираемся в стаже",
+        stepTitle: "Оплатить диагностику",
+        why: "Оплата проходит через защищённую ссылку. Это не подача заявления в СФР.",
+        consequence: "К оплате: 3 000 ₽. Оплата счёта означает принятие условий публичной оферты.",
+        cta: "Оплатить диагностику — 3 000 ₽",
+        action: "pay:ord-1",
+        help: "Задать вопрос об услуге",
+        cantGet: false,
+        kit: [],
+        added: [],
+      },
+      result: {
+        title: "Результат",
+        chapters: [["Знакомство","done"],["Документы","done"],["Проверка","done"],["План действий","current"],["Итоги","todo"]],
+        heading: "Готовим следующие действия",
+        stepTitle: "Открыть результат диагностики",
+        why: "Откройте итог проверки документов. Решение о пенсии принимает только СФР.",
+        cta: "Открыть результат",
+        action: "result:doc-1",
+        help: "Задать вопрос",
+        cantGet: false,
+        kit: [],
+        added: [],
+      },
+      unavailable: {
+        title: "Ошибка данных — недоступность CTA",
+        chapters: [["Знакомство","done"],["Документы","done"],["Проверка","done"],["План действий","current"],["Итоги","todo"]],
+        heading: "Готовим следующие действия",
+        stepTitle: "Открыть результат диагностики",
+        why: "Откройте итог проверки документов. Решение о пенсии принимает только СФР.",
+        cta: null,
+        unavailable: "Файл результата пока недоступен. Обновите страницу чуть позже или напишите в чат.",
+        help: "Задать вопрос",
+        cantGet: false,
+        kit: [],
+        added: [],
+      },
+    };
+
+    const mark = (s) => (s === "done" ? "✓" : s === "current" ? "●" : "○");
+    const toast = document.getElementById("toast");
+    function showToast(text) {
+      toast.textContent = "CTA → " + text;
+      toast.style.display = "block";
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => { toast.style.display = "none"; }, 2500);
+    }
+
+    function render(id) {
+      const s = scenarios[id];
+      document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("active", a.dataset.id === id));
+      const chapters = s.chapters.map(([label, state]) =>
+        `<li class="case-route-chapter case-route-chapter--${state}"><span class="case-route-chapter-mark">${mark(state)}</span><span>${label}${state==="current"?" — вы здесь":""}</span></li>`
+      ).join("");
+      const kit = (s.kit||[]).map(([m,t,st]) => `<li><strong>${m} ${t}</strong><div class="hint">Статус: ${st}</div></li>`).join("");
+      const added = (s.added||[]).map(([w,t]) => `<li><span class="hint">Загружено: ${w}</span><div>${t}</div></li>`).join("");
+      document.getElementById("root").innerHTML = `
+        <p class="hint" style="margin:0 0 .75rem">Сценарий: <strong>${s.title}</strong></p>
+        <section class="panel accent case-route">
+          <p class="case-route-kicker">Дело ПС-1001</p>
+          <h2 class="case-route-title">Мой маршрут</h2>
+          <ol class="case-route-chapters">${chapters}</ol>
+          <div><h3>${s.heading}</h3><p>${s.lead||""}</p>${s.progress?`<p class="hint">${s.progress}</p>`:""}</div>
+          <div class="case-route-next">
+            <h3>${s.waiting ? "Сейчас действует специалист" : "Ваш следующий шаг"}</h3>
+            <p><strong>${s.stepTitle}</strong></p>
+            <p>${s.why}</p>
+            ${s.consequence?`<p class="hint">${s.consequence}</p>`:""}
+            ${s.unavailable?`<p class="hint doc-alert" role="status">${s.unavailable}</p>`:""}
+            <div class="case-route-actions">
+              ${s.cta?`<button type="button" id="cta">${s.cta}</button>`:""}
+              ${s.howto?`<a class="secondary" href="#">${s.howto}</a>`:""}
+              <a class="secondary" href="#">${s.help}</a>
+              ${s.cantGet?`<a class="secondary" href="#">Не могу получить документ</a>`:""}
+            </div>
+            ${s.continueLater?`<p class="hint">Можно продолжить позже — загруженные файлы сохраняются в деле.</p>`:""}
+          </div>
+          ${kit?`<div class="case-route-kit"><h3>Ваш комплект</h3><ul class="case-route-kit-list">${kit}</ul></div>`:""}
+          <div class="case-route-events">
+            <h3>Добавленные документы</h3>
+            ${added?`<ul class="case-route-kit-list">${added}</ul>`:`<p class="hint">Здесь появятся документы после загрузки. Это не хронологическая лента событий.</p>`}
+          </div>
+          <p class="hint">Решение принимает СФР. Результат не гарантирован.</p>
+        </section>`;
+      const btn = document.getElementById("cta");
+      if (btn) btn.onclick = () => showToast(s.action || "none");
+      history.replaceState(null, "", "#" + id);
+    }
+
+    const nav = document.getElementById("nav");
+    Object.entries(scenarios).forEach(([id, s]) => {
+      const a = document.createElement("a");
+      a.href = "#" + id;
+      a.dataset.id = id;
+      a.textContent = s.title;
+      a.onclick = (e) => { e.preventDefault(); render(id); };
+      nav.appendChild(a);
+    });
+    render((location.hash || "#upload").slice(1) in scenarios ? (location.hash || "#upload").slice(1) : "upload");
+  </script>
+</body>
+</html>
