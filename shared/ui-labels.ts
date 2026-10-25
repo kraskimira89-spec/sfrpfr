@@ -35,7 +35,8 @@ export const B2C_LABELS: Record<string, string> = {
 
 export const PACKAGE_LABELS: Record<string, string> = {
   DIAG: "Диагностика",
-  ACCOMP: "Подготовка документов / сопровождение",
+  ACCOMP: "Подготовка документов / обращение",
+  SUPPORT: "Сопровождение до подачи",
   SF_LUMP: "Индивидуальное соглашение",
   SF_MONTH: "Индивидуальное соглашение",
 };

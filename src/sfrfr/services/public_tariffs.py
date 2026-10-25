@@ -43,7 +43,7 @@ PUBLIC_TARIFFS: list[dict[str, Any]] = [
     },
     {
         "code": "SUPPORT",
-        "package_code": "ACCOMP",
+        "package_code": "SUPPORT",
         "name": "Шаг 3. Сопровождение до подачи",
         "amount_rub": 8000,
         "includes": "Проект обращения, пошаговый план подачи через СФР/МФЦ/Госуслуги",
@@ -62,12 +62,14 @@ PUBLIC_TARIFFS: list[dict[str, Any]] = [
 
 DEFAULT_PACKAGE_AMOUNT: dict[str, int] = {
     "DIAG": 3000,
-    "ACCOMP": 8000,
+    "ACCOMP": 5000,
+    "SUPPORT": 8000,
 }
 
 STAFF_PACKAGE_LABELS: dict[str, str] = {
     "DIAG": "Диагностика документов",
-    "ACCOMP": "Подготовка документов / сопровождение",
+    "ACCOMP": "Подготовка документов / обращение",
+    "SUPPORT": "Сопровождение до подачи",
     "SF_LUMP": "Индивидуальное соглашение",
     "SF_MONTH": "Индивидуальное соглашение",
     "LABOR_WORD": "Перенос трудовой в таблицу Word",
