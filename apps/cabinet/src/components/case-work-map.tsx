@@ -7,6 +7,7 @@ import {
   CASE_CHAT_DOCUMENTS_RULE,
   CASE_QUESTIONS_INTRO,
 } from "../../../../shared/case-chat-copy";
+import { CaseRoutePanel } from "@/components/case-route-panel";
 
 export type WorkSlot = {
   key: string;
@@ -56,6 +57,7 @@ type Props = {
   work: ClientWork;
   busy?: boolean;
   warning: string;
+  expertAssigned?: boolean;
   onConsent: () => void;
   onContract?: () => void;
   onUpload: (file: File, docType?: string) => void;
@@ -110,6 +112,7 @@ export function CaseWorkMap({
   work,
   busy,
   warning,
+  expertAssigned,
   onConsent,
   onContract,
   onUpload,
@@ -156,9 +159,28 @@ export function CaseWorkMap({
 
   const cta = work.cta_key;
   const uploadSlot = firstUploadSlot(work);
-  const waiting = work.next_actions.length === 0 && (cta === "wait" || cta === "upload");
-  const diagDone = work.result.ready;
-  const diagNow = ["docs_review", "diagnosis"].includes(work.status_key);
+
+  function onRoutePrimary() {
+    if (cta === "consent" && !work.consent_ok) {
+      onConsent();
+      return;
+    }
+    if (cta === "contract" && onContract) {
+      onContract();
+      return;
+    }
+    if (cta === "pay" && work.order.order_id) {
+      onPay(work.order.order_id);
+      return;
+    }
+    if ((cta === "result" || cta === "done") && work.result.document_id) {
+      onDownloadResult(work.result.document_id);
+      return;
+    }
+    if (uploadSlot) {
+      pickFile(uploadSlot);
+    }
+  }
 
   return (
     <div className="case-map">
@@ -172,90 +194,29 @@ export function CaseWorkMap({
         onChange={onFiles}
       />
 
-      <header className="case-hero panel accent">
-        <p className="case-hero-kicker">Дело ПС-{caseNumber}</p>
-        <p className="case-hero-status" aria-live="polite">
-          Статус: <strong>{work.status_label}</strong>
+      <CaseRoutePanel
+        work={work}
+        caseNumber={caseNumber}
+        busy={busy}
+        expertAssigned={expertAssigned}
+        warning={warning}
+        onPrimaryAction={onRoutePrimary}
+      />
+
+      {onRunCheck &&
+      work.consent_ok &&
+      work.required_total > 0 &&
+      work.required_uploaded >= work.required_total &&
+      !["human_review", "completed"].includes((pipelineStatus || "").toLowerCase()) ? (
+        <p className="home-actions panel">
+          <button type="button" className="secondary" disabled={busy} onClick={onRunCheck}>
+            Запустить проверку
+          </button>
+          <span className="hint">{work.sla_note}</span>
         </p>
-        <p className="case-hero-need">
-          {waiting ? (
-            <strong>Сейчас от вас ничего не требуется.</strong>
-          ) : (
-            <>
-              Сейчас нужно от вас:
-              <strong> {work.now_need}</strong>
-            </>
-          )}
-        </p>
-        {cta === "consent" && !work.consent_ok ? (
-          <button type="button" disabled={busy} onClick={onConsent}>
-            {work.cta_label}
-          </button>
-        ) : null}
-        {cta === "contract" ? (
-          <>
-            <button type="button" disabled={busy} onClick={onContract}>
-              {work.cta_label}
-            </button>
-            <p className="hint">
-              После принятия условий будет сформирован счёт на диагностику — {""}
-              {work.order.amount_rub.toLocaleString("ru-RU")} ₽. Оплатить можно будет сразу здесь же.
-            </p>
-          </>
-        ) : null}
-        {cta === "upload" ? (
-          <a className="button-link" href="#documents">
-            {work.cta_label}
-          </a>
-        ) : null}
-        {cta === "pay" && work.order.order_id ? (
-          <button type="button" disabled={busy} onClick={() => onPay(work.order.order_id!)}>
-            {work.cta_label}
-          </button>
-        ) : null}
-        {cta === "wait" ? (
-          <a className="button-link" href="#case-chat-input">
-            {work.cta_label}
-          </a>
-        ) : null}
-        {(cta === "result" || cta === "done") && work.result.document_id ? (
-          <button type="button" disabled={busy} onClick={() => onDownloadResult(work.result.document_id!)}>
-            {work.cta_label}
-          </button>
-        ) : null}
-        {onRunCheck &&
-        work.consent_ok &&
-        work.required_total > 0 &&
-        work.required_uploaded >= work.required_total &&
-        !["human_review", "completed"].includes((pipelineStatus || "").toLowerCase()) ? (
-          <p className="home-actions">
-            <button type="button" className="secondary" disabled={busy} onClick={onRunCheck}>
-              Запустить проверку
-            </button>
-          </p>
-        ) : null}
+      ) : (
         <p className="hint">{work.sla_note}</p>
-        <ul className="case-ticks">
-          <li className={work.consent_ok ? "done" : ""}>
-            {work.consent_ok ? "✓" : "○"} Согласие {work.consent_ok ? "получено" : "нужно подтвердить"}
-          </li>
-          <li className={work.required_uploaded >= work.required_total ? "done" : "current"}>
-            {work.required_uploaded >= work.required_total ? "✓" : "●"} Документы — {work.required_uploaded} из{" "}
-            {work.required_total}
-          </li>
-          <li className={diagDone ? "done" : diagNow ? "current" : ""}>
-            {diagDone ? "✓" : diagNow ? "●" : "○"} Проверка документов{" "}
-            {diagDone
-              ? "завершена"
-              : diagNow
-                ? "идёт проверка комплекта"
-                : "начнётся после загрузки документов"}
-          </li>
-          <li className={work.result.ready ? "done" : ""}>
-            {work.result.ready ? "✓" : "○"} Итог проверки {work.result.ready ? "доступен здесь" : "будет доступен здесь"}
-          </li>
-        </ul>
-      </header>
+      )}
 
       {work.consent_ok && onScenarioChange && onSaveScenarios ? (
         <details className="panel questionnaire-panel">
@@ -353,8 +314,8 @@ export function CaseWorkMap({
         <p className="hint">{CASE_CHAT_DOCUMENTS_RULE}</p>
       </section>
 
-      <section className="panel">
-        <h2>Как идёт работа</h2>
+      <details className="panel case-route-details">
+        <summary>Показать весь маршрут подробнее</summary>
         <ol className="work-progress">
           {work.stages.map((stage) => (
             <li key={stage.n} className={stage.state}>
@@ -368,7 +329,7 @@ export function CaseWorkMap({
             </li>
           ))}
         </ol>
-      </section>
+      </details>
 
       <section className="panel my-docs" id="documents">
         <div className="docs-table-head">

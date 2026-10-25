@@ -906,6 +906,138 @@ header span { color: var(--muted); font-size: 1rem; }
   display: grid;
   gap: 1rem;
 }
+.case-route-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.45rem;
+}
+.case-route-kicker {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.case-route-chapters {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+}
+.case-route-chapter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.case-route-chapter--done {
+  color: var(--ok);
+  font-weight: 600;
+}
+.case-route-chapter--current {
+  color: var(--brand);
+  font-weight: 700;
+}
+.case-route-chapter-mark {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eef5;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.case-route-chapter--done .case-route-chapter-mark {
+  background: var(--ok);
+  color: #fff;
+}
+.case-route-chapter--current .case-route-chapter-mark {
+  background: var(--brand);
+  color: #fff;
+}
+.case-route-here {
+  font-weight: 600;
+}
+.case-route-chapter-body h3,
+.case-route-next h3,
+.case-route-kit h3,
+.case-route-specialist h3,
+.case-route-events h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+.case-route-next,
+.case-route-kit,
+.case-route-specialist,
+.case-route-events {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+.case-route-next-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+}
+.case-route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+.case-route-kit-list,
+.case-route-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.case-route-kit-item {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+.case-route-kit-mark {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eef5;
+  font-weight: 700;
+}
+.case-route-kit-item--done .case-route-kit-mark {
+  background: var(--ok);
+  color: #fff;
+}
+.case-route-kit-item--checking .case-route-kit-mark {
+  background: #d9e6f5;
+  color: var(--brand);
+}
+.case-route-kit-item--fix .case-route-kit-mark {
+  background: #f7e4e4;
+  color: #8a1f1f;
+}
+.case-route-kit-item--need .case-route-kit-mark {
+  background: #fff4d6;
+  color: #6a4b00;
+}
+.case-route-event-when {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.case-route-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.case-route-warning {
+  margin-top: 1rem;
+}
 .case-hero-kicker {
   margin: 0 0 0.35rem;
   font-weight: 700;

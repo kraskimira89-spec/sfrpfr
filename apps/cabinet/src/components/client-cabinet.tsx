@@ -2357,6 +2357,7 @@ export function ClientCabinet() {
                   work={detail.work}
                   busy={busy}
                   warning={detail.warning}
+                  expertAssigned={detail.expert_assigned}
                   onConsent={() => void acceptConsent()}
                   onContract={() => void acceptContract()}
                   onUpload={(file, docType) => void uploadDocument(file, docType)}
