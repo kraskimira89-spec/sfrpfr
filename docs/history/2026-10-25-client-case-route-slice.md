@@ -84,6 +84,22 @@ npx next dev -p 3011
 
 См. `docs/history/2026-10-25-admin-chat-repeat-probe.md` — в БД нет одного body×10; несколько system/client rows. История не трогалась, проверочные сообщения клиенту не слались. Не блокирует #284.
 
+## Сценарии приёмки ТЗ §7 (React-preview, не live user)
+
+Съёмка: `npx -p playwright node tools/pr284-capture-scenarios.mjs http://localhost:3011`  
+JSON: `docs/history/assets/pr284-route-preview/acceptance-scenarios.json`
+
+| # | Сценарий | Preview | Доказательство |
+|---|---|---|---|
+| 1 | Новый клиент — первый шаг | PASS | `scenario-consent.png`, handler `consent` |
+| 2 | Часть документов — получен ≠ проверен | PASS | `scenario-upload.png`, kit missing+accepted, upload→ils |
+| 3 | Всё передано — нет ложного требования | PASS | `scenario-waiting.png`, resolve `none`, нет «Перейти к загрузке» |
+| 4 | Нужна замена | PASS | `scenario-reupload.png` |
+| 5 | Недоступность / ошибка | PASS | `scenario-unavailable.png`, resolve unavailable + skip |
+| + | Договор / оплата / результат | PASS | `scenario-contract|pay|result.png`, свои handlers |
+
+**Граница:** это проверка preview и тестов, **не** приёмка с живым пользователем на production-данных. Компоновка desktop/mobile — закрыта отдельно.
+
 ## Не на production
 
 PR **без** auto-merge. Имя специалиста, контрольная дата и полная лента — вне этого PR.

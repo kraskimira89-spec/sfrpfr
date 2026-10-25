@@ -1,0 +1,82 @@
+{
+  "sha_note": "React preview only — не замена живого пользователя",
+  "base": "http://localhost:3011",
+  "at": "2026-10-25T12:24:27.816Z",
+  "results": [
+    {
+      "id": "consent",
+      "tz": 1,
+      "title": "Новый клиент — первый шаг",
+      "ok": true,
+      "shot": "scenario-consent.png",
+      "primary": "Даю согласие на обработку персональных данных",
+      "resolve": "{\"kind\":\"consent\"}",
+      "last": "handler: consent"
+    },
+    {
+      "id": "upload",
+      "tz": 2,
+      "title": "Часть документов — получен ≠ проверен",
+      "ok": true,
+      "shot": "scenario-upload.png",
+      "primary": "Перейти к загрузке документов",
+      "resolve": "{\"kind\":\"upload\",\"slotKey\":\"ils\"}",
+      "notes": "В комплекте: missing ИЛС + accepted трудовая"
+    },
+    {
+      "id": "waiting",
+      "tz": 3,
+      "title": "Всё передано — нет ложного требования",
+      "ok": true,
+      "shot": "scenario-waiting.png",
+      "resolve": "{\"kind\":\"none\"}",
+      "hasUploadPrimary": 0
+    },
+    {
+      "id": "reupload",
+      "tz": 4,
+      "title": "Нужна замена — причина и действие",
+      "ok": true,
+      "shot": "scenario-reupload.png",
+      "resolve": "{\"kind\":\"upload\",\"slotKey\":\"ils\"}"
+    },
+    {
+      "id": "unavailable",
+      "tz": 5,
+      "title": "Ошибка / недоступность — без ложного прогресса",
+      "ok": true,
+      "shot": "scenario-unavailable.png",
+      "resolve": "{\"kind\":\"unavailable\",\"reason\":\"Файл результата пока недоступен. Обновите страницу чуть позже или напишите в чат.\"}",
+      "last": "handler: skip ({\"kind\":\"unavailable\",\"reason\":\"Файл результата пока недоступен. Обновите страницу чуть позже или напишите в чат.\"})",
+      "hasUploadPrimary": 0
+    },
+    {
+      "id": "contract",
+      "tz": "extra",
+      "title": "Договор — свой CTA + сумма",
+      "ok": true,
+      "shot": "scenario-contract.png",
+      "resolve": "{\"kind\":\"contract\"}",
+      "last": "handler: contract"
+    },
+    {
+      "id": "pay",
+      "tz": "extra",
+      "title": "Оплата — свой CTA",
+      "ok": true,
+      "shot": "scenario-pay.png",
+      "resolve": "{\"kind\":\"pay\",\"orderId\":\"ord-preview-1\"}",
+      "last": "handler: pay ord-preview-1"
+    },
+    {
+      "id": "result",
+      "tz": "extra",
+      "title": "Результат — свой CTA",
+      "ok": true,
+      "shot": "scenario-result.png",
+      "resolve": "{\"kind\":\"result\",\"documentId\":\"doc-result-1\"}",
+      "last": "handler: result doc-result-1"
+    }
+  ],
+  "allOk": true
+}
