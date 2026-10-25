@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -80,17 +81,54 @@ def fetch_recent_case_messages(
     return out
 
 
+NAME_TOKEN = "{ИМЯ}"
+
+
+def restore_name_token(text: str, salutation: str) -> str:
+    """Вернуть обращение вместо {ИМЯ} у себя — имя клиента в LLM не уходит."""
+    if NAME_TOKEN not in (text or ""):
+        return text
+    if salutation and salutation != "Клиент":
+        return text.replace(NAME_TOKEN, salutation)
+    out = re.sub(r"(?i)здравствуйте\s*,\s*\{ИМЯ\}\s*!", "Здравствуйте!", text)
+    out = out.replace(f"{NAME_TOKEN}, ", "").replace(NAME_TOKEN, "")
+    return re.sub(r"\s{2,}", " ", out).strip()
+
+
+def mask_client_name(text: str, client_name: str | None) -> str:
+    """Убрать ФИО клиента целиком и по частям (обращение «Имя Отчество», фамилия)."""
+    full = (client_name or "").strip()
+    if not text or not full:
+        return text
+    from sfrfr.utils.person_name import parse_person_name
+
+    parsed = parse_person_name(full)
+    out = text.replace(full, "[ИМЯ]")
+    if parsed.salutation and parsed.salutation != "Клиент":
+        out = out.replace(parsed.salutation, "[ИМЯ]")
+    for token, mark in (
+        (parsed.surname, "[ФАМИЛИЯ]"),
+        (parsed.given, "[ИМЯ]"),
+        (parsed.patronymic, "[ИМЯ]"),
+    ):
+        if token and len(token) >= 3:
+            out = out.replace(token, mark)
+    return out
+
+
 def format_thread_for_llm(
     messages: list[dict[str, Any]],
     *,
     max_body_chars: int = MAX_BODY_CHARS,
+    client_name: str | None = None,
 ) -> str:
     """Лента «Кто: текст» для промпта (обезличено)."""
     lines: list[str] = []
     for row in messages:
         if not isinstance(row, dict):
             continue
-        body = redact_for_llm(str(row.get("body") or "")).strip()
+        raw = mask_client_name(str(row.get("body") or ""), client_name)
+        body = redact_for_llm(raw).strip()
         if not body:
             continue
         label = author_label(str(row.get("author_kind") or ""))
@@ -450,9 +488,10 @@ def build_staff_llm_user_prompt(
     messages: list[dict[str, Any]],
     pipeline_status: str | None = None,
     b2c_status: str | None = None,
+    client_name: str | None = None,
 ) -> str:
     """User-prompt для подсказок ответов специалисту."""
-    thread = format_thread_for_llm(messages, max_body_chars=500)
+    thread = format_thread_for_llm(messages, max_body_chars=500, client_name=client_name)
     deal = format_deal_context(work, staff_chat=True)
     return (
         f"Обращение к клиенту (обязательно в каждом варианте): {salutation}\n"

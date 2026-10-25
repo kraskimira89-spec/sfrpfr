@@ -52,6 +52,47 @@ def test_system_docs_channel_canon_max_chat() -> None:
     assert "начать" in low
 
 
+def test_suggest_replies_depersonalized_prompt_name_restored(monkeypatch) -> None:
+    """Резерв DeepSeek вне РФ: ФИО не уходит в промпт, имя подставляем у себя."""
+    seen: dict = {}
+
+    class Fake:
+        available = True
+
+        def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+            seen["user"] = user
+            return (
+                "1) Здравствуйте, {ИМЯ}! Пришлите выписку ИЛС в этот чат.\n"
+                "2) {ИМЯ}, подскажите, какие годы учтены неверно?\n"
+                "3) Здравствуйте, {ИМЯ}! Ждём трудовую книжку."
+            )
+
+    def fake_for_analyze(cls, **kwargs):
+        seen["kwargs"] = kwargs
+        return Fake()
+
+    monkeypatch.setattr(
+        "sfrfr.services.staff_reply_suggest.LLMClient.for_analyze",
+        classmethod(fake_for_analyze),
+    )
+    from sfrfr.services.staff_reply_suggest import suggest_staff_replies
+
+    out = suggest_staff_replies(
+        messages=[
+            {"author_kind": "staff", "body": "Здравствуйте, Иван Иванович! Пришлите ИЛС."},
+            {"author_kind": "client", "body": "Иванов Иван Иванович, не учли стаж"},
+        ],
+        pipeline_status="intake",
+        b2c_status="lead",
+        client_name="Иванов Иван Иванович",
+    )
+    assert seen["kwargs"].get("foreign_ok") is True
+    assert "Иван" not in seen["user"]
+    assert "Иванов" not in seen["user"]
+    assert all("{ИМЯ}" not in s for s in out)
+    assert out[0].startswith("Здравствуйте, Иван Иванович!")
+
+
 def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
     class Fake:
         available = True

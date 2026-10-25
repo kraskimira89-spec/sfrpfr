@@ -11,7 +11,13 @@ import logging
 import re
 from typing import Any, Literal, Protocol
 
-from sfrfr.services.case_chat_context import format_thread_for_llm
+from sfrfr.ai.guardrails import redact_for_llm
+from sfrfr.services.case_chat_context import (
+    NAME_TOKEN,
+    format_thread_for_llm,
+    mask_client_name,
+    restore_name_token,
+)
 from sfrfr.services.staff_reply_suggest import client_salutation
 
 logger = logging.getLogger(__name__)
@@ -43,7 +49,8 @@ SYSTEM = """Ты редактор ответов сотрудника серви
 Перепиши черновик в живой ответ этому клиенту:
 - если клиент задал вопрос — сначала коротко ответь на него, опираясь только на факты черновика;
 - обратись по имени и отчеству из поля «Обращение», только если сотрудник сегодня ещё
-  не писал; иначе без повторного «Здравствуйте»;
+  не писал; иначе без повторного «Здравствуйте». Если там {ИМЯ} — пиши именно {ИМЯ},
+  имя подставим сами;
 - убери повторы слов и мыслей, канцелярит и служебные слова («анкета»,
   «формулировка клиента»);
 - сохрани смысл: что уже известно, чего не хватает, что нужно от клиента;
@@ -138,19 +145,22 @@ def _clean_llm_text(raw: str) -> str:
 
 
 def _user_prompt(*, draft: str, messages: list[dict[str, Any]], client_name: str | None) -> str:
+    """Обезличенный промпт: ФИО → {ИМЯ}, контакты маскируются (возможен резерв вне РФ)."""
     recent = messages[-12:]
     client_lines = [
-        str(m.get("body") or "").strip()
+        redact_for_llm(mask_client_name(str(m.get("body") or ""), client_name)).strip()
         for m in recent
         if m.get("author_kind") == "client" and str(m.get("body") or "").strip()
     ][-3:]
     staff_wrote = any(str(m.get("author_kind") or "") == "staff" for m in recent[-6:])
     asked = "\n".join(f"- {line[:400]}" for line in client_lines) or "- (вопросов нет)"
+    named = client_salutation(client_name) != "Клиент"
+    thread = format_thread_for_llm(recent, max_body_chars=400, client_name=client_name)
     return (
-        f"Обращение: {client_salutation(client_name)}\n"
+        f"Обращение: {NAME_TOKEN if named else 'Клиент'}\n"
         f"Сотрудник уже писал в последних сообщениях: {'да' if staff_wrote else 'нет'}\n\n"
         f"Последние сообщения клиента:\n{asked}\n\n"
-        f"История переписки:\n{format_thread_for_llm(recent, max_body_chars=400)}\n\n"
+        f"История переписки:\n{thread}\n\n"
         f"ЧЕРНОВИК:\n{draft}"
     )
 
@@ -175,7 +185,8 @@ def polish_brief_reply(
     if llm == "auto":
         from sfrfr.ai.llm import LLMClient
 
-        client = LLMClient.for_analyze(allow_fallback=False)
+        # Промпт обезличен — допустим резерв DeepSeek в окне DEEPSEEK_FALLBACK_PROD_UNTIL.
+        client = LLMClient.for_analyze(allow_fallback=True, foreign_ok=True)
     else:
         client = llm
     if client is None or not client.available:
@@ -190,7 +201,8 @@ def polish_brief_reply(
         # Только тип: текст ошибки провайдера может содержать детали ключа.
         logger.warning("brief_reply_polish llm_error %s", type(exc).__name__)
         return template("llm_error")
-    text = dedupe_sentences(_clean_llm_text(raw))
+    text = restore_name_token(_clean_llm_text(raw), client_salutation(client_name))
+    text = dedupe_sentences(text)
     if said:
         text = strip_position(text)
     problem = _validate(text, draft=base, messages=messages)

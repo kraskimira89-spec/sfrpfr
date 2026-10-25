@@ -48,6 +48,7 @@ SYSTEM = f"""Ты помощник сотрудника сервиса «Про�
 - если обращение «Клиент» — начни с «Здравствуйте,» без выдуманного имени;
   при сомнительном ФИО в одном из вариантов мягко уточни, как правильно обращаться
   (имя и отчество), и напомни сотруднику поправить карточку клиента;
+- если в поле «Обращение» стоит {{ИМЯ}} — пиши именно {{ИМЯ}}, имя подставим сами;
 - не подставляй фамилию, ники, латиницу-мусор и случайные символы как обращение;
 - без телефона, e-mail, СНИЛС, номера дела, без обещаний перерасчёта и сумм;
 - не обещай, что сервис подаёт в СФР / Госуслуги вместо клиента.
@@ -115,11 +116,16 @@ def suggest_staff_replies(
 ) -> list[str]:
     salutation = client_salutation(client_name)
     parsed = parse_person_name(client_name)
-    llm = LLMClient.for_analyze(allow_fallback=False)
+    # Промпт обезличен (ФИО → {ИМЯ}) — допустим резерв DeepSeek в окне DEEPSEEK_FALLBACK_PROD_UNTIL.
+    llm = LLMClient.for_analyze(allow_fallback=True, foreign_ok=True)
     if not llm.available:
         return _fallback_replies(salutation, pipeline_status=pipeline_status)
 
-    from sfrfr.services.case_chat_context import build_staff_llm_user_prompt
+    from sfrfr.services.case_chat_context import (
+        NAME_TOKEN,
+        build_staff_llm_user_prompt,
+        restore_name_token,
+    )
 
     confirm_note = ""
     if parsed.needs_confirm:
@@ -129,11 +135,12 @@ def suggest_staff_replies(
             "обращаться (имя и отчество), чтобы сотрудник мог поправить карточку.\n"
         )
     user = build_staff_llm_user_prompt(
-        salutation=salutation,
+        salutation=NAME_TOKEN if salutation != "Клиент" else salutation,
         work=work,
         messages=messages[-30:],
         pipeline_status=pipeline_status,
         b2c_status=b2c_status,
+        client_name=client_name,
     )
     if confirm_note:
         user = confirm_note + user
@@ -144,7 +151,8 @@ def suggest_staff_replies(
 
     out: list[str] = []
     for m in re.finditer(r"^\s*\d+[).]\s*(.+)$", raw or "", re.M):
-        text = _ensure_salutation(m.group(1).strip().strip("«»\"'"), salutation)
+        named = restore_name_token(m.group(1).strip().strip("«»\"'"), salutation)
+        text = _ensure_salutation(named, salutation)
         if text:
             out.append(text[:400])
         if len(out) >= 3:
@@ -153,7 +161,8 @@ def suggest_staff_replies(
         for line in (raw or "").splitlines():
             t = line.strip().lstrip("1234567890). ").strip()
             if len(t) > 12:
-                out.append(_ensure_salutation(t, salutation)[:400])
+                named = restore_name_token(t, salutation)
+                out.append(_ensure_salutation(named, salutation)[:400])
             if len(out) >= 3:
                 break
     return out or _fallback_replies(salutation, pipeline_status=pipeline_status)
