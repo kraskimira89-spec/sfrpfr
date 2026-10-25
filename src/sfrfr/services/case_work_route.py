@@ -97,7 +97,12 @@ def _docs_check_step(
             "status": "blocked",
             "status_label": "Нет документов",
             "result_summary": "Клиент ещё не загрузил файлы.",
-            "primary_action": None,
+            "primary_action": {
+                "id": "request_docs_from_client",
+                "label": "Запросить документы",
+                "method": "UI",
+                "path_suffix": None,
+            },
             "blocker_reason": "Дождитесь загрузки документов клиентом.",
             "needs_specialist": False,
         }
@@ -146,7 +151,12 @@ def _docs_check_step(
                 "status": "current",
                 "status_label": "требуется действие",
                 "result_summary": summary,
-                "primary_action": None,
+                "primary_action": {
+                    "id": "request_docs_check",
+                    "label": "Проверить документы",
+                    "method": "POST",
+                    "path_suffix": "request-review",
+                },
                 "blocker_reason": str(r.get("next_action") or "Нужна ручная проверка."),
                 "needs_specialist": True,
             }

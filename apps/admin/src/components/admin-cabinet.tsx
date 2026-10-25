@@ -1300,6 +1300,32 @@ export function AdminCabinet() {
     }
   }
 
+  async function createQuickOrder(code: "DIAG" | "ACCOMP", amountRub: number) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/orders`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          package_code: code,
+          amount_rub: amountRub,
+        }),
+      });
+      setOrderCode(code);
+      setOrderAmount(String(amountRub));
+      setNotice(
+        code === "DIAG"
+          ? "Счёт на диагностику 3 000 ₽ создан. Отправьте ссылку клиенту из блока резюме."
+          : "Счёт создан.",
+      );
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function createFinanceInvoice(event: FormEvent) {
     event.preventDefault();
     if (!token || !invoiceCaseId) return;
@@ -2225,6 +2251,7 @@ export function AdminCabinet() {
             onOrderCode={setOrderCode}
             onOrderAmount={setOrderAmount}
             onCreateOrder={(e) => void createOrder(e)}
+            onCreateQuickOrder={(code, amount) => void createQuickOrder(code, amount)}
             onSendPayLink={(orderId) => void sendPayLinkForCaseOrder(orderId)}
             onCopyPayLink={(orderId) => void copyPayLinkForCaseOrder(orderId)}
             onRecordServiceConsent={() => void recordServiceConsent()}

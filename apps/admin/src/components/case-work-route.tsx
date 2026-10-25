@@ -32,7 +32,9 @@ type Props = {
   busy?: boolean;
   onRequestReview: () => void;
   onRequestPipeline?: () => void;
-  /** Результат проверки документов (карточка) — только у шага 1. */
+  /** Нет файлов: шаблон запроса документов в чат (без авто-MAX). */
+  onRequestDocsFromClient?: () => void;
+  /** Результат проверки документов — у шага 1 (current или done). */
   docsCheckPanel?: React.ReactNode;
 };
 
@@ -48,6 +50,7 @@ export function CaseWorkRoute({
   busy,
   onRequestReview,
   onRequestPipeline,
+  onRequestDocsFromClient,
   docsCheckPanel,
 }: Props) {
   if (!route || !route.steps?.length) {
@@ -66,9 +69,16 @@ export function CaseWorkRoute({
 
   const primary = route.primary_action;
   function runPrimary() {
-    if (!primary) return;
+    if (!primary) {
+      onRequestReview();
+      return;
+    }
     if (primary.id === "request_docs_check") {
       onRequestReview();
+      return;
+    }
+    if (primary.id === "request_docs_from_client") {
+      onRequestDocsFromClient?.();
       return;
     }
     if (primary.id === "request_pipeline" && onRequestPipeline) {
@@ -82,11 +92,11 @@ export function CaseWorkRoute({
       <ol className="case-work-steps">
         {route.steps.map((step, index) => {
           const isCurrent = step.id === route.current_step_id;
-          const showPrimary =
-            isCurrent &&
-            primary &&
-            step.primary_action &&
-            step.primary_action.id === primary.id;
+          const showPrimary = Boolean(isCurrent && primary);
+          const showDocsPanel =
+            step.id === "docs_check" &&
+            docsCheckPanel &&
+            (isCurrent || step.status === "done" || step.status === "blocked");
           return (
             <li key={step.id} className={`case-work-step ${statusClass(step.status)}`}>
               <div className="case-work-step-head">
@@ -116,11 +126,18 @@ export function CaseWorkRoute({
               {showPrimary ? (
                 <div className="row-actions" style={{ marginTop: "0.5rem" }}>
                   <button type="button" disabled={busy} onClick={() => runPrimary()}>
-                    {primary.label}
+                    {primary!.label}
                   </button>
                 </div>
               ) : null}
-              {step.id === "docs_check" && isCurrent && docsCheckPanel ? (
+              {isCurrent && !primary && step.id === "docs_check" ? (
+                <div className="row-actions" style={{ marginTop: "0.5rem" }}>
+                  <button type="button" disabled={busy} onClick={onRequestReview}>
+                    Проверить документы
+                  </button>
+                </div>
+              ) : null}
+              {showDocsPanel ? (
                 <div style={{ marginTop: "0.75rem" }}>{docsCheckPanel}</div>
               ) : null}
               {!isCurrent && step.status === "upcoming" ? (
