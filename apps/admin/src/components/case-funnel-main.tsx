@@ -30,6 +30,10 @@ import { DocumentsTable } from "@/components/documents-table";
 import { CaseWorkRoute, type WorkRoute } from "@/components/case-work-route";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
+import {
+  formatAskClientNextStepsTemplate,
+  formatBriefChatTemplate,
+} from "@/lib/format-brief-chat";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
 type Caps = {
@@ -223,24 +227,6 @@ function StageMark({ state }: { state: FunnelStageState }) {
   return <span className="funnel-mark">○</span>;
 }
 
-function formatBriefChatTemplate(
-  brief: NonNullable<NonNullable<NonNullable<Detail["document_check"]>["result"]>["honest_brief"]>,
-): string {
-  const lines: string[] = [];
-  lines.push(brief.headline || "Кратко по проверке документов.");
-  for (const item of (brief.items ?? []).slice(0, 3)) {
-    if (item.text) lines.push(`• ${item.text}`);
-  }
-  if (brief.next_step) lines.push(brief.next_step);
-  lines.push(
-    "Напишите, пожалуйста, удобный следующий шаг: уточнить документы, диагностика 3 000 ₽ или пока без оплаты.",
-  );
-  lines.push(
-    "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
-  );
-  return lines.join("\n");
-}
-
 function DocumentCheckPanel({
   check,
   busy,
@@ -363,7 +349,11 @@ function DocumentCheckPanel({
                   title="Подставить в поле чата. В MAX само не отправляем"
                   onClick={() =>
                     onApplyChatTemplate(
-                      "Здравствуйте! Кратко сверили документы. Напишите, пожалуйста, какой следующий шаг вам удобен — уточнить комплект, диагностика или пока без оплаты. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                      formatAskClientNextStepsTemplate(r.honest_brief, {
+                        diagAllowed: Boolean(r.diag_offer?.allowed),
+                        diagPaid,
+                        diagAmountRub: r.diag_offer?.amount_rub ?? 3000,
+                      }),
                     )
                   }
                 >
@@ -374,7 +364,18 @@ function DocumentCheckPanel({
                   className="secondary"
                   disabled={busy}
                   title="Подставить резюме в поле чата. Отправка в MAX — отдельно"
-                  onClick={() => onApplyChatTemplate(formatBriefChatTemplate(r.honest_brief!))}
+                  onClick={() =>
+                    onApplyChatTemplate(
+                      formatBriefChatTemplate(r.honest_brief!, {
+                        diagAllowed: Boolean(r.diag_offer?.allowed),
+                        diagPaid,
+                        diagAmountRub:
+                          r.diag_offer?.amount_rub ??
+                          r.honest_brief?.offer_amount_rub ??
+                          3000,
+                      }),
+                    )
+                  }
                 >
                   Подставить резюме в чат
                 </button>
