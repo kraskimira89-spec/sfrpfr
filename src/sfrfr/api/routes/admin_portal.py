@@ -515,7 +515,13 @@ def get_ingest_artifacts(
     extracted_path = str(row.get("ingest_artifact_path") or "")
     manifest_path = str(row.get("ingest_manifest_path") or "")
     if not extracted_path or not manifest_path:
-        raise HTTPException(status_code=404, detail="ingest artifacts not found")
+        from sfrfr.services.ingest_review_text import saved_text_payload
+
+        saved = saved_text_payload(row)
+        if saved is None:
+            raise HTTPException(status_code=404, detail="Текст файла не сохранён")
+        _repo().audit(case_id, principal.audit_actor_id(), "ingest_artifacts_viewed")
+        return saved
     storage = get_supabase_client().storage.from_(PRIVATE_STORAGE_BUCKET)
     try:
         extracted = storage.download(extracted_path).decode("utf-8", errors="replace")
@@ -624,7 +630,7 @@ def reject_ingest_document(
     client.table("checklist_items").insert(
         {
             "case_id": case_id,
-            "title": "Повторно загрузить документ после проверки ingest",
+            "title": "Повторно загрузить документ после проверки",
             "item_type": "document",
                    "owner": "client",
                    "status": "open",

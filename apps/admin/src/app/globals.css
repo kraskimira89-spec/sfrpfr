@@ -907,6 +907,16 @@ button.badge--clickable:hover {
 }
 .filters input, .filters select { min-width: 160px; }
 .plain-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.ingest-review {
+  margin-top: 10px;
+}
+.ingest-review-summary {
+  cursor: pointer;
+  list-style-position: inside;
+}
+.ingest-review[open] .ingest-review-summary {
+  margin-bottom: 8px;
+}
 .ingest-review-item {
   display: grid;
   gap: 8px;

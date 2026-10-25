@@ -368,7 +368,7 @@ export function CaseFunnelMain({
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
   onCreateQuickOrder?: (code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) => void;
-  /** Проверка ingest / доп. блок сразу под единым списком документов. */
+  /** Проверка текста файлов (2.4) — сразу под блоками этапа «Документы». */
   documentsWorkplace?: ReactNode;
   staffToken?: string | null;
   apiBase?: string;
@@ -1024,13 +1024,7 @@ export function CaseFunnelMain({
             </li>
           </ol>
 
-          {documentsWorkplace ? (
-            <details className="case-tech-journal">
-              <summary className="linkish">Техжурнал загрузки файлов</summary>
-              <p className="hint">Служебный журнал. Раскрытие не запускает проверки и отправки.</p>
-              {documentsWorkplace}
-            </details>
-          ) : null}
+          {documentsWorkplace}
           <p className="hint">
             Комплект на месте? Переходите к проверке — там система разберёт файлы и соберёт резюме
             для клиента.

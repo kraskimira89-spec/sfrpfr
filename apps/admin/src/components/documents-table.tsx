@@ -152,7 +152,7 @@ export function DocumentsTable({
               const hasFullText = Boolean(fullText);
               const textMissingHonest = !hasFullText
                 ? doc.has_extracted_text
-                  ? "полный текст в артефакте ingest — preview в карточке пуст"
+                  ? "полный текст сохранён отдельно — краткое превью пусто"
                   : "текст ещё не извлечён"
                 : null;
               const reviewReason = (doc.progress_message || "").trim();
