@@ -551,7 +551,9 @@ export function AdminCabinet() {
   const [feedbackText, setFeedbackText] = useState("");
   const [orderAmount, setOrderAmount] = useState("");
   const [repEmail, setRepEmail] = useState("");
-  const [orderCode, setOrderCode] = useState<"DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH">("DIAG");
+  const [orderCode, setOrderCode] = useState<
+    "DIAG" | "ACCOMP" | "SUPPORT" | "SF_LUMP" | "SF_MONTH"
+  >("DIAG");
 
   const token = session?.access_token;
 
@@ -1300,7 +1302,7 @@ export function AdminCabinet() {
     }
   }
 
-  async function createQuickOrder(code: "DIAG" | "ACCOMP", amountRub: number) {
+  async function createQuickOrder(code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) {
     if (!token || !detail) return;
     setBusy(true);
     try {
