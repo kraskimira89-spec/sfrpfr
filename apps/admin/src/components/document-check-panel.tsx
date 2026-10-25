@@ -190,15 +190,17 @@ export function DocumentCheckPanel({
             {brief && brief.current === false && brief.stale_reason ? (
               <p className="hint warning-inline">{brief.stale_reason}</p>
             ) : null}
+            {view.compare.ran ? <p className="hint">{view.compare.summary}</p> : null}
             {view.findings.docs.length > 0 ? (
               <>
                 <p className="doc-check-group">Подтверждено документами</p>
                 <ItemList items={view.findings.docs} showBasis />
               </>
-            ) : (
+            ) : view.compare.ran ? null : (
               <p className="hint">
-                Автоматическая сверка периодов ИЛС и трудовой пока не проводилась — подтверждённых
-                расхождений в данных нет. Темы ниже — повод для разговора с клиентом, а не вывод.
+                {view.compare.reason
+                  ? `${view.compare.reason} Темы ниже — повод для разговора с клиентом, а не вывод.`
+                  : "Автоматическая сверка периодов ИЛС и трудовой пока не проводилась — подтверждённых расхождений в данных нет. Темы ниже — повод для разговора с клиентом, а не вывод."}
               </p>
             )}
             {view.findings.questionnaire.length > 0 ? (

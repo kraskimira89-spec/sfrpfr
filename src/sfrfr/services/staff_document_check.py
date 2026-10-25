@@ -243,7 +243,25 @@ def _analyze_case_documents(case_id: str) -> dict[str, Any]:
         ocr_allowed=ocr_allowed,
     )
     brief = _honest_brief_for_case(case_id=case_id, docs=docs, repo=repo)
-    return attach_honest_brief(base, brief=brief)
+    compare: dict[str, Any] | None = None
+    try:
+        from sfrfr.services.stazh_compare_case import (
+            merge_compare_into_brief,
+            run_case_stazh_compare,
+        )
+
+        compare = run_case_stazh_compare(docs, analyzed)
+        brief = merge_compare_into_brief(brief, compare)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "staff_docs_check stazh_compare failed case=%s err=%s",
+            case_id[:8],
+            type(exc).__name__,
+        )
+    out = attach_honest_brief(base, brief=brief)
+    if compare is not None:
+        out["stazh_compare"] = compare
+    return out
 
 
 def enqueue_staff_document_check(*, case_id: str, actor_id: str) -> dict[str, Any]:

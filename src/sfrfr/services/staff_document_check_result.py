@@ -227,4 +227,5 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         "status": str(result.get("status") or ""),
         "honest_brief": result.get("honest_brief"),
         "diag_offer": result.get("diag_offer"),
+        "stazh_compare": result.get("stazh_compare"),
     }

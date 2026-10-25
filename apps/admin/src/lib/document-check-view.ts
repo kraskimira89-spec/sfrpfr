@@ -21,6 +21,7 @@ export type CheckResultInput = {
   unreadable_files?: string[];
   manual_files?: string[];
   honest_brief?: { items?: CheckBriefItem[] } | null;
+  stazh_compare?: { ran?: boolean; summary?: string; reason?: string } | null;
 };
 
 export type NextStepKind =
@@ -47,6 +48,8 @@ export type CheckView = {
     questionnaire: CheckBriefItem[];
     client: CheckBriefItem[];
   };
+  /** Автосверка трудовой с ИЛС: ran=false — не проводилась (reason — почему). */
+  compare: { ran: boolean; summary: string; reason: string };
   next: { kind: NextStepKind; title: string; text: string };
 };
 
@@ -106,6 +109,13 @@ function nextStep(
       text: "Документы показывают расхождения, но счёт на диагностику сейчас не предлагаем. Подставьте резюме в чат и уточните у клиента, как ему удобнее двигаться дальше.",
     };
   }
+  if (view.compare.ran) {
+    return {
+      kind: "proceed",
+      title: "Сверка трудовой с ИЛС: расхождений нет",
+      text: "Периоды трудовой книжки есть в выписке ИЛС, северные отметки совпадают. Подставьте резюме в чат — клиент получит итог сверки без лишних вопросов. Если клиент пришлёт другие документы (архивные справки), повторите проверку.",
+    };
+  }
   if (view.findings.questionnaire.length > 0 || view.findings.client.length > 0) {
     return {
       kind: "clarify",
@@ -157,6 +167,11 @@ export function buildCheckView(
       docs: items.filter((i) => i.evidence === "docs"),
       questionnaire: items.filter((i) => i.evidence === "needs_check"),
       client: items.filter((i) => i.evidence === "client"),
+    },
+    compare: {
+      ran: Boolean(r.stazh_compare?.ran),
+      summary: r.stazh_compare?.summary ?? "",
+      reason: r.stazh_compare?.ran ? "" : (r.stazh_compare?.reason ?? ""),
     },
   };
   return { ...base, next: nextStep(base, opts) };

@@ -85,3 +85,31 @@ test("всё прочитано, тем нет → переходить к св�
   );
   assert.equal(v.next.kind, "proceed");
 });
+
+test("сверка без расхождений: не спрашиваем клиента, а сообщаем итог", () => {
+  const v = buildCheckView(
+    { ...REAL_CASE, stazh_compare: { ran: true, summary: "Сверили: расхождений не найдено." } },
+    { offerAllowed: false, diagPaid: true },
+  );
+  assert.equal(v.compare.ran, true);
+  assert.equal(v.next.kind, "proceed");
+  assert.match(v.next.title, /расхождений нет/i);
+});
+
+test("сверка нашла расхождение: шаг — готовить разбор, а не уточнять", () => {
+  const v = buildCheckView(
+    {
+      ...REAL_CASE,
+      stazh_compare: { ran: true, summary: "найдено расхождений: 1." },
+      honest_brief: {
+        items: [
+          { text: "Северный стаж учтён не за весь период", evidence: "docs", basis: "…" },
+          ...REAL_CASE.honest_brief.items,
+        ],
+      },
+    },
+    { offerAllowed: false, diagPaid: true },
+  );
+  assert.equal(v.next.kind, "paid");
+  assert.equal(v.findings.docs.length, 1);
+});
