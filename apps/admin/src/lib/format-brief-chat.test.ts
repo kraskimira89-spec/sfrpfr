@@ -30,8 +30,9 @@ test("docs: включает basis и офер DIAG один раз", () => {
   assert.match(text, /Проверили ваши документы/);
   assert.match(text, /В трудовой указан период/);
   assert.match(text, /Подробная диагностика/);
-  assert.match(text, /3000|3[\s\u00a0]?000/);
-  assert.match(text, /Задать вопрос специалисту/);
+  // Сумма — один раз, без псевдокнопок «Получить разбор — 3 000 ₽».
+  assert.equal((text.match(/3[\s\u00a0]?000/g) || []).length, 1);
+  assert.match(text, /Вопросы можно задать здесь же/);
   assert.doesNotMatch(text, /\/help/i);
   assert.doesNotMatch(text, /ответьте кнопкой/i);
   assert.doesNotMatch(text, /перерасч[её]т|прибавк/i);
@@ -68,12 +69,32 @@ test("client / needs_check: сначала данные, не продажа", (
     },
     { diagAllowed: false },
   );
-  assert.match(text, /недостаточно данных/i);
-  assert.match(text, /северн/i);
-  assert.match(text, /Следующий шаг/);
+  assert.match(text, /данных недостаточно/i);
+  assert.match(text, /Ваш вопрос — по северному/);
+  assert.doesNotMatch(text, /вопрос по теме: возможные вопросы/i);
+  assert.match(text, /Пришлите выписку ИЛС/);
   assert.doesNotMatch(text, /Подробная диагностика/);
   assert.doesNotMatch(text, /3000|3[\s\u00a0]?000/);
-  assert.match(text, /не можем обоснованно утверждать/i);
+  // Без повторов: СФР — одна строка, «Следующий шаг» не дублируется.
+  assert.equal((text.match(/СФР/g) || []).length, 1);
+  assert.doesNotMatch(text, /Следующий шаг/);
+});
+
+test("без next_step: просьба назвать периоды, ИЛС упомянут один раз", () => {
+  const text = formatBriefChatTemplate(
+    {
+      items: [
+        {
+          text: "возможные вопросы по северному / льготному стажу",
+          evidence: "needs_check",
+          basis: "анкета / формулировка клиента",
+        },
+      ],
+    },
+    { diagAllowed: false },
+  );
+  assert.match(text, /какие периоды — годы и место работы/);
+  assert.equal((text.match(/ИЛС/g) || []).length, 1);
 });
 
 test("пусто: ограничение проверки без офера", () => {
@@ -138,5 +159,5 @@ test("ask client без docs — без продажи", () => {
     { diagAllowed: false },
   );
   assert.doesNotMatch(text, /диагностик[аи].*3000|3[\s\u00a0]?000/i);
-  assert.match(text, /недостаточно данных|не предлагаем оплату/i);
+  assert.match(text, /данных недостаточно/i);
 });

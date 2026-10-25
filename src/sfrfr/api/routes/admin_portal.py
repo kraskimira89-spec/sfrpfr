@@ -1085,6 +1085,40 @@ def suggest_case_replies(
     return {"suggestions": suggestions, "source": "deepseek"}
 
 
+@router.post("/admin/cases/{case_id}/brief-reply")
+def polish_case_brief_reply(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Черновик резюме → ответ клиенту, доработанный DeepSeek по переписке (без отправки)."""
+    from sfrfr.services.brief_reply_polish import polish_brief_reply
+
+    draft = str((payload or {}).get("draft") or "").strip()
+    if not draft:
+        raise HTTPException(status_code=400, detail="draft required")
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    latest_desc = (
+        get_supabase_client()
+        .table("case_messages")
+        .select("author_kind, body, created_at")
+        .eq("case_id", case_id)
+        .order("created_at", desc=True)
+        .limit(40)
+        .execute()
+        .data
+        or []
+    )
+    client = case.get("clients") if isinstance(case.get("clients"), dict) else {}
+    client_name = str((client or {}).get("full_name") or "").strip() or None
+    return polish_brief_reply(
+        draft=draft[:4000],
+        messages=list(reversed(latest_desc)),
+        client_name=client_name,
+    )
+
+
 @router.patch("/admin/cases/{case_id}/flags")
 def update_case_flags(
     case_id: str,

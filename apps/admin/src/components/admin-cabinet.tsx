@@ -1114,6 +1114,39 @@ export function AdminCabinet() {
     setNotice("Текст добавлен в черновик. Отправьте после проверки.");
   }
 
+  /** Черновик резюме → DeepSeek дорабатывает по переписке; при сбое — шаблон без повторов. */
+  async function polishBriefDraft(draft: string) {
+    if (!token || !detail) return;
+    if (!detail.expert_user_id && me?.user_id) {
+      if (!window.confirm("Назначить себе и подставить текст в чат?")) return;
+      void takeCase(detail.id);
+    }
+    setBusy(true);
+    let text = draft;
+    let source = "template";
+    try {
+      const res = await apiFetch<{ text?: string; source?: string }>(
+        `/api/portal/admin/cases/${detail.id}/brief-reply`,
+        token,
+        { method: "POST", body: JSON.stringify({ draft }) },
+      );
+      if (res.text?.trim()) {
+        text = res.text;
+        source = res.source || "template";
+      }
+    } catch {
+      // Сеть / API недоступны — подставляем исходный шаблон.
+    } finally {
+      setBusy(false);
+    }
+    applyStepMessageToChat(text);
+    setNotice(
+      source === "ai"
+        ? "Текст доработан ИИ по переписке — проверьте перед отправкой."
+        : "ИИ недоступен — подставлен шаблон. Проверьте перед отправкой.",
+    );
+  }
+
   async function recordServiceConsent() {
     if (!token || !detail) return;
     setBusy(true);
@@ -2216,6 +2249,7 @@ export function AdminCabinet() {
             onCloseCase={(p) => void closeCase(p)}
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
+            onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
             onDismissHint={() => {
               setStepHint(null);
               setStepMessages([]);
