@@ -1209,6 +1209,58 @@ button.badge--clickable:hover {
   padding-top: 10px;
   border-top: 1px dashed var(--line);
 }
+/* Блоки по ходу процесса: «Документы» и результат «Проверить документы» */
+.doc-check-blocks {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.doc-check-block {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.doc-check-block h4 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.doc-check-block p {
+  margin: 0 0 6px;
+}
+.doc-check-ok {
+  color: #1e6a3f;
+  font-weight: 600;
+}
+.doc-check-group {
+  margin: 8px 0 2px;
+  font-weight: 600;
+}
+.doc-check-next {
+  background: #eef4fb;
+  border-color: #7aa2d4;
+}
+.doc-check-next--offer,
+.doc-check-next--paid {
+  background: #eef8f1;
+  border-color: #8fbea4;
+}
+.doc-check-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.doc-kit-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.doc-check-footer {
+  margin-top: 8px;
+}
 .funnel-stage-body .hint {
   color: var(--muted);
 }

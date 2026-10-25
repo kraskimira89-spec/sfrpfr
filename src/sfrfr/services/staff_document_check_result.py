@@ -177,10 +177,31 @@ def attach_honest_brief(
     return merged
 
 
+def _file_names(documents: list[Any], flag: str, limit: int = 5) -> list[str]:
+    names: list[str] = []
+    for doc in documents:
+        if not isinstance(doc, dict) or not doc.get(flag):
+            continue
+        name = str(doc.get("filename") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return names[:limit]
+
+
 def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
     """Карточка для UI: без findings/analysis_notes/draft пайплайна."""
+    documents = [d for d in (result.get("documents") or []) if isinstance(d, dict)]
+    checksums = {
+        str(d.get("checksum_sha256") or "").strip()
+        for d in documents
+        if str(d.get("checksum_sha256") or "").strip()
+    }
+    checked = int(result.get("documents_checked") or 0)
     return {
-        "documents_checked": int(result.get("documents_checked") or 0),
+        "documents_checked": checked,
+        "unique_documents": len(checksums) if checksums else checked,
+        "unreadable_files": _file_names(documents, "needs_ocr"),
+        "manual_files": _file_names(documents, "needs_manual"),
         "originals_available": int(result.get("originals_available") or 0),
         "text_extracted": int(result.get("text_extracted") or 0),
         "needs_recognition": int(result.get("needs_recognition") or 0),
