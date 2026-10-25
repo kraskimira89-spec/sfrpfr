@@ -596,7 +596,7 @@ export function CaseFunnelMain({
   afterRub: string;
   lumpRub: string;
   sfrReceived: boolean;
-  orderCode: "DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH";
+  orderCode: "DIAG" | "ACCOMP" | "SUPPORT" | "SF_LUMP" | "SF_MONTH";
   orderAmount: string;
   feedbackText: string;
   feedbackQuality: string;
@@ -638,7 +638,7 @@ export function CaseFunnelMain({
   onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
-  onCreateQuickOrder?: (code: "DIAG" | "ACCOMP", amountRub: number) => void;
+  onCreateQuickOrder?: (code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) => void;
   /** Проверка ingest / доп. блок сразу под единым списком документов. */
   documentsWorkplace?: ReactNode;
   staffToken?: string | null;
@@ -655,7 +655,7 @@ export function CaseFunnelMain({
   onAfterRub: (v: string) => void;
   onLumpRub: (v: string) => void;
   onSfrReceived: (v: boolean) => void;
-  onOrderCode: (v: "DIAG" | "ACCOMP" | "SF_LUMP" | "SF_MONTH") => void;
+  onOrderCode: (v: "DIAG" | "ACCOMP" | "SUPPORT" | "SF_LUMP" | "SF_MONTH") => void;
   onOrderAmount: (v: string) => void;
   onCreateOrder: (e: FormEvent) => void;
   onSendPayLink?: (orderId: string) => void;
@@ -1475,6 +1475,7 @@ export function CaseFunnelMain({
                 >
                   <option value="DIAG">{labelPackage("DIAG")}</option>
                   <option value="ACCOMP">{labelPackage("ACCOMP")}</option>
+                  <option value="SUPPORT">{labelPackage("SUPPORT")}</option>
                   <option value="SF_LUMP">{labelPackage("SF_LUMP")}</option>
                   <option value="SF_MONTH">{labelPackage("SF_MONTH")}</option>
                 </select>
@@ -1713,6 +1714,35 @@ export function CaseFunnelMain({
             >
               Сформировать / обновить проект
             </button>
+            {detail.draft?.body && staffToken && apiBase ? (
+              <a
+                className="secondary"
+                href={`${apiBase}/api/portal/admin/cases/${detail.id}/appeal-docx`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void (async () => {
+                    try {
+                      const res = await fetch(
+                        `${apiBase}/api/portal/admin/cases/${detail.id}/appeal-docx`,
+                        { headers: { Authorization: `Bearer ${staffToken}` } },
+                      );
+                      if (!res.ok) throw new Error(String(res.status));
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "appeal-draft.docx";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      window.alert("Не удалось скачать DOCX");
+                    }
+                  })();
+                }}
+              >
+                Скачать DOCX черновика
+              </a>
+            ) : null}
             {detail.draft?.body ? (
               <button
                 type="button"
@@ -1862,10 +1892,17 @@ export function CaseFunnelMain({
           </p>
           <ul className="plain-list">
             {(detail.orders ?? [])
-              .filter((o) => o.package_code === "ACCOMP" && Number(o.amount_rub) === 8000)
+              .filter(
+                (o) =>
+                  o.package_code === "SUPPORT" ||
+                  (o.package_code === "ACCOMP" && Number(o.amount_rub) === 8000),
+              )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || "ACCOMP"} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
+                  {o.package_code === "ACCOMP" ? (
+                    <span className="hint"> · legacy ACCOMP×8000 (не переклассифицируем)</span>
+                  ) : null}
                 </li>
               ))}
           </ul>
@@ -1873,9 +1910,9 @@ export function CaseFunnelMain({
             <button
               type="button"
               disabled={busy}
-              onClick={() => onCreateQuickOrder("ACCOMP", 8000)}
+              onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
             >
-              Счёт ACCOMP 8 000 ₽
+              Счёт SUPPORT 8 000 ₽
             </button>
           ) : null}
           <button
