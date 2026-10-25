@@ -241,6 +241,11 @@ class Settings(BaseSettings):
     tracker_cloud_org_id: str = ""
     tracker_queue: str = "STAZH"
     tracker_case_ref_secret: str = ""  # TRACKER_CASE_REF_SECRET
+    # Проекция карточки дела (outbox). По умолчанию выкл — нет очереди CASE/DELO.
+    tracker_case_sync_enabled: bool = False
+    tracker_case_queue: str = ""  # TRACKER_CASE_QUEUE — только после решения владельца
+    # JSON: {"current_stage":"<localFieldId>", "case_revision":"...", ...}
+    tracker_case_field_ids_json: str = "{}"
 
 
 @lru_cache
