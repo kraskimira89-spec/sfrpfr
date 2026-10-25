@@ -29,10 +29,8 @@ export type FormatBriefChatOpts = {
   diagAmountRub?: number;
 };
 
-const SFR_LINE =
-  "Решение об учёте стажа и назначении пенсии принимает СФР.";
-const PREPARE_LINE =
-  "Мы готовим документы, проект обращения и план — расскажем по шагам, но подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.";
+/** Одна короткая строка о подаче; сервер убирает её, если её уже писали в переписке. */
+const POSITION_LINE = "Обращение подаёте вы сами, решение принимает СФР.";
 
 function cleanLine(s: string | undefined | null): string {
   return String(s || "")
@@ -54,10 +52,23 @@ const BOT_ONLY_RE = /\/help|кнопк/i;
 const SOURCE_LABEL_RE = /анкет|со слов|формулировк/i;
 
 const DEFAULT_COMPARE =
-  "периоды в выписке ИЛС и в трудовой книжке (или архивных справках)";
+  "периоды в выписке ИЛС с записями трудовой книжки (или архивными справками)";
 
 const DEFAULT_ASK_NEXT =
-  "напишите, какие именно периоды (годы и место работы), по-вашему, учтены неверно — специалист сверит их с выпиской ИЛС и трудовой книжкой";
+  "напишите, пожалуйста, какие периоды — годы и место работы — по-вашему, учтены неверно: с этими данными сверка пойдёт быстрее";
+
+function capitalize(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+function withPeriod(s: string): string {
+  return /[.!?]$/.test(s) ? s : `${s}.`;
+}
+
+/** «возможные вопросы по северному стажу» → «по северному стажу» (без «вопрос по теме: вопросы»). */
+function themeText(raw: string): string {
+  return raw.replace(/^возможн\S*\s+(?:вопросы\s+)?/i, "").trim() || "по вашей теме";
+}
 
 export function sanitizeNextStep(raw: string | undefined | null): string {
   const s = cleanLine(raw).replace(/^(следующий шаг:\s*)+/i, "").trim();
@@ -105,25 +116,22 @@ function formatDocsConfirmed(
 
   if (opts.diagPaid) {
     lines.push(
-      "Подробная диагностика уже оплачена. Далее: разбор отмеченных периодов и письменный результат по документам — без обещания суммы выплат.",
+      "Подробная диагностика уже оплачена: разберём отмеченные периоды и пришлём письменный результат по документам.",
     );
-    lines.push("Если остались вопросы — напишите специалисту в этот чат.");
   } else if (opts.diagAllowed) {
     lines.push(`Подробная диагностика — ${amount.toLocaleString("ru-RU")} ₽`);
     lines.push(
       "Разберём отмеченные периоды и подготовим письменный результат: что подтверждается документами, какие вопросы остаются и что нужно запросить или уточнить.",
     );
-    lines.push("");
-    lines.push(`Получить подробный разбор — ${amount.toLocaleString("ru-RU")} ₽`);
-    lines.push("Задать вопрос специалисту");
-  } else {
     lines.push(
-      "Сейчас предлагаем уточнить документы по отмеченным пунктам. Счёт на диагностику откроем, когда основание подтверждено сервером.",
+      "Если подходит — напишите «Да, нужен разбор», пришлём ссылку на оплату. Вопросы можно задать здесь же.",
     );
+  } else {
+    lines.push("Предлагаем сначала уточнить документы по отмеченным пунктам.");
   }
 
   lines.push("");
-  lines.push(SFR_LINE);
+  lines.push(POSITION_LINE);
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -131,22 +139,20 @@ function formatInsufficient(
   soft: BriefChatItem[],
   brief: HonestBriefForChat,
 ): string {
-  const theme = cleanLine(soft[0]?.text) || "вашей теме обращения";
+  const theme = themeText(cleanLine(soft[0]?.text));
   const basis = cleanLine(soft[0]?.basis);
   const compareHint =
     isUsable(basis) && !SOURCE_LABEL_RE.test(basis) ? basis : DEFAULT_COMPARE;
   const next = sanitizeNextStep(brief.next_step) || DEFAULT_ASK_NEXT;
 
   const lines = [
-    "Для проверки пока недостаточно данных.",
+    "Пока данных недостаточно, чтобы сказать, есть ли расхождение.",
     "",
-    `Вы указали вопрос по теме: ${theme}. Чтобы установить, есть ли расхождение, необходимо сопоставить: ${compareHint}.`,
+    `Ваш вопрос — ${theme}. Чтобы это проверить, сверим ${compareHint}.`,
     "",
-    `Следующий шаг: ${next}`,
+    withPeriod(capitalize(next)),
     "",
-    "Сейчас мы не можем обоснованно утверждать, что стаж учтён неправильно.",
-    "",
-    PREPARE_LINE,
+    POSITION_LINE,
   ];
   return lines.join("\n").trim();
 }
@@ -154,21 +160,18 @@ function formatInsufficient(
 function formatEmptyOrLimit(brief: HonestBriefForChat): string {
   const headline =
     cleanLine(brief.headline) ||
-    "По представленным документам автоматическая проверка не выявила очевидных расхождений.";
+    "По представленным документам автоматическая проверка не выявила очевидных расхождений";
   const next = sanitizeNextStep(brief.next_step);
   const lines = [
-    "Результат предварительной проверки",
-    "",
-    headline,
-    "",
-    "Мы не создаём видимость полной диагностики: без подтверждённых расхождений в документах нельзя обещать «исправление стажа».",
+    withPeriod(headline),
+    "Это предварительная проверка комплекта, а не полный разбор.",
   ];
   if (next) {
     lines.push("");
-    lines.push(`Следующий шаг: ${next}`);
+    lines.push(withPeriod(capitalize(next)));
   }
   lines.push("");
-  lines.push(PREPARE_LINE);
+  lines.push(POSITION_LINE);
   return lines.join("\n").trim();
 }
 
@@ -220,9 +223,9 @@ export function formatAskClientNextStepsTemplate(
     }
   }
   return [
-    "Здравствуйте! Кратко сверили комплект.",
-    "Напишите, пожалуйста, удобный следующий шаг: уточнить документы или задать вопрос специалисту.",
-    "Пока нет подтверждённого расхождения в документах, мы не предлагаем оплату диагностики.",
-    PREPARE_LINE,
+    "Кратко сверили комплект документов.",
+    "Напишите, пожалуйста, что для вас сейчас важнее всего — подскажем следующий шаг.",
+    "",
+    POSITION_LINE,
   ].join("\n");
 }

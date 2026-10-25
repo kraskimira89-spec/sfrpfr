@@ -53,6 +53,7 @@ export function DocumentCheckPanel({
   canViewOcr,
   orders,
   onApplyChatTemplate,
+  onPolishDraft,
   onCreateDiagInvoice,
   onSendPayLink,
   onUploadDiagnosisReport,
@@ -63,6 +64,8 @@ export function DocumentCheckPanel({
   canViewOcr?: boolean;
   orders?: CheckOrder[];
   onApplyChatTemplate: (text: string) => void;
+  /** Доработка черновика ИИ по переписке; без него — шаблон как есть. */
+  onPolishDraft?: (draft: string) => void;
   onCreateDiagInvoice?: () => void;
   onSendPayLink?: (orderId: string) => void;
   onUploadDiagnosisReport?: (file: File) => void;
@@ -93,15 +96,17 @@ export function DocumentCheckPanel({
     view?.next.kind === "ask_docs" ||
     view?.next.kind === "fix_files";
 
+  const toChat = onPolishDraft ?? onApplyChatTemplate;
+
   function applyBrief() {
     if (!brief) return;
-    onApplyChatTemplate(
+    toChat(
       formatBriefChatTemplate(brief, { diagAllowed: offerAllowed, diagPaid, diagAmountRub: amount }),
     );
   }
 
   function applyAsk() {
-    onApplyChatTemplate(
+    toChat(
       formatAskClientNextStepsTemplate(brief, {
         diagAllowed: offerAllowed,
         diagPaid,
@@ -228,7 +233,7 @@ export function DocumentCheckPanel({
                   type="button"
                   className={askFirst || view.next.kind === "paid" ? "secondary" : undefined}
                   disabled={busy}
-                  title="Подставить резюме в поле чата. В MAX само не отправляется"
+                  title="ИИ доработает резюме по переписке и подставит в поле чата. В MAX само не отправляется"
                   onClick={applyBrief}
                 >
                   Подставить резюме в чат

@@ -264,6 +264,7 @@ export function CaseFunnelMain({
   onCloseCase,
   onSuggestStep,
   onApplyChatMessage,
+  onPolishBriefDraft,
   onDismissHint,
   onTake,
   onFocusMax,
@@ -346,6 +347,8 @@ export function CaseFunnelMain({
   onCloseCase?: (payload: { outcome: "success" | "lost"; loss_reason?: string }) => void;
   onSuggestStep: () => void;
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
+  /** Черновик резюме → доработка ИИ по переписке → поле чата. */
+  onPolishBriefDraft?: (draft: string) => void;
   onDismissHint: () => void;
   onTake: () => void;
   onFocusMax: () => void;
@@ -1061,6 +1064,7 @@ export function CaseFunnelMain({
                 canViewOcr={caps.can_view_ocr}
                 orders={detail.orders}
                 onApplyChatTemplate={applyTemplate}
+                onPolishDraft={onPolishBriefDraft}
                 onCreateDiagInvoice={
                   onCreateQuickOrder
                     ? () =>
