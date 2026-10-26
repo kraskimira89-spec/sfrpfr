@@ -91,6 +91,24 @@ CALLBACK_LABELS: dict[str, str] = {
     "max:doc:type:other": "Другое",
     "max:doc:confirm:yes": "Да, правильно (тип документа)",
     "max:doc:confirm:no": "Нет, другой документ",
+    "max:doc:done": "Документы загружены",
+    # Меню после создания дела (кнопки под приветствием бота).
+    "menu:upload": "Загрузить документы",
+    "menu:docs": "Какие документы нужны",
+    "menu:status": "Статус моего дела",
+    "menu:operator": CALLBACK_REQUEST_LABEL,
+    # Чек-лист «Как самому проверить стаж».
+    "lm:send": "Получить чек-лист на почту",
+    "lm:have": "Чек-лист уже есть",
+    "lm:cancel": "Чек-лист не нужен",
+    "lm:use_known": "Отправить чек-лист на известный e-mail",
+    "lm:change_email": "Изменить e-mail для чек-листа",
+    "lm:fmt:pdf": "Чек-лист в PDF",
+    "lm:fmt:docx": "Чек-лист в Word",
+    # После анкеты: диагностика / чек-лист.
+    "diag:yes": "Оформить диагностику 3 000 ₽",
+    "diag:checklist": "Пока чек-лист",
+    "q:skip:email": "Пропустить e-mail",
 }
 
 
@@ -182,8 +200,14 @@ def label_for_callback(payload: str) -> str:
         return CALLBACK_LABELS.get(raw, "Шаг воронки")
     if raw.startswith("offer:"):
         return CALLBACK_LABELS.get(raw, "Предложение тарифа")
+    if raw.startswith("menu:"):
+        return CALLBACK_LABELS.get(raw, "Кнопка меню дела")
+    if raw.startswith("lm:"):
+        return CALLBACK_LABELS.get(raw, "Чек-лист")
     if raw.startswith("diag:"):
-        return "Выбор после анкеты"
+        return CALLBACK_LABELS.get(raw, "Выбор после анкеты")
+    if raw.startswith("q:skip:"):
+        return CALLBACK_LABELS.get(raw, "Пропуск шага анкеты")
     if raw.startswith("confirm_web_login"):
         return "Подтверждение входа на сайт"
     # Не отдаём сырой payload в ленту — без технических путей вроде max:foo:bar.
