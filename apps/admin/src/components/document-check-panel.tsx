@@ -308,9 +308,13 @@ export function DocumentCheckPanel({
                   className="secondary"
                   disabled={busy || Boolean(diagOpen)}
                   onClick={() => onCreateDiagInvoice()}
-                  title={diagOpen ? "Счёт DIAG уже есть — отправьте ссылку" : "Создать счёт DIAG"}
+                  title={
+                    diagOpen
+                      ? "Счёт DIAG уже есть — отправьте ссылку"
+                      : "Создать счёт DIAG и сразу отправить ссылку клиенту в MAX"
+                  }
                 >
-                  Счёт на диагностику {amount.toLocaleString("ru-RU")} ₽
+                  Отправить счёт на диагностику {amount.toLocaleString("ru-RU")} ₽
                 </button>
               ) : null}
               {offerAllowed && diagOpen && onSendPayLink ? (

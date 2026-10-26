@@ -1430,7 +1430,8 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Канон: SUPPORT 8 000 ₽ (сопровождение до подачи). ACCOMP 5 000 — подготовка. Не путать с
-            DIAG и legacy ACCOMP×8 000. Создать счёт ≠ отправить ссылку.
+            DIAG и legacy ACCOMP×8 000. Кнопки ниже создают счёт и сразу отправляют ссылку клиенту в
+            MAX.
           </p>
           <ul className="plain-list">
             {(detail.orders ?? [])
@@ -1473,16 +1474,18 @@ export function CaseFunnelMain({
                 type="button"
                 disabled={busy}
                 onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
+                title="Создать счёт и сразу отправить ссылку клиенту в MAX"
               >
-                Счёт SUPPORT 8 000 ₽
+                Отправить счёт SUPPORT 8 000 ₽
               </button>
               <button
                 type="button"
                 className="secondary"
                 disabled={busy}
                 onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
+                title="Создать счёт и сразу отправить ссылку клиенту в MAX"
               >
-                Счёт ACCOMP 5 000 ₽
+                Отправить счёт ACCOMP 5 000 ₽
               </button>
             </div>
           ) : null}
@@ -1715,8 +1718,9 @@ export function CaseFunnelMain({
               type="button"
               disabled={busy}
               onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
+              title="Создать счёт и сразу отправить ссылку клиенту в MAX"
             >
-              Счёт SUPPORT 8 000 ₽
+              Отправить счёт SUPPORT 8 000 ₽
             </button>
           ) : null}
           <button
