@@ -224,28 +224,16 @@ export function formatBriefChatTemplate(
 }
 
 /**
- * Нейтральный запрос следующих шагов — без продажи на неподтверждённом.
+ * Короткая просьба документов в чат — отдельно от резюме сверки.
+ * Не дублирует formatBriefChatTemplate (кнопка «Подставить резюме»).
  */
 export function formatAskClientNextStepsTemplate(
-  brief?: HonestBriefForChat | null,
-  opts: FormatBriefChatOpts = {},
+  _brief?: HonestBriefForChat | null,
+  _opts: FormatBriefChatOpts = {},
 ): string {
-  if (brief) {
-    const items = Array.isArray(brief.items) ? brief.items : [];
-    const docs = docsItems(items);
-    if (docs.length > 0 && opts.diagAllowed && !opts.diagPaid) {
-      return formatBriefChatTemplate(brief, opts);
-    }
-    if (docs.length === 0 && brief.compare?.ran) {
-      return formatComparedClean();
-    }
-    if (docs.length === 0 && softItems(items).length > 0) {
-      return formatInsufficient(softItems(items), brief);
-    }
-  }
   return [
-    "Кратко сверили комплект документов.",
-    "Чтобы продолжить, пришлите выписку ИЛС с Госуслуг и трудовую книжку (или справки о стаже) прямо в этот чат — анализ строим по документам.",
+    "Чтобы сверить стаж, пришлите, пожалуйста, выписку ИЛС с Госуслуг (PDF) и сканы трудовой книжки или справки о стаже прямо в этот чат.",
+    "Краткий разбор сделаем по документам — заранее формулировать «проблему» не нужно.",
     "",
     POSITION_LINE,
   ].join("\n");
