@@ -70,9 +70,10 @@ test("client / needs_check: сначала данные, не продажа", (
     { diagAllowed: false },
   );
   assert.match(text, /данных недостаточно/i);
-  assert.match(text, /Ваш вопрос — по северному/);
+  assert.match(text, /Тема — по северному/);
   assert.doesNotMatch(text, /вопрос по теме: возможные вопросы/i);
   assert.match(text, /Пришлите выписку ИЛС/);
+  assert.doesNotMatch(text, /по-вашему|по вашему мнению/i);
   assert.doesNotMatch(text, /Подробная диагностика/);
   assert.doesNotMatch(text, /3000|3[\s\u00a0]?000/);
   // Без повторов: СФР — одна строка, «Следующий шаг» не дублируется.
@@ -80,7 +81,7 @@ test("client / needs_check: сначала данные, не продажа", (
   assert.doesNotMatch(text, /Следующий шаг/);
 });
 
-test("без next_step: просьба назвать периоды, ИЛС упомянут один раз", () => {
+test("без next_step: просим документы, не мнение о периодах", () => {
   const text = formatBriefChatTemplate(
     {
       items: [
@@ -93,8 +94,11 @@ test("без next_step: просьба назвать периоды, ИЛС у�
     },
     { diagAllowed: false },
   );
-  assert.match(text, /какие периоды — годы и место работы/);
-  assert.equal((text.match(/ИЛС/g) || []).length, 1);
+  assert.match(text, /пришлите.*выписку ИЛС/i);
+  assert.match(text, /трудов/i);
+  assert.doesNotMatch(text, /по-вашему|по вашему мнению|какие периоды.*учтены неверно/i);
+  // ИЛС в сравнении и в просьбе документов — без опроса «какие периоды».
+  assert.ok((text.match(/ИЛС/g) || []).length >= 1);
 });
 
 test("пусто: ограничение проверки без офера", () => {
@@ -168,6 +172,6 @@ test("сверка без расхождений: итог без вопросо
     items: [{ text: "возможные вопросы по северному стажу", evidence: "needs_check" }],
   });
   assert.match(text, /Сверили выписку ИЛС с трудовой книжкой/);
-  assert.doesNotMatch(text, /Напишите, пожалуйста, какие периоды/);
+  assert.doesNotMatch(text, /по-вашему|по вашему мнению|какие периоды.*учтены неверно/i);
   assert.doesNotMatch(text, /Пока данных недостаточно/);
 });
