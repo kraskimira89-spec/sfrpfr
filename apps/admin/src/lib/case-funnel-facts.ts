@@ -245,12 +245,18 @@ export function toFunnelFacts(
   const docsAwaitStaff = docs.some((d) => Boolean(d.ingest_review_required));
   const check = detail.document_check;
   const missing = check?.result?.missing_for_task ?? [];
+  const checkDone = ["completed", "succeeded", "done"].includes(
+    String(check?.status || "").toLowerCase(),
+  );
+  // После успешной «Проверить документы» очередь 2.4 не держит ступень 2
+  // в «уточнить комплект»: комплект уже оценён, сотрудник идёт к резюме.
   const needsAttention =
-    docsAwaitStaff ||
     Boolean(check?.stale) ||
     missing.length > 0 ||
-    (check?.result?.needs_manual_review ?? 0) > 0 ||
-    (check?.result?.needs_recognition ?? 0) > 0;
+    (!checkDone &&
+      (docsAwaitStaff ||
+        (check?.result?.needs_manual_review ?? 0) > 0 ||
+        (check?.result?.needs_recognition ?? 0) > 0));
 
   const channelOk = Boolean(detail.client.max_linked || detail.client.web_linked);
   const hasContact = Boolean(detail.client.phone || detail.client.email || channelOk);

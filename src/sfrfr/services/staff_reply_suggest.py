@@ -52,6 +52,15 @@ SYSTEM = f"""Ты помощник сотрудника сервиса «Про�
 - не подставляй фамилию, ники, латиницу-мусор и случайные символы как обращение;
 - без телефона, e-mail, СНИЛС, номера дела, без обещаний перерасчёта и сумм;
 - не обещай, что сервис подаёт в СФР / Госуслуги вместо клиента.
+
+Операционные факты (блок в user-промпте) — главный ориентир шага:
+- если там есть расхождения по документам — опирайся на них, не переспрашивай
+  клиента «какие периоды»; не выдумывай новые годы;
+- если DIAG оплачен — не предлагай снова оплатить диагностику;
+- если ссылка на оплату подготовки уже уходила и клиент ответил «хорошо» /
+  «ок» — не дублируй просьбу оплатить; предложи ждать разбор или задать вопрос;
+- не называй период работы «северным стажем по трудовой», если в фактах сказано
+  лишь «период работы» / «северная отметка в ИЛС».
 """
 
 
@@ -113,6 +122,7 @@ def suggest_staff_replies(
     b2c_status: str | None = None,
     client_name: str | None = None,
     work: dict[str, Any] | None = None,
+    ops_facts: dict[str, Any] | None = None,
 ) -> list[str]:
     salutation = client_salutation(client_name)
     parsed = parse_person_name(client_name)
@@ -126,6 +136,7 @@ def suggest_staff_replies(
         build_staff_llm_user_prompt,
         restore_name_token,
     )
+    from sfrfr.services.staff_ops_facts import format_ops_facts_for_llm
 
     confirm_note = ""
     if parsed.needs_confirm:
@@ -142,6 +153,8 @@ def suggest_staff_replies(
         b2c_status=b2c_status,
         client_name=client_name,
     )
+    ops_block = format_ops_facts_for_llm(ops_facts)
+    user = f"{ops_block}\n\n{user}"
     if confirm_note:
         user = confirm_note + user
     try:

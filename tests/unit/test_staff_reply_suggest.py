@@ -118,3 +118,44 @@ def test_suggest_replies_fallback_when_llm_errors(monkeypatch) -> None:
     assert "кабинет" not in joined
     assert "cabinet.proverkastaza.ru" not in joined
     assert "согласи" not in joined
+
+def test_suggest_replies_includes_ops_facts(monkeypatch) -> None:
+    seen: dict = {}
+
+    class Fake:
+        available = True
+
+        def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+            seen["user"] = user
+            return (
+                "1) {ИМЯ}, готовим письменный разбор по отмеченным периодам.\n"
+                "2) {ИМЯ}, диагностика оплачена.\n"
+                "3) {ИМЯ}, напишите, если остались вопросы."
+            )
+
+    monkeypatch.setattr(
+        "sfrfr.services.staff_reply_suggest.LLMClient.for_analyze",
+        classmethod(lambda cls, **kwargs: Fake()),
+    )
+    from sfrfr.services.staff_reply_suggest import suggest_staff_replies
+
+    out = suggest_staff_replies(
+        messages=[{"author_kind": "client", "body": "хорошо"}],
+        pipeline_status="human_review",
+        client_name="Иванов Иван Иванович",
+        ops_facts={
+            "check_status": "completed",
+            "discrepancies": ["Северный стаж учтён не за весь период"],
+            "compare_summary": "найдено расхождений: 1.",
+            "diag_paid": True,
+            "diag_pending": False,
+            "support_or_accomp_pending": True,
+            "support_or_accomp_paid": False,
+            "staff_next": "prepare_analysis",
+            "unique_documents": 3,
+        },
+    )
+    assert "DIAG оплачен" in seen["user"]
+    assert "prepare_analysis" in seen["user"]
+    assert "Северный стаж" in seen["user"]
+    assert out and "Иван Иванович" in out[0]

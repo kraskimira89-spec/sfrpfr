@@ -444,3 +444,33 @@ test("deriveFunnel kit + 13 stages", () => {
   assert.equal(funnel.stages.length, 13);
   assert.equal(funnel.funnel.stages.length, 13);
 });
+
+test("toFunnelFacts: после completed проверки ingest_review не держит ступень Документы", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [
+      { doc_type: "ils", storage_path: "c/ils.pdf", ingest_status: "manual_review", ingest_review_required: true },
+      { doc_type: "workbook", storage_path: "c/tk.docx", ingest_status: "manual_review", ingest_review_required: true },
+    ],
+    orders: [],
+    ordersLoaded: true,
+    document_check: {
+      status: "completed",
+      stale: false,
+      result: {
+        missing_for_task: [],
+        needs_manual_review: 0,
+        needs_recognition: 0,
+        honest_brief: {
+          has_justified_discrepancy: true,
+          items: [{ evidence: "docs", text: "Северный стаж учтён не за весь период" }],
+        },
+      },
+    },
+  });
+  assert.equal(facts.documents, "ready");
+  assert.equal(facts.precheck.outcome, "discrepancies");
+});
