@@ -482,9 +482,12 @@ export function CaseFunnelMain({
   }
 
   function scrollToStage(id: FunnelStageId) {
-    requestAnimationFrame(() => {
-      document.getElementById(`funnel-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    // После раскрытия карточки ждём кадр раскладки, иначе «улетает» к верху ленты.
+    window.setTimeout(() => {
+      document
+        .getElementById(`funnel-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    }, 50);
   }
 
   function toggleStage(id: FunnelStageId) {
