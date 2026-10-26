@@ -724,6 +724,10 @@ class CaseRepository:
         draft = row.get("draft")
         return draft if isinstance(draft, dict) else None
 
+    def clear_pipeline_draft(self, case_id: str) -> None:
+        """Удалить текст проекта обращения (draft), остальной snapshot пайплайна сохранить."""
+        self.save_pipeline_snapshot(case_id, {"draft": None})
+
     def get_pipeline_row(self, case_id: str) -> dict[str, Any] | None:
         return self._one_or_none(
             self.client.table("case_pipeline_data")

@@ -1426,6 +1426,25 @@ def download_appeal_docx(
     )
 
 
+@router.delete("/admin/cases/{case_id}/appeal-draft")
+def delete_appeal_draft(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Удалить черновик проекта обращения (этап 8). Findings/OCR не трогаем."""
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if not repo.get_pipeline_draft(case_id):
+        raise HTTPException(status_code=404, detail="draft not found")
+    try:
+        repo.clear_pipeline_draft(case_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "appeal_draft_deleted")
+    return {"ok": True, "case_id": case_id}
+
+
 @router.post("/admin/cases/{case_id}/discrepancies/{discrepancy_id}/review")
 def review_discrepancy(
     case_id: str,

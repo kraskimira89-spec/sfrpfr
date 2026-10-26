@@ -269,6 +269,7 @@ export function CaseFunnelMain({
   onPolishBriefDraft,
   onRecordFactsReview,
   onDeleteDocuments,
+  onDeleteAppealDraft,
   onDismissHint,
   onTake,
   onFocusMax,
@@ -356,6 +357,8 @@ export function CaseFunnelMain({
   onPolishBriefDraft?: (draft: string) => void;
   /** Удалить файлы дела (эксперт/админ) — с подтверждением в кабинете. */
   onDeleteDocuments?: (documentIds: string[], label: string) => void;
+  /** Удалить черновик проекта обращения (этап 8). */
+  onDeleteAppealDraft?: () => void;
   /** Результат ручной сверки периодов (шаг «Сверка сведений»). */
   onRecordFactsReview?: (outcome: "discrepancies" | "no_discrepancies") => void;
   onDismissHint: () => void;
@@ -1518,11 +1521,27 @@ export function CaseFunnelMain({
             статуса. DOCX — экспорт текущего draft, не юридический генератор.
           </p>
           {detail.draft ? (
-            <pre className="draft">
-              {detail.draft.title}
-              {"\n\n"}
-              {detail.draft.body}
-            </pre>
+            <div className="stack">
+              <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                {onDeleteAppealDraft ? (
+                  <button
+                    type="button"
+                    className="linkish danger-link"
+                    disabled={busy}
+                    title="Удалить черновик проекта"
+                    aria-label="Удалить черновик проекта"
+                    onClick={() => onDeleteAppealDraft()}
+                  >
+                    × Удалить
+                  </button>
+                ) : null}
+              </div>
+              <pre className="draft">
+                {detail.draft.title}
+                {"\n\n"}
+                {detail.draft.body}
+              </pre>
+            </div>
           ) : (
             <p className="hint">Черновика проекта пока нет.</p>
           )}
@@ -1534,12 +1553,13 @@ export function CaseFunnelMain({
             >
               Сформировать / обновить проект
             </button>
-            {detail.draft?.body && staffToken && apiBase ? (
-              <a
+            {detail.draft && staffToken && apiBase ? (
+              <button
+                type="button"
                 className="secondary"
-                href={`${apiBase}/api/portal/admin/cases/${detail.id}/appeal-docx`}
-                onClick={(e) => {
-                  e.preventDefault();
+                disabled={busy}
+                title="Скачать проект обращения в Word"
+                onClick={() => {
                   void (async () => {
                     try {
                       const res = await fetch(
@@ -1555,13 +1575,13 @@ export function CaseFunnelMain({
                       a.click();
                       URL.revokeObjectURL(url);
                     } catch {
-                      window.alert("Не удалось скачать DOCX");
+                      window.alert("Не удалось скачать документ");
                     }
                   })();
                 }}
               >
-                Скачать DOCX черновика
-              </a>
+                Скачать документ
+              </button>
             ) : null}
             {detail.draft?.body ? (
               <button
