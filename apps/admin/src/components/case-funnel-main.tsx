@@ -44,6 +44,11 @@ import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { DocumentCheckPanel } from "@/components/document-check-panel";
 import { StepNo } from "@/components/step-number";
+import {
+  formatResultSummaryBrief,
+  formatResultSummaryFull,
+  sortDocsChronology,
+} from "@/lib/format-result-summary";
 import { groupCabinetDocumentsByChecksum } from "@/lib/dedupe-cabinet-documents";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -1762,11 +1767,11 @@ export function CaseFunnelMain({
               {sfrReceived ? (
                 <form className="stack-form" onSubmit={onConfirmResult}>
                   <label>
-                    Прежний размер, ₽
+                    Как было (прежний размер), ₽
                     <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
                   </label>
                   <label>
-                    Новый размер, ₽
+                    Как стало (новый размер), ₽
                     <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
                   </label>
                   <label>
@@ -1782,6 +1787,78 @@ export function CaseFunnelMain({
           ) : (
             <p className="hint">Нет права фиксировать результат.</p>
           )}
+          <h3 className="case-subhead">Подведение итогов</h3>
+          <p className="hint">
+            Кратко — в поле чата (отправка в MAX вручную). Полная хронология документов — в файл.
+          </p>
+          <p>
+            Как было:{" "}
+            {beforeRub ? `${Number(beforeRub).toLocaleString("ru-RU")} ₽` : "—"} · Как стало:{" "}
+            {afterRub ? `${Number(afterRub).toLocaleString("ru-RU")} ₽` : "—"}
+            {lumpRub ? ` · Единовременно: ${Number(lumpRub).toLocaleString("ru-RU")} ₽` : ""}
+          </p>
+          <ul className="plain-list">
+            {sortDocsChronology(detail.documents ?? [])
+              .slice(0, 8)
+              .map((doc) => (
+                <li key={doc.id}>
+                  {(doc.inner_date || doc.created_at
+                    ? new Date(doc.inner_date || doc.created_at || "").toLocaleDateString("ru-RU")
+                    : "—")}{" "}
+                  — {(doc.filename || doc.storage_path || "").split("/").pop() || doc.doc_type || "файл"}
+                </li>
+              ))}
+          </ul>
+          {(detail.documents ?? []).length > 8 ? (
+            <p className="hint">Ещё {(detail.documents ?? []).length - 8} в полной выгрузке.</p>
+          ) : null}
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              title="Краткий итог в поле чата"
+              onClick={() => {
+                applyTemplate(
+                  formatResultSummaryBrief({
+                    beforeRub,
+                    afterRub,
+                    lumpRub,
+                    documents: detail.documents,
+                  }),
+                );
+                onFocusMax();
+              }}
+            >
+              Кратко в чат
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              title="Полный итог и хронология документов в файл"
+              onClick={() => {
+                const text = formatResultSummaryFull({
+                  beforeRub,
+                  afterRub,
+                  lumpRub,
+                  documents: detail.documents,
+                  caseRef: detail.id.slice(0, 8),
+                });
+                const blob = new Blob(["\uFEFF" + text], {
+                  type: "text/plain;charset=utf-8",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `itog-${detail.id.slice(0, 8)}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Полная выгрузка в файл
+            </button>
+          </div>
         </StageShell>
 
         <StageShell
