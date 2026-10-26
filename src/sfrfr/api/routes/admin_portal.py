@@ -11,10 +11,13 @@ from fastapi import (
     BackgroundTasks,
     Body,
     Depends,
+    File,
+    Form,
     HTTPException,
     Query,
     Request,
     Response,
+    UploadFile,
 )
 
 from sfrfr.api.routes.portal import _client_documents
@@ -963,6 +966,12 @@ def admin_get_case(
     payload["audit"] = repo.list_audit(case_id)
     payload["consent_accepted"] = repo.has_consent(case_id)
     try:
+        from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+        payload["full_analysis"] = FullAnalysisWorkflow().get_state(case_id)
+    except Exception:  # noqa: BLE001
+        payload["full_analysis"] = None
+    try:
         from sfrfr.integrations.yandex_tracker.quality_issues import list_case_tracker_issues
 
         payload["tracker_issues"] = list_case_tracker_issues(case_id)
@@ -1235,16 +1244,337 @@ def generate_case_full_analysis_draft(
         compare=compare,
         ocr_snippets=ocr_snippets,
     )
+    text = str(out.get("text") or "")
+    version: dict[str, Any] | None = None
     try:
+        from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+        version = FullAnalysisWorkflow().create_version(
+            case_id,
+            markdown=text,
+            source=str(out.get("source") or "ai"),
+        )
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"full_analysis_version:{version.get('n')}",
+        )
         repo.audit(case_id, principal.audit_actor_id(), "full_analysis_draft_generated")
     except Exception:  # noqa: BLE001
-        pass
+        version = None
     return {
         "ok": True,
-        "text": out.get("text") or "",
+        "text": text,
         "source": out.get("source") or "template",
         "reason": out.get("reason"),
+        "version": version,
     }
+
+
+@router.get("/admin/cases/{case_id}/full-analysis/state")
+def get_full_analysis_state(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    _repo().require_case(principal, case_id)
+    return {"ok": True, **FullAnalysisWorkflow().get_state(case_id)}
+
+
+@router.post("/admin/cases/{case_id}/full-analysis/versions/{version_id}/review")
+def review_full_analysis_version(
+    case_id: str,
+    version_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    try:
+        ver = FullAnalysisWorkflow().mark_reviewed(case_id, version_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="version_not_found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repo.audit(
+        case_id,
+        principal.audit_actor_id(),
+        f"full_analysis_reviewed:{ver.get('n')}",
+    )
+    return {"ok": True, "version": ver}
+
+
+@router.put("/admin/cases/{case_id}/full-analysis/versions/{version_id}")
+def update_full_analysis_version(
+    case_id: str,
+    version_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    md = str((payload or {}).get("markdown") or "")
+    try:
+        ver = FullAnalysisWorkflow().update_markdown(case_id, version_id, md)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="version_not_found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "version": ver}
+
+
+@router.get("/admin/cases/{case_id}/full-analysis/versions/{version_id}/docx")
+def download_full_analysis_docx(
+    case_id: str,
+    version_id: str,
+    principal: Principal = Depends(require_staff),
+) -> Response:
+    from sfrfr.services.full_analysis_actions import build_version_docx
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    state = FullAnalysisWorkflow().get_state(case_id)
+    ver = next(
+        (v for v in state.get("versions") or [] if v.get("id") == version_id),
+        None,
+    )
+    if not ver:
+        raise HTTPException(status_code=404, detail="version_not_found")
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    raw = build_version_docx(case_ref=case_ref, version=ver)
+    filename = f"razbor-v{ver.get('n') or 1}.docx"
+    repo.audit(
+        case_id,
+        principal.audit_actor_id(),
+        f"full_analysis_docx:{ver.get('n')}",
+    )
+    return Response(
+        content=raw,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/admin/cases/{case_id}/full-analysis/versions/{version_id}/send-email")
+def send_full_analysis_email(
+    case_id: str,
+    version_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.services.full_analysis_actions import send_version_email
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    state = FullAnalysisWorkflow().get_state(case_id)
+    ver = next(
+        (v for v in state.get("versions") or [] if v.get("id") == version_id),
+        None,
+    )
+    if not ver:
+        raise HTTPException(status_code=404, detail="version_not_found")
+    if ver.get("status") not in {"staff_reviewed", "sent", "remarks"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала отметьте «Проверено сотрудником»",
+        )
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    raw_client = case.get("client")
+    client: dict[str, Any] = raw_client if isinstance(raw_client, dict) else {}
+    to = str((payload or {}).get("to") or client.get("email") or "").strip()
+    confirm = bool((payload or {}).get("confirm"))
+    out = send_version_email(
+        case_id=case_id,
+        case_ref=case_ref,
+        version=ver,
+        to=to,
+        subject=(payload or {}).get("subject"),
+        body=(payload or {}).get("body"),
+        confirm=confirm,
+    )
+    if out.get("ok"):
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"full_analysis_sent:{ver.get('n')}:email",
+        )
+    elif confirm and not out.get("preview"):
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"full_analysis_send_failed:{ver.get('n')}",
+        )
+    return out
+
+
+@router.post("/admin/cases/{case_id}/full-analysis/versions/{version_id}/send-yadisk")
+def send_full_analysis_yadisk(
+    case_id: str,
+    version_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    from sfrfr.services.full_analysis_actions import send_version_yadisk
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    state = FullAnalysisWorkflow().get_state(case_id)
+    ver = next(
+        (v for v in state.get("versions") or [] if v.get("id") == version_id),
+        None,
+    )
+    if not ver:
+        raise HTTPException(status_code=404, detail="version_not_found")
+    if ver.get("status") not in {"staff_reviewed", "sent", "remarks"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала отметьте «Проверено сотрудником»",
+        )
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    confirm = bool((payload or {}).get("confirm"))
+    folder_name = None
+    try:
+        folder_name = str(case.get("client_name") or "").strip() or None
+    except Exception:  # noqa: BLE001
+        folder_name = None
+    out = send_version_yadisk(
+        case_id=case_id,
+        case_ref=case_ref,
+        version=ver,
+        folder_name=folder_name,
+        confirm=confirm,
+    )
+    if out.get("ok"):
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"full_analysis_sent:{ver.get('n')}:yadisk",
+        )
+    elif confirm and not out.get("preview"):
+        repo.audit(
+            case_id,
+            principal.audit_actor_id(),
+            f"full_analysis_send_failed:{ver.get('n')}",
+        )
+    return out
+
+
+@router.post("/admin/cases/{case_id}/full-analysis/versions/{version_id}/decision")
+def full_analysis_client_decision(
+    case_id: str,
+    version_id: str,
+    payload: dict[str, Any],
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Зафиксировать ответ клиента: согласовать / есть замечания."""
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="staff role required")
+    decision = str((payload or {}).get("decision") or "").strip().lower()
+    remarks = str((payload or {}).get("remarks") or "").strip() or None
+    try:
+        ver = FullAnalysisWorkflow().record_decision(
+            case_id,
+            version_id,
+            decision=decision,
+            remarks=remarks,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="version_not_found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    action = (
+        f"full_analysis_approved:{ver.get('n')}"
+        if decision == "approved"
+        else f"full_analysis_remarks:{ver.get('n')}"
+    )
+    repo.audit(case_id, principal.audit_actor_id(), action)
+    return {"ok": True, "version": ver}
+
+
+@router.post("/admin/cases/{case_id}/full-analysis/versions/{version_id}/client-revision")
+async def attach_full_analysis_client_revision(
+    case_id: str,
+    version_id: str,
+    principal: Principal = Depends(require_staff),
+    file: UploadFile = File(...),
+    note: str = Form(""),
+) -> dict[str, Any]:
+    """Сохранить версию клиента (правки дат/ФИО/событий) и учесть в статусе."""
+    from sfrfr.services.document_upload import store_document
+    from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="staff role required")
+    raw_name = (file.filename or "client-revision.docx").strip()
+    lower = raw_name.lower()
+    if not (
+        lower.endswith(".docx")
+        or lower.endswith(".doc")
+        or lower.endswith(".pdf")
+        or lower.endswith(".md")
+        or lower.endswith(".txt")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Нужен Word/PDF/текст с правками клиента",
+        )
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Пустой файл")
+    ctype = file.content_type or "application/octet-stream"
+    try:
+        doc = store_document(
+            case_id=case_id,
+            filename=raw_name,
+            data=content,
+            content_type=ctype,
+            doc_type="full_analysis_client_revision",
+            uploaded_by=principal.user_id,
+            upload_source="staff",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)[:200]) from exc
+    doc_id = str((doc or {}).get("id") or "")
+    if not doc_id:
+        raise HTTPException(status_code=500, detail="document_not_saved")
+    try:
+        ver = FullAnalysisWorkflow().attach_client_revision(
+            case_id,
+            version_id,
+            document_id=doc_id,
+            note=note,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="version_not_found") from exc
+    repo.audit(
+        case_id,
+        principal.audit_actor_id(),
+        f"full_analysis_client_revision:{ver.get('n')}",
+    )
+    return {"ok": True, "version": ver, "document": doc}
 
 
 @router.patch("/admin/cases/{case_id}/flags")

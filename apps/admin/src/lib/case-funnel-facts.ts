@@ -397,21 +397,38 @@ export function toFunnelFacts(
         : emptyOrderNone();
   }
 
-  // Готовый файл ≠ переданный; публикация в audit — единственный confirm delivery в текущем API.
-  const hasDiagnosisFile = hasDocType(docs, ["diagnosis_report", "диагностик"]);
-  const publishedDiagnosis = (detail.audit || []).some((a) =>
-    /diagnos(is|tic).*publish|publish.*diagnos|diagnosis_published/i.test(a.action),
+  // Этап 5: закрытие только после согласования актуальной версии клиентом.
+  // Генерация / DOCX / отправка сами по себе этап не закрывают.
+  // Audit newest-first: full_analysis_approved:N > remarks/version/sent.
+  const faAudit = (detail.audit || []).filter((a) =>
+    String(a.action || "").startsWith("full_analysis_"),
   );
   let analysisWork: WorkFacts = notStartedWork();
-  if (publishedDiagnosis) {
+  const latestFa = faAudit[0]?.action || "";
+  if (/^full_analysis_approved(?::|$)/.test(latestFa)) {
     analysisWork = { state: "delivered", releaseReady: "yes" };
-  } else if (hasDiagnosisFile) {
-    // Файл есть, но пакетная проверка/согласование в API не подтверждены.
-    analysisWork = { state: "ready", releaseReady: "unknown" };
-  } else if (analysisOrder.entitlement === "granted") {
-    analysisWork = notStartedWork();
-  } else if (analysisOrder.state === "unknown") {
-    analysisWork = unknownWork();
+  } else if (
+    /^full_analysis_(remarks|sent|reviewed|client_revision|version)(?::|$)/.test(
+      latestFa,
+    )
+  ) {
+    analysisWork = {
+      state: latestFa.startsWith("full_analysis_version") ? "working" : "ready",
+      releaseReady: "no",
+    };
+  } else {
+    const hasDiagnosisFile = hasDocType(docs, ["diagnosis_report", "диагностик"]);
+    const publishedDiagnosis = (detail.audit || []).some((a) =>
+      /diagnos(is|tic).*publish|publish.*diagnos|diagnosis_published/i.test(a.action),
+    );
+    // Legacy PDF-публикация: файл готов к выдаче, но не «согласовано клиентом».
+    if (publishedDiagnosis || hasDiagnosisFile) {
+      analysisWork = { state: "ready", releaseReady: "no" };
+    } else if (analysisOrder.entitlement === "granted") {
+      analysisWork = notStartedWork();
+    } else if (analysisOrder.state === "unknown") {
+      analysisWork = unknownWork();
+    }
   }
 
   // Согласие на объём обращений — только audit appeals_consent_*; не из service_consent / чата.

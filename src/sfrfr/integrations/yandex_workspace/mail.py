@@ -76,10 +76,13 @@ def send_mail(
     html: str | None = None,
     from_name: str | None = None,
     track_links: bool = True,
+    attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> dict[str, Any]:
     """Отправить письмо. Без СНИЛС/OCR/signed Storage URL в шаблонах.
 
     Канал: Yandex Cloud Postbox (если включён и настроен) → иначе Workspace SMTP.
+    Вложения (``attachments``: имя, байты, mime) — только через SMTP; Postbox
+    с вложениями не имитируем.
     """
     settings = get_settings()
     to_addr = (to or "").strip()
@@ -98,10 +101,15 @@ def send_mail(
     final_body = redact_outbound_body(tpl_body.format(**fmt))
     html_body = redact_outbound_body((html or "").strip()) if (html or "").strip() else ""
     display = (from_name or "").strip() or "Проверка стажа"
+    files = [
+        (str(name or "file")[:180], data, str(mime or "application/octet-stream"))
+        for name, data, mime in (attachments or [])
+        if data
+    ]
 
     from sfrfr.integrations.yandex_postbox import postbox_configured, send_email_postbox
 
-    if postbox_configured():
+    if postbox_configured() and not files:
         result = send_email_postbox(
             to=to_addr,
             subject=final_subject,
@@ -113,6 +121,9 @@ def send_mail(
         if result.get("ok"):
             result = {**result, "template": tpl_key}
         return result
+    if postbox_configured() and files:
+        # Не притворяемся, что Postbox отправил DOCX.
+        pass
 
     if not settings.yandex_mail_enabled:
         return {"ok": False, "skipped": True, "reason": "YANDEX_MAIL_ENABLED=false"}
@@ -133,6 +144,16 @@ def send_mail(
     msg.set_content(final_body)
     if html_body:
         msg.add_alternative(html_body, subtype="html")
+    for fname, data, mime in files:
+        maintype, _, subtype = mime.partition("/")
+        if not subtype:
+            maintype, subtype = "application", "octet-stream"
+        msg.add_attachment(
+            data,
+            maintype=maintype,
+            subtype=subtype,
+            filename=fname,
+        )
 
     try:
         context = ssl.create_default_context()
@@ -149,6 +170,7 @@ def send_mail(
             "subject": final_subject,
             "message_id": message_id.strip("<>"),
             "provider": "yandex_smtp",
+            "attachments": [n for n, _, _ in files],
         }
     except smtplib.SMTPAuthenticationError as exc:
         detail = (

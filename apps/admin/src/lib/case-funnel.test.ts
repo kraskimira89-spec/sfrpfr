@@ -361,6 +361,60 @@ test("toFunnelFacts: файл диагноза → ready, не delivered", () =>
   assert.notEqual(facts.analysis.work.state, "delivered");
 });
 
+test("toFunnelFacts: этап 5 закрыт только после full_analysis_approved", () => {
+  const before = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+    ordersLoaded: true,
+    audit: [
+      { action: "full_analysis_sent:1:email" },
+      { action: "full_analysis_reviewed:1" },
+      { action: "full_analysis_version:1" },
+    ],
+  });
+  assert.equal(before.analysis.work.state, "ready");
+  assert.equal(before.analysis.work.releaseReady, "no");
+
+  const after = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+    ordersLoaded: true,
+    audit: [
+      { action: "full_analysis_approved:1" },
+      { action: "full_analysis_sent:1:email" },
+    ],
+  });
+  assert.equal(after.analysis.work.state, "delivered");
+  assert.equal(after.analysis.work.releaseReady, "yes");
+});
+
+test("toFunnelFacts: новая версия после замечаний снова не delivered", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+    ordersLoaded: true,
+    audit: [
+      { action: "full_analysis_version:2" },
+      { action: "full_analysis_remarks:1" },
+      { action: "full_analysis_approved:1" },
+    ],
+  });
+  assert.notEqual(facts.analysis.work.state, "delivered");
+  assert.equal(facts.analysis.work.state, "working");
+});
+
 test("toFunnelFacts: additional response none", () => {
   const facts = toFunnelFacts(
     {
