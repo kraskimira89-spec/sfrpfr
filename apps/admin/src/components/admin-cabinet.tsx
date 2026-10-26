@@ -1116,6 +1116,35 @@ export function AdminCabinet() {
   }
 
   /** Черновик резюме → DeepSeek дорабатывает по переписке; при сбое — шаблон без повторов. */
+  async function generateFullAnalysisDraft(): Promise<string | null> {
+    if (!token || !detail) return null;
+    setBusy(true);
+    try {
+      const out = await apiFetch<{ text?: string; source?: string; reason?: string }>(
+        `/api/portal/admin/cases/${detail.id}/full-analysis/draft`,
+        token,
+        { method: "POST", body: "{}" },
+      );
+      const text = String(out.text || "").trim();
+      if (!text) {
+        setNotice("Не удалось получить текст разбора.");
+        return null;
+      }
+      const src = out.source === "ai" ? "ИИ" : "шаблон";
+      setNotice(
+        out.reason
+          ? `Черновик разбора (${src}, запасной: ${out.reason}). Проверьте перед выдачей.`
+          : `Черновик подробного разбора готов (${src}). Проверьте перед выдачей клиенту.`,
+      );
+      return text;
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось сгенерировать разбор.");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function polishBriefDraft(draft: string) {
     if (!token || !detail) return;
     if (!detail.expert_user_id && me?.user_id) {
@@ -2367,6 +2396,7 @@ export function AdminCabinet() {
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
             onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
+            onGenerateFullAnalysisDraft={() => generateFullAnalysisDraft()}
             onRecordFactsReview={(outcome) => void recordFactsReview(outcome)}
             onDeleteDocuments={(ids, label) => void deleteDocuments(ids, label)}
             onDeleteAppealDraft={() => void deleteAppealDraft()}

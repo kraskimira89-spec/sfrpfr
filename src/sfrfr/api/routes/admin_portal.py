@@ -1187,6 +1187,66 @@ def polish_case_brief_reply(
     )
 
 
+@router.post("/admin/cases/{case_id}/full-analysis/draft")
+def generate_case_full_analysis_draft(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Черновик подробного разбора (этап 5): готовит ИИ, без отправки клиенту."""
+    from sfrfr.services.full_analysis_draft import generate_full_analysis_draft
+    from sfrfr.services.staff_document_check import get_case_document_check
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+
+    docs = list(repo.list_documents(case_id) or [])
+    check = get_case_document_check(case_id) or {}
+    raw_result = check.get("result")
+    result: dict[str, Any] = raw_result if isinstance(raw_result, dict) else {}
+    hb = result.get("honest_brief")
+    brief: dict[str, Any] | None = hb if isinstance(hb, dict) else None
+    sc = result.get("stazh_compare")
+    compare: dict[str, Any] | None = sc if isinstance(sc, dict) else None
+    if compare is None and brief is not None:
+        nested = brief.get("compare")
+        if isinstance(nested, dict):
+            compare = nested
+
+    ocr_snippets: list[str] = []
+    try:
+        pipeline = repo.get_pipeline_row(case_id) or {}
+        for row in list(pipeline.get("ocr_texts") or [])[:8]:
+            if isinstance(row, dict):
+                sample = str(row.get("text") or row.get("content") or "").strip()
+            else:
+                sample = str(row or "").strip()
+            if sample:
+                ocr_snippets.append(sample[:800])
+    except Exception:  # noqa: BLE001
+        ocr_snippets = []
+
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    out = generate_full_analysis_draft(
+        case_ref=case_ref,
+        documents=docs,
+        brief=brief,
+        compare=compare,
+        ocr_snippets=ocr_snippets,
+    )
+    try:
+        repo.audit(case_id, principal.audit_actor_id(), "full_analysis_draft_generated")
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "ok": True,
+        "text": out.get("text") or "",
+        "source": out.get("source") or "template",
+        "reason": out.get("reason"),
+    }
+
+
 @router.patch("/admin/cases/{case_id}/flags")
 def update_case_flags(
     case_id: str,

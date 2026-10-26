@@ -298,6 +298,7 @@ export function CaseFunnelMain({
   onSuggestStep,
   onApplyChatMessage,
   onPolishBriefDraft,
+  onGenerateFullAnalysisDraft,
   onRecordFactsReview,
   onDeleteDocuments,
   onDeleteAppealDraft,
@@ -387,6 +388,8 @@ export function CaseFunnelMain({
   onApplyChatMessage: (text: string, opts?: { confirmAssign?: boolean }) => void;
   /** Черновик резюме → доработка ИИ по переписке → поле чата. */
   onPolishBriefDraft?: (draft: string) => void;
+  /** Этап 5: ИИ готовит подробный разбор → текст в панели (без отправки клиенту). */
+  onGenerateFullAnalysisDraft?: () => Promise<string | null> | string | null;
   /** Удалить файлы дела (эксперт/админ) — с подтверждением в кабинете. */
   onDeleteDocuments?: (documentIds: string[], label: string) => void;
   /** Удалить черновик проекта обращения (этап 8). */
@@ -451,6 +454,7 @@ export function CaseFunnelMain({
     })),
   });
   const current = funnel.current;
+  const priority = funnel.priority;
   const stageById = Object.fromEntries(funnel.stages.map((s) => [s.id, s])) as Record<
     FunnelStageId,
     (typeof funnel.stages)[0]
@@ -498,6 +502,9 @@ export function CaseFunnelMain({
   });
   const [accordion, setAccordion] = useState<StageAccordion>(() => initialAccordion(detail.id));
   const [repOpen, setRepOpen] = useState(false);
+  const [analysisDraft, setAnalysisDraft] = useState("");
+  const [analysisDraftSource, setAnalysisDraftSource] = useState("");
+  const [analysisGenerating, setAnalysisGenerating] = useState(false);
 
   function setShowAllPersist(v: boolean) {
     setShowAll(v);
@@ -650,6 +657,15 @@ export function CaseFunnelMain({
           <p className="case-action-bar-line">
             <strong>Сейчас:</strong> {stageById[current]?.label}
             {stageById[current]?.reason ? ` (${stageById[current].reason})` : ""}
+            {priority && priority !== current && stageById[priority] ? (
+              <>
+                {" · "}
+                <strong>Срочно:</strong>{" "}
+                <button type="button" className="linkish" onClick={() => openStage(priority)}>
+                  {stageById[priority].label}
+                </button>
+              </>
+            ) : null}
             {" · "}
             <strong>Следующее действие:</strong> {nextActionText || detail.next_action || "не задано"}
             {" · "}
@@ -1318,10 +1334,78 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("full_analysis")}
         >
           <p className="hint">
-            Подробный разбор готовит специалист (вне кабинета или по шаблону). Затем: загрузить PDF →
-            открыть и проверить → опубликовать → при необходимости подставить текст в чат MAX.
-            Черновик в поле чата сам ступень не закрывает.
+            Подробный разбор готовит ИИ по документам и сверке; специалист проверяет текст, при
+            необходимости правит, затем выдаёт клиенту (чат / PDF). Черновик в поле чата сам ступень
+            не закрывает.
           </p>
+          <h3 className="case-subhead">Черновик разбора (ИИ)</h3>
+          <div className="row-actions">
+            {onGenerateFullAnalysisDraft ? (
+              <button
+                type="button"
+                disabled={busy || analysisGenerating}
+                onClick={() => {
+                  void (async () => {
+                    setAnalysisGenerating(true);
+                    try {
+                      const text = await onGenerateFullAnalysisDraft();
+                      if (text) {
+                        setAnalysisDraft(text);
+                        setAnalysisDraftSource("ИИ / шаблон");
+                      }
+                    } finally {
+                      setAnalysisGenerating(false);
+                    }
+                  })();
+                }}
+                title="Собрать подробный письменный разбор по сверке и документам"
+              >
+                {analysisGenerating ? "ИИ готовит разбор…" : "Сгенерировать подробный разбор"}
+              </button>
+            ) : null}
+            {analysisDraft ? (
+              <>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => applyTemplate(analysisDraft)}
+                  title="Подставит разбор в поле чата; в MAX — только после «Отправить»"
+                >
+                  Разбор в чат
+                </button>
+                <button
+                  type="button"
+                  className="linkish"
+                  disabled={busy}
+                  onClick={() => {
+                    const blob = new Blob([analysisDraft], {
+                      type: "text/markdown;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `razbor-${detail.id.slice(0, 8)}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Скачать .md
+                </button>
+              </>
+            ) : null}
+          </div>
+          {analysisDraft ? (
+            <pre className="draft" style={{ maxHeight: "22rem", overflow: "auto" }}>
+              {analysisDraftSource ? `<!-- ${analysisDraftSource} -->\n` : ""}
+              {analysisDraft}
+            </pre>
+          ) : (
+            <p className="hint">
+              Нажмите «Сгенерировать подробный разбор» — ИИ соберёт текст по итогам сверки. Затем
+              проверьте и отправьте клиенту или выгрузите в PDF и загрузите ниже.
+            </p>
+          )}
           <h3 className="case-subhead">PDF подробного разбора</h3>
           {detail.documents.filter((d) =>
             `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
@@ -1344,8 +1428,8 @@ export function CaseFunnelMain({
             </ul>
           ) : (
             <p className="hint">
-              Файла разбора ещё нет. Подготовьте PDF с итогами сверки (периоды, основания, что
-              предложить клиенту дальше) и загрузите ниже — специалист сможет открыть его здесь же.
+              PDF ещё нет. Можно выдать клиенту текст из черновика ИИ в чат или сохранить разбор в
+              PDF и загрузить сюда для публикации.
             </p>
           )}
           <div className="row-actions">
