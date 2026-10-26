@@ -90,7 +90,13 @@ export type StageView = Readonly<{
 
 export type FunnelView = Readonly<{
   stages: readonly StageView[];
+  /** Где дело в маршруте 1→13 (первый незавершённый обязательный этап). */
   currentStageId: StageId | null;
+  /**
+   * Срочная задача сотрудника (ответ СФР, устаревшая проверка и т.п.).
+   * Не подменяет currentStageId: можно подсветить отдельно.
+   */
+  priorityStageId?: StageId | null;
 }>;
 
 export type Decision =

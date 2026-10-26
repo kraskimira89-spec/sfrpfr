@@ -486,30 +486,61 @@ export function buildFunnel(f: FunnelFacts): FunnelView {
       : item;
   });
 
-  const preferred = f.preferredStageId;
-  // Текущий этап маршрута — первый незавершённый по порядку 1→13, а не «любой needs_action».
-  // Срочная поздняя задача (ответ СФР и т.п.) задаётся через preferredStageId, не ломая цепочку.
+  // Текущий этап маршрута — первый незавершённый по порядку 1→13.
+  // Срочная задача (priority) не подменяет позицию дела в цепочке.
   const routeCurrent =
-    STAGE_IDS.map((id) => stages.find((item) => item.id === id)).find((item) => {
-      if (!item) return false;
-      if (item.status === "done" || item.status === "not_required") return false;
-      if (item.status === "blocked" || item.status === "unknown") return false;
-      return (
-        item.status === "needs_action" ||
-        item.status === "in_progress" ||
-        item.status === "waiting" ||
-        (item.status === "not_started" && Boolean(item.action))
-      );
-    })?.id ?? null;
-
-  const currentStageId =
     f.closure.state === "closed"
-      ? "closure"
-      : preferred && stages.some((item) => item.id === preferred)
-        ? preferred
-        : routeCurrent;
+      ? ("closure" as StageId)
+      : (STAGE_IDS.map((id) => stages.find((item) => item.id === id)).find((item) => {
+          if (!item) return false;
+          if (item.status === "done" || item.status === "not_required") return false;
+          if (item.status === "blocked" || item.status === "unknown") return false;
+          return (
+            item.status === "needs_action" ||
+            item.status === "in_progress" ||
+            item.status === "waiting" ||
+            (item.status === "not_started" && Boolean(item.action))
+          );
+        })?.id ?? null);
 
-  return { stages, currentStageId };
+  const priorityStageId = pickPriorityStage(f, stages, routeCurrent);
+
+  return { stages, currentStageId: routeCurrent, priorityStageId };
+}
+
+/**
+ * Срочная задача ≠ текущий этап маршрута.
+ * Пример: ответ СФР пришёл, пока ещё не закрыта подача — route на submission/follow_up,
+ * priority = response_review.
+ */
+function pickPriorityStage(
+  f: FunnelFacts,
+  stages: readonly StageView[],
+  routeCurrent: StageId | null,
+): StageId | null {
+  const exists = (id: StageId) => stages.some((s) => s.id === id);
+  if (f.preferredStageId && exists(f.preferredStageId)) {
+    return f.preferredStageId === routeCurrent ? null : f.preferredStageId;
+  }
+  // Ответ СФР требует разбора — срочно, даже если маршрут ещё на контроле/подаче.
+  if (
+    (f.response === "received" || f.response === "reviewing") &&
+    exists("response_review") &&
+    routeCurrent !== "response_review" &&
+    routeCurrent !== "closure"
+  ) {
+    return "response_review";
+  }
+  // Устаревшая проверка при уже оплаченном анализе — вернуться к сверке, не к оплате.
+  if (
+    f.precheck.stale &&
+    f.analysis.order.state === "paid" &&
+    exists("precheck_summary") &&
+    routeCurrent !== "precheck_summary"
+  ) {
+    return "precheck_summary";
+  }
+  return null;
 }
 
 export type ActionHandlers = Partial<Record<ActionId, () => void>>;

@@ -556,3 +556,109 @@ test("DIAG paid: этап 3 done, текущий — подробный анал
   assert.equal(funnel.stages.find((s) => s.id === "analysis_payment")?.status, "done");
   assert.equal(funnel.currentStageId, "full_analysis");
 });
+
+test("маршрут: не хватает документа — current=documents, не прыжок на оплату", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "documents_requested",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true, phone: "+7900" },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
+    orders: [],
+    ordersLoaded: true,
+  });
+  assert.equal(facts.documents, "needs_action");
+  const funnel = buildFunnel(facts);
+  assert.equal(funnel.currentStageId, "documents");
+  assert.equal(funnel.priorityStageId ?? null, null);
+});
+
+test("маршрут: доп. услуга не требуется — escalation not_required", () => {
+  const funnel = buildFunnel({
+    ...baseFacts({
+      contact: "complete",
+      documents: "ready",
+      precheck: {
+        state: "completed",
+        stale: false,
+        outcome: "clear",
+        summaryDelivery: "confirmed",
+      },
+      analysis: {
+        need: "not_needed",
+        order: { state: "not_ordered", entitlement: "none" },
+        work: work("not_started"),
+      },
+      escalation: {
+        need: "not_needed",
+        consent: "declined",
+        order: emptyOrder(),
+        work: work(),
+      },
+      closure: { state: "open" },
+    }),
+  });
+  assert.equal(funnel.stages.find((s) => s.id === "escalation_package")?.status, "not_required");
+});
+
+test("priority: ответ СФР при незакрытой цепочке не подменяет current", () => {
+  const facts = toFunnelFacts(
+    {
+      pipeline_status: "submitted",
+      b2c_status: "in_progress",
+      consent_accepted: true,
+      client: { max_linked: true, phone: "+7900" },
+      documents: [
+        { doc_type: "ils", storage_path: "c/ils.pdf" },
+        { doc_type: "workbook", storage_path: "c/tk.pdf" },
+      ],
+      orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+      ordersLoaded: true,
+      document_check: {
+        status: "completed",
+        stale: false,
+        result: {
+          honest_brief: {
+            has_justified_discrepancy: true,
+            offer_diag_allowed: true,
+            items: [{ text: "x", evidence: "docs" }],
+          },
+        },
+      },
+      audit: [{ action: "brief_summary_sent" }],
+    },
+    {
+      submission: "awaiting_client",
+      followUp: { state: "active", callRequired: false },
+      response: "received",
+      escalation: { need: "not_needed" },
+    },
+  );
+  const funnel = buildFunnel(facts);
+  // Маршрут — ранний незавершённый (анализ/согласование…), срочно — ответ СФР.
+  assert.notEqual(funnel.currentStageId, "response_review");
+  assert.equal(funnel.priorityStageId, "response_review");
+});
+
+test("preferredStageId задаёт priority, не current", () => {
+  const funnel = buildFunnel(
+    baseFacts({
+      contact: "complete",
+      documents: "ready",
+      precheck: {
+        state: "completed",
+        stale: false,
+        outcome: "discrepancies",
+        summaryDelivery: "confirmed",
+      },
+      analysis: {
+        need: "recommended",
+        order: { state: "paid", entitlement: "granted", amountRub: 3000 },
+        work: work("not_started"),
+      },
+      preferredStageId: "response_review",
+    }),
+  );
+  assert.equal(funnel.currentStageId, "full_analysis");
+  assert.equal(funnel.priorityStageId, "response_review");
+});

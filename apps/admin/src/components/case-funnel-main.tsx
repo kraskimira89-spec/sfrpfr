@@ -451,6 +451,7 @@ export function CaseFunnelMain({
     })),
   });
   const current = funnel.current;
+  const priority = funnel.priority;
   const stageById = Object.fromEntries(funnel.stages.map((s) => [s.id, s])) as Record<
     FunnelStageId,
     (typeof funnel.stages)[0]
@@ -650,6 +651,15 @@ export function CaseFunnelMain({
           <p className="case-action-bar-line">
             <strong>Сейчас:</strong> {stageById[current]?.label}
             {stageById[current]?.reason ? ` (${stageById[current].reason})` : ""}
+            {priority && priority !== current && stageById[priority] ? (
+              <>
+                {" · "}
+                <strong>Срочно:</strong>{" "}
+                <button type="button" className="linkish" onClick={() => openStage(priority)}>
+                  {stageById[priority].label}
+                </button>
+              </>
+            ) : null}
             {" · "}
             <strong>Следующее действие:</strong> {nextActionText || detail.next_action || "не задано"}
             {" · "}

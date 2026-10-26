@@ -509,6 +509,8 @@ export function toFunnelFacts(
 export function deriveFunnel(detail: CaseFunnelDetailInput): {
   stages: FunnelStage[];
   current: StageId;
+  /** Срочная задача ≠ current (ответ СФР и т.п.). */
+  priority: StageId | null;
   docsReady: boolean;
   docsRequiredOk: boolean;
   hasIls: boolean;
@@ -534,6 +536,7 @@ export function deriveFunnel(detail: CaseFunnelDetailInput): {
       closed: facts.closure.state === "closed",
     }) ||
     "contact_consents";
+  const priority = funnel.priorityStageId ?? null;
   const stages = viewsToFunnelStages(funnel.stages, current, overdue);
 
   const docs = detail.documents || [];
@@ -554,6 +557,7 @@ export function deriveFunnel(detail: CaseFunnelDetailInput): {
   return {
     stages,
     current,
+    priority,
     docsReady: docs.length > 0,
     docsRequiredOk: hasIls && hasLabor,
     hasIls,
