@@ -31,6 +31,10 @@ _SYSTEM = f"""Ты помощник сотрудника сервиса «Про
 next_action — одна короткая фраза на русском (до 80 символов).
 chat_messages — ровно 3 объекта: full (полный запрос), short (короткое напоминание),
 cabinet_howto (как передать файлы: только чат MAX, без кабинета). Без ПДн и обещаний.
+
+Если в «Операционных фактах» DIAG оплачен и есть расхождения по документам —
+next_action про подготовку разбора / письменного результата, не про оплату DIAG.
+Не предлагай снова оплату, если счёт уже pending или paid.
 """
 
 _KINDS = ("full", "short", "cabinet_howto")
@@ -151,6 +155,13 @@ def suggest_next_action(
         deal_ctx = format_deal_context(work)
     except Exception:  # noqa: BLE001
         deal_ctx = ""
+    ops_text = ""
+    try:
+        from sfrfr.services.staff_ops_facts import format_ops_facts_for_llm, load_staff_ops_facts
+
+        ops_text = format_ops_facts_for_llm(load_staff_ops_facts(case_id))
+    except Exception:  # noqa: BLE001
+        ops_text = ""
     from sfrfr.services.case_chat_context import format_thread_for_llm
 
     thread_text = format_thread_for_llm(thread, max_body_chars=450) if thread else "(история пуста)"
@@ -160,12 +171,14 @@ def suggest_next_action(
             user=(
                 "Обезличенное дело:\n"
                 + json.dumps(_anon_case(case), ensure_ascii=False)
+                + "\n\nОперационные факты:\n"
+                + (ops_text or "—")
                 + "\n\nКонтекст сделки:\n"
                 + (deal_ctx or "—")
                 + "\n\nИстория переписки (хронологически):\n"
                 + thread_text
-                + "\n\nУчти последнюю реплику клиента и стадию оплаты при next_action "
-                "и текстах chat_messages."
+                + "\n\nУчти операционные факты, последнюю реплику клиента и стадию оплаты "
+                "при next_action и текстах chat_messages."
             ),
             temperature=0.1,
         )

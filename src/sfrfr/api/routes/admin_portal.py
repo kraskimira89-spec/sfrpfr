@@ -1135,12 +1135,20 @@ def suggest_case_replies(
         work = work_map_from_case(case)
     except Exception:  # noqa: BLE001
         work = {}
+    ops_facts: dict[str, Any] = {}
+    try:
+        from sfrfr.services.staff_ops_facts import load_staff_ops_facts
+
+        ops_facts = load_staff_ops_facts(case_id, orders=list(case.get("orders") or []))
+    except Exception:  # noqa: BLE001
+        ops_facts = {}
     suggestions = suggest_staff_replies(
         messages=messages,
         pipeline_status=str(case.get("pipeline_status") or ""),
         b2c_status=str(case.get("b2c_status") or ""),
         client_name=client_name or None,
         work=work or None,
+        ops_facts=ops_facts or None,
     )
     return {"suggestions": suggestions, "source": "deepseek"}
 
