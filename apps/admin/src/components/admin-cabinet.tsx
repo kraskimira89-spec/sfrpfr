@@ -11,6 +11,7 @@ import {
 } from "@/lib/ui-labels";
 import { CasesRegistry, buildPreviewFromSummary, caseCatalogLabel } from "@/components/cases-registry";
 import { FinancePanel, type FinanceOrder, type FinanceSnapshot } from "@/components/finance-panel";
+import { noticeAfterQuickOrderSend } from "@/lib/quick-order-send";
 import { AdminAnalyticsPanel, type AnalyticsSnapshot } from "@/components/admin-analytics-panel";
 import { CaseChatPanel } from "@/components/case-chat-panel";
 import { CaseFunnelMain, type StepChatMessage } from "@/components/case-funnel-main";
@@ -1413,23 +1414,41 @@ export function AdminCabinet() {
     if (!token || !detail) return;
     setBusy(true);
     try {
-      await apiFetch(`/api/portal/admin/cases/${detail.id}/orders`, token, {
-        method: "POST",
-        body: JSON.stringify({
-          package_code: code,
-          amount_rub: amountRub,
-        }),
-      });
+      const order = await apiFetch<{ id?: string }>(
+        `/api/portal/admin/cases/${detail.id}/orders`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            package_code: code,
+            amount_rub: amountRub,
+          }),
+        },
+      );
       setOrderCode(code);
       setOrderAmount(String(amountRub));
-      setNotice(
-        code === "DIAG"
-          ? "Счёт на диагностику 3 000 ₽ создан. Отправьте ссылку клиенту из блока резюме."
-          : "Счёт создан.",
+      const orderId = String(order?.id || "").trim();
+      if (!orderId) {
+        setNotice("Счёт создан, но id не получен — отправьте ссылку вручную.");
+        await openCase(detail.id);
+        return;
+      }
+      const result = await apiFetch<{ sent?: boolean }>(
+        `/api/portal/admin/orders/${orderId}/pay-link`,
+        token,
+        { method: "POST", body: JSON.stringify({ send_max: true }) },
       );
+      setNotice(noticeAfterQuickOrderSend(Boolean(result.sent)));
       await openCase(detail.id);
+      const next = await apiFetch<typeof messages>(
+        `/api/portal/cases/${detail.id}/messages`,
+        token,
+      );
+      setMessages(next);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Не удалось создать счёт.");
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось создать или отправить счёт.",
+      );
     } finally {
       setBusy(false);
     }
