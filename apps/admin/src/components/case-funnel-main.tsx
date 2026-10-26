@@ -20,6 +20,7 @@ import {
   labelChecklistOwner,
   labelChecklistStatus,
   labelFeedbackQuality,
+  labelOrderStatus,
   labelPackage,
   pipelineStageOptions,
 } from "@/lib/ui-labels";
@@ -301,6 +302,7 @@ export function CaseFunnelMain({
   onCreateOrder,
   onSendPayLink,
   onCopyPayLink,
+  onCancelOrder,
   onRecordServiceConsent,
   onRecordAppealsConsent,
   onFeedbackText,
@@ -392,6 +394,8 @@ export function CaseFunnelMain({
   onCreateOrder: (e: FormEvent) => void;
   onSendPayLink?: (orderId: string) => void;
   onCopyPayLink?: (orderId: string) => void;
+  /** Отменить неоплаченный счёт (крестик в списке этапа оплаты). */
+  onCancelOrder?: (orderId: string) => void;
   onRecordServiceConsent: () => void;
   onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
   onFeedbackText: (v: string) => void;
@@ -1429,20 +1433,22 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("appeals_payment")}
         >
           <p className="hint">
-            Канон: SUPPORT 8 000 ₽ (сопровождение до подачи). ACCOMP 5 000 — подготовка. Не путать с
-            DIAG и legacy ACCOMP×8 000. Кнопки ниже создают счёт и сразу отправляют ссылку клиенту в
+            На этом этапе — подготовка обращений ACCOMP 5 000 ₽. Счёт SUPPORT 8 000 ₽ — на этапе
+            доп. пакета после ответа СФР. Кнопка создаёт счёт и сразу отправляет ссылку клиенту в
             MAX.
           </p>
           <ul className="plain-list">
             {(detail.orders ?? [])
               .filter(
                 (o) =>
-                  o.package_code === "SUPPORT" ||
-                  (o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000),
+                  o.package_code === "ACCOMP" &&
+                  Number(o.amount_rub) === 5000 &&
+                  o.status !== "cancelled",
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {labelOrderStatus(o.status)}
                   {onSendPayLink && o.status !== "paid" ? (
                     <>
                       {" "}
@@ -1456,31 +1462,38 @@ export function CaseFunnelMain({
                       </button>
                     </>
                   ) : null}
+                  {onCancelOrder && o.status !== "paid" ? (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="linkish danger-link"
+                        disabled={busy}
+                        title="Удалить счёт"
+                        aria-label={`Удалить счёт ${o.invoice_number || o.package_code}`}
+                        onClick={() => onCancelOrder(o.id)}
+                      >
+                        ×
+                      </button>
+                    </>
+                  ) : null}
                 </li>
               ))}
           </ul>
           {(detail.orders ?? []).every(
             (o) =>
               !(
-                o.package_code === "SUPPORT" ||
-                (o.package_code === "ACCOMP" && Number(o.amount_rub) === 5000)
+                o.package_code === "ACCOMP" &&
+                Number(o.amount_rub) === 5000 &&
+                o.status !== "cancelled"
               ),
           ) ? (
-            <p className="hint">Счёта SUPPORT / ACCOMP 5 000 ещё нет.</p>
+            <p className="hint">Счёта ACCOMP 5 000 ещё нет.</p>
           ) : null}
           {caps.can_manage_orders && onCreateQuickOrder ? (
             <div className="row-actions">
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
-                title="Создать счёт и сразу отправить ссылку клиенту в MAX"
-              >
-                Отправить счёт SUPPORT 8 000 ₽
-              </button>
-              <button
-                type="button"
-                className="secondary"
                 disabled={busy}
                 onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
                 title="Создать счёт и сразу отправить ссылку клиенту в MAX"
@@ -1706,7 +1719,8 @@ export function CaseFunnelMain({
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {labelOrderStatus(o.status)}
                   {o.package_code === "ACCOMP" ? (
                     <span className="hint"> · legacy ACCOMP×8000 (не переклассифицируем)</span>
                   ) : null}

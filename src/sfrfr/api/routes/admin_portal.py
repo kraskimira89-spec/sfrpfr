@@ -2802,8 +2802,10 @@ def admin_order_mark_paid(
 def admin_order_cancel(
     order_id: str,
     payload: CancelOrderRequest,
-    principal: Principal = Depends(require_admin),
+    principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
+    # Эксперт может отменить неоплаченный счёт из воронки (дубли); paid — нельзя.
+    _require_expert(principal)
     repo, order, case = _require_order(principal, order_id)
     if order.get("status") == "paid":
         raise HTTPException(status_code=400, detail="cannot cancel paid order")
