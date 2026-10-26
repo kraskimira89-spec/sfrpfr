@@ -156,17 +156,19 @@ test("sanitizeNextStep: снимает префикс, отбрасывает т
   assert.equal(sanitizeNextStep(""), "");
 });
 
-test("ask client без docs — без продажи", () => {
+test("ask client — просьба документов, не резюме и не продажа", () => {
   const text = formatAskClientNextStepsTemplate(
     {
       items: [
         { text: "северный стаж", evidence: "client", basis: "со слов клиента" },
       ],
     },
-    { diagAllowed: false },
+    { diagAllowed: true, diagPaid: false },
   );
-  assert.doesNotMatch(text, /диагностик[аи].*3000|3[\s\u00a0]?000/i);
-  assert.match(text, /данных недостаточно/i);
+  assert.match(text, /пришлите.*выписку ИЛС/i);
+  assert.match(text, /трудов/i);
+  assert.doesNotMatch(text, /диагностик|3[\s\u00a0]?000|по-вашему|какие проблемы/i);
+  assert.doesNotMatch(text, /Проверили ваши документы/);
 });
 
 test("сверка без расхождений: итог без вопросов клиенту", () => {

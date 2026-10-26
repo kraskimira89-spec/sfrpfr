@@ -233,16 +233,22 @@ export function DocumentCheckPanel({
             <p>{view.next.text}</p>
             <div className="row-actions doc-check-actions">
               {askFirst ? (
-                <button type="button" disabled={busy} onClick={applyAsk}>
-                  {view.next.kind === "clarify"
-                    ? "Спросить клиента о периодах"
-                    : "Написать клиенту"}
-                </button>
-              ) : null}
-              {brief ? (
                 <button
                   type="button"
-                  className={askFirst || view.next.kind === "paid" ? "secondary" : undefined}
+                  disabled={busy}
+                  onClick={applyAsk}
+                  title="Подставит в чат просьбу прислать документы. В MAX само не отправит"
+                >
+                  {view.next.kind === "fix_files"
+                    ? "Попросить читаемый файл"
+                    : view.next.kind === "ask_docs"
+                      ? "Запросить недостающие документы"
+                      : "Запросить документы в чат"}
+                </button>
+              ) : brief ? (
+                <button
+                  type="button"
+                  className={view.next.kind === "paid" ? "secondary" : undefined}
                   disabled={busy}
                   title="ИИ доработает резюме по переписке и подставит в поле чата. В MAX само не отправляется"
                   onClick={applyBrief}
