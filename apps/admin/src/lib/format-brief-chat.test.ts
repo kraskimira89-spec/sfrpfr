@@ -29,10 +29,13 @@ test("docs: включает basis и офер DIAG один раз", () => {
   );
   assert.match(text, /Проверили ваши документы/);
   assert.match(text, /В трудовой указан период/);
-  assert.match(text, /Подробная диагностика/);
+  assert.match(text, /краткая сверка/i);
+  assert.match(text, /подробный письменный разбор/);
+  assert.match(text, /подготовка обращений/i);
   // Сумма — один раз, без псевдокнопок «Получить разбор — 3 000 ₽».
   assert.equal((text.match(/3[\s\u00a0]?000/g) || []).length, 1);
   assert.match(text, /Вопросы можно задать здесь же/);
+  assert.doesNotMatch(text, /какая у вас проблема|по-вашему/i);
   assert.doesNotMatch(text, /\/help/i);
   assert.doesNotMatch(text, /ответьте кнопкой/i);
   assert.doesNotMatch(text, /перерасч[её]т|прибавк/i);

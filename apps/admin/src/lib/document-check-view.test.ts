@@ -74,6 +74,8 @@ test("расхождение из документов + офер → предл
   );
   assert.equal(v.findings.docs.length, 1);
   assert.equal(v.next.kind, "offer");
+  assert.match(v.next.text, /краткая сверка|подробный разбор|обращен/i);
+  assert.doesNotMatch(v.next.text, /какая у вас проблема/i);
 });
 
 test("расхождение из документов, DIAG оплачен → готовить разбор, без продажи", () => {
