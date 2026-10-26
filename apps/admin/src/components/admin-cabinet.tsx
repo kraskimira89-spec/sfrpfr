@@ -890,7 +890,7 @@ export function AdminCabinet() {
     await apiFetch(`/api/portal/admin/cases/${detail.id}/request-pipeline`, token, {
       method: "POST",
     });
-    setNotice("Запрос проекта / статуса пайплайна отправлен.");
+    setNotice("Запрос проекта / статуса маршрута отправлен.");
     await openCase(detail.id);
   }
 
