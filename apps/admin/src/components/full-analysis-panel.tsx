@@ -91,7 +91,8 @@ export function FullAnalysisPanel({
   const [generating, setGenerating] = useState(false);
   const [state, setState] = useState<StatePayload | null>(null);
   const [draft, setDraft] = useState("");
-  const [emailTo, setEmailTo] = useState(clientEmail || "");
+  const [emailOverride, setEmailOverride] = useState<string | null>(null);
+  const emailTo = emailOverride ?? (clientEmail || "");
   const [emailPreview, setEmailPreview] = useState<{
     subject?: string;
     body?: string;
@@ -120,10 +121,6 @@ export function FullAnalysisPanel({
     const t = window.setTimeout(() => void reload(), 0);
     return () => window.clearTimeout(t);
   }, [reload]);
-
-  useEffect(() => {
-    setEmailTo(clientEmail || "");
-  }, [clientEmail]);
 
   const current = state?.current ?? null;
   const strip = state?.status_strip;
@@ -470,7 +467,7 @@ export function FullAnalysisPanel({
           type="email"
           placeholder="Почта клиента"
           value={emailTo}
-          onChange={(e) => setEmailTo(e.target.value)}
+          onChange={(e) => setEmailOverride(e.target.value)}
           disabled={busy}
           style={{ minWidth: "14rem" }}
         />
