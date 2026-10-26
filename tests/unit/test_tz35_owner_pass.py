@@ -305,13 +305,15 @@ def test_intervals_documented() -> None:
 def test_completed_text_owner_wording() -> None:
     text = q.completed_text("00000000-0000-4000-8000-000000000001")
     assert "создано" in text
-    assert "в любой момент нашего диалога" in text
+    assert "ИЛС" in text
+    assert "трудов" in text.lower()
     assert "диагностик" not in text.lower()
     assert "3 000" not in text
 
 
 def test_intro_owner_wording() -> None:
     assert "Здравствуйте!" in q.INTRO_TEXT
-    assert "четыре коротких вопроса" in q.INTRO_TEXT
+    assert "коротких вопрос" in q.INTRO_TEXT
+    assert "документ" in q.INTRO_TEXT.lower() or "ИЛС" in q.INTRO_TEXT
     assert "извлек" not in q.INTRO_TEXT.lower()
     assert "профиля" not in q.INTRO_TEXT.lower()

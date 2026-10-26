@@ -87,6 +87,31 @@ def test_problem_too_long_rejected() -> None:
     assert "2000" in (res.error or "")
 
 
+def test_problem_can_be_skipped() -> None:
+    """Клиент часто не знает «свою проблему» — шаг необязательный."""
+    rec = _rec()
+    q.begin(rec)
+    for kind, value in (
+        ("cb", "q:exp:gt20"),
+        ("text", "+79091950408"),
+        ("cb", q.SKIP_EMAIL),
+    ):
+        res = q.apply_answer(
+            rec, text=value if kind == "text" else "", payload=value if kind == "cb" else ""
+        )
+        assert res.accepted, value
+    assert rec.q_step == "problem"
+    text, kb = q.question("problem")
+    assert "Пропустить" in text or "не знаете" in text.lower()
+    assert kb is not None
+    res = q.apply_answer(rec, text="", payload=q.SKIP_PROBLEM)
+    assert res.done
+    assert rec.q_answers.get("problem") == ""
+    assert "ИЛС" in q.COMPLETED_TEXT
+    assert "трудов" in q.COMPLETED_TEXT.lower()
+    assert "опишите проблему" not in q.QUESTIONS["problem"].lower()
+
+
 def test_summary_has_no_pension_promises() -> None:
     text = q.summary_text(
         {
@@ -138,8 +163,8 @@ def test_start_begins_questionnaire_for_new_client(tmp_path: Path, monkeypatch) 
     assert "Год рождения" not in texts
     assert "извлек" not in texts.lower()
     assert "профиля max" not in texts.lower()
-    assert "четыре коротких вопроса" in texts.lower()
-    assert "стаж" in texts.lower()
+    assert "коротких вопрос" in texts.lower()
+    assert "стаж" in texts.lower() or "документ" in texts.lower()
     assert not any("чек-лист" in (t or "").lower() for _u, t in bot.sent)
     rec = get_intake_store().get_active("801")
     assert rec is not None and rec.q_step == "experience"
@@ -169,7 +194,8 @@ def test_questionnaire_end_to_end(tmp_path: Path, monkeypatch) -> None:
     done = q.completed_text(res.case_id)
     assert "CASE-" in done
     assert "создано" in done
-    assert "в любой момент нашего диалога" in done
+    assert "ИЛС" in done
+    assert "трудов" in done.lower()
     assert done in [t for _u, t in bot.sent]
     assert not any("оформить диагностику" in (t or "").lower() for _u, t in bot.sent)
     assert not any("3 000" in (t or "") for _u, t in bot.sent)
