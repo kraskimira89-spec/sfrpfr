@@ -1557,6 +1557,35 @@ export function AdminCabinet() {
     }
   }
 
+  async function cancelCaseOrder(orderId: string) {
+    if (!token || !detail) return;
+    const order = (detail.orders ?? []).find((o) => o.id === orderId);
+    const label = order?.invoice_number || order?.package_code || "счёт";
+    if (
+      !window.confirm(
+        `Удалить ${label}? Счёт будет отменён; создать новый можно снова.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/orders/${orderId}/cancel`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          reason: "duplicate",
+          comment: "Удаление из воронки этапа оплаты",
+        }),
+      });
+      setNotice("Счёт удалён.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось удалить счёт.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function copyPayLinkForCaseOrder(orderId: string) {
     if (!token || !detail) return;
     setBusy(true);
@@ -2361,6 +2390,7 @@ export function AdminCabinet() {
             onCreateQuickOrder={(code, amount) => void createQuickOrder(code, amount)}
             onSendPayLink={(orderId) => void sendPayLinkForCaseOrder(orderId)}
             onCopyPayLink={(orderId) => void copyPayLinkForCaseOrder(orderId)}
+            onCancelOrder={(orderId) => void cancelCaseOrder(orderId)}
             onRecordServiceConsent={() => void recordServiceConsent()}
             onRecordAppealsConsent={(d) => void recordAppealsConsent(d)}
             onFeedbackText={setFeedbackText}
