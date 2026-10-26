@@ -1619,7 +1619,8 @@ export function CaseFunnelMain({
             авторассылка каждые 3 дня.
           </p>
           <p>
-            Сейчас: {nextActionText || "—"} · до {nextActionAt || "—"} · ждём: {waitingOn}
+            Сейчас: {nextActionText || "—"} · до {nextActionAt || "—"} · ждём:{" "}
+            {WAITING_LABELS[waitingOn] ?? (waitingOn || "—")}
           </p>
           <div className="row-actions">
             {[3, 5, 10, 15, 30].map((days) => (
@@ -1645,7 +1646,7 @@ export function CaseFunnelMain({
               </button>
             ))}
             <button type="button" disabled={busy} onClick={onSaveNextAction}>
-              Сохранить next action
+              Сохранить следующее действие
             </button>
           </div>
         </StageShell>
