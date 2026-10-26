@@ -23,7 +23,7 @@ const REAL_CASE = {
   },
 };
 
-test("реальное дело: 4 уникальных файла, нечитаемый PNG, шаг — уточнить периоды", () => {
+test("реальное дело: 4 уникальных файла, нечитаемый PNG, шаг — запросить документы", () => {
   const v = buildCheckView(REAL_CASE, { offerAllowed: false, diagPaid: true });
   assert.equal(v.kit.unique, 4);
   assert.equal(v.kit.duplicates, 8);
@@ -37,6 +37,21 @@ test("реальное дело: 4 уникальных файла, нечита
   assert.equal(v.findings.questionnaire.length, 1);
   assert.equal(v.findings.client.length, 1);
   assert.equal(v.next.kind, "clarify");
+  assert.match(v.next.text, /ИЛС|трудов/i);
+  assert.doesNotMatch(v.next.text, /по его мнению|по-вашему|какие проблемы/i);
+});
+
+test("расхождения в документах без офера: итог сверки, не мнение клиента", () => {
+  const v = buildCheckView(
+    {
+      ...REAL_CASE,
+      honest_brief: { items: [{ text: "период не отражён", evidence: "docs", basis: "ИЛС" }] },
+    },
+    { offerAllowed: false, diagPaid: false },
+  );
+  assert.equal(v.next.kind, "discuss");
+  assert.match(v.next.text, /резюме|сверк|справк|трудов/i);
+  assert.doesNotMatch(v.next.text, /как ему удобнее|по его мнению|напишите.*период/i);
 });
 
 test("не хватает ИЛС — первым делом запросить документ", () => {
