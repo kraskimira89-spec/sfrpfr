@@ -3,6 +3,7 @@
 import {
   DOC_REQUEST_ILS,
   DOC_REQUEST_LABOR,
+  DOC_REQUEST_SFR_RESPONSE,
   PLAN_READY_CHAT,
   SERVICE_DESCRIPTION_CHAT,
   primaryCtaLabel,
@@ -281,6 +282,7 @@ export function CaseFunnelMain({
   onOpenTrackerModal,
   onOpenSigned,
   onUploadDiagnosisReport,
+  onUploadSfrResponse,
   onPublishDiagnosis,
   onCreateQuickOrder,
   documentsWorkplace = null,
@@ -374,6 +376,8 @@ export function CaseFunnelMain({
   onOpenTrackerModal: () => void;
   onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
+  /** Загрузить ответ/решение СФР (этап 11). */
+  onUploadSfrResponse?: (file: File) => void;
   onPublishDiagnosis: (documentId: string) => void;
   onCreateQuickOrder?: (code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) => void;
   /** Проверка текста файлов (2.4) — сразу под блоками этапа «Документы». */
@@ -1684,8 +1688,63 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("response_review")}
         >
           <p className="hint">
-            Ответ СФР требует разбора; эскалация не включается автоматически.
+            Ответ СФР требует разбора; эскалация не включается автоматически. Можно запросить файл у
+            клиента в чат или загрузить ответ сами.
           </p>
+          {(() => {
+            const sfrDocs = (detail.documents ?? []).filter((d) => {
+              const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
+              return (
+                blob.includes("sfr_decision") ||
+                blob.includes("sfr_response") ||
+                blob.includes("sfr_refusal")
+              );
+            });
+            return sfrDocs.length > 0 ? (
+              <ul className="plain-list">
+                {sfrDocs.map((doc) => (
+                  <li key={doc.id}>
+                    <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
+                      {(doc.storage_path || "").split("/").pop() || doc.doc_type || "файл"}
+                    </button>
+                    <span className="hint"> · ответ СФР</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint">Файла ответа СФР в деле пока нет.</p>
+            );
+          })()}
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              title="Подставит текст в поле чата. В MAX само не отправит"
+              onClick={() => {
+                applyTemplate(DOC_REQUEST_SFR_RESPONSE);
+                onWaitingOn("client");
+              }}
+            >
+              Запросить у клиента
+            </button>
+            {onUploadSfrResponse ? (
+              <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
+                Загрузить ответ СФР
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                  hidden
+                  disabled={busy || !caps.can_view_ocr}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onUploadSfrResponse(file);
+                  }}
+                />
+              </label>
+            ) : null}
+          </div>
           {caps.can_confirm_result ? (
             <>
               <label className="funnel-show-all">
