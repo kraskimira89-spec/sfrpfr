@@ -58,6 +58,8 @@ export function DocumentCheckPanel({
   onCreateDiagInvoice,
   onSendPayLink,
   onUploadDiagnosisReport,
+  onDeleteDocuments,
+  caseDocuments,
 }: {
   check: DocumentCheck | null | undefined;
   busy?: boolean;
@@ -70,6 +72,10 @@ export function DocumentCheckPanel({
   onCreateDiagInvoice?: () => void;
   onSendPayLink?: (orderId: string) => void;
   onUploadDiagnosisReport?: (file: File) => void;
+  /** Удалить нечитаемый/лишний файл (и копии). */
+  onDeleteDocuments?: (documentIds: string[], label: string) => void;
+  /** Файлы дела — чтобы найти id по имени, если в результате проверки их ещё нет. */
+  caseDocuments?: { id: string; filename?: string | null; storage_path?: string | null }[];
 }) {
   if (!check) {
     return (
@@ -171,10 +177,50 @@ export function DocumentCheckPanel({
               Текст извлечён у <strong>{view.read.textOk}</strong> из {view.read.total} файлов.
             </p>
             {view.read.unreadable.length > 0 ? (
-              <p className="warning-inline">
-                Не прочитан: {view.read.unreadable.join(", ")} — скан или фото без текстового слоя.
-                {r.ocr_allowed ? "" : " Автораспознавание сканов сейчас выключено."}
-              </p>
+              <div className="warning-inline">
+                <p>
+                  Не прочитан — скан или фото без текстового слоя.
+                  {r.ocr_allowed ? "" : " Автораспознавание сканов сейчас выключено."}
+                  {" "}Можно удалить мусор и попросить клиента прислать PDF с Госуслуг или более чёткое фото.
+                </p>
+                <ul className="plain-list doc-check-unreadable">
+                  {(view.read.unreadableDocs.length > 0
+                    ? view.read.unreadableDocs
+                    : view.read.unreadable.map((name) => {
+                        const ids = (caseDocuments ?? [])
+                          .filter((d) => {
+                            const fn = (d.filename || d.storage_path || "").split(/[/\\]/).pop() || "";
+                            return fn === name || (d.filename || "") === name;
+                          })
+                          .map((d) => d.id)
+                          .filter(Boolean);
+                        return { name, ids };
+                      })
+                  ).map((row) => (
+                    <li key={`${row.name}-${row.ids.join(",") || "name"}`}>
+                      <span>{row.name}</span>
+                      {onDeleteDocuments && row.ids.length > 0 ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          disabled={busy}
+                          title="Удалить этот файл и его повторы из дела"
+                          onClick={() =>
+                            onDeleteDocuments(
+                              row.ids,
+                              row.ids.length > 1
+                                ? `нечитаемый файл «${row.name}» и повторы (${row.ids.length})`
+                                : `нечитаемый файл «${row.name}»`,
+                            )
+                          }
+                        >
+                          Удалить
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
               <p className="doc-check-ok">✓ Все файлы читаются.</p>
             )}

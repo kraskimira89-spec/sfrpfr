@@ -1281,6 +1281,17 @@ button.secondary.danger-button:hover:not(:disabled) {
   flex-wrap: wrap;
   gap: 6px;
 }
+.doc-check-unreadable {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+}
+.doc-check-unreadable li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
 .doc-kit-list li {
   display: flex;
   flex-wrap: wrap;

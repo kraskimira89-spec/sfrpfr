@@ -1,30 +1,43 @@
 from sfrfr.services.staff_document_check_result import summarize_for_staff
 
 
-def _doc(name: str, checksum: str, *, ocr: bool = False, manual: bool = False) -> dict:
-    return {
+def _doc(
+    name: str,
+    checksum: str,
+    *,
+    ocr: bool = False,
+    manual: bool = False,
+    doc_id: str | None = None,
+) -> dict:
+    row = {
         "filename": name,
         "checksum_sha256": checksum,
         "needs_ocr": ocr,
         "needs_manual": manual,
         "text_extracted": not ocr,
     }
+    if doc_id:
+        row["id"] = doc_id
+    return row
 
 
 def test_summary_counts_unique_files_and_names_unreadable() -> None:
     result = {
         "documents_checked": 5,
         "documents": [
-            _doc("tk.docx", "a"),
-            _doc("tk.docx", "a"),
-            _doc("ils.pdf", "b"),
-            _doc("scan.png", "c", ocr=True),
-            _doc("scan.png", "c", ocr=True),
+            _doc("tk.docx", "a", doc_id="1"),
+            _doc("tk.docx", "a", doc_id="2"),
+            _doc("ils.pdf", "b", doc_id="3"),
+            _doc("scan.png", "c", ocr=True, doc_id="4"),
+            _doc("scan.png", "c", ocr=True, doc_id="5"),
         ],
     }
     out = summarize_for_staff(result)
     assert out["unique_documents"] == 3
     assert out["unreadable_files"] == ["scan.png"]
+    assert out["unreadable_docs"] == [
+        {"filename": "scan.png", "document_ids": ["4", "5"]},
+    ]
     assert out["manual_files"] == []
 
 
