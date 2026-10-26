@@ -1203,11 +1203,16 @@ def generate_case_full_analysis_draft(
 
     docs = list(repo.list_documents(case_id) or [])
     check = get_case_document_check(case_id) or {}
-    result = check.get("result") if isinstance(check.get("result"), dict) else {}
-    brief = result.get("honest_brief") if isinstance(result.get("honest_brief"), dict) else None
-    compare = result.get("stazh_compare") if isinstance(result.get("stazh_compare"), dict) else None
-    if compare is None and isinstance(brief, dict) and isinstance(brief.get("compare"), dict):
-        compare = brief.get("compare")
+    raw_result = check.get("result")
+    result: dict[str, Any] = raw_result if isinstance(raw_result, dict) else {}
+    hb = result.get("honest_brief")
+    brief: dict[str, Any] | None = hb if isinstance(hb, dict) else None
+    sc = result.get("stazh_compare")
+    compare: dict[str, Any] | None = sc if isinstance(sc, dict) else None
+    if compare is None and brief is not None:
+        nested = brief.get("compare")
+        if isinstance(nested, dict):
+            compare = nested
 
     ocr_snippets: list[str] = []
     try:
