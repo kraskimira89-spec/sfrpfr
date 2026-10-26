@@ -1944,6 +1944,27 @@ export function AdminCabinet() {
     }
   }
 
+  async function uploadSfrResponse(file: File) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("doc_type", "sfr_decision");
+      await apiFetch(`/api/portal/cases/${detail.id}/documents`, token, {
+        method: "POST",
+        body: form,
+      });
+      setSfrReceived(true);
+      setNotice("Ответ СФР загружен. Можно зафиксировать суммы ниже.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить ответ СФР.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function publishDiagnosis(documentId: string) {
     if (!token || !detail) return;
     setBusy(true);
@@ -2381,6 +2402,7 @@ export function AdminCabinet() {
             }}
             onOpenSigned={(docId, mode) => void openSigned(docId, mode)}
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
+            onUploadSfrResponse={(file) => void uploadSfrResponse(file)}
             onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
             documentsWorkplace={
               token && detail.role_capabilities.can_view_ocr ? (
