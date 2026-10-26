@@ -40,6 +40,7 @@
 30. [30-diagnosis-delivery-triggers.md](30-diagnosis-delivery-triggers.md) — машина состояний и триггеры 1–4 (publish / approve / open / unread).
 31. [31-email-delivery-webhooks.md](31-email-delivery-webhooks.md) — webhook доставки e-mail (канон: Yandex Cloud Postbox; резерв Postmark/Mailgun/SendGrid).
 32. [32-customer-journey.md](32-customer-journey.md) — путь клиента: динамический чек-лист, сценарии, MAX consent-gate, банк staff-only, перенос трудовой.
+35. [35-client-case-route.md](35-client-case-route.md) — «Мой маршрут» в кабинете: главы поверх work map, срез «Собираем документы».
 33. [33-staff-kanban-llm-stages.md](33-staff-kanban-llm-stages.md) — kanban этапов воронки (3/5/8 тыс.): автоперенос карточек правилами; LLM не пишет колонку.
 34. [34-max-document-task.md](34-max-document-task.md) — задача «комплект документов» в MAX: персональная secure-ссылка, статусы CRM, A/B вместо welcome.
 35. [35-sfr-client-chatbot-tz-v1.md](35-sfr-client-chatbot-tz-v1.md) — единое ТЗ v1.0 клиентского чат-бота (текст владельца): согласие ПДн, анкета, личное дело, документы, OCR, 5 000 / 8 000 ₽. Сверка с кодом и этапы — [35a](35a-sfr-client-chatbot-gap-plan.md) (A–B ✅ на 2026-10-09; дальше C1). Статус: `docs/history/2026-10-09-tz35-a-b-status.md`, Трекер SFRFR-56.

@@ -47,7 +47,7 @@ def test_document_slot_awaiting_after_upload() -> None:
     ils = next(s for s in slots if s["key"] == "ils")
     labor = next(s for s in slots if s["key"] == "labor")
     assert ils["status"] == "awaiting"
-    assert "ожидает" in ils["status_label"]
+    assert "получен" in ils["status_label"].lower()
     assert ils["can_delete"] is True
     assert ils["added_at"] == "31 августа, 18:40"
     assert labor["status"] == "missing"
