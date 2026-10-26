@@ -25,6 +25,7 @@ import {
   labelChecklistOwner,
   labelChecklistStatus,
   labelFeedbackQuality,
+  labelFinanceStatus,
   labelOrderStatus,
   labelPackage,
   pipelineStageOptions,
@@ -237,9 +238,28 @@ const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
 function NotWiredNote({ label }: { label: string }) {
   return (
     <p className="hint">
-      {label}: функция ещё не подключена. Карточка для навигации; действий и API-мутаций здесь нет.
+      {label}: функция ещё не подключена. Карточка для навигации; действий здесь пока нет.
     </p>
   );
+}
+
+function labelFindingType(type: string | undefined): string {
+  const t = (type || "").trim();
+  const map: Record<string, string> = {
+    missing_period: "Пропущенный период",
+    period_gap: "Разрыв в стаже",
+    north_mismatch: "Расхождение по северному стажу",
+    salary_mismatch: "Расхождение по зарплате",
+    document_mismatch: "Расхождение в документах",
+    other: "Прочее",
+  };
+  return map[t] || t || "Замечание";
+}
+
+function orderStatusRu(o: { finance_status?: string | null; status: string }): string {
+  const raw = String(o.finance_status || o.status || "").trim();
+  if (!raw) return "—";
+  return labelFinanceStatus(raw) !== raw ? labelFinanceStatus(raw) : labelOrderStatus(raw);
 }
 
 export function CaseFunnelMain({
@@ -1073,8 +1093,8 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Статус: {stageLabel}. ИЛС — {funnel.hasIls ? "есть" : "нет"} · трудовая —{" "}
-            {funnel.hasLabor ? "есть" : "нет"}. OCR: {(detail.ocr_texts ?? []).length}. Автоотправки
-            клиенту нет.
+            {funnel.hasLabor ? "есть" : "нет"}. Распознанных фрагментов:{" "}
+            {(detail.ocr_texts ?? []).length}. Автоотправки клиенту нет.
           </p>
           <CaseWorkRoute
             route={detail.work_route}
@@ -1120,22 +1140,22 @@ export function CaseFunnelMain({
               />
             }
           />
-          <h3 className="case-subhead">Ранее сохранённые замечания пайплайна</h3>
+          <h3 className="case-subhead">Ранее сохранённые замечания проверки</h3>
           <ul className="plain-list">
             {(detail.findings ?? []).length === 0 && (
-              <li className="hint">Нет сохранённых замечаний пайплайна</li>
+              <li className="hint">Нет сохранённых замечаний проверки</li>
             )}
             {(detail.findings ?? []).map((f, idx) => (
               <li key={`${f.type}-${idx}`}>
-                <strong>{f.type}</strong> {f.detail}
+                <strong>{labelFindingType(f.type)}</strong> {f.detail}
               </li>
             ))}
           </ul>
-          <h3 className="case-subhead">Помощь в анализе (пайплайн)</h3>
+          <h3 className="case-subhead">Помощь в анализе</h3>
           {detail.analysis_notes ? (
             <pre className="draft">{detail.analysis_notes}</pre>
           ) : (
-            <p className="hint">Нет сохранённых notes пайплайна.</p>
+            <p className="hint">Нет сохранённых заметок анализа.</p>
           )}
         </StageShell>
 
@@ -1152,7 +1172,7 @@ export function CaseFunnelMain({
             <p className="hint">Нет права управлять заказами — только просмотр статуса.</p>
           ) : null}
           <p className="hint">
-            Учитываем DIAG + сумму + серверный статус. Не любой «оплачено» и не текст чата.
+            Учитываем диагностику, сумму и статус оплаты. Не любой «оплачено» и не текст чата.
           </p>
           <ul className="plain-list case-orders-list">
             {(detail.orders ?? [])
@@ -1164,7 +1184,7 @@ export function CaseFunnelMain({
                       {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽
                     </strong>
                     {" · "}
-                    {o.finance_status || o.status}
+                    {orderStatusRu(o)}
                   </p>
                   {o.pay_url ? (
                     <p className="hint">
@@ -1194,7 +1214,9 @@ export function CaseFunnelMain({
               ))}
           </ul>
           {(detail.orders ?? []).every((o) => o.package_code !== "DIAG") ? (
-            <p className="hint">Счёта DIAG ещё нет. Создать можно из резюме (офер) или формы ниже.</p>
+            <p className="hint">
+              Счёта на диагностику ещё нет. Создать можно из резюме (предложение) или формы ниже.
+            </p>
           ) : null}
           {caps.can_manage_orders ? (
             <>
@@ -1233,19 +1255,19 @@ export function CaseFunnelMain({
                       (detail.orders ?? []).some(
                         (o) => o.package_code === "DIAG" && o.status === "paid",
                       )
-                        ? "DIAG уже оплачен"
+                        ? "Диагностика уже оплачена"
                         : (detail.orders ?? []).some(
                               (o) =>
                                 o.package_code === "DIAG" &&
                                 o.status !== "paid" &&
                                 o.status !== "cancelled",
                             )
-                          ? "Счёт DIAG уже есть"
-                          : "Создать счёт DIAG 3 000 ₽"
-                    }
+                          ? "Счёт на диагностику уже есть"
+                          : "Создать счёт на диагностику 3 000 ₽"
+                      }
                     onClick={() => onCreateQuickOrder("DIAG", 3000)}
                   >
-                    Счёт DIAG 3 000 ₽
+                    Счёт на диагностику 3 000 ₽
                   </button>
                 ) : null}
               </div>
@@ -1395,7 +1417,7 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Фиксируем решение по объёму подготовки обращений в audit дела. Не путать с согласием на
-            DIAG / ПДн. Текст чата сам по себе статус не меняет.
+            Диагностика и согласие на ПДн. Текст чата сам по себе статус не меняет.
           </p>
           <div className="row-actions">
             {onRecordAppealsConsent ? (
@@ -1433,7 +1455,7 @@ export function CaseFunnelMain({
               disabled={busy}
               onClick={() =>
                 applyTemplate(
-                  "Здравствуйте! Предлагаем подготовку обращения к СФР (пакет SUPPORT 8 000 ₽ до подачи или ACCOMP 5 000 ₽ на подготовку). Напишите, пожалуйста: согласны / пока думаете / не нужно. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
+                  "Здравствуйте! Предлагаем подготовку обращения к СФР (сопровождение до подачи 8 000 ₽ или подготовка обращения 5 000 ₽). Напишите, пожалуйста: согласны / пока думаете / не нужно. Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.",
                 )
               }
             >
@@ -1452,7 +1474,7 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("appeals_payment")}
         >
           <p className="hint">
-            На этом этапе — подготовка обращений ACCOMP 5 000 ₽. Счёт SUPPORT 8 000 ₽ — на этапе
+            На этом этапе — подготовка обращений 5 000 ₽. Счёт на сопровождение 8 000 ₽ — на этапе
             доп. пакета после ответа СФР. Кнопка создаёт счёт и сразу отправляет ссылку клиенту в
             MAX.
           </p>
@@ -1466,7 +1488,7 @@ export function CaseFunnelMain({
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽ ·{" "}
                   {labelOrderStatus(o.status)}
                   {onSendPayLink && o.status !== "paid" ? (
                     <>
@@ -1489,7 +1511,7 @@ export function CaseFunnelMain({
                         className="linkish danger-link"
                         disabled={busy}
                         title="Удалить счёт"
-                        aria-label={`Удалить счёт ${o.invoice_number || o.package_code}`}
+                        aria-label={`Удалить счёт ${o.invoice_number || labelPackage(o.package_code)}`}
                         onClick={() => onCancelOrder(o.id)}
                       >
                         ×
@@ -1507,7 +1529,7 @@ export function CaseFunnelMain({
                 o.status !== "cancelled"
               ),
           ) ? (
-            <p className="hint">Счёта ACCOMP 5 000 ещё нет.</p>
+            <p className="hint">Счёта на подготовку обращений 5 000 ₽ ещё нет.</p>
           ) : null}
           {caps.can_manage_orders && onCreateQuickOrder ? (
             <div className="row-actions">
@@ -1517,7 +1539,7 @@ export function CaseFunnelMain({
                 onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
                 title="Создать счёт и сразу отправить ссылку клиенту в MAX"
               >
-                Отправить счёт ACCOMP 5 000 ₽
+                Отправить счёт на подготовку 5 000 ₽
               </button>
             </div>
           ) : null}
@@ -1534,7 +1556,7 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Состояния: черновик / готов / передан. Передача «не подтверждена», пока нет серверного
-            статуса. DOCX — экспорт текущего draft, не юридический генератор.
+            статуса. Файл Word — экспорт текущего черновика, не юридический генератор.
           </p>
           {detail.draft ? (
             <div className="stack">
@@ -1624,7 +1646,7 @@ export function CaseFunnelMain({
             Выбор способа ≠ подача. Подтверждение подачи в API отсутствует — «не подтверждено».
             Сотрудник не отмечает подачу автоматически по передаче пакета.
           </p>
-          <NotWiredNote label="submission_confirmed_at / адресат" />
+          <NotWiredNote label="Подтверждение подачи и адресат" />
           <div className="row-actions">
             <button
               type="button"
@@ -1871,8 +1893,9 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("escalation_package")}
         >
           <p className="hint">
-            Вход — основание и согласованный новый объём. ACCOMP 8 000 отдельно от 5 000. Отказ /
-            «не требуется» — отдельные исходы (запись согласия пока «не подтверждено»).
+            Вход — основание и согласованный новый объём. Сопровождение 8 000 ₽ отдельно от
+            подготовки 5 000 ₽. Отказ / «не требуется» — отдельные исходы (запись согласия пока
+            «не подтверждено»).
           </p>
           <ul className="plain-list">
             {(detail.orders ?? [])
@@ -1883,10 +1906,10 @@ export function CaseFunnelMain({
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {o.invoice_number || labelPackage(o.package_code)} · {o.amount_rub} ₽ ·{" "}
                   {labelOrderStatus(o.status)}
                   {o.package_code === "ACCOMP" ? (
-                    <span className="hint"> · legacy ACCOMP×8000 (не переклассифицируем)</span>
+                    <span className="hint"> · старый счёт подготовки 8 000 ₽ (не меняем код)</span>
                   ) : null}
                 </li>
               ))}
@@ -1898,7 +1921,7 @@ export function CaseFunnelMain({
               onClick={() => onCreateQuickOrder("SUPPORT", 8000)}
               title="Создать счёт и сразу отправить ссылку клиенту в MAX"
             >
-              Отправить счёт SUPPORT 8 000 ₽
+              Отправить счёт на сопровождение 8 000 ₽
             </button>
           ) : null}
           <button

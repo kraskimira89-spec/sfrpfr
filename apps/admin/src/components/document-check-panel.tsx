@@ -310,8 +310,8 @@ export function DocumentCheckPanel({
                   onClick={() => onCreateDiagInvoice()}
                   title={
                     diagOpen
-                      ? "Счёт DIAG уже есть — отправьте ссылку"
-                      : "Создать счёт DIAG и сразу отправить ссылку клиенту в MAX"
+                      ? "Счёт на диагностику уже есть — отправьте ссылку"
+                      : "Создать счёт на диагностику и сразу отправить ссылку клиенту в MAX"
                   }
                 >
                   Отправить счёт на диагностику {amount.toLocaleString("ru-RU")} ₽
