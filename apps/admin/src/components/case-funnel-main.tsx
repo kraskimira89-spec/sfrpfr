@@ -17,7 +17,9 @@ import {
   slaToneLabel,
 } from "@/lib/case-indicators";
 import {
+  formatCaseStatuses,
   humanCaseStage,
+  labelAuditAction,
   labelChecklistOwner,
   labelChecklistStatus,
   labelFeedbackQuality,
@@ -1893,7 +1895,7 @@ export function CaseFunnelMain({
             </>
           ) : null}
           <p>
-            pipeline={detail.pipeline_status} · b2c={detail.b2c_status}
+            Этап: {formatCaseStatuses(detail.pipeline_status, detail.b2c_status)}
           </p>
           {actionItems.length > 0 ? (
             <>
@@ -1924,23 +1926,53 @@ export function CaseFunnelMain({
                 ))}
               </select>
               <button type="button" onClick={onSavePipeline}>
-                Сохранить этап пайплайна
+                Сохранить этап маршрута
               </button>
             </div>
           ) : null}
           {detail.crm_url ? (
             <p>
-              amoCRM:{" "}
+              CRM:{" "}
               <a href={detail.crm_url} target="_blank" rel="noreferrer">
                 открыть
               </a>
             </p>
           ) : null}
+          <div className="row-actions" style={{ marginBottom: "0.5rem" }}>
+            <button
+              type="button"
+              className="secondary"
+              disabled={detail.audit.length === 0}
+              title="Скачать журнал событий в CSV"
+              onClick={() => {
+                const header = "время;событие;код\n";
+                const lines = detail.audit
+                  .map((row) => {
+                    const when = new Date(row.at).toLocaleString("ru-RU");
+                    const label = labelAuditAction(row.action).replace(/;/g, ",");
+                    const code = String(row.action || "").replace(/;/g, ",");
+                    return `${when};${label};${code}`;
+                  })
+                  .join("\n");
+                const blob = new Blob(["\uFEFF" + header + lines + "\n"], {
+                  type: "text/csv;charset=utf-8",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `journal-${detail.id.slice(0, 8)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Выгрузить журнал
+            </button>
+          </div>
           <h3 className="case-subhead">Последние события</h3>
           <ul className="plain-list case-audit-list">
             {auditPreview.map((row, idx) => (
               <li key={`${row.at}-${idx}`}>
-                {row.action} · {new Date(row.at).toLocaleString("ru-RU")}
+                {labelAuditAction(row.action)} · {new Date(row.at).toLocaleString("ru-RU")}
               </li>
             ))}
           </ul>
@@ -1950,7 +1982,7 @@ export function CaseFunnelMain({
               <ul className="plain-list case-audit-list">
                 {auditRest.map((row, idx) => (
                   <li key={`${row.at}-r-${idx}`}>
-                    {row.action} · {new Date(row.at).toLocaleString("ru-RU")}
+                    {labelAuditAction(row.action)} · {new Date(row.at).toLocaleString("ru-RU")}
                   </li>
                 ))}
               </ul>
