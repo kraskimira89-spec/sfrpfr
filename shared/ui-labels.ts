@@ -125,6 +125,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   order_created: "Создан счёт",
   order_cancelled: "Счёт отменён",
   staff_max_reply_sent: "Сообщение отправлено в MAX",
+  brief_summary_sent: "Краткое резюме отправлено клиенту",
   pay_link_max: "Ссылка на оплату в MAX",
   payment_succeeded: "Оплата прошла",
   payment_created: "Платёж создан",

@@ -17,6 +17,7 @@ import type {
   StageId,
   WorkFacts,
 } from "./case-funnel-types";
+import { looksLikeBriefSummaryChat } from "./format-brief-chat";
 
 /** Подтверждённые факты ступеней 7–13, если API их отдаёт отдельно. */
 export type AdditionalCaseFacts = {
@@ -66,6 +67,8 @@ export type CaseFunnelDetailInput = {
   /** false / отсутствие массива → order.state = unknown, не not_ordered. */
   ordersLoaded?: boolean;
   audit?: { action: string; at?: string }[];
+  /** Сообщения чата дела — чтобы понять, ушло ли краткое резюме клиенту. */
+  chat_messages?: { author_kind?: string; body?: string }[];
   document_check?: {
     status?: string | null;
     stale?: boolean | null;
@@ -93,6 +96,28 @@ export type CaseFunnelDetailInput = {
   };
   additionalFacts?: AdditionalCaseFacts;
 };
+
+function summaryDeliveryOf(
+  detail: CaseFunnelDetailInput,
+): FunnelFacts["precheck"]["summaryDelivery"] {
+  const actions = (detail.audit || []).map((a) => String(a.action || ""));
+  if (actions.some((a) => a === "brief_summary_sent" || a.startsWith("brief_summary_sent:"))) {
+    return "confirmed";
+  }
+  const msgs = detail.chat_messages || [];
+  const staffSentBrief = msgs.some((m) => {
+    const kind = String(m.author_kind || "").toLowerCase();
+    if (kind !== "staff" && kind !== "system") return false;
+    return looksLikeBriefSummaryChat(m.body);
+  });
+  if (staffSentBrief) return "confirmed";
+  // Проверка завершена, но в ленте нет резюме — ещё не отправляли.
+  const checkDone = ["completed", "done", "success", "needs_action"].includes(
+    String(detail.document_check?.status || "").toLowerCase(),
+  );
+  if (checkDone && detail.document_check?.result?.honest_brief) return "not_sent";
+  return "unknown";
+}
 
 function hasDocType(
   docs: CaseFunnelDetailInput["documents"],
@@ -444,7 +469,7 @@ export function toFunnelFacts(
       state: precheckState,
       stale: Boolean(check?.stale) || brief?.current === false,
       outcome,
-      summaryDelivery: "unknown",
+      summaryDelivery: summaryDeliveryOf(detail),
     },
     analysis: {
       need: analysisNeed,

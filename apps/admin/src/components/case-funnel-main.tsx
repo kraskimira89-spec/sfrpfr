@@ -363,8 +363,8 @@ export function CaseFunnelMain({
   repEmail: string;
   stepHint: { action: string; reason: string; source: string } | null;
   stepMessages: StepChatMessage[];
-  /** Сообщения чата — для бейджа «Нужен ответ». */
-  chatMessages?: Array<{ author_kind: string }>;
+  /** Сообщения чата — бейдж «Нужен ответ» и факт отправки краткого резюме. */
+  chatMessages?: Array<{ author_kind: string; body?: string }>;
   onBack: () => void;
   onPrevCase?: () => void;
   onNextCase?: () => void;
@@ -442,7 +442,13 @@ export function CaseFunnelMain({
   onRemoveRepresentative: (userId: string) => void;
 }) {
   const caps = detail.role_capabilities;
-  const funnel = deriveFunnel(detail);
+  const funnel = deriveFunnel({
+    ...detail,
+    chat_messages: (chatMessages || []).map((m) => ({
+      author_kind: m.author_kind,
+      body: m.body,
+    })),
+  });
   const current = funnel.current;
   const stageById = Object.fromEntries(funnel.stages.map((s) => [s.id, s])) as Record<
     FunnelStageId,

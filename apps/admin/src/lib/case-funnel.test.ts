@@ -474,3 +474,52 @@ test("toFunnelFacts: после completed проверки ingest_review не д
   assert.equal(facts.documents, "ready");
   assert.equal(facts.precheck.outcome, "discrepancies");
 });
+
+test("precheck_summary: после отправки краткого резюме — done (зелёный)", () => {
+  const base = {
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
+    orders: [{ package_code: "DIAG", amount_rub: 1, status: "paid" }],
+    ordersLoaded: true,
+    document_check: {
+      status: "completed",
+      stale: false,
+      result: {
+        honest_brief: {
+          has_justified_discrepancy: true,
+          offer_diag_allowed: true,
+          items: [{ text: "период не отражён в ИЛС", evidence: "docs" }],
+        },
+        diag_offer: { allowed: true, amount_rub: 3000 },
+      },
+    },
+  } as const;
+
+  const before = toFunnelFacts({ ...base });
+  assert.equal(before.precheck.outcome, "discrepancies");
+  assert.equal(before.precheck.summaryDelivery, "not_sent");
+  assert.equal(buildFunnel(before).stages.find((s) => s.id === "precheck_summary")?.status, "needs_action");
+
+  const after = toFunnelFacts({
+    ...base,
+    chat_messages: [
+      {
+        author_kind: "staff",
+        body:
+          "Проверили ваши документы. Вот что требует внимания.\n\n1. период\n\nЧто это означает для вас\nЭто краткая сверка по документам.",
+      },
+    ],
+  });
+  assert.equal(after.precheck.summaryDelivery, "confirmed");
+  assert.equal(buildFunnel(after).stages.find((s) => s.id === "precheck_summary")?.status, "done");
+
+  const byAudit = toFunnelFacts({
+    ...base,
+    audit: [{ action: "brief_summary_sent" }],
+  });
+  assert.equal(byAudit.precheck.summaryDelivery, "confirmed");
+  assert.equal(buildFunnel(byAudit).stages.find((s) => s.id === "precheck_summary")?.status, "done");
+});

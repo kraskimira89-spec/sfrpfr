@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   formatAskClientNextStepsTemplate,
   formatBriefChatTemplate,
+  looksLikeBriefSummaryChat,
   sanitizeNextStep,
 } from "./format-brief-chat.ts";
 
@@ -179,4 +180,18 @@ test("сверка без расхождений: итог без вопросо
   assert.match(text, /Сверили выписку ИЛС с трудовой книжкой/);
   assert.doesNotMatch(text, /по-вашему|по вашему мнению|какие периоды.*учтены неверно/i);
   assert.doesNotMatch(text, /Пока данных недостаточно/);
+});
+
+test("looksLikeBriefSummaryChat: шаблон резюме — да, просьба документов — нет", () => {
+  const brief = formatBriefChatTemplate(
+    {
+      has_justified_discrepancy: true,
+      offer_diag_allowed: true,
+      items: [{ text: "Период не отражён", evidence: "docs", basis: "ИЛС" }],
+    },
+    { diagAllowed: true },
+  );
+  assert.equal(looksLikeBriefSummaryChat(brief), true);
+  assert.equal(looksLikeBriefSummaryChat(formatAskClientNextStepsTemplate()), false);
+  assert.equal(looksLikeBriefSummaryChat("Здравствуйте! Пришлите документы."), false);
 });

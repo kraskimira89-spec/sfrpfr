@@ -203,24 +203,34 @@ export function buildFunnel(f: FunnelFacts): FunnelView {
       { action: "run_precheck" },
     );
   } else if (p.state === "completed") {
+    // Зелёный этап — после отправки краткого резюме клиенту (summaryDelivery=confirmed),
+    // а не только когда outcome=clear: расхождения тоже закрываются отправкой резюме.
+    const summaryDone = p.summaryDelivery === "confirmed";
     s.precheck_summary = view(
       "precheck_summary",
-      p.outcome === "unknown"
-        ? "unknown"
-        : p.outcome === "clarify" || p.summaryDelivery !== "confirmed"
-          ? "needs_action"
-          : "done",
-      {
-        unknown: "Нужно проверить результат",
-        clear: "В проверенном объёме расхождений не найдено",
-        discrepancies: "Найдены расхождения между источниками",
-        clarify: "Нужно уточнение или ручной разбор",
-      }[p.outcome],
+      summaryDone
+        ? "done"
+        : p.outcome === "unknown"
+          ? "unknown"
+          : "needs_action",
+      summaryDone
+        ? {
+            unknown: "Краткое резюме отправлено клиенту",
+            clear: "Резюме отправлено · расхождений не найдено",
+            discrepancies: "Резюме отправлено · найдены расхождения",
+            clarify: "Резюме отправлено · нужно уточнение комплекта",
+          }[p.outcome]
+        : {
+            unknown: "Нужно проверить результат",
+            clear: "В проверенном объёме расхождений не найдено",
+            discrepancies: "Найдены расхождения между источниками",
+            clarify: "Нужно уточнение или ручной разбор",
+          }[p.outcome],
       {
         action:
+          !summaryDone &&
           p.outcome !== "unknown" &&
-          p.outcome !== "clarify" &&
-          p.summaryDelivery === "not_sent"
+          (p.summaryDelivery === "not_sent" || p.summaryDelivery === "unknown")
             ? "send_summary"
             : "view_precheck",
       },
