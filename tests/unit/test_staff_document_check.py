@@ -32,6 +32,12 @@ def test_fingerprint_stable_and_order_independent() -> None:
     )
 
 
+def test_staff_docs_check_allow_ocr_default_on() -> None:
+    from sfrfr.core.config import Settings
+
+    assert Settings().staff_docs_check_allow_ocr is True
+
+
 def test_is_embedded_text_rejects_ocr_markers() -> None:
     assert is_embedded_text("Страховой стаж 12 лет")
     assert not is_embedded_text("")

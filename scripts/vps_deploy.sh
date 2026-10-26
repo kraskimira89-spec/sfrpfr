@@ -87,6 +87,16 @@ fi
 if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^STAFF_LOGIN_APPROVER_MAX_USER_IDS=.' "$APP_DIR/.env"; then
   echo 'STAFF_LOGIN_APPROVER_MAX_USER_IDS=6407832' >> "$APP_DIR/.env"
 fi
+# Staff check OCR сканов (Tesseract). Не перезаписываем явное 0.
+if [[ -f "$APP_DIR/.env" ]] && ! grep -q '^STAFF_DOCS_CHECK_ALLOW_OCR=' "$APP_DIR/.env"; then
+  echo 'STAFF_DOCS_CHECK_ALLOW_OCR=1' >> "$APP_DIR/.env"
+fi
+if ! command -v tesseract >/dev/null 2>&1; then
+  echo "Installing tesseract-ocr (staff docs OCR) …"
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    tesseract-ocr tesseract-ocr-rus poppler-utils
+fi
 
 if [[ -f "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" ]]; then
   echo "Configuring tech-debt weekly timer …"

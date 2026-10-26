@@ -57,7 +57,7 @@ def _ocr_allowed() -> bool:
     from sfrfr.core.config import get_settings
 
     settings = get_settings()
-    return bool(getattr(settings, "staff_docs_check_allow_ocr", False))
+    return bool(getattr(settings, "staff_docs_check_allow_ocr", True))
 
 
 def _filename_of(doc: dict[str, Any]) -> str:
