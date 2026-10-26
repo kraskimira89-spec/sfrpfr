@@ -34,6 +34,24 @@ def test_label_for_callback_human() -> None:
     assert "max:foo:bar" not in format_button_press("max:foo:bar")
 
 
+def test_menu_and_checklist_button_labels() -> None:
+    """Меню после анкеты и чек-лист — с названием кнопки, не «кнопка в чате»."""
+    assert format_button_press("menu:upload") == "Нажал кнопку: Загрузить документы"
+    assert format_button_press("menu:docs") == "Нажал кнопку: Какие документы нужны"
+    assert format_button_press("menu:status") == "Нажал кнопку: Статус моего дела"
+    assert format_button_press("menu:operator") == "Нажал кнопку: Заказать звонок"
+    assert "меню" not in format_button_press("menu:upload").lower()
+    assert format_button_press("lm:send") == "Нажал кнопку: Получить чек-лист на почту"
+    assert format_button_press("lm:have") == "Нажал кнопку: Чек-лист уже есть"
+    assert format_button_press("lm:cancel") == "Нажал кнопку: Чек-лист не нужен"
+    assert format_button_press("lm:fmt:pdf") == "Нажал кнопку: Чек-лист в PDF"
+    assert format_button_press("lm:fmt:docx") == "Нажал кнопку: Чек-лист в Word"
+    assert format_button_press("diag:yes") == "Нажал кнопку: Оформить диагностику 3 000 ₽"
+    assert format_button_press("diag:checklist") == "Нажал кнопку: Пока чек-лист"
+    assert format_button_press("q:skip:email") == "Нажал кнопку: Пропустить e-mail"
+    assert format_button_press("max:doc:done") == "Нажал кнопку: Документы загружены"
+
+
 def test_format_button_press_never_raw_client_payloads() -> None:
     """Ключевые клиентские payload не должны светиться в ленте как есть."""
     for payload in (
