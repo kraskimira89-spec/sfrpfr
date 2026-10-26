@@ -116,6 +116,60 @@ export const FEEDBACK_QUALITY_LABELS: Record<string, string> = {
   rejected: "Отклонено",
 };
 
+/** Коды access_audit.action → русский текст (служебный журнал). */
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  staff_case_viewed: "Сотрудник открыл дело",
+  pipeline_run_requested: "Запрошен запуск проверки",
+  pipeline_status_updated: "Обновлён этап маршрута",
+  invoice_sent: "Счёт отправлен",
+  order_created: "Создан счёт",
+  order_cancelled: "Счёт отменён",
+  staff_max_reply_sent: "Сообщение отправлено в MAX",
+  pay_link_max: "Ссылка на оплату в MAX",
+  payment_succeeded: "Оплата прошла",
+  payment_created: "Платёж создан",
+  payment_reservation_created: "Резерв платежа",
+  payment_reminder: "Напоминание об оплате",
+  manual_paid: "Оплата отмечена вручную",
+  partial_payment: "Частичная оплата",
+  receipt_confirmed: "Чек подтверждён",
+  service_consent_recorded: "Зафиксировано согласие на услугу",
+  consent_accepted: "Согласие принято",
+  contract_accepted: "Договор принят",
+  case_created: "Дело создано",
+  expert_assigned: "Назначен специалист",
+  result_confirmed: "Результат подтверждён",
+  knowledge_feedback: "Заметка в базу знаний",
+  next_action_updated: "Обновлено следующее действие",
+  archive_prep_updated: "Обновлена подготовка к архиву",
+  checklist_item_created: "Пункт чек-листа создан",
+  checklist_item_updated: "Пункт чек-листа обновлён",
+  document_deleted_by_staff: "Документ удалён сотрудником",
+  document_uploaded: "Документ загружен",
+  result_decision_uploaded: "Загружен ответ СФР",
+  staff_document_check_requested: "Запущена проверка документов",
+  appeal_docx_downloaded: "Скачан DOCX обращения",
+  appeal_draft_deleted: "Черновик обращения удалён",
+  appeal_draft_replaced: "Черновик обращения заменён",
+  analysis_notes_replaced: "Notes пайплайна заменены",
+  periods_replaced: "Таблицы периодов обновлены",
+  discrepancy_reviewed: "Расхождение просмотрено",
+  facts_review_discrepancies: "Сверка: есть расхождения",
+  facts_review_no_discrepancies: "Сверка: расхождений нет",
+  diagnostic_result_published: "Опубликован результат диагностики",
+  marketing_consent_requested: "Запрошено согласие на маркетинг",
+  ingest_rerun: "Повторный разбор файла",
+  ingest_accept: "Файл принят после разбора",
+  ingest_reject: "Файл отклонён после разбора",
+  ingest_edit: "Правка после разбора",
+  ingest_artifacts_viewed: "Просмотрены артефакты разбора",
+  security_manual_approve: "Ручное одобрение безопасности",
+  representative_added: "Добавлен представитель",
+  representative_removed: "Удалён представитель",
+  case_scenarios_updated: "Обновлены сценарии дела",
+  secure_view_pdf: "Просмотр PDF по ссылке",
+};
+
 export const FEEDBACK_QUALITY_STAGES: readonly string[] = [
   "draft",
   "verified",
@@ -212,6 +266,21 @@ export function labelFeedbackQuality(value: string): string {
 
 export function formatCaseStatuses(pipeline: string, b2c: string): string {
   return `${labelPipeline(pipeline)} · ${labelB2c(b2c)}`;
+}
+
+/** Подпись события журнала; суффикс после «:» — пакет/качество/id. */
+export function labelAuditAction(action: string): string {
+  const raw = (action || "").trim();
+  if (!raw) return "—";
+  const colon = raw.indexOf(":");
+  const base = colon >= 0 ? raw.slice(0, colon) : raw;
+  const rest = colon >= 0 ? raw.slice(colon + 1) : "";
+  const baseLabel = AUDIT_ACTION_LABELS[base] ?? AUDIT_ACTION_LABELS[raw] ?? raw;
+  if (!rest) return baseLabel;
+  if (PACKAGE_LABELS[rest]) return `${baseLabel}: ${PACKAGE_LABELS[rest]}`;
+  if (FEEDBACK_QUALITY_LABELS[rest]) return `${baseLabel}: ${FEEDBACK_QUALITY_LABELS[rest]}`;
+  if (AUDIT_ACTION_LABELS[raw]) return AUDIT_ACTION_LABELS[raw];
+  return `${baseLabel}: ${rest}`;
 }
 
 /** Короткий рабочий статус для очереди сотрудника (не сырые коды). */
