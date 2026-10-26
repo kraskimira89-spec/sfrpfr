@@ -1557,6 +1557,29 @@ export function AdminCabinet() {
     }
   }
 
+  async function deleteAppealDraft() {
+    if (!token || !detail) return;
+    if (
+      !window.confirm(
+        "Удалить черновик проекта обращения? Сформировать заново можно кнопкой ниже.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/appeal-draft`, token, {
+        method: "DELETE",
+      });
+      setNotice("Черновик проекта удалён.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось удалить черновик.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function cancelCaseOrder(orderId: string) {
     if (!token || !detail) return;
     const order = (detail.orders ?? []).find((o) => o.id === orderId);
@@ -2325,6 +2348,7 @@ export function AdminCabinet() {
             onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
             onRecordFactsReview={(outcome) => void recordFactsReview(outcome)}
             onDeleteDocuments={(ids, label) => void deleteDocuments(ids, label)}
+            onDeleteAppealDraft={() => void deleteAppealDraft()}
             onDismissHint={() => {
               setStepHint(null);
               setStepMessages([]);
