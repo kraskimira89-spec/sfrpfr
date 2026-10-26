@@ -1649,30 +1649,6 @@ export function AdminCabinet() {
     setMaxReplyFocus(true);
   }
 
-  /**
-   * Диалоги MAX Business. Прямого deep-link на чат клиента у MAX нет.
-   * Навигация — через <a> в панели чата; здесь notice / clipboard / ошибка без user_id.
-   */
-  function openClientMaxBusiness() {
-    if (!detail) {
-      setNotice("Сначала откройте дело.");
-      return;
-    }
-    const uid = String(detail.client.max_user_id || "").trim();
-    if (!uid) {
-      setNotice(
-        "У клиента нет MAX user_id — открыть диалог в MAX Business нельзя. Проверьте привязку MAX.",
-      );
-      return;
-    }
-    const url =
-      String(detail.channels.max_business_url || "").trim() || "https://business.max.ru/self";
-    void navigator.clipboard?.writeText(uid).catch(() => undefined);
-    setNotice(
-      `MAX Business открыт (${url}). Найдите диалог по user_id ${uid} — id скопирован в буфер.`,
-    );
-  }
-
   function pickReplySuggestion(text: string) {
     setMaxReplyBody(text);
     setReplySuggestions([]);
@@ -2382,7 +2358,6 @@ export function AdminCabinet() {
             caseLabel={caseCatalogLabel(detail.id)}
             maxLinked={Boolean(detail.client.max_linked)}
             maxUserId={detail.client.max_user_id ?? null}
-            maxBusinessUrl={detail.channels.max_business_url ?? null}
             body={maxReplyBody}
             onBodyChange={setMaxReplyBody}
             busy={busy}
@@ -2392,7 +2367,6 @@ export function AdminCabinet() {
             suggestions={replySuggestions}
             onSuggest={() => void suggestReplies()}
             onPickSuggestion={pickReplySuggestion}
-            onOpenMax={openClientMaxBusiness}
             composerHighlight={composerFlash || maxReplyFocus}
             waitingOn={waitingOn}
             onOpenDocument={(docId) => void openSigned(docId, "open")}

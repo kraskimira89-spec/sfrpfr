@@ -11,7 +11,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEvent,
   type ReactNode,
 } from "react";
 import { useBotTypingIndicator } from "@/lib/use-bot-typing-indicator";
@@ -235,7 +234,6 @@ export function CaseChatPanel({
   caseLabel = null,
   maxLinked,
   maxUserId = null,
-  maxBusinessUrl = null,
   body,
   onBodyChange,
   busy,
@@ -246,7 +244,6 @@ export function CaseChatPanel({
   pickedSuggestion = null,
   onSuggest,
   onPickSuggestion,
-  onOpenMax,
   composerHighlight = false,
   waitingOn = null,
   onOpenDocument,
@@ -259,8 +256,6 @@ export function CaseChatPanel({
   maxLinked: boolean;
   /** MAX user_id клиента (мета под заголовком). */
   maxUserId?: string | null;
-  /** URL MAX Business (диалоги) — для «Открыть MAX». */
-  maxBusinessUrl?: string | null;
   body: string;
   onBodyChange: (value: string) => void;
   /** Блокирует отправку / textarea (не подсказки DeepSeek). */
@@ -275,8 +270,6 @@ export function CaseChatPanel({
   onSuggest: () => void;
   /** Клик по черновику: подставить текст и убрать блок подсказок. */
   onPickSuggestion?: (text: string) => void;
-  /** Открыть диалоги MAX Business (нужен user_id). */
-  onOpenMax?: () => void;
   composerHighlight?: boolean;
   /** @deprecated marketing consent UI убран из чата. */
   marketingConsentLabel?: string | null;
@@ -352,7 +345,6 @@ export function CaseChatPanel({
   const fio = clientNameForChatHeader(clientName, messages);
   const fioNeedsConfirm = clientNameNeedsConfirm(clientName);
   const maxMeta = (maxUserId || "").trim() || null;
-  const maxOpenUrl = (maxBusinessUrl || "").trim() || "https://business.max.ru/self";
   const metaBits = [
     maxMeta ? `MAX ${maxMeta}` : null,
     caseLabel || null,
@@ -364,16 +356,6 @@ export function CaseChatPanel({
       return;
     }
     onBodyChange(item);
-  }
-
-  function handleOpenMaxClick(event: MouseEvent<HTMLElement>) {
-    if (!onOpenMax) {
-      event.preventDefault();
-      return;
-    }
-    // Без user_id не уходим по href — родитель покажет ошибку.
-    if (!maxMeta) event.preventDefault();
-    onOpenMax();
   }
 
   return (
@@ -676,30 +658,6 @@ export function CaseChatPanel({
                 ? "Перегенерировать подсказки"
                 : "Подсказать ответы (DeepSeek)"}
           </button>
-          {onOpenMax ? (
-            maxMeta ? (
-              <a
-                className="ghost"
-                href={maxOpenUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={handleOpenMaxClick}
-                title={`MAX Business · диалоги. Ищите user_id ${maxMeta}`}
-              >
-                Открыть MAX
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={onOpenMax}
-                title="Нужен MAX user_id клиента — без него диалог в Business не найти"
-              >
-                Открыть MAX
-              </button>
-            )
-          ) : null}
           {maxLinked ? (
             <button
               type="button"
@@ -710,20 +668,16 @@ export function CaseChatPanel({
             >
               Отправить в MAX
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={maxLinked ? "ghost" : undefined}
-            disabled={busy || !body.trim()}
-            onClick={onSendInternal}
-            title={
-              maxLinked
-                ? "Сохранить сообщение только в ленте дела, без отправки в MAX"
-                : "Сохранить сообщение в ленте дела"
-            }
-          >
-            {maxLinked ? "Только в ленту" : "Отправить"}
-          </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy || !body.trim()}
+              onClick={onSendInternal}
+              title="Сохранить сообщение в ленте дела"
+            >
+              Отправить
+            </button>
+          )}
         </div>
       </div>
     </aside>
