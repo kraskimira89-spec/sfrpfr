@@ -111,10 +111,19 @@ function summaryDeliveryOf(
     return looksLikeBriefSummaryChat(m.body);
   });
   if (staffSentBrief) return "confirmed";
-  // Проверка завершена, но в ленте нет резюме — ещё не отправляли.
+
   const checkDone = ["completed", "done", "success", "needs_action"].includes(
     String(detail.document_check?.status || "").toLowerCase(),
   );
+  // Оплаченная диагностика = клиент уже прошёл офер после резюме; этап 3 не держим синим.
+  // Подстановка текста в поле чата сюда не входит — только факт оплаты DIAG.
+  const diagPaid = (detail.orders || []).some((o) => {
+    if (String(o.package_code || "").toUpperCase() !== "DIAG") return false;
+    const st = String(o.status || "").toLowerCase();
+    return st === "paid" || st === "succeeded";
+  });
+  if (checkDone && diagPaid) return "confirmed";
+
   if (checkDone && detail.document_check?.result?.honest_brief) return "not_sent";
   return "unknown";
 }
