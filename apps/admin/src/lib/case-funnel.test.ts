@@ -482,7 +482,7 @@ test("precheck_summary: после отправки краткого резюм�
     consent_accepted: true,
     client: { max_linked: true },
     documents: [{ doc_type: "ils", storage_path: "c/ils.pdf" }],
-    orders: [{ package_code: "DIAG", amount_rub: 1, status: "paid" }],
+    orders: [] as { package_code: string; amount_rub: number; status: string }[],
     ordersLoaded: true,
     document_check: {
       status: "completed",
@@ -496,7 +496,7 @@ test("precheck_summary: после отправки краткого резюм�
         diag_offer: { allowed: true, amount_rub: 3000 },
       },
     },
-  } as const;
+  };
 
   const before = toFunnelFacts({ ...base });
   assert.equal(before.precheck.outcome, "discrepancies");
@@ -522,4 +522,37 @@ test("precheck_summary: после отправки краткого резюм�
   });
   assert.equal(byAudit.precheck.summaryDelivery, "confirmed");
   assert.equal(buildFunnel(byAudit).stages.find((s) => s.id === "precheck_summary")?.status, "done");
+});
+
+test("DIAG paid: этап 3 done, текущий — подробный анализ (не повторная оплата)", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true, phone: "+7900" },
+    documents: [
+      { doc_type: "ils", storage_path: "c/ils.pdf" },
+      { doc_type: "workbook", storage_path: "c/tk.pdf" },
+    ],
+    orders: [{ package_code: "DIAG", amount_rub: 1, status: "paid" }],
+    ordersLoaded: true,
+    document_check: {
+      status: "completed",
+      stale: false,
+      result: {
+        honest_brief: {
+          has_justified_discrepancy: true,
+          offer_diag_allowed: true,
+          items: [{ text: "период не отражён", evidence: "docs" }],
+        },
+        diag_offer: { allowed: true, amount_rub: 3000 },
+      },
+    },
+  });
+  assert.equal(facts.precheck.summaryDelivery, "confirmed");
+  assert.equal(facts.analysis.order.state, "paid");
+  const funnel = buildFunnel(facts);
+  assert.equal(funnel.stages.find((s) => s.id === "precheck_summary")?.status, "done");
+  assert.equal(funnel.stages.find((s) => s.id === "analysis_payment")?.status, "done");
+  assert.equal(funnel.currentStageId, "full_analysis");
 });

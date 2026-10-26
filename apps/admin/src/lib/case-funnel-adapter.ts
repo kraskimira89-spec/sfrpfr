@@ -487,18 +487,27 @@ export function buildFunnel(f: FunnelFacts): FunnelView {
   });
 
   const preferred = f.preferredStageId;
+  // Текущий этап маршрута — первый незавершённый по порядку 1→13, а не «любой needs_action».
+  // Срочная поздняя задача (ответ СФР и т.п.) задаётся через preferredStageId, не ломая цепочку.
+  const routeCurrent =
+    STAGE_IDS.map((id) => stages.find((item) => item.id === id)).find((item) => {
+      if (!item) return false;
+      if (item.status === "done" || item.status === "not_required") return false;
+      if (item.status === "blocked" || item.status === "unknown") return false;
+      return (
+        item.status === "needs_action" ||
+        item.status === "in_progress" ||
+        item.status === "waiting" ||
+        (item.status === "not_started" && Boolean(item.action))
+      );
+    })?.id ?? null;
+
   const currentStageId =
     f.closure.state === "closed"
       ? "closure"
       : preferred && stages.some((item) => item.id === preferred)
         ? preferred
-        : (stages.find((item) => item.status === "needs_action" && item.action)
-            ?.id ??
-          stages.find((item) => item.status === "in_progress")?.id ??
-          stages.find((item) => item.status === "waiting")?.id ??
-          stages.find((item) => item.status === "not_started" && item.action)
-            ?.id ??
-          null);
+        : routeCurrent;
 
   return { stages, currentStageId };
 }

@@ -4,6 +4,7 @@ import {
   DOC_REQUEST_ILS,
   DOC_REQUEST_LABOR,
   DOC_REQUEST_SFR_RESPONSE,
+  ANALYSIS_PDF_READY_CHAT,
   PLAN_READY_CHAT,
   REVIEW_INTERVIEW_CHAT,
   REVIEW_OTZYV_CHAT,
@@ -507,13 +508,8 @@ export function CaseFunnelMain({
     }
   }
 
-  const hasFreshCheckResult = Boolean(
-    detail.document_check?.result && !detail.document_check?.stale,
-  );
-
-  // Свежий результат проверки при этапе «Документы» → по умолчанию открыта предпроверка.
-  const defaultOpen: FunnelStageId =
-    hasFreshCheckResult && current === "documents" ? "precheck_summary" : current;
+  // Раскрываем текущий этап маршрута; ручное открытие любой панели — через toggle.
+  const defaultOpen: FunnelStageId = current;
 
   function isExpanded(id: FunnelStageId): boolean {
     if (showAll) return true;
@@ -1322,10 +1318,11 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("full_analysis")}
         >
           <p className="hint">
-            Раздельно: PDF подготовлен ≠ опубликован в кабинете ≠ уведомление доставлено. Черновик
-            сообщения не завершает ступень.
+            Подробный разбор готовит специалист (вне кабинета или по шаблону). Затем: загрузить PDF →
+            открыть и проверить → опубликовать → при необходимости подставить текст в чат MAX.
+            Черновик в поле чата сам ступень не закрывает.
           </p>
-          <h3 className="case-subhead">PDF результата клиенту</h3>
+          <h3 className="case-subhead">PDF подробного разбора</h3>
           {detail.documents.filter((d) =>
             `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
           ).length > 0 ? (
@@ -1339,23 +1336,30 @@ export function CaseFunnelMain({
                 .map((doc) => (
                   <li key={doc.id}>
                     <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
-                      {doc.storage_path.split("/").pop()}
+                      Открыть: {doc.storage_path.split("/").pop() || "PDF разбора"}
                     </button>
-                    <span className="hint"> · PDF подготовлен</span>
+                    <span className="hint"> · загружен, можно проверить перед выдачей</span>
                   </li>
                 ))}
             </ul>
           ) : (
-            <p className="hint">PDF ещё не загружен — статус «не подтверждено» для выдачи.</p>
+            <p className="hint">
+              Файла разбора ещё нет. Подготовьте PDF с итогами сверки (периоды, основания, что
+              предложить клиенту дальше) и загрузите ниже — специалист сможет открыть его здесь же.
+            </p>
           )}
           <div className="row-actions">
-            <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
+            <label
+              className="secondary"
+              style={{ cursor: busy ? "wait" : "pointer" }}
+              title="Загрузить PDF подробного разбора в дело"
+            >
               Загрузить PDF результата
               <input
                 type="file"
                 accept="application/pdf,.pdf"
                 hidden
-                disabled={busy || !caps.can_view_ocr}
+                disabled={busy}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = "";
@@ -1374,11 +1378,11 @@ export function CaseFunnelMain({
                 <button
                   key={`pub-${doc.id}`}
                   type="button"
-                  disabled={busy || !caps.can_view_ocr}
+                  disabled={busy}
                   onClick={() => {
                     if (
                       !window.confirm(
-                        "Опубликовать PDF и создать черновики уведомлений? Отправка — только после подтверждения.",
+                        "Опубликовать PDF и создать черновики уведомлений? Отправка клиенту — только после подтверждения в блоке доставки.",
                       )
                     )
                       return;
@@ -1390,12 +1394,26 @@ export function CaseFunnelMain({
               ))}
             <button
               type="button"
-              className="linkish"
+              className="secondary"
               disabled={busy}
               onClick={() => applyTemplate(PLAN_READY_CHAT)}
+              title="Подставит текст в поле чата; в MAX уйдёт только после «Отправить»"
             >
-              Шаблон MAX: результат готов
+              Текст в чат: разбор готов
             </button>
+            {detail.documents.some((d) =>
+              `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+            ) ? (
+              <button
+                type="button"
+                className="linkish"
+                disabled={busy}
+                onClick={() => applyTemplate(ANALYSIS_PDF_READY_CHAT)}
+                title="Короткий текст, когда PDF уже в деле"
+              >
+                Текст в чат: файл можно получить
+              </button>
+            ) : null}
           </div>
           {staffToken && apiBase ? (
             <DiagnosisDeliveryPanel
