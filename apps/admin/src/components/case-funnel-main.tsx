@@ -1090,6 +1090,10 @@ export function CaseFunnelMain({
                 }
                 onSendPayLink={onSendPayLink}
                 onUploadDiagnosisReport={onUploadDiagnosisReport}
+                onDeleteDocuments={
+                  caps.can_view_ocr ? onDeleteDocuments : undefined
+                }
+                caseDocuments={detail.documents}
               />
             }
           />

@@ -218,6 +218,25 @@ def _file_names(documents: list[Any], flag: str, limit: int = 5) -> list[str]:
     return names[:limit]
 
 
+def _unreadable_docs(documents: list[Any], limit: int = 5) -> list[dict[str, Any]]:
+    """Имена нечитаемых файлов + id всех копий (для удаления из UI проверки)."""
+    by_name: dict[str, list[str]] = {}
+    for doc in documents:
+        if not isinstance(doc, dict) or not doc.get("needs_ocr"):
+            continue
+        name = str(doc.get("filename") or "").strip() or "файл"
+        doc_id = str(doc.get("id") or "").strip()
+        if not doc_id:
+            continue
+        ids = by_name.setdefault(name, [])
+        if doc_id not in ids:
+            ids.append(doc_id)
+    out: list[dict[str, Any]] = []
+    for name, ids in list(by_name.items())[:limit]:
+        out.append({"filename": name, "document_ids": ids})
+    return out
+
+
 def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
     """Карточка для UI: без findings/analysis_notes/draft пайплайна."""
     documents = [d for d in (result.get("documents") or []) if isinstance(d, dict)]
@@ -234,10 +253,13 @@ def summarize_for_staff(result: dict[str, Any]) -> dict[str, Any]:
         if d.get("needs_ocr")
         and str(d.get("guessed_type") or d.get("doc_type") or "").lower() in _CORE_DOC_TYPES
     )
+    unreadable_docs = _unreadable_docs(documents)
     return {
         "documents_checked": checked,
         "unique_documents": len(checksums) if checksums else checked,
-        "unreadable_files": _file_names(documents, "needs_ocr"),
+        "unreadable_files": [str(d["filename"]) for d in unreadable_docs]
+        or _file_names(documents, "needs_ocr"),
+        "unreadable_docs": unreadable_docs,
         "unreadable_core": unreadable_core,
         "manual_files": _file_names(documents, "needs_manual"),
         "originals_available": int(result.get("originals_available") or 0),

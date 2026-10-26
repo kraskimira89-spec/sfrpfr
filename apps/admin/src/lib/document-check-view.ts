@@ -19,10 +19,14 @@ export type CheckResultInput = {
   types_found?: string[];
   missing_for_task?: string[];
   unreadable_files?: string[];
+  /** Нечитаемые файлы с id (для удаления из UI проверки). */
+  unreadable_docs?: { filename?: string; document_ids?: string[] }[];
   manual_files?: string[];
   honest_brief?: { items?: CheckBriefItem[] } | null;
   stazh_compare?: { ran?: boolean; summary?: string; reason?: string } | null;
 };
+
+export type UnreadableDoc = { name: string; ids: string[] };
 
 export type NextStepKind =
   | "ask_docs"
@@ -42,7 +46,13 @@ export type CheckView = {
     missing: string[];
     hasCore: boolean;
   };
-  read: { total: number; textOk: number; unreadable: string[]; manual: string[] };
+  read: {
+    total: number;
+    textOk: number;
+    unreadable: string[];
+    unreadableDocs: UnreadableDoc[];
+    manual: string[];
+  };
   findings: {
     docs: CheckBriefItem[];
     questionnaire: CheckBriefItem[];
@@ -150,7 +160,16 @@ export function buildCheckView(
     types.includes("выписка ИЛС") &&
     types.includes("трудовая книжка");
   const items = r.honest_brief?.items ?? [];
-  const unreadable = r.unreadable_files ?? [];
+  const unreadableDocs: UnreadableDoc[] = (r.unreadable_docs ?? [])
+    .map((d) => ({
+      name: String(d.filename || "").trim() || "файл",
+      ids: (d.document_ids ?? []).map((id) => String(id || "").trim()).filter(Boolean),
+    }))
+    .filter((d) => d.ids.length > 0);
+  const unreadable =
+    unreadableDocs.length > 0
+      ? unreadableDocs.map((d) => d.name)
+      : (r.unreadable_files ?? []);
   // Без повторов: имена нечитаемых уже уникальны; старые результаты без списка — как есть.
   const dedupedRead = unique < files && r.unreadable_files !== undefined;
   const base: Omit<CheckView, "next"> = {
@@ -161,6 +180,7 @@ export function buildCheckView(
         ? Math.max(0, unique - unreadable.length)
         : Number(r.text_extracted ?? 0),
       unreadable,
+      unreadableDocs,
       manual: r.manual_files ?? [],
     },
     findings: {
