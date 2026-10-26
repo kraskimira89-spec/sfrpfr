@@ -1965,6 +1965,64 @@ export function AdminCabinet() {
     }
   }
 
+  async function uploadCorrectedAppealDraft(file: File) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/appeal-draft`, token, {
+        method: "POST",
+        body: form,
+      });
+      setNotice("Исправленный черновик обращения загружен.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить черновик.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadCorrectedAnalysisNotes(file: File) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/analysis-notes`, token, {
+        method: "POST",
+        body: form,
+      });
+      setNotice("Исправленные notes пайплайна загружены.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить notes.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function replacePeriods(
+    ils: Record<string, unknown>[],
+    labor: Record<string, unknown>[],
+  ) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/periods`, token, {
+        method: "PUT",
+        body: JSON.stringify({ ils_periods: ils, labor_periods: labor }),
+      });
+      setNotice(`Таблицы периодов обновлены (ИЛС ${ils.length}, трудовая ${labor.length}).`);
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось обновить периоды.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function publishDiagnosis(documentId: string) {
     if (!token || !detail) return;
     setBusy(true);
@@ -2403,6 +2461,9 @@ export function AdminCabinet() {
             onOpenSigned={(docId, mode) => void openSigned(docId, mode)}
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
             onUploadSfrResponse={(file) => void uploadSfrResponse(file)}
+            onUploadCorrectedAppealDraft={(file) => void uploadCorrectedAppealDraft(file)}
+            onUploadCorrectedAnalysisNotes={(file) => void uploadCorrectedAnalysisNotes(file)}
+            onReplacePeriods={(ils, labor) => void replacePeriods(ils, labor)}
             onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
             documentsWorkplace={
               token && detail.role_capabilities.can_view_ocr ? (

@@ -39,7 +39,9 @@ import {
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { DocumentCheckPanel } from "@/components/document-check-panel";
+import { GeneratedDocActions } from "@/components/generated-doc-actions";
 import { StepNo } from "@/components/step-number";
+import { downloadTextFile, parsePeriodsCsv, periodsToCsv } from "@/lib/periods-csv";
 import { groupCabinetDocumentsByChecksum } from "@/lib/dedupe-cabinet-documents";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
 
@@ -283,6 +285,9 @@ export function CaseFunnelMain({
   onOpenSigned,
   onUploadDiagnosisReport,
   onUploadSfrResponse,
+  onUploadCorrectedAppealDraft,
+  onUploadCorrectedAnalysisNotes,
+  onReplacePeriods,
   onPublishDiagnosis,
   onCreateQuickOrder,
   documentsWorkplace = null,
@@ -378,6 +383,12 @@ export function CaseFunnelMain({
   onUploadDiagnosisReport: (file: File) => void;
   /** Загрузить ответ/решение СФР (этап 11). */
   onUploadSfrResponse?: (file: File) => void;
+  /** Исправленный черновик обращения (.txt/.docx). */
+  onUploadCorrectedAppealDraft?: (file: File) => void;
+  /** Исправленные notes пайплайна. */
+  onUploadCorrectedAnalysisNotes?: (file: File) => void;
+  /** Исправленные таблицы периодов (уже распарсенный CSV). */
+  onReplacePeriods?: (ils: Record<string, unknown>[], labor: Record<string, unknown>[]) => void;
   onPublishDiagnosis: (documentId: string) => void;
   onCreateQuickOrder?: (code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) => void;
   /** Проверка текста файлов (2.4) — сразу под блоками этапа «Документы». */
@@ -1128,6 +1139,57 @@ export function CaseFunnelMain({
           ) : (
             <p className="hint">Нет сохранённых notes пайплайна.</p>
           )}
+          <GeneratedDocActions
+            busy={busy}
+            downloadDisabled={!detail.analysis_notes}
+            uploadDisabled={!caps.can_view_ocr || !onUploadCorrectedAnalysisNotes}
+            accept=".txt,.md,.docx,text/plain"
+            onDownload={
+              detail.analysis_notes
+                ? () =>
+                    downloadTextFile(
+                      `analysis-notes-${detail.id.slice(0, 8)}.txt`,
+                      String(detail.analysis_notes),
+                    )
+                : undefined
+            }
+            onUploadFile={onUploadCorrectedAnalysisNotes}
+          />
+          {((detail.ils_periods ?? []).length > 0 || (detail.labor_periods ?? []).length > 0) && (
+            <>
+              <h3 className="case-subhead">Таблицы периодов (ИЛС / трудовая)</h3>
+              <p className="hint">
+                ИЛС: {(detail.ils_periods ?? []).length} · трудовая:{" "}
+                {(detail.labor_periods ?? []).length}. Скачайте CSV, правьте в Excel, загрузите
+                исправленный.
+              </p>
+              <GeneratedDocActions
+                busy={busy}
+                accept=".csv,text/csv,text/plain"
+                downloadLabel="Скачать таблицы"
+                onDownload={() =>
+                  downloadTextFile(
+                    `periods-${detail.id.slice(0, 8)}.csv`,
+                    periodsToCsv(
+                      (detail.ils_periods ?? []) as Record<string, unknown>[],
+                      (detail.labor_periods ?? []) as Record<string, unknown>[],
+                    ),
+                    "text/csv;charset=utf-8",
+                  )
+                }
+                onUploadFile={
+                  onReplacePeriods
+                    ? (file) => {
+                        void file.text().then((text) => {
+                          const { ils, labor } = parsePeriodsCsv(text);
+                          onReplacePeriods(ils, labor);
+                        });
+                      }
+                    : undefined
+                }
+              />
+            </>
+          )}
         </StageShell>
 
         <StageShell
@@ -1311,21 +1373,25 @@ export function CaseFunnelMain({
           ) : (
             <p className="hint">PDF ещё не загружен — статус «не подтверждено» для выдачи.</p>
           )}
-          <div className="row-actions">
-            <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
-              Загрузить PDF результата
-              <input
-                type="file"
+          {(() => {
+            const diagDocs = detail.documents.filter((d) =>
+              `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
+            );
+            const first = diagDocs[0];
+            return (
+              <GeneratedDocActions
+                busy={busy}
+                downloadDisabled={!first}
+                uploadDisabled={!caps.can_view_ocr}
                 accept="application/pdf,.pdf"
-                hidden
-                disabled={busy || !caps.can_view_ocr}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) onUploadDiagnosisReport(file);
-                }}
+                downloadLabel="Скачать"
+                uploadLabel="Загрузить исправленный"
+                onDownload={first ? () => onOpenSigned(first.id, "download") : undefined}
+                onUploadFile={onUploadDiagnosisReport}
               />
-            </label>
+            );
+          })()}
+          <div className="row-actions">
             {detail.documents
               .filter((d) =>
                 `${d.doc_type || ""} ${d.storage_path || ""}`
@@ -1560,36 +1626,6 @@ export function CaseFunnelMain({
             >
               Сформировать / обновить проект
             </button>
-            {detail.draft && staffToken && apiBase ? (
-              <button
-                type="button"
-                className="secondary"
-                disabled={busy}
-                title="Скачать проект обращения в Word"
-                onClick={() => {
-                  void (async () => {
-                    try {
-                      const res = await fetch(
-                        `${apiBase}/api/portal/admin/cases/${detail.id}/appeal-docx`,
-                        { headers: { Authorization: `Bearer ${staffToken}` } },
-                      );
-                      if (!res.ok) throw new Error(String(res.status));
-                      const blob = await res.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "appeal-draft.docx";
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    } catch {
-                      window.alert("Не удалось скачать документ");
-                    }
-                  })();
-                }}
-              >
-                Скачать документ
-              </button>
-            ) : null}
             {detail.draft?.body ? (
               <button
                 type="button"
@@ -1600,6 +1636,39 @@ export function CaseFunnelMain({
               </button>
             ) : null}
           </div>
+          <GeneratedDocActions
+            busy={busy}
+            downloadDisabled={!detail.draft || !staffToken || !apiBase}
+            uploadDisabled={!caps.can_view_ocr || !onUploadCorrectedAppealDraft}
+            accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            downloadLabel="Скачать"
+            uploadLabel="Загрузить исправленный"
+            onDownload={
+              detail.draft && staffToken && apiBase
+                ? () => {
+                    void (async () => {
+                      try {
+                        const res = await fetch(
+                          `${apiBase}/api/portal/admin/cases/${detail.id}/appeal-docx`,
+                          { headers: { Authorization: `Bearer ${staffToken}` } },
+                        );
+                        if (!res.ok) throw new Error(String(res.status));
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "appeal-draft.docx";
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        window.alert("Не удалось скачать документ");
+                      }
+                    })();
+                  }
+                : undefined
+            }
+            onUploadFile={onUploadCorrectedAppealDraft}
+          />
         </StageShell>
 
         <StageShell
@@ -1728,23 +1797,30 @@ export function CaseFunnelMain({
             >
               Запросить у клиента
             </button>
-            {onUploadSfrResponse ? (
-              <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
-                Загрузить ответ СФР
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                  hidden
-                  disabled={busy || !caps.can_view_ocr}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) onUploadSfrResponse(file);
-                  }}
-                />
-              </label>
-            ) : null}
           </div>
+          {(() => {
+            const sfrDocs = (detail.documents ?? []).filter((d) => {
+              const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
+              return (
+                blob.includes("sfr_decision") ||
+                blob.includes("sfr_response") ||
+                blob.includes("sfr_refusal")
+              );
+            });
+            const first = sfrDocs[0];
+            return (
+              <GeneratedDocActions
+                busy={busy}
+                downloadDisabled={!first}
+                uploadDisabled={!caps.can_view_ocr || !onUploadSfrResponse}
+                accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                downloadLabel="Скачать"
+                uploadLabel="Загрузить исправленный"
+                onDownload={first ? () => onOpenSigned(first.id, "download") : undefined}
+                onUploadFile={onUploadSfrResponse}
+              />
+            );
+          })()}
           {caps.can_confirm_result ? (
             <>
               <label className="funnel-show-all">

@@ -11,10 +11,12 @@ from fastapi import (
     BackgroundTasks,
     Body,
     Depends,
+    File,
     HTTPException,
     Query,
     Request,
     Response,
+    UploadFile,
 )
 
 from sfrfr.api.routes.portal import _client_documents
@@ -1443,6 +1445,84 @@ def delete_appeal_draft(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     repo.audit(case_id, principal.audit_actor_id(), "appeal_draft_deleted")
     return {"ok": True, "case_id": case_id}
+
+
+@router.post("/admin/cases/{case_id}/appeal-draft")
+async def upload_appeal_draft(
+    case_id: str,
+    file: UploadFile = File(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Загрузить исправленный черновик обращения (.txt/.docx) вместо текущего draft."""
+    from sfrfr.services.staff_artifact_replace import text_from_upload
+
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    data = await file.read()
+    try:
+        body = text_from_upload(filename=file.filename or "", data=data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not body:
+        raise HTTPException(status_code=400, detail="пустой файл")
+    title = "Проект обращения (исправленный)"
+    try:
+        repo.save_pipeline_snapshot(case_id, {"draft": {"title": title, "body": body}})
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "appeal_draft_replaced")
+    return {"ok": True, "case_id": case_id, "chars": len(body)}
+
+
+@router.post("/admin/cases/{case_id}/analysis-notes")
+async def upload_analysis_notes(
+    case_id: str,
+    file: UploadFile = File(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Загрузить исправленные notes пайплайна (.txt)."""
+    from sfrfr.services.staff_artifact_replace import text_from_upload
+
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    data = await file.read()
+    try:
+        notes = text_from_upload(filename=file.filename or "notes.txt", data=data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        repo.save_pipeline_snapshot(case_id, {"analysis_notes": notes or None})
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "analysis_notes_replaced")
+    return {"ok": True, "case_id": case_id, "chars": len(notes)}
+
+
+@router.put("/admin/cases/{case_id}/periods")
+def replace_periods(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Заменить таблицы периодов ИЛС/трудовой (из исправленного CSV на клиенте)."""
+    _require_expert(principal)
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    ils = payload.get("ils_periods")
+    labor = payload.get("labor_periods")
+    if not isinstance(ils, list) or not isinstance(labor, list):
+        raise HTTPException(status_code=400, detail="ils_periods and labor_periods required")
+    try:
+        repo.save_pipeline_snapshot(
+            case_id,
+            {"ils_periods": ils, "labor_periods": labor},
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "periods_replaced")
+    return {"ok": True, "ils": len(ils), "labor": len(labor)}
 
 
 @router.post("/admin/cases/{case_id}/discrepancies/{discrepancy_id}/review")
