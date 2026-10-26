@@ -127,7 +127,11 @@ def test_suggest_replies_includes_ops_facts(monkeypatch) -> None:
 
         def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
             seen["user"] = user
-            return "1) {ИМЯ}, готовим письменный разбор по отмеченным периодам.\n2) {ИМЯ}, диагностика оплачена.\n3) {ИМЯ}, напишите, если остались вопросы."
+            return (
+                "1) {ИМЯ}, готовим письменный разбор по отмеченным периодам.\n"
+                "2) {ИМЯ}, диагностика оплачена.\n"
+                "3) {ИМЯ}, напишите, если остались вопросы."
+            )
 
     monkeypatch.setattr(
         "sfrfr.services.staff_reply_suggest.LLMClient.for_analyze",
