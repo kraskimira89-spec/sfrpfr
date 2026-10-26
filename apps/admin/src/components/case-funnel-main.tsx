@@ -20,6 +20,7 @@ import {
   labelChecklistOwner,
   labelChecklistStatus,
   labelFeedbackQuality,
+  labelOrderStatus,
   labelPackage,
   pipelineStageOptions,
 } from "@/lib/ui-labels";
@@ -1446,7 +1447,8 @@ export function CaseFunnelMain({
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {labelOrderStatus(o.status)}
                   {onSendPayLink && o.status !== "paid" ? (
                     <>
                       {" "}
@@ -1717,7 +1719,8 @@ export function CaseFunnelMain({
               )
               .map((o) => (
                 <li key={o.id}>
-                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ · {o.status}
+                  {o.invoice_number || o.package_code} · {o.amount_rub} ₽ ·{" "}
+                  {labelOrderStatus(o.status)}
                   {o.package_code === "ACCOMP" ? (
                     <span className="hint"> · legacy ACCOMP×8000 (не переклассифицируем)</span>
                   ) : null}
