@@ -1707,6 +1707,13 @@ def send_max_reply_to_client(
             },
         )
     repo.audit(case_id, principal.audit_actor_id(), "staff_max_reply_sent")
+    try:
+        from sfrfr.services.brief_reply_polish import looks_like_brief_summary_chat
+
+        if looks_like_brief_summary_chat(text):
+            repo.audit(case_id, principal.audit_actor_id(), "brief_summary_sent")
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "ok": True,
         "max_user_id": max_uid,

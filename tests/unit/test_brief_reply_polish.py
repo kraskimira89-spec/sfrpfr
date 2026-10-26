@@ -1,5 +1,6 @@
 from sfrfr.services.brief_reply_polish import (
     dedupe_sentences,
+    looks_like_brief_summary_chat,
     polish_brief_reply,
     position_said_recently,
 )
@@ -126,3 +127,9 @@ def test_ai_drops_position_if_said_recently() -> None:
     out = polish_brief_reply(draft=DRAFT, messages=POSITION_SAID, client_name=None, llm=llm)
     assert out["source"] == "ai"
     assert "СФР" not in out["text"]
+
+
+def test_looks_like_brief_summary_chat() -> None:
+    assert looks_like_brief_summary_chat(DRAFT) is True
+    assert looks_like_brief_summary_chat("Пришлите документы в чат, пожалуйста.") is False
+    assert looks_like_brief_summary_chat("") is False

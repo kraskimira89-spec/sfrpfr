@@ -175,6 +175,26 @@ def _user_prompt(*, draft: str, messages: list[dict[str, Any]], client_name: str
     )
 
 
+_BRIEF_MARKERS = (
+    re.compile(r"проверили ваши документы\.?\s*вот что требует внимания", re.I),
+    re.compile(r"это краткая сверка по документам", re.I),
+    re.compile(r"что это означает для вас", re.I),
+    re.compile(r"пока данных недостаточно,?\s*чтобы сказать,?\s*есть ли расхождение", re.I),
+    re.compile(r"сверили выписку илс с трудовой", re.I),
+    re.compile(r"это предварительная проверка комплекта,?\s*а не полный разбор", re.I),
+    re.compile(r"следующий платный шаг\s*[—\-]\s*подробный письменный разбор", re.I),
+    re.compile(r"краткая сверка", re.I),
+)
+
+
+def looks_like_brief_summary_chat(body: str | None) -> bool:
+    """Сообщение похоже на краткое резюме сверки (для этапа воронки и audit)."""
+    text = re.sub(r"\s+", " ", str(body or "")).strip()
+    if len(text) < 40:
+        return False
+    return any(rx.search(text) for rx in _BRIEF_MARKERS)
+
+
 def polish_brief_reply(
     *,
     draft: str,
