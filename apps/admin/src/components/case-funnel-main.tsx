@@ -43,6 +43,7 @@ import {
   type StageAccordion,
 } from "@/lib/case-funnel-accordion";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
+import { FullAnalysisPanel } from "@/components/full-analysis-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { DocumentCheckPanel } from "@/components/document-check-panel";
 import { StepNo } from "@/components/step-number";
@@ -502,9 +503,6 @@ export function CaseFunnelMain({
   });
   const [accordion, setAccordion] = useState<StageAccordion>(() => initialAccordion(detail.id));
   const [repOpen, setRepOpen] = useState(false);
-  const [analysisDraft, setAnalysisDraft] = useState("");
-  const [analysisDraftSource, setAnalysisDraftSource] = useState("");
-  const [analysisGenerating, setAnalysisGenerating] = useState(false);
 
   function setShowAllPersist(v: boolean) {
     setShowAll(v);
@@ -1333,80 +1331,29 @@ export function CaseFunnelMain({
           expanded={isExpanded("full_analysis")}
           onToggle={() => toggleStage("full_analysis")}
         >
-          <p className="hint">
-            Подробный разбор готовит ИИ по документам и сверке; специалист проверяет текст, при
-            необходимости правит, затем выдаёт клиенту (чат / PDF). Черновик в поле чата сам ступень
-            не закрывает.
-          </p>
-          <h3 className="case-subhead">Черновик разбора (ИИ)</h3>
-          <div className="row-actions">
-            {onGenerateFullAnalysisDraft ? (
-              <button
-                type="button"
-                disabled={busy || analysisGenerating}
-                onClick={() => {
-                  void (async () => {
-                    setAnalysisGenerating(true);
-                    try {
+          {staffToken && apiBase ? (
+            <FullAnalysisPanel
+              caseId={detail.id}
+              token={staffToken}
+              apiBase={apiBase}
+              clientEmail={detail.client.email ?? null}
+              busy={busy}
+              onNotice={onDeliveryNotice ?? (() => {})}
+              onRefresh={onDeliveryRefresh ?? (() => {})}
+              onApplyChat={(text) => applyTemplate(text)}
+              onGenerateDraft={
+                onGenerateFullAnalysisDraft
+                  ? async () => {
                       const text = await onGenerateFullAnalysisDraft();
-                      if (text) {
-                        setAnalysisDraft(text);
-                        setAnalysisDraftSource("ИИ / шаблон");
-                      }
-                    } finally {
-                      setAnalysisGenerating(false);
+                      return text ?? null;
                     }
-                  })();
-                }}
-                title="Собрать подробный письменный разбор по сверке и документам"
-              >
-                {analysisGenerating ? "ИИ готовит разбор…" : "Сгенерировать подробный разбор"}
-              </button>
-            ) : null}
-            {analysisDraft ? (
-              <>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => applyTemplate(analysisDraft)}
-                  title="Подставит разбор в поле чата; в MAX — только после «Отправить»"
-                >
-                  Разбор в чат
-                </button>
-                <button
-                  type="button"
-                  className="linkish"
-                  disabled={busy}
-                  onClick={() => {
-                    const blob = new Blob([analysisDraft], {
-                      type: "text/markdown;charset=utf-8",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `razbor-${detail.id.slice(0, 8)}.md`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Скачать .md
-                </button>
-              </>
-            ) : null}
-          </div>
-          {analysisDraft ? (
-            <pre className="draft" style={{ maxHeight: "22rem", overflow: "auto" }}>
-              {analysisDraftSource ? `<!-- ${analysisDraftSource} -->\n` : ""}
-              {analysisDraft}
-            </pre>
+                  : undefined
+              }
+            />
           ) : (
-            <p className="hint">
-              Нажмите «Сгенерировать подробный разбор» — ИИ соберёт текст по итогам сверки. Затем
-              проверьте и отправьте клиенту или выгрузите в PDF и загрузите ниже.
-            </p>
+            <p className="hint">Нет staff-токена / apiBase для панели разбора.</p>
           )}
-          <h3 className="case-subhead">PDF подробного разбора</h3>
+          <h3 className="case-subhead">Дополнительно: PDF (не основной сценарий)</h3>
           {detail.documents.filter((d) =>
             `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase().includes("diagnosis"),
           ).length > 0 ? (
@@ -1428,8 +1375,7 @@ export function CaseFunnelMain({
             </ul>
           ) : (
             <p className="hint">
-              PDF ещё нет. Можно выдать клиенту текст из черновика ИИ в чат или сохранить разбор в
-              PDF и загрузить сюда для публикации.
+              Основной сценарий — Word через панель выше. PDF здесь только запасной канал выдачи.
             </p>
           )}
           <div className="row-actions">

@@ -758,3 +758,89 @@ def delete_case_path(path: str) -> dict[str, Any]:
         "detail": (response.text or "")[:300],
         "path": target,
     }
+
+
+def publish_case_file(path: str) -> dict[str, Any]:
+    """Сделать публичной ссылку на ОДИН файл в SFRFR-cases (не на папку дела).
+
+    Отзыв: ``unpublish_case_file``. Общую папку с чужими делами не публикуем.
+    """
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    target = (path or "").strip().rstrip("/")
+    # Только файл внутри incoming/outgoing/chat, не корень папки дела.
+    parts = target.replace("\\", "/").split("/")
+    if len(parts) < 5 or parts[-2] not in CASE_SUBFOLDERS:
+        return {
+            "ok": False,
+            "error": "publish_only_case_subfolder_file",
+            "path": target,
+        }
+    if not _cases_path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            pub = client.put(
+                f"{_DISK_API}/resources/publish",
+                params={"path": target},
+                headers=oauth_headers(),
+            )
+            if pub.status_code not in (200, 201, 202):
+                return {
+                    "ok": False,
+                    "error": "publish_failed",
+                    "status_code": pub.status_code,
+                    "detail": (pub.text or "")[:300],
+                }
+            meta = client.get(
+                f"{_DISK_API}/resources",
+                params={"path": target, "fields": "public_url,name,path"},
+                headers=oauth_headers(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
+    if meta.status_code >= 400:
+        return {
+            "ok": False,
+            "error": "meta_after_publish_failed",
+            "status_code": meta.status_code,
+            "detail": (meta.text or "")[:300],
+        }
+    body = meta.json() or {}
+    public_url = str(body.get("public_url") or "").strip()
+    if not public_url:
+        return {"ok": False, "error": "no_public_url", "path": target}
+    return {
+        "ok": True,
+        "path": target,
+        "public_url": public_url,
+        "name": body.get("name"),
+    }
+
+
+def unpublish_case_file(path: str) -> dict[str, Any]:
+    """Снять публичный доступ с файла дела."""
+    ok, skipped = _enabled()
+    if not ok and skipped:
+        return skipped
+    target = (path or "").strip().rstrip("/")
+    if not _cases_path_allowed(target):
+        return {"ok": False, "error": "path_forbidden_by_cases_policy", "path": target}
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.put(
+                f"{_DISK_API}/resources/unpublish",
+                params={"path": target},
+                headers=oauth_headers(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
+    if response.status_code in (200, 201, 202):
+        return {"ok": True, "path": target}
+    return {
+        "ok": False,
+        "status_code": response.status_code,
+        "detail": (response.text or "")[:300],
+        "path": target,
+    }
