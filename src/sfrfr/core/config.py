@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     document_ingest_async: bool = True
     document_av_mode: str = "auto"
     document_worker_poll_seconds: float = 3.0
-    # Staff «Проверить документы»: raster OCR (сканы) только при явном разрешении.
-    staff_docs_check_allow_ocr: bool = False
+    # Staff «Проверить документы»: OCR сканов (Tesseract). Выключить: STAFF_DOCS_CHECK_ALLOW_OCR=0.
+    staff_docs_check_allow_ocr: bool = True
     # OCR-read из Supabase Storage: default True на переход, пока local/disk paths
     # не заполнены (Phase 2). Resolver предпочитает local → Disk при наличии.
     # Алиас env: SUPABASE_STORAGE_OCR_FALLBACK (см. ocr_source_resolver).
