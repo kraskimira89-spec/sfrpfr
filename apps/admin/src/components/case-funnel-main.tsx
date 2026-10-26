@@ -5,6 +5,8 @@ import {
   DOC_REQUEST_LABOR,
   DOC_REQUEST_SFR_RESPONSE,
   PLAN_READY_CHAT,
+  REVIEW_INTERVIEW_CHAT,
+  REVIEW_OTZYV_CHAT,
   SERVICE_DESCRIPTION_CHAT,
   primaryCtaLabel,
   type FunnelStageId,
@@ -1845,7 +1847,34 @@ export function CaseFunnelMain({
         >
           <p className="hint">
             Закрытие — явное действие сотрудника. Архивный блок ниже не подменяет closed_at.
+            Ссылки ниже подставляются в поле чата — в MAX уходят только после «Отправить».
           </p>
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              title="Подставит ссылку на /otzyv/ в поле чата"
+              onClick={() => {
+                applyTemplate(REVIEW_OTZYV_CHAT);
+                onFocusMax();
+              }}
+            >
+              Ссылка: оставить отзыв
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              title="Подставит ссылку на анкету /anketa-otzyv/ в поле чата"
+              onClick={() => {
+                applyTemplate(REVIEW_INTERVIEW_CHAT);
+                onFocusMax();
+              }}
+            >
+              Ссылка: анкета / интервью
+            </button>
+          </div>
           {caps.can_knowledge_feedback ? (
             <form className="stack-form" onSubmit={onSendFeedback}>
               <textarea
