@@ -208,7 +208,13 @@ def generate_full_analysis_draft(
         client = llm
 
     if client is None or not client.available:
-        return {"text": template, "source": "template", "reason": "llm_unavailable"}
+        return {
+            "text": template,
+            "source": "template",
+            "reason": "llm_unavailable",
+            "llm_provider": None,
+            "llm_fallback": False,
+        }
 
     items = _brief_items(brief)
     docs = _doc_lines(documents)
@@ -246,14 +252,33 @@ def generate_full_analysis_draft(
         raw = client.chat(system=SYSTEM, user=user, temperature=0.3)
     except Exception as exc:  # noqa: BLE001
         logger.warning("full_analysis_draft llm_error %s", type(exc).__name__)
-        return {"text": template, "source": "template", "reason": "llm_error"}
+        return {
+            "text": template,
+            "source": "template",
+            "reason": "llm_error",
+            "llm_provider": None,
+            "llm_fallback": False,
+        }
 
+    provider_used = getattr(client, "last_provider_used", None)
+    used_fallback = bool(getattr(client, "last_used_fallback", False))
     text = re.sub(r"\n{3,}", "\n\n", str(raw or "").strip())
     problem = _validate(text)
     if problem:
-        return {"text": template, "source": "template", "reason": problem}
+        return {
+            "text": template,
+            "source": "template",
+            "reason": problem,
+            "llm_provider": provider_used,
+            "llm_fallback": used_fallback,
+        }
     lower = text.lower()
     has_position = "решение принимает сфр" in lower or "подаёте через сфр" in lower
     if not has_position:
         text = f"{text.rstrip()}\n\n{_POSITION}"
-    return {"text": text, "source": "ai"}
+    return {
+        "text": text,
+        "source": "ai",
+        "llm_provider": provider_used or getattr(client, "provider", None),
+        "llm_fallback": used_fallback,
+    }

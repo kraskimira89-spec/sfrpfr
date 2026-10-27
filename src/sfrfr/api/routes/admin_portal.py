@@ -1267,6 +1267,8 @@ def generate_case_full_analysis_draft(
         "text": text,
         "source": out.get("source") or "template",
         "reason": out.get("reason"),
+        "llm_provider": out.get("llm_provider"),
+        "llm_fallback": bool(out.get("llm_fallback")),
         "version": version,
     }
 
