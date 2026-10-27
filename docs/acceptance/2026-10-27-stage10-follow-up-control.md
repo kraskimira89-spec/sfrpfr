@@ -13,6 +13,6 @@
 | 4 | Просрочка = overdue_internal, не «СФР отказал» | UI label |
 | 5 | Idempotency не дублирует | service |
 | 6 | Файл не ответ без handoff | response_handoff |
-| 7 | Live: assign → check → reschedule → handoff | после deploy |
+| 7 | Live: assign → check → reschedule → handoff на `1579e69f-…` | **PASS** (#358 deploy) |
 
 Календарь контроля: `Asia/Yekaterinburg` (UTC+5).
