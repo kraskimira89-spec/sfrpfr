@@ -12,10 +12,12 @@
 | 3 | Сотрудник правит проект; уходит проверенная версия | `status=reviewed` до send-email/yadisk |
 | 4 | Повтор не дублирует | idempotency_key на register |
 | 5 | Новый ответ — новая строка | list по `created_at desc`, без overwrite |
-| 6 | Браузерный проход: 10 → разбор → проверка → отправка → путь | после deploy + миграция (см. ниже) |
+| 6 | Браузерный проход: 10 → разбор → проверка → отправка → путь | **ожидает** ручной проход в admin |
 | — | Handoff ≠ reviewed | facts: `received` до AI/review |
 | — | Срок → только цитата + контроль ступени 10 | `set-deadline-control` → follow-up |
 | — | Исход `offer_escalation` без счёта 8 000 ₽ | `invoice_created: false` |
+| — | Merge + deploy-vps | **PASS** [#360](https://github.com/kraskimira89-spec/sfrpfr/pull/360) |
+| — | Миграция `case_response_reviews` на prod | **PASS** (таблица есть; реестр `sfrfr_ops` — permission denied у app-role) |
 
 ## Unit
 
@@ -24,7 +26,7 @@ pytest tests/unit/test_response_review.py  → 7 passed
 npx tsx --test apps/admin/src/lib/case-funnel.test.ts → stage11 PASS (47)
 ```
 
-## Live (после merge + migrate)
+## Live (ручной браузерный проход)
 
 1. Дело с handoff ступени 10.
 2. Зарегистрировать файл ответа, связать с подачей.
