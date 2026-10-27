@@ -2961,16 +2961,34 @@ def create_order(
     from sfrfr.db.case_repository import DocsOrderSlotConflict
 
     try:
-        order = repo.create_order(
-            case_id,
+        if order_requires_appeals_consent(
             package_code=payload.package_code,
             amount_rub=payload.amount_rub,
-            status_value=payload.status,
-            actor_id=principal.user_id,
-            due_at=payload.due_at,
             service_label=payload.service_label,
-            invoice_status=payload.invoice_status,
-        )
+        ):
+            from sfrfr.services.docs_order_create import create_docs_order_atomic
+
+            order = create_docs_order_atomic(
+                case_id=case_id,
+                amount_rub=float(payload.amount_rub),
+                status_value=payload.status,
+                actor_id=principal.user_id,
+                due_at=payload.due_at,
+                service_label=payload.service_label,
+                invoice_status=payload.invoice_status,
+            )
+            repo.audit(case_id, principal.user_id, "order_created:ACCOMP")
+        else:
+            order = repo.create_order(
+                case_id,
+                package_code=payload.package_code,
+                amount_rub=payload.amount_rub,
+                status_value=payload.status,
+                actor_id=principal.user_id,
+                due_at=payload.due_at,
+                service_label=payload.service_label,
+                invoice_status=payload.invoice_status,
+            )
     except DocsOrderSlotConflict as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     case = repo.require_case(principal, case_id)
