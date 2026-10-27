@@ -50,13 +50,13 @@ export const STAGE_TITLES = {
   precheck_summary: "Первичная проверка и резюме",
   analysis_payment: "Оплата подробного анализа",
   full_analysis: "Подробный анализ",
-  appeals_consent: "Согласование обращений",
-  appeals_payment: "Оплата подготовки обращений",
-  appeals_documents: "Обращения и передача клиенту",
+  appeals_consent: "Согласование первичных обращений",
+  appeals_payment: "Оплата первичных обращений",
+  appeals_documents: "Первичные обращения и передача клиенту",
   submission: "Подача и помощь специалиста",
   follow_up: "Контроль рассмотрения",
   response_review: "Ответ СФР и дальнейшие действия",
-  escalation_package: "Дополнительные обращения",
+  escalation_package: "Обращения по запросам / отказам СФР",
   closure: "Итог и завершение дела",
 } as const satisfies Record<StageId, string>;
 
