@@ -1,8 +1,11 @@
 # Живой прогон: доп. документы anytime + IMAP
 
 **Дата:** 2026-10-27  
-**Опубликованный SHA (main / VPS):** `8c162565` (squash merge PR #342)  
-**Дело:** тестовое `is_test=true`, prefix `1322ee50` (без ПДн)
+**Код приёма (прогон):** `8c162565` (PR #342)  
+**Сейчас на VPS / main:** `2e660795` (#342 + отчёт #343 + правка тарифов #344)  
+**Дело прогона:** тестовое `is_test=true`, prefix `1322ee50` (без ПДн)
+
+> Оценка только по #341 устарела: завершение ТЗ — в **#342**, живой прогон и timer — в **#343**.
 
 ## Планировщик
 
@@ -11,10 +14,11 @@
 | Unit | `sfrfr-mail-inbound-docs.timer` |
 | Состояние | **enabled / active (waiting)** |
 | Период | каждые 10 мин (`OnUnitActiveSec=10min`) |
-| Последний запуск service | `2026-10-27 13:26:54 MSK`, exit 0 |
-| Вывод опроса | `{"ok": true, "processed": 0, "detail": "empty_inbox"}` |
-| Мониторинг | `/opt/sfrfr/storage/mail_inbound_processed/last_success.json` — `at=2026-10-27T10:26:54Z` |
+| Последний запуск service (повторная сверка) | `2026-10-27 13:46:58 MSK`, exit 0 |
+| Вывод опроса | `{"ok": true, "processed": 0, "detail": "empty_inbox"}` (ящик пуст — штатно) |
+| Мониторинг | `last_success.json` — `at=2026-10-27T10:46:59Z`, `ok=true` |
 | Параллельный запуск | file lock в `poll_inbound_mail_documents.py` |
+| Клиентский UI на VPS | блок «Добавить документ» + «Отправить по электронной почте» в `add-extra-document-panel.tsx` |
 
 ## Результаты проверок ТЗ
 
