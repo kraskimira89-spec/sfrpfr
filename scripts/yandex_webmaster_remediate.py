@@ -73,7 +73,12 @@ def _is_retryable_timeout(exc: BaseException) -> bool:
 
 
 def _fetch(url: str, method: str = "GET") -> tuple[int, dict[str, str], bytes]:
-    req = urllib.request.Request(url, method=method)
+    # UA совпадает с SetEnvIf в infra/apache/geo-allow-bots.conf (CI вне РФ).
+    req = urllib.request.Request(
+        url,
+        method=method,
+        headers={"User-Agent": "Mozilla/5.0 sfrfr-webmaster"},
+    )
     for attempt in range(2):
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:

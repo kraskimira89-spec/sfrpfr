@@ -25,6 +25,22 @@ for f in favicon.ico favicon.svg favicon-120.png; do
   fi
 done
 
+echo "==> Apache geo: RU-only + search bots allowlist"
+if [[ -f "$ROOT/infra/apache/geo-russia-only.conf" && -f "$ROOT/infra/apache/geo-allow-bots.conf" ]]; then
+  sudo cp -f "$ROOT/infra/apache/geo-russia-only.conf" /etc/apache2/conf-available/geo-russia-only.conf
+  sudo cp -f "$ROOT/infra/apache/geo-allow-bots.conf" /etc/apache2/geo-allow-bots.conf
+  sudo ln -sfn ../conf-available/geo-russia-only.conf /etc/apache2/conf-enabled/geo-russia-only.conf
+  if sudo apache2ctl configtest; then
+    sudo systemctl reload apache2
+    echo "OK: geo-russia-only + geo-allow-bots reloaded"
+  else
+    echo "FAIL: apache2ctl configtest — geo conf not reloaded"
+    exit 1
+  fi
+else
+  echo "SKIP: infra/apache/geo-*.conf missing in repo checkout"
+fi
+
 echo "==> webmaster ensure (sitemap API)"
 if [[ -f "$ROOT/secrets/yandex-webmaster.env" ]]; then
   set -a
