@@ -1120,21 +1120,45 @@ export function AdminCabinet() {
     if (!token || !detail) return null;
     setBusy(true);
     try {
-      const out = await apiFetch<{ text?: string; source?: string; reason?: string }>(
-        `/api/portal/admin/cases/${detail.id}/full-analysis/draft`,
-        token,
-        { method: "POST", body: "{}" },
-      );
+      const out = await apiFetch<{
+        text?: string;
+        source?: string;
+        reason?: string;
+        llm_provider?: string | null;
+        llm_fallback?: boolean;
+      }>(`/api/portal/admin/cases/${detail.id}/full-analysis/draft`, token, {
+        method: "POST",
+        body: "{}",
+      });
       const text = String(out.text || "").trim();
       if (!text) {
         setNotice("Не удалось получить текст разбора.");
         return null;
       }
       const src = out.source === "ai" ? "ИИ" : "шаблон";
+      const providerLabel =
+        out.llm_provider === "deepseek"
+          ? "DeepSeek (platform)"
+          : out.llm_provider === "yandex"
+            ? "Yandex FM"
+            : out.llm_provider
+              ? String(out.llm_provider)
+              : null;
+      const providerBit = providerLabel
+        ? out.llm_fallback
+          ? `провайдер: резерв ${providerLabel}`
+          : `провайдер: ${providerLabel}`
+        : null;
       setNotice(
-        out.reason
-          ? `Черновик разбора (${src}, запасной: ${out.reason}). Проверьте перед выдачей.`
-          : `Черновик подробного разбора готов (${src}). Проверьте перед выдачей клиенту.`,
+        [
+          out.reason
+            ? `Черновик разбора (${src}, причина шаблона: ${out.reason})`
+            : `Черновик подробного разбора готов (${src})`,
+          providerBit,
+          "Проверьте перед выдачей клиенту.",
+        ]
+          .filter(Boolean)
+          .join(". "),
       );
       return text;
     } catch (error) {

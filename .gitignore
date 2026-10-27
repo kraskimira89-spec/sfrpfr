@@ -76,6 +76,7 @@ storage/emergency_leads.jsonl
 *.docx
 !scripts/assets/leadmagnets/pension-checklist-a4.docx
 !docs/acceptance/stage5-acceptance-razbor-demo-v2.docx
+!docs/acceptance/stage5-ui-accept-v3-anonymized.docx
 ~$*.docx
 
 # IDE / OS

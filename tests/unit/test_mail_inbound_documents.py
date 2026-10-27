@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from sfrfr.services.extra_document_intake import make_case_mail_token
 from sfrfr.services.mail_inbound_documents import process_inbound_mail_message
 
@@ -21,7 +23,7 @@ class _Repo:
         self.audits.append(action)
 
 
-def test_bound_saves_and_preserves(tmp_path: Path, monkeypatch: object) -> None:
+def test_bound_saves_and_preserves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from sfrfr.services import extra_document_intake as edi
 
     monkeypatch.setattr(edi, "default_unbound_root", lambda: tmp_path / "unbound")
@@ -51,7 +53,7 @@ def test_bound_saves_and_preserves(tmp_path: Path, monkeypatch: object) -> None:
     assert repo.tasks
 
 
-def test_unbound_without_token(tmp_path: Path, monkeypatch: object) -> None:
+def test_unbound_without_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from sfrfr.services import extra_document_intake as edi
     from sfrfr.services import mail_inbound_documents as mid
 

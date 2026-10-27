@@ -40,8 +40,13 @@ def test_generate_falls_back_without_llm() -> None:
 
 class _FakeLLM:
     available = True
+    provider = "yandex"
+    last_provider_used = "yandex"
+    last_used_fallback = False
 
     def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+        self.last_provider_used = "yandex"
+        self.last_used_fallback = False
         return (
             "# Подробный разбор\n\n"
             "Изучили выписку ИЛС и трудовую.\n\n"
@@ -60,6 +65,41 @@ def test_generate_uses_ai_when_valid() -> None:
     )
     assert out["source"] == "ai"
     assert "Период не отражён" in out["text"]
+    assert out.get("llm_provider") == "yandex"
+    assert out.get("llm_fallback") is False
+
+
+class _FallbackLLM:
+    available = True
+    provider = "yandex"
+    last_provider_used = "deepseek"
+    last_used_fallback = True
+
+    def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+        self.last_provider_used = "deepseek"
+        self.last_used_fallback = True
+        return (
+            "# Подробный разбор\n\n"
+            "Изучили выписку ИЛС и трудовую книжку по делу.\n\n"
+            "## Расхождения\n"
+            "1. Период работы не отражён в выписке ИЛС, хотя есть в трудовой.\n\n"
+            "## Что сделать\n"
+            "Запросить уточнение периода у клиента и сверить даты.\n\n"
+            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
+            "Решение принимает СФР."
+        )
+
+
+def test_generate_reports_fallback_provider() -> None:
+    out = generate_full_analysis_draft(
+        case_ref="ПС-2b",
+        documents=[{"doc_type": "ils", "filename": "a.pdf"}],
+        brief={"items": [{"text": "Период не отражён", "evidence": "docs"}]},
+        llm=_FallbackLLM(),
+    )
+    assert out["source"] == "ai"
+    assert out.get("llm_provider") == "deepseek"
+    assert out.get("llm_fallback") is True
 
 
 class _PromiseLLM:

@@ -63,6 +63,9 @@ class LLMClient:
             self.model = model or settings.openai_model
 
         self._client: Any | None = None
+        # Фактически ответивший провайдер после chat() (primary или fallback).
+        self.last_provider_used: str | None = None
+        self.last_used_fallback: bool = False
 
     @classmethod
     def for_classify(cls, **kwargs: Any) -> LLMClient:
@@ -264,18 +267,25 @@ class LLMClient:
                     "LLM primary unavailable (provider=%s); using DeepSeek fallback",
                     self.provider,
                 )
-                return fallback.chat(
+                text = fallback.chat(
                     system=system,
                     user=user,
                     temperature=temperature,
                     stream=stream,
                     on_partial=on_partial,
                 )
+                self.last_provider_used = fallback.provider
+                self.last_used_fallback = True
+                return text
+            self.last_provider_used = None
+            self.last_used_fallback = False
             return ""
         try:
             text = self._chat_once(system=system, user=user, temperature=temperature)
         except Exception as exc:  # noqa: BLE001 — запасной провайдер при сбое основного
             if fallback is None or not fallback.available:
+                self.last_provider_used = None
+                self.last_used_fallback = False
                 raise
             logger.warning(
                 "LLM primary failed (provider=%s purpose=%s): %s; using DeepSeek fallback",
@@ -283,13 +293,18 @@ class LLMClient:
                 self.purpose,
                 exc,
             )
-            return fallback.chat(
+            text = fallback.chat(
                 system=system,
                 user=user,
                 temperature=temperature,
                 stream=stream,
                 on_partial=on_partial,
             )
+            self.last_provider_used = fallback.provider
+            self.last_used_fallback = True
+            return text
+        self.last_provider_used = self.provider
+        self.last_used_fallback = False
         if text and on_partial is not None:
             on_partial(text)
         return text
