@@ -237,6 +237,8 @@ class ClientCaseDetail(BaseModel):
         "Решение принимает СФР. Результат не гарантирован."
     )
     work: dict[str, Any] = Field(default_factory=dict)
+    submission_report: dict[str, Any] | None = None
+    appeals_package_delivered: bool = False
 
 
 class PortalSiteReviewRequest(BaseModel):

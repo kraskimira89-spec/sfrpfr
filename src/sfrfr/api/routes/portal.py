@@ -202,6 +202,21 @@ def _client_detail(
         documents=documents,
         orders=orders,
     )
+    submission_report = None
+    appeals_delivered = False
+    try:
+        from sfrfr.services.submission_reports import serialize_report
+
+        latest = repo.latest_submission_report(case_id)
+        if latest:
+            submission_report = serialize_report(latest)
+        audit_rows = repo.list_audit(case_id)
+        appeals_delivered = any(
+            str(a.get("action") or "").startswith("appeals_package_delivered")
+            for a in audit_rows
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("submission_report skipped: %s", exc)
     return ClientCaseDetail(
         id=case_id,
         pipeline_status=status_raw,
@@ -221,6 +236,8 @@ def _client_detail(
         submission_instruction=_SUBMISSION_INSTRUCTION,
         warning=_SFR_WARNING,
         work=work,
+        submission_report=submission_report,
+        appeals_package_delivered=appeals_delivered,
     )
 
 
@@ -2858,6 +2875,53 @@ def _drain_case_chat_pipeline() -> None:
         process_pending_outbox(limit=8)
     except Exception as exc:  # noqa: BLE001
         logger.debug("case chat outbox drain skipped: %s", exc)
+
+
+@router.post("/cases/{case_id}/submission")
+def client_record_submission(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(get_current_principal),
+) -> dict[str, Any]:
+    """Этап 9: клиент сообщает о самоподаче или просит помощь с подачей."""
+    if principal.is_staff:
+        raise HTTPException(status_code=403, detail="use staff submission endpoint")
+    from sfrfr.services.submission_record import record_case_submission
+    from sfrfr.services.submission_reports import SubmissionReportError
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    body = dict(payload or {})
+    body["source"] = "client_self"
+    try:
+        result = record_case_submission(
+            repo,
+            case_id=case_id,
+            actor_id=principal.user_id,
+            actor_kind="client",
+            payload=body,
+        )
+    except SubmissionReportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Help → короткий сигнал в чат (не считается подачей).
+    if str(body.get("decision") or "").strip().lower() == "help_requested" and not result.get(
+        "replayed"
+    ):
+        try:
+            from sfrfr.db.case_messages_write import insert_case_message
+
+            insert_case_message(
+                {
+                    "case_id": case_id,
+                    "author_user_id": principal.user_id,
+                    "author_kind": "client",
+                    "body": "Нужна помощь с подачей документов в СФР / Госуслуги.",
+                    "channel_origin": "cabinet",
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.info("submission help chat seed skipped: %s", exc)
+    return result
 
 
 @router.post("/cases/{case_id}/messages", status_code=status.HTTP_201_CREATED)

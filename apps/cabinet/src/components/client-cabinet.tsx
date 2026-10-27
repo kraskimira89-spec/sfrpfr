@@ -6,6 +6,7 @@ import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
 import { AddExtraDocumentPanel } from "@/components/add-extra-document-panel";
+import { SubmissionClientPanel } from "@/components/submission-client-panel";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
 import { ClientCaseChatPanel } from "@/components/client-case-chat-panel";
 import {
@@ -66,6 +67,15 @@ type CaseDetail = {
   submission_instruction: string;
   warning: string;
   work?: ClientWork;
+  submission_report?: {
+    kind?: string;
+    submitted_on?: string | null;
+    method?: string | null;
+    submitted_what?: string | null;
+    proof_missing?: boolean;
+    proof_missing_note?: string | null;
+  } | null;
+  appeals_package_delivered?: boolean;
 };
 
 type CaseMessage = {
@@ -1757,6 +1767,55 @@ export function ClientCabinet() {
     }
   }
 
+  async function submitClientSubmission(payload: {
+    submitted_on: string;
+    method: string;
+    submitted_what: string;
+    appeal_number?: string;
+    comment?: string;
+    idempotency_key?: string;
+  }) {
+    if (!token || !selectedId) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/cases/${selectedId}/submission`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: "confirmed",
+          ...payload,
+          package_version: detail?.draft?.title || undefined,
+        }),
+      });
+      setNotice("Сообщение о подаче сохранено. Специалист увидит дату и способ.");
+      await openCase(selectedId, "case", true);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось сохранить сообщение о подаче.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestSubmissionHelp() {
+    if (!token || !selectedId) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/cases/${selectedId}/submission`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "help_requested" }),
+      });
+      setNotice("Запрос помощи отправлен. Напишите детали в переписке справа.");
+      await openCase(selectedId, "case", true);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось отправить запрос помощи.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function setPreferredChannel(channel: PreferredChannel) {
     if (!token) return;
     setBusy(true);
@@ -2379,6 +2438,15 @@ export function ClientCabinet() {
                   }}
                 />
               ) : null}
+
+              <SubmissionClientPanel
+                busy={busy}
+                packageDelivered={Boolean(detail.appeals_package_delivered)}
+                report={detail.submission_report}
+                defaultWhat={detail.draft?.title?.trim() || "Пакет первичных обращений"}
+                onConfirm={(p) => void submitClientSubmission(p)}
+                onHelp={() => void requestSubmissionHelp()}
+              />
 
               {detail.work?.documents ? (
                 <CaseWorkMap

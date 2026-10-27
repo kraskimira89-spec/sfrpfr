@@ -2005,3 +2005,59 @@ class CaseRepository:
         )
         return [case_to_analytics_row(case) for case in cases]
 
+    def get_submission_report_by_idempotency(
+        self, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        return self._one_or_none(
+            self.client.table("case_submission_reports")
+            .select("*")
+            .eq("idempotency_key", idempotency_key)
+            .limit(1)
+            .execute()
+        )
+
+    def list_submission_reports(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("case_submission_reports")
+            .select("*")
+            .eq("case_id", case_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+    def latest_submission_report(
+        self, case_id: str, *, kind: str | None = None
+    ) -> dict[str, Any] | None:
+        q = (
+            self.client.table("case_submission_reports")
+            .select("*")
+            .eq("case_id", case_id)
+        )
+        if kind:
+            q = q.eq("kind", kind)
+        return self._one_or_none(q.order("created_at", desc=True).limit(1).execute())
+
+    def insert_submission_report(self, row: dict[str, Any]) -> dict[str, Any]:
+        existing = self.get_submission_report_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if existing:
+            return existing
+        data = (
+            self.client.table("case_submission_reports")
+            .insert(row)
+            .execute()
+            .data
+            or []
+        )
+        if data:
+            return data[0]
+        found = self.get_submission_report_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if found:
+            return found
+        raise RuntimeError("case_submission_reports insert returned no row")
+

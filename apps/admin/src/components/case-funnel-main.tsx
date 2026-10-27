@@ -37,6 +37,11 @@ import { DocumentsTable } from "@/components/documents-table";
 import { CaseWorkRoute, type WorkRoute } from "@/components/case-work-route";
 import { StageNavContext, StageShell, type StageNav } from "@/components/case-stage-shell";
 import {
+  SubmissionStagePanel,
+  type SubmissionFormPayload,
+  type SubmissionReportView,
+} from "@/components/submission-stage-panel";
+import {
   initialAccordion,
   openStageOf,
   toggleAccordion,
@@ -207,6 +212,8 @@ type Detail = {
   }[];
   orders_summary?: { package_code: string; status: string }[];
   audit: { action: string; at: string }[];
+  submission_report?: SubmissionReportView | null;
+  submission_reports?: SubmissionReportView[];
   role_capabilities: Caps;
 };
 
@@ -437,7 +444,7 @@ export function CaseFunnelMain({
   onRecordServiceConsent: () => void;
   onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
   onRecordAppealsPackage?: (decision: "ready" | "delivered") => void;
-  onRecordSubmission?: (decision: "confirmed" | "help_requested") => void;
+  onRecordSubmission?: (payload: SubmissionFormPayload) => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -1767,56 +1774,28 @@ export function CaseFunnelMain({
           expanded={isExpanded("submission")}
           onToggle={() => toggleStage("submission")}
         >
-          <p className="hint">
-            Передача пакета ≠ подача в СФР. Мы готовим документы и план — подаёте через СФР,
-            МФЦ или Госуслуги вы сами. Решение о пенсии принимает только СФР.
-          </p>
           {onRecordSubmission ? (
-            <div className="row-actions">
-              <button
-                type="button"
-                className="primary"
-                disabled={
-                  busy ||
-                  funnel.facts.appeals.work.state !== "delivered" ||
-                  funnel.facts.submission === "confirmed"
-                }
-                onClick={() => onRecordSubmission("confirmed")}
-                title="Клиент сообщил, что сам подал обращение"
-              >
-                Клиент подал сам
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={
-                  busy ||
-                  funnel.facts.appeals.work.state !== "delivered" ||
-                  funnel.facts.submission === "confirmed"
-                }
-                onClick={() => onRecordSubmission("help_requested")}
-                title="Клиент просит помощь специалиста до отправки"
-              >
-                Нужна помощь с подачей
-              </button>
-            </div>
-          ) : null}
-          <div className="row-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
+            <SubmissionStagePanel
+              busy={busy}
+              packageDelivered={funnel.facts.appeals.work.state === "delivered"}
+              submissionConfirmed={funnel.facts.submission === "confirmed"}
+              receiptVerified={funnel.facts.receiptVerified}
+              report={detail.submission_report}
+              defaultPackageLabel={
+                detail.draft?.title?.trim() || "Пакет первичных обращений"
+              }
+              onSubmit={(p) => onRecordSubmission(p)}
+              onAskChat={() =>
                 applyTemplate(
                   "Здравствуйте! Пакет готов. Сможете подать через Госуслуги/СФР сами или нужен звонок специалиста для сопровождения до отправки? Напишите удобный вариант. Решение принимает СФР.",
                 )
               }
-            >
-              Спросить: сам / нужен звонок
-            </button>
-          </div>
-          {funnel.facts.appeals.work.state !== "delivered" ? (
-            <p className="hint">Сначала зафиксируйте передачу пакета клиенту (ступень 8).</p>
+            />
+          ) : (
+            <p className="hint">Нет прав на запись подачи.</p>
+          )}
+          {funnel.facts.submittedOn ? (
+            <p className="hint">Дата подачи для контроля: {funnel.facts.submittedOn}</p>
           ) : null}
         </StageShell>
 
@@ -1830,8 +1809,11 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("follow_up")}
         >
           <p className="hint">
-            Вход — подтверждённая подача (пока «не подтверждено»). Ниже — ручные пресеты срока, не
-            авторассылка каждые 3 дня.
+            Вход — сообщение о подаче. Контрольную дату назначайте вручную ниже — без обещания срока
+            решения СФР.
+            {funnel.facts.followUp.submittedOn
+              ? ` Фактическая дата подачи: ${funnel.facts.followUp.submittedOn}.`
+              : ""}
           </p>
           <p>
             Сейчас: {nextActionText || "—"} · до {nextActionAt || "—"} · ждём:{" "}
