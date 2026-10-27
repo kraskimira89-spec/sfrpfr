@@ -2886,6 +2886,7 @@ def create_order(
 ) -> dict:
     from sfrfr.services.message_dedupe import (
         has_appeals_consent_accepted,
+        has_open_or_paid_docs_order,
         has_service_consent,
         order_requires_appeals_consent,
     )
@@ -2931,6 +2932,12 @@ def create_order(
             raise HTTPException(
                 status_code=400,
                 detail="Сначала зафиксируйте согласие на подготовку обращений",
+            )
+        existing_orders = repo.list_orders(case_id)
+        if has_open_or_paid_docs_order(existing_orders):
+            raise HTTPException(
+                status_code=400,
+                detail="Счёт на подготовку первичных обращений уже есть",
             )
     if payload.package_code in ("SF_LUMP", "SF_MONTH"):
         evidence = repo.get_result_evidence(case_id)
