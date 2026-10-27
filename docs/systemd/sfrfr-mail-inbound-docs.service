@@ -1,0 +1,16 @@
+[Unit]
+Description=SFRFR poll inbound mail → extra documents / unbound queue
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/sfrfr/.venv/bin/python
+
+[Service]
+Type=oneshot
+User=sfrfr
+Group=sfrfr
+WorkingDirectory=/opt/sfrfr
+EnvironmentFile=/opt/sfrfr/.env
+# Параллельный запуск блокирует сам скрипт (file lock); systemd не ставит в очередь дубли.
+ExecStart=/opt/sfrfr/.venv/bin/python /opt/sfrfr/scripts/poll_inbound_mail_documents.py --limit 20
+TimeoutStartSec=10min
+Nice=10

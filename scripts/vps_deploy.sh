@@ -111,6 +111,23 @@ if [[ -f "$APP_DIR/docs/systemd/sfrfr-tech-debt.timer" ]]; then
   systemctl enable --now sfrfr-tech-debt.timer
 fi
 
+if [[ -f "$APP_DIR/docs/systemd/sfrfr-mail-inbound-docs.timer" ]]; then
+  echo "Configuring inbound mail documents timer …"
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-mail-inbound-docs.service" \
+    /etc/systemd/system/sfrfr-mail-inbound-docs.service
+  install -m 0644 "$APP_DIR/docs/systemd/sfrfr-mail-inbound-docs.timer" \
+    /etc/systemd/system/sfrfr-mail-inbound-docs.timer
+  systemctl daemon-reload
+  # Включаем при IMAP (по умолчанию в проде включён). Явный 0 — выключить.
+  if [[ -f "$APP_DIR/.env" ]] \
+    && grep -qE '^YANDEX_MAIL_IMAP_ENABLED=0([[:space:]]|$|#)' "$APP_DIR/.env"; then
+    systemctl disable sfrfr-mail-inbound-docs.timer 2>/dev/null || true
+    systemctl stop sfrfr-mail-inbound-docs.timer 2>/dev/null || true
+  else
+    systemctl enable --now sfrfr-mail-inbound-docs.timer
+  fi
+fi
+
 # SFRFR-93: fiscal reconcile (default ENABLED=0 / DRY_RUN=1 — не enable без ALERT_SINCE)
 if [[ -f "$APP_DIR/docs/systemd/sfrfr-fiscal-reconcile.timer" ]]; then
   echo "Installing fiscal-reconcile timer (not enabled until FISCAL_RECONCILE_ENABLED=1) …"

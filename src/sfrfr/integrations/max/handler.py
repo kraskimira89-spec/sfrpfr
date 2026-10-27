@@ -1533,10 +1533,17 @@ def _ingest_max_file(
         logger.warning("max upload skipped: empty case_id filename=%s", filename)
         return None
 
+    from sfrfr.services.extra_document_intake import (
+        category_to_doc_type,
+        notify_extra_document_received,
+    )
+
+    extra_type = category_to_doc_type("unknown")
     row = upload_max_document(
         case_id=cid,
         filename=filename,
         data=data,
+        doc_type=extra_type,
         uploaded_by=None,
     )
     if row is None:
@@ -1550,6 +1557,20 @@ def _ingest_max_file(
     if not doc_id:
         return None
     cloud_pending = str(row.get("cloud_status") or "") == "pending"
+    try:
+        from sfrfr.db.case_repository import CaseRepository
+
+        notify_extra_document_received(
+            repo=CaseRepository(),
+            case_id=cid,
+            document_id=doc_id,
+            doc_type=extra_type,
+            actor_id=None,
+            may_affect_analysis=True,
+            upload_source="max",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("max extra notify skipped: %s", exc)
     try:
         body = format_document_event(
             filename=filename,

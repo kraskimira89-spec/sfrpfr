@@ -272,6 +272,12 @@ def default_unbound_root() -> Path:
     return parent / "mail_inbound_unbound"
 
 
+def default_mail_processed_root() -> Path:
+    root = Path(get_settings().storage_local_path).resolve()
+    parent = root.parent if root.name.lower() in {"uploads", "local"} else root
+    return parent / "mail_inbound_processed"
+
+
 def default_extra_review_root() -> Path:
     root = Path(get_settings().storage_local_path).resolve()
     parent = root.parent if root.name.lower() in {"uploads", "local"} else root
@@ -431,6 +437,68 @@ class UnboundMailQueue:
                 return dict(it)
         return None
 
+    def _blob_dir(self, item_id: str) -> Path:
+        d = self.root / "blobs" / item_id
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _safe_blob_name(self, index: int, filename: str) -> str:
+        stem = Path(filename or "attachment.bin").name
+        stem = re.sub(r"[^\w.\-а-яА-ЯёЁ]+", "_", stem, flags=re.UNICODE)[:80]
+        return f"{index:02d}_{stem or 'attachment.bin'}"
+
+    def save_attachment_blobs(
+        self,
+        item_id: str,
+        attachments: list[tuple[str, bytes, str]],
+    ) -> list[dict[str, Any]]:
+        """Сохранить байты до привязки. Письмо не считается обработанным без этого."""
+        meta: list[dict[str, Any]] = []
+        for i, (name, data, ctype) in enumerate(attachments[:20]):
+            if not data:
+                continue
+            fname = self._safe_blob_name(i, name)
+            path = self._blob_dir(item_id) / fname
+            path.write_bytes(data)
+            meta.append(
+                {
+                    "filename": Path(name or fname).name[:180],
+                    "stored_as": fname,
+                    "content_type": (ctype or "application/octet-stream")[:120],
+                    "size": len(data),
+                }
+            )
+        return meta
+
+    def load_attachment_blobs(
+        self, item_id: str
+    ) -> list[tuple[str, bytes, str]]:
+        data = self._load_index()
+        item: dict[str, Any] | None = None
+        for it in data["items"]:
+            if isinstance(it, dict) and str(it.get("id") or "") == item_id:
+                item = it
+                break
+        if item is None:
+            return []
+        out: list[tuple[str, bytes, str]] = []
+        blob_root = self.root / "blobs" / item_id
+        for meta in list(item.get("blob_meta") or []):
+            if not isinstance(meta, dict):
+                continue
+            stored = str(meta.get("stored_as") or "")
+            path = blob_root / stored
+            if not path.is_file():
+                continue
+            out.append(
+                (
+                    str(meta.get("filename") or stored),
+                    path.read_bytes(),
+                    str(meta.get("content_type") or "application/octet-stream"),
+                )
+            )
+        return out
+
     def enqueue(
         self,
         *,
@@ -438,18 +506,28 @@ class UnboundMailQueue:
         subject: str,
         sender: str,
         attachment_names: list[str],
+        attachments: list[tuple[str, bytes, str]] | None = None,
     ) -> dict[str, Any]:
         with _LOCK:
             existing = self.get_by_message_id(message_id)
             if existing:
                 return {**existing, "deduped": True}
+            item_id = str(uuid.uuid4())
+            blob_meta: list[dict[str, Any]] = []
+            if attachments:
+                blob_meta = self.save_attachment_blobs(item_id, attachments)
+            names = list(attachment_names or [])[:20]
+            if not names and blob_meta:
+                names = [str(m.get("filename") or "") for m in blob_meta]
             item = {
-                "id": str(uuid.uuid4()),
+                "id": item_id,
                 "status": "needs_binding",
                 "message_id": message_id,
                 "subject": (subject or "")[:300],
                 "sender": (sender or "")[:200],
-                "attachment_names": list(attachment_names or [])[:20],
+                "attachment_names": names,
+                "blob_meta": blob_meta,
+                "blobs_saved": len(blob_meta),
                 "created_at": _now(),
             }
             data = self._load_index()
@@ -497,3 +575,164 @@ class UnboundMailQueue:
             found["bound_by"] = actor_id
             self._save_index(data)
             return dict(found)
+
+    def clear_blobs(self, item_id: str) -> None:
+        blob_root = self.root / "blobs" / (item_id or "").strip()
+        if not blob_root.is_dir():
+            return
+        for path in blob_root.iterdir():
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        try:
+            blob_root.rmdir()
+        except OSError:
+            pass
+
+
+class MailInboundProcessedStore:
+    """Идемпотентность IMAP: message_id обработан только после save/queue."""
+
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = Path(root) if root is not None else default_mail_processed_root()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._index = self.root / "index.json"
+        self._last_success = self.root / "last_success.json"
+
+    def _load(self) -> dict[str, Any]:
+        if not self._index.is_file():
+            return {"by_message_id": {}}
+        raw = json.loads(self._index.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return {"by_message_id": {}}
+        by = raw.get("by_message_id")
+        return {"by_message_id": dict(by) if isinstance(by, dict) else {}}
+
+    def _save(self, data: dict[str, Any]) -> None:
+        tmp = self._index.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        tmp.replace(self._index)
+
+    @staticmethod
+    def _norm(message_id: str) -> str:
+        return (message_id or "").strip().lower()
+
+    def is_processed(self, message_id: str) -> bool:
+        mid = self._norm(message_id)
+        if not mid:
+            return False
+        return mid in self._load()["by_message_id"]
+
+    def mark_processed(
+        self,
+        message_id: str,
+        *,
+        status: str,
+        detail: str | None = None,
+    ) -> None:
+        mid = self._norm(message_id)
+        if not mid:
+            return
+        with _LOCK:
+            data = self._load()
+            data["by_message_id"][mid] = {
+                "status": status,
+                "at": _now(),
+                "detail": (detail or "")[:200] or None,
+            }
+            # ограничение роста
+            keys = list(data["by_message_id"].keys())
+            if len(keys) > 5000:
+                for old in keys[: len(keys) - 4000]:
+                    data["by_message_id"].pop(old, None)
+            self._save(data)
+
+    def record_poll_success(self, *, processed: int, skipped: int) -> dict[str, Any]:
+        row = {
+            "ok": True,
+            "at": _now(),
+            "processed": processed,
+            "skipped": skipped,
+        }
+        tmp = self._last_success.with_suffix(".tmp")
+        tmp.write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(self._last_success)
+        return row
+
+    def last_success(self) -> dict[str, Any] | None:
+        if not self._last_success.is_file():
+            return None
+        raw = json.loads(self._last_success.read_text(encoding="utf-8"))
+        return dict(raw) if isinstance(raw, dict) else None
+
+
+def bind_unbound_mail_to_case(
+    *,
+    item_id: str,
+    case_id: str,
+    actor_id: str | None,
+    store_document_fn: Any,
+    repo: Any,
+    queue: UnboundMailQueue | None = None,
+) -> dict[str, Any]:
+    """Ручная привязка: сохранить сохранённые вложения в дело как extra_*."""
+    q = queue or UnboundMailQueue()
+    row = q.mark_bound(item_id, case_id=case_id, actor_id=actor_id)
+    blobs = q.load_attachment_blobs(item_id)
+    saved: list[dict[str, Any]] = []
+    for filename, data, content_type in blobs:
+        try:
+            doc = store_document_fn(
+                case_id=case_id,
+                filename=filename,
+                data=data,
+                content_type=content_type or "application/octet-stream",
+                doc_type=category_to_doc_type("unknown"),
+                uploaded_by=actor_id,
+                upload_source="email",
+            )
+        except Exception as exc:  # noqa: BLE001
+            saved.append({"filename": filename, "ok": False, "error": type(exc).__name__})
+            continue
+        doc_id = str((doc or {}).get("id") or "")
+        if doc_id:
+            notify_extra_document_received(
+                repo=repo,
+                case_id=case_id,
+                document_id=doc_id,
+                doc_type=category_to_doc_type("unknown"),
+                actor_id=actor_id,
+                may_affect_analysis=True,
+                upload_source="email",
+            )
+        saved.append({"filename": filename, "ok": True, "document_id": doc_id})
+    if blobs and all(s.get("ok") for s in saved):
+        q.clear_blobs(item_id)
+    try:
+        repo.upsert_checklist_item(
+            case_id,
+            title="Почта: вложения привязаны вручную",
+            item_type="extra_document_mail_bind",
+            owner="expert",
+            actor_id=actor_id,
+            note=f"unbound_id={item_id}; files={len(saved)}"[:500],
+            sort_order=5,
+        )
+        repo.audit(case_id, actor_id, f"mail_inbound_bound:{item_id[:8]}")
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "ok": True,
+        "item": row,
+        "saved": saved,
+        "preserves_funnel": True,
+        "honest": True,
+        "detail": (
+            f"Письмо привязано к делу; сохранено вложений: "
+            f"{sum(1 for s in saved if s.get('ok'))}/{len(saved) or 0}."
+        ),
+    }
