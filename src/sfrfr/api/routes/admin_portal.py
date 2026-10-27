@@ -3174,6 +3174,92 @@ def register_sfr_response_review(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/admin/cases/{case_id}/response-review/extract-amounts")
+def extract_sfr_response_amounts(
+    case_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """ИИ читает ответы СФР: суммы + хронология (без автосохранения в result_evidence)."""
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_amounts_extract import extract_amounts_from_texts
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    body = payload if isinstance(payload, dict) else {}
+    want_ids = {
+        str(x).strip()
+        for x in (body.get("document_ids") or [])
+        if str(x).strip()
+    }
+    docs = list(repo.list_documents(case_id) or [])
+    sfr_docs = []
+    for d in docs:
+        blob = f"{d.get('doc_type') or ''} {d.get('storage_path') or ''}".lower()
+        if not (
+            "sfr_decision" in blob
+            or "sfr_response" in blob
+            or "sfr_refusal" in blob
+        ):
+            continue
+        did = str(d.get("id") or "")
+        if want_ids and did not in want_ids:
+            continue
+        sfr_docs.append(d)
+
+    # OCR: по document_id из pipeline, иначе общий сниппет на файл.
+    ocr_by_doc: dict[str, str] = {}
+    try:
+        pipeline = repo.get_pipeline_row(case_id) or {}
+        for row in list(pipeline.get("ocr_texts") or []):
+            if not isinstance(row, dict):
+                continue
+            did = str(row.get("document_id") or row.get("doc_id") or "")
+            sample = str(row.get("text") or row.get("content") or "").strip()
+            if not sample:
+                continue
+            if did:
+                ocr_by_doc[did] = (ocr_by_doc.get(did, "") + "\n" + sample)[:8000]
+            else:
+                ocr_by_doc.setdefault("_all", sample[:8000])
+    except Exception:  # noqa: BLE001
+        ocr_by_doc = {}
+
+    snippets: list[dict[str, str]] = []
+    for d in sfr_docs:
+        did = str(d.get("id") or "")
+        name = (
+            str(d.get("filename") or "").strip()
+            or str(d.get("storage_path") or "").rsplit("/", 1)[-1]
+            or did[:8]
+            or "файл"
+        )
+        text = ocr_by_doc.get(did) or ""
+        if not text and len(sfr_docs) == 1:
+            text = ocr_by_doc.get("_all", "")
+        # content_preview как запасной источник
+        if not text:
+            text = str(d.get("content_preview") or "").strip()
+        snippets.append({"filename": name, "text": text, "document_id": did})
+
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    out = extract_amounts_from_texts(case_ref=case_ref, snippets=snippets)
+    repo.audit(case_id, principal.audit_actor_id(), "response_amounts_extracted")
+    return {
+        "ok": True,
+        "files": [
+            {
+                "id": s.get("document_id"),
+                "filename": s.get("filename"),
+                "has_text": bool(str(s.get("text") or "").strip()),
+            }
+            for s in snippets
+        ],
+        **out,
+    }
+
+
 @router.post("/admin/cases/{case_id}/response-review/{review_id}/ai-draft")
 def response_review_ai_draft(
     case_id: str,

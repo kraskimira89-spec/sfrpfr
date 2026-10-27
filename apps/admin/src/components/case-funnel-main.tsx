@@ -287,7 +287,6 @@ export function CaseFunnelMain({
   beforeRub,
   afterRub,
   lumpRub,
-  sfrReceived,
   orderCode,
   orderAmount,
   feedbackText,
@@ -1895,7 +1894,6 @@ export function CaseFunnelMain({
                 blob.includes("sfr_refusal")
               );
             });
-            const sfrIds = sfrDocs.map((d) => d.id);
             const clientReported = (detail.follow_up_events || []).some(
               (e) => e.check_result === "client_reported_response",
             );
@@ -1913,11 +1911,25 @@ export function CaseFunnelMain({
                 clientEmail={detail.client?.email}
                 reviews={detail.response_reviews || []}
                 submissionReports={detail.submission_reports || []}
-                sfrDocumentIds={sfrIds}
-                clientReportedWithoutDoc={clientReported && sfrIds.length === 0}
+                sfrDocuments={sfrDocs.map((d) => ({
+                  id: d.id,
+                  filename: d.filename,
+                  storage_path: d.storage_path,
+                  doc_type: d.doc_type,
+                  created_at: d.created_at,
+                  inner_date: d.inner_date,
+                }))}
+                clientReportedWithoutDoc={clientReported && sfrDocs.length === 0}
                 canEdit={caps.can_confirm_result}
                 onReload={() => onDeliveryRefresh?.()}
                 onUploadSfr={onUploadSfrResponse}
+                onOpenDoc={(id) => onOpenSigned(id)}
+                onAmountsExtracted={({ beforeRub: b, afterRub: a, lumpRub: l }) => {
+                  onSfrReceived(true);
+                  if (b) onBeforeRub(b);
+                  if (a) onAfterRub(a);
+                  if (l !== undefined) onLumpRub(l);
+                }}
                 onApplyChat={(text) => {
                   applyTemplate(text);
                   onFocusMax();
@@ -1926,40 +1938,32 @@ export function CaseFunnelMain({
               />
             );
           })()}
-          <h3 className="case-subhead">Суммы пенсии (опционально, не разбор)</h3>
+          <h3 className="case-subhead">Суммы пенсии</h3>
           <p className="hint">
-            Фиксация размеров пенсии для success fee — отдельно от разбора ответа. Положительный
-            ответ СФР не означает фактическую выплату.
+            ИИ подставляет цифры из загруженных ответов («Извлечь суммы с ИИ»). Сохранение в
+            result_evidence — только после проверки сотрудником. Положительный ответ СФР ≠ выплата.
           </p>
           {caps.can_confirm_result ? (
-            <>
-              <label className="funnel-show-all">
-                <input
-                  type="checkbox"
-                  checked={sfrReceived}
-                  onChange={(e) => onSfrReceived(e.target.checked)}
-                />
-                Зафиксировать суммы из решения (если известны)
+            <form className="stack-form" onSubmit={onConfirmResult}>
+              <label>
+                Как было (прежний размер), ₽
+                <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
               </label>
-              {sfrReceived ? (
-                <form className="stack-form" onSubmit={onConfirmResult}>
-                  <label>
-                    Как было (прежний размер), ₽
-                    <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
-                  </label>
-                  <label>
-                    Как стало (новый размер), ₽
-                    <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
-                  </label>
-                  <label>
-                    Единовременная выплата, ₽
-                    <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
-                  </label>
-                  <button type="submit">Сохранить суммы</button>
-                </form>
-              ) : null}
-            </>
-          ) : null}
+              <label>
+                Как стало (новый размер), ₽
+                <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
+              </label>
+              <label>
+                Единовременная выплата, ₽
+                <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
+              </label>
+              <button type="submit" disabled={busy || !beforeRub || !afterRub}>
+                Сохранить суммы
+              </button>
+            </form>
+          ) : (
+            <p className="hint">Нет права фиксировать суммы.</p>
+          )}
           <div className="row-actions">
             <button
               type="button"

@@ -27,6 +27,26 @@ export type ResponseReviewView = {
   created_at?: string | null;
 };
 
+export type SfrResponseDoc = {
+  id: string;
+  filename?: string | null;
+  storage_path?: string | null;
+  doc_type?: string | null;
+  created_at?: string | null;
+  inner_date?: string | null;
+};
+
+export type AmountsChronologyRow = {
+  date?: string | null;
+  filename?: string;
+  note?: string;
+};
+
+function sfrDocLabel(d: SfrResponseDoc): string {
+  const fromPath = (d.storage_path || "").split("/").pop() || "";
+  return (d.filename || "").trim() || fromPath || d.doc_type || d.id.slice(0, 8);
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   cabinet: "Кабинет СФР",
   chat: "Чат",
@@ -61,13 +81,21 @@ type Props = {
   clientEmail?: string | null;
   reviews: ResponseReviewView[];
   submissionReports: SubmissionReportView[];
-  sfrDocumentIds: string[];
+  /** Загруженные ответы СФР (может быть несколько) — показываем имена файлов. */
+  sfrDocuments: SfrResponseDoc[];
   clientReportedWithoutDoc?: boolean;
   canEdit: boolean;
   onReload: () => Promise<void> | void;
   onUploadSfr?: (file: File) => void;
   onApplyChat: (text: string) => void;
   onFollowUpControl?: (payload: FollowUpControlPayload) => Promise<void> | void;
+  onOpenDoc?: (docId: string) => void;
+  /** ИИ заполнил суммы — подставить в поля ступени (сотрудник подтверждает отдельно). */
+  onAmountsExtracted?: (amounts: {
+    beforeRub: string;
+    afterRub: string;
+    lumpRub: string;
+  }) => void;
 };
 
 async function apiJson<T>(
@@ -100,15 +128,18 @@ export function ResponseReviewPanel({
   clientEmail,
   reviews,
   submissionReports,
-  sfrDocumentIds,
+  sfrDocuments,
   clientReportedWithoutDoc,
   canEdit,
   onReload,
   onUploadSfr,
   onApplyChat,
   onFollowUpControl,
+  onOpenDoc,
+  onAmountsExtracted,
 }: Props) {
-  const [docId, setDocId] = useState(sfrDocumentIds[0] || "");
+  const sfrDocumentIds = useMemo(() => sfrDocuments.map((d) => d.id), [sfrDocuments]);
+  const [docId, setDocId] = useState(sfrDocuments[0]?.id || "");
   const [submissionId, setSubmissionId] = useState(
     submissionReports[0]?.id || "",
   );
@@ -130,6 +161,12 @@ export function ResponseReviewPanel({
   const [emailTo, setEmailTo] = useState(clientEmail || "");
   const [msg, setMsg] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [chronology, setChronology] = useState<AmountsChronologyRow[]>([]);
+  const [amountsQuote, setAmountsQuote] = useState<string | null>(null);
+
+  if (sfrDocuments.length > 0 && !sfrDocumentIds.includes(docId)) {
+    setDocId(sfrDocuments[0].id);
+  }
 
   const selected = useMemo(() => {
     const id = selectedId || reviews[0]?.id;
@@ -368,6 +405,49 @@ export function ResponseReviewPanel({
     }
   }
 
+  async function extractAmounts() {
+    setWorking(true);
+    setMsg(null);
+    try {
+      const out = await apiJson<{
+        monthly_before_rub?: number | null;
+        monthly_after_rub?: number | null;
+        lump_sum_rub?: number | null;
+        chronology?: AmountsChronologyRow[];
+        source_quote?: string | null;
+        source?: string;
+        reason?: string | null;
+        files?: { id?: string; filename?: string; has_text?: boolean }[];
+      }>(`${base}/extract-amounts`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          document_ids: sfrDocumentIds.length ? sfrDocumentIds : undefined,
+        }),
+      });
+      const rows = Array.isArray(out.chronology) ? out.chronology : [];
+      setChronology(rows);
+      setAmountsQuote(out.source_quote || null);
+      const fmt = (n: number | null | undefined) =>
+        n == null || !Number.isFinite(n) ? "" : String(Math.round(n * 100) / 100);
+      onAmountsExtracted?.({
+        beforeRub: fmt(out.monthly_before_rub),
+        afterRub: fmt(out.monthly_after_rub),
+        lumpRub: fmt(out.lump_sum_rub),
+      });
+      const noText = (out.files || []).filter((f) => !f.has_text).length;
+      setMsg(
+        out.source === "ai"
+          ? `Суммы из ответа СФР подставлены (проверьте). Хронология: ${rows.length} строк.` +
+              (noText ? ` Без OCR: ${noText} файл(ов).` : "")
+          : `Черновик без уверенных сумм (${out.reason || "нет текста"}). Проверьте OCR.`,
+      );
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Ошибка извлечения сумм");
+    } finally {
+      setWorking(false);
+    }
+  }
+
   return (
     <div className="response-review-panel">
       <p className="hint">
@@ -403,20 +483,44 @@ export function ResponseReviewPanel({
         </p>
       ) : null}
 
+      <h3 className="case-subhead">Загруженные ответы СФР</h3>
+      {sfrDocuments.length === 0 ? (
+        <p className="hint">Файлов ответа пока нет — загрузите ниже или запросите у клиента.</p>
+      ) : (
+        <ul className="plain-list">
+          {sfrDocuments.map((d) => (
+            <li key={d.id}>
+              {onOpenDoc ? (
+                <button type="button" className="linkish" onClick={() => onOpenDoc(d.id)}>
+                  {sfrDocLabel(d)}
+                </button>
+              ) : (
+                <strong>{sfrDocLabel(d)}</strong>
+              )}
+              <span className="hint">
+                {" "}
+                · {(d.inner_date || d.created_at || "").toString().slice(0, 10) || "без даты"}
+                {d.doc_type ? ` · ${d.doc_type}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <h3 className="case-subhead">Регистрация ответа</h3>
       <label>
         Файл ответа СФР
         <select
           value={docId}
-          disabled={locked || sfrDocumentIds.length === 0}
+          disabled={locked || sfrDocuments.length === 0}
           onChange={(e) => setDocId(e.target.value)}
         >
-          {sfrDocumentIds.length === 0 ? (
+          {sfrDocuments.length === 0 ? (
             <option value="">Нет файлов sfr_decision / sfr_response</option>
           ) : (
-            sfrDocumentIds.map((id) => (
-              <option key={id} value={id}>
-                {id}
+            sfrDocuments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {sfrDocLabel(d)}
               </option>
             ))
           )}
@@ -481,17 +585,60 @@ export function ResponseReviewPanel({
             Загрузить новый файл
             <input
               type="file"
+              multiple
               hidden
               disabled={locked}
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onUploadSfr(f);
+                const files = Array.from(e.target.files || []);
                 e.target.value = "";
+                for (const f of files) onUploadSfr(f);
               }}
             />
           </label>
         ) : null}
+        <button
+          type="button"
+          className="secondary"
+          disabled={locked || sfrDocuments.length === 0}
+          onClick={() => void extractAmounts()}
+          title="ИИ читает OCR ответов СФР и заполняет суммы + хронологию"
+        >
+          Извлечь суммы с ИИ
+        </button>
       </div>
+
+      {(chronology.length > 0 || amountsQuote) && (
+        <>
+          <h3 className="case-subhead">Хронология по ответам СФР</h3>
+          <p className="hint">
+            ИИ заполняет таблицу из файлов; сотрудник проверяет до сохранения сумм.
+            Положительный ответ ≠ выплата.
+          </p>
+          {amountsQuote ? (
+            <p className="hint">
+              Цитата: <em>{amountsQuote}</em>
+            </p>
+          ) : null}
+          <table className="plain-table" style={{ width: "100%", fontSize: "0.9rem" }}>
+            <thead>
+              <tr>
+                <th align="left">Дата</th>
+                <th align="left">Файл</th>
+                <th align="left">Заметка</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chronology.map((row, i) => (
+                <tr key={`${row.filename}-${i}`}>
+                  <td>{(row.date || "—").toString().slice(0, 10)}</td>
+                  <td>{row.filename || "—"}</td>
+                  <td>{row.note || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {reviews.length > 0 ? (
         <>
