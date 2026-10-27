@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  FULL_ANALYSIS_DRAFT_RECOVER_POLLS,
   FULL_ANALYSIS_DRAFT_TIMEOUT_MS,
   draftTimeoutMessage,
   isAbortLikeError,
@@ -104,6 +105,7 @@ export function FullAnalysisPanel({
   const [draft, setDraft] = useState("");
   const draftDirtyRef = useRef(false);
   const generatingRef = useRef(false);
+  const lastGenerateTimedOutRef = useRef(false);
   const [emailOverride, setEmailOverride] = useState<string | null>(null);
   const emailTo = emailOverride ?? (clientEmail || "");
   const [emailPreview, setEmailPreview] = useState<{
@@ -156,62 +158,83 @@ export function FullAnalysisPanel({
     if (!onGenerateDraft || generatingRef.current) return;
     generatingRef.current = true;
     setGenerating(true);
-    const beforeId = versionId ?? null;
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), FULL_ANALYSIS_DRAFT_TIMEOUT_MS);
     try {
-      const text = await onGenerateDraft({ signal: controller.signal });
-      if (text) {
-        setDraft(text);
-        markDraftDirty(false);
-        onNotice("Черновик ИИ готов — проверьте и отметьте «Проверено».");
-        await reload({ preserveDirtyDraft: false });
-        onRefresh();
-        return;
-      }
-      // Пустой ответ — сверяем, не создал ли сервер версию.
-      const after = await reload({ preserveDirtyDraft: true });
-      const recovered = reconcileDraftAfterClientFailure({
-        beforeId,
-        after: after?.current ?? null,
-      });
-      if (recovered.recovered) {
-        setDraft(recovered.markdown);
-        markDraftDirty(false);
-        onNotice(recovered.notice);
-        onRefresh();
-      } else {
-        onNotice("ИИ не вернул текст. Можно повторить подготовку разбора.");
-      }
-    } catch (error) {
-      // Сервер мог ещё писать версию после обрыва ответа на клиенте — коротко подождём.
-      let recovered = reconcileDraftAfterClientFailure({
-        beforeId,
-        after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
-      });
-      if (!recovered.recovered && (isAbortLikeError(error) || controller.signal.aborted)) {
-        for (let i = 0; i < 5 && !recovered.recovered; i += 1) {
-          await new Promise((r) => window.setTimeout(r, 2000));
-          recovered = reconcileDraftAfterClientFailure({
-            beforeId,
-            after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
-          });
+      // После таймаута не плодим дубли: сначала забираем уже созданный черновик.
+      if (lastGenerateTimedOutRef.current) {
+        const pending = await reload({ preserveDirtyDraft: true });
+        const cur = pending?.current;
+        if (cur?.status === "draft" && String(cur.markdown || "").trim().length > 80) {
+          setDraft(String(cur.markdown));
+          markDraftDirty(false);
+          lastGenerateTimedOutRef.current = false;
+          onNotice(
+            `На сервере уже есть черновик v${cur.n} после прошлого ожидания — подставил без повторной генерации.`,
+          );
+          onRefresh();
+          return;
         }
+        lastGenerateTimedOutRef.current = false;
       }
-      if (recovered.recovered) {
-        setDraft(recovered.markdown);
-        markDraftDirty(false);
-        onNotice(recovered.notice);
-        onRefresh();
-        return;
-      }
-      if (isAbortLikeError(error) || controller.signal.aborted) {
-        onNotice(draftTimeoutMessage(FULL_ANALYSIS_DRAFT_TIMEOUT_MS));
-      } else {
-        onNotice(error instanceof Error ? error.message : "Не удалось сгенерировать разбор.");
+
+      const beforeId = versionId ?? state?.current?.id ?? null;
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), FULL_ANALYSIS_DRAFT_TIMEOUT_MS);
+      try {
+        const text = await onGenerateDraft({ signal: controller.signal });
+        if (text) {
+          setDraft(text);
+          markDraftDirty(false);
+          lastGenerateTimedOutRef.current = false;
+          onNotice("Черновик ИИ готов — проверьте и отметьте «Проверено».");
+          await reload({ preserveDirtyDraft: false });
+          onRefresh();
+          return;
+        }
+        const after = await reload({ preserveDirtyDraft: true });
+        const recovered = reconcileDraftAfterClientFailure({
+          beforeId,
+          after: after?.current ?? null,
+        });
+        if (recovered.recovered) {
+          setDraft(recovered.markdown);
+          markDraftDirty(false);
+          onNotice(recovered.notice);
+          onRefresh();
+        } else {
+          onNotice("ИИ не вернул текст. Можно повторить подготовку разбора.");
+        }
+      } catch (error) {
+        let recovered = reconcileDraftAfterClientFailure({
+          beforeId,
+          after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
+        });
+        if (!recovered.recovered && (isAbortLikeError(error) || controller.signal.aborted)) {
+          for (let i = 0; i < FULL_ANALYSIS_DRAFT_RECOVER_POLLS && !recovered.recovered; i += 1) {
+            await new Promise((r) => window.setTimeout(r, 2000));
+            recovered = reconcileDraftAfterClientFailure({
+              beforeId,
+              after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
+            });
+          }
+        }
+        if (recovered.recovered) {
+          setDraft(recovered.markdown);
+          markDraftDirty(false);
+          lastGenerateTimedOutRef.current = false;
+          onNotice(recovered.notice);
+          onRefresh();
+          return;
+        }
+        if (isAbortLikeError(error) || controller.signal.aborted) {
+          lastGenerateTimedOutRef.current = true;
+          onNotice(draftTimeoutMessage(FULL_ANALYSIS_DRAFT_TIMEOUT_MS));
+        } else {
+          onNotice(error instanceof Error ? error.message : "Не удалось сгенерировать разбор.");
+        }
+      } finally {
+        window.clearTimeout(timer);
       }
     } finally {
-      window.clearTimeout(timer);
       generatingRef.current = false;
       setGenerating(false);
     }

@@ -1,5 +1,8 @@
-/** Таймаут клиентского ожидания черновика этапа 5 (LLM может отвечать десятки секунд). */
-export const FULL_ANALYSIS_DRAFT_TIMEOUT_MS = 90_000;
+/** Таймаут клиентского ожидания черновика этапа 5 (YC DeepSeek часто >60–90 с). */
+export const FULL_ANALYSIS_DRAFT_TIMEOUT_MS = 180_000;
+
+/** Сколько раз по 2 с опрашивать state после обрыва ответа. */
+export const FULL_ANALYSIS_DRAFT_RECOVER_POLLS = 15;
 
 export type FullAnalysisVersionSnap = {
   id?: string | null;
