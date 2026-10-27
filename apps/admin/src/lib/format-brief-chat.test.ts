@@ -80,8 +80,8 @@ test("client / needs_check: сначала данные, не продажа", (
   assert.doesNotMatch(text, /по-вашему|по вашему мнению/i);
   assert.doesNotMatch(text, /Подробная диагностика/);
   assert.doesNotMatch(text, /3000|3[\s\u00a0]?000/);
-  // Без повторов: СФР — одна строка, «Следующий шаг» не дублируется.
-  assert.equal((text.match(/СФР/g) || []).length, 1);
+  // Позицию о подаче не вшиваем в шаблон (throttle 1/12 на сервере).
+  assert.doesNotMatch(text, /подаёте вы сами/i);
   assert.doesNotMatch(text, /Следующий шаг/);
 });
 

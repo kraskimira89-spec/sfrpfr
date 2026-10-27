@@ -1,4 +1,4 @@
-"""Извлечение сумм пенсии из текста ответа СФР (ступень 11)."""
+"""Извлечение сумм пенсии из текста ответа (ступень 11)."""
 
 from __future__ import annotations
 
@@ -17,8 +17,19 @@ def test_parse_amounts_json_block() -> None:
   "monthly_after_rub": 21200,
   "lump_sum_rub": 45000,
   "chronology": [
-    {"date": "2026-09-01", "filename": "otvet.pdf", "note": "как было 18500,50"}
+    {
+      "effective_date": "2026-09-01",
+      "filename": "otvet.pdf",
+      "page": "2",
+      "monthly_before_rub": 18500.50,
+      "monthly_after_rub": 21200,
+      "amount_kind": "total_pension",
+      "payment_status": "appointed",
+      "basis_quote": "размер пенсии установлен в сумме 21200 руб.",
+      "note": "как было 18500,50"
+    }
   ],
+  "warnings": [],
   "source_quote": "размер пенсии установлен в сумме 21200 руб."
 }
 ```
@@ -29,16 +40,19 @@ def test_parse_amounts_json_block() -> None:
     assert out["lump_sum_rub"] == 45000.0
     assert len(out["chronology"]) == 1
     assert out["chronology"][0]["filename"] == "otvet.pdf"
+    assert out["chronology"][0]["page"] == "2"
+    assert out["chronology"][0]["amount_kind"] == "total_pension"
     assert "21200" in (out.get("source_quote") or "")
 
 
-def test_parse_missing_amounts_null() -> None:
+def test_parse_missing_amounts_null_not_zero() -> None:
     out = parse_amounts_payload(
         '{"monthly_before_rub": null, "monthly_after_rub": null, '
-        '"lump_sum_rub": null, "chronology": [], "source_quote": null}'
+        '"lump_sum_rub": 0, "chronology": [], "source_quote": null}'
     )
     assert out["monthly_before_rub"] is None
     assert out["monthly_after_rub"] is None
+    # 0 без цитаты → null
     assert out["lump_sum_rub"] is None
     assert out["chronology"] == []
 
@@ -54,6 +68,35 @@ def test_incomplete_text_no_hallucination() -> None:
     assert out["chronology"] == []
 
 
+def test_partial_when_some_files_without_ocr() -> None:
+    class Fake:
+        available = True
+        provider = "fake"
+
+        def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
+            return (
+                '{"monthly_before_rub": 10000, "monthly_after_rub": 12000, '
+                '"lump_sum_rub": null, "chronology": [{"effective_date": "2026-01-15", '
+                '"filename": "a.pdf", "page": "1", "amount_kind": "increase", '
+                '"payment_status": "appointed", "basis_quote": "увеличена", '
+                '"note": "увеличение"}], "warnings": [], "source_quote": "стр. 1"}'
+            )
+
+    out = extract_amounts_from_texts(
+        case_ref="CASE",
+        snippets=[
+            {"filename": "a.pdf", "text": "пенсия 12000 руб"},
+            {"filename": "b.pdf", "text": ""},
+        ],
+        llm=Fake(),
+    )
+    assert out["source"] == "ai"
+    assert out["partial"] is True
+    assert any("b.pdf" in w for w in out["warnings"])
+    assert out["monthly_before_rub"] == 10000.0
+    assert out["chronology"][0]["amount_kind"] == "increase"
+
+
 def test_llm_json_returned() -> None:
     class Fake:
         available = True
@@ -62,9 +105,9 @@ def test_llm_json_returned() -> None:
         def chat(self, *, system: str, user: str, temperature: float = 0.0) -> str:
             return (
                 '{"monthly_before_rub": 10000, "monthly_after_rub": 12000, '
-                '"lump_sum_rub": 0, "chronology": [{"date": "2026-01-15", '
-                '"filename": "a.pdf", "note": "увеличение"}], '
-                '"source_quote": "стр. 2"}'
+                '"lump_sum_rub": null, "chronology": [{"effective_date": "2026-01-15", '
+                '"filename": "a.pdf", "note": "увеличение", "amount_kind": "total_pension", '
+                '"payment_status": "unknown"}], "warnings": [], "source_quote": "стр. 2"}'
             )
 
     out = extract_amounts_from_texts(

@@ -1914,6 +1914,7 @@ export function CaseFunnelMain({
                   doc_type: d.doc_type,
                   created_at: d.created_at,
                   inner_date: d.inner_date,
+                  ingest_status: d.ingest_status,
                 }))}
                 clientReportedWithoutDoc={clientReported && sfrDocs.length === 0}
                 canEdit={caps.can_confirm_result}
@@ -1940,25 +1941,40 @@ export function CaseFunnelMain({
           })()}
           <h3 className="case-subhead">Суммы пенсии</h3>
           <p className="hint">
-            ИИ подставляет цифры из загруженных ответов («Извлечь суммы с ИИ»). Сохранение в
-            result_evidence — только после проверки сотрудником. Положительный ответ СФР ≠ выплата.
+            ИИ даёт черновик из выбранных ответов. Пустое поле = «Не указано», не ноль.
+            Начисление ≠ выплата. «Сохранить проверенные суммы» пишет в result_evidence;
+            повторное извлечение спросит подтверждение.
           </p>
           {caps.can_confirm_result ? (
             <form className="stack-form" onSubmit={onConfirmResult}>
               <label>
-                Как было (прежний размер), ₽
-                <input value={beforeRub} onChange={(e) => onBeforeRub(e.target.value)} required />
+                Как было (прежний размер), ₽/мес.
+                <input
+                  value={beforeRub}
+                  placeholder="Не указано"
+                  onChange={(e) => onBeforeRub(e.target.value)}
+                  required
+                />
               </label>
               <label>
-                Как стало (новый размер), ₽
-                <input value={afterRub} onChange={(e) => onAfterRub(e.target.value)} required />
+                Как стало (новый размер), ₽/мес.
+                <input
+                  value={afterRub}
+                  placeholder="Не указано"
+                  onChange={(e) => onAfterRub(e.target.value)}
+                  required
+                />
               </label>
               <label>
-                Единовременная выплата, ₽
-                <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
+                Единовременное начисление, ₽
+                <input
+                  value={lumpRub}
+                  placeholder="Не указано"
+                  onChange={(e) => onLumpRub(e.target.value)}
+                />
               </label>
               <button type="submit" disabled={busy || !beforeRub || !afterRub}>
-                Сохранить суммы
+                Сохранить проверенные суммы
               </button>
             </form>
           ) : (
