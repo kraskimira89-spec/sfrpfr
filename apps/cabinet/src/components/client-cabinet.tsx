@@ -2352,6 +2352,34 @@ export function ClientCabinet() {
           ) : null}
           <div className="cabinet-case-layout">
             <div className="cabinet-case-main">
+              {selectedId && token ? (
+                <AddExtraDocumentPanel
+                  caseId={selectedId}
+                  token={token}
+                  apiBase={apiBase}
+                  busy={busy}
+                  onNotice={setNotice}
+                  onUpload={async (files, category) => {
+                    let lastMsg: string | null = null;
+                    for (const file of files) {
+                      const form = new FormData();
+                      form.append("file", file);
+                      form.append("category", category);
+                      const payload = await apiFetch<{
+                        id?: string;
+                        client_message?: string;
+                      }>(`/api/portal/cases/${selectedId}/documents`, token, {
+                        method: "POST",
+                        body: form,
+                      });
+                      if (payload.client_message) lastMsg = payload.client_message;
+                    }
+                    await openCase(selectedId, "case", true);
+                    return lastMsg;
+                  }}
+                />
+              ) : null}
+
               {detail.work?.documents ? (
                 <CaseWorkMap
                   caseNumber={caseNumberFromId(detail.id)}
@@ -2389,34 +2417,6 @@ export function ClientCabinet() {
                   onToggleSelect={toggleDocSelection}
                   onToggleAll={toggleAllDocs}
                   onBulkDownload={() => void bulkDownloadSelected()}
-                />
-              ) : null}
-
-              {selectedId && token ? (
-                <AddExtraDocumentPanel
-                  caseId={selectedId}
-                  token={token}
-                  apiBase={apiBase}
-                  busy={busy}
-                  onNotice={setNotice}
-                  onUpload={async (files, category) => {
-                    let lastMsg: string | null = null;
-                    for (const file of files) {
-                      const form = new FormData();
-                      form.append("file", file);
-                      form.append("category", category);
-                      const payload = await apiFetch<{
-                        id?: string;
-                        client_message?: string;
-                      }>(`/api/portal/cases/${selectedId}/documents`, token, {
-                        method: "POST",
-                        body: form,
-                      });
-                      if (payload.client_message) lastMsg = payload.client_message;
-                    }
-                    await openCase(selectedId, "case", true);
-                    return lastMsg;
-                  }}
                 />
               ) : null}
 

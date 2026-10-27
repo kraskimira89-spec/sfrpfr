@@ -408,6 +408,27 @@ def analyze_document_background(
             doc_type = "other"
         if doc_type not in CLIENT_LABELS_RU:
             doc_type = "other"
+        # Уже помечен как доп. документ (чат anytime) — не затираем в «other».
+        if doc_type == "other":
+            cur = ""
+            try:
+                from sfrfr.db.session import get_supabase_client
+
+                resp = (
+                    get_supabase_client()
+                    .table("documents")
+                    .select("doc_type")
+                    .eq("id", doc_id)
+                    .limit(1)
+                    .execute()
+                )
+                rows = list(resp.data or [])
+                if rows:
+                    cur = str(rows[0].get("doc_type") or "").strip().lower()
+            except Exception:  # noqa: BLE001
+                cur = ""
+            if cur.startswith("extra_"):
+                doc_type = cur
         ok = dtf.set_document_type(document_id=doc_id, doc_type=doc_type)
         if not ok:
             logger.warning(

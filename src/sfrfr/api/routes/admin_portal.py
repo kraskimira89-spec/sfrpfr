@@ -1726,8 +1726,9 @@ def bind_unbound_inbound_mail(
     payload: UnboundMailBindRequest,
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
-    """Привязать неоднозначное письмо к делу вручную (очередь сотрудника)."""
-    from sfrfr.services.extra_document_intake import UnboundMailQueue
+    """Привязать неоднозначное письмо к делу и сохранить сохранённые вложения в реестр."""
+    from sfrfr.services.document_upload import store_document
+    from sfrfr.services.extra_document_intake import bind_unbound_mail_to_case
 
     if principal.role not in (StaffRole.ADMIN, StaffRole.EXPERT, StaffRole.OPERATOR):
         raise HTTPException(status_code=403, detail="staff role required")
@@ -1738,41 +1739,17 @@ def bind_unbound_inbound_mail(
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=404, detail="case_not_found") from exc
     try:
-        row = UnboundMailQueue().mark_bound(
-            item_id,
+        return bind_unbound_mail_to_case(
+            item_id=item_id,
             case_id=case_id,
             actor_id=principal.audit_actor_id(),
+            store_document_fn=store_document,
+            repo=repo,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="unbound_item_not_found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    try:
-        repo.upsert_checklist_item(
-            case_id,
-            title="Почта: вложения письма привязаны вручную — добавить файлы в дело",
-            item_type="extra_document_mail_bind",
-            owner="expert",
-            actor_id=principal.audit_actor_id(),
-            note=(
-                f"unbound_id={item_id}; subject={row.get('subject')}; "
-                f"sender={row.get('sender')}"
-            )[:500],
-            sort_order=5,
-        )
-        repo.audit(case_id, principal.audit_actor_id(), f"mail_inbound_bound:{item_id[:8]}")
-    except Exception:  # noqa: BLE001
-        pass
-    return {
-        "ok": True,
-        "item": row,
-        "preserves_funnel": True,
-        "honest": True,
-        "detail": (
-            "Письмо отмечено как привязанное к делу. Вложения из очереди не "
-            "скачиваются автоматически — добавьте файлы кнопкой кабинета или с токеном SFRFR-DOC."
-        ),
-    }
 
 
 @router.patch("/admin/cases/{case_id}/flags")

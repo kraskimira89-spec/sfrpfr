@@ -229,7 +229,9 @@ def set_document_type(*, document_id: str, doc_type: str) -> bool:
 
     doc_id = str(document_id or "").strip()
     dtype = str(doc_type or "").strip().lower()
-    if not doc_id or dtype not in DOC_TYPE_LABELS_RU:
+    if not doc_id:
+        return False
+    if dtype not in DOC_TYPE_LABELS_RU and not dtype.startswith("extra_"):
         return False
     try:
         get_supabase_client().table("documents").update({"doc_type": dtype}).eq(

@@ -115,9 +115,11 @@ export function AddExtraDocumentPanel({
         </label>
         {mail?.compose?.mailto ? (
           <a className="button-link" href={mail.compose.mailto}>
-            Отправить документы по почте
+            Отправить по электронной почте
           </a>
-        ) : null}
+        ) : (
+          <span className="hint">Подсказка почты загружается…</span>
+        )}
       </div>
       {mail?.inbox ? (
         <p className="hint" style={{ marginTop: "0.5rem" }}>
@@ -125,8 +127,9 @@ export function AddExtraDocumentPanel({
           {mail.compose?.subject ? (
             <>
               <br />
-              В теме письма должен остаться код SFRFR-DOC — без него письмо не попадёт в дело
-              автоматически.
+              В теме письма должен остаться код привязки{" "}
+              <code>{mail.compose.subject}</code> — без кода SFRFR-DOC письмо не попадёт в дело
+              автоматически и уйдёт сотруднику в очередь.
             </>
           ) : null}
         </p>

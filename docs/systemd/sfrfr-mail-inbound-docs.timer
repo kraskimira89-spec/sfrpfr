@@ -1,0 +1,12 @@
+[Unit]
+Description=Run SFRFR inbound mail documents poll every 10 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+Persistent=true
+AccuracySec=1min
+Unit=sfrfr-mail-inbound-docs.service
+
+[Install]
+WantedBy=timers.target
