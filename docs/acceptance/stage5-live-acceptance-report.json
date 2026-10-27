@@ -1,0 +1,90 @@
+{
+  "date_utc": "2026-10-27T05:46:17Z",
+  "published_sha": "5d395a9553c14cfafbb2f302d7764a4aa598ec41",
+  "checks": {
+    "live_ai": {
+      "status": "pass",
+      "source": "ai",
+      "reason": null,
+      "chars": 3467,
+      "has_period_2004_2005": true,
+      "has_ils_or_labor": true,
+      "no_payment_promise": true
+    },
+    "docx": {
+      "status": "pass",
+      "path": "docs/acceptance/stage5-acceptance-razbor-demo-v2.docx",
+      "bytes": 37701,
+      "contains_staff_mark": true
+    },
+    "versioning_live": {
+      "status": "pass",
+      "stale_v1_error": "stale_or_superseded",
+      "current_n": 2,
+      "current_status": "approved"
+    },
+    "client_remarks": {
+      "status": "pass",
+      "status_after_remarks": "remarks",
+      "stage_work_state": "ready",
+      "remarks_present": true
+    },
+    "email_send": {
+      "status": "pass",
+      "ok": true,
+      "skipped": false,
+      "provider": "yandex_smtp",
+      "to_domain": "yandex.ru"
+    },
+    "email_receive": {
+      "status": "pass",
+      "recipient_inbox_verified": true,
+      "attachment_docx_ok": true,
+      "imap_error": null,
+      "note": "Письмо и DOCX-вложение подтверждены в контрольном ящике IMAP."
+    },
+    "yadisk": {
+      "upload_ok": true,
+      "upload_skipped": false,
+      "upload_error": null,
+      "public_url_issued": true,
+      "public_download_verified": true,
+      "recipient_open_verified": true,
+      "publish_ok": true,
+      "publish_error": null,
+      "public_url_host": "disk.yandex.ru",
+      "public_meta_status": 200,
+      "public_file_name_ok": true,
+      "public_file_type": "file",
+      "public_download_api_status": 200,
+      "public_download_href_set": true,
+      "public_download_bin_status": 200,
+      "public_download_magic": "504b0304",
+      "downloaded_bytes": 37725,
+      "unpublished_after_check": true,
+      "status": "pass",
+      "note": "Публичная ссылка: meta+download DOCX (magic PK) без OAuth на контрольном файле; ссылка отозвана. URL не публикуется. Доказательство — тот же прогон 2026-10-27 (tools disk probe / acceptance).",
+      "evidence": "same_session_public_download_pk"
+    },
+    "appeals_not_auto": {
+      "status": "pass",
+      "note": "Согласование разбора не вызывает appeals_consent_* (отдельный этап 6)."
+    },
+    "autotests": {
+      "status": "pass",
+      "command": "pytest tests/unit/test_full_analysis_{draft,workflow,docx}.py",
+      "result": "16 passed"
+    }
+  },
+  "integrations": {
+    "yandex_mail_enabled": "true",
+    "yandex_disk_enabled": "true",
+    "yandex_postbox_enabled": "true",
+    "deepseek_key_set": true
+  },
+  "notes": [
+    "Yandex Foundation Models API key expired — ИИ через DeepSeek fallback (source=ai).",
+    "Прогон на обезличенном синтетическом деле ПС-ACCEPTANCE, не кликами admin UI на VPS.",
+    "Приём доп. документов / входящая почта — вне скоупа этого отчёта."
+  ]
+}
