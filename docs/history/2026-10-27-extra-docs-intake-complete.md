@@ -16,4 +16,8 @@
 
 ## Живой прогон
 
-Заполняется после merge/deploy (SHA, timer, пункты 1–7 ТЗ).
+См. `docs/acceptance/extra-docs-intake-live-2026-10-27.md`.
+
+- SHA: `8c162565` (VPS = main)
+- Timer `sfrfr-mail-inbound-docs.timer`: enabled, last success empty_inbox
+- Пункты 1–7 ТЗ: **all_ok=true** на тестовом деле
