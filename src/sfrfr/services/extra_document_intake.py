@@ -1,0 +1,288 @@
+"""Дополнительные документы на любом этапе воронки.
+
+Не сбрасывают оплату/согласования/этап 2. Привязка почты — только opaque-токен,
+не ФИО/имя файла/адрес отправителя.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import re
+import threading
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any  # noqa: TC003 — используется в публичных сигнатурах
+from urllib.parse import quote
+
+from sfrfr.core.config import get_settings
+
+CATEGORIES: list[dict[str, str]] = [
+    {"code": "children", "label": "Дети (свидетельство и др.)"},
+    {"code": "stazh", "label": "Стаж / архивная справка"},
+    {"code": "guardianship", "label": "Опекунство"},
+    {"code": "contract", "label": "Договор"},
+    {"code": "other", "label": "Другое"},
+    {"code": "unknown", "label": "Не знаю — уточнит специалист"},
+]
+
+_CATEGORY_CODES = {c["code"] for c in CATEGORIES}
+
+RECEIVED_CLIENT_MESSAGE = (
+    "Документ получен и добавлен в дело. Специалист проверит его и сообщит, "
+    "нужны ли уточнения. Повторно отправлять файл не нужно."
+)
+
+REJECTED_OR_FAILED_HINT = (
+    "Файл не сохранён или не прошёл проверку. Исправьте проблему и загрузите снова. "
+    "Пока специалист не проверил документ, он не считается принятым."
+)
+
+_TOKEN_RE = re.compile(r"\[?\s*SFRFR-DOC\s+([A-Za-z0-9_-]{8,64})\s*\]?", re.I)
+_LOCK = threading.Lock()
+
+
+def _now() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def category_to_doc_type(category: str | None) -> str:
+    code = (category or "unknown").strip().lower()
+    if code not in _CATEGORY_CODES:
+        code = "unknown"
+    return f"extra_{code}"
+
+
+def doc_type_is_extra(doc_type: str | None) -> bool:
+    return str(doc_type or "").strip().lower().startswith("extra_")
+
+
+def extra_upload_preserves_funnel(doc_type: str | None) -> bool:
+    """True: не возвращать дело на этап «Документы», не трогать оплату/согласования."""
+    return doc_type_is_extra(doc_type)
+
+
+def should_reset_funnel_on_extra_upload(doc_type: str | None) -> bool:
+    """Обратная к preserve (для тестов/читаемости)."""
+    return not extra_upload_preserves_funnel(doc_type)
+
+
+def staff_review_task_title(
+    *,
+    category: str | None = None,
+    may_affect_analysis: bool = False,
+) -> str:
+    base = "Проверить новый документ"
+    cat = (category or "").strip().lower()
+    if cat and cat in _CATEGORY_CODES and cat != "unknown":
+        label = next(c["label"] for c in CATEGORIES if c["code"] == cat)
+        base = f"{base}: {label}"
+    if may_affect_analysis:
+        base = f"{base} (может затронуть разбор)"
+    return base
+
+
+def _token_secret(explicit: str | None = None) -> str:
+    if explicit:
+        return explicit
+    settings = get_settings()
+    raw = (
+        getattr(settings, "document_mail_bind_secret", None)
+        or settings.yandex_oauth_access_token
+        or "dev-only-document-mail-bind"
+    )
+    return str(raw).strip() or "dev-only-document-mail-bind"
+
+
+def make_case_mail_token(case_id: str, *, secret: str | None = None) -> str:
+    """Непрозрачный токен привязки письма к делу (не UUID дела)."""
+    cid = (case_id or "").strip().lower()
+    digest = hmac.new(
+        _token_secret(secret).encode("utf-8"),
+        cid.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    # короткий, без сырого UUID
+    return digest[:20]
+
+
+def verify_case_mail_token(case_id: str, token: str, *, secret: str | None = None) -> bool:
+    expected = make_case_mail_token(case_id, secret=secret)
+    return hmac.compare_digest(expected, (token or "").strip())
+
+
+def extract_mail_token(subject: str | None) -> str | None:
+    m = _TOKEN_RE.search(subject or "")
+    return m.group(1) if m else None
+
+
+def bind_case_from_mail_subject(
+    subject: str | None,
+    *,
+    secret: str | None = None,
+    known_case_ids: list[str],
+    sender: str | None = None,  # намеренно не используем для привязки
+) -> str | None:
+    """Привязка только по opaque-токену. sender/ФИО игнорируются."""
+    _ = sender  # запрещено использовать как единственный признак
+    token = extract_mail_token(subject)
+    if not token:
+        return None
+    for cid in known_case_ids:
+        if verify_case_mail_token(str(cid), token, secret=secret):
+            return str(cid)
+    return None
+
+
+def build_mail_compose(
+    *,
+    case_id: str,
+    inbox: str,
+    secret: str | None = None,
+) -> dict[str, str]:
+    token = make_case_mail_token(case_id, secret=secret)
+    subject = f"Документы к делу [SFRFR-DOC {token}]"
+    body = (
+        "Здравствуйте!\n\n"
+        "Прикрепите файлы ответом на это письмо. "
+        "Не удаляйте код [SFRFR-DOC …] из темы — по нему письмо попадёт в ваше дело.\n\n"
+        "Специалист проверит документы и напишет, если нужны уточнения.\n"
+    )
+    to = (inbox or "").strip()
+    mailto = (
+        f"mailto:{quote(to, safe='@.+_-')}?subject={quote(subject)}&body={quote(body)}"
+    )
+    return {
+        "to": to,
+        "subject": subject,
+        "body": body,
+        "mailto": mailto,
+        "token_hint": "SFRFR-DOC (не сообщайте посторонним)",
+    }
+
+
+def notify_extra_document_received(
+    *,
+    repo: Any,
+    case_id: str,
+    document_id: str,
+    doc_type: str | None,
+    actor_id: str | None,
+    may_affect_analysis: bool = False,
+) -> dict[str, Any]:
+    """Задача сотруднику + audit. Не меняет pipeline/b2c/orders."""
+    if not doc_type_is_extra(doc_type):
+        return {"ok": False, "skipped": True, "reason": "not_extra"}
+    cat = str(doc_type or "").removeprefix("extra_") or "unknown"
+    title = staff_review_task_title(category=cat, may_affect_analysis=may_affect_analysis)
+    note = f"document_id={document_id}; source=upload; category={cat}"
+    try:
+        repo.upsert_checklist_item(
+            case_id,
+            title=title,
+            item_type="extra_document_review",
+            owner="expert",
+            actor_id=actor_id,
+            note=note,
+            sort_order=5,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        repo.audit(case_id, actor_id, f"extra_document_received:{document_id[:8]}")
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "ok": True,
+        "client_message": RECEIVED_CLIENT_MESSAGE,
+        "preserves_funnel": True,
+        "task_title": title,
+    }
+
+
+def default_unbound_root() -> Path:
+    root = Path(get_settings().storage_local_path).resolve()
+    parent = root.parent if root.name.lower() in {"uploads", "local"} else root
+    return parent / "mail_inbound_unbound"
+
+
+class UnboundMailQueue:
+    """Письма без однозначной привязки — не кладём в «похожее» дело."""
+
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = Path(root) if root is not None else default_unbound_root()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._index = self.root / "index.json"
+
+    def _load_index(self) -> dict[str, Any]:
+        if not self._index.is_file():
+            return {"by_message_id": {}, "items": []}
+        raw = json.loads(self._index.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return {"by_message_id": {}, "items": []}
+        return {
+            "by_message_id": dict(raw.get("by_message_id") or {}),
+            "items": list(raw.get("items") or []),
+        }
+
+    def _save_index(self, data: dict[str, Any]) -> None:
+        tmp = self._index.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        tmp.replace(self._index)
+
+    @staticmethod
+    def _norm_mid(message_id: str) -> str:
+        return (message_id or "").strip().lower()
+
+    def get_by_message_id(self, message_id: str) -> dict[str, Any] | None:
+        data = self._load_index()
+        mid = self._norm_mid(message_id)
+        item_id = data["by_message_id"].get(mid)
+        if not item_id:
+            return None
+        for it in data["items"]:
+            if isinstance(it, dict) and it.get("id") == item_id:
+                return dict(it)
+        return None
+
+    def enqueue(
+        self,
+        *,
+        message_id: str,
+        subject: str,
+        sender: str,
+        attachment_names: list[str],
+    ) -> dict[str, Any]:
+        with _LOCK:
+            existing = self.get_by_message_id(message_id)
+            if existing:
+                return {**existing, "deduped": True}
+            item = {
+                "id": str(uuid.uuid4()),
+                "status": "needs_binding",
+                "message_id": message_id,
+                "subject": (subject or "")[:300],
+                "sender": (sender or "")[:200],
+                "attachment_names": list(attachment_names or [])[:20],
+                "created_at": _now(),
+            }
+            data = self._load_index()
+            data["items"].append(item)
+            data["by_message_id"][self._norm_mid(message_id)] = item["id"]
+            self._save_index(data)
+            return dict(item)
+
+    def list_pending(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        data = self._load_index()
+        rows = [
+            dict(it)
+            for it in data["items"]
+            if isinstance(it, dict) and it.get("status") == "needs_binding"
+        ]
+        rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+        return rows[:limit]

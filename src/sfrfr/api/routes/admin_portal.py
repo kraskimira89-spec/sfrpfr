@@ -1577,6 +1577,57 @@ async def attach_full_analysis_client_revision(
     return {"ok": True, "version": ver, "document": doc}
 
 
+@router.get("/admin/cases/{case_id}/extra-documents")
+def list_extra_documents(
+    case_id: str,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Новые доп. документы дела: источник, дата, тип (для блока «Новые документы»)."""
+    from sfrfr.services.extra_document_intake import doc_type_is_extra
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    docs = list(repo.list_documents(case_id) or [])
+    rows: list[dict[str, Any]] = []
+    for d in docs:
+        if not isinstance(d, dict):
+            continue
+        if not doc_type_is_extra(str(d.get("doc_type") or "")):
+            continue
+        rows.append(
+            {
+                "id": d.get("id"),
+                "doc_type": d.get("doc_type"),
+                "storage_path": d.get("storage_path"),
+                "created_at": d.get("created_at"),
+                "upload_source": d.get("upload_source") or "cabinet",
+                "ingest_status": d.get("ingest_status"),
+            }
+        )
+    rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+    return {"ok": True, "documents": rows}
+
+
+@router.get("/admin/mail-inbound/unbound")
+def list_unbound_inbound_mail(
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Очередь писем «Требует привязки» (без автодобавления в дело)."""
+    from sfrfr.services.extra_document_intake import UnboundMailQueue
+
+    if principal.role not in (StaffRole.ADMIN, StaffRole.EXPERT, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="staff role required")
+    items = UnboundMailQueue().list_pending(limit=80)
+    return {
+        "ok": True,
+        "items": items,
+        "hint": (
+            "Письма без opaque-токена SFRFR-DOC. Привязка только вручную; "
+            "не кладём в дело по ФИО или адресу отправителя."
+        ),
+    }
+
+
 @router.patch("/admin/cases/{case_id}/flags")
 def update_case_flags(
     case_id: str,
