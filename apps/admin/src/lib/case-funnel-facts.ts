@@ -399,12 +399,24 @@ export function toFunnelFacts(
 
   // Этап 5: закрытие только после согласования актуальной версии клиентом.
   // Генерация / DOCX / отправка сами по себе этап не закрывают.
-  // Audit newest-first: full_analysis_approved:N > remarks/version/sent.
+  // Смотрим только события по max(version:N): approve v1 не закрывает этап при version:2.
   const faAudit = (detail.audit || []).filter((a) =>
     String(a.action || "").startsWith("full_analysis_"),
   );
   let analysisWork: WorkFacts = notStartedWork();
-  const latestFa = faAudit[0]?.action || "";
+  let maxFaVersion = 0;
+  for (const row of faAudit) {
+    const vm = String(row.action || "").match(/full_analysis_version:(\d+)/);
+    if (vm) maxFaVersion = Math.max(maxFaVersion, Number(vm[1]));
+  }
+  const faScope =
+    maxFaVersion > 0
+      ? faAudit.filter((row) => {
+          const m = String(row.action || "").match(/:(\d+)(?::|$)/);
+          return m != null && Number(m[1]) === maxFaVersion;
+        })
+      : faAudit;
+  const latestFa = faScope[0]?.action || "";
   if (/^full_analysis_approved(?::|$)/.test(latestFa)) {
     analysisWork = { state: "delivered", releaseReady: "yes" };
   } else if (

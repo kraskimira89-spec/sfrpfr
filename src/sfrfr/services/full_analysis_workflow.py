@@ -145,12 +145,21 @@ class FullAnalysisWorkflow:
         def _fn(v: dict[str, Any], _data: dict[str, Any]) -> None:
             if v.get("status") in {"approved", "superseded"}:
                 raise ValueError("version_locked")
-            v["markdown"] = (markdown or "").strip()
-            if v.get("status") == "sent":
-                # правка после отправки → снова черновик к проверке
+            new_md = (markdown or "").strip()
+            old_md = str(v.get("markdown") or "").strip()
+            v["markdown"] = new_md
+            if new_md != old_md and v.get("status") in {
+                "staff_reviewed",
+                "sent",
+                "remarks",
+            }:
+                # Правка текста снимает проверку/отправку/согласование этой редакции.
                 v["status"] = "draft"
                 v["sent_at"] = None
                 v["sent_via"] = None
+                v["reviewed_at"] = None
+                v["approved_at"] = None
+                v["delivery_error"] = None
 
         return self._mutate(case_id, version_id, _fn)
 
@@ -206,14 +215,19 @@ class FullAnalysisWorkflow:
         if dec not in {"approved", "remarks"}:
             raise ValueError("invalid_decision")
 
-        def _fn(v: dict[str, Any], _data: dict[str, Any]) -> None:
-            if v.get("status") not in {"sent", "remarks", "staff_reviewed"}:
-                raise ValueError("not_ready_for_decision")
+        def _fn(v: dict[str, Any], data: dict[str, Any]) -> None:
+            if v.get("status") == "superseded" or v.get("id") != data.get("current_id"):
+                raise ValueError("stale_or_superseded")
             if dec == "approved":
+                # Согласование только актуальной отправленной версии.
+                if v.get("status") != "sent":
+                    raise ValueError("not_sent")
                 v["status"] = "approved"
                 v["approved_at"] = _now()
                 v["remarks"] = None
             else:
+                if v.get("status") not in {"sent", "remarks"}:
+                    raise ValueError("not_ready_for_decision")
                 v["status"] = "remarks"
                 v["remarks"] = (remarks or "").strip() or "Замечания клиента"
                 v["remarks_at"] = _now()
@@ -229,15 +243,16 @@ class FullAnalysisWorkflow:
         document_id: str,
         note: str | None = None,
     ) -> dict[str, Any]:
-        def _fn(v: dict[str, Any], _data: dict[str, Any]) -> None:
+        def _fn(v: dict[str, Any], data: dict[str, Any]) -> None:
+            if v.get("status") == "superseded" or v.get("id") != data.get("current_id"):
+                raise ValueError("stale_or_superseded")
             v["client_revision_document_id"] = document_id
             v["client_revision_note"] = (note or "").strip() or None
-            if v.get("status") == "approved":
-                # новая правка клиента снимает согласование
-                v["status"] = "remarks"
-                v["approved_at"] = None
-                v["remarks"] = v.get("remarks") or "Клиент прислал свою версию"
-                v["remarks_at"] = _now()
+            # Файл клиента — материал для проверки, не автосогласование.
+            v["status"] = "remarks"
+            v["approved_at"] = None
+            v["remarks"] = v.get("remarks") or "Клиент прислал свою версию"
+            v["remarks_at"] = _now()
 
         return self._mutate(case_id, version_id, _fn)
 

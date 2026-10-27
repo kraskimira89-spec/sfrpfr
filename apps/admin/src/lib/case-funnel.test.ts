@@ -415,6 +415,26 @@ test("toFunnelFacts: новая версия после замечаний сн�
   assert.equal(facts.analysis.work.state, "working");
 });
 
+test("toFunnelFacts: устаревший approve v1 не закрывает этап при version:2", () => {
+  const facts = toFunnelFacts({
+    pipeline_status: "human_review",
+    b2c_status: "lead",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [{ package_code: "DIAG", amount_rub: 3000, status: "paid" }],
+    ordersLoaded: true,
+    audit: [
+      { action: "full_analysis_approved:1" },
+      { action: "full_analysis_version:2" },
+      { action: "full_analysis_sent:1:email" },
+      { action: "full_analysis_version:1" },
+    ],
+  });
+  assert.notEqual(facts.analysis.work.state, "delivered");
+  assert.equal(facts.analysis.work.state, "working");
+});
+
 test("toFunnelFacts: additional response none", () => {
   const facts = toFunnelFacts(
     {
