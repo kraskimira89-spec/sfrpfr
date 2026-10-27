@@ -740,6 +740,47 @@ test("stage10: next_action_at → followUp.dueAt; handoff → completed + respon
   assert.notEqual(resp?.status, "blocked");
 });
 
+test("stage11: handoff ≠ reviewed; reviews status drives response", () => {
+  const handoffOnly = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    audit: [
+      { action: "follow_up_response_handoff" },
+      { action: "submission_confirmed" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(handoffOnly.facts.response, "received");
+
+  const reviewing = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    response_reviews: [{ id: "r1", status: "reviewing" }],
+    audit: [
+      { action: "response_review_registered" },
+      { action: "follow_up_response_handoff" },
+      { action: "submission_confirmed" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(reviewing.facts.response, "reviewing");
+
+  const reviewed = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    response_reviews: [{ id: "r1", status: "reviewed", outcome: "wait_client" }],
+    audit: [
+      { action: "response_review_outcome:wait_client" },
+      { action: "response_review_reviewed" },
+      { action: "submission_confirmed" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(reviewed.facts.response, "reviewed");
+  const stage = reviewed.funnel.stages.find((s) => s.id === "response_review");
+  assert.equal(stage?.status, "done");
+});
+
 test("stage9: receipt_verified ≠ путать с confirmed без report", () => {
   const funnel = deriveFunnel({
     ...stage78Base,

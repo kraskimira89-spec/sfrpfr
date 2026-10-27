@@ -96,6 +96,20 @@ export type CaseFunnelDetailInput = {
     reason?: string | null;
     actor_id?: string | null;
   }[];
+  /** Ступень 11: разборы ответов СФР (новые сверху). */
+  response_reviews?: {
+    id?: string;
+    status?: string | null;
+    outcome?: string | null;
+    document_id?: string | null;
+    completeness?: string | null;
+    created_at?: string | null;
+  }[];
+  response_review?: {
+    id?: string;
+    status?: string | null;
+    outcome?: string | null;
+  } | null;
   expert_user_id?: string | null;
   /** Сообщения чата дела — чтобы понять, ушло ли краткое резюме клиенту. */
   chat_messages?: { author_kind?: string; body?: string }[];
@@ -557,8 +571,26 @@ export function toFunnelFacts(
   let response: FunnelFacts["response"] = "unknown";
   if (extra.response !== undefined) {
     response = extra.response;
-  } else if (responseHandoff) {
-    response = "received";
+  } else {
+    const reviews = detail.response_reviews || [];
+    const latest = reviews[0] || detail.response_review || null;
+    const st = String(latest?.status || "").toLowerCase();
+    const hasOutcomeAudit = subActions.some((a) =>
+      a.startsWith("response_review_outcome:"),
+    );
+    const registered = subActions.some((a) =>
+      a.startsWith("response_review_registered"),
+    );
+    if (st === "reviewed" || hasOutcomeAudit) {
+      response = "reviewed";
+    } else if (st === "reviewing" || subActions.some((a) => a.startsWith("response_review_ai_draft"))) {
+      response = "reviewing";
+    } else if (st === "received" || registered || responseHandoff) {
+      // Передача из ступени 10 / регистрация файла ≠ разбор выполнен.
+      response = "received";
+    } else if (submission === "confirmed" || followCompleted) {
+      response = "none";
+    }
   }
 
   let escalationNeed: FunnelFacts["escalation"]["need"] = "unknown";

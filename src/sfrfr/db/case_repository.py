@@ -2101,3 +2101,65 @@ class CaseRepository:
             return found
         raise RuntimeError("case_follow_up_events insert returned no row")
 
+    def get_response_review_by_idempotency(
+        self, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        return self._one_or_none(
+            self.client.table("case_response_reviews")
+            .select("*")
+            .eq("idempotency_key", idempotency_key)
+            .limit(1)
+            .execute()
+        )
+
+    def get_response_review(self, review_id: str) -> dict[str, Any] | None:
+        return self._one_or_none(
+            self.client.table("case_response_reviews")
+            .select("*")
+            .eq("id", review_id)
+            .limit(1)
+            .execute()
+        )
+
+    def list_response_reviews(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("case_response_reviews")
+            .select("*")
+            .eq("case_id", case_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+    def insert_response_review(self, row: dict[str, Any]) -> dict[str, Any]:
+        existing = self.get_response_review_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if existing:
+            return existing
+        data = (
+            self.client.table("case_response_reviews").insert(row).execute().data or []
+        )
+        if data:
+            return data[0]
+        found = self.get_response_review_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if found:
+            return found
+        raise RuntimeError("case_response_reviews insert returned no row")
+
+    def update_response_review(
+        self, review_id: str, patch: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        data = (
+            self.client.table("case_response_reviews")
+            .update(patch)
+            .eq("id", review_id)
+            .execute()
+            .data
+            or []
+        )
+        return data[0] if data else self.get_response_review(review_id)
+

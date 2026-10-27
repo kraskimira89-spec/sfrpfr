@@ -986,6 +986,17 @@ def admin_get_case(
     except Exception:  # noqa: BLE001
         payload["follow_up_events"] = []
     try:
+        from sfrfr.services.response_review import serialize_review
+
+        reviews = repo.list_response_reviews(case_id)
+        payload["response_reviews"] = [serialize_review(r) for r in reviews]
+        payload["response_review"] = (
+            serialize_review(reviews[0]) if reviews else None
+        )
+    except Exception:  # noqa: BLE001
+        payload["response_reviews"] = []
+        payload["response_review"] = None
+    try:
         from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
 
         payload["full_analysis"] = FullAnalysisWorkflow().get_state(case_id)
@@ -3135,6 +3146,273 @@ def record_follow_up_control_action(
             case_row=case,
         )
     except FollowUpControlError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/register")
+def register_sfr_response_review(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Ступень 11: зарегистрировать файл ответа СФР (не = разбор выполнен)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import register_response_review
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    try:
+        return register_response_review(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            payload=dict(payload or {}),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/ai-draft")
+def response_review_ai_draft(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Кнопка «Разобрать ответ СФР с ИИ» — черновик без автоотправки."""
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import generate_and_store_ai_draft
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    body = payload if isinstance(payload, dict) else {}
+    try:
+        return generate_and_store_ai_draft(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            review_id=review_id,
+            response_text=body.get("response_text"),
+            package_summary=body.get("package_summary"),
+            prior_analysis=body.get("prior_analysis"),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/admin/cases/{case_id}/response-review/{review_id}")
+def update_response_review_draft(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import save_staff_draft
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    try:
+        return save_staff_draft(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            review_id=review_id,
+            staff_draft_md=str((payload or {}).get("staff_draft_md") or ""),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/review")
+def mark_response_review_checked(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import mark_reviewed
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    body = payload if isinstance(payload, dict) else {}
+    try:
+        return mark_reviewed(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            review_id=review_id,
+            staff_draft_md=body.get("staff_draft_md"),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/admin/cases/{case_id}/response-review/{review_id}/docx")
+def download_response_review_docx(
+    case_id: str,
+    review_id: str,
+    principal: Principal = Depends(require_staff),
+) -> Any:
+    from fastapi.responses import Response
+
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_actions import build_response_review_docx
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    review = repo.get_response_review(review_id)
+    if not review or str(review.get("case_id")) != str(case.get("id") or case_id):
+        raise HTTPException(status_code=404, detail="review not found")
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    try:
+        data = build_response_review_docx(case_ref=case_ref, review=review)
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repo.audit(case_id, principal.audit_actor_id(), "response_review_docx")
+    filename = f"otvet-sfr-{case_ref[:24]}.docx".replace(" ", "_")
+    return Response(
+        content=data,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/send-email")
+def send_response_review_email_route(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_actions import send_response_review_email
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    review = repo.get_response_review(review_id)
+    if not review or str(review.get("case_id")) != str(case.get("id") or case_id):
+        raise HTTPException(status_code=404, detail="review not found")
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    body = dict(payload or {})
+    try:
+        return send_response_review_email(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            case_ref=case_ref,
+            review=review,
+            actor_id=principal.audit_actor_id(),
+            to=str(body.get("to") or ""),
+            subject=body.get("subject"),
+            body=body.get("body"),
+            confirm=bool(body.get("confirm")),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/send-yadisk")
+def send_response_review_yadisk_route(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Только эксперт или админ")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_actions import send_response_review_yadisk
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    review = repo.get_response_review(review_id)
+    if not review or str(review.get("case_id")) != str(case.get("id") or case_id):
+        raise HTTPException(status_code=404, detail="review not found")
+    case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
+    body = payload if isinstance(payload, dict) else {}
+    try:
+        return send_response_review_yadisk(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            case_ref=case_ref,
+            review=review,
+            actor_id=principal.audit_actor_id(),
+            confirm=bool(body.get("confirm")),
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/outcome")
+def set_response_review_outcome(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Выбор пути после разбора. Не создаёт счёт 8 000 ₽."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import set_outcome
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    try:
+        return set_outcome(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            review_id=review_id,
+            outcome=str((payload or {}).get("outcome") or ""),
+            case_row=case,
+        )
+    except ResponseReviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/response-review/{review_id}/set-deadline-control")
+def set_response_deadline_control(
+    case_id: str,
+    review_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Цитата срока из ответа → контроль через next_action_at (ступень 10)."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.services.follow_up_control import FollowUpControlError
+    from sfrfr.services.response_review import ResponseReviewError
+    from sfrfr.services.response_review_record import apply_deadline_to_control
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    control_at = str((payload or {}).get("control_at") or "").strip()
+    if not control_at:
+        raise HTTPException(status_code=400, detail="control_at is required")
+    try:
+        return apply_deadline_to_control(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            review_id=review_id,
+            control_at=control_at,
+            case_row=case,
+        )
+    except (ResponseReviewError, FollowUpControlError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
