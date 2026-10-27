@@ -543,6 +543,92 @@ test("stage6: full_analysis_approved + appeals_consent_accepted → appeals_cons
   assert.equal(stage?.status, "done");
 });
 
+const stage78Base = {
+  pipeline_status: "human_review",
+  b2c_status: "in_progress",
+  consent_accepted: true,
+  client: { max_linked: true },
+  documents: [],
+  ordersLoaded: true as const,
+  audit: [
+    { action: "appeals_consent_accepted" },
+    { action: "full_analysis_approved:1" },
+    { action: "full_analysis_version:1" },
+  ],
+};
+
+test("stage7: согласие без счёта → appeals_payment not_started", () => {
+  const funnel = deriveFunnel({ ...stage78Base, orders: [] });
+  const pay = funnel.funnel.stages.find((s) => s.id === "appeals_payment");
+  assert.equal(pay?.status, "not_started");
+});
+
+test("stage7: ACCOMP 5000 pending → appeals_payment waiting", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "pending" }],
+  });
+  const pay = funnel.funnel.stages.find((s) => s.id === "appeals_payment");
+  assert.equal(pay?.status, "waiting");
+  assert.equal(funnel.facts.appeals.order.state, "pending");
+});
+
+test("stage7: ACCOMP 5000 paid → appeals_payment done, entitlement granted", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+  });
+  const pay = funnel.funnel.stages.find((s) => s.id === "appeals_payment");
+  assert.equal(pay?.status, "done");
+  assert.equal(funnel.facts.appeals.order.entitlement, "granted");
+  const docs = funnel.funnel.stages.find((s) => s.id === "appeals_documents");
+  assert.notEqual(docs?.status, "blocked");
+});
+
+test("stage8: draft без ready → working / in_progress", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст проекта" },
+  });
+  assert.equal(funnel.facts.appeals.work.state, "working");
+  assert.equal(funnel.facts.appeals.work.releaseReady, "no");
+  const docs = funnel.funnel.stages.find((s) => s.id === "appeals_documents");
+  assert.equal(docs?.status, "in_progress");
+});
+
+test("stage8: appeals_package_ready → ready к передаче", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    audit: [
+      { action: "appeals_package_ready" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.appeals.work.state, "ready");
+  assert.equal(funnel.facts.appeals.work.releaseReady, "yes");
+  const docs = funnel.funnel.stages.find((s) => s.id === "appeals_documents");
+  assert.equal(docs?.status, "needs_action");
+});
+
+test("stage8: appeals_package_delivered → done", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    audit: [
+      { action: "appeals_package_delivered" },
+      { action: "appeals_package_ready" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.appeals.work.state, "delivered");
+  const docs = funnel.funnel.stages.find((s) => s.id === "appeals_documents");
+  assert.equal(docs?.status, "done");
+});
+
 test("deriveFunnel kit + 13 stages", () => {
   const funnel = deriveFunnel({
     pipeline_status: "documents_received",
