@@ -238,14 +238,6 @@ const KIND_LABEL: Record<StepChatMessage["kind"], string> = {
   cabinet_howto: "Как передать документы",
 };
 
-function NotWiredNote({ label }: { label: string }) {
-  return (
-    <p className="hint">
-      {label}: функция ещё не подключена. Карточка для навигации; действий здесь пока нет.
-    </p>
-  );
-}
-
 function labelFindingType(type: string | undefined): string {
   const t = (type || "").trim();
   const map: Record<string, string> = {
@@ -342,6 +334,7 @@ export function CaseFunnelMain({
   onRecordServiceConsent,
   onRecordAppealsConsent,
   onRecordAppealsPackage,
+  onRecordSubmission,
   onFeedbackText,
   onFeedbackQuality,
   onSendFeedback,
@@ -444,6 +437,7 @@ export function CaseFunnelMain({
   onRecordServiceConsent: () => void;
   onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
   onRecordAppealsPackage?: (decision: "ready" | "delivered") => void;
+  onRecordSubmission?: (decision: "confirmed" | "help_requested") => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -1774,10 +1768,39 @@ export function CaseFunnelMain({
           onToggle={() => toggleStage("submission")}
         >
           <p className="hint">
-            Выбор способа ≠ подача. Подтверждение подачи в API отсутствует — «не подтверждено».
-            Сотрудник не отмечает подачу автоматически по передаче пакета.
+            Передача пакета ≠ подача в СФР. Мы готовим документы и план — подаёте через СФР,
+            МФЦ или Госуслуги вы сами. Решение о пенсии принимает только СФР.
           </p>
-          <NotWiredNote label="Подтверждение подачи и адресат" />
+          {onRecordSubmission ? (
+            <div className="row-actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={
+                  busy ||
+                  funnel.facts.appeals.work.state !== "delivered" ||
+                  funnel.facts.submission === "confirmed"
+                }
+                onClick={() => onRecordSubmission("confirmed")}
+                title="Клиент сообщил, что сам подал обращение"
+              >
+                Клиент подал сам
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  busy ||
+                  funnel.facts.appeals.work.state !== "delivered" ||
+                  funnel.facts.submission === "confirmed"
+                }
+                onClick={() => onRecordSubmission("help_requested")}
+                title="Клиент просит помощь специалиста до отправки"
+              >
+                Нужна помощь с подачей
+              </button>
+            </div>
+          ) : null}
           <div className="row-actions">
             <button
               type="button"
@@ -1792,6 +1815,9 @@ export function CaseFunnelMain({
               Спросить: сам / нужен звонок
             </button>
           </div>
+          {funnel.facts.appeals.work.state !== "delivered" ? (
+            <p className="hint">Сначала зафиксируйте передачу пакета клиенту (ступень 8).</p>
+          ) : null}
         </StageShell>
 
         <StageShell

@@ -331,7 +331,7 @@ test("toFunnelFacts: b2c не превращает в paid", () => {
     ordersLoaded: true,
   });
   assert.equal(facts.analysis.order.state, "not_ordered");
-  assert.equal(facts.submission, "unknown");
+  assert.equal(facts.submission, "not_started");
   assert.equal(facts.response, "unknown");
 });
 
@@ -627,6 +627,56 @@ test("stage8: appeals_package_delivered → done", () => {
   assert.equal(funnel.facts.appeals.work.state, "delivered");
   const docs = funnel.funnel.stages.find((s) => s.id === "appeals_documents");
   assert.equal(docs?.status, "done");
+});
+
+test("stage9: переданный пакет ≠ confirmed (ожидаем клиента)", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    audit: [
+      { action: "appeals_package_delivered" },
+      { action: "appeals_package_ready" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.submission, "awaiting_client");
+  const sub = funnel.funnel.stages.find((s) => s.id === "submission");
+  assert.equal(sub?.status, "waiting");
+  assert.notEqual(sub?.status, "done");
+});
+
+test("stage9: submission_confirmed → done", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    audit: [
+      { action: "submission_confirmed" },
+      { action: "appeals_package_delivered" },
+      { action: "appeals_package_ready" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.submission, "confirmed");
+  const sub = funnel.funnel.stages.find((s) => s.id === "submission");
+  assert.equal(sub?.status, "done");
+});
+
+test("stage9: submission_help_requested → needs_action", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    audit: [
+      { action: "submission_help_requested" },
+      { action: "appeals_package_delivered" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.submission, "help_requested");
+  const sub = funnel.funnel.stages.find((s) => s.id === "submission");
+  assert.equal(sub?.status, "needs_action");
 });
 
 test("deriveFunnel kit + 13 stages", () => {

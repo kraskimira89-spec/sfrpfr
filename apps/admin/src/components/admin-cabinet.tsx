@@ -1321,6 +1321,29 @@ export function AdminCabinet() {
     }
   }
 
+  async function recordSubmission(decision: "confirmed" | "help_requested") {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/submission`, token, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      });
+      setNotice(
+        decision === "confirmed"
+          ? "Подача клиентом зафиксирована (не равна передаче пакета)."
+          : "Запрос помощи с подачей зафиксирован.",
+      );
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось зафиксировать статус подачи.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestDocsFor(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -2524,6 +2547,7 @@ export function AdminCabinet() {
             onRecordServiceConsent={() => void recordServiceConsent()}
             onRecordAppealsConsent={(d) => void recordAppealsConsent(d)}
             onRecordAppealsPackage={(d) => void recordAppealsPackage(d)}
+            onRecordSubmission={(d) => void recordSubmission(d)}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}
             onSendFeedback={(e) => void sendFeedback(e)}

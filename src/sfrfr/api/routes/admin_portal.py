@@ -3057,6 +3057,32 @@ def record_appeals_package(
     return {"ok": True, "action": action, "decision": decision}
 
 
+@router.post("/admin/cases/{case_id}/submission")
+def record_submission(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Этап 9: клиент подтвердил самоподачу или просит помощь специалиста.
+
+    Передача пакета (этап 8) сюда не мапится. Подачу делает клиент; решение — СФР.
+    """
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    decision = str(payload.get("decision") or "").strip().lower()
+    action_by = {
+        "confirmed": "submission_confirmed",
+        "help_requested": "submission_help_requested",
+    }
+    action = action_by.get(decision)
+    if not action:
+        raise HTTPException(status_code=400, detail="decision must be confirmed|help_requested")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    repo.audit(case_id, principal.audit_actor_id(), action)
+    return {"ok": True, "action": action, "decision": decision}
+
+
 @router.post("/admin/cases/{case_id}/facts-review")
 def record_facts_review(
     case_id: str,
