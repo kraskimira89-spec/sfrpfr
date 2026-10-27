@@ -1,4 +1,4 @@
-"""Ступень 11: разбор ответа СФР (валидация + AI-черновик)."""
+"""Ступень 11: разбор входящих ответов (СФР и другие органы)."""
 
 from __future__ import annotations
 
@@ -16,6 +16,26 @@ SOURCES = frozenset({"cabinet", "chat", "mail", "staff"})
 COMPLETENESS = frozenset({"all_pages", "need_more_pages", "unknown"})
 STATUSES = frozenset({"received", "reviewing", "reviewed"})
 OUTCOMES = frozenset({"need_docs", "offer_escalation", "close", "wait_client"})
+RESPONDENTS = frozenset({"sfr", "employer", "archive", "court", "mfc", "other"})
+RESPONSE_KINDS = frozenset(
+    {"decision", "request_docs", "clarification", "refusal", "other"}
+)
+
+INCOMING_DOC_MARKERS = (
+    "sfr_decision",
+    "sfr_response",
+    "sfr_refusal",
+    "agency_response",
+)
+
+RESPONDENT_LABELS = {
+    "sfr": "СФР",
+    "employer": "Работодатель",
+    "archive": "Архив",
+    "court": "Суд",
+    "mfc": "МФЦ",
+    "other": "Иное ведомство",
+}
 
 _POSITION = (
     "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
@@ -23,23 +43,29 @@ _POSITION = (
 )
 
 SYSTEM = """Ты помощник сотрудника сервиса проверки стажа.
-Готовишь проект РАЗБОРА ответа СФР для проверки специалистом.
+Готовишь проект РАЗБОРА входящего ответа органа (СФР или иное) для проверки специалистом.
 
 Правила:
-- опирайся только на текст ответа СФР и известный пакет обращений;
+- опирайся только на текст ответа и известный пакет обращений;
 - не выдумывай решения, суммы, перерасчёт, номера дел;
 - если документ нечитаемый или неполный — напиши, что нужно уточнение, а не уверенный вывод;
 - каждый существенный вывод снабжай пометкой источника (страница/пункт/цитата), если есть;
 - структура Markdown:
-  ## Что сообщил СФР
+  ## Что сообщил орган
   ## Какие вопросы рассмотрены
   ## Что подтверждено (с источником)
   ## Что осталось неясным
   ## Следующее действие
   ## Срок из ответа (если есть точная цитата; иначе «в ответе срок не указан»)
-- в конце позиция сервиса (подаёт клиент, решение — СФР)
-- тон спокойный, без обещаний выплаты.
+- тон спокойный, без обещаний выплаты; положительный ответ ≠ фактическая выплата.
 """
+
+
+def is_incoming_response_doc(doc: dict[str, Any] | None) -> bool:
+    if not doc:
+        return False
+    blob = f"{doc.get('doc_type') or ''} {doc.get('storage_path') or ''}".lower()
+    return any(m in blob for m in INCOMING_DOC_MARKERS)
 
 
 class ResponseReviewError(ValueError):
@@ -78,6 +104,16 @@ def validate_register_payload(payload: dict[str, Any]) -> dict[str, Any]:
     submission_report_id = (
         str(payload.get("submission_report_id") or "").strip() or None
     )
+    respondent = str(payload.get("respondent") or "sfr").strip().lower() or "sfr"
+    if respondent not in RESPONDENTS:
+        raise ResponseReviewError(
+            "respondent must be sfr|employer|archive|court|mfc|other"
+        )
+    kind_raw = str(payload.get("response_kind") or "decision").strip().lower() or "decision"
+    if kind_raw not in RESPONSE_KINDS:
+        raise ResponseReviewError(
+            "response_kind must be decision|request_docs|clarification|refusal|other"
+        )
     return {
         "document_id": doc_id,
         "submission_report_id": submission_report_id,
@@ -87,6 +123,8 @@ def validate_register_payload(payload: dict[str, Any]) -> dict[str, Any]:
         or datetime.now(UTC).isoformat(),
         "source": source,
         "completeness": completeness,
+        "respondent": respondent,
+        "response_kind": kind_raw,
         "deadline_quote": (str(payload.get("deadline_quote") or "").strip()[:2000] or None),
         "deadline_quote_source": (
             str(payload.get("deadline_quote_source") or "").strip()[:400] or None
@@ -125,6 +163,8 @@ def build_review_row(
         "received_at": validated.get("received_at"),
         "source": validated.get("source"),
         "completeness": validated.get("completeness") or "unknown",
+        "respondent": validated.get("respondent") or "sfr",
+        "response_kind": validated.get("response_kind") or "decision",
         "status": status if status in STATUSES else "received",
         "deadline_quote": validated.get("deadline_quote"),
         "deadline_quote_source": validated.get("deadline_quote_source"),
@@ -134,6 +174,7 @@ def build_review_row(
 
 
 def serialize_review(row: dict[str, Any]) -> dict[str, Any]:
+    respondent = str(row.get("respondent") or "sfr")
     return {
         "id": str(row.get("id") or ""),
         "case_id": str(row.get("case_id") or ""),
@@ -146,6 +187,9 @@ def serialize_review(row: dict[str, Any]) -> dict[str, Any]:
         "received_at": row.get("received_at"),
         "source": row.get("source"),
         "completeness": row.get("completeness"),
+        "respondent": respondent,
+        "respondent_label": RESPONDENT_LABELS.get(respondent, respondent),
+        "response_kind": row.get("response_kind") or "decision",
         "status": row.get("status"),
         "deadline_quote": row.get("deadline_quote"),
         "deadline_quote_source": row.get("deadline_quote_source"),
@@ -160,7 +204,8 @@ def serialize_review(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _template_draft(*, incomplete: bool) -> str:
+def _template_draft(*, incomplete: bool, respondent: str = "sfr") -> str:
+    organ = RESPONDENT_LABELS.get(respondent, "орган")
     unclear = (
         "Документ отмечен как неполный / нечитаемый — запросите дополнительные страницы "
         "или более качественную копию. Уверенный разбор не сформирован."
@@ -168,7 +213,7 @@ def _template_draft(*, incomplete: bool) -> str:
         else "Недостаточно данных для уверенных выводов — проверьте текст ответа."
     )
     return (
-        "## Что сообщил СФР\n"
+        f"## Что сообщил орган ({organ})\n"
         "Требуется проверка специалистом по исходному файлу.\n\n"
         "## Какие вопросы рассмотрены\n"
         "—\n\n"
@@ -179,7 +224,7 @@ def _template_draft(*, incomplete: bool) -> str:
         "Проверить ответ вручную и при необходимости запросить уточнение у клиента.\n\n"
         "## Срок из ответа\n"
         "в ответе срок не указан (или не извлечён автоматически)\n\n"
-        f"{_POSITION}\n"
+        f"—\n{_POSITION}\n"
     )
 
 
@@ -190,10 +235,11 @@ def generate_response_review_draft(
     package_summary: str | None,
     prior_analysis: str | None,
     completeness: str = "unknown",
+    respondent: str = "sfr",
     llm: _LLM | Literal["auto"] | None = "auto",
 ) -> dict[str, Any]:
     incomplete = completeness == "need_more_pages" or not (response_text or "").strip()
-    template = _template_draft(incomplete=incomplete)
+    template = _template_draft(incomplete=incomplete, respondent=respondent)
     if incomplete and completeness == "need_more_pages":
         return {"text": template, "source": "template", "reason": "incomplete_document"}
 
@@ -208,12 +254,14 @@ def generate_response_review_draft(
     if client is None or not getattr(client, "available", False):
         return {"text": template, "source": "template", "reason": "llm_unavailable"}
 
+    organ = RESPONDENT_LABELS.get(respondent, respondent)
     user = (
-        f"Дело (без ПДн): {redact_for_llm(case_ref)}\n\n"
+        f"Дело (без ПДн): {redact_for_llm(case_ref)}\n"
+        f"Орган: {organ}\n\n"
         f"Поданный пакет (кратко):\n{redact_for_llm(package_summary or '—')[:3000]}\n\n"
         f"Предыдущий подробный разбор (фрагмент):\n"
         f"{redact_for_llm(prior_analysis or '—')[:4000]}\n\n"
-        f"Текст / OCR ответа СФР:\n{redact_for_llm(response_text or '—')[:8000]}\n\n"
+        f"Текст / OCR входящего ответа:\n{redact_for_llm(response_text or '—')[:8000]}\n\n"
         "Составь проект разбора по правилам system."
     )
     try:
@@ -225,9 +273,6 @@ def generate_response_review_draft(
     text = re.sub(r"\n{3,}", "\n\n", str(raw or "").strip())
     if not text or len(text) < 80:
         return {"text": template, "source": "template", "reason": "llm_empty"}
-    lower = text.lower()
-    if "решение принимает сфр" not in lower and "подаёте через сфр" not in lower:
-        text = f"{text.rstrip()}\n\n{_POSITION}"
     return {
         "text": text,
         "source": "ai",

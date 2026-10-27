@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react";
 import type { FollowUpControlPayload } from "@/components/follow-up-stage-panel";
 import type { SubmissionReportView } from "@/components/submission-stage-panel";
+import {
+  incomingDocLabel,
+  type IncomingResponseDoc,
+} from "@/lib/incoming-response-docs";
 
 export type ResponseReviewView = {
   id?: string;
@@ -13,6 +17,9 @@ export type ResponseReviewView = {
   received_at?: string | null;
   source?: string | null;
   completeness?: string | null;
+  respondent?: string | null;
+  respondent_label?: string | null;
+  response_kind?: string | null;
   status?: string | null;
   deadline_quote?: string | null;
   deadline_quote_source?: string | null;
@@ -27,14 +34,7 @@ export type ResponseReviewView = {
   created_at?: string | null;
 };
 
-export type SfrResponseDoc = {
-  id: string;
-  filename?: string | null;
-  storage_path?: string | null;
-  doc_type?: string | null;
-  created_at?: string | null;
-  inner_date?: string | null;
-};
+export type SfrResponseDoc = IncomingResponseDoc;
 
 export type AmountsChronologyRow = {
   date?: string | null;
@@ -42,28 +42,25 @@ export type AmountsChronologyRow = {
   note?: string;
 };
 
-function sfrDocLabel(d: SfrResponseDoc): string {
-  const fromPath = (d.storage_path || "").split("/").pop() || "";
-  return (d.filename || "").trim() || fromPath || d.doc_type || d.id.slice(0, 8);
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  cabinet: "Кабинет СФР",
-  chat: "Чат",
-  mail: "Почта",
-  staff: "Сотрудник",
+export type IncomingUploadOpts = {
+  doc_type: "sfr_decision" | "agency_response";
+  respondent: string;
+  submission_report_id?: string;
 };
 
-const COMPLETENESS_LABELS: Record<string, string> = {
-  all_pages: "Все страницы получены",
-  need_more_pages: "Нужны дополнительные страницы",
-  unknown: "Полнота не проверена",
-};
+const RESPONDENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "sfr", label: "СФР" },
+  { value: "employer", label: "Работодатель" },
+  { value: "archive", label: "Архив" },
+  { value: "court", label: "Суд" },
+  { value: "mfc", label: "МФЦ" },
+  { value: "other", label: "Иное" },
+];
 
 const STATUS_LABELS: Record<string, string> = {
-  received: "Получен (ещё не разобран)",
-  reviewing: "Идёт разбор",
-  reviewed: "Разбор проверен сотрудником",
+  received: "получен",
+  reviewing: "разбирается",
+  reviewed: "проверен",
 };
 
 const OUTCOME_LABELS: Record<string, string> = {
@@ -71,6 +68,17 @@ const OUTCOME_LABELS: Record<string, string> = {
   offer_escalation: "Предложить доп. обращения (ступень 12)",
   close: "Передать на завершение (ступень 13)",
   wait_client: "Клиент пока не решил",
+};
+
+type MatrixRow = {
+  key: string;
+  submissionId: string | null;
+  submissionLabel: string;
+  review: ResponseReviewView | null;
+  file: SfrResponseDoc | null;
+  fileLabel: string;
+  organ: string;
+  status: string;
 };
 
 type Props = {
@@ -81,16 +89,16 @@ type Props = {
   clientEmail?: string | null;
   reviews: ResponseReviewView[];
   submissionReports: SubmissionReportView[];
-  /** Загруженные ответы СФР (может быть несколько) — показываем имена файлов. */
   sfrDocuments: SfrResponseDoc[];
   clientReportedWithoutDoc?: boolean;
   canEdit: boolean;
   onReload: () => Promise<void> | void;
+  onUploadIncoming?: (file: File, opts: IncomingUploadOpts) => void | Promise<void>;
+  /** @deprecated use onUploadIncoming */
   onUploadSfr?: (file: File) => void;
   onApplyChat: (text: string) => void;
   onFollowUpControl?: (payload: FollowUpControlPayload) => Promise<void> | void;
   onOpenDoc?: (docId: string) => void;
-  /** ИИ заполнил суммы — подставить в поля ступени (сотрудник подтверждает отдельно). */
   onAmountsExtracted?: (amounts: {
     beforeRub: string;
     afterRub: string;
@@ -120,6 +128,80 @@ async function apiJson<T>(
   return data;
 }
 
+function submissionLabel(r: SubmissionReportView | null | undefined): string {
+  if (!r) return "(без привязки к подаче)";
+  const bits = [
+    (r.submitted_on || "").toString().slice(0, 10),
+    r.method || "",
+    (r.submitted_what || "").toString().slice(0, 40),
+  ].filter(Boolean);
+  return bits.join(" · ") || (r.id || "").slice(0, 8) || "подача";
+}
+
+function buildMatrix(
+  reports: SubmissionReportView[],
+  reviews: ResponseReviewView[],
+  docs: SfrResponseDoc[],
+): MatrixRow[] {
+  const byDoc = new Map(docs.map((d) => [d.id, d]));
+  const reviewDocIds = new Set(
+    reviews.map((r) => r.document_id).filter(Boolean) as string[],
+  );
+  const rows: MatrixRow[] = [];
+
+  for (const rev of reviews) {
+    const sub = reports.find((r) => r.id === rev.submission_report_id) || null;
+    const file = rev.document_id ? byDoc.get(rev.document_id) || null : null;
+    rows.push({
+      key: `rev:${rev.id}`,
+      submissionId: rev.submission_report_id || null,
+      submissionLabel: submissionLabel(sub),
+      review: rev,
+      file,
+      fileLabel: file
+        ? incomingDocLabel(file)
+        : (rev.document_id || "").slice(0, 8) || "—",
+      organ: rev.respondent_label || rev.respondent || "СФР",
+      status: STATUS_LABELS[rev.status || ""] || rev.status || "—",
+    });
+  }
+
+  for (const doc of docs) {
+    if (reviewDocIds.has(doc.id)) continue;
+    rows.push({
+      key: `doc:${doc.id}`,
+      submissionId: null,
+      submissionLabel: "(файл без регистрации)",
+      review: null,
+      file: doc,
+      fileLabel: incomingDocLabel(doc),
+      organ: (doc.doc_type || "").includes("agency") ? "иное" : "СФР?",
+      status: "нет разбора",
+    });
+  }
+
+  if (reports.length > 0 && rows.every((r) => r.submissionId === null)) {
+    // покажем подачи без ответа
+  }
+  for (const rep of reports) {
+    const has = rows.some((r) => r.submissionId === rep.id);
+    if (!has) {
+      rows.push({
+        key: `sub:${rep.id}`,
+        submissionId: rep.id || null,
+        submissionLabel: submissionLabel(rep),
+        review: null,
+        file: null,
+        fileLabel: "—",
+        organ: "—",
+        status: "нет файла",
+      });
+    }
+  }
+
+  return rows;
+}
+
 export function ResponseReviewPanel({
   busy,
   token,
@@ -132,25 +214,18 @@ export function ResponseReviewPanel({
   clientReportedWithoutDoc,
   canEdit,
   onReload,
+  onUploadIncoming,
   onUploadSfr,
   onApplyChat,
   onFollowUpControl,
   onOpenDoc,
   onAmountsExtracted,
 }: Props) {
-  const sfrDocumentIds = useMemo(() => sfrDocuments.map((d) => d.id), [sfrDocuments]);
-  const [docId, setDocId] = useState(sfrDocuments[0]?.id || "");
-  const [submissionId, setSubmissionId] = useState(
-    submissionReports[0]?.id || "",
+  const matrix = useMemo(
+    () => buildMatrix(submissionReports, reviews, sfrDocuments),
+    [submissionReports, reviews, sfrDocuments],
   );
-  const [source, setSource] = useState("staff");
-  const [completeness, setCompleteness] = useState("unknown");
-  const [docDate, setDocDate] = useState("");
-  const [docNumber, setDocNumber] = useState("");
-  const [deadlineQuote, setDeadlineQuote] = useState("");
-  const [deadlineSource, setDeadlineSource] = useState("");
-  const [deadlinePage, setDeadlinePage] = useState("");
-  const [controlLocal, setControlLocal] = useState("");
+
   const [selectedId, setSelectedId] = useState(reviews[0]?.id || "");
   const [draft, setDraft] = useState(() =>
     String(reviews[0]?.staff_draft_md || reviews[0]?.ai_draft_md || ""),
@@ -158,22 +233,30 @@ export function ResponseReviewPanel({
   const [loadedForId, setLoadedForId] = useState<string | null>(
     reviews[0]?.id || null,
   );
+  const [deadlineQuote, setDeadlineQuote] = useState("");
+  const [deadlineSource, setDeadlineSource] = useState("");
+  const [deadlinePage, setDeadlinePage] = useState("");
+  const [controlLocal, setControlLocal] = useState("");
   const [emailTo, setEmailTo] = useState(clientEmail || "");
   const [msg, setMsg] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [chronology, setChronology] = useState<AmountsChronologyRow[]>([]);
   const [amountsQuote, setAmountsQuote] = useState<string | null>(null);
 
-  if (sfrDocuments.length > 0 && !sfrDocumentIds.includes(docId)) {
-    setDocId(sfrDocuments[0].id);
-  }
+  const [bindDocId, setBindDocId] = useState(sfrDocuments[0]?.id || "");
+  const [bindSubmissionId, setBindSubmissionId] = useState(
+    submissionReports[0]?.id || "",
+  );
+  const [respondent, setRespondent] = useState("sfr");
+  const [uploadDocType, setUploadDocType] = useState<"sfr_decision" | "agency_response">(
+    "sfr_decision",
+  );
 
   const selected = useMemo(() => {
     const id = selectedId || reviews[0]?.id;
     return reviews.find((r) => r.id === id) || reviews[0] || null;
   }, [reviews, selectedId]);
 
-  // Синхронизация полей при смене выбранного разбора (без useEffect → lint).
   if (selected?.id && selected.id !== loadedForId) {
     setLoadedForId(selected.id);
     setDraft(String(selected.staff_draft_md || selected.ai_draft_md || ""));
@@ -185,11 +268,7 @@ export function ResponseReviewPanel({
   const base = `${apiBase}/api/portal/admin/cases/${caseId}/response-review`;
   const locked = busy || working || !canEdit;
 
-  async function register() {
-    if (!docId) {
-      setMsg("Выберите файл ответа СФР");
-      return;
-    }
+  async function registerFile(docId: string, submissionId?: string) {
     setWorking(true);
     setMsg(null);
     try {
@@ -201,23 +280,16 @@ export function ResponseReviewPanel({
           body: JSON.stringify({
             document_id: docId,
             submission_report_id: submissionId || undefined,
-            source,
-            completeness,
-            doc_date: docDate || undefined,
-            doc_number: docNumber || undefined,
-            deadline_quote: deadlineQuote || undefined,
-            deadline_quote_source: deadlineSource || undefined,
-            deadline_quote_page: deadlinePage || undefined,
+            source: "staff",
+            completeness: "unknown",
+            respondent,
+            response_kind: "decision",
             idempotency_key: `register:${docId}:${submissionId || "none"}`,
           }),
         },
       );
-      setMsg(
-        out.replayed
-          ? "Повтор: ответ уже зарегистрирован (без дубля)."
-          : "Ответ зарегистрирован. Разбор ещё не выполнен.",
-      );
       if (out.review?.id) setSelectedId(out.review.id);
+      setMsg(out.replayed ? "Уже зарегистрирован." : "Ответ зарегистрирован.");
       await onReload();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ошибка регистрации");
@@ -229,9 +301,8 @@ export function ResponseReviewPanel({
   async function aiDraft() {
     if (!selected?.id) return;
     setWorking(true);
-    setMsg(null);
     try {
-      const out = await apiJson<{ text?: string; reason?: string; source?: string }>(
+      const out = await apiJson<{ text?: string; source?: string; reason?: string }>(
         `${base}/${selected.id}/ai-draft`,
         token,
         { method: "POST", body: "{}" },
@@ -239,8 +310,8 @@ export function ResponseReviewPanel({
       setDraft(String(out.text || ""));
       setMsg(
         out.source === "template"
-          ? `Черновик-шаблон (${out.reason || "без ИИ"}) — проверьте вручную.`
-          : "ИИ подготовил проект. Проверьте источники и правьте текст.",
+          ? `Шаблон (${out.reason || "без ИИ"}) — проверьте вручную.`
+          : "ИИ подготовил проект. Проверьте источники.",
       );
       await onReload();
     } catch (e) {
@@ -275,7 +346,7 @@ export function ResponseReviewPanel({
         method: "POST",
         body: JSON.stringify({ staff_draft_md: draft }),
       });
-      setMsg("Разбор отмечен как проверенный сотрудником.");
+      setMsg("Разбор отмечен как проверенный.");
       await onReload();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ошибка");
@@ -297,7 +368,7 @@ export function ResponseReviewPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `otvet-sfr.docx`;
+    a.download = `otvet-organ.docx`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -306,22 +377,15 @@ export function ResponseReviewPanel({
     if (!selected?.id) return;
     setWorking(true);
     try {
-      const out = await apiJson<{
-        ok?: boolean;
-        preview?: boolean;
-        error?: string;
-        subject?: string;
-        body?: string;
-      }>(`${base}/${selected.id}/send-email`, token, {
-        method: "POST",
-        body: JSON.stringify({ to: emailTo, confirm }),
-      });
+      const out = await apiJson<{ ok?: boolean; preview?: boolean; error?: string }>(
+        `${base}/${selected.id}/send-email`,
+        token,
+        { method: "POST", body: JSON.stringify({ to: emailTo, confirm }) },
+      );
       if (out.preview && !confirm) {
-        setMsg(
-          `Превью письма → ${emailTo}. Подтвердите повторным нажатием «Отправить почтой».`,
-        );
+        setMsg(`Превью письма → ${emailTo}. Подтвердите «Отправить почтой».`);
       } else if (out.ok) {
-        setMsg("Письмо отправлено (проверенная версия).");
+        setMsg("Письмо отправлено.");
         await onReload();
       } else {
         setMsg(out.error || "Отправка не удалась");
@@ -348,7 +412,7 @@ export function ResponseReviewPanel({
         body: JSON.stringify({ confirm }),
       });
       if (out.preview && !confirm) {
-        setMsg("Превью Диска готово. Подтвердите «Отправить на Диск».");
+        setMsg("Превью Диска готово. Подтвердите отправку.");
       } else if (out.ok) {
         setMsg(out.public_url ? `Ссылка: ${out.public_url}` : "Загружено на Диск.");
         if (out.chat_hint) onApplyChat(out.chat_hint);
@@ -370,14 +434,11 @@ export function ResponseReviewPanel({
       const out = await apiJson<{ note?: string | null }>(
         `${base}/${selected.id}/outcome`,
         token,
-        {
-          method: "POST",
-          body: JSON.stringify({ outcome }),
-        },
+        { method: "POST", body: JSON.stringify({ outcome }) },
       );
       setMsg(
         out.note ||
-          `Дальнейшее действие: ${OUTCOME_LABELS[outcome] || outcome}. Счёт 8 000 ₽ не создан.`,
+          `${OUTCOME_LABELS[outcome] || outcome}. Счёт 8 000 ₽ не создан.`,
       );
       await onReload();
     } catch (e) {
@@ -391,12 +452,11 @@ export function ResponseReviewPanel({
     if (!selected?.id || !controlLocal) return;
     setWorking(true);
     try {
-      const d = new Date(controlLocal);
       await apiJson(`${base}/${selected.id}/set-deadline-control`, token, {
         method: "POST",
-        body: JSON.stringify({ control_at: d.toISOString() }),
+        body: JSON.stringify({ control_at: new Date(controlLocal).toISOString() }),
       });
-      setMsg("Контроль назначен через ступень 10 (next_action_at).");
+      setMsg("Контроль назначен через ступень 10.");
       await onReload();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ошибка контроля");
@@ -407,7 +467,6 @@ export function ResponseReviewPanel({
 
   async function extractAmounts() {
     setWorking(true);
-    setMsg(null);
     try {
       const out = await apiJson<{
         monthly_before_rub?: number | null;
@@ -417,15 +476,13 @@ export function ResponseReviewPanel({
         source_quote?: string | null;
         source?: string;
         reason?: string | null;
-        files?: { id?: string; filename?: string; has_text?: boolean }[];
       }>(`${base}/extract-amounts`, token, {
         method: "POST",
         body: JSON.stringify({
-          document_ids: sfrDocumentIds.length ? sfrDocumentIds : undefined,
+          document_ids: sfrDocuments.map((d) => d.id),
         }),
       });
-      const rows = Array.isArray(out.chronology) ? out.chronology : [];
-      setChronology(rows);
+      setChronology(Array.isArray(out.chronology) ? out.chronology : []);
       setAmountsQuote(out.source_quote || null);
       const fmt = (n: number | null | undefined) =>
         n == null || !Number.isFinite(n) ? "" : String(Math.round(n * 100) / 100);
@@ -434,12 +491,10 @@ export function ResponseReviewPanel({
         afterRub: fmt(out.monthly_after_rub),
         lumpRub: fmt(out.lump_sum_rub),
       });
-      const noText = (out.files || []).filter((f) => !f.has_text).length;
       setMsg(
         out.source === "ai"
-          ? `Суммы из ответа СФР подставлены (проверьте). Хронология: ${rows.length} строк.` +
-              (noText ? ` Без OCR: ${noText} файл(ов).` : "")
-          : `Черновик без уверенных сумм (${out.reason || "нет текста"}). Проверьте OCR.`,
+          ? "Суммы подставлены из ответов — проверьте."
+          : `Без уверенных сумм (${out.reason || "нет текста"}).`,
       );
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ошибка извлечения сумм");
@@ -448,19 +503,32 @@ export function ResponseReviewPanel({
     }
   }
 
+  function handleUpload(files: FileList | File[]) {
+    const list = Array.from(files);
+    for (const f of list) {
+      if (onUploadIncoming) {
+        void onUploadIncoming(f, {
+          doc_type: uploadDocType,
+          respondent,
+          submission_report_id: bindSubmissionId || undefined,
+        });
+      } else if (onUploadSfr) {
+        onUploadSfr(f);
+      }
+    }
+  }
+
   return (
     <div className="response-review-panel">
       <p className="hint">
-        Передача из ступени 10 открывает работу, но не означает, что ответ уже
-        проверен. Сообщение клиента без файла — не документ СФР. Новый ответ
-        сохраняется отдельно. Переход к ступени 12 не создаёт счёт 8 000 ₽.
-        Положительный ответ СФР ≠ выплата.
+        Несколько подач и несколько входящих ответов (СФР и другие органы). Новый
+        ответ — новая строка. Ответ органа ≠ выплата. Счёт 8 000 ₽ не создаётся
+        автоматически.
       </p>
 
       {clientReportedWithoutDoc ? (
         <p className="hint" style={{ borderLeft: "3px solid #c45", paddingLeft: "0.5rem" }}>
-          Клиент сообщил об ответе (например, «пришёл отказ») — это сообщение
-          клиента, документа ещё нет. Запросите файл.
+          Клиент сообщил об ответе без файла — запросите документ.
           {onFollowUpControl ? (
             <>
               {" "}
@@ -476,132 +544,170 @@ export function ResponseReviewPanel({
                   })
                 }
               >
-                Зафиксировать в контроле
+                В контроль
               </button>
             </>
           ) : null}
         </p>
       ) : null}
 
-      <h3 className="case-subhead">Загруженные ответы СФР</h3>
-      {sfrDocuments.length === 0 ? (
-        <p className="hint">Файлов ответа пока нет — загрузите ниже или запросите у клиента.</p>
-      ) : (
-        <ul className="plain-list">
-          {sfrDocuments.map((d) => (
-            <li key={d.id}>
-              {onOpenDoc ? (
-                <button type="button" className="linkish" onClick={() => onOpenDoc(d.id)}>
-                  {sfrDocLabel(d)}
-                </button>
-              ) : (
-                <strong>{sfrDocLabel(d)}</strong>
-              )}
-              <span className="hint">
-                {" "}
-                · {(d.inner_date || d.created_at || "").toString().slice(0, 10) || "без даты"}
-                {d.doc_type ? ` · ${d.doc_type}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h3 className="case-subhead">Регистрация ответа</h3>
-      <label>
-        Файл ответа СФР
-        <select
-          value={docId}
-          disabled={locked || sfrDocuments.length === 0}
-          onChange={(e) => setDocId(e.target.value)}
-        >
-          {sfrDocuments.length === 0 ? (
-            <option value="">Нет файлов sfr_decision / sfr_response</option>
+      <h3 className="case-subhead">Матрица: подача ↔ ответ</h3>
+      <table className="plain-table" style={{ width: "100%", fontSize: "0.9rem" }}>
+        <thead>
+          <tr>
+            <th align="left">Подача</th>
+            <th align="left">Файл</th>
+            <th align="left">Орган</th>
+            <th align="left">Статус</th>
+            <th align="left"> </th>
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.length === 0 ? (
+            <tr>
+              <td colSpan={5}>
+                <span className="hint">Пока нет подач и файлов ответов.</span>
+              </td>
+            </tr>
           ) : (
-            sfrDocuments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {sfrDocLabel(d)}
-              </option>
+            matrix.map((row) => (
+              <tr
+                key={row.key}
+                style={
+                  row.review?.id && row.review.id === selected?.id
+                    ? { background: "rgba(0,0,0,0.04)" }
+                    : undefined
+                }
+              >
+                <td>{row.submissionLabel}</td>
+                <td>
+                  {row.file && onOpenDoc ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => onOpenDoc(row.file!.id)}
+                    >
+                      {row.fileLabel}
+                    </button>
+                  ) : (
+                    row.fileLabel
+                  )}
+                </td>
+                <td>{row.organ}</td>
+                <td>{row.status}</td>
+                <td>
+                  {row.review?.id ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={working}
+                      onClick={() => setSelectedId(row.review!.id || "")}
+                    >
+                      Открыть
+                    </button>
+                  ) : row.file ? (
+                    <button
+                      type="button"
+                      className="linkish"
+                      disabled={locked}
+                      onClick={() =>
+                        void registerFile(
+                          row.file!.id,
+                          row.submissionId || bindSubmissionId || undefined,
+                        )
+                      }
+                    >
+                      Зарегистрировать
+                    </button>
+                  ) : (
+                    <span className="hint">загрузите файл ↓</span>
+                  )}
+                </td>
+              </tr>
             ))
           )}
-        </select>
-      </label>
-      <label>
-        Связать с подачей (ступень 9)
-        <select
-          value={submissionId}
-          disabled={locked}
-          onChange={(e) => setSubmissionId(e.target.value)}
-        >
-          <option value="">— не выбрано —</option>
-          {submissionReports.map((r) => (
-            <option key={r.id} value={r.id || ""}>
-              {(r.submitted_on || "?").slice(0, 10)} · {r.method || "?"} ·{" "}
-              {(r.id || "").slice(0, 8)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="row-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+        </tbody>
+      </table>
+
+      <div className="row-actions" style={{ flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
         <label>
-          Источник
-          <select value={source} disabled={locked} onChange={(e) => setSource(e.target.value)}>
-            {Object.entries(SOURCE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Полнота
+          Орган
           <select
-            value={completeness}
+            value={respondent}
             disabled={locked}
-            onChange={(e) => setCompleteness(e.target.value)}
+            onChange={(e) => {
+              setRespondent(e.target.value);
+              setUploadDocType(e.target.value === "sfr" ? "sfr_decision" : "agency_response");
+            }}
           >
-            {Object.entries(COMPLETENESS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
+            {RESPONDENT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Дата документа
-          <input type="date" value={docDate} disabled={locked} onChange={(e) => setDocDate(e.target.value)} />
+          Подача для привязки
+          <select
+            value={bindSubmissionId}
+            disabled={locked}
+            onChange={(e) => setBindSubmissionId(e.target.value)}
+          >
+            <option value="">— не выбрано —</option>
+            {submissionReports.map((r) => (
+              <option key={r.id} value={r.id || ""}>
+                {submissionLabel(r)}
+              </option>
+            ))}
+          </select>
         </label>
-        <label>
-          Номер
-          <input value={docNumber} disabled={locked} onChange={(e) => setDocNumber(e.target.value)} />
-        </label>
-      </div>
-      <div className="row-actions">
-        <button type="button" disabled={locked || !docId} onClick={() => void register()}>
-          Зарегистрировать ответ
-        </button>
-        {onUploadSfr ? (
+        {(onUploadIncoming || onUploadSfr) && (
           <label className="secondary" style={{ display: "inline-block", padding: "0.35rem 0.6rem" }}>
-            Загрузить новый файл
+            Загрузить ответ
             <input
               type="file"
               multiple
               hidden
               disabled={locked}
               onChange={(e) => {
-                const files = Array.from(e.target.files || []);
+                if (e.target.files?.length) handleUpload(e.target.files);
                 e.target.value = "";
-                for (const f of files) onUploadSfr(f);
               }}
             />
           </label>
-        ) : null}
+        )}
+        <label>
+          Файл без разбора → зарегистрировать
+          <select
+            value={bindDocId}
+            disabled={locked || sfrDocuments.length === 0}
+            onChange={(e) => setBindDocId(e.target.value)}
+          >
+            {sfrDocuments.length === 0 ? (
+              <option value="">нет файлов</option>
+            ) : (
+              sfrDocuments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {incomingDocLabel(d)}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="secondary"
+          disabled={locked || !bindDocId}
+          onClick={() => void registerFile(bindDocId, bindSubmissionId || undefined)}
+        >
+          Привязать файл
+        </button>
         <button
           type="button"
           className="secondary"
           disabled={locked || sfrDocuments.length === 0}
           onClick={() => void extractAmounts()}
-          title="ИИ читает OCR ответов СФР и заполняет суммы + хронологию"
         >
           Извлечь суммы с ИИ
         </button>
@@ -609,11 +715,7 @@ export function ResponseReviewPanel({
 
       {(chronology.length > 0 || amountsQuote) && (
         <>
-          <h3 className="case-subhead">Хронология по ответам СФР</h3>
-          <p className="hint">
-            ИИ заполняет таблицу из файлов; сотрудник проверяет до сохранения сумм.
-            Положительный ответ ≠ выплата.
-          </p>
+          <h3 className="case-subhead">Хронология сумм</h3>
           {amountsQuote ? (
             <p className="hint">
               Цитата: <em>{amountsQuote}</em>
@@ -640,45 +742,32 @@ export function ResponseReviewPanel({
         </>
       )}
 
-      {reviews.length > 0 ? (
-        <>
-          <h3 className="case-subhead">Сохранённые ответы</h3>
-          <ul className="plain-list">
-            {reviews.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  className={r.id === selected?.id ? "primary" : "linkish"}
-                  disabled={working}
-                  onClick={() => setSelectedId(r.id || "")}
-                >
-                  {(r.created_at || "").slice(0, 10) || "—"} ·{" "}
-                  {STATUS_LABELS[r.status || ""] || r.status} ·{" "}
-                  {(r.document_id || "").slice(0, 8)}
-                  {r.outcome ? ` → ${OUTCOME_LABELS[r.outcome] || r.outcome}` : ""}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <p className="hint">Зарегистрированных ответов пока нет.</p>
-      )}
-
       {selected ? (
         <>
-          <h3 className="case-subhead">Разбор с ИИ</h3>
+          <h3 className="case-subhead">
+            Карточка ответа · {selected.respondent_label || selected.respondent || "СФР"} ·{" "}
+            {STATUS_LABELS[selected.status || ""] || selected.status}
+          </h3>
           <p className="hint">
-            Статус: <strong>{STATUS_LABELS[selected.status || ""] || selected.status}</strong>
+            Файл:{" "}
+            {selected.document_id && onOpenDoc ? (
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => onOpenDoc(selected.document_id!)}
+              >
+                {(selected.document_id || "").slice(0, 8)}…
+              </button>
+            ) : (
+              "—"
+            )}
             {selected.sent_at
-              ? ` · отправлено (${selected.sent_channel || "?"})`
+              ? ` · отправлено (${selected.sent_channel})`
               : " · клиенту ещё не отправлено"}
-            {" · "}
-            полнота: {COMPLETENESS_LABELS[selected.completeness || ""] || selected.completeness}
           </p>
           <div className="row-actions">
             <button type="button" disabled={locked} onClick={() => void aiDraft()}>
-              Разобрать ответ СФР с ИИ
+              Разобрать с ИИ
             </button>
             <button type="button" className="secondary" disabled={locked} onClick={() => void saveDraft()}>
               Сохранить правки
@@ -687,12 +776,11 @@ export function ResponseReviewPanel({
               type="button"
               disabled={locked || !draft.trim()}
               onClick={() => void markReviewed()}
-              title="Без отметки отправка недоступна"
             >
               Проверено сотрудником
             </button>
             <button type="button" className="secondary" disabled={locked} onClick={() => void downloadDocx()}>
-              Скачать Word
+              Word
             </button>
             <button
               type="button"
@@ -700,82 +788,68 @@ export function ResponseReviewPanel({
               disabled={!draft.trim()}
               onClick={() => onApplyChat(draft)}
             >
-              Текст в чат…
+              В чат…
             </button>
           </div>
           {draft ? (
             <textarea
               className="draft"
-              style={{ width: "100%", minHeight: "14rem", marginTop: "0.5rem" }}
+              style={{ width: "100%", minHeight: "12rem", marginTop: "0.5rem" }}
               value={draft}
               disabled={locked}
               onChange={(e) => setDraft(e.target.value)}
-              aria-label="Черновик разбора ответа СФР"
+              aria-label="Черновик разбора ответа"
             />
           ) : (
-            <p className="hint">Нажмите «Разобрать ответ СФР с ИИ». Непроверенный текст клиенту не уходит.</p>
+            <p className="hint">Нажмите «Разобрать с ИИ».</p>
           )}
 
-          <h3 className="case-subhead">Срок из ответа (проверка сотрудником)</h3>
-          <p className="hint">
-            Универсальный срок обжалования не назначаем. Контроль — через механизм ступени 10.
-          </p>
+          <h3 className="case-subhead">Срок из ответа → контроль ст.10</h3>
           <label>
-            Точный текст срока
+            Цитата срока
             <input
               value={deadlineQuote}
               disabled={locked}
               onChange={(e) => setDeadlineQuote(e.target.value)}
-              placeholder="цитата из ответа"
             />
           </label>
           <div className="row-actions">
-            <label>
-              Источник
-              <input
-                value={deadlineSource}
-                disabled={locked}
-                onChange={(e) => setDeadlineSource(e.target.value)}
-                placeholder="п. / абзац"
-              />
-            </label>
-            <label>
-              Стр.
-              <input
-                value={deadlinePage}
-                disabled={locked}
-                onChange={(e) => setDeadlinePage(e.target.value)}
-              />
-            </label>
-            <label>
-              Контрольная дата
-              <input
-                type="datetime-local"
-                value={controlLocal}
-                disabled={locked}
-                onChange={(e) => setControlLocal(e.target.value)}
-              />
-            </label>
+            <input
+              placeholder="источник"
+              value={deadlineSource}
+              disabled={locked}
+              onChange={(e) => setDeadlineSource(e.target.value)}
+            />
+            <input
+              placeholder="стр."
+              value={deadlinePage}
+              disabled={locked}
+              onChange={(e) => setDeadlinePage(e.target.value)}
+            />
+            <input
+              type="datetime-local"
+              value={controlLocal}
+              disabled={locked}
+              onChange={(e) => setControlLocal(e.target.value)}
+            />
             <button
               type="button"
               className="secondary"
               disabled={locked || !deadlineQuote.trim() || !controlLocal}
               onClick={() => void applyDeadlineControl()}
             >
-              Назначить контроль из срока
+              Назначить контроль
             </button>
           </div>
 
           <h3 className="case-subhead">Отправка клиенту</h3>
-          <p className="hint">Сначала превью, затем подтверждение. Уходит только проверенная версия.</p>
           <div className="row-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
             <input
               type="email"
-              placeholder="Почта клиента"
+              placeholder="Почта"
               value={emailTo}
               disabled={locked}
               onChange={(e) => setEmailTo(e.target.value)}
-              style={{ minWidth: "14rem" }}
             />
             <button
               type="button"
@@ -805,19 +879,14 @@ export function ResponseReviewPanel({
               disabled={locked || selected.status !== "reviewed"}
               onClick={() => void sendYadisk(true)}
             >
-              Отправить на Диск
+              На Диск
             </button>
           </div>
 
           <h3 className="case-subhead">Дальнейший путь</h3>
           <div className="row-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
             {(
-              [
-                "need_docs",
-                "offer_escalation",
-                "close",
-                "wait_client",
-              ] as const
+              ["need_docs", "offer_escalation", "close", "wait_client"] as const
             ).map((o) => (
               <button
                 key={o}
@@ -831,7 +900,9 @@ export function ResponseReviewPanel({
             ))}
           </div>
         </>
-      ) : null}
+      ) : (
+        <p className="hint">Выберите строку в матрице или зарегистрируйте файл.</p>
+      )}
 
       {msg ? <p className="hint">{msg}</p> : null}
     </div>

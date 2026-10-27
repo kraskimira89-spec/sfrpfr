@@ -48,8 +48,13 @@ import {
 } from "@/components/follow-up-stage-panel";
 import {
   ResponseReviewPanel,
+  type IncomingUploadOpts,
   type ResponseReviewView,
 } from "@/components/response-review-panel";
+import {
+  filterIncomingResponseDocs,
+  incomingDocLabel,
+} from "@/lib/incoming-response-docs";
 import {
   initialAccordion,
   openStageOf,
@@ -425,8 +430,8 @@ export function CaseFunnelMain({
   onOpenTrackerModal: () => void;
   onOpenSigned: (docId: string, mode?: "open" | "download") => void;
   onUploadDiagnosisReport: (file: File) => void;
-  /** Загрузить ответ/решение СФР (этап 11). */
-  onUploadSfrResponse?: (file: File) => void;
+  /** Загрузить входящий ответ (СФР / иное ведомство), ступень 11. */
+  onUploadSfrResponse?: (file: File, opts?: IncomingUploadOpts) => void;
   onPublishDiagnosis: (documentId: string) => void;
   onCreateQuickOrder?: (code: "DIAG" | "ACCOMP" | "SUPPORT", amountRub: number) => void;
   /** Проверка текста файлов (2.4) — сразу под блоками этапа «Документы». */
@@ -1837,18 +1842,16 @@ export function CaseFunnelMain({
               expertUserId={detail.expert_user_id}
               meUserId={meUserId}
               events={detail.follow_up_events || []}
-              sfrDocumentIds={(detail.documents ?? [])
-                .filter((d) => {
-                  const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
-                  return (
-                    blob.includes("sfr_decision") ||
-                    blob.includes("sfr_response") ||
-                    blob.includes("sfr_refusal")
-                  );
-                })
-                .map((d) => d.id)}
+              sfrDocuments={filterIncomingResponseDocs(detail.documents).map((d) => ({
+                id: d.id,
+                label: incomingDocLabel(d),
+              }))}
               onControl={(p) => onRecordFollowUpControl(p)}
-              onUploadSfr={onUploadSfrResponse}
+              onUploadSfr={
+                onUploadSfrResponse
+                  ? (f) => onUploadSfrResponse(f, { doc_type: "sfr_decision", respondent: "sfr" })
+                  : undefined
+              }
             />
           ) : (
             <p className="hint">Нет прав на контроль рассмотрения.</p>
@@ -1886,14 +1889,7 @@ export function CaseFunnelMain({
             </button>
           </div>
           {(() => {
-            const sfrDocs = (detail.documents ?? []).filter((d) => {
-              const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
-              return (
-                blob.includes("sfr_decision") ||
-                blob.includes("sfr_response") ||
-                blob.includes("sfr_refusal")
-              );
-            });
+            const sfrDocs = filterIncomingResponseDocs(detail.documents);
             const clientReported = (detail.follow_up_events || []).some(
               (e) => e.check_result === "client_reported_response",
             );
@@ -1922,7 +1918,11 @@ export function CaseFunnelMain({
                 clientReportedWithoutDoc={clientReported && sfrDocs.length === 0}
                 canEdit={caps.can_confirm_result}
                 onReload={() => onDeliveryRefresh?.()}
-                onUploadSfr={onUploadSfrResponse}
+                onUploadIncoming={
+                  onUploadSfrResponse
+                    ? (f, opts) => onUploadSfrResponse(f, opts)
+                    : undefined
+                }
                 onOpenDoc={(id) => onOpenSigned(id)}
                 onAmountsExtracted={({ beforeRub: b, afterRub: a, lumpRub: l }) => {
                   onSfrReceived(true);

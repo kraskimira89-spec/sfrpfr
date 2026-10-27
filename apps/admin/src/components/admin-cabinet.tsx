@@ -2099,24 +2099,56 @@ export function AdminCabinet() {
     }
   }
 
-  async function uploadSfrResponse(file: File) {
+  async function uploadSfrResponse(
+    file: File,
+    opts?: {
+      doc_type?: string;
+      respondent?: string;
+      submission_report_id?: string;
+    },
+  ) {
     if (!token || !detail) return;
     setBusy(true);
     try {
+      const docType = opts?.doc_type || "sfr_decision";
       const form = new FormData();
       form.append("file", file);
-      form.append("doc_type", "sfr_decision");
-      await apiFetch(`/api/portal/cases/${detail.id}/documents`, token, {
-        method: "POST",
-        body: form,
-      });
+      form.append("doc_type", docType);
+      const uploaded = await apiFetch<{ id?: string }>(
+        `/api/portal/cases/${detail.id}/documents`,
+        token,
+        { method: "POST", body: form },
+      );
+      const documentId = String(uploaded?.id || "");
+      if (documentId) {
+        try {
+          await apiFetch(
+            `/api/portal/admin/cases/${detail.id}/response-review/register`,
+            token,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                document_id: documentId,
+                submission_report_id: opts?.submission_report_id || undefined,
+                source: "staff",
+                completeness: "unknown",
+                respondent: opts?.respondent || "sfr",
+                response_kind: "decision",
+                idempotency_key: `upload:${documentId}:${opts?.submission_report_id || "none"}`,
+              }),
+            },
+          );
+        } catch {
+          /* файл уже в деле — регистрацию можно добить вручную в матрице */
+        }
+      }
       setSfrReceived(true);
       setNotice(
-        `Ответ СФР загружен: ${file.name}. Имена файлов — в ступени 11; суммы — «Извлечь суммы с ИИ».`,
+        `Входящий ответ загружен: ${file.name}. Откройте матрицу на ступени 11.`,
       );
       await openCase(detail.id);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Не удалось загрузить ответ СФР.");
+      setNotice(error instanceof Error ? error.message : "Не удалось загрузить ответ.");
     } finally {
       setBusy(false);
     }
@@ -2560,7 +2592,7 @@ export function AdminCabinet() {
             }}
             onOpenSigned={(docId, mode) => void openSigned(docId, mode)}
             onUploadDiagnosisReport={(file) => void uploadDiagnosisReport(file)}
-            onUploadSfrResponse={(file) => void uploadSfrResponse(file)}
+            onUploadSfrResponse={(file, opts) => void uploadSfrResponse(file, opts)}
             onPublishDiagnosis={(documentId) => void publishDiagnosis(documentId)}
             documentsWorkplace={
               token && detail.role_capabilities.can_view_ocr ? (

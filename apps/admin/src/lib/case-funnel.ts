@@ -169,7 +169,7 @@ export function primaryCtaLabel(current: StageId, docsReady: boolean): string {
   if (current === "appeals_documents") return "Открыть обращения";
   if (current === "submission") return "Зафиксировать подачу";
   if (current === "follow_up") return "Контроль рассмотрения";
-  if (current === "response_review") return "Разобрать ответ СФР";
+  if (current === "response_review") return "Разобрать входящий ответ";
   if (current === "escalation_package") return "Дополнительный пакет";
   return "Итог дела";
 }

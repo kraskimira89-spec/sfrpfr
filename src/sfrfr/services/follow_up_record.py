@@ -109,6 +109,29 @@ def record_follow_up_control(
                 waiting_on="staff",
             )
             repo.audit(case_id, actor_id, "follow_up_completed")
+            # Сразу открыть строку на ступени 11 (idempotent).
+            doc_id = str(validated.get("document_id") or "").strip()
+            if doc_id:
+                try:
+                    from sfrfr.services.response_review_record import (
+                        register_response_review,
+                    )
+
+                    register_response_review(
+                        repo,
+                        case_id=case_id,
+                        actor_id=actor_id,
+                        payload={
+                            "document_id": doc_id,
+                            "source": "staff",
+                            "completeness": "unknown",
+                            "respondent": "sfr",
+                            "response_kind": "decision",
+                            "idempotency_key": f"handoff:{doc_id}"[:200],
+                        },
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
         repo.audit(case_id, actor_id, audit_action_for_kind(k))
 
     return {

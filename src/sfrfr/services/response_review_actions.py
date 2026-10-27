@@ -1,4 +1,4 @@
-"""Word / почта / Я.Диск для разбора ответа СФР (переиспользует full_analysis_docx + mail)."""
+"""Word / почта / Я.Диск для разбора входящего ответа (full_analysis_docx + mail)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,11 @@ from typing import Any
 
 from sfrfr.db.case_repository import CaseRepository
 from sfrfr.services.full_analysis_docx import build_full_analysis_docx_bytes
-from sfrfr.services.response_review import ResponseReviewError, serialize_review
+from sfrfr.services.response_review import (
+    RESPONDENT_LABELS,
+    ResponseReviewError,
+    serialize_review,
+)
 
 
 def build_response_review_docx(
@@ -16,15 +20,17 @@ def build_response_review_docx(
     review: dict[str, Any],
 ) -> bytes:
     md = str(review.get("staff_draft_md") or review.get("ai_draft_md") or "")
+    organ = RESPONDENT_LABELS.get(
+        str(review.get("respondent") or "sfr"), "орган"
+    )
     return build_full_analysis_docx_bytes(
         case_ref=case_ref,
         markdown=md,
         version=1,
-        title="Разбор ответа СФР",
+        title=f"Разбор входящего ответа ({organ})",
         note=(
-            "Проект разбора ответа СФР. Не является решением фонда и не обещает выплату. "
-            "Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
-            "Решение принимает СФР."
+            f"Проект разбора ответа ({organ}). Не является решением фонда "
+            "и не обещает выплату. Положительный ответ органа ≠ фактическая выплата."
         ),
     )
 
@@ -43,14 +49,18 @@ def send_response_review_email(
 ) -> dict[str, Any]:
     if str(review.get("status")) != "reviewed":
         raise ResponseReviewError("сначала отметьте разбор как проверенный сотрудником")
-    filename = f"otvet-sfr-{case_ref[:24]}.docx".replace(" ", "_")
+    organ = RESPONDENT_LABELS.get(
+        str(review.get("respondent") or "sfr"), "органа"
+    )
+    filename = f"otvet-{case_ref[:24]}.docx".replace(" ", "_")
     docx = build_response_review_docx(case_ref=case_ref, review=review)
-    subj = (subject or "").strip() or f"Разбор ответа СФР · дело {case_ref}"
+    subj = (subject or "").strip() or f"Разбор входящего ответа ({organ}) · дело {case_ref}"
     text = (body or "").strip() or (
         f"Здравствуйте!\n\n"
-        f"Направляем разбор ответа СФР по делу {case_ref} во вложении Word.\n\n"
-        f"Положительный ответ СФР не означает фактическую выплату — решение и суммы "
-        f"фиксирует только фонд.\n\n"
+        f"Направляем разбор входящего ответа ({organ}) по делу {case_ref} "
+        f"во вложении Word.\n\n"
+        f"Положительный ответ органа не означает фактическую выплату — решение "
+        f"и суммы фиксирует только СФР.\n\n"
         f"Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. "
         f"Решение принимает СФР."
     )

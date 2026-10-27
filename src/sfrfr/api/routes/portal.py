@@ -251,6 +251,9 @@ def _require_consent_for_upload(repo: CaseRepository, case_id: str) -> None:
 
 _DOC_TYPE_LABELS_RU = {
     "sfr_decision": "Решение СФР",
+    "sfr_response": "Ответ СФР",
+    "sfr_refusal": "Отказ СФР",
+    "agency_response": "Ответ другого ведомства",
     "ils": "Выписка ИЛС",
     "workbook": "Трудовая книжка",
     "other": "Другое",
