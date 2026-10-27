@@ -1879,11 +1879,37 @@ def get_result(
     }
 
 
+@router.get("/cases/{case_id}/document-mail-hint")
+def case_document_mail_hint(
+    case_id: str,
+    principal: Principal = Depends(get_current_principal),
+) -> dict[str, Any]:
+    """Служебный адрес и mailto с opaque-токеном (не UUID дела)."""
+    from sfrfr.services.extra_document_intake import CATEGORIES, build_mail_compose
+
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    settings = get_settings()
+    inbox = (settings.yandex_workspace_email or "proverkastaza@yandex.ru").strip()
+    compose = build_mail_compose(case_id=case_id, inbox=inbox)
+    return {
+        "ok": True,
+        "inbox": inbox,
+        "compose": compose,
+        "categories": CATEGORIES,
+        "hint": (
+            "Прикрепите файлы ответом на письмо. Не удаляйте код SFRFR-DOC из темы. "
+            "Письмо без кода попадёт в очередь «Требует привязки», а не в чужое дело."
+        ),
+    }
+
+
 @router.post("/cases/{case_id}/documents", status_code=status.HTTP_201_CREATED)
 async def upload_case_document(
     case_id: str,
     file: UploadFile = File(...),
     doc_type: str | None = Form(default=None),
+    category: str | None = Form(default=None),
     upload_batch_id: str | None = Form(default=None),
     document_group_id: str | None = Form(default=None),
     page_index: int | None = Form(default=None),
@@ -1892,8 +1918,16 @@ async def upload_case_document(
     principal: Principal = Depends(get_current_principal),
 ) -> dict:
     """Загрузить разрешённый файл в private bucket через доверенный API."""
+    from sfrfr.services.extra_document_intake import (
+        category_to_doc_type,
+        doc_type_is_extra,
+        notify_extra_document_received,
+    )
+
     repo = _repo()
     case = repo.require_case(principal, case_id)
+    if category and not (doc_type or "").strip():
+        doc_type = category_to_doc_type(category)
     if not principal.is_staff:
         _require_consent_for_upload(repo, case_id)
         dtype = (doc_type or "").strip().lower()
@@ -1917,6 +1951,7 @@ async def upload_case_document(
     filename = Path(file.filename or "document").name
     scenario_rows = _scenario_rows(repo, case_id)
     async_ingest = get_settings().document_ingest_async
+    content_preview = ""
     try:
         if async_ingest:
             row = create_quarantine_document(
@@ -2029,6 +2064,36 @@ async def upload_case_document(
                 "ask_receipt": payment_receipt.get("ask_receipt"),
                 "message": payment_receipt.get("client_message"),
             },
+        }
+    if doc_type_is_extra(doc_type) and document_id:
+        # Не трогаем pipeline/b2c/orders — только задача и audit.
+        may_affect = str(case.get("pipeline_status") or "") in {
+            "audited",
+            "draft_ready",
+            "human_review",
+            "completed",
+        } or str(case.get("b2c_status") or "") in {
+            "diagnostic_paid",
+            "package_delivered",
+            "awaiting_client_submission",
+            "result_pending",
+            "closed",
+        }
+        extra_meta = notify_extra_document_received(
+            repo=repo,
+            case_id=case_id,
+            document_id=document_id,
+            doc_type=doc_type,
+            actor_id=principal.user_id,
+            may_affect_analysis=may_affect,
+        )
+        client_doc = {
+            **client_doc,
+            "extra_intake": {
+                "preserves_funnel": True,
+                "client_message": extra_meta.get("client_message"),
+            },
+            "client_message": extra_meta.get("client_message"),
         }
     return client_doc
 

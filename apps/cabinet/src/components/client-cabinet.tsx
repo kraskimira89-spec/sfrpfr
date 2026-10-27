@@ -5,6 +5,7 @@ import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, use
 import { humanCaseStatus, loadStatusLabels } from "@/lib/status-labels";
 import { labelOrderStatus, labelPackage, labelPaymentStatus } from "../../../../shared/ui-labels";
 import { CaseWorkMap, type ClientWork } from "@/components/case-work-map";
+import { AddExtraDocumentPanel } from "@/components/add-extra-document-panel";
 import { DocumentsTable, type CabinetDocument } from "@/components/documents-table";
 import { ClientCaseChatPanel } from "@/components/client-case-chat-panel";
 import {
@@ -2388,6 +2389,34 @@ export function ClientCabinet() {
                   onToggleSelect={toggleDocSelection}
                   onToggleAll={toggleAllDocs}
                   onBulkDownload={() => void bulkDownloadSelected()}
+                />
+              ) : null}
+
+              {selectedId && token ? (
+                <AddExtraDocumentPanel
+                  caseId={selectedId}
+                  token={token}
+                  apiBase={apiBase}
+                  busy={busy}
+                  onNotice={setNotice}
+                  onUpload={async (files, category) => {
+                    let lastMsg: string | null = null;
+                    for (const file of files) {
+                      const form = new FormData();
+                      form.append("file", file);
+                      form.append("category", category);
+                      const payload = await apiFetch<{
+                        id?: string;
+                        client_message?: string;
+                      }>(`/api/portal/cases/${selectedId}/documents`, token, {
+                        method: "POST",
+                        body: form,
+                      });
+                      if (payload.client_message) lastMsg = payload.client_message;
+                    }
+                    await openCase(selectedId, "case", true);
+                    return lastMsg;
+                  }}
                 />
               ) : null}
 

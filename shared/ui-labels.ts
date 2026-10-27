@@ -135,6 +135,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   full_analysis_approved: "Клиент согласовал подробный разбор",
   full_analysis_remarks: "Клиент прислал замечания к разбору",
   full_analysis_client_revision: "Сохранена версия разбора от клиента",
+  extra_document_received: "Получен дополнительный документ",
+  extra_document_email: "Документ из входящей почты",
   pay_link_max: "Ссылка на оплату в MAX",
   payment_succeeded: "Оплата прошла",
   payment_created: "Платёж создан",

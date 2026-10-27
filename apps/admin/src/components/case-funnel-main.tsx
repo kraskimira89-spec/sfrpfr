@@ -44,6 +44,7 @@ import {
 } from "@/lib/case-funnel-accordion";
 import { DiagnosisDeliveryPanel } from "@/components/diagnosis-delivery-panel";
 import { FullAnalysisPanel } from "@/components/full-analysis-panel";
+import { NewExtraDocumentsPanel } from "@/components/new-extra-documents-panel";
 import { LOSS_REASON_VALUES } from "@/lib/sales-board";
 import { DocumentCheckPanel } from "@/components/document-check-panel";
 import { StepNo } from "@/components/step-number";
@@ -1091,10 +1092,21 @@ export function CaseFunnelMain({
             </li>
           </ol>
 
+          {staffToken && apiBase ? (
+            <NewExtraDocumentsPanel
+              caseId={detail.id}
+              token={staffToken}
+              apiBase={apiBase}
+              busy={busy}
+              onOpenSigned={onOpenSigned}
+              onNotice={onDeliveryNotice ?? (() => {})}
+            />
+          ) : null}
           {documentsWorkplace}
           <p className="hint">
             Комплект на месте? Переходите к проверке — там система разберёт файлы и соберёт резюме
-            для клиента.
+            для клиента. Доп. документы с любого этапа — в блоке «Новые документы» выше; они не
+            обнуляют оплату и согласования.
           </p>
         </StageShell>
 
