@@ -708,6 +708,38 @@ test("stage9: confirmed открывает follow_up с submittedOn, без dueA
   assert.notEqual(follow?.status, "blocked");
 });
 
+test("stage10: next_action_at → followUp.dueAt; handoff → completed + response", () => {
+  const before = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    next_action_at: "2026-11-05T10:00:00+05:00",
+    next_action: "Уточнить у клиента",
+    audit: [
+      { action: "submission_confirmed" },
+      { action: "appeals_package_delivered" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(before.facts.followUp.dueAt, "2026-11-05T10:00:00+05:00");
+  assert.equal(before.facts.followUp.state, "active");
+
+  const after = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    audit: [
+      { action: "follow_up_completed" },
+      { action: "follow_up_response_handoff" },
+      { action: "submission_confirmed" },
+      { action: "appeals_package_delivered" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(after.facts.followUp.state, "completed");
+  assert.equal(after.facts.response, "received");
+  const resp = after.funnel.stages.find((s) => s.id === "response_review");
+  assert.notEqual(resp?.status, "blocked");
+});
+
 test("stage9: receipt_verified ≠ путать с confirmed без report", () => {
   const funnel = deriveFunnel({
     ...stage78Base,

@@ -979,6 +979,13 @@ def admin_get_case(
         payload["submission_reports"] = []
         payload["submission_report"] = None
     try:
+        from sfrfr.services.follow_up_control import serialize_event
+
+        events = repo.list_follow_up_events(case_id)
+        payload["follow_up_events"] = [serialize_event(e) for e in events]
+    except Exception:  # noqa: BLE001
+        payload["follow_up_events"] = []
+    try:
         from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
 
         payload["full_analysis"] = FullAnalysisWorkflow().get_state(case_id)
@@ -3098,6 +3105,36 @@ def record_submission(
             payload=body,
         )
     except SubmissionReportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/admin/cases/{case_id}/follow-up-control")
+def record_follow_up_control_action(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Ступень 10: назначить/проверить/перенести контроль или передать ответ на ступень 11.
+
+    Контрольная дата пишется в cases.next_action_at (не параллельное поле).
+    Не обещает срок решения СФР.
+    """
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from sfrfr.services.follow_up_control import FollowUpControlError
+    from sfrfr.services.follow_up_record import record_follow_up_control
+
+    repo = _repo()
+    case = repo.require_case(principal, case_id)
+    try:
+        return record_follow_up_control(
+            repo,
+            case_id=str(case.get("id") or case_id),
+            actor_id=principal.audit_actor_id(),
+            payload=dict(payload or {}),
+            case_row=case,
+        )
+    except FollowUpControlError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

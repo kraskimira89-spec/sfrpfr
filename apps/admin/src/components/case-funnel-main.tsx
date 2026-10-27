@@ -42,6 +42,11 @@ import {
   type SubmissionReportView,
 } from "@/components/submission-stage-panel";
 import {
+  FollowUpStagePanel,
+  type FollowUpControlPayload,
+  type FollowUpEventView,
+} from "@/components/follow-up-stage-panel";
+import {
   initialAccordion,
   openStageOf,
   toggleAccordion,
@@ -214,6 +219,7 @@ type Detail = {
   audit: { action: string; at: string }[];
   submission_report?: SubmissionReportView | null;
   submission_reports?: SubmissionReportView[];
+  follow_up_events?: FollowUpEventView[];
   role_capabilities: Caps;
 };
 
@@ -342,6 +348,7 @@ export function CaseFunnelMain({
   onRecordAppealsConsent,
   onRecordAppealsPackage,
   onRecordSubmission,
+  onRecordFollowUpControl,
   onFeedbackText,
   onFeedbackQuality,
   onSendFeedback,
@@ -445,6 +452,7 @@ export function CaseFunnelMain({
   onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
   onRecordAppealsPackage?: (decision: "ready" | "delivered") => void;
   onRecordSubmission?: (payload: SubmissionFormPayload) => void;
+  onRecordFollowUpControl?: (payload: FollowUpControlPayload) => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -1808,44 +1816,46 @@ export function CaseFunnelMain({
           expanded={isExpanded("follow_up")}
           onToggle={() => toggleStage("follow_up")}
         >
-          <p className="hint">
-            Вход — сообщение о подаче. Контрольную дату назначайте вручную ниже — без обещания срока
-            решения СФР.
-            {funnel.facts.followUp.submittedOn
-              ? ` Фактическая дата подачи: ${funnel.facts.followUp.submittedOn}.`
-              : ""}
-          </p>
-          <p>
-            Сейчас: {nextActionText || "—"} · до {nextActionAt || "—"} · ждём:{" "}
-            {WAITING_LABELS[waitingOn] ?? (waitingOn || "—")}
-          </p>
-          <div className="row-actions">
-            {[3, 5, 10, 15, 30].map((days) => (
-              <button
-                key={days}
-                type="button"
-                className="secondary"
-                disabled={busy}
-                onClick={() => {
-                  const due = new Date();
-                  due.setDate(due.getDate() + days);
-                  const local = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}T${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}`;
-                  onNextActionText(
-                    days === 3
-                      ? "Спросить клиента про уведомления Госуслуг"
-                      : `Звонок специалиста (день +${days} от ручного пресета)`,
+          {onRecordFollowUpControl ? (
+            <FollowUpStagePanel
+              busy={busy}
+              submissionConfirmed={funnel.facts.submission === "confirmed"}
+              followUpCompleted={funnel.facts.followUp.state === "completed"}
+              responseReceived={
+                funnel.facts.response === "received" ||
+                funnel.facts.response === "reviewing" ||
+                funnel.facts.response === "reviewed"
+              }
+              receiptVerified={funnel.facts.receiptVerified}
+              report={detail.submission_report}
+              controlAt={detail.next_action_at}
+              nextAction={detail.next_action}
+              expertUserId={detail.expert_user_id}
+              meUserId={meUserId}
+              events={detail.follow_up_events || []}
+              sfrDocumentIds={(detail.documents ?? [])
+                .filter((d) => {
+                  const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
+                  return (
+                    blob.includes("sfr_decision") ||
+                    blob.includes("sfr_response") ||
+                    blob.includes("sfr_refusal")
                   );
-                  onNextActionAt(local);
-                  onWaitingOn(days === 3 ? "client" : "staff");
-                }}
-              >
-                +{days} дн.
-              </button>
-            ))}
-            <button type="button" disabled={busy} onClick={onSaveNextAction}>
-              Сохранить следующее действие
-            </button>
-          </div>
+                })
+                .map((d) => d.id)}
+              onControl={(p) => onRecordFollowUpControl(p)}
+              onUploadSfr={onUploadSfrResponse}
+            />
+          ) : (
+            <p className="hint">Нет прав на контроль рассмотрения.</p>
+          )}
+          <p className="hint">
+            Локальный черновик (не сохраняет историю): сейчас {nextActionText || "—"} · до{" "}
+            {nextActionAt || "—"} · ждём {WAITING_LABELS[waitingOn] ?? (waitingOn || "—")}.
+          </p>
+          <button type="button" className="secondary" disabled={busy} onClick={onSaveNextAction}>
+            Сохранить next_action без журнала
+          </button>
         </StageShell>
 
         <StageShell
