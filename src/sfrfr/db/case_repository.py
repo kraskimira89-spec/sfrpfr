@@ -34,6 +34,10 @@ class PaymentSlotConflict(Exception):
     """Активный платёж заказа уже существует (unique index, follow-up к B1)."""
 
 
+class DocsOrderSlotConflict(Exception):
+    """Открытый или оплаченный DOCS (ACCOMP≤6500) на деле уже есть (unique index)."""
+
+
 class CaseRepository:
     def __init__(self) -> None:
         self.client = get_supabase_client()
@@ -1051,20 +1055,30 @@ class CaseRepository:
         service_label: str | None = None,
         invoice_status: str | None = None,
     ) -> dict[str, Any]:
+        from postgrest.exceptions import APIError
+
         from sfrfr.services.staff_finance import invoice_number_from_id
 
-        response = (
-            self.client.table("orders")
-            .insert(
-                {
-                    "case_id": case_id,
-                    "package_code": package_code,
-                    "amount_rub": amount_rub,
-                    "status": status_value,
-                }
+        try:
+            response = (
+                self.client.table("orders")
+                .insert(
+                    {
+                        "case_id": case_id,
+                        "package_code": package_code,
+                        "amount_rub": amount_rub,
+                        "status": status_value,
+                    }
+                )
+                .execute()
             )
-            .execute()
-        )
+        except APIError as exc:
+            # orders_one_open_docs_per_case_uidx — гонка двух POST DOCS.
+            if str(getattr(exc, "code", "")) == "23505":
+                raise DocsOrderSlotConflict(
+                    "Счёт на подготовку первичных обращений уже есть"
+                ) from exc
+            raise
         row = response.data[0]
         oid = str(row.get("id") or "")
         extra: dict[str, Any] = {}

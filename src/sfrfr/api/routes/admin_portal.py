@@ -2958,16 +2958,21 @@ def create_order(
                     f"(from {earliest.date().isoformat()})"
                 ),
             )
-    order = repo.create_order(
-        case_id,
-        package_code=payload.package_code,
-        amount_rub=payload.amount_rub,
-        status_value=payload.status,
-        actor_id=principal.user_id,
-        due_at=payload.due_at,
-        service_label=payload.service_label,
-        invoice_status=payload.invoice_status,
-    )
+    from sfrfr.db.case_repository import DocsOrderSlotConflict
+
+    try:
+        order = repo.create_order(
+            case_id,
+            package_code=payload.package_code,
+            amount_rub=payload.amount_rub,
+            status_value=payload.status,
+            actor_id=principal.user_id,
+            due_at=payload.due_at,
+            service_label=payload.service_label,
+            invoice_status=payload.invoice_status,
+        )
+    except DocsOrderSlotConflict as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     case = repo.require_case(principal, case_id)
     _push_case_crm(case, task=f"order:{payload.package_code}")
     return order
