@@ -116,7 +116,7 @@ def strip_position(text: str) -> str:
     return "\n\n".join(paragraphs).strip()
 
 
-def position_said_recently(messages: list[dict[str, Any]], *, window: int = 10) -> bool:
+def position_said_recently(messages: list[dict[str, Any]], *, window: int = 12) -> bool:
     """Позицию про подачу и решение СФР уже писали в последних сообщениях сервиса."""
     ours = [m for m in messages if str(m.get("author_kind") or "") in _STAFF_KINDS]
     return any(_POSITION_RE.search(str(m.get("body") or "")) for m in ours[-window:])

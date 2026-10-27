@@ -83,8 +83,7 @@ export function formatResultSummaryBrief(input: ResultSummaryInput): string {
     `• Как стало: ${after}\n` +
     (lump !== "—" && lump !== "0 ₽" ? `• Единовременно: ${lump}\n` : "") +
     `${delta ? `•${delta.trim()}\n` : ""}` +
-    `• ${docsLine}\n` +
-    `Мы готовим документы и план — подаёте через СФР или Госуслуги вы сами. Решение принимает СФР.`
+    `• ${docsLine}`
   );
 }
 

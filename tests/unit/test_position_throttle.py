@@ -1,4 +1,4 @@
-"""Throttle позиции сервиса 1/10 и согласие ПДн один раз."""
+"""Throttle позиции сервиса 1/12 и согласие ПДн один раз."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ from sfrfr.services.position_throttle import (
 )
 
 
-def test_should_include_position_every_tenth() -> None:
+def test_should_include_position_every_twelfth() -> None:
     assert should_include_position(outbound_count=0) is True  # 1-е
     assert should_include_position(outbound_count=1) is False
-    assert should_include_position(outbound_count=9) is False
-    assert should_include_position(outbound_count=10) is True  # 11-е
-    assert POSITION_EVERY_N == 10
+    assert should_include_position(outbound_count=11) is False
+    assert should_include_position(outbound_count=12) is True  # 13-е
+    assert POSITION_EVERY_N == 12
 
 
 def test_strip_and_apply_policy() -> None:

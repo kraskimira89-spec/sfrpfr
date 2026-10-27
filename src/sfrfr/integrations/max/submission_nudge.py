@@ -1,8 +1,8 @@
 """Спокойный ритм напоминания о подаче и решении СФР (уточнение владельца к ТЗ-35).
 
-Ритм: первое после 4 логических сообщений бота; следующее ещё через 8;
-далее ещё через 12; дальше интервал 12.
+Ритм: не чаще 1 раза на 12 логических сообщений бота.
 Счётчик устойчивый к перезапуску процесса; техразбиение одного ответа не ускоряет.
+Прямой вопрос о гарантии/подаче — сразу, вне счётчика.
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from typing import Any
 from sfrfr.integrations.max.intake import MaxIntakeRecord, get_intake_store
 
 # Пороги: накопленный прирост логических сообщений с прошлого напоминания.
-NUDGE_INTERVALS: tuple[int, ...] = (4, 8, 12)
+# Ритм владельца: позиция в чате не чаще ~1 раза на 12 сообщений.
+NUDGE_INTERVALS: tuple[int, ...] = (12,)
 NUDGE_INTERVAL_AFTER: int = 12
 
 SHORT_DISCLAIMER = (
@@ -88,9 +89,11 @@ def copy_nudge_state(src: MaxIntakeRecord | None, dst: MaxIntakeRecord) -> None:
 
 def intervals_doc() -> dict[str, Any]:
     return {
-        "first_after": NUDGE_INTERVALS[0],
-        "second_after_more": NUDGE_INTERVALS[1],
-        "third_after_more": NUDGE_INTERVALS[2],
+        "first_after": NUDGE_INTERVALS[0] if NUDGE_INTERVALS else NUDGE_INTERVAL_AFTER,
         "thereafter_every": NUDGE_INTERVAL_AFTER,
-        "note": "Считаются логические сообщения бота; техразбиение одного ответа — один счёт.",
+        "intervals": list(NUDGE_INTERVALS),
+        "note": (
+            "Считаются логические сообщения бота; техразбиение одного ответа — один счёт. "
+            "Позиция о подаче — не чаще 1 раза на 12 сообщений."
+        ),
     }
