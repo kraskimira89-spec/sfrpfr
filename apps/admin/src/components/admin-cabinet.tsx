@@ -2111,7 +2111,9 @@ export function AdminCabinet() {
         body: form,
       });
       setSfrReceived(true);
-      setNotice("Ответ СФР загружен. Можно зафиксировать суммы ниже.");
+      setNotice(
+        `Ответ СФР загружен: ${file.name}. Имена файлов — в ступени 11; суммы — «Извлечь суммы с ИИ».`,
+      );
       await openCase(detail.id);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Не удалось загрузить ответ СФР.");
