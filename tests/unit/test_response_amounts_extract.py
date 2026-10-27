@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from sfrfr.services.response_amounts_extract import (
-    parse_amounts_payload,
     extract_amounts_from_texts,
+    parse_amounts_payload,
 )
 
 
