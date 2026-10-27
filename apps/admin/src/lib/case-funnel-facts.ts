@@ -474,9 +474,20 @@ export function toFunnelFacts(
     }
   }
 
-  // Подача / follow-up / response — только из additionalFacts; иначе unknown.
-  let submission: FunnelFacts["submission"] = "unknown";
-  if (extra.submission !== undefined) submission = extra.submission;
+  // Подача: audit submission_* (≠ appeals_package_delivered). additionalFacts перекрывает.
+  let submission: FunnelFacts["submission"] = "not_started";
+  if (extra.submission !== undefined) {
+    submission = extra.submission;
+  } else {
+    const subActions = (detail.audit || []).map((a) => String(a.action || ""));
+    if (subActions.some((a) => a.startsWith("submission_confirmed"))) {
+      submission = "confirmed";
+    } else if (subActions.some((a) => a.startsWith("submission_help_requested"))) {
+      submission = "help_requested";
+    } else if (appealsWork.state === "delivered") {
+      submission = "awaiting_client";
+    }
+  }
 
   let followUp: FunnelFacts["followUp"] = {
     state: "unknown",
