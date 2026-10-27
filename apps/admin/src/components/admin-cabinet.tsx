@@ -1298,6 +1298,29 @@ export function AdminCabinet() {
     }
   }
 
+  async function recordAppealsPackage(decision: "ready" | "delivered") {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/appeals-package`, token, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      });
+      setNotice(
+        decision === "ready"
+          ? "Пакет первичных обращений отмечен как готовый."
+          : "Передача пакета клиенту зафиксирована.",
+      );
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось зафиксировать статус пакета.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestDocsFor(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -2500,6 +2523,7 @@ export function AdminCabinet() {
             onCancelOrder={(orderId) => void cancelCaseOrder(orderId)}
             onRecordServiceConsent={() => void recordServiceConsent()}
             onRecordAppealsConsent={(d) => void recordAppealsConsent(d)}
+            onRecordAppealsPackage={(d) => void recordAppealsPackage(d)}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}
             onSendFeedback={(e) => void sendFeedback(e)}

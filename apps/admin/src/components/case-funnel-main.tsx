@@ -341,6 +341,7 @@ export function CaseFunnelMain({
   onCancelOrder,
   onRecordServiceConsent,
   onRecordAppealsConsent,
+  onRecordAppealsPackage,
   onFeedbackText,
   onFeedbackQuality,
   onSendFeedback,
@@ -442,6 +443,7 @@ export function CaseFunnelMain({
   onCancelOrder?: (orderId: string) => void;
   onRecordServiceConsent: () => void;
   onRecordAppealsConsent?: (decision: "accepted" | "declined" | "thinking") => void;
+  onRecordAppealsPackage?: (decision: "ready" | "delivered") => void;
   onFeedbackText: (v: string) => void;
   onFeedbackQuality: (v: string) => void;
   onSendFeedback: (e: FormEvent) => void;
@@ -1604,12 +1606,28 @@ export function CaseFunnelMain({
             <div className="row-actions">
               <button
                 type="button"
-                disabled={busy || funnel.facts.appeals.consent !== "accepted"}
+                disabled={
+                  busy ||
+                  funnel.facts.appeals.consent !== "accepted" ||
+                  (detail.orders ?? []).some(
+                    (o) =>
+                      o.package_code === "ACCOMP" &&
+                      Number(o.amount_rub) === 5000 &&
+                      o.status !== "cancelled",
+                  )
+                }
                 onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
                 title={
                   funnel.facts.appeals.consent !== "accepted"
                     ? "Сначала зафиксируйте согласие на ступени «Согласование первичных обращений»"
-                    : "Создать счёт и сразу отправить ссылку клиенту в MAX"
+                    : (detail.orders ?? []).some(
+                          (o) =>
+                            o.package_code === "ACCOMP" &&
+                            Number(o.amount_rub) === 5000 &&
+                            o.status !== "cancelled",
+                        )
+                      ? "Счёт 5 000 ₽ уже есть — отправьте ссылку или дождитесь оплаты"
+                      : "Создать счёт и сразу отправить ссылку клиенту в MAX"
                 }
               >
                 Отправить счёт: первичные обращения 5 000 ₽
@@ -1710,6 +1728,40 @@ export function CaseFunnelMain({
               </button>
             ) : null}
           </div>
+          {onRecordAppealsPackage ? (
+            <div className="row-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  busy ||
+                  funnel.facts.appeals.order.entitlement !== "granted" ||
+                  funnel.facts.appeals.work.state === "delivered" ||
+                  (!detail.draft?.body && funnel.facts.appeals.work.state === "not_started")
+                }
+                onClick={() => onRecordAppealsPackage("ready")}
+                title="Пакет проверен сотрудником и готов к передаче клиенту"
+              >
+                Пакет готов
+              </button>
+              <button
+                type="button"
+                disabled={
+                  busy ||
+                  funnel.facts.appeals.work.state === "delivered" ||
+                  (funnel.facts.appeals.work.state !== "ready" &&
+                    funnel.facts.appeals.work.releaseReady !== "yes")
+                }
+                onClick={() => onRecordAppealsPackage("delivered")}
+                title="Клиент получил проекты обращений (чат / кабинет / иное)"
+              >
+                Передан клиенту
+              </button>
+            </div>
+          ) : null}
+          {funnel.facts.appeals.order.entitlement !== "granted" ? (
+            <p className="hint">Сначала оплата ступени 7 (5 000 ₽) — иначе пакет не открываем.</p>
+          ) : null}
         </StageShell>
 
         <StageShell

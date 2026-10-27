@@ -3004,6 +3004,29 @@ def record_appeals_consent(
     return {"ok": True, "action": action, "decision": decision}
 
 
+@router.post("/admin/cases/{case_id}/appeals-package")
+def record_appeals_package(
+    case_id: str,
+    payload: dict[str, Any] = Body(...),
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Этап 8: пакет первичных обращений готов к передаче / передан клиенту."""
+    if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
+        raise HTTPException(status_code=403, detail="forbidden")
+    decision = str(payload.get("decision") or "").strip().lower()
+    action_by = {
+        "ready": "appeals_package_ready",
+        "delivered": "appeals_package_delivered",
+    }
+    action = action_by.get(decision)
+    if not action:
+        raise HTTPException(status_code=400, detail="decision must be ready|delivered")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    repo.audit(case_id, principal.audit_actor_id(), action)
+    return {"ok": True, "action": action, "decision": decision}
+
+
 @router.post("/admin/cases/{case_id}/facts-review")
 def record_facts_review(
     case_id: str,

@@ -462,9 +462,16 @@ export function toFunnelFacts(
       state: extra.appealsDocuments.state,
       releaseReady: extra.appealsDocuments.releaseReady,
     };
-  } else if (hasDraft) {
-    // Один draft без реестра исходящих — не releaseReady.
-    appealsWork = { state: "working", releaseReady: "no" };
+  } else {
+    const pkgActions = (detail.audit || []).map((a) => String(a.action || ""));
+    if (pkgActions.some((a) => a.startsWith("appeals_package_delivered"))) {
+      appealsWork = { state: "delivered", releaseReady: "yes" };
+    } else if (pkgActions.some((a) => a.startsWith("appeals_package_ready"))) {
+      appealsWork = { state: "ready", releaseReady: "yes" };
+    } else if (hasDraft) {
+      // Черновик без явной готовности — ещё не к передаче.
+      appealsWork = { state: "working", releaseReady: "no" };
+    }
   }
 
   // Подача / follow-up / response — только из additionalFacts; иначе unknown.
