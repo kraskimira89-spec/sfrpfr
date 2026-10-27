@@ -207,6 +207,69 @@ def list_inbox(*, limit: int = 20, unseen_only: bool = False) -> dict[str, Any]:
         return {"ok": False, "error": type(exc).__name__, "detail": str(exc)[:200]}
 
 
+def extract_attachments_from_message(
+    msg: email.message.Message,
+) -> list[tuple[str, bytes, str]]:
+    """Вложения: (filename, bytes, content_type). Без тела письма."""
+    out: list[tuple[str, bytes, str]] = []
+    for part in msg.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        disp = (part.get_content_disposition() or "").lower()
+        filename = part.get_filename()
+        if disp != "attachment" and not filename:
+            continue
+        payload = part.get_payload(decode=True)
+        if not isinstance(payload, (bytes, bytearray)) or not payload:
+            continue
+        name = _decode_mime(filename)[:180] or "attachment.bin"
+        ctype = part.get_content_type() or "application/octet-stream"
+        out.append((name, bytes(payload), ctype))
+    return out
+
+
+def fetch_message_for_inbound(uid: str) -> dict[str, Any]:
+    """Письмо + вложения для process_inbound_mail_message (без публикации на Диск)."""
+    blocked = _imap_precheck()
+    if blocked:
+        return blocked
+    uid_clean = (uid or "").strip()
+    if not uid_clean.isdigit():
+        return {"ok": False, "error": "invalid_uid"}
+    try:
+        imap = _connect_imap()
+        try:
+            status, _ = imap.select("INBOX", readonly=True)
+            if status != "OK":
+                return {"ok": False, "error": "imap_select_failed"}
+            status, msg_data = imap.fetch(uid_clean, "(BODY.PEEK[] FLAGS)")
+            if status != "OK" or not msg_data:
+                return {"ok": False, "error": "message_not_found", "uid": uid_clean}
+            raw, _flags_line = _imap_fetch_parts(cast(list[Any], msg_data))
+            msg = email.message_from_bytes(raw)
+            attachments = extract_attachments_from_message(msg)
+            return {
+                "ok": True,
+                "uid": uid_clean,
+                "message_id": _decode_mime(msg.get("Message-ID"))[:120],
+                "from": _decode_mime(msg.get("From"))[:200],
+                "subject": _decode_mime(msg.get("Subject") or "")[:300],
+                "attachments": attachments,
+                "attachment_names": [n for n, _, _ in attachments],
+            }
+        finally:
+            _close_imap(imap)
+    except imaplib.IMAP4.error as exc:
+        return {"ok": False, "error": "imap_error", "detail": str(exc)[:200], "uid": uid_clean}
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": type(exc).__name__,
+            "detail": str(exc)[:200],
+            "uid": uid_clean,
+        }
+
+
 def fetch_message(
     uid: str,
     *,

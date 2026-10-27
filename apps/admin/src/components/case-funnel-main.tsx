@@ -900,6 +900,17 @@ export function CaseFunnelMain({
           </p>
         </div>
 
+        {staffToken && apiBase ? (
+          <NewExtraDocumentsPanel
+            caseId={detail.id}
+            token={staffToken}
+            apiBase={apiBase}
+            busy={busy}
+            onOpenSigned={onOpenSigned}
+            onNotice={onDeliveryNotice ?? (() => {})}
+          />
+        ) : null}
+
         <StageShell
           id="funnel-contact_consents"
           title={stageById.contact_consents.label}
@@ -1094,20 +1105,10 @@ export function CaseFunnelMain({
             </li>
           </ol>
 
-          {staffToken && apiBase ? (
-            <NewExtraDocumentsPanel
-              caseId={detail.id}
-              token={staffToken}
-              apiBase={apiBase}
-              busy={busy}
-              onOpenSigned={onOpenSigned}
-              onNotice={onDeliveryNotice ?? (() => {})}
-            />
-          ) : null}
           {documentsWorkplace}
           <p className="hint">
             Комплект на месте? Переходите к проверке — там система разберёт файлы и соберёт резюме
-            для клиента. Доп. документы с любого этапа — в блоке «Новые документы» выше; они не
+            для клиента. Доп. документы — в блоке «Новые документы» над ступенями (любой этап); они не
             обнуляют оплату и согласования.
           </p>
         </StageShell>
