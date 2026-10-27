@@ -158,3 +158,23 @@ def order_requires_appeals_consent(
         }
     )
     return tariff == "DOCS"
+
+
+def has_open_or_paid_docs_order(orders: list[dict[str, Any]] | None) -> bool:
+    """Есть незакрытый или оплаченный DOCS (ACCOMP ~5000) — повторный счёт запрещён."""
+    from sfrfr.services.funnel_board import classify_accomp_tariff
+
+    for row in orders or []:
+        if not isinstance(row, dict):
+            continue
+        if classify_accomp_tariff(row) != "DOCS":
+            continue
+        status = str(row.get("status") or "").strip().lower()
+        if status in {"cancelled", "canceled", "refunded"}:
+            continue
+        if status in {"paid", "pending", "draft", "invoice_ready", "invoice_sent", "overdue"}:
+            return True
+        inv = str(row.get("invoice_status") or "").strip().lower()
+        if inv in {"draft", "invoice_ready", "invoice_sent", "overdue", "pending"}:
+            return True
+    return False

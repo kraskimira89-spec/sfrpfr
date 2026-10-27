@@ -6,6 +6,7 @@ from sfrfr.services.message_dedupe import (
     count_same_messages,
     find_duplicate_staff_message,
     has_appeals_consent_accepted,
+    has_open_or_paid_docs_order,
     has_service_consent,
     normalize_message_body,
     order_requires_appeals_consent,
@@ -144,4 +145,32 @@ def test_order_requires_appeals_consent_docs_only() -> None:
             service_label="Шаг 2. Подготовка первичных обращений",
         )
         is True
+    )
+
+
+def test_has_open_or_paid_docs_order_blocks_duplicate() -> None:
+    assert has_open_or_paid_docs_order([]) is False
+    assert (
+        has_open_or_paid_docs_order(
+            [{"package_code": "ACCOMP", "amount_rub": 5000, "status": "cancelled"}]
+        )
+        is False
+    )
+    assert (
+        has_open_or_paid_docs_order(
+            [{"package_code": "ACCOMP", "amount_rub": 5000, "status": "pending"}]
+        )
+        is True
+    )
+    assert (
+        has_open_or_paid_docs_order(
+            [{"package_code": "ACCOMP", "amount_rub": 5000, "status": "paid"}]
+        )
+        is True
+    )
+    assert (
+        has_open_or_paid_docs_order(
+            [{"package_code": "SUPPORT", "amount_rub": 8000, "status": "pending"}]
+        )
+        is False
     )
