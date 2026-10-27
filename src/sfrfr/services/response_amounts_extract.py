@@ -111,7 +111,7 @@ def extract_amounts_from_texts(
     snippets: list[dict[str, str]],
     llm: _LLM | Literal["auto"] | None = "auto",
 ) -> dict[str, Any]:
-    empty = {
+    empty: dict[str, Any] = {
         "monthly_before_rub": None,
         "monthly_after_rub": None,
         "lump_sum_rub": None,
