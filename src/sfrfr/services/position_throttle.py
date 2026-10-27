@@ -1,4 +1,4 @@
-"""Дисклеймер позиции сервиса: не чаще 1 раза на 10 исходящих сообщений бота."""
+"""Дисклеймер позиции сервиса: не чаще 1 раза на 12 исходящих сообщений бота."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from sfrfr.core.copy import POSITION_SHORT
 
 logger = logging.getLogger(__name__)
 
-POSITION_EVERY_N = 10
+POSITION_EVERY_N = 12
 
 _POSITION_MARKERS = re.compile(
     r"(подаёте через\s*сфр|решение принимает\s*сфр|"
@@ -59,9 +59,9 @@ def should_include_position(
     case_id: str | None = None,
     outbound_count: int | None = None,
 ) -> bool:
-    """True примерно для каждого 10-го исходящего сообщения бота (1, 11, 21…)."""
+    """True примерно для каждого 12-го исходящего сообщения бота (1, 13, 25…)."""
     n = outbound_count if outbound_count is not None else count_bot_outbound(case_id=case_id)
-    # Следующее сообщение будет n+1; включаем на 1-м, 11-м, 21-м…
+    # Следующее сообщение будет n+1; включаем на 1-м, 13-м, 25-м…
     next_n = n + 1
     return next_n % POSITION_EVERY_N == 1
 
@@ -89,7 +89,7 @@ def apply_position_policy(
     case_id: str | None = None,
     allow: bool | None = None,
 ) -> str:
-    """Убрать лишние вставки и при необходимости добавить по политике 1/10."""
+    """Убрать лишние вставки и при необходимости добавить по политике 1/12."""
     cleaned = strip_position_phrases(text)
     include = allow if allow is not None else should_include_position(case_id=case_id)
     if include and not _POSITION_MARKERS.search(cleaned):

@@ -19,7 +19,7 @@ test("brief: как было / как стало", () => {
   assert.match(text, /Как стало/);
   assert.match(text, /Единовременно/);
   assert.match(text, /документов: 1/);
-  assert.match(text, /Решение принимает СФР/);
+  assert.doesNotMatch(text, /Решение принимает СФР/);
 });
 
 test("full: хронология по датам", () => {

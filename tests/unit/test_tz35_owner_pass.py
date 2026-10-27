@@ -119,30 +119,28 @@ def test_one_case_created_no_immediate_sale(tmp_path: Path, monkeypatch) -> None
     get_settings.cache_clear()
 
 
-def test_submission_nudge_rhythm_4_8_12(tmp_path: Path, monkeypatch) -> None:
+def test_submission_nudge_rhythm_every_12(tmp_path: Path, monkeypatch) -> None:
     _setup(tmp_path, monkeypatch)
     store = get_intake_store()
     rec = store.upsert_started("n1")
-    assert submission_nudge.next_interval(0) == 4
-    assert submission_nudge.next_interval(1) == 8
-    assert submission_nudge.next_interval(2) == 12
-    assert submission_nudge.next_interval(3) == 12
-    # 4 → nudge
-    for _ in range(4):
+    assert submission_nudge.next_interval(0) == 12
+    assert submission_nudge.next_interval(1) == 12
+    assert submission_nudge.next_interval(5) == 12
+    # 11 — ещё рано
+    for _ in range(11):
         submission_nudge.note_logical_bot_message(rec)
+    _early, added_early = submission_nudge.maybe_append_disclaimer(rec, "Рано")
+    assert added_early is False
+    # 12-е → nudge
+    submission_nudge.note_logical_bot_message(rec)
     text, added = submission_nudge.maybe_append_disclaimer(rec, "Ответ бота")
     assert added and submission_nudge.SHORT_DISCLAIMER in text
     assert rec.submission_nudge_tier == 1
-    # ещё 8
-    for _ in range(8):
-        submission_nudge.note_logical_bot_message(rec)
-    _text2, added2 = submission_nudge.maybe_append_disclaimer(rec, "Ещё ответ")
-    assert added2 and rec.submission_nudge_tier == 2
     # ещё 12
     for _ in range(12):
         submission_nudge.note_logical_bot_message(rec)
-    _text3, added3 = submission_nudge.maybe_append_disclaimer(rec, "Третий")
-    assert added3 and rec.submission_nudge_tier == 3
+    _text2, added2 = submission_nudge.maybe_append_disclaimer(rec, "Ещё ответ")
+    assert added2 and rec.submission_nudge_tier == 2
 
 
 def test_restart_keeps_nudge_counter(tmp_path: Path, monkeypatch) -> None:
@@ -296,10 +294,9 @@ def test_soft_offer_not_every_message(tmp_path: Path, monkeypatch) -> None:
 
 def test_intervals_documented() -> None:
     doc = submission_nudge.intervals_doc()
-    assert doc["first_after"] == 4
-    assert doc["second_after_more"] == 8
-    assert doc["third_after_more"] == 12
+    assert doc["first_after"] == 12
     assert doc["thereafter_every"] == 12
+    assert doc["intervals"] == [12]
 
 
 def test_completed_text_owner_wording() -> None:
