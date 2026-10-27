@@ -11,7 +11,7 @@
 | `submission_confirmed` → stage done | unit PASS |
 | `submission_help_requested` → needs_action | unit PASS |
 | Передача пакета ≠ подача; копирайт «подаёте сами / решает СФР» | UI |
-| Live: confirm на деле после delivered | после deploy |
+| Live: confirm на деле `1579e69f-…` после delivered | **PASS** (API 200, audit `submission_confirmed`) |
 
 ## Вне скоупа
 
