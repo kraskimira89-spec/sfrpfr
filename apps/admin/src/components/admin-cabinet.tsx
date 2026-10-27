@@ -2770,8 +2770,12 @@ export function AdminCabinet() {
                     }}
                   >
                     <option value="DIAG:3000:Диагностика">Диагностика · 3 000 ₽</option>
-                    <option value="ACCOMP:5000:Подготовка документов">Подготовка документов · 5 000 ₽</option>
-                    <option value="ACCOMP:8000:Сопровождение до подачи">Сопровождение до подачи · 8 000 ₽</option>
+                    <option value="ACCOMP:5000:Подготовка первичных обращений">
+                      Подготовка первичных обращений · 5 000 ₽
+                    </option>
+                    <option value="SUPPORT:8000:Обращения по запросам / отказам / возражениям СФР">
+                      Обращения по запросам / отказам / возражениям СФР · 8 000 ₽
+                    </option>
                   </select>
                 </label>
                 <label>Сумма ₽<input type="number" min={1} step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} required /></label>

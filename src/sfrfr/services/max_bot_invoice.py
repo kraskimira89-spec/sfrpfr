@@ -489,7 +489,7 @@ def maybe_offer_docs_invoice(
 
     tariff = public_tariff("DOCS") or {}
     amount = float(tariff.get("amount_rub") or 5000)
-    label = str(tariff.get("name") or "Шаг 2. Подготовка документов")
+    label = str(tariff.get("name") or "Шаг 2. Подготовка первичных обращений")
     try:
         order = repo.create_order(
             cid,
@@ -583,7 +583,9 @@ def maybe_offer_support_invoice(
 
     tariff = public_tariff("SUPPORT") or {}
     amount = float(tariff.get("amount_rub") or 8000)
-    label = str(tariff.get("name") or "Шаг 3. Сопровождение до подачи")
+    label = str(
+        tariff.get("name") or "Шаг 3. Обращения по запросам / отказам / возражениям СФР"
+    )
     try:
         order = repo.create_order(
             cid,
@@ -603,10 +605,9 @@ def maybe_offer_support_invoice(
     from sfrfr.core.copy import PAYMENT_LEGAL_ACCEPTANCE
 
     body = (
-        f"Шаг 3 — сопровождение до подачи, {int(amount)} ₽: "
-        "доводим проект обращения и пошаговый план.\n"
-        "Подачу через СФР / Госуслуги / МФЦ делаете вы; мы рядом с планом и ответами по шагам.\n"
-        "Можно остаться на шаге 2, если хотите подать сами по уже готовому комплекту.\n"
+        f"Шаг 3 — обращения по запросам, отказам или возражениям СФР, {int(amount)} ₽.\n"
+        "Готовим документы и план; подачу через СФР / Госуслуги / МФЦ делаете вы.\n"
+        "Решение принимает СФР.\n"
         "Чтобы выставить счёт, примите условия в кабинете.\n"
         f"{PAYMENT_LEGAL_ACCEPTANCE}\n"
         f"Кабинет: {cab}"
