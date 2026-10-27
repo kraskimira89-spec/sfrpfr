@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { FollowUpControlPayload } from "@/components/follow-up-stage-panel";
 import type { SubmissionReportView } from "@/components/submission-stage-panel";
 
@@ -121,7 +121,12 @@ export function ResponseReviewPanel({
   const [deadlinePage, setDeadlinePage] = useState("");
   const [controlLocal, setControlLocal] = useState("");
   const [selectedId, setSelectedId] = useState(reviews[0]?.id || "");
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() =>
+    String(reviews[0]?.staff_draft_md || reviews[0]?.ai_draft_md || ""),
+  );
+  const [loadedForId, setLoadedForId] = useState<string | null>(
+    reviews[0]?.id || null,
+  );
   const [emailTo, setEmailTo] = useState(clientEmail || "");
   const [msg, setMsg] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -131,13 +136,14 @@ export function ResponseReviewPanel({
     return reviews.find((r) => r.id === id) || reviews[0] || null;
   }, [reviews, selectedId]);
 
-  useEffect(() => {
-    if (!selected) return;
+  // Синхронизация полей при смене выбранного разбора (без useEffect → lint).
+  if (selected?.id && selected.id !== loadedForId) {
+    setLoadedForId(selected.id);
     setDraft(String(selected.staff_draft_md || selected.ai_draft_md || ""));
     setDeadlineQuote(String(selected.deadline_quote || ""));
     setDeadlineSource(String(selected.deadline_quote_source || ""));
     setDeadlinePage(String(selected.deadline_quote_page || ""));
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const base = `${apiBase}/api/portal/admin/cases/${caseId}/response-review`;
   const locked = busy || working || !canEdit;
