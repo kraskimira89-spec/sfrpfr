@@ -38,7 +38,18 @@ export type SfrResponseDoc = IncomingResponseDoc;
 
 export type AmountsChronologyRow = {
   date?: string | null;
+  effective_date?: string | null;
+  document_date?: string | null;
+  received_date?: string | null;
   filename?: string;
+  page?: string | null;
+  monthly_before_rub?: number | null;
+  monthly_after_rub?: number | null;
+  lump_sum_rub?: number | null;
+  amount_kind?: string | null;
+  payment_status?: string | null;
+  basis_quote?: string | null;
+  conflict_group?: string | null;
   note?: string;
 };
 
@@ -251,6 +262,10 @@ export function ResponseReviewPanel({
   const [uploadDocType, setUploadDocType] = useState<"sfr_decision" | "agency_response">(
     "sfr_decision",
   );
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>(() =>
+    sfrDocuments.map((d) => d.id),
+  );
+  const [amountsWarnings, setAmountsWarnings] = useState<string[]>([]);
 
   const selected = useMemo(() => {
     const id = selectedId || reviews[0]?.id;
@@ -465,10 +480,18 @@ export function ResponseReviewPanel({
     }
   }
 
-  async function extractAmounts() {
+  async function extractAmounts(force = false) {
+    const ids = selectedDocIds.length ? selectedDocIds : sfrDocuments.map((d) => d.id);
+    if (ids.length === 0) {
+      setMsg("Выберите хотя бы один файл ответа.");
+      return;
+    }
     setWorking(true);
     try {
       const out = await apiJson<{
+        ok?: boolean;
+        needs_confirm?: boolean;
+        detail?: string;
         monthly_before_rub?: number | null;
         monthly_after_rub?: number | null;
         lump_sum_rub?: number | null;
@@ -476,14 +499,27 @@ export function ResponseReviewPanel({
         source_quote?: string | null;
         source?: string;
         reason?: string | null;
+        partial?: boolean;
+        warnings?: string[];
+        files?: { id?: string; filename?: string; has_text?: boolean }[];
       }>(`${base}/extract-amounts`, token, {
         method: "POST",
-        body: JSON.stringify({
-          document_ids: sfrDocuments.map((d) => d.id),
-        }),
+        body: JSON.stringify({ document_ids: ids, force }),
       });
+      if (out.needs_confirm) {
+        const ok = window.confirm(
+          out.detail ||
+            "Есть проверенные суммы. Повторное извлечение затрёт черновик. Продолжить?",
+        );
+        if (ok) {
+          await extractAmounts(true);
+        }
+        return;
+      }
       setChronology(Array.isArray(out.chronology) ? out.chronology : []);
       setAmountsQuote(out.source_quote || null);
+      setAmountsWarnings(Array.isArray(out.warnings) ? out.warnings : []);
+      const noText = (out.files || []).filter((f) => !f.has_text);
       const fmt = (n: number | null | undefined) =>
         n == null || !Number.isFinite(n) ? "" : String(Math.round(n * 100) / 100);
       onAmountsExtracted?.({
@@ -491,16 +527,27 @@ export function ResponseReviewPanel({
         afterRub: fmt(out.monthly_after_rub),
         lumpRub: fmt(out.lump_sum_rub),
       });
-      setMsg(
-        out.source === "ai"
-          ? "Суммы подставлены из ответов — проверьте."
-          : `Без уверенных сумм (${out.reason || "нет текста"}).`,
-      );
+      const parts: string[] = [];
+      if (out.partial || noText.length) {
+        parts.push(
+          `Частично: нет OCR у ${noText.map((f) => f.filename || f.id).join(", ") || "части файлов"}`,
+        );
+      }
+      if (out.source === "ai") {
+        parts.push("Черновик сумм из ответов — проверьте и сохраните.");
+      } else {
+        parts.push(`Без уверенных сумм (${out.reason || "нет текста"}).`);
+      }
+      setMsg(parts.join(" "));
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Ошибка извлечения сумм");
     } finally {
       setWorking(false);
     }
+  }
+
+  function fmtAmt(n: number | null | undefined): string {
+    return n == null || !Number.isFinite(n) ? "Не указано" : String(n);
   }
 
   function handleUpload(files: FileList | File[]) {
@@ -709,32 +756,89 @@ export function ResponseReviewPanel({
           disabled={locked || sfrDocuments.length === 0}
           onClick={() => void extractAmounts()}
         >
-          Извлечь суммы с ИИ
+          Извлечь черновик сумм
         </button>
       </div>
 
-      {(chronology.length > 0 || amountsQuote) && (
+      {sfrDocuments.length > 0 ? (
+        <div className="hint" style={{ marginTop: "0.5rem" }}>
+          Файлы для разбора:{" "}
+          {sfrDocuments.map((d) => {
+            const checked = selectedDocIds.includes(d.id);
+            return (
+              <label key={d.id} style={{ marginRight: "0.75rem", display: "inline-block" }}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={locked}
+                  onChange={(e) => {
+                    setSelectedDocIds((prev) =>
+                      e.target.checked
+                        ? [...prev, d.id]
+                        : prev.filter((x) => x !== d.id),
+                    );
+                  }}
+                />{" "}
+                {incomingDocLabel(d)}
+                {d.created_at ? ` · ${(d.created_at || "").slice(0, 10)}` : ""}
+                {d.ingest_status ? ` · OCR:${d.ingest_status}` : ""}
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {(chronology.length > 0 || amountsQuote || amountsWarnings.length > 0) && (
         <>
           <h3 className="case-subhead">Хронология сумм</h3>
-          {amountsQuote ? (
-            <p className="hint">
-              Цитата: <em>{amountsQuote}</em>
+          <p className="hint">
+            Дата действия изменения (не дата файла). Начислено ≠ выплачено. Пусто = «Не
+            указано», не ноль.
+          </p>
+          {amountsWarnings.length > 0 ? (
+            <p className="hint" style={{ borderLeft: "3px solid #c45", paddingLeft: "0.5rem" }}>
+              {amountsWarnings.join(" · ")}
             </p>
           ) : null}
-          <table className="plain-table" style={{ width: "100%", fontSize: "0.9rem" }}>
+          {amountsQuote ? (
+            <p className="hint">
+              Общая цитата: <em>{amountsQuote}</em>
+            </p>
+          ) : null}
+          <table className="plain-table" style={{ width: "100%", fontSize: "0.85rem" }}>
             <thead>
               <tr>
-                <th align="left">Дата</th>
-                <th align="left">Файл</th>
-                <th align="left">Заметка</th>
+                <th align="left">Дата действия</th>
+                <th align="left">Документ / стр.</th>
+                <th align="left">Было, ₽/мес.</th>
+                <th align="left">Стало, ₽/мес.</th>
+                <th align="left">Единовр., ₽</th>
+                <th align="left">Основание и статус</th>
               </tr>
             </thead>
             <tbody>
               {chronology.map((row, i) => (
                 <tr key={`${row.filename}-${i}`}>
-                  <td>{(row.date || "—").toString().slice(0, 10)}</td>
-                  <td>{row.filename || "—"}</td>
-                  <td>{row.note || "—"}</td>
+                  <td>
+                    {(row.effective_date || row.date || "не указана").toString().slice(0, 10)}
+                  </td>
+                  <td>
+                    {row.filename || "—"}
+                    {row.page ? `, стр. ${row.page}` : ""}
+                  </td>
+                  <td>{fmtAmt(row.monthly_before_rub)}</td>
+                  <td>{fmtAmt(row.monthly_after_rub)}</td>
+                  <td>{fmtAmt(row.lump_sum_rub)}</td>
+                  <td>
+                    {[
+                      row.amount_kind || "",
+                      row.payment_status || "",
+                      row.basis_quote || row.note || "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                    {row.conflict_group ? ` · конфликт:${row.conflict_group}` : ""}
+                  </td>
                 </tr>
               ))}
             </tbody>

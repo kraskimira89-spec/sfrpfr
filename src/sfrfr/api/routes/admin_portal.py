@@ -3180,7 +3180,7 @@ def extract_sfr_response_amounts(
     payload: dict[str, Any] | None = Body(default=None),
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
-    """ИИ читает ответы СФР: суммы + хронология (без автосохранения в result_evidence)."""
+    """ИИ читает входящие ответы: суммы + хронология (без автосохранения в evidence)."""
     if principal.role not in (StaffRole.EXPERT, StaffRole.ADMIN):
         raise HTTPException(status_code=403, detail="Только эксперт или админ")
     from sfrfr.services.response_amounts_extract import extract_amounts_from_texts
@@ -3188,6 +3188,17 @@ def extract_sfr_response_amounts(
     repo = _repo()
     case = repo.require_case(principal, case_id)
     body = payload if isinstance(payload, dict) else {}
+    force = bool(body.get("force"))
+    existing = repo.get_result_evidence(case_id) or {}
+    if existing.get("confirmed_at") and not force:
+        return {
+            "ok": False,
+            "needs_confirm": True,
+            "detail": (
+                "есть проверенные суммы — повторное извлечение затрёт черновик; "
+                "передайте force=true"
+            ),
+        }
     want_ids = {
         str(x).strip()
         for x in (body.get("document_ids") or [])
@@ -3243,6 +3254,7 @@ def extract_sfr_response_amounts(
     case_ref = str(case.get("public_id") or case.get("case_number") or case_id[:8])
     out = extract_amounts_from_texts(case_ref=case_ref, snippets=snippets)
     repo.audit(case_id, principal.audit_actor_id(), "response_amounts_extracted")
+    by_id = {str(d.get("id") or ""): d for d in sfr_docs}
     return {
         "ok": True,
         "files": [
@@ -3250,6 +3262,9 @@ def extract_sfr_response_amounts(
                 "id": s.get("document_id"),
                 "filename": s.get("filename"),
                 "has_text": bool(str(s.get("text") or "").strip()),
+                "ingest_status": (by_id.get(str(s.get("document_id") or "")) or {}).get(
+                    "ingest_status"
+                ),
             }
             for s in snippets
         ],

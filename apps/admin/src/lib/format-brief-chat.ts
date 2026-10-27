@@ -31,8 +31,11 @@ export type FormatBriefChatOpts = {
   diagAmountRub?: number;
 };
 
-/** Одна короткая строка о подаче; сервер убирает её, если её уже писали в переписке. */
-const POSITION_LINE = "Обращение подаёте вы сами, решение принимает СФР.";
+/**
+ * Позицию о подаче («подаёте сами») не вшиваем в каждый шаблон —
+ * сервер добавляет редко (1/12) через position_throttle на outbound.
+ * Смысл услуги не меняется: сервис не подаёт за клиента.
+ */
 
 /**
  * Признаки краткого резюме сверки в сообщении сотруднику → клиенту.
@@ -157,8 +160,6 @@ function formatDocsConfirmed(
     );
   }
 
-  lines.push("");
-  lines.push(POSITION_LINE);
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -178,8 +179,6 @@ function formatInsufficient(
     `Тема — ${theme}. Проверку делаем по документам: сверим ${compareHint}.`,
     "",
     withPeriod(capitalize(next)),
-    "",
-    POSITION_LINE,
   ];
   return lines.join("\n").trim();
 }
@@ -189,8 +188,6 @@ function formatComparedClean(): string {
     "Сверили выписку ИЛС с трудовой книжкой: все периоды работы в выписке есть, северные отметки совпадают — расхождений не нашли.",
     "",
     "Если по какому-то периоду у вас есть другие документы (например, архивные справки), пришлите их — проверим и их.",
-    "",
-    POSITION_LINE,
   ].join("\n");
 }
 
@@ -207,8 +204,6 @@ function formatEmptyOrLimit(brief: HonestBriefForChat): string {
     lines.push("");
     lines.push(withPeriod(capitalize(next)));
   }
-  lines.push("");
-  lines.push(POSITION_LINE);
   return lines.join("\n").trim();
 }
 
@@ -257,7 +252,5 @@ export function formatAskClientNextStepsTemplate(
   return [
     "Чтобы сверить стаж, пришлите, пожалуйста, выписку ИЛС с Госуслуг (PDF) и сканы трудовой книжки или справки о стаже прямо в этот чат.",
     "Краткий разбор сделаем по документам — заранее формулировать «проблему» не нужно.",
-    "",
-    POSITION_LINE,
   ].join("\n");
 }

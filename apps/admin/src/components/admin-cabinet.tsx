@@ -659,7 +659,22 @@ export function AdminCabinet() {
           caseDetail.b2c_status,
         ),
       );
-      setLumpRub("");
+      // Гидратация проверенных сумм (приёмка #362: save → reload).
+      const ev = caseDetail.result?.evidence;
+      const fmtEv = (v: unknown) => {
+        if (v == null || v === "") return "";
+        const n = Number(v);
+        return Number.isFinite(n) ? String(n) : "";
+      };
+      if (ev && typeof ev === "object") {
+        setBeforeRub(fmtEv((ev as Record<string, unknown>).monthly_before_rub));
+        setAfterRub(fmtEv((ev as Record<string, unknown>).monthly_after_rub));
+        setLumpRub(fmtEv((ev as Record<string, unknown>).lump_sum_rub));
+      } else {
+        setBeforeRub("");
+        setAfterRub("");
+        setLumpRub("");
+      }
       setDupDialog(null);
       setView("case");
       return true;

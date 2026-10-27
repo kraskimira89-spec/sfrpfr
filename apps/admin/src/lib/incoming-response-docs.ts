@@ -7,6 +7,7 @@ export type IncomingResponseDoc = {
   doc_type?: string | null;
   created_at?: string | null;
   inner_date?: string | null;
+  ingest_status?: string | null;
 };
 
 const MARKERS = [
