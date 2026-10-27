@@ -508,10 +508,10 @@ export function toFunnelFacts(
   }
 
   const report = detail.submission_report;
-  let submittedOn: string | undefined =
+  const submittedOn: string | undefined =
     extra.submittedOn ||
     (report?.submitted_on ? String(report.submitted_on).slice(0, 10) : undefined);
-  let receiptVerified =
+  const receiptVerified =
     extra.receiptVerified === true ||
     subActions.some((a) => a.startsWith("submission_receipt_verified"));
 
