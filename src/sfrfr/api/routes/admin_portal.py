@@ -32,6 +32,7 @@ from sfrfr.api.schemas.admin import (
     ChecklistItemUpdate,
     DashboardResponse,
     DiagnosisPublishRequest,
+    ExtraDocumentReviewUpdate,
     FinancePayLinkRequest,
     FinanceRemindRequest,
     KnowledgeFeedbackRequest,
@@ -47,6 +48,7 @@ from sfrfr.api.schemas.admin import (
     SurveyCampaignApproveRequest,
     SurveyCampaignRescheduleRequest,
     TrackerQualityIssueRequest,
+    UnboundMailBindRequest,
     WorkQueueItem,
     YandexMailRequest,
 )
@@ -1585,17 +1587,29 @@ def list_extra_documents(
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
     """Новые доп. документы дела: источник, дата, тип (для блока «Новые документы»)."""
-    from sfrfr.services.extra_document_intake import doc_type_is_extra
+    from sfrfr.services.extra_document_intake import (
+        REVIEW_STATUS_LABELS_RU,
+        ExtraDocumentReviewStore,
+        doc_type_is_extra,
+    )
 
     repo = _repo()
     repo.require_case(principal, case_id)
     docs = list(repo.list_documents(case_id) or [])
+    reviews = {
+        str(r.get("document_id")): r
+        for r in ExtraDocumentReviewStore().list_for_case(case_id)
+        if r.get("document_id")
+    }
     rows: list[dict[str, Any]] = []
     for d in docs:
         if not isinstance(d, dict):
             continue
         if not doc_type_is_extra(str(d.get("doc_type") or "")):
             continue
+        did = str(d.get("id") or "")
+        rev = reviews.get(did) or {}
+        status = str(rev.get("status") or "received")
         rows.append(
             {
                 "id": d.get("id"),
@@ -1604,10 +1618,86 @@ def list_extra_documents(
                 "created_at": d.get("created_at"),
                 "upload_source": d.get("upload_source") or "cabinet",
                 "ingest_status": d.get("ingest_status"),
+                "review_status": status,
+                "review_status_label": REVIEW_STATUS_LABELS_RU.get(status, status),
+                "analysis_update_needed": bool(rev.get("analysis_update_needed")),
+                "review_note": rev.get("note"),
             }
         )
     rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
-    return {"ok": True, "documents": rows}
+    return {"ok": True, "documents": rows, "preserves_funnel": True}
+
+
+@router.patch("/admin/cases/{case_id}/extra-documents/{document_id}/review")
+def patch_extra_document_review(
+    case_id: str,
+    document_id: str,
+    payload: ExtraDocumentReviewUpdate,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Статус Получен/Проверен/Нужно уточнение; опционально — подтвердить обновление разбора."""
+    from sfrfr.services.extra_document_intake import (
+        REVIEW_STATUS_LABELS_RU,
+        ExtraDocumentReviewStore,
+        doc_type_is_extra,
+        request_analysis_update_review,
+    )
+
+    if principal.role not in (StaffRole.ADMIN, StaffRole.EXPERT, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="staff role required")
+    repo = _repo()
+    repo.require_case(principal, case_id)
+    docs = list(repo.list_documents(case_id) or [])
+    found = next(
+        (
+            d
+            for d in docs
+            if isinstance(d, dict) and str(d.get("id") or "") == document_id
+        ),
+        None,
+    )
+    if found is None:
+        raise HTTPException(status_code=404, detail="document_not_found")
+    if not doc_type_is_extra(str(found.get("doc_type") or "")):
+        raise HTTPException(status_code=400, detail="not_extra_document")
+
+    if payload.analysis_update_needed:
+        out = request_analysis_update_review(
+            repo=repo,
+            case_id=case_id,
+            document_id=document_id,
+            actor_id=principal.audit_actor_id(),
+            note=payload.note,
+        )
+        rev = out.get("review") or {}
+    else:
+        try:
+            rev = ExtraDocumentReviewStore().set_status(
+                document_id,
+                status=payload.status,
+                actor_id=principal.audit_actor_id(),
+                analysis_update_needed=False,
+                note=payload.note,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        try:
+            repo.audit(
+                case_id,
+                principal.audit_actor_id(),
+                f"extra_document_review:{payload.status}:{document_id[:8]}",
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        out = {"ok": True, "review": rev, "preserves_funnel": True}
+
+    status = str((rev or {}).get("status") or payload.status)
+    return {
+        **out,
+        "review_status": status,
+        "review_status_label": REVIEW_STATUS_LABELS_RU.get(status, status),
+        "preserves_funnel": True,
+    }
 
 
 @router.get("/admin/mail-inbound/unbound")
@@ -1626,6 +1716,61 @@ def list_unbound_inbound_mail(
         "hint": (
             "Письма без opaque-токена SFRFR-DOC. Привязка только вручную; "
             "не кладём в дело по ФИО или адресу отправителя."
+        ),
+    }
+
+
+@router.post("/admin/mail-inbound/unbound/{item_id}/bind")
+def bind_unbound_inbound_mail(
+    item_id: str,
+    payload: UnboundMailBindRequest,
+    principal: Principal = Depends(require_staff),
+) -> dict[str, Any]:
+    """Привязать неоднозначное письмо к делу вручную (очередь сотрудника)."""
+    from sfrfr.services.extra_document_intake import UnboundMailQueue
+
+    if principal.role not in (StaffRole.ADMIN, StaffRole.EXPERT, StaffRole.OPERATOR):
+        raise HTTPException(status_code=403, detail="staff role required")
+    repo = _repo()
+    case_id = (payload.case_id or "").strip()
+    try:
+        repo.require_case(principal, case_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail="case_not_found") from exc
+    try:
+        row = UnboundMailQueue().mark_bound(
+            item_id,
+            case_id=case_id,
+            actor_id=principal.audit_actor_id(),
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="unbound_item_not_found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        repo.upsert_checklist_item(
+            case_id,
+            title="Почта: вложения письма привязаны вручную — добавить файлы в дело",
+            item_type="extra_document_mail_bind",
+            owner="expert",
+            actor_id=principal.audit_actor_id(),
+            note=(
+                f"unbound_id={item_id}; subject={row.get('subject')}; "
+                f"sender={row.get('sender')}"
+            )[:500],
+            sort_order=5,
+        )
+        repo.audit(case_id, principal.audit_actor_id(), f"mail_inbound_bound:{item_id[:8]}")
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "ok": True,
+        "item": row,
+        "preserves_funnel": True,
+        "honest": True,
+        "detail": (
+            "Письмо отмечено как привязанное к делу. Вложения из очереди не "
+            "скачиваются автоматически — добавьте файлы кнопкой кабинета или с токеном SFRFR-DOC."
         ),
     }
 

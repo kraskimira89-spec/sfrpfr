@@ -16,7 +16,9 @@
 - `GET /api/portal/admin/cases/{id}/extra-documents`
 - `GET /api/portal/admin/mail-inbound/unbound`
 
+Статусы review, bind unbound и IMAP-poll — см.
+`docs/history/2026-10-27-extra-docs-review-status.md`.
+
 ## Не в этом PR
 
-Полный IMAP-cron в проде (модель `process_inbound_mail_message` готова к подключению).
 Автопубликация входящих на Яндекс Диск — запрещена.

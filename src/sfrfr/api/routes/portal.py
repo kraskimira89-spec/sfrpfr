@@ -2086,6 +2086,7 @@ async def upload_case_document(
             doc_type=doc_type,
             actor_id=principal.user_id,
             may_affect_analysis=may_affect,
+            upload_source=str(row.get("upload_source") or "cabinet"),
         )
         client_doc = {
             **client_doc,

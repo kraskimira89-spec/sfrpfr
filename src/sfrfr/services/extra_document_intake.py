@@ -32,13 +32,24 @@ _CATEGORY_CODES = {c["code"] for c in CATEGORIES}
 
 RECEIVED_CLIENT_MESSAGE = (
     "Документ получен и добавлен в дело. Специалист проверит его и сообщит, "
-    "нужны ли уточнения. Повторно отправлять файл не нужно."
+    "нужны ли уточнения. Повторно отправлять файл не нужно. "
+    "Оплата и согласования не сбрасываются автоматически."
 )
 
 REJECTED_OR_FAILED_HINT = (
     "Файл не сохранён или не прошёл проверку. Исправьте проблему и загрузите снова. "
     "Пока специалист не проверил документ, он не считается принятым."
 )
+
+# Статусы доп. документа для сотрудника (не ingest_status хранилища).
+REVIEW_STATUSES: frozenset[str] = frozenset(
+    {"received", "checked", "needs_clarification"}
+)
+REVIEW_STATUS_LABELS_RU: dict[str, str] = {
+    "received": "Получен",
+    "checked": "Проверен",
+    "needs_clarification": "Нужно уточнение",
+}
 
 _TOKEN_RE = re.compile(r"\[?\s*SFRFR-DOC\s+([A-Za-z0-9_-]{8,64})\s*\]?", re.I)
 _LOCK = threading.Lock()
@@ -171,6 +182,7 @@ def notify_extra_document_received(
     doc_type: str | None,
     actor_id: str | None,
     may_affect_analysis: bool = False,
+    upload_source: str | None = None,
 ) -> dict[str, Any]:
     """Задача сотруднику + audit. Не меняет pipeline/b2c/orders."""
     if not doc_type_is_extra(doc_type):
@@ -178,6 +190,15 @@ def notify_extra_document_received(
     cat = str(doc_type or "").removeprefix("extra_") or "unknown"
     title = staff_review_task_title(category=cat, may_affect_analysis=may_affect_analysis)
     note = f"document_id={document_id}; source=upload; category={cat}"
+    try:
+        ExtraDocumentReviewStore().mark_received(
+            document_id,
+            case_id=case_id,
+            source=upload_source or "cabinet",
+            may_affect_analysis=may_affect_analysis,
+        )
+    except Exception:  # noqa: BLE001
+        pass
     try:
         repo.upsert_checklist_item(
             case_id,
@@ -199,6 +220,49 @@ def notify_extra_document_received(
         "client_message": RECEIVED_CLIENT_MESSAGE,
         "preserves_funnel": True,
         "task_title": title,
+        "review_status": "received",
+    }
+
+
+def request_analysis_update_review(
+    *,
+    repo: Any,
+    case_id: str,
+    document_id: str,
+    actor_id: str | None,
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Сотрудник подтвердил: нужно обновить разбор. Без сброса оплаты/согласований."""
+    store = ExtraDocumentReviewStore()
+    row = store.set_status(
+        document_id,
+        status="needs_clarification",
+        actor_id=actor_id,
+        analysis_update_needed=True,
+        note=note,
+    )
+    title = "Доп. документ: обновить разбор (подтверждено сотрудником)"
+    try:
+        repo.upsert_checklist_item(
+            case_id,
+            title=title,
+            item_type="extra_document_analysis_update",
+            owner="expert",
+            actor_id=actor_id,
+            note=f"document_id={document_id}; {(note or '').strip()}"[:500],
+            sort_order=4,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        repo.audit(case_id, actor_id, f"extra_document_analysis_update:{document_id[:8]}")
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "ok": True,
+        "review": row,
+        "preserves_funnel": True,
+        "task_title": title,
     }
 
 
@@ -206,6 +270,123 @@ def default_unbound_root() -> Path:
     root = Path(get_settings().storage_local_path).resolve()
     parent = root.parent if root.name.lower() in {"uploads", "local"} else root
     return parent / "mail_inbound_unbound"
+
+
+def default_extra_review_root() -> Path:
+    root = Path(get_settings().storage_local_path).resolve()
+    parent = root.parent if root.name.lower() in {"uploads", "local"} else root
+    return parent / "extra_document_reviews"
+
+
+class ExtraDocumentReviewStore:
+    """Статусы Получен / Проверен / Нужно уточнение по document_id."""
+
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = Path(root) if root is not None else default_extra_review_root()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._index = self.root / "index.json"
+
+    def _load(self) -> dict[str, Any]:
+        if not self._index.is_file():
+            return {"by_document_id": {}}
+        raw = json.loads(self._index.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return {"by_document_id": {}}
+        by = raw.get("by_document_id")
+        return {"by_document_id": dict(by) if isinstance(by, dict) else {}}
+
+    def _save(self, data: dict[str, Any]) -> None:
+        tmp = self._index.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        tmp.replace(self._index)
+
+    def get(self, document_id: str) -> dict[str, Any] | None:
+        did = (document_id or "").strip()
+        if not did:
+            return None
+        row = self._load()["by_document_id"].get(did)
+        return dict(row) if isinstance(row, dict) else None
+
+    def mark_received(
+        self,
+        document_id: str,
+        *,
+        case_id: str,
+        source: str = "cabinet",
+        may_affect_analysis: bool = False,
+    ) -> dict[str, Any]:
+        did = (document_id or "").strip()
+        if not did:
+            raise ValueError("document_id_required")
+        with _LOCK:
+            data = self._load()
+            prev = data["by_document_id"].get(did)
+            row: dict[str, Any] = {
+                "document_id": did,
+                "case_id": case_id,
+                "status": "received",
+                "source": (source or "cabinet")[:40],
+                "may_affect_analysis": bool(may_affect_analysis),
+                "analysis_update_needed": False,
+                "note": None,
+                "updated_at": _now(),
+                "created_at": (
+                    str(prev.get("created_at"))
+                    if isinstance(prev, dict) and prev.get("created_at")
+                    else _now()
+                ),
+            }
+            data["by_document_id"][did] = row
+            self._save(data)
+            return dict(row)
+
+    def set_status(
+        self,
+        document_id: str,
+        *,
+        status: str,
+        actor_id: str | None = None,
+        analysis_update_needed: bool | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        did = (document_id or "").strip()
+        st = (status or "").strip().lower()
+        if st not in REVIEW_STATUSES:
+            raise ValueError("invalid_status")
+        if not did:
+            raise ValueError("document_id_required")
+        with _LOCK:
+            data = self._load()
+            prev = data["by_document_id"].get(did)
+            base: dict[str, Any] = dict(prev) if isinstance(prev, dict) else {
+                "document_id": did,
+                "case_id": None,
+                "created_at": _now(),
+                "source": "staff",
+            }
+            base["status"] = st
+            base["updated_at"] = _now()
+            base["actor_id"] = actor_id
+            if analysis_update_needed is not None:
+                base["analysis_update_needed"] = bool(analysis_update_needed)
+            if note is not None:
+                base["note"] = (note or "")[:500] or None
+            data["by_document_id"][did] = base
+            self._save(data)
+            return dict(base)
+
+    def list_for_case(self, case_id: str) -> list[dict[str, Any]]:
+        cid = (case_id or "").strip()
+        rows = [
+            dict(v)
+            for v in self._load()["by_document_id"].values()
+            if isinstance(v, dict) and str(v.get("case_id") or "") == cid
+        ]
+        rows.sort(key=lambda r: str(r.get("updated_at") or ""), reverse=True)
+        return rows
 
 
 class UnboundMailQueue:
@@ -286,3 +467,33 @@ class UnboundMailQueue:
         ]
         rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
         return rows[:limit]
+
+    def mark_bound(
+        self,
+        item_id: str,
+        *,
+        case_id: str,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Ручная привязка письма к делу сотрудником (без авто-угадывания)."""
+        iid = (item_id or "").strip()
+        cid = (case_id or "").strip()
+        if not iid or not cid:
+            raise ValueError("item_id_and_case_id_required")
+        with _LOCK:
+            data = self._load_index()
+            found: dict[str, Any] | None = None
+            for it in data["items"]:
+                if isinstance(it, dict) and str(it.get("id") or "") == iid:
+                    found = it
+                    break
+            if found is None:
+                raise KeyError("unbound_item_not_found")
+            if found.get("status") == "bound" and str(found.get("case_id") or "") == cid:
+                return dict(found)
+            found["status"] = "bound"
+            found["case_id"] = cid
+            found["bound_at"] = _now()
+            found["bound_by"] = actor_id
+            self._save_index(data)
+            return dict(found)

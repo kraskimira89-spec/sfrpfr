@@ -70,6 +70,20 @@ class WorkQueueItem(BaseModel):
     waiting_days: int = 0
 
 
+class ExtraDocumentReviewUpdate(BaseModel):
+    """Статус доп. документа: Получен / Проверен / Нужно уточнение."""
+
+    status: Literal["received", "checked", "needs_clarification"]
+    note: str | None = Field(default=None, max_length=500)
+    analysis_update_needed: bool = False
+
+
+class UnboundMailBindRequest(BaseModel):
+    """Ручная привязка неоднозначного письма к делу."""
+
+    case_id: str = Field(min_length=8, max_length=64)
+
+
 class CaseFlagsUpdate(BaseModel):
     is_test: bool
 
