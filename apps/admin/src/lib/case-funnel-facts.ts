@@ -26,6 +26,8 @@ export type AdditionalCaseFacts = {
     releaseReady: WorkFacts["releaseReady"];
   };
   submission?: FunnelFacts["submission"];
+  submittedOn?: string;
+  receiptVerified?: boolean;
   followUp?: FunnelFacts["followUp"];
   response?: FunnelFacts["response"];
   escalation?: Partial<FunnelFacts["escalation"]>;
@@ -67,6 +69,24 @@ export type CaseFunnelDetailInput = {
   /** false / отсутствие массива → order.state = unknown, не not_ordered. */
   ordersLoaded?: boolean;
   audit?: { action: string; at?: string }[];
+  /** Последний структурированный отчёт о подаче (API submission_report). */
+  submission_report?: {
+    kind?: string;
+    submitted_on?: string | null;
+    method?: string | null;
+    submitted_what?: string | null;
+    source?: string | null;
+    proof_document_id?: string | null;
+    proof_missing?: boolean;
+    proof_missing_note?: string | null;
+    package_version?: string | null;
+    actor_kind?: string | null;
+    created_at?: string | null;
+  } | null;
+  submission_reports?: {
+    kind?: string;
+    submitted_on?: string | null;
+  }[];
   /** Сообщения чата дела — чтобы понять, ушло ли краткое резюме клиенту. */
   chat_messages?: { author_kind?: string; body?: string }[];
   document_check?: {
@@ -476,24 +496,39 @@ export function toFunnelFacts(
 
   // Подача: audit submission_* (≠ appeals_package_delivered). additionalFacts перекрывает.
   let submission: FunnelFacts["submission"] = "not_started";
+  const subActions = (detail.audit || []).map((a) => String(a.action || ""));
   if (extra.submission !== undefined) {
     submission = extra.submission;
-  } else {
-    const subActions = (detail.audit || []).map((a) => String(a.action || ""));
-    if (subActions.some((a) => a.startsWith("submission_confirmed"))) {
-      submission = "confirmed";
-    } else if (subActions.some((a) => a.startsWith("submission_help_requested"))) {
-      submission = "help_requested";
-    } else if (appealsWork.state === "delivered") {
-      submission = "awaiting_client";
-    }
+  } else if (subActions.some((a) => a.startsWith("submission_confirmed"))) {
+    submission = "confirmed";
+  } else if (subActions.some((a) => a.startsWith("submission_help_requested"))) {
+    submission = "help_requested";
+  } else if (appealsWork.state === "delivered") {
+    submission = "awaiting_client";
   }
+
+  const report = detail.submission_report;
+  const submittedOn: string | undefined =
+    extra.submittedOn ||
+    (report?.submitted_on ? String(report.submitted_on).slice(0, 10) : undefined);
+  const receiptVerified =
+    extra.receiptVerified === true ||
+    subActions.some((a) => a.startsWith("submission_receipt_verified"));
 
   let followUp: FunnelFacts["followUp"] = {
     state: "unknown",
     callRequired: false,
   };
-  if (extra.followUp) followUp = extra.followUp;
+  if (extra.followUp) {
+    followUp = extra.followUp;
+  } else if (submission === "confirmed") {
+    // Открываем контроль рассмотрения; контрольную дату сотрудник ставит вручную.
+    followUp = {
+      state: "active",
+      callRequired: false,
+      submittedOn,
+    };
+  }
 
   let response: FunnelFacts["response"] = "unknown";
   if (extra.response !== undefined) response = extra.response;
@@ -541,6 +576,8 @@ export function toFunnelFacts(
       work: appealsWork,
     },
     submission,
+    submittedOn,
+    receiptVerified,
     followUp,
     response,
     escalation: {

@@ -1321,18 +1321,32 @@ export function AdminCabinet() {
     }
   }
 
-  async function recordSubmission(decision: "confirmed" | "help_requested") {
+  async function recordSubmission(payload: {
+    decision: "confirmed" | "help_requested" | "receipt_verified";
+    submitted_on?: string;
+    method?: string;
+    submitted_what?: string;
+    appeal_number?: string;
+    proof_document_id?: string;
+    comment?: string;
+    source?: string;
+    idempotency_key?: string;
+    package_version?: string;
+  }) {
     if (!token || !detail) return;
     setBusy(true);
     try {
       await apiFetch(`/api/portal/admin/cases/${detail.id}/submission`, token, {
         method: "POST",
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify(payload),
       });
+      const d = payload.decision;
       setNotice(
-        decision === "confirmed"
-          ? "Подача клиентом зафиксирована (не равна передаче пакета)."
-          : "Запрос помощи с подачей зафиксирован.",
+        d === "confirmed"
+          ? "Сообщение о подаче сохранено (со слов клиента)."
+          : d === "receipt_verified"
+            ? "Проверка подтверждения приёма зафиксирована."
+            : "Запрос помощи с подачей зафиксирован.",
       );
       await openCase(detail.id);
     } catch (error) {

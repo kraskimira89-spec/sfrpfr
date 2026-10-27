@@ -151,10 +151,17 @@ export type FunnelFacts = Readonly<{
     | "help_requested"
     | "confirmed";
 
+  /** Фактическая дата подачи из отчёта (YYYY-MM-DD); для ступени 10. */
+  submittedOn?: string;
+  /** Сотрудник отдельно проверил подтверждающий документ приёма. */
+  receiptVerified: boolean;
+
   followUp: {
     state: "unknown" | "inactive" | "active" | "paused" | "completed";
     callRequired: boolean;
     dueAt?: string;
+    /** Копия submittedOn для handoff ступени 10 (контроль даты — вручную). */
+    submittedOn?: string;
   };
 
   response: "unknown" | "none" | "received" | "reviewing" | "reviewed";

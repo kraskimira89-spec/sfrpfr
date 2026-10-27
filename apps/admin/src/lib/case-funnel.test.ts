@@ -63,6 +63,7 @@ function baseFacts(over: Partial<FunnelFacts> = {}): FunnelFacts {
       work: work(),
     },
     submission: "unknown",
+    receiptVerified: false,
     followUp: { state: "unknown", callRequired: false },
     response: "unknown",
     escalation: {
@@ -677,6 +678,49 @@ test("stage9: submission_help_requested → needs_action", () => {
   assert.equal(funnel.facts.submission, "help_requested");
   const sub = funnel.funnel.stages.find((s) => s.id === "submission");
   assert.equal(sub?.status, "needs_action");
+});
+
+test("stage9: confirmed открывает follow_up с submittedOn, без dueAt", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    draft: { title: "Обращение", body: "Текст" },
+    submission_report: {
+      kind: "client_reported",
+      submitted_on: "2026-10-20",
+      method: "gosuslugi",
+      submitted_what: "Пакет",
+      proof_missing: true,
+    },
+    audit: [
+      { action: "submission_confirmed" },
+      { action: "appeals_package_delivered" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.submission, "confirmed");
+  assert.equal(funnel.facts.submittedOn, "2026-10-20");
+  assert.equal(funnel.facts.followUp.state, "active");
+  assert.equal(funnel.facts.followUp.submittedOn, "2026-10-20");
+  assert.equal(funnel.facts.followUp.dueAt, undefined);
+  assert.equal(funnel.facts.receiptVerified, false);
+  const follow = funnel.funnel.stages.find((s) => s.id === "follow_up");
+  assert.notEqual(follow?.status, "blocked");
+});
+
+test("stage9: receipt_verified ≠ путать с confirmed без report", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    audit: [
+      { action: "submission_receipt_verified" },
+      { action: "submission_confirmed" },
+      { action: "appeals_package_delivered" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.receiptVerified, true);
+  assert.equal(funnel.facts.submission, "confirmed");
 });
 
 test("deriveFunnel kit + 13 stages", () => {

@@ -968,6 +968,17 @@ def admin_get_case(
     payload["audit"] = repo.list_audit(case_id)
     payload["consent_accepted"] = repo.has_consent(case_id)
     try:
+        from sfrfr.services.submission_reports import serialize_report
+
+        reports = repo.list_submission_reports(case_id)
+        payload["submission_reports"] = [serialize_report(r) for r in reports]
+        payload["submission_report"] = (
+            serialize_report(reports[0]) if reports else None
+        )
+    except Exception:  # noqa: BLE001
+        payload["submission_reports"] = []
+        payload["submission_report"] = None
+    try:
         from sfrfr.services.full_analysis_workflow import FullAnalysisWorkflow
 
         payload["full_analysis"] = FullAnalysisWorkflow().get_state(case_id)
@@ -3063,24 +3074,31 @@ def record_submission(
     payload: dict[str, Any] = Body(...),
     principal: Principal = Depends(require_staff),
 ) -> dict[str, Any]:
-    """Этап 9: клиент подтвердил самоподачу или просит помощь специалиста.
+    """Этап 9: сообщение о подаче / помощь / проверка расписки (форма + audit).
 
     Передача пакета (этап 8) сюда не мапится. Подачу делает клиент; решение — СФР.
+    Staff confirmed требует source=client_words и поля даты/способа/состава.
     """
     if principal.role not in (StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.EXPERT):
         raise HTTPException(status_code=403, detail="forbidden")
-    decision = str(payload.get("decision") or "").strip().lower()
-    action_by = {
-        "confirmed": "submission_confirmed",
-        "help_requested": "submission_help_requested",
-    }
-    action = action_by.get(decision)
-    if not action:
-        raise HTTPException(status_code=400, detail="decision must be confirmed|help_requested")
+    from sfrfr.services.submission_record import record_case_submission
+    from sfrfr.services.submission_reports import SubmissionReportError
+
     repo = _repo()
     repo.require_case(principal, case_id)
-    repo.audit(case_id, principal.audit_actor_id(), action)
-    return {"ok": True, "action": action, "decision": decision}
+    body = dict(payload or {})
+    if str(body.get("decision") or "").strip().lower() == "confirmed":
+        body.setdefault("source", "client_words")
+    try:
+        return record_case_submission(
+            repo,
+            case_id=case_id,
+            actor_id=principal.audit_actor_id(),
+            actor_kind="staff",
+            payload=body,
+        )
+    except SubmissionReportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/admin/cases/{case_id}/facts-review")
