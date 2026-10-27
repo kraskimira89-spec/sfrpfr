@@ -20,6 +20,8 @@ def build_full_analysis_docx_bytes(
     case_ref: str,
     markdown: str,
     version: int = 1,
+    title: str = "Подробный разбор стажа",
+    note: str | None = None,
 ) -> bytes:
     """Реальный .docx (OOXML), не PDF с чужим расширением."""
     doc: Any = Document()
@@ -27,13 +29,16 @@ def build_full_analysis_docx_bytes(
     style.font.name = "Times New Roman"
     style.font.size = Pt(12)
 
-    doc.add_heading("Подробный разбор стажа", level=1)
+    doc.add_heading(title or "Подробный разбор стажа", level=1)
     meta = doc.add_paragraph()
     meta.add_run(f"Дело (служебный ref): {case_ref or '—'} · Версия {int(version)}")
-    note = doc.add_paragraph()
-    note.add_run(
-        "Информационно-аналитический документ. Не является решением СФР. "
-        "Клиент согласует текст; подача обращений — отдельный этап."
+    note_p = doc.add_paragraph()
+    note_p.add_run(
+        note
+        or (
+            "Информационно-аналитический документ. Не является решением СФР. "
+            "Клиент согласует текст; подача обращений — отдельный этап."
+        )
     )
 
     body = (markdown or "").strip()

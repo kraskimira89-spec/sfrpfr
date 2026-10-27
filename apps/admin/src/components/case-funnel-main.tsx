@@ -47,6 +47,10 @@ import {
   type FollowUpEventView,
 } from "@/components/follow-up-stage-panel";
 import {
+  ResponseReviewPanel,
+  type ResponseReviewView,
+} from "@/components/response-review-panel";
+import {
   initialAccordion,
   openStageOf,
   toggleAccordion,
@@ -61,7 +65,6 @@ import { StepNo } from "@/components/step-number";
 import {
   formatResultSummaryBrief,
   formatResultSummaryFull,
-  sortDocsChronology,
 } from "@/lib/format-result-summary";
 import { groupCabinetDocumentsByChecksum } from "@/lib/dedupe-cabinet-documents";
 import { FormEvent, useMemo, useState, type ReactNode } from "react";
@@ -220,6 +223,8 @@ type Detail = {
   submission_report?: SubmissionReportView | null;
   submission_reports?: SubmissionReportView[];
   follow_up_events?: FollowUpEventView[];
+  response_reviews?: ResponseReviewView[];
+  response_review?: ResponseReviewView | null;
   role_capabilities: Caps;
 };
 
@@ -1867,35 +1872,7 @@ export function CaseFunnelMain({
           expanded={isExpanded("response_review")}
           onToggle={() => toggleStage("response_review")}
         >
-          <p className="hint">
-            Ответ СФР требует разбора; эскалация не включается автоматически. Можно запросить файл у
-            клиента в чат или загрузить ответ сами.
-          </p>
-          {(() => {
-            const sfrDocs = (detail.documents ?? []).filter((d) => {
-              const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
-              return (
-                blob.includes("sfr_decision") ||
-                blob.includes("sfr_response") ||
-                blob.includes("sfr_refusal")
-              );
-            });
-            return sfrDocs.length > 0 ? (
-              <ul className="plain-list">
-                {sfrDocs.map((doc) => (
-                  <li key={doc.id}>
-                    <button type="button" className="linkish" onClick={() => onOpenSigned(doc.id)}>
-                      {(doc.storage_path || "").split("/").pop() || doc.doc_type || "файл"}
-                    </button>
-                    <span className="hint"> · ответ СФР</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="hint">Файла ответа СФР в деле пока нет.</p>
-            );
-          })()}
-          <div className="row-actions">
+          <div className="row-actions" style={{ marginBottom: "0.5rem" }}>
             <button
               type="button"
               className="secondary"
@@ -1906,25 +1883,54 @@ export function CaseFunnelMain({
                 onWaitingOn("client");
               }}
             >
-              Запросить у клиента
+              Запросить файл у клиента
             </button>
-            {onUploadSfrResponse ? (
-              <label className="secondary" style={{ cursor: busy ? "wait" : "pointer" }}>
-                Загрузить ответ СФР
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                  hidden
-                  disabled={busy || !caps.can_view_ocr}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) onUploadSfrResponse(file);
-                  }}
-                />
-              </label>
-            ) : null}
           </div>
+          {(() => {
+            const sfrDocs = (detail.documents ?? []).filter((d) => {
+              const blob = `${d.doc_type || ""} ${d.storage_path || ""}`.toLowerCase();
+              return (
+                blob.includes("sfr_decision") ||
+                blob.includes("sfr_response") ||
+                blob.includes("sfr_refusal")
+              );
+            });
+            const sfrIds = sfrDocs.map((d) => d.id);
+            const clientReported = (detail.follow_up_events || []).some(
+              (e) => e.check_result === "client_reported_response",
+            );
+            if (!staffToken || !apiBase) {
+              return (
+                <p className="hint">Нет токена API — разбор ответа недоступен в этой сессии.</p>
+              );
+            }
+            return (
+              <ResponseReviewPanel
+                busy={busy}
+                token={staffToken}
+                apiBase={apiBase}
+                caseId={detail.id}
+                clientEmail={detail.client?.email}
+                reviews={detail.response_reviews || []}
+                submissionReports={detail.submission_reports || []}
+                sfrDocumentIds={sfrIds}
+                clientReportedWithoutDoc={clientReported && sfrIds.length === 0}
+                canEdit={caps.can_confirm_result}
+                onReload={() => onDeliveryRefresh?.()}
+                onUploadSfr={onUploadSfrResponse}
+                onApplyChat={(text) => {
+                  applyTemplate(text);
+                  onFocusMax();
+                }}
+                onFollowUpControl={onRecordFollowUpControl}
+              />
+            );
+          })()}
+          <h3 className="case-subhead">Суммы пенсии (опционально, не разбор)</h3>
+          <p className="hint">
+            Фиксация размеров пенсии для success fee — отдельно от разбора ответа. Положительный
+            ответ СФР не означает фактическую выплату.
+          </p>
           {caps.can_confirm_result ? (
             <>
               <label className="funnel-show-all">
@@ -1933,7 +1939,7 @@ export function CaseFunnelMain({
                   checked={sfrReceived}
                   onChange={(e) => onSfrReceived(e.target.checked)}
                 />
-                Ответ СФР получен
+                Зафиксировать суммы из решения (если известны)
               </label>
               {sfrReceived ? (
                 <form className="stack-form" onSubmit={onConfirmResult}>
@@ -1949,46 +1955,16 @@ export function CaseFunnelMain({
                     Единовременная выплата, ₽
                     <input value={lumpRub} onChange={(e) => onLumpRub(e.target.value)} />
                   </label>
-                  <button type="submit">Зафиксировать ответ СФР</button>
+                  <button type="submit">Сохранить суммы</button>
                 </form>
-              ) : (
-                <p className="hint">Включите переключатель, когда решение СФР получено.</p>
-              )}
+              ) : null}
             </>
-          ) : (
-            <p className="hint">Нет права фиксировать результат.</p>
-          )}
-          <h3 className="case-subhead">Подведение итогов</h3>
-          <p className="hint">
-            Кратко — в поле чата (отправка в MAX вручную). Полная хронология документов — в файл.
-          </p>
-          <p>
-            Как было:{" "}
-            {beforeRub ? `${Number(beforeRub).toLocaleString("ru-RU")} ₽` : "—"} · Как стало:{" "}
-            {afterRub ? `${Number(afterRub).toLocaleString("ru-RU")} ₽` : "—"}
-            {lumpRub ? ` · Единовременно: ${Number(lumpRub).toLocaleString("ru-RU")} ₽` : ""}
-          </p>
-          <ul className="plain-list">
-            {sortDocsChronology(detail.documents ?? [])
-              .slice(0, 8)
-              .map((doc) => (
-                <li key={doc.id}>
-                  {(doc.inner_date || doc.created_at
-                    ? new Date(doc.inner_date || doc.created_at || "").toLocaleDateString("ru-RU")
-                    : "—")}{" "}
-                  — {(doc.filename || doc.storage_path || "").split("/").pop() || doc.doc_type || "файл"}
-                </li>
-              ))}
-          </ul>
-          {(detail.documents ?? []).length > 8 ? (
-            <p className="hint">Ещё {(detail.documents ?? []).length - 8} в полной выгрузке.</p>
           ) : null}
           <div className="row-actions">
             <button
               type="button"
               className="secondary"
               disabled={busy}
-              title="Краткий итог в поле чата"
               onClick={() => {
                 applyTemplate(
                   formatResultSummaryBrief({
@@ -2007,7 +1983,6 @@ export function CaseFunnelMain({
               type="button"
               className="secondary"
               disabled={busy}
-              title="Полный итог и хронология документов в файл"
               onClick={() => {
                 const text = formatResultSummaryFull({
                   beforeRub,

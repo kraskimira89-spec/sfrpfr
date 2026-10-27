@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 export type SubmissionReportView = {
+  id?: string;
   kind?: string;
   submitted_on?: string | null;
   method?: string | null;
