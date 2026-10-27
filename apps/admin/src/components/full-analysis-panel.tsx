@@ -184,11 +184,20 @@ export function FullAnalysisPanel({
         onNotice("ИИ не вернул текст. Можно повторить подготовку разбора.");
       }
     } catch (error) {
-      const after = await reload({ preserveDirtyDraft: true });
-      const recovered = reconcileDraftAfterClientFailure({
+      // Сервер мог ещё писать версию после обрыва ответа на клиенте — коротко подождём.
+      let recovered = reconcileDraftAfterClientFailure({
         beforeId,
-        after: after?.current ?? null,
+        after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
       });
+      if (!recovered.recovered && (isAbortLikeError(error) || controller.signal.aborted)) {
+        for (let i = 0; i < 5 && !recovered.recovered; i += 1) {
+          await new Promise((r) => window.setTimeout(r, 2000));
+          recovered = reconcileDraftAfterClientFailure({
+            beforeId,
+            after: (await reload({ preserveDirtyDraft: true }))?.current ?? null,
+          });
+        }
+      }
       if (recovered.recovered) {
         setDraft(recovered.markdown);
         markDraftDirty(false);
