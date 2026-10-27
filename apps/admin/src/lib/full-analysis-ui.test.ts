@@ -38,6 +38,6 @@ describe("full-analysis-ui", () => {
   });
 
   it("draftTimeoutMessage содержит секунды", () => {
-    assert.match(draftTimeoutMessage(90_000), /90/);
+    assert.match(draftTimeoutMessage(180_000), /180/);
   });
 });
