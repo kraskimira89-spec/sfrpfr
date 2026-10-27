@@ -87,6 +87,16 @@ export type CaseFunnelDetailInput = {
     kind?: string;
     submitted_on?: string | null;
   }[];
+  follow_up_events?: {
+    kind?: string;
+    check_result?: string | null;
+    control_at?: string | null;
+    created_at?: string | null;
+    next_action_text?: string | null;
+    reason?: string | null;
+    actor_id?: string | null;
+  }[];
+  expert_user_id?: string | null;
   /** Сообщения чата дела — чтобы понять, ушло ли краткое резюме клиенту. */
   chat_messages?: { author_kind?: string; body?: string }[];
   document_check?: {
@@ -515,23 +525,41 @@ export function toFunnelFacts(
     extra.receiptVerified === true ||
     subActions.some((a) => a.startsWith("submission_receipt_verified"));
 
+  const followCompleted = subActions.some((a) => a.startsWith("follow_up_completed"));
+  const responseHandoff = subActions.some((a) =>
+    a.startsWith("follow_up_response_handoff"),
+  );
+  const controlAt = detail.next_action_at || undefined;
+
   let followUp: FunnelFacts["followUp"] = {
     state: "unknown",
     callRequired: false,
   };
   if (extra.followUp) {
     followUp = extra.followUp;
+  } else if (followCompleted || responseHandoff) {
+    followUp = {
+      state: "completed",
+      callRequired: false,
+      submittedOn,
+      dueAt: controlAt,
+    };
   } else if (submission === "confirmed") {
-    // Открываем контроль рассмотрения; контрольную дату сотрудник ставит вручную.
+    // Контроль открыт; dueAt только из next_action_at (ручное назначение).
     followUp = {
       state: "active",
       callRequired: false,
       submittedOn,
+      dueAt: controlAt,
     };
   }
 
   let response: FunnelFacts["response"] = "unknown";
-  if (extra.response !== undefined) response = extra.response;
+  if (extra.response !== undefined) {
+    response = extra.response;
+  } else if (responseHandoff) {
+    response = "received";
+  }
 
   let escalationNeed: FunnelFacts["escalation"]["need"] = "unknown";
   let escalationConsent: FunnelFacts["escalation"]["consent"] = "unknown";

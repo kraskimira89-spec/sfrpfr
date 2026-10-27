@@ -1358,6 +1358,41 @@ export function AdminCabinet() {
     }
   }
 
+  async function recordFollowUpControl(payload: {
+    kind: "assign_control" | "check" | "reschedule" | "response_handoff";
+    control_at?: string;
+    next_action_text?: string;
+    reason?: string;
+    check_result?: "no_response" | "need_more_info" | "client_reported_response";
+    waiting_on?: string;
+    expert_user_id?: string;
+    document_id?: string;
+    idempotency_key?: string;
+  }) {
+    if (!token || !detail) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/portal/admin/cases/${detail.id}/follow-up-control`, token, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const labels: Record<string, string> = {
+        assign_control: "Контроль назначен.",
+        check: "Проверка зафиксирована.",
+        reschedule: "Контроль перенесён (история сохранена).",
+        response_handoff: "Ответ передан на ступень 11.",
+      };
+      setNotice(labels[payload.kind] || "Контроль обновлён.");
+      await openCase(detail.id);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Не удалось обновить контроль рассмотрения.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function requestDocsFor(caseId: string) {
     if (!token) return;
     setBusy(true);
@@ -2562,6 +2597,7 @@ export function AdminCabinet() {
             onRecordAppealsConsent={(d) => void recordAppealsConsent(d)}
             onRecordAppealsPackage={(d) => void recordAppealsPackage(d)}
             onRecordSubmission={(d) => void recordSubmission(d)}
+            onRecordFollowUpControl={(p) => void recordFollowUpControl(p)}
             onFeedbackText={setFeedbackText}
             onFeedbackQuality={setFeedbackQuality}
             onSendFeedback={(e) => void sendFeedback(e)}

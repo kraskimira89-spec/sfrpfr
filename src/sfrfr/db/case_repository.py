@@ -2061,3 +2061,43 @@ class CaseRepository:
             return found
         raise RuntimeError("case_submission_reports insert returned no row")
 
+    def get_follow_up_event_by_idempotency(
+        self, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        return self._one_or_none(
+            self.client.table("case_follow_up_events")
+            .select("*")
+            .eq("idempotency_key", idempotency_key)
+            .limit(1)
+            .execute()
+        )
+
+    def list_follow_up_events(self, case_id: str) -> list[dict[str, Any]]:
+        return (
+            self.client.table("case_follow_up_events")
+            .select("*")
+            .eq("case_id", case_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+    def insert_follow_up_event(self, row: dict[str, Any]) -> dict[str, Any]:
+        existing = self.get_follow_up_event_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if existing:
+            return existing
+        data = (
+            self.client.table("case_follow_up_events").insert(row).execute().data or []
+        )
+        if data:
+            return data[0]
+        found = self.get_follow_up_event_by_idempotency(
+            str(row.get("idempotency_key") or "")
+        )
+        if found:
+            return found
+        raise RuntimeError("case_follow_up_events insert returned no row")
+
