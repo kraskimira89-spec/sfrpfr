@@ -444,13 +444,14 @@ export function toFunnelFacts(
   }
 
   // Согласие на объём обращений — только audit appeals_consent_*; не из service_consent / чата.
+  // Префикс: bot-actor пишет суффикс `:bot:…` в action.
   let appealsConsent: FunnelFacts["appeals"]["consent"] = "unknown";
-  const appealsConsentActions = (detail.audit || []).map((a) => a.action);
-  if (appealsConsentActions.includes("appeals_consent_accepted")) {
+  const appealsConsentActions = (detail.audit || []).map((a) => String(a.action || ""));
+  if (appealsConsentActions.some((a) => a.startsWith("appeals_consent_accepted"))) {
     appealsConsent = "accepted";
-  } else if (appealsConsentActions.includes("appeals_consent_declined")) {
+  } else if (appealsConsentActions.some((a) => a.startsWith("appeals_consent_declined"))) {
     appealsConsent = "declined";
-  } else if (appealsConsentActions.includes("appeals_consent_thinking")) {
+  } else if (appealsConsentActions.some((a) => a.startsWith("appeals_consent_thinking"))) {
     appealsConsent = "pending";
   }
 
@@ -515,7 +516,8 @@ export function toFunnelFacts(
       work: analysisWork,
     },
     appeals: {
-      need: "unknown",
+      // После согласования разбора (этап 5) предлагаем объём первичных обращений.
+      need: analysisWork.state === "delivered" ? "recommended" : "unknown",
       consent: appealsConsent,
       order: appealsOrder,
       work: appealsWork,

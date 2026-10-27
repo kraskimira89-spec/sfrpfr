@@ -145,7 +145,9 @@ function consentPrerequisite(
   consent: FunnelFacts["appeals"]["consent"],
 ): "ready" | "blocked" | "not_required" | "unknown" {
   if (need === "not_needed" || consent === "declined") return "not_required";
-  if (need === "unknown" || consent === "unknown") return "unknown";
+  // need ещё не определён — ступень не активируем, даже если audit consent уже есть.
+  if (need === "unknown") return "unknown";
+  // need=recommended: без accepted — blocked (needs_action / waiting), не unknown.
   return consent === "accepted" ? "ready" : "blocked";
 }
 

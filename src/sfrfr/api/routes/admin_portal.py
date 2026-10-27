@@ -2884,7 +2884,11 @@ def create_order(
     payload: OrderCreateRequest,
     principal: Principal = Depends(require_staff),
 ) -> dict:
-    from sfrfr.services.message_dedupe import has_service_consent
+    from sfrfr.services.message_dedupe import (
+        has_appeals_consent_accepted,
+        has_service_consent,
+        order_requires_appeals_consent,
+    )
 
     _require_expert(principal)
     if payload.package_code in ("SF_LUMP", "SF_MONTH") and principal.role is not StaffRole.ADMIN:
@@ -2907,6 +2911,27 @@ def create_order(
             status_code=400,
             detail="Сначала зафиксируйте согласие клиента на услугу",
         )
+    if order_requires_appeals_consent(
+        package_code=payload.package_code,
+        amount_rub=payload.amount_rub,
+        service_label=payload.service_label,
+    ):
+        appeals_audit = (
+            get_supabase_client()
+            .table("access_audit")
+            .select("action, at")
+            .eq("case_id", case_id)
+            .like("action", "appeals_consent_accepted%")
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not has_appeals_consent_accepted(appeals_audit):
+            raise HTTPException(
+                status_code=400,
+                detail="Сначала зафиксируйте согласие на подготовку обращений",
+            )
     if payload.package_code in ("SF_LUMP", "SF_MONTH"):
         evidence = repo.get_result_evidence(case_id)
         if not evidence or not evidence.get("confirmed_at"):

@@ -5,8 +5,10 @@ from datetime import UTC, datetime, timedelta
 from sfrfr.services.message_dedupe import (
     count_same_messages,
     find_duplicate_staff_message,
+    has_appeals_consent_accepted,
     has_service_consent,
     normalize_message_body,
+    order_requires_appeals_consent,
     required_docs_missing,
 )
 
@@ -113,6 +115,33 @@ def test_service_consent() -> None:
         has_service_consent(
             {"b2c_status": "lead"},
             [{"action": "service_consent_recorded"}],
+        )
+        is True
+    )
+
+
+def test_appeals_consent_accepted_prefix() -> None:
+    assert has_appeals_consent_accepted([]) is False
+    assert has_appeals_consent_accepted([{"action": "appeals_consent_thinking"}]) is False
+    assert has_appeals_consent_accepted([{"action": "appeals_consent_accepted"}]) is True
+    assert (
+        has_appeals_consent_accepted([{"action": "appeals_consent_accepted:bot:max_owned"}])
+        is True
+    )
+
+
+def test_order_requires_appeals_consent_docs_only() -> None:
+    assert order_requires_appeals_consent(package_code="DIAG", amount_rub=3000) is False
+    assert order_requires_appeals_consent(package_code="SUPPORT", amount_rub=8000) is False
+    assert (
+        order_requires_appeals_consent(package_code="ACCOMP", amount_rub=8000) is False
+    )
+    assert order_requires_appeals_consent(package_code="ACCOMP", amount_rub=5000) is True
+    assert (
+        order_requires_appeals_consent(
+            package_code="ACCOMP",
+            amount_rub=5000,
+            service_label="Шаг 2. Подготовка первичных обращений",
         )
         is True
     )

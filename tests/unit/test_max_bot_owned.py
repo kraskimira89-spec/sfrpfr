@@ -252,6 +252,41 @@ def test_docs_offer_requires_diag_delivered(monkeypatch) -> None:
     repo.create_order.assert_not_called()
 
 
+def test_docs_offer_after_delivery_requires_appeals_consent(monkeypatch) -> None:
+    repo = MagicMock()
+    repo.has_consent.return_value = True
+    repo.get_case_row.return_value = {
+        "id": "c1",
+        "b2c_status": "diagnostic_paid",
+        "clients": {"max_user_id": "99"},
+        "diagnosis_delivered": True,
+    }
+    repo.list_orders.return_value = [{"package_code": "DIAG", "status": "paid"}]
+    repo.list_audit.return_value = []
+    repo.create_order.return_value = {"id": "o1", "package_code": "ACCOMP"}
+    reset_offer_cache()
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    get_settings.cache_clear()
+    from sfrfr.services.max_bot_invoice import maybe_offer_docs_invoice
+
+    with (
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch("sfrfr.services.case_chat_delivery.enqueue_max_delivery", return_value=True),
+    ):
+        out = maybe_offer_docs_invoice(
+            case_id="c1",
+            max_user_id="99",
+            case={
+                "id": "c1",
+                "b2c_status": "diagnostic_paid",
+                "clients": {"max_user_id": "99"},
+                "diagnosis_delivered": True,
+            },
+        )
+    assert out is None
+    repo.create_order.assert_not_called()
+
+
 def test_docs_offer_after_delivery(monkeypatch) -> None:
     repo = MagicMock()
     repo.has_consent.return_value = True
@@ -262,6 +297,7 @@ def test_docs_offer_after_delivery(monkeypatch) -> None:
         "diagnosis_delivered": True,
     }
     repo.list_orders.return_value = [{"package_code": "DIAG", "status": "paid"}]
+    repo.list_audit.return_value = [{"action": "appeals_consent_accepted"}]
     repo.create_order.return_value = {"id": "o1", "package_code": "ACCOMP"}
     reset_offer_cache()
     monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
@@ -285,3 +321,35 @@ def test_docs_offer_after_delivery(monkeypatch) -> None:
     assert out is not None
     assert out.get("tariff") == "DOCS"
     repo.create_order.assert_called_once()
+
+
+def test_offer_appeals_writes_consent_audit(monkeypatch) -> None:
+    repo = MagicMock()
+    repo.list_orders.return_value = [
+        {"package_code": "DIAG", "status": "paid"},
+        {
+            "id": "o-docs",
+            "package_code": "ACCOMP",
+            "amount_rub": 5000,
+            "status": "draft",
+            "invoice_status": "draft",
+        },
+    ]
+    reset_offer_cache()
+    monkeypatch.setenv("MAX_BOT_OWNED_ENABLED", "1")
+    get_settings.cache_clear()
+    from sfrfr.services.max_bot_invoice import handle_offer_callback
+
+    with (
+        patch("sfrfr.db.case_repository.CaseRepository", return_value=repo),
+        patch("sfrfr.services.case_chat_delivery.enqueue_max_delivery", return_value=True),
+    ):
+        out = handle_offer_callback(
+            case_id="c1",
+            max_user_id="99",
+            payload="offer:appeals",
+        )
+    assert out is not None
+    assert out.get("reminded") is True or out.get("order") is not None
+    repo.audit.assert_called()
+    assert repo.audit.call_args.args[2] == "appeals_consent_accepted"
