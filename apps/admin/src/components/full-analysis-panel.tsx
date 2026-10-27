@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  FULL_ANALYSIS_DRAFT_TIMEOUT_MS,
+  draftTimeoutMessage,
+  isAbortLikeError,
+  reconcileDraftAfterClientFailure,
+} from "@/lib/full-analysis-ui";
 
 type Version = {
   id: string;
@@ -29,6 +36,10 @@ type StatePayload = {
   current_id?: string | null;
   versions?: Version[];
   status_strip?: StatusStrip;
+};
+
+export type GenerateFullAnalysisDraftOpts = {
+  signal?: AbortSignal;
 };
 
 async function staffFetch<T>(
@@ -85,12 +96,14 @@ export function FullAnalysisPanel({
   onNotice: (msg: string) => void;
   onRefresh: () => void;
   onApplyChat: (text: string) => void;
-  onGenerateDraft?: () => Promise<string | null>;
+  onGenerateDraft?: (opts?: GenerateFullAnalysisDraftOpts) => Promise<string | null>;
 }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [state, setState] = useState<StatePayload | null>(null);
   const [draft, setDraft] = useState("");
+  const draftDirtyRef = useRef(false);
+  const generatingRef = useRef(false);
   const [emailOverride, setEmailOverride] = useState<string | null>(null);
   const emailTo = emailOverride ?? (clientEmail || "");
   const [emailPreview, setEmailPreview] = useState<{
@@ -99,23 +112,36 @@ export function FullAnalysisPanel({
     attachment?: string;
   } | null>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const out = await staffFetch<StatePayload & { ok?: boolean }>(
-        apiBase,
-        `/api/portal/admin/cases/${caseId}/full-analysis/state`,
-        token,
-      );
-      setState(out);
-      const md = out.current?.markdown || "";
-      if (md) setDraft(md);
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Не удалось загрузить разбор.");
-    } finally {
-      setLoading(false);
-    }
-  }, [apiBase, caseId, onNotice, token]);
+  const markDraftDirty = useCallback((value: boolean) => {
+    draftDirtyRef.current = value;
+  }, []);
+
+  const reload = useCallback(
+    async (opts?: { preserveDirtyDraft?: boolean }) => {
+      setLoading(true);
+      try {
+        const out = await staffFetch<StatePayload & { ok?: boolean }>(
+          apiBase,
+          `/api/portal/admin/cases/${caseId}/full-analysis/state`,
+          token,
+        );
+        setState(out);
+        const md = out.current?.markdown || "";
+        const keepLocal = Boolean(opts?.preserveDirtyDraft && draftDirtyRef.current);
+        if (md && !keepLocal) {
+          setDraft(md);
+          markDraftDirty(false);
+        }
+        return out;
+      } catch (error) {
+        onNotice(error instanceof Error ? error.message : "Не удалось загрузить разбор.");
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiBase, caseId, markDraftDirty, onNotice, token],
+  );
 
   useEffect(() => {
     const t = window.setTimeout(() => void reload(), 0);
@@ -127,17 +153,57 @@ export function FullAnalysisPanel({
   const versionId = current?.id;
 
   async function generateAi() {
-    if (!onGenerateDraft) return;
+    if (!onGenerateDraft || generatingRef.current) return;
+    generatingRef.current = true;
     setGenerating(true);
+    const beforeId = versionId ?? null;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), FULL_ANALYSIS_DRAFT_TIMEOUT_MS);
     try {
-      const text = await onGenerateDraft();
+      const text = await onGenerateDraft({ signal: controller.signal });
       if (text) {
         setDraft(text);
+        markDraftDirty(false);
         onNotice("Черновик ИИ готов — проверьте и отметьте «Проверено».");
-        await reload();
+        await reload({ preserveDirtyDraft: false });
         onRefresh();
+        return;
+      }
+      // Пустой ответ — сверяем, не создал ли сервер версию.
+      const after = await reload({ preserveDirtyDraft: true });
+      const recovered = reconcileDraftAfterClientFailure({
+        beforeId,
+        after: after?.current ?? null,
+      });
+      if (recovered.recovered) {
+        setDraft(recovered.markdown);
+        markDraftDirty(false);
+        onNotice(recovered.notice);
+        onRefresh();
+      } else {
+        onNotice("ИИ не вернул текст. Можно повторить подготовку разбора.");
+      }
+    } catch (error) {
+      const after = await reload({ preserveDirtyDraft: true });
+      const recovered = reconcileDraftAfterClientFailure({
+        beforeId,
+        after: after?.current ?? null,
+      });
+      if (recovered.recovered) {
+        setDraft(recovered.markdown);
+        markDraftDirty(false);
+        onNotice(recovered.notice);
+        onRefresh();
+        return;
+      }
+      if (isAbortLikeError(error) || controller.signal.aborted) {
+        onNotice(draftTimeoutMessage(FULL_ANALYSIS_DRAFT_TIMEOUT_MS));
+      } else {
+        onNotice(error instanceof Error ? error.message : "Не удалось сгенерировать разбор.");
       }
     } finally {
+      window.clearTimeout(timer);
+      generatingRef.current = false;
       setGenerating(false);
     }
   }
@@ -155,7 +221,8 @@ export function FullAnalysisPanel({
         { method: "PUT", body: JSON.stringify({ markdown: draft }) },
       );
       onNotice("Текст версии сохранён.");
-      await reload();
+      markDraftDirty(false);
+      await reload({ preserveDirtyDraft: false });
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Не удалось сохранить.");
     }
@@ -446,7 +513,10 @@ export function FullAnalysisPanel({
           style={{ width: "100%", minHeight: "14rem", marginTop: "0.5rem" }}
           value={draft}
           disabled={busy}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            markDraftDirty(true);
+          }}
           aria-label="Черновик подробного разбора"
         />
       ) : (

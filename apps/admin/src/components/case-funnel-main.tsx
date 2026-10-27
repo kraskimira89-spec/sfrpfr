@@ -391,7 +391,9 @@ export function CaseFunnelMain({
   /** Черновик резюме → доработка ИИ по переписке → поле чата. */
   onPolishBriefDraft?: (draft: string) => void;
   /** Этап 5: ИИ готовит подробный разбор → текст в панели (без отправки клиенту). */
-  onGenerateFullAnalysisDraft?: () => Promise<string | null> | string | null;
+  onGenerateFullAnalysisDraft?: (opts?: {
+    signal?: AbortSignal;
+  }) => Promise<string | null> | string | null;
   /** Удалить файлы дела (эксперт/админ) — с подтверждением в кабинете. */
   onDeleteDocuments?: (documentIds: string[], label: string) => void;
   /** Удалить черновик проекта обращения (этап 8). */
@@ -1355,8 +1357,8 @@ export function CaseFunnelMain({
               onApplyChat={(text) => applyTemplate(text)}
               onGenerateDraft={
                 onGenerateFullAnalysisDraft
-                  ? async () => {
-                      const text = await onGenerateFullAnalysisDraft();
+                  ? async (opts) => {
+                      const text = await onGenerateFullAnalysisDraft(opts);
                       return text ?? null;
                     }
                   : undefined
