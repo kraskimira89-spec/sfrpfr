@@ -124,3 +124,37 @@ def has_service_consent(
         return True
     rows = audit_rows if audit_rows is not None else (case.get("audit") or [])
     return any(str(r.get("action") or "") == "service_consent_recorded" for r in rows)
+
+
+def has_appeals_consent_accepted(
+    audit_rows: list[dict[str, Any]] | None = None,
+) -> bool:
+    """Согласие на объём первичных обращений (этап 6). Учитывает суффикс bot-actor."""
+    rows = audit_rows or []
+    return any(
+        str(r.get("action") or "").startswith("appeals_consent_accepted") for r in rows
+    )
+
+
+def order_requires_appeals_consent(
+    *,
+    package_code: str,
+    amount_rub: float | int | None = None,
+    service_label: str | None = None,
+) -> bool:
+    """Гейт этапа 6: DOCS/ACCOMP первичные обращения, не DIAG и не SUPPORT."""
+    from sfrfr.services.funnel_board import classify_accomp_tariff
+
+    code = str(package_code or "").strip().upper()
+    if code == "SUPPORT":
+        return False
+    if code != "ACCOMP":
+        return False
+    tariff = classify_accomp_tariff(
+        {
+            "package_code": "ACCOMP",
+            "amount_rub": amount_rub if amount_rub is not None else 0,
+            "service_label": service_label or "",
+        }
+    )
+    return tariff == "DOCS"

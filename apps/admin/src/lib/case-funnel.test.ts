@@ -501,6 +501,48 @@ test("toFunnelFacts: service_consent не даёт appeals.consent accepted", ()
   assert.equal(facts.appeals.consent, "unknown");
 });
 
+test("stage6: после full_analysis_approved need=recommended и без consent → needs_action", () => {
+  const funnel = deriveFunnel({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [],
+    ordersLoaded: true,
+    audit: [
+      { action: "full_analysis_approved:1" },
+      { action: "full_analysis_version:1" },
+    ],
+  });
+  assert.equal(funnel.facts.analysis.work.state, "delivered");
+  assert.equal(funnel.facts.appeals.need, "recommended");
+  assert.equal(funnel.facts.appeals.consent, "unknown");
+  const stage = funnel.funnel.stages.find((s) => s.id === "appeals_consent");
+  assert.equal(stage?.status, "needs_action");
+});
+
+test("stage6: full_analysis_approved + appeals_consent_accepted → appeals_consent done", () => {
+  const funnel = deriveFunnel({
+    pipeline_status: "human_review",
+    b2c_status: "in_progress",
+    consent_accepted: true,
+    client: { max_linked: true },
+    documents: [],
+    orders: [],
+    ordersLoaded: true,
+    audit: [
+      { action: "appeals_consent_accepted" },
+      { action: "full_analysis_approved:1" },
+      { action: "full_analysis_version:1" },
+    ],
+  });
+  assert.equal(funnel.facts.appeals.need, "recommended");
+  assert.equal(funnel.facts.appeals.consent, "accepted");
+  const stage = funnel.funnel.stages.find((s) => s.id === "appeals_consent");
+  assert.equal(stage?.status, "done");
+});
+
 test("deriveFunnel kit + 13 stages", () => {
   const funnel = deriveFunnel({
     pipeline_status: "documents_received",

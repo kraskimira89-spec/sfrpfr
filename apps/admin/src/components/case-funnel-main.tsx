@@ -1604,13 +1604,23 @@ export function CaseFunnelMain({
             <div className="row-actions">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || funnel.facts.appeals.consent !== "accepted"}
                 onClick={() => onCreateQuickOrder("ACCOMP", 5000)}
-                title="Создать счёт и сразу отправить ссылку клиенту в MAX"
+                title={
+                  funnel.facts.appeals.consent !== "accepted"
+                    ? "Сначала зафиксируйте согласие на ступени «Согласование первичных обращений»"
+                    : "Создать счёт и сразу отправить ссылку клиенту в MAX"
+                }
               >
                 Отправить счёт: первичные обращения 5 000 ₽
               </button>
             </div>
+          ) : null}
+          {funnel.facts.appeals.consent !== "accepted" ? (
+            <p className="hint">
+              Счёт 5 000 ₽ доступен после «Согласен» на ступени согласования обращений (или CTA
+              клиента в MAX). «Думает» / «Отказался» счёт не открывают.
+            </p>
           ) : null}
         </StageShell>
 

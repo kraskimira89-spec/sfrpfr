@@ -487,6 +487,16 @@ def maybe_offer_docs_invoice(
     ):
         return None
 
+    from sfrfr.services.message_dedupe import has_appeals_consent_accepted
+
+    try:
+        audit_rows = repo.list_audit(cid, limit=80)
+    except Exception:  # noqa: BLE001
+        audit_rows = []
+    if not has_appeals_consent_accepted(audit_rows):
+        # Этап 6: счёт DOCS только после согласия на объём обращений.
+        return None
+
     tariff = public_tariff("DOCS") or {}
     amount = float(tariff.get("amount_rub") or 5000)
     label = str(tariff.get("name") or "Шаг 2. Подготовка первичных обращений")
@@ -687,8 +697,24 @@ def handle_offer_callback(
     """Обработка offer:* — создание счёта по воротам или уважение отказа."""
     pl = str(payload or "").strip().lower()
     if pl == "offer:docs_skip":
+        # Отказ от оффера ≠ appeals_consent_declined без staff.
         return {"skipped": True, "tariff": "DOCS"}
-    if pl in {"offer:docs", "offer:appeals"}:
+    if pl == "offer:appeals":
+        # CTA «Составьте обращения» = согласие на объём (этап 6).
+        from sfrfr.db.case_repository import CaseRepository
+
+        try:
+            CaseRepository().audit(
+                case_id, "bot:max_owned", "appeals_consent_accepted"
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "appeals_consent audit failed case=%s: %s", case_id[:8], exc
+            )
+        return _offer_docs_or_remind(
+            case_id=case_id, max_user_id=max_user_id, intake=intake
+        )
+    if pl == "offer:docs":
         return _offer_docs_or_remind(
             case_id=case_id, max_user_id=max_user_id, intake=intake
         )
