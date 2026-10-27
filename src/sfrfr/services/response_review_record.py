@@ -93,7 +93,11 @@ def generate_and_store_ai_draft(
         text = _ocr_for_document(repo, case_id, str(review.get("document_id") or ""))
 
     if package_summary is None:
-        package_summary = _package_summary(repo, case_id)
+        package_summary = _package_summary(
+            repo,
+            case_id,
+            submission_report_id=str(review.get("submission_report_id") or "") or None,
+        )
     if prior_analysis is None:
         prior_analysis = _prior_analysis(case_id)
 
@@ -103,6 +107,7 @@ def generate_and_store_ai_draft(
         package_summary=package_summary,
         prior_analysis=prior_analysis,
         completeness=completeness,
+        respondent=str(review.get("respondent") or "sfr"),
     )
     draft = str(out.get("text") or "")
     updated = repo.update_response_review(
@@ -311,7 +316,12 @@ def _ocr_for_document(repo: CaseRepository, case_id: str, document_id: str) -> s
         return ""
 
 
-def _package_summary(repo: CaseRepository, case_id: str) -> str:
+def _package_summary(
+    repo: CaseRepository,
+    case_id: str,
+    *,
+    submission_report_id: str | None = None,
+) -> str:
     try:
         parts: list[str] = []
         draft = repo.get_pipeline_draft(case_id) or {}
@@ -322,8 +332,14 @@ def _package_summary(repo: CaseRepository, case_id: str) -> str:
         if body:
             parts.append(body[:1500])
         reports = repo.list_submission_reports(case_id) or []
-        if reports:
-            r0 = reports[0]
+        linked = None
+        if submission_report_id:
+            linked = next(
+                (r for r in reports if str(r.get("id")) == submission_report_id),
+                None,
+            )
+        r0 = linked or (reports[0] if reports else None)
+        if r0:
             bits = [
                 str(r0.get("submitted_what") or "").strip(),
                 str(r0.get("method") or "").strip(),
@@ -331,7 +347,8 @@ def _package_summary(repo: CaseRepository, case_id: str) -> str:
             ]
             line = " · ".join(b for b in bits if b)
             if line:
-                parts.append(f"Подача: {line}")
+                prefix = "Связанная подача" if linked else "Подача"
+                parts.append(f"{prefix}: {line}")
         return "\n".join(parts) if parts else "—"
     except Exception:  # noqa: BLE001
         return "—"

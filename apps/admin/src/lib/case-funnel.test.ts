@@ -781,6 +781,40 @@ test("stage11: handoff ≠ reviewed; reviews status drives response", () => {
   assert.equal(stage?.status, "done");
 });
 
+test("stage11: несколько reviews (СФР + архив) — ступень не blocked", () => {
+  const funnel = deriveFunnel({
+    ...stage78Base,
+    orders: [{ package_code: "ACCOMP", amount_rub: 5000, status: "paid" }],
+    documents: [
+      { id: "d-sfr", doc_type: "sfr_decision", filename: "otkaz.pdf" },
+      { id: "d-arch", doc_type: "agency_response", filename: "spravka-arhiv.pdf" },
+    ],
+    response_reviews: [
+      {
+        id: "r-arch",
+        status: "reviewing",
+        document_id: "d-arch",
+        respondent: "archive",
+      },
+      {
+        id: "r-sfr",
+        status: "received",
+        document_id: "d-sfr",
+        respondent: "sfr",
+      },
+    ],
+    audit: [
+      { action: "response_review_registered" },
+      { action: "follow_up_response_handoff" },
+      { action: "submission_confirmed" },
+      ...stage78Base.audit,
+    ],
+  });
+  assert.equal(funnel.facts.response, "reviewing");
+  const stage = funnel.funnel.stages.find((s) => s.id === "response_review");
+  assert.notEqual(stage?.status, "blocked");
+});
+
 test("stage9: receipt_verified ≠ путать с confirmed без report", () => {
   const funnel = deriveFunnel({
     ...stage78Base,

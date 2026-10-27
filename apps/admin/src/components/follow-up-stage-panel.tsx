@@ -85,7 +85,7 @@ export function FollowUpStagePanel({
   expertUserId,
   meUserId,
   events,
-  sfrDocumentIds,
+  sfrDocuments = [],
   onControl,
   onUploadSfr,
 }: {
@@ -100,10 +100,12 @@ export function FollowUpStagePanel({
   expertUserId: string | null | undefined;
   meUserId: string | null;
   events: FollowUpEventView[];
-  sfrDocumentIds: string[];
+  /** Входящие ответы (СФР / иное) — показываем имена, не UUID. */
+  sfrDocuments?: { id: string; label: string }[];
   onControl: (payload: FollowUpControlPayload) => void;
   onUploadSfr?: (file: File) => void;
 }) {
+  const sfrDocumentIds = sfrDocuments.map((d) => d.id);
   const uiState: FollowUpUiState = deriveFollowUpUiState({
     submissionConfirmed,
     followUpCompleted,
@@ -291,18 +293,18 @@ export function FollowUpStagePanel({
           </button>
 
           <label>
-            Документ ответа СФР (уже загруженный)
+            Входящий ответ (уже загруженный)
             <select
               value={handoffDocId}
-              disabled={busy || sfrDocumentIds.length === 0}
+              disabled={busy || sfrDocuments.length === 0}
               onChange={(e) => setHandoffDocId(e.target.value)}
             >
-              {sfrDocumentIds.length === 0 ? (
-                <option value="">Нет файлов sfr_decision / sfr_response</option>
+              {sfrDocuments.length === 0 ? (
+                <option value="">Нет файлов ответа</option>
               ) : (
-                sfrDocumentIds.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
+                sfrDocuments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
                   </option>
                 ))
               )}

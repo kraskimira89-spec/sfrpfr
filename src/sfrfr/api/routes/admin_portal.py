@@ -3193,15 +3193,12 @@ def extract_sfr_response_amounts(
         for x in (body.get("document_ids") or [])
         if str(x).strip()
     }
+    from sfrfr.services.response_review import is_incoming_response_doc
+
     docs = list(repo.list_documents(case_id) or [])
     sfr_docs = []
     for d in docs:
-        blob = f"{d.get('doc_type') or ''} {d.get('storage_path') or ''}".lower()
-        if not (
-            "sfr_decision" in blob
-            or "sfr_response" in blob
-            or "sfr_refusal" in blob
-        ):
+        if not is_incoming_response_doc(d):
             continue
         did = str(d.get("id") or "")
         if want_ids and did not in want_ids:

@@ -55,7 +55,7 @@ export const STAGE_TITLES = {
   appeals_documents: "Первичные обращения и передача клиенту",
   submission: "Подача и помощь специалиста",
   follow_up: "Контроль рассмотрения",
-  response_review: "Ответ СФР и дальнейшие действия",
+  response_review: "Входящие ответы и дальнейшие действия",
   escalation_package: "Обращения по запросам / отказам СФР",
   closure: "Итог и завершение дела",
 } as const satisfies Record<StageId, string>;
