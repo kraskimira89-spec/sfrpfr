@@ -1116,7 +1116,9 @@ export function AdminCabinet() {
   }
 
   /** Черновик резюме → DeepSeek дорабатывает по переписке; при сбое — шаблон без повторов. */
-  async function generateFullAnalysisDraft(): Promise<string | null> {
+  async function generateFullAnalysisDraft(opts?: {
+    signal?: AbortSignal;
+  }): Promise<string | null> {
     if (!token || !detail) return null;
     setBusy(true);
     try {
@@ -1129,6 +1131,7 @@ export function AdminCabinet() {
       }>(`/api/portal/admin/cases/${detail.id}/full-analysis/draft`, token, {
         method: "POST",
         body: "{}",
+        signal: opts?.signal,
       });
       const text = String(out.text || "").trim();
       if (!text) {
@@ -1162,6 +1165,10 @@ export function AdminCabinet() {
       );
       return text;
     } catch (error) {
+      if (opts?.signal?.aborted) {
+        // Панель сама покажет таймаут / сверку с сервером — не дублируем notice.
+        throw error;
+      }
       setNotice(error instanceof Error ? error.message : "Не удалось сгенерировать разбор.");
       return null;
     } finally {
@@ -2420,7 +2427,7 @@ export function AdminCabinet() {
             onSuggestStep={() => void suggestStep(detail.id)}
             onApplyChatMessage={applyStepMessageToChat}
             onPolishBriefDraft={(draft) => void polishBriefDraft(draft)}
-            onGenerateFullAnalysisDraft={() => generateFullAnalysisDraft()}
+            onGenerateFullAnalysisDraft={(opts) => generateFullAnalysisDraft(opts)}
             onRecordFactsReview={(outcome) => void recordFactsReview(outcome)}
             onDeleteDocuments={(ids, label) => void deleteDocuments(ids, label)}
             onDeleteAppealDraft={() => void deleteAppealDraft()}
