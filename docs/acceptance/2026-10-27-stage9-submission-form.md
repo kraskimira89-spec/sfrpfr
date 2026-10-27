@@ -13,7 +13,7 @@
 | 4 | Help ≠ подача | kind help_requested |
 | 5 | Автор, время, source, package_version в report | serialize |
 | 6 | Staff source = Со слов клиента | validate |
-| 7 | Live browser клиент→сотрудник→ступень 10 | после deploy |
+| 7 | Live: staff form + idempotent replay; client POST `client_self` | **PASS** на `1579e69f-…` после #356 deploy |
 
 ## Handoff ступени 10
 
