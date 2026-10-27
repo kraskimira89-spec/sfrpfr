@@ -11,14 +11,14 @@
 | 6 | Согласие на обращения ≠ согласование разбора | **PASS** | UI «Согласен» → notice + audit `appeals_consent_accepted` `12:03:03Z`; этап 5 без `full_analysis_approved`, статус разбора не менялся |
 | 7a | Счёт 5 000 после согласия | **PASS** | UI создал pending + `invoice_sent`; API create 201 |
 | 7b | Повторный счёт в UI | **PASS** (disabled при открытом счёте) | кнопка disabled в коде #349 |
-| 7c | Повторный счёт API | **FAIL → FIX** | на live оба POST дали 201 (два pending). Гейт `has_open_or_paid_docs_order` добавлен |
-| 7d | Paid → ступень done | **unit PASS** | live: оставлен 1× pending (боевую оплату не гоняли) |
+| 7c | Повторный счёт API | **PASS** после #350/#352 | см. `2026-10-27-stage7-duplicate-invoice-live.md`: sequential 400, race 1×201+1×400, paid → 400 |
+| 7d | Paid → ступень done | **unit PASS** | live-оплату не гоняли; paid-refuse на тестовом `paid` — PASS |
 | 8 | «Пакет готов» ≠ «Передан клиенту» | **PASS** | audit `appeals_package_ready` `12:04:22Z` и `appeals_package_delivered` `12:04:23Z`, один `actor_id` staff |
 | 9 | Передача ≠ подача | **PASS** | `hasSubmissionConfirm=false`; pipeline/b2c не стали submission |
 
 ## Уборка тестовых дублей
 
-Отменены лишние ACCOMP 5000 (`duplicate`); оставлен один pending для наблюдения ступени 7.
+Все тестовые ACCOMP 5000 по делу отменены (`cancelled` / `duplicate`); открытых pending нет. История строк сохранена.
 
 ## Вне прогона
 
